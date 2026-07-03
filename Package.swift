@@ -1,27 +1,33 @@
-// swift-tools-version: 6.3
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
+// swift-tools-version: 5.10
 import PackageDescription
 
 let package = Package(
     name: "FTX1Core",
+    platforms: [
+        .macOS(.v14),
+        .iOS(.v17)
+    ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
+        // The shared logic layer consumed by both the Mac (server/hub) app
+        // and the iOS/iPadOS (client) apps.
         .library(
             name: "FTX1Core",
             targets: ["FTX1Core"]
         ),
     ],
+    dependencies: [
+        // No external deps yet. If a WebSocket client/server abstraction
+        // beyond URLSessionWebSocketTask is needed later (e.g. for the Mac
+        // server side), consider swift-nio-based options here.
+    ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "FTX1Core"
+            name: "FTX1Core",
+            dependencies: []
         ),
         .testTarget(
             name: "FTX1CoreTests",
             dependencies: ["FTX1Core"]
         ),
-    ],
-    swiftLanguageModes: [.v6]
+    ]
 )
