@@ -37,5 +37,13 @@ let package = Package(
             dependencies: ["FTX1Core"],
             path: "Apps/Mac/FTX1RemoteMac"
         ),
+        // iPhone client app. Same SwiftUI-as-executable convention as
+        // FTX1RemoteMac, no separate .xcodeproj. iOS-only (UIKit app
+        // lifecycle), so it's only ever built for iOS destinations.
+        .executableTarget(
+            name: "FTX1RemoteiOS",
+            dependencies: ["FTX1Core"],
+            path: "Apps/iOS/FTX1RemoteiOS"
+        ),
     ]
 )

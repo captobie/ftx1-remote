@@ -28,6 +28,10 @@ public actor RigWebSocketClient {
         self.session = session
     }
 
+    public func setOnStateUpdate(_ handler: @escaping @Sendable (RigState) -> Void) {
+        onStateUpdate = handler
+    }
+
     public func connect() {
         state = .connecting
         let task = session.webSocketTask(with: url)

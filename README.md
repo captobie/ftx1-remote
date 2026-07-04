@@ -10,7 +10,10 @@ Shared Swift package for the FTX-1 remote control app (Mac hub + iOS/iPadOS clie
   `NWListener`/`NWProtocolWebSocket`, since `URLSessionWebSocketTask` is
   client-only) that broadcasts state and accepts commands.
 - **Mobile apps never talk to rigctld directly.** iOS/iPadOS use
-  `RigWebSocketClient` to connect to `<mac-tailscale-hostname>:PORT`.
+  `RigWebSocketClient` to connect to `<mac-tailscale-hostname>:PORT`. The
+  iPhone app (`Apps/iOS/FTX1RemoteiOS`) is a focused single-rig-control
+  view — no attempt to mirror the Mac's dense layout. iPad target strategy
+  (separate target vs. shared iOS target with size classes) is still open.
 - **State sync is push-based.** The Mac broadcasts a `RigStatePush` whenever
   rigctld reports a change; clients don't poll.
 - **Commands are serialized** through `CommandQueue` on the Mac side, since
