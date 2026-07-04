@@ -37,8 +37,8 @@ Sources/FTX1Core/
 - Real `NWConnection` state-handling (`connect()` in `RigctldClient` has a
   TODO for waiting on `.ready` with a timeout).
 
-## Open design question
+## Mac UI scope (resolved)
 
-Does the Mac app need a full local UI (mirroring the current
-`rigctld_control.py` GUI) or just a menu bar status item, with all real
-control happening from mobile? Affects near-term Mac UI scope.
+The Mac app has a single dense multi-pane window (VFO, meters, band/mode
+selectors all visible at once) — no menu bar extra. Real control happens
+in that window as well as from mobile; the Mac isn't monitor-only.

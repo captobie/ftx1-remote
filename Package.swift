@@ -29,5 +29,13 @@ let package = Package(
             name: "FTX1CoreTests",
             dependencies: ["FTX1Core"]
         ),
+        // Mac hub app. SwiftUI-as-executable, run/debugged directly from
+        // Xcode via this package — no separate .xcodeproj. macOS-only
+        // (AppKit), so it's only ever built for the macOS destination.
+        .executableTarget(
+            name: "FTX1RemoteMac",
+            dependencies: ["FTX1Core"],
+            path: "Apps/Mac/FTX1RemoteMac"
+        ),
     ]
 )
