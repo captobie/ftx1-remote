@@ -24,30 +24,54 @@ public actor RigctldClient {
         readBuffer.removeAll()
 
         let readyGuard = ContinuationGuard()
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask {
-                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                    conn.stateUpdateHandler = { state in
-                        switch state {
-                        case .ready:
-                            readyGuard.resumeOnce(continuation, with: .success(()))
-                        case .failed(let error):
-                            readyGuard.resumeOnce(continuation, with: .failure(error))
-                        case .cancelled:
-                            readyGuard.resumeOnce(continuation, with: .failure(RigctldError.notConnected))
-                        default:
-                            break
+        // Without the cancellation handler, cancelling the calling Task
+        // (e.g. the user switching rigctld off mid-attempt) wouldn't abort
+        // this connection attempt — it'd sit here until `timeout` elapses
+        // regardless, since the stateUpdateHandler continuation below
+        // doesn't check for cancellation on its own.
+        try await withTaskCancellationHandler {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                        conn.stateUpdateHandler = { state in
+                            switch state {
+                            case .ready:
+                                readyGuard.resumeOnce(continuation, with: .success(()))
+                            case .failed(let error):
+                                readyGuard.resumeOnce(continuation, with: .failure(error))
+                            case .cancelled:
+                                readyGuard.resumeOnce(continuation, with: .failure(RigctldError.notConnected))
+                            default:
+                                break
+                            }
                         }
+                        conn.start(queue: .global(qos: .userInitiated))
                     }
-                    conn.start(queue: .global(qos: .userInitiated))
+                }
+                group.addTask {
+                    try await Task.sleep(for: timeout)
+                    throw RigctldError.connectTimedOut
+                }
+                do {
+                    try await group.next()
+                    group.cancelAll()
+                } catch {
+                    // Whichever branch threw, explicitly cancel the
+                    // connection so the *other* (losing) branch's
+                    // stateUpdateHandler fires `.cancelled` and its
+                    // continuation actually resumes — group.cancelAll()
+                    // alone only marks it cancelled, it doesn't force a
+                    // continuation waiting on an NWConnection callback to
+                    // resume, which would otherwise hang this whole call
+                    // forever (structured concurrency won't let this
+                    // closure return until every child task finishes).
+                    conn.cancel()
+                    group.cancelAll()
+                    throw error
                 }
             }
-            group.addTask {
-                try await Task.sleep(for: timeout)
-                throw RigctldError.connectTimedOut
-            }
-            try await group.next()
-            group.cancelAll()
+        } onCancel: {
+            conn.cancel()
         }
     }
 
@@ -98,6 +122,27 @@ public actor RigctldClient {
     public func getLevel(_ name: String) async throws -> Double? {
         let line = try await send("l \(name)")
         return Double(line)
+    }
+
+    /// Reads the frequency of whichever VFO isn't currently active — there's
+    /// no way to query it without switching the rig to it, so this switches,
+    /// reads, and switches back, restoring the original VFO even if the read
+    /// itself fails. Callers should poll this far less often than the main
+    /// state (`getFrequency`, etc.), since it briefly flips the rig's actual
+    /// active VFO twice per call.
+    public func getSecondaryFrequency() async throws -> Int {
+        let currentVFO = try await send("v")
+        let otherVFO = currentVFO == "VFOB" ? "VFOA" : "VFOB"
+        _ = try await send("V \(otherVFO)")
+        do {
+            let freqLine = try await send("f")
+            _ = try await send("V \(currentVFO)")
+            guard let hz = Int(freqLine) else { throw RigctldError.badResponse }
+            return hz
+        } catch {
+            _ = try? await send("V \(currentVFO)")
+            throw error
+        }
     }
 
     private func write(_ command: String) async throws {

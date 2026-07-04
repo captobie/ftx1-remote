@@ -60,6 +60,8 @@ public actor CommandQueue {
             // maps to a frequency jump to the band's default segment.
             // Placeholder until the Mac app defines a band->frequency table.
             _ = try await rigctld.send("# set_band \(band)")
+        case .setPowerLevel(let level):
+            _ = try await rigctld.send("L RFPOWER \(String(format: "%.3f", level))")
         }
     }
 }

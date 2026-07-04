@@ -11,6 +11,8 @@ public enum RigCommand: Sendable, Equatable {
     case setMode(RigMode)
     case setPTT(Bool)
     case setBand(String)
+    /// 0.0–1.0, relative RFPOWER setting (not watts) — see `RigState.powerLevel`.
+    case setPowerLevel(Double)
 
     private enum CodingKeys: String, CodingKey {
         case cmd
@@ -22,6 +24,7 @@ public enum RigCommand: Sendable, Equatable {
         case setMode = "set_mode"
         case ptt
         case setBand = "set_band"
+        case setPower = "set_power"
     }
 }
 
@@ -38,6 +41,8 @@ extension RigCommand: Codable {
             self = .setPTT(try container.decode(Bool.self, forKey: .value))
         case .setBand:
             self = .setBand(try container.decode(String.self, forKey: .value))
+        case .setPower:
+            self = .setPowerLevel(try container.decode(Double.self, forKey: .value))
         }
     }
 
@@ -56,6 +61,9 @@ extension RigCommand: Codable {
         case .setBand(let band):
             try container.encode(CommandName.setBand, forKey: .cmd)
             try container.encode(band, forKey: .value)
+        case .setPowerLevel(let level):
+            try container.encode(CommandName.setPower, forKey: .cmd)
+            try container.encode(level, forKey: .value)
         }
     }
 }

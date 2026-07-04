@@ -6,7 +6,16 @@ import Foundation
 /// (rigctld has no server-push of its own — this is the only way to notice
 /// e.g. a PTT toggled from the radio's own front panel). Also owns the
 /// `RigWebSocketServer` that re-broadcasts this state to mobile clients and
-/// forwards their commands into the same `CommandQueue`.
+/// forwards their commands into the same `CommandQueue`, and the
+/// `RigctldProcessController` that actually starts/stops the `rigctld`
+/// daemon itself.
+///
+/// Two independent lifecycles live here:
+///  - The WebSocket server (`start()`/`stop()`) runs for as long as the app
+///    does, regardless of window state — mobile clients shouldn't lose
+///    their connection just because the rig link is toggled off.
+///  - The rigctld process + polling loop (`startRigctld()`/`stopRigctld()`)
+///    is what the on/off switch controls.
 @MainActor
 final class HubService: ObservableObject {
     enum ConnectionState: Equatable {
@@ -18,15 +27,24 @@ final class HubService: ObservableObject {
 
     @Published private(set) var rigState = RigState()
     @Published private(set) var connectionState: ConnectionState = .disconnected
+    @Published private(set) var rigctldProcessState: RigctldProcessController.State = .stopped
 
     private let rigctld: RigctldClient
     private let commandQueue: CommandQueue
     private let server: RigWebSocketServer
+    private let rigctldProcess = RigctldProcessController()
     private let webSocketPort: UInt16
+    private let rigctldHost: String
+    private let rigctldPort: UInt16
     private var runLoopTask: Task<Void, Never>?
 
     private let pollInterval: Duration
     private let reconnectDelay: Duration
+    /// How many main poll ticks between secondary-VFO reads. Querying it
+    /// requires briefly switching the rig's active VFO twice (see
+    /// `RigctldClient.getSecondaryFrequency()`), so it runs far slower than
+    /// the main 500ms poll rather than on every tick.
+    private let secondaryPollEveryNTicks = 10
 
     init(
         rigctldHost: String = "127.0.0.1",
@@ -40,13 +58,20 @@ final class HubService: ObservableObject {
         self.commandQueue = CommandQueue(rigctld: client)
         self.server = RigWebSocketServer()
         self.webSocketPort = webSocketPort
+        self.rigctldHost = rigctldHost
+        self.rigctldPort = rigctldPort
         self.pollInterval = pollInterval
         self.reconnectDelay = reconnectDelay
+
+        rigctldProcess.onStateChange = { [weak self] state in
+            self?.rigctldProcessState = state
+        }
     }
 
+    /// App-launch lifecycle: starts the WebSocket server. Independent of
+    /// the rigctld link — mobile/local clients can connect immediately and
+    /// see "rig offline" rather than being unable to reach the Mac at all.
     func start() {
-        guard runLoopTask == nil else { return }
-
         Task { [weak self, commandQueue] in
             await commandQueue.setOnCommandApplied { _ in
                 Task { @MainActor in try? await self?.refreshState() }
@@ -59,20 +84,55 @@ final class HubService: ObservableObject {
                 Task { @MainActor in self?.send(command) }
             }
         }
-
-        runLoopTask = Task { await runConnectionLoop() }
     }
 
+    /// App-termination lifecycle: stops the WebSocket server and ensures
+    /// rigctld isn't left running as an orphaned child process.
     func stop() {
-        runLoopTask?.cancel()
-        runLoopTask = nil
-        connectionState = .disconnected
-        Task { await rigctld.disconnect() }
+        stopRigctld()
         Task { [server] in await server.stop() }
+    }
+
+    /// What the on/off switch calls: launches rigctld (clearing out any
+    /// stale rigctld left over from a previous run first — see
+    /// `RigctldProcessController`), then starts the polling loop. The
+    /// loop's existing retry-every-`reconnectDelay` behavior already
+    /// tolerates rigctld taking a moment to bind its port after being
+    /// spawned, so no extra readiness check is needed here.
+    func startRigctld() {
+        let config = RigctldProcessController.Configuration(
+            binaryPath: RigctldSettings.binaryPath,
+            modelNumber: RigctldSettings.modelNumber,
+            devicePath: RigctldSettings.devicePath,
+            baudRate: RigctldSettings.baudRate,
+            host: rigctldHost,
+            port: rigctldPort
+        )
+        Task { [weak self, rigctldProcess] in
+            await rigctldProcess.start(with: config)
+            self?.connectRigctld()
+        }
+    }
+
+    func stopRigctld() {
+        disconnectRigctld()
+        rigctldProcess.stop()
     }
 
     func send(_ command: RigCommand) {
         Task { await commandQueue.enqueue(command) }
+    }
+
+    private func connectRigctld() {
+        guard runLoopTask == nil else { return }
+        runLoopTask = Task { await runConnectionLoop() }
+    }
+
+    private func disconnectRigctld() {
+        runLoopTask?.cancel()
+        runLoopTask = nil
+        connectionState = .disconnected
+        Task { await rigctld.disconnect() }
     }
 
     private func runConnectionLoop() async {
@@ -83,7 +143,13 @@ final class HubService: ObservableObject {
                 connectionState = .connected
                 try await pollLoop()
             } catch {
-                connectionState = .failed(error.localizedDescription)
+                // A cancelled attempt (e.g. the user switched rigctld off
+                // mid-connect) still throws here even with the cancellation
+                // handler in RigctldClient.connect() — don't let its error
+                // clobber the .disconnected state disconnectRigctld() already set.
+                if !Task.isCancelled {
+                    connectionState = .failed(error.localizedDescription)
+                }
             }
             guard !Task.isCancelled else { return }
             try? await Task.sleep(for: reconnectDelay)
@@ -91,8 +157,13 @@ final class HubService: ObservableObject {
     }
 
     private func pollLoop() async throws {
+        var tick = 0
         while !Task.isCancelled {
             try await refreshState()
+            if tick % secondaryPollEveryNTicks == 0 {
+                await refreshSecondaryFrequency()
+            }
+            tick += 1
             try await Task.sleep(for: pollInterval)
         }
     }
@@ -103,6 +174,7 @@ final class HubService: ObservableObject {
         let ptt = try await rigctld.getPTT()
         let swr = try await rigctld.getLevel("SWR")
         let powerWatts = try await rigctld.getLevel("RFPOWER_METER_WATTS")
+        let powerLevel = try await rigctld.getLevel("RFPOWER")
 
         rigState = RigState(
             frequencyHz: frequencyHz,
@@ -111,8 +183,18 @@ final class HubService: ObservableObject {
             powerWatts: powerWatts,
             swr: swr,
             ptt: ptt,
-            lastUpdated: Date()
+            lastUpdated: Date(),
+            secondaryFrequencyHz: rigState.secondaryFrequencyHz,
+            powerLevel: powerLevel
         )
+        await server.broadcast(rigState)
+    }
+
+    /// Best-effort: a VFO-B query failure (unsupported backend, transient
+    /// error) shouldn't take down the main poll loop.
+    private func refreshSecondaryFrequency() async {
+        guard let secondaryHz = try? await rigctld.getSecondaryFrequency() else { return }
+        rigState.secondaryFrequencyHz = secondaryHz
         await server.broadcast(rigState)
     }
 }
