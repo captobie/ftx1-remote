@@ -5,9 +5,10 @@ Shared Swift package for the FTX-1 remote control app (Mac hub + iOS/iPadOS clie
 ## Architecture
 
 - **Mac app is the hub.** It owns the `RigctldClient` connection to rigctld
-  (hamlib) on `localhost:4532`, holds live rig state, and runs a WebSocket
-  server (not yet in this package — Mac-only, via `Network.framework`
-  `NWListener`) that broadcasts state and accepts commands.
+  (hamlib) on `localhost:4532`, holds live rig state, and runs
+  `RigWebSocketServer` (Mac-only, in the app target — via `Network.framework`
+  `NWListener`/`NWProtocolWebSocket`, since `URLSessionWebSocketTask` is
+  client-only) that broadcasts state and accepts commands.
 - **Mobile apps never talk to rigctld directly.** iOS/iPadOS use
   `RigWebSocketClient` to connect to `<mac-tailscale-hostname>:PORT`.
 - **State sync is push-based.** The Mac broadcasts a `RigStatePush` whenever
@@ -28,10 +29,6 @@ Sources/FTX1Core/
 
 ## Not yet built
 
-- The Mac-side WebSocket **server** (this package only has the client side —
-  `URLSessionWebSocketTask` is client-only; the server needs `NWListener`
-  and will likely live in the Mac app target rather than this shared
-  package, since it's Mac-only).
 - Full state diffing / reconnect-and-resync logic for `RigWebSocketClient`.
 - Band → frequency table for `CommandQueue.setBand`.
 - Real `NWConnection` state-handling (`connect()` in `RigctldClient` has a

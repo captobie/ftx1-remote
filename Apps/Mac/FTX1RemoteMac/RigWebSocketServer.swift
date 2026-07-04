@@ -1,0 +1,146 @@
+import FTX1Core
+import Foundation
+import Network
+
+/// Mac-only WebSocket server. iOS/iPadOS clients (and the Mac's own local
+/// UI, once it goes through `RigWebSocketClient` too) connect here to
+/// receive `RigStatePush` updates and send `RigCommand`s.
+///
+/// Built on `NWListener` + `NWProtocolWebSocket` rather than a hand-rolled
+/// WebSocket implementation, since `URLSessionWebSocketTask` (used by
+/// `RigWebSocketClient`) is client-only — see repo README/CLAUDE.md.
+actor RigWebSocketServer {
+    private var listener: NWListener?
+    private var connections: [ObjectIdentifier: Connection] = [:]
+    private var latestState: RigState?
+    private var onCommandReceived: (@Sendable (RigCommand) -> Void)?
+
+    func start(port: UInt16, onCommand: @escaping @Sendable (RigCommand) -> Void) throws {
+        guard listener == nil else { return }
+        onCommandReceived = onCommand
+
+        let webSocketOptions = NWProtocolWebSocket.Options()
+        webSocketOptions.autoReplyPing = true
+
+        let parameters = NWParameters.tcp
+        parameters.defaultProtocolStack.applicationProtocols.insert(webSocketOptions, at: 0)
+
+        guard let endpointPort = NWEndpoint.Port(rawValue: port) else {
+            throw RigWebSocketServerError.invalidPort
+        }
+
+        let listener = try NWListener(using: parameters, on: endpointPort)
+        listener.newConnectionHandler = { [weak self] connection in
+            Task { await self?.accept(connection) }
+        }
+        listener.start(queue: .global(qos: .userInitiated))
+        self.listener = listener
+    }
+
+    func stop() {
+        listener?.cancel()
+        listener = nil
+        for connection in connections.values {
+            connection.close()
+        }
+        connections.removeAll()
+        latestState = nil
+        onCommandReceived = nil
+    }
+
+    /// Sends the given state to every connected client, and remembers it so
+    /// clients that connect afterwards get an immediate snapshot instead of
+    /// waiting for the next poll tick.
+    func broadcast(_ state: RigState) {
+        latestState = state
+        guard let data = try? JSONEncoder().encode(RigStatePush(state: state)) else { return }
+        for connection in connections.values {
+            connection.send(data)
+        }
+    }
+
+    private func accept(_ connection: NWConnection) {
+        let client = Connection(
+            connection: connection,
+            onCommand: { [weak self] command in
+                Task { await self?.onCommandReceived?(command) }
+            },
+            onClose: { [weak self] id in
+                Task { await self?.remove(id) }
+            }
+        )
+        connections[client.id] = client
+        client.start()
+
+        if let latestState, let data = try? JSONEncoder().encode(RigStatePush(state: latestState)) {
+            client.send(data)
+        }
+    }
+
+    private func remove(_ id: ObjectIdentifier) {
+        connections.removeValue(forKey: id)
+    }
+}
+
+enum RigWebSocketServerError: Error {
+    case invalidPort
+}
+
+/// Wraps one accepted `NWConnection`, doing the WebSocket message send/
+/// receive loop and JSON encode/decode against the shared wire types.
+private final class Connection {
+    let id: ObjectIdentifier
+
+    private let connection: NWConnection
+    private let onCommand: (RigCommand) -> Void
+    private let onClose: (ObjectIdentifier) -> Void
+
+    init(
+        connection: NWConnection,
+        onCommand: @escaping (RigCommand) -> Void,
+        onClose: @escaping (ObjectIdentifier) -> Void
+    ) {
+        self.connection = connection
+        self.id = ObjectIdentifier(connection)
+        self.onCommand = onCommand
+        self.onClose = onClose
+    }
+
+    func start() {
+        connection.stateUpdateHandler = { [weak self] state in
+            guard let self else { return }
+            switch state {
+            case .failed, .cancelled:
+                self.onClose(self.id)
+            default:
+                break
+            }
+        }
+        connection.start(queue: .global(qos: .userInitiated))
+        receiveLoop()
+    }
+
+    func send(_ data: Data) {
+        let metadata = NWProtocolWebSocket.Metadata(opcode: .binary)
+        let context = NWConnection.ContentContext(identifier: "state", metadata: [metadata])
+        connection.send(content: data, contentContext: context, isComplete: true, completion: .contentProcessed { _ in })
+    }
+
+    func close() {
+        connection.cancel()
+    }
+
+    private func receiveLoop() {
+        connection.receiveMessage { [weak self] data, _, _, error in
+            guard let self else { return }
+            guard error == nil else {
+                self.onClose(self.id)
+                return
+            }
+            if let data, let command = try? JSONDecoder().decode(RigCommand.self, from: data) {
+                self.onCommand(command)
+            }
+            self.receiveLoop()
+        }
+    }
+}

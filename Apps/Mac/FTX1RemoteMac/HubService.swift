@@ -4,9 +4,9 @@ import Foundation
 /// The Mac hub: owns the `RigctldClient` connection and the `CommandQueue`
 /// that serializes commands into it, and polls rigctld for state changes
 /// (rigctld has no server-push of its own — this is the only way to notice
-/// e.g. a PTT toggled from the radio's own front panel). The WebSocket
-/// server that re-broadcasts this state to mobile clients doesn't exist
-/// yet; that's the next seam to attach here.
+/// e.g. a PTT toggled from the radio's own front panel). Also owns the
+/// `RigWebSocketServer` that re-broadcasts this state to mobile clients and
+/// forwards their commands into the same `CommandQueue`.
 @MainActor
 final class HubService: ObservableObject {
     enum ConnectionState: Equatable {
@@ -21,6 +21,8 @@ final class HubService: ObservableObject {
 
     private let rigctld: RigctldClient
     private let commandQueue: CommandQueue
+    private let server: RigWebSocketServer
+    private let webSocketPort: UInt16
     private var runLoopTask: Task<Void, Never>?
 
     private let pollInterval: Duration
@@ -29,18 +31,35 @@ final class HubService: ObservableObject {
     init(
         rigctldHost: String = "127.0.0.1",
         rigctldPort: UInt16 = 4532,
+        webSocketPort: UInt16 = 8765,
         pollInterval: Duration = .milliseconds(500),
         reconnectDelay: Duration = .seconds(3)
     ) {
         let client = RigctldClient(host: rigctldHost, port: rigctldPort)
         self.rigctld = client
         self.commandQueue = CommandQueue(rigctld: client)
+        self.server = RigWebSocketServer()
+        self.webSocketPort = webSocketPort
         self.pollInterval = pollInterval
         self.reconnectDelay = reconnectDelay
     }
 
     func start() {
         guard runLoopTask == nil else { return }
+
+        Task { [weak self, commandQueue] in
+            await commandQueue.setOnCommandApplied { _ in
+                Task { @MainActor in try? await self?.refreshState() }
+            }
+        }
+
+        let port = webSocketPort
+        Task { [weak self, server] in
+            try? await server.start(port: port) { command in
+                Task { @MainActor in self?.send(command) }
+            }
+        }
+
         runLoopTask = Task { await runConnectionLoop() }
     }
 
@@ -49,6 +68,7 @@ final class HubService: ObservableObject {
         runLoopTask = nil
         connectionState = .disconnected
         Task { await rigctld.disconnect() }
+        Task { [server] in await server.stop() }
     }
 
     func send(_ command: RigCommand) {
@@ -93,5 +113,6 @@ final class HubService: ObservableObject {
             ptt: ptt,
             lastUpdated: Date()
         )
+        await server.broadcast(rigState)
     }
 }

@@ -21,6 +21,10 @@ public actor CommandQueue {
         self.rigctld = rigctld
     }
 
+    public func setOnCommandApplied(_ handler: @escaping @Sendable (RigCommand) -> Void) {
+        onCommandApplied = handler
+    }
+
     public func enqueue(_ command: RigCommand) {
         pending.append(command)
         if !isProcessing {
