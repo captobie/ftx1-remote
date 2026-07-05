@@ -55,7 +55,15 @@ final class RigctldProcessController {
             // startup log) when no listen address is given, which doesn't
             // necessarily accept the IPv4 127.0.0.1 connections
             // RigctldClient makes — pin it explicitly so both sides agree.
-            "-T", config.host
+            "-T", config.host,
+            // Without -o, get/set commands silently default to "current
+            // VFO" and ignore any VFO argument passed alongside them —
+            // discovered when a targeted secondary-VFO frequency read
+            // came back identical to the primary VFO's. With -o, every
+            // command requires an explicit VFO argument (RigctldClient
+            // passes "currVFO" for the main state, and "Main"/"Sub" for
+            // the secondary-VFO read), and targeted reads actually work.
+            "-o"
         ]
         proc.terminationHandler = { [weak self] terminatedProcess in
             Task { @MainActor in

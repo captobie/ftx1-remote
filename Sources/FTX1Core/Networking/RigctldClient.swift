@@ -96,14 +96,22 @@ public actor RigctldClient {
         return result
     }
 
+    /// rigctld is launched with `-o` (see `RigctldProcessController`), which
+    /// makes every get/set command require an explicit VFO argument rather
+    /// than silently defaulting to (and, if given an argument anyway,
+    /// ignoring it in favor of) the currently active VFO. "currVFO" is
+    /// rigctld's own keyword for "whichever VFO is active" — passing it
+    /// keeps these calls' behavior the same as before -o was added.
+    private static let currentVFOArg = "currVFO"
+
     public func getFrequency() async throws -> Int {
-        let line = try await send("f")
+        let line = try await send("f \(Self.currentVFOArg)")
         guard let hz = Int(line) else { throw RigctldError.badResponse }
         return hz
     }
 
     public func getMode() async throws -> (mode: String, passband: Int) {
-        let lines = try await query("m", lines: 2)
+        let lines = try await query("m \(Self.currentVFOArg)", lines: 2)
         guard lines.count == 2, let passband = Int(lines[1]) else {
             throw RigctldError.badResponse
         }
@@ -111,7 +119,7 @@ public actor RigctldClient {
     }
 
     public func getPTT() async throws -> Bool {
-        let line = try await send("t")
+        let line = try await send("t \(Self.currentVFOArg)")
         return line == "1"
     }
 
@@ -120,29 +128,34 @@ public actor RigctldClient {
     /// requested level — rigctld reports that as an "RPRT -N" line, which
     /// isn't parseable as a number.
     public func getLevel(_ name: String) async throws -> Double? {
-        let line = try await send("l \(name)")
+        let line = try await send("l \(Self.currentVFOArg) \(name)")
         return Double(line)
     }
 
-    /// Reads the frequency of whichever VFO isn't currently active — there's
-    /// no way to query it without switching the rig to it, so this switches,
-    /// reads, and switches back, restoring the original VFO even if the read
-    /// itself fails. Callers should poll this far less often than the main
-    /// state (`getFrequency`, etc.), since it briefly flips the rig's actual
-    /// active VFO twice per call.
+    /// Reads the frequency of whichever VFO isn't currently active, without
+    /// switching the rig to it. Two things were tried and rejected before
+    /// this:
+    ///  - Physically switching VFOs to read the other one (`V`/`v`) audibly
+    ///    clicks a relay on the real rig every ~5s while polling.
+    ///  - The extended `\get_freq <VFO>` command *looks* like a targeted
+    ///    read but silently ignores the VFO argument and just returns the
+    ///    active VFO's frequency unless rigctld is running with `-o` — this
+    ///    was the cause of the primary/secondary frequency display showing
+    ///    identical values.
+    /// With `-o` enabled, the plain short-form `f <VFO>` reliably targets
+    /// the requested VFO without switching the rig to it (verified against
+    /// real hardware: consistent, distinct values across repeated calls,
+    /// `v` unchanged before/after).
+    ///
+    /// This rig reports its VFOs as "Main"/"Sub" (not the generic
+    /// "VFOA"/"VFOB" hamlib aliases some other rigs use), confirmed via `v`
+    /// and `\get_vfo_list`.
     public func getSecondaryFrequency() async throws -> Int {
         let currentVFO = try await send("v")
-        let otherVFO = currentVFO == "VFOB" ? "VFOA" : "VFOB"
-        _ = try await send("V \(otherVFO)")
-        do {
-            let freqLine = try await send("f")
-            _ = try await send("V \(currentVFO)")
-            guard let hz = Int(freqLine) else { throw RigctldError.badResponse }
-            return hz
-        } catch {
-            _ = try? await send("V \(currentVFO)")
-            throw error
-        }
+        let otherVFO = currentVFO == "Sub" ? "Main" : "Sub"
+        let freqLine = try await send("f \(otherVFO)")
+        guard let hz = Int(freqLine) else { throw RigctldError.badResponse }
+        return hz
     }
 
     private func write(_ command: String) async throws {

@@ -47,21 +47,27 @@ public actor CommandQueue {
         isProcessing = false
     }
 
+    /// rigctld runs with `-o` (see `RigctldProcessController`), which
+    /// requires every set command to name an explicit VFO rather than
+    /// defaulting to the active one — "currVFO" is rigctld's keyword for
+    /// that default, kept here to match `RigctldClient`'s get-side calls.
+    private static let currentVFOArg = "currVFO"
+
     private func apply(_ command: RigCommand) async throws {
         switch command {
         case .setFrequency(let hz):
-            _ = try await rigctld.send("F \(hz)")
+            _ = try await rigctld.send("F \(Self.currentVFOArg) \(hz)")
         case .setMode(let mode):
-            _ = try await rigctld.send("M \(mode.rawValue) 0")
+            _ = try await rigctld.send("M \(Self.currentVFOArg) \(mode.rawValue) 0")
         case .setPTT(let on):
-            _ = try await rigctld.send("T \(on ? 1 : 0)")
+            _ = try await rigctld.send("T \(Self.currentVFOArg) \(on ? 1 : 0)")
         case .setBand(let band):
             // rigctld doesn't have a direct "set band" verb — this typically
             // maps to a frequency jump to the band's default segment.
             // Placeholder until the Mac app defines a band->frequency table.
             _ = try await rigctld.send("# set_band \(band)")
         case .setPowerLevel(let level):
-            _ = try await rigctld.send("L RFPOWER \(String(format: "%.3f", level))")
+            _ = try await rigctld.send("L \(Self.currentVFOArg) RFPOWER \(String(format: "%.3f", level))")
         }
     }
 }

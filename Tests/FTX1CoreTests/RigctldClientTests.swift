@@ -11,26 +11,29 @@ final class RigctldClientTests: XCTestCase {
         let client = RigctldClient(host: "127.0.0.1", port: server.port)
         try await client.connect()
 
-        server.respond(to: "f", with: ["14074000"])
+        // rigctld runs with -o in the real app (see RigctldProcessController),
+        // which requires every command to carry an explicit VFO argument —
+        // "currVFO" is what RigctldClient sends for the active-VFO calls.
+        server.respond(to: "f currVFO", with: ["14074000"])
         let frequency = try await client.getFrequency()
         XCTAssertEqual(frequency, 14_074_000)
 
-        server.respond(to: "m", with: ["USB", "2400"])
+        server.respond(to: "m currVFO", with: ["USB", "2400"])
         let mode = try await client.getMode()
         XCTAssertEqual(mode.mode, "USB")
         XCTAssertEqual(mode.passband, 2400)
 
-        server.respond(to: "t", with: ["1"])
+        server.respond(to: "t currVFO", with: ["1"])
         let ptt = try await client.getPTT()
         XCTAssertTrue(ptt)
 
-        server.respond(to: "l SWR", with: ["1.20"])
+        server.respond(to: "l currVFO SWR", with: ["1.20"])
         let swr = try await client.getLevel("SWR")
         XCTAssertEqual(swr, 1.20)
 
         // Unsupported level: rigctld replies with an RPRT error line, not
         // a number — getLevel should return nil rather than throw.
-        server.respond(to: "l RFPOWER_METER_WATTS", with: ["RPRT -11"])
+        server.respond(to: "l currVFO RFPOWER_METER_WATTS", with: ["RPRT -11"])
         let power = try await client.getLevel("RFPOWER_METER_WATTS")
         XCTAssertNil(power)
 

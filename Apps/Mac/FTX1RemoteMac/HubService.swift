@@ -40,11 +40,6 @@ final class HubService: ObservableObject {
 
     private let pollInterval: Duration
     private let reconnectDelay: Duration
-    /// How many main poll ticks between secondary-VFO reads. Querying it
-    /// requires briefly switching the rig's active VFO twice (see
-    /// `RigctldClient.getSecondaryFrequency()`), so it runs far slower than
-    /// the main 500ms poll rather than on every tick.
-    private let secondaryPollEveryNTicks = 10
 
     init(
         rigctldHost: String = "127.0.0.1",
@@ -157,13 +152,8 @@ final class HubService: ObservableObject {
     }
 
     private func pollLoop() async throws {
-        var tick = 0
         while !Task.isCancelled {
             try await refreshState()
-            if tick % secondaryPollEveryNTicks == 0 {
-                await refreshSecondaryFrequency()
-            }
-            tick += 1
             try await Task.sleep(for: pollInterval)
         }
     }
@@ -175,6 +165,9 @@ final class HubService: ObservableObject {
         let swr = try await rigctld.getLevel("SWR")
         let powerWatts = try await rigctld.getLevel("RFPOWER_METER_WATTS")
         let powerLevel = try await rigctld.getLevel("RFPOWER")
+        // Best-effort: a targeted secondary-VFO read failing (unsupported
+        // backend, transient error) shouldn't take down the main poll loop.
+        let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
 
         rigState = RigState(
             frequencyHz: frequencyHz,
@@ -184,17 +177,9 @@ final class HubService: ObservableObject {
             swr: swr,
             ptt: ptt,
             lastUpdated: Date(),
-            secondaryFrequencyHz: rigState.secondaryFrequencyHz,
+            secondaryFrequencyHz: secondaryFrequencyHz ?? rigState.secondaryFrequencyHz,
             powerLevel: powerLevel
         )
-        await server.broadcast(rigState)
-    }
-
-    /// Best-effort: a VFO-B query failure (unsupported backend, transient
-    /// error) shouldn't take down the main poll loop.
-    private func refreshSecondaryFrequency() async {
-        guard let secondaryHz = try? await rigctld.getSecondaryFrequency() else { return }
-        rigState.secondaryFrequencyHz = secondaryHz
         await server.broadcast(rigState)
     }
 }
