@@ -180,7 +180,10 @@ final class HubService: ObservableObject {
         let powerLevel = try await rigctld.getLevel("RFPOWER")
         // Best-effort: a targeted secondary-VFO read failing (unsupported
         // backend, transient error) shouldn't take down the main poll loop.
+        // getSecondaryMode() in particular fails reliably on this rig today
+        // (see its doc comment) — this is expected to often be nil.
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
+        let secondaryModeName = try? await rigctld.getSecondaryMode()
 
         let band = BandPlan.band(containing: frequencyHz)
         if let band {
@@ -196,6 +199,7 @@ final class HubService: ObservableObject {
             ptt: ptt,
             lastUpdated: Date(),
             secondaryFrequencyHz: secondaryFrequencyHz ?? rigState.secondaryFrequencyHz,
+            secondaryMode: secondaryModeName.flatMap(RigMode.init(rawValue:)) ?? rigState.secondaryMode,
             powerLevel: powerLevel
         )
         await server.broadcast(rigState)

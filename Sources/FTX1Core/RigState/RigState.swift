@@ -15,6 +15,9 @@ public struct RigState: Codable, Equatable, Sendable {
     /// The other VFO's frequency (whichever isn't currently active) — see
     /// `RigctldClient.getSecondaryFrequency()`.
     public var secondaryFrequencyHz: Int?
+    /// The other VFO's mode — see `RigctldClient.getSecondaryMode()`. Often
+    /// nil in practice: reading it isn't reliable on every rig/backend.
+    public var secondaryMode: RigMode?
     /// The RFPOWER *setting* (0.0–1.0, relative), not the metered output —
     /// that's `powerWatts`.
     public var powerLevel: Double?
@@ -28,6 +31,7 @@ public struct RigState: Codable, Equatable, Sendable {
         ptt: Bool = false,
         lastUpdated: Date = Date(),
         secondaryFrequencyHz: Int? = nil,
+        secondaryMode: RigMode? = nil,
         powerLevel: Double? = nil
     ) {
         self.frequencyHz = frequencyHz
@@ -38,6 +42,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.ptt = ptt
         self.lastUpdated = lastUpdated
         self.secondaryFrequencyHz = secondaryFrequencyHz
+        self.secondaryMode = secondaryMode
         self.powerLevel = powerLevel
     }
 }
@@ -50,5 +55,17 @@ public enum RigMode: String, Codable, Sendable, CaseIterable, Hashable {
     case am = "AM"
     case rtty = "RTTY"
     case dataUSB = "PKTUSB"
+    /// Yaesu's C4FM digital voice mode — this rig's hamlib backend reports
+    /// it as "FM-D" (see `\dump_caps`'s mode list), not a dedicated "C4FM"
+    /// string, so the raw value has to stay "FM-D" for `RigMode(rawValue:)`
+    /// to recognize it; `displayName` shows the name operators actually use.
+    case c4fm = "FM-D"
     case unknown = "UNKNOWN"
+
+    public var displayName: String {
+        switch self {
+        case .c4fm: "C4FM"
+        default: rawValue
+        }
+    }
 }

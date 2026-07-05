@@ -96,6 +96,26 @@ public actor RigctldClient {
         return result
     }
 
+    /// Like `query(_:lines:)`, but for commands that are only sometimes
+    /// reliable (e.g. `getSecondaryMode()` below, which errors consistently
+    /// on this rig today but may not on every rig/backend). rigctld's get
+    /// commands never prepend "RPRT" on success — only a failure replaces
+    /// the whole expected multi-line reply with a single "RPRT -N" line —
+    /// so checking for that prefix on the first line tells us not to block
+    /// waiting for lines that will never arrive.
+    private func queryOrError(_ command: String, lines: Int) async throws -> [String] {
+        try await write(command)
+        var result: [String] = []
+        for _ in 0..<lines {
+            let line = try await readLine()
+            if line.hasPrefix("RPRT") {
+                throw RigctldError.badResponse
+            }
+            result.append(line)
+        }
+        return result
+    }
+
     /// rigctld is launched with `-o` (see `RigctldProcessController`), which
     /// makes every get/set command require an explicit VFO argument rather
     /// than silently defaulting to (and, if given an argument anyway,
@@ -156,6 +176,22 @@ public actor RigctldClient {
         let freqLine = try await send("f \(otherVFO)")
         guard let hz = Int(freqLine) else { throw RigctldError.badResponse }
         return hz
+    }
+
+    /// Reads the mode of whichever VFO isn't currently active. Unlike
+    /// `getSecondaryFrequency()`, this isn't reliable on every rig/backend —
+    /// on the FTX-1's hamlib backend (as of Hamlib 4.7.2), querying the Sub
+    /// receiver's mode consistently fails ("RPRT -8", protocol error), even
+    /// though `\dump_caps` lists MODE as a targetable feature. Throws in
+    /// that case rather than guessing; callers should treat this the same
+    /// as `getSecondaryFrequency()` — best-effort, fine to swallow with
+    /// `try?`.
+    public func getSecondaryMode() async throws -> String {
+        let currentVFO = try await send("v")
+        let otherVFO = currentVFO == "Sub" ? "Main" : "Sub"
+        let lines = try await queryOrError("m \(otherVFO)", lines: 2)
+        guard lines.count == 2 else { throw RigctldError.badResponse }
+        return lines[0]
     }
 
     private func write(_ command: String) async throws {

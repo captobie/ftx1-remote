@@ -6,6 +6,7 @@ struct VFODisplayBox: View {
     let label: String
     let frequencyHz: Int?
     let isActive: Bool
+    let mode: String
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 6) {
@@ -26,6 +27,13 @@ struct VFODisplayBox: View {
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(isActive ? Color.green.opacity(0.7) : Color.gray.opacity(0.4), lineWidth: 1.5)
         )
+        .overlay(alignment: .topLeading) {
+            Text(mode)
+                .font(.caption2)
+                .foregroundStyle(digitColor)
+                .padding(.leading, 10)
+                .padding(.top, 6)
+        }
     }
 
     private var digitColor: Color {
@@ -47,8 +55,8 @@ struct VFODisplayBox: View {
 
 #Preview {
     HStack(spacing: 12) {
-        VFODisplayBox(label: "VFO A", frequencyHz: 147_380_000, isActive: true)
-        VFODisplayBox(label: "VFO B", frequencyHz: 431_075_000, isActive: false)
+        VFODisplayBox(label: "VFO A", frequencyHz: 147_380_000, isActive: true, mode: "FM")
+        VFODisplayBox(label: "VFO B", frequencyHz: 431_075_000, isActive: false, mode: "FM")
     }
     .padding()
     .frame(width: 420)
