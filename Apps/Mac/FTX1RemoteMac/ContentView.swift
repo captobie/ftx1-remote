@@ -2,7 +2,6 @@ import FTX1Core
 import SwiftUI
 
 /// Dense multi-pane control UI (see repo root CLAUDE.md) — still growing.
-/// Band selectors and mode switching still need to land here.
 struct ContentView: View {
     @EnvironmentObject private var hub: HubService
     @State private var showingSettings = false
@@ -58,8 +57,22 @@ struct ContentView: View {
                 )
             }
 
-            Text("Band/mode selectors go here.")
-                .foregroundStyle(.secondary)
+            HStack(spacing: 16) {
+                Picker("Band", selection: bandBinding) {
+                    ForEach(BandPlan.all, id: \.name) { band in
+                        Text(band.name).tag(band.name)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 100)
+
+                Picker("Mode", selection: modeBinding) {
+                    ForEach(RigMode.allCases.filter { $0 != .unknown }, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
         }
         .padding(40)
         .frame(minWidth: 480, minHeight: 360)
@@ -70,6 +83,22 @@ struct ContentView: View {
 
     private var displayedPowerLevel: Double {
         isDraggingPower ? localPowerLevel : (hub.rigState.powerLevel ?? 0)
+    }
+
+    /// Falls back to the first band in the plan if the active frequency
+    /// isn't within any known band (e.g. rigctld hasn't reported yet).
+    private var bandBinding: Binding<String> {
+        Binding(
+            get: { hub.rigState.band ?? BandPlan.all.first?.name ?? "" },
+            set: { hub.send(.setBand($0)) }
+        )
+    }
+
+    private var modeBinding: Binding<RigMode> {
+        Binding(
+            get: { hub.rigState.mode },
+            set: { hub.send(.setMode($0)) }
+        )
     }
 
     private var rigctldToggleBinding: Binding<Bool> {

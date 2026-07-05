@@ -114,7 +114,20 @@ final class HubService: ObservableObject {
         rigctldProcess.stop()
     }
 
+    /// `.setBand` is resolved here rather than in `CommandQueue` — rigctld
+    /// has no "set band" verb, so band selection really means "jump to a
+    /// frequency", and knowing *which* frequency (the last one used on that
+    /// band, or a sensible default the first time) is app-level band-plan
+    /// knowledge, not something the low-level command serializer should
+    /// own. This is the only path commands take (local UI and WebSocket-
+    /// forwarded mobile commands both call this), so it covers both.
     func send(_ command: RigCommand) {
+        if case .setBand(let name) = command {
+            guard let band = BandPlan.band(named: name) else { return }
+            let targetHz = BandMemory.lastFrequencyHz(forBand: band.name) ?? band.defaultFrequencyHz
+            Task { await commandQueue.enqueue(.setFrequency(hz: targetHz)) }
+            return
+        }
         Task { await commandQueue.enqueue(command) }
     }
 
@@ -169,10 +182,15 @@ final class HubService: ObservableObject {
         // backend, transient error) shouldn't take down the main poll loop.
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
 
+        let band = BandPlan.band(containing: frequencyHz)
+        if let band {
+            BandMemory.recordFrequencyHz(frequencyHz, forBand: band.name)
+        }
+
         rigState = RigState(
             frequencyHz: frequencyHz,
             mode: RigMode(rawValue: modeName) ?? .unknown,
-            band: nil,
+            band: band?.name,
             powerWatts: powerWatts,
             swr: swr,
             ptt: ptt,

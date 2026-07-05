@@ -42,7 +42,7 @@ public struct RigState: Codable, Equatable, Sendable {
     }
 }
 
-public enum RigMode: String, Codable, Sendable, CaseIterable {
+public enum RigMode: String, Codable, Sendable, CaseIterable, Hashable {
     case usb = "USB"
     case lsb = "LSB"
     case cw = "CW"

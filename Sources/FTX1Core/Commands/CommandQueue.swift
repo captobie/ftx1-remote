@@ -62,10 +62,12 @@ public actor CommandQueue {
         case .setPTT(let on):
             _ = try await rigctld.send("T \(Self.currentVFOArg) \(on ? 1 : 0)")
         case .setBand(let band):
-            // rigctld doesn't have a direct "set band" verb — this typically
-            // maps to a frequency jump to the band's default segment.
-            // Placeholder until the Mac app defines a band->frequency table.
-            _ = try await rigctld.send("# set_band \(band)")
+            // rigctld has no "set band" verb, so this is normally translated
+            // into a .setFrequency by HubService (see its send(_:)) before
+            // it ever reaches this queue — this case only exists because
+            // RigCommand's switch must stay exhaustive. If it does arrive
+            // here unresolved, there's no meaningful rigctld call to make.
+            _ = band
         case .setPowerLevel(let level):
             _ = try await rigctld.send("L \(Self.currentVFOArg) RFPOWER \(String(format: "%.3f", level))")
         }
