@@ -13,9 +13,7 @@ public struct RigState: Codable, Equatable, Sendable {
     public var ptt: Bool
     public var lastUpdated: Date
     /// The other VFO's frequency (whichever isn't currently active) — see
-    /// `RigctldClient.getSecondaryFrequency()`. Polled on a slower cadence
-    /// than the rest of this state, since reading it requires briefly
-    /// switching the rig's active VFO.
+    /// `RigctldClient.getSecondaryFrequency()`.
     public var secondaryFrequencyHz: Int?
     /// The RFPOWER *setting* (0.0–1.0, relative), not the metered output —
     /// that's `powerWatts`.

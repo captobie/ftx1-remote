@@ -25,15 +25,13 @@ struct ContentView: View {
             Text(connectionLabel)
                 .foregroundStyle(connectionColor)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("VFO (active): \(hub.rigState.frequencyHz) Hz — \(hub.rigState.mode.rawValue)")
-                    .font(.system(.body, design: .monospaced))
-                if let secondaryHz = hub.rigState.secondaryFrequencyHz {
-                    Text("VFO (other): \(secondaryHz) Hz")
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
+            HStack(spacing: 12) {
+                VFODisplayBox(label: "VFO A", frequencyHz: hub.rigState.frequencyHz, isActive: true)
+                VFODisplayBox(label: "VFO B", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: false)
             }
+            Text(hub.rigState.mode.rawValue)
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(.secondary)
 
             if let swr = hub.rigState.swr {
                 Text("SWR \(swr, specifier: "%.2f")")
