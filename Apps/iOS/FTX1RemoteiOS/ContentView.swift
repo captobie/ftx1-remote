@@ -28,6 +28,11 @@ struct ContentView: View {
 
             Text(connectionLabel)
                 .foregroundStyle(connectionColor)
+                .onTapGesture {
+                    if viewModel.connectionState == .connected {
+                        viewModel.disconnect()
+                    }
+                }
 
             if viewModel.connectionState == .connected {
                 FrequencyDisplay(
