@@ -30,7 +30,23 @@ actor RigWebSocketServer {
         let webSocketOptions = NWProtocolWebSocket.Options()
         webSocketOptions.autoReplyPing = true
 
-        let parameters = NWParameters.tcp
+        // A connection whose peer just vanishes — e.g. the Mac's own
+        // Tailscale interface being disabled mid-session — produces no RST
+        // and, if the connection happens to be idle (no in-flight reads or
+        // writes), the OS has no reason to ever notice on its own; the
+        // NWConnection can sit reporting itself as healthy indefinitely.
+        // Enabling TCP keepalive makes the kernel actively probe idle
+        // connections, so a genuinely dead peer/interface gets detected
+        // (and `.failed`/`.cancelled` fires, triggering PTT auto-release
+        // below) within roughly idle + interval * count seconds instead of
+        // never.
+        let tcpOptions = NWProtocolTCP.Options()
+        tcpOptions.enableKeepalive = true
+        tcpOptions.keepaliveIdle = 5
+        tcpOptions.keepaliveInterval = 3
+        tcpOptions.keepaliveCount = 3
+
+        let parameters = NWParameters(tls: nil, tcp: tcpOptions)
         parameters.defaultProtocolStack.applicationProtocols.insert(webSocketOptions, at: 0)
 
         guard let endpointPort = NWEndpoint.Port(rawValue: port) else {

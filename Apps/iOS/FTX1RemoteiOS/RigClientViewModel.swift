@@ -39,6 +39,14 @@ final class RigClientViewModel: ObservableObject {
             await client.setOnStateUpdate { [weak self] state in
                 Task { @MainActor in self?.rigState = state }
             }
+            // Not just a one-shot read after connect(): the client can
+            // transition later on its own (e.g. its heartbeat detecting a
+            // dead link), and without this the UI would keep showing
+            // "Connected" forever after the Mac actually became
+            // unreachable.
+            await client.setOnStateChange { [weak self] state in
+                Task { @MainActor in self?.apply(state) }
+            }
             await client.connect()
             await self.refreshConnectionState()
         }
@@ -58,7 +66,11 @@ final class RigClientViewModel: ObservableObject {
 
     private func refreshConnectionState() async {
         guard let client else { return }
-        switch await client.state {
+        apply(await client.state)
+    }
+
+    private func apply(_ state: RigWebSocketClient.ConnectionState) {
+        switch state {
         case .disconnected: connectionState = .disconnected
         case .connecting: connectionState = .connecting
         case .connected: connectionState = .connected

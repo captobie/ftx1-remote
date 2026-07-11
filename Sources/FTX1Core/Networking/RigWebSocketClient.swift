@@ -16,6 +16,8 @@ public actor RigWebSocketClient {
     private let session: URLSession
     private let openSignal = OpenSignal()
     private let url: URL
+    private var heartbeatTask: Task<Void, Never>?
+    private var lastActivity: Date = .distantPast
 
     public private(set) var state: ConnectionState = .disconnected
 
@@ -24,6 +26,16 @@ public actor RigWebSocketClient {
     /// @MainActor themselves when updating SwiftUI state.
     public var onStateUpdate: (@Sendable (RigState) -> Void)?
 
+    /// Called whenever `state` changes, including transitions that happen
+    /// well after `connect()` already returned — e.g. the heartbeat below
+    /// noticing a dead link. A caller that only reads `state` once, right
+    /// after `connect()`, has no way to learn the connection later died: a
+    /// "blackholed" link (the peer's network interface vanishes with no
+    /// RST ever arriving) can leave `URLSessionWebSocketTask` looking
+    /// connected for a very long time with no read error to trigger
+    /// `markFailed` on its own.
+    public var onStateChange: (@Sendable (ConnectionState) -> Void)?
+
     public init(hubURL: URL) {
         self.url = hubURL
         self.session = URLSession(configuration: .default, delegate: openSignal, delegateQueue: nil)
@@ -31,6 +43,10 @@ public actor RigWebSocketClient {
 
     public func setOnStateUpdate(_ handler: @escaping @Sendable (RigState) -> Void) {
         onStateUpdate = handler
+    }
+
+    public func setOnStateChange(_ handler: @escaping @Sendable (ConnectionState) -> Void) {
+        onStateChange = handler
     }
 
     /// Waits for the server to actually accept the WebSocket handshake
@@ -42,7 +58,7 @@ public actor RigWebSocketClient {
     /// would ever arrive, with no way to distinguish that from a real,
     /// working connection that just hasn't received its first push yet.
     public func connect(timeout: Duration = .seconds(8)) async {
-        state = .connecting
+        setState(.connecting)
         let task = session.webSocketTask(with: url)
         self.task = task
         openSignal.reset()
@@ -58,12 +74,13 @@ public actor RigWebSocketClient {
                 try await group.next()
                 group.cancelAll()
             }
-            state = .connected
+            setState(.connected)
             listen()
+            startHeartbeat()
         } catch {
             task.cancel(with: .goingAway, reason: nil)
             self.task = nil
-            state = .failed(errorMessage(for: error))
+            setState(.failed(errorMessage(for: error)))
         }
     }
 
@@ -75,9 +92,11 @@ public actor RigWebSocketClient {
     }
 
     public func disconnect() {
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
         task?.cancel(with: .goingAway, reason: nil)
         task = nil
-        state = .disconnected
+        setState(.disconnected)
     }
 
     public func send(_ command: RigCommand) async throws {
@@ -95,7 +114,7 @@ public actor RigWebSocketClient {
                 Task { await self.handle(message) }
                 Task { await self.listen() }
             case .failure(let error):
-                Task { await self.markFailed(error) }
+                Task { await self.markFailed(error, from: task) }
             }
         }
     }
@@ -109,11 +128,81 @@ public actor RigWebSocketClient {
         }
         guard let data,
               let push = try? JSONDecoder().decode(RigStatePush.self, from: data) else { return }
+        lastActivity = Date()
         onStateUpdate?(push.state)
     }
 
-    private func markFailed(_ error: Error) {
-        state = .failed(error.localizedDescription)
+    /// `failedTask` guards against a stale callback from a task that's
+    /// already been superseded (by `disconnect()` or a fresh `connect()`)
+    /// clobbering current state — without it, a receive-failure callback
+    /// that fires just after a clean, user-initiated `disconnect()` could
+    /// flip `state` from `.disconnected` back to `.failed`.
+    private func markFailed(_ error: Error, from failedTask: URLSessionWebSocketTask) {
+        guard task === failedTask else { return }
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
+        task = nil
+        setState(.failed(error.localizedDescription))
+    }
+
+    private func setState(_ newState: ConnectionState) {
+        state = newState
+        onStateChange?(newState)
+    }
+
+    /// Periodically pings the hub and tracks how long it's been since we
+    /// last heard *anything* back (a state push, or a successful pong) —
+    /// needed because a blackholed link (e.g. the Mac's Tailscale interface
+    /// disappearing) produces no TCP reset for the socket layer to react
+    /// to; without an active probe, `URLSessionWebSocketTask` can sit
+    /// looking connected indefinitely.
+    ///
+    /// Deliberately does *not* structurally await `sendPing`'s completion:
+    /// on a genuinely blackholed connection that completion handler may
+    /// simply never fire, and `withTaskGroup` waits for every child task to
+    /// finish (even cancelled ones) before returning, which would let one
+    /// hung ping wedge this whole loop forever — exactly the symptom this
+    /// is meant to fix, not reintroduce. Firing the ping and separately
+    /// polling elapsed time sidesteps that: a hung ping's completion
+    /// handler is simply abandoned rather than awaited.
+    private func startHeartbeat() {
+        lastActivity = Date()
+        heartbeatTask?.cancel()
+        heartbeatTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                if Task.isCancelled { return }
+                guard let self else { return }
+                let shouldContinue = await self.heartbeatTick()
+                if !shouldContinue { return }
+            }
+        }
+    }
+
+    /// Returns `false` once the link should be considered dead.
+    private func heartbeatTick() -> Bool {
+        guard state == .connected, let task else { return false }
+        task.sendPing { [weak self] error in
+            guard error == nil else { return }
+            Task { await self?.recordActivity() }
+        }
+        guard Date().timeIntervalSince(lastActivity) <= 12 else {
+            handleHeartbeatTimeout()
+            return false
+        }
+        return true
+    }
+
+    private func recordActivity() {
+        lastActivity = Date()
+    }
+
+    private func handleHeartbeatTimeout() {
+        guard state == .connected else { return }
+        task?.cancel(with: .abnormalClosure, reason: nil)
+        task = nil
+        heartbeatTask = nil
+        setState(.failed("Connection timed out"))
     }
 }
 
