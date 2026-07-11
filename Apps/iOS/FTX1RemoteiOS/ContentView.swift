@@ -30,8 +30,10 @@ struct ContentView: View {
                 .foregroundStyle(connectionColor)
 
             if viewModel.connectionState == .connected {
-                Text("\(viewModel.rigState.frequencyHz) Hz — \(viewModel.rigState.mode.rawValue)")
-                    .font(.system(.body, design: .monospaced))
+                FrequencyDisplay(
+                    frequencyHz: viewModel.rigState.frequencyHz,
+                    mode: viewModel.rigState.mode.displayName
+                )
                 if let swr = viewModel.rigState.swr {
                     Text("SWR \(swr, specifier: "%.2f")")
                         .font(.system(.body, design: .monospaced))
