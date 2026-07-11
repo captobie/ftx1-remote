@@ -102,7 +102,8 @@ final class HubService: ObservableObject {
             devicePath: RigctldSettings.devicePath,
             baudRate: RigctldSettings.baudRate,
             host: rigctldHost,
-            port: rigctldPort
+            port: rigctldPort,
+            pttPort: RigctldSettings.pttPort
         )
         Task { [weak self, rigctldProcess] in
             await rigctldProcess.start(with: config)

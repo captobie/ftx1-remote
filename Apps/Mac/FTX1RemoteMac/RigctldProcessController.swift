@@ -24,6 +24,9 @@ final class RigctldProcessController {
         var baudRate: Int
         var host: String
         var port: UInt16
+        /// Empty means "not configured" — no `-p`/`-P` args are passed, and
+        /// rigctld keys PTT via a CAT command over `devicePath` as before.
+        var pttPort: String = ""
     }
 
     private(set) var state: State = .stopped
@@ -46,7 +49,7 @@ final class RigctldProcessController {
 
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: config.binaryPath)
-        proc.arguments = [
+        var arguments = [
             "-m", "\(config.modelNumber)",
             "-r", config.devicePath,
             "-s", "\(config.baudRate)",
@@ -65,6 +68,14 @@ final class RigctldProcessController {
             // the secondary-VFO read), and targeted reads actually work.
             "-o"
         ]
+        if !config.pttPort.isEmpty {
+            // "RIG" (hamlib's CAT-command PTT type) is a best guess for
+            // this rig's setup, not confirmed against the hardware yet —
+            // if PTT doesn't actually key with this configured, the port
+            // likely needs RTS/DTR line toggling instead (-P RTS / -P DTR).
+            arguments += ["-p", config.pttPort, "-P", "RIG"]
+        }
+        proc.arguments = arguments
         proc.terminationHandler = { [weak self] terminatedProcess in
             Task { @MainActor in
                 guard let self, self.process === terminatedProcess else { return }

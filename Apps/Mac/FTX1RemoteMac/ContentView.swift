@@ -7,6 +7,7 @@ struct ContentView: View {
     @State private var showingSettings = false
     @State private var isDraggingPower = false
     @State private var localPowerLevel: Double = 0
+    @State private var isPTTPressed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -33,6 +34,8 @@ struct ContentView: View {
                 Text("SWR \(swr, specifier: "%.2f")")
                     .font(.system(.body, design: .monospaced))
             }
+
+            pttButton
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Power: \(Int(displayedPowerLevel * 100))%")
@@ -76,6 +79,35 @@ struct ContentView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView()
         }
+    }
+
+    /// Momentary press-and-hold, not a toggle — keys on press-down and
+    /// unkeys on release, matching how PTT actually works. A plain
+    /// `Button` only fires on release, so this uses a zero-distance
+    /// `DragGesture` instead (fires `onChanged` immediately on press,
+    /// `onEnded` on release; works the same for a mouse click as it does
+    /// for touch). `isPTTPressed` guards against sending `.setPTT(true)`
+    /// repeatedly while `onChanged` keeps firing during the hold.
+    private var pttButton: some View {
+        Text(hub.rigState.ptt ? "TRANSMITTING" : "PTT")
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(hub.rigState.ptt ? Color.red : Color.gray.opacity(0.25))
+            .foregroundStyle(hub.rigState.ptt ? Color.white : Color.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard !isPTTPressed else { return }
+                        isPTTPressed = true
+                        hub.send(.setPTT(true))
+                    }
+                    .onEnded { _ in
+                        isPTTPressed = false
+                        hub.send(.setPTT(false))
+                    }
+            )
     }
 
     private var displayedPowerLevel: Double {

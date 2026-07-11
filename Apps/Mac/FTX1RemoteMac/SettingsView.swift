@@ -15,6 +15,7 @@ struct SettingsView: View {
     @State private var modelNumber = RigctldSettings.modelNumber
     @State private var devicePath = RigctldSettings.devicePath
     @State private var baudRate = RigctldSettings.baudRate
+    @State private var pttPort = RigctldSettings.pttPort
 
     @State private var availableDevices: [String] = []
     @State private var availableBinaryPaths: [String] = []
@@ -54,6 +55,12 @@ struct SettingsView: View {
                         Text("\(rate)").tag(rate)
                     }
                 }
+                Picker("PTT port", selection: $pttPort) {
+                    Text("None (use CAT on main port)").tag("")
+                    ForEach(availableDevices, id: \.self) { device in
+                        Text((device as NSString).lastPathComponent).tag(device)
+                    }
+                }
             }
 
             HStack {
@@ -77,6 +84,7 @@ struct SettingsView: View {
         RigctldSettings.modelNumber = modelNumber
         RigctldSettings.devicePath = devicePath
         RigctldSettings.baudRate = baudRate
+        RigctldSettings.pttPort = pttPort
         dismiss()
     }
 
@@ -110,19 +118,20 @@ struct SettingsView: View {
 
     /// Scans `/dev` for serial devices (macOS exposes each serial adapter as
     /// both a "tty." and "cu." entry) so the dropdown reflects whatever's
-    /// actually plugged in right now, rather than a hardcoded guess. Keeps
-    /// the currently configured device in the list even if it isn't
-    /// currently present, so an unplugged rig doesn't lose its setting.
+    /// actually plugged in right now, rather than a hardcoded guess. Feeds
+    /// both the "Serial device" and "PTT port" pickers, since they're
+    /// drawing from the same universe of devices. Keeps the currently
+    /// configured device(s) in the list even if unplugged, so an offline
+    /// rig/interface doesn't lose its setting.
     private func refreshAvailableDevices() {
         var devices = (try? FileManager.default.contentsOfDirectory(atPath: "/dev"))?
             .filter { $0.hasPrefix("tty.") || $0.hasPrefix("cu.") }
             .map { "/dev/" + $0 }
             .sorted() ?? []
-        if !devices.contains(devicePath) {
-            devices.append(devicePath)
-            devices.sort()
+        for configured in [devicePath, pttPort] where !configured.isEmpty && !devices.contains(configured) {
+            devices.append(configured)
         }
-        availableDevices = devices
+        availableDevices = devices.sorted()
     }
 
     /// Scans `commonBinaryPaths` for whichever actually exist on disk, so
