@@ -30,6 +30,14 @@ actor RigWebSocketServer {
         }
 
         let listener = try NWListener(using: parameters, on: endpointPort)
+        // A plain listener with no Bonjour service never gives macOS/iOS a
+        // trigger point to show the Local Network permission prompt — it
+        // just silently blocks non-loopback inbound connections forever,
+        // with no dialog and no error. Advertising a (unused) Bonjour
+        // service is what actually causes the OS to ask. iOS/mobile clients
+        // still connect directly by Tailscale IP:port; nothing browses for
+        // this service.
+        listener.service = NWListener.Service(name: "FTX1 Remote Hub", type: "_ftx1remote._tcp")
         listener.newConnectionHandler = { [weak self] connection in
             Task { await self?.accept(connection) }
         }
