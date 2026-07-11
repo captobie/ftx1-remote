@@ -7,6 +7,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var viewModel: RigClientViewModel
     @AppStorage("hubHost") private var host: String = ""
+    @State private var isPTTPressed = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -43,11 +44,39 @@ struct ContentView: View {
                     Text("SWR \(swr, specifier: "%.2f")")
                         .font(.system(.body, design: .monospaced))
                 }
-                Text("Rig controls go here.")
-                    .foregroundStyle(.secondary)
+                pttButton
             }
         }
         .padding(24)
+    }
+
+    /// Momentary press-and-hold, not a toggle — keys on touch-down and
+    /// unkeys on release, matching how PTT actually works. A plain
+    /// `Button` only fires on release, so this uses a zero-distance
+    /// `DragGesture` instead (fires `onChanged` immediately on touch-down,
+    /// `onEnded` on release). `isPTTPressed` guards against sending
+    /// `.setPTT(true)` repeatedly while `onChanged` keeps firing during
+    /// the hold.
+    private var pttButton: some View {
+        Text(viewModel.rigState.ptt ? "TRANSMITTING" : "PTT")
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(viewModel.rigState.ptt ? Color.red : Color.gray.opacity(0.25))
+            .foregroundStyle(viewModel.rigState.ptt ? Color.white : Color.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard !isPTTPressed else { return }
+                        isPTTPressed = true
+                        viewModel.send(.setPTT(true))
+                    }
+                    .onEnded { _ in
+                        isPTTPressed = false
+                        viewModel.send(.setPTT(false))
+                    }
+            )
     }
 
     private var connectionLabel: String {

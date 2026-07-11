@@ -14,6 +14,14 @@ actor RigWebSocketServer {
     private var connections: [ObjectIdentifier: Connection] = [:]
     private var latestState: RigState?
     private var onCommandReceived: (@Sendable (RigCommand) -> Void)?
+    /// Whichever client most recently sent `.setPTT(true)`, if any. Unlike
+    /// the Mac's own local PTT button (which calls `HubService` directly,
+    /// no network in between), a remote client's connection can drop while
+    /// it's mid-transmission — e.g. a phone losing Tailscale/Wi-Fi — and
+    /// the "release" `.setPTT(false)` would then never arrive, leaving the
+    /// radio keyed indefinitely. `remove(_:)` uses this to synthesize that
+    /// release if the PTT-holding connection is the one that just closed.
+    private var pttHolder: ObjectIdentifier?
 
     func start(port: UInt16, onCommand: @escaping @Sendable (RigCommand) -> Void) throws {
         guard listener == nil else { return }
@@ -68,10 +76,11 @@ actor RigWebSocketServer {
     }
 
     private func accept(_ connection: NWConnection) {
+        let connectionID = ObjectIdentifier(connection)
         let client = Connection(
             connection: connection,
             onCommand: { [weak self] command in
-                Task { await self?.onCommandReceived?(command) }
+                Task { await self?.handleCommand(command, from: connectionID) }
             },
             onClose: { [weak self] id in
                 Task { await self?.remove(id) }
@@ -85,8 +94,25 @@ actor RigWebSocketServer {
         }
     }
 
+    private func handleCommand(_ command: RigCommand, from id: ObjectIdentifier) {
+        if case .setPTT(let on) = command {
+            // Only the current holder's own .setPTT(false) clears it — an
+            // unrelated client's release shouldn't cancel someone else's
+            // active transmission. (This tool is single-operator in
+            // practice; concurrent multi-client PTT isn't specially
+            // handled beyond not letting one client clobber another's
+            // holder tracking.)
+            pttHolder = on ? id : (pttHolder == id ? nil : pttHolder)
+        }
+        onCommandReceived?(command)
+    }
+
     private func remove(_ id: ObjectIdentifier) {
         connections.removeValue(forKey: id)
+        if pttHolder == id {
+            pttHolder = nil
+            onCommandReceived?(.setPTT(false))
+        }
     }
 }
 
