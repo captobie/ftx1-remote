@@ -180,10 +180,13 @@ final class HubService: ObservableObject {
         let swr = try await rigctld.getLevel("SWR")
         let powerWatts = try await rigctld.getLevel("RFPOWER_METER_WATTS")
         let powerLevel = try await rigctld.getLevel("RFPOWER")
-        // Best-effort: a targeted secondary-VFO read failing (unsupported
-        // backend, transient error) shouldn't take down the main poll loop.
-        // getSecondaryMode() in particular fails reliably on this rig today
-        // (see its doc comment) — this is expected to often be nil.
+        // Best-effort: these go through rigctld's raw CAT passthrough (see
+        // RigctldClient.sendRawCommand), not hamlib's own func/level
+        // abstraction, so a hiccup (e.g. hamlib's internal serial read
+        // timing out before the rig replies) shouldn't take down the main
+        // poll loop any more than a secondary-VFO read failing should.
+        let breakIn = try? await rigctld.getRawBool("BI")
+        let keyerEnabled = try? await rigctld.getRawBool("KR")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -202,7 +205,9 @@ final class HubService: ObservableObject {
             lastUpdated: Date(),
             secondaryFrequencyHz: secondaryFrequencyHz ?? rigState.secondaryFrequencyHz,
             secondaryMode: secondaryModeName.flatMap(RigMode.init(rawValue:)) ?? rigState.secondaryMode,
-            powerLevel: powerLevel
+            powerLevel: powerLevel,
+            breakIn: breakIn ?? rigState.breakIn,
+            keyerEnabled: keyerEnabled ?? rigState.keyerEnabled
         )
         await server.broadcast(rigState)
     }

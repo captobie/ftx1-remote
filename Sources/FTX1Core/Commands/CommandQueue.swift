@@ -70,6 +70,10 @@ public actor CommandQueue {
             _ = band
         case .setPowerLevel(let level):
             _ = try await rigctld.send("L \(Self.currentVFOArg) RFPOWER \(String(format: "%.3f", level))")
+        case .setBreakIn(let on):
+            try await rigctld.setRawBool("BI", on)
+        case .setKeyer(let on):
+            try await rigctld.setRawBool("KR", on)
         }
     }
 }

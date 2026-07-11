@@ -21,6 +21,11 @@ public struct RigState: Codable, Equatable, Sendable {
     /// The RFPOWER *setting* (0.0–1.0, relative), not the metered output —
     /// that's `powerWatts`.
     public var powerLevel: Double?
+    /// CW break-in (the FTX-1's raw "BI" CAT command) — nil until the first
+    /// successful read, same as the other optional fields above.
+    public var breakIn: Bool?
+    /// CW electronic keyer on/off (the FTX-1's raw "KR" CAT command).
+    public var keyerEnabled: Bool?
 
     public init(
         frequencyHz: Int = 0,
@@ -32,7 +37,9 @@ public struct RigState: Codable, Equatable, Sendable {
         lastUpdated: Date = Date(),
         secondaryFrequencyHz: Int? = nil,
         secondaryMode: RigMode? = nil,
-        powerLevel: Double? = nil
+        powerLevel: Double? = nil,
+        breakIn: Bool? = nil,
+        keyerEnabled: Bool? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -44,6 +51,8 @@ public struct RigState: Codable, Equatable, Sendable {
         self.secondaryFrequencyHz = secondaryFrequencyHz
         self.secondaryMode = secondaryMode
         self.powerLevel = powerLevel
+        self.breakIn = breakIn
+        self.keyerEnabled = keyerEnabled
     }
 }
 

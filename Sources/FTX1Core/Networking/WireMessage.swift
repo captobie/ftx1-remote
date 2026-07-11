@@ -13,6 +13,14 @@ public enum RigCommand: Sendable, Equatable {
     case setBand(String)
     /// 0.0–1.0, relative RFPOWER setting (not watts) — see `RigState.powerLevel`.
     case setPowerLevel(Double)
+    /// CW break-in on/off — see `RigState.breakIn`. Maps to the FTX-1's own
+    /// raw "BI" CAT command in `CommandQueue` (per the CAT Operation
+    /// Reference Manual), not a hamlib func — doesn't distinguish semi vs.
+    /// full break-in, which is a separate menu item on the real rig.
+    case setBreakIn(Bool)
+    /// CW electronic keyer on/off — see `RigState.keyerEnabled`. Maps to
+    /// the FTX-1's raw "KR" CAT command.
+    case setKeyer(Bool)
 
     private enum CodingKeys: String, CodingKey {
         case cmd
@@ -25,6 +33,8 @@ public enum RigCommand: Sendable, Equatable {
         case ptt
         case setBand = "set_band"
         case setPower = "set_power"
+        case setBreakIn = "set_break_in"
+        case setKeyer = "set_keyer"
     }
 }
 
@@ -43,6 +53,10 @@ extension RigCommand: Codable {
             self = .setBand(try container.decode(String.self, forKey: .value))
         case .setPower:
             self = .setPowerLevel(try container.decode(Double.self, forKey: .value))
+        case .setBreakIn:
+            self = .setBreakIn(try container.decode(Bool.self, forKey: .value))
+        case .setKeyer:
+            self = .setKeyer(try container.decode(Bool.self, forKey: .value))
         }
     }
 
@@ -64,6 +78,12 @@ extension RigCommand: Codable {
         case .setPowerLevel(let level):
             try container.encode(CommandName.setPower, forKey: .cmd)
             try container.encode(level, forKey: .value)
+        case .setBreakIn(let on):
+            try container.encode(CommandName.setBreakIn, forKey: .cmd)
+            try container.encode(on, forKey: .value)
+        case .setKeyer(let on):
+            try container.encode(CommandName.setKeyer, forKey: .cmd)
+            try container.encode(on, forKey: .value)
         }
     }
 }

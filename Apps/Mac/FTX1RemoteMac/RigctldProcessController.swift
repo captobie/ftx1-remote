@@ -66,7 +66,19 @@ final class RigctldProcessController {
             // command requires an explicit VFO argument (RigctldClient
             // passes "currVFO" for the main state, and "Main"/"Sub" for
             // the secondary-VFO read), and targeted reads actually work.
-            "-o"
+            "-o",
+            // hamlib's own per-command serial timeout/retry (defaults:
+            // timeout=1000ms, retry=3 — confirmed via `rigctld -L`). Every
+            // *real* reply from this rig arrives in ~50ms, but a raw CAT
+            // command that genuinely gets no reply at all (e.g. the menu
+            // buttons' Set commands — the CAT manual documents an Answer
+            // only for Read, not Set) makes hamlib retry the full timeout
+            // 1+retry times before giving up — up to ~4s, held under
+            // rigctld's single global command lock the whole time, so it
+            // blocks every other pending command too. Shrinking both here
+            // makes that "no reply" case fail fast without affecting any
+            // command that actually gets a real, fast reply.
+            "-C", "timeout=300,retry=0"
         ]
         if !config.pttPort.isEmpty {
             // "RIG" (hamlib's CAT-command PTT type) is a best guess for

@@ -73,9 +73,11 @@ struct ContentView: View {
                 }
                 .pickerStyle(.segmented)
             }
+
+            MenuPageView()
         }
         .padding(40)
-        .frame(minWidth: 480, minHeight: 360)
+        .frame(minWidth: 560, minHeight: 360)
         .sheet(isPresented: $showingSettings) {
             SettingsView()
         }

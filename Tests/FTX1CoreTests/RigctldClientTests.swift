@@ -39,6 +39,74 @@ final class RigctldClientTests: XCTestCase {
 
         await client.disconnect()
     }
+
+    /// Regression test for a real hardware bug: `sendRawCommand`'s reply
+    /// isn't always `\n`-terminated. hamlib's `send_cmd` (tests/
+    /// rigctl_parse.c) counts `;` occurrences in the outgoing command to
+    /// decide the reply's trailing byte — since our own raw commands are
+    /// themselves `;`-terminated (required for Yaesu/Kenwood backends,
+    /// which disable hamlib's automatic terminator append), that count
+    /// comes out as 2 for what's really a single command, producing a
+    /// `\0`-terminated reply instead of `\n`. Confirmed against a real
+    /// local `rigctld -m 1` before writing this fake-server version.
+    func testRawBoolHandlesNulTerminatedReply() async throws {
+        let server = try FakeRigctldServer.start()
+        defer { server.stop() }
+
+        let client = RigctldClient(host: "127.0.0.1", port: server.port)
+        try await client.connect()
+
+        server.respondRaw(to: "W BI; ;", bytes: Array("BI1;\0".utf8))
+        let breakIn = try await client.getRawBool("BI")
+        XCTAssertEqual(breakIn, true)
+
+        server.respondRaw(to: "W KR0; ;", bytes: Array("KR0;\0".utf8))
+        try await client.setRawBool("KR", false)
+
+        await client.disconnect()
+    }
+
+    /// Regression test for the actual reported bug: the real rig sometimes
+    /// never replies to a raw Set command at all (the manual doesn't
+    /// promise an Answer for those), and `sendRawCommand` had no timeout —
+    /// it would wait forever. Because `acquireRoundTrip()` serializes every
+    /// round trip on the client, that one hung read permanently jammed
+    /// every future command behind it: the first button click after a
+    /// fresh connection worked, then everything else silently queued
+    /// forever, matching what the user saw ("turn BK-IN on, but not off,
+    /// and Keyer does nothing after that").
+    func testSendRawCommandTimesOutAndDoesNotWedgeClient() async throws {
+        let server = try FakeRigctldServer.start()
+        defer { server.stop() }
+
+        let client = RigctldClient(host: "127.0.0.1", port: server.port)
+        try await client.connect()
+
+        // Deliberately not scripted — the fake server accepts the command
+        // but never writes anything back, simulating a real rig silently
+        // ignoring a Set command.
+        server.silence(command: "W BI1; ;")
+
+        let start = Date()
+        do {
+            _ = try await client.sendRawCommand("BI1", timeout: .milliseconds(300))
+            XCTFail("expected a timeout error")
+        } catch RigctldError.rawCommandTimedOut {
+            // expected
+        }
+        XCTAssertLessThan(Date().timeIntervalSince(start), 2.0, "should time out promptly, not hang")
+
+        // The hung round trip must not leave acquireRoundTrip()'s lock
+        // stuck — a follow-up call should fail fast (the timeout already
+        // tore down the connection) rather than hang waiting for a lock
+        // that's never released.
+        do {
+            _ = try await client.getFrequency()
+            XCTFail("expected notConnected after the connection was torn down")
+        } catch RigctldError.notConnected {
+            // expected
+        }
+    }
 }
 
 /// Minimal stand-in for rigctld, built on raw POSIX sockets (not
@@ -52,6 +120,8 @@ private final class FakeRigctldServer: @unchecked Sendable {
 
     private let lock = NSLock()
     private var scripts: [String: [String]] = [:]
+    private var rawScripts: [String: [UInt8]] = [:]
+    private var silencedCommands: Set<String> = []
     private var clientFD: Int32 = -1
     private var acceptThread: Thread?
 
@@ -124,9 +194,19 @@ private final class FakeRigctldServer: @unchecked Sendable {
 
     private func respond(to command: String, fd: Int32) {
         lock.lock()
-        let lines = scripts[command] ?? ["RPRT -1"]
+        if silencedCommands.contains(command) {
+            lock.unlock()
+            return
+        }
+        let rawBytes = rawScripts[command]
+        let lines = rawBytes == nil ? (scripts[command] ?? ["RPRT -1"]) : nil
         lock.unlock()
-        for line in lines {
+
+        if let rawBytes {
+            _ = rawBytes.withUnsafeBufferPointer { write(fd, $0.baseAddress, $0.count) }
+            return
+        }
+        for line in lines ?? [] {
             let bytes = Array((line + "\n").utf8)
             _ = bytes.withUnsafeBufferPointer { write(fd, $0.baseAddress, $0.count) }
         }
@@ -135,6 +215,25 @@ private final class FakeRigctldServer: @unchecked Sendable {
     func respond(to command: String, with lines: [String]) {
         lock.lock()
         scripts[command] = lines
+        lock.unlock()
+    }
+
+    /// Like `respond(to:with:)`, but writes the exact bytes given with no
+    /// automatic `\n` appended — for exercising terminator edge cases
+    /// (e.g. a `\0`-terminated reply) that the line-oriented variant can't
+    /// express.
+    func respondRaw(to command: String, bytes: [UInt8]) {
+        lock.lock()
+        rawScripts[command] = bytes
+        lock.unlock()
+    }
+
+    /// Accepts the given command but never writes any reply — simulating a
+    /// real rig that silently ignores a command (e.g. a Set command with
+    /// no Answer).
+    func silence(command: String) {
+        lock.lock()
+        silencedCommands.insert(command)
         lock.unlock()
     }
 
