@@ -45,9 +45,33 @@ struct ContentView: View {
                         .font(.system(.body, design: .monospaced))
                 }
                 pttButton
+                modeGrid
             }
         }
         .padding(24)
+    }
+
+    /// Grid of mode buttons under PTT — iOS has no room for the Mac's
+    /// segmented `Picker`, and a grid keeps every mode a single tap away
+    /// instead of buried in a menu. 4 columns fits all 8 `RigMode` cases
+    /// (excluding `.unknown`) in two rows on an iPhone-width screen.
+    private var modeGrid: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
+            ForEach(RigMode.allCases.filter { $0 != .unknown }, id: \.self) { mode in
+                Button {
+                    viewModel.send(.setMode(mode))
+                } label: {
+                    Text(mode.displayName)
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(mode == viewModel.rigState.mode ? Color.accentColor : Color.gray.opacity(0.25))
+                        .foregroundStyle(mode == viewModel.rigState.mode ? Color.white : Color.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     /// Momentary press-and-hold, not a toggle — keys on touch-down and
