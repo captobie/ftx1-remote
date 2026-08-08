@@ -74,6 +74,13 @@ public actor CommandQueue {
             try await rigctld.setRawBool("BI", on)
         case .setKeyer(let on):
             try await rigctld.setRawBool("KR", on)
+        case .setCWSpeed(let wpm):
+            try await rigctld.setRawInt("KS", wpm, digits: 3)
+        case .setCWPitch(let hz):
+            // The FTX-1's "KP" CAT command encodes pitch as steps of 10Hz
+            // above a 300Hz floor (00-75), not Hz directly — see the CAT
+            // Operation Reference Manual and RigState.cwPitchHz.
+            try await rigctld.setRawInt("KP", (hz - 300) / 10, digits: 2)
         }
     }
 }

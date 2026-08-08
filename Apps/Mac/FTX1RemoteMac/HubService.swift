@@ -187,6 +187,10 @@ final class HubService: ObservableObject {
         // poll loop any more than a secondary-VFO read failing should.
         let breakIn = try? await rigctld.getRawBool("BI")
         let keyerEnabled = try? await rigctld.getRawBool("KR")
+        let cwSpeedWpm = try? await rigctld.getRawInt("KS")
+        // "KP" reports pitch as 00-75 steps above a 300Hz floor, not Hz
+        // directly — see RigState.cwPitchHz.
+        let cwPitchStep = try? await rigctld.getRawInt("KP")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -207,7 +211,9 @@ final class HubService: ObservableObject {
             secondaryMode: secondaryModeName.flatMap(RigMode.init(rawValue:)) ?? rigState.secondaryMode,
             powerLevel: powerLevel,
             breakIn: breakIn ?? rigState.breakIn,
-            keyerEnabled: keyerEnabled ?? rigState.keyerEnabled
+            keyerEnabled: keyerEnabled ?? rigState.keyerEnabled,
+            cwSpeedWpm: cwSpeedWpm ?? rigState.cwSpeedWpm,
+            cwPitchHz: cwPitchStep.map { 300 + $0 * 10 } ?? rigState.cwPitchHz
         )
         await server.broadcast(rigState)
     }

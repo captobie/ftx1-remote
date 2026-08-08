@@ -296,6 +296,28 @@ public actor RigctldClient {
         try await sendRawCommandFireAndForget("\(cmd)\(on ? 1 : 0)")
     }
 
+    /// Reads a fixed-width numeric CAT setting of the form the FTX-1 manual
+    /// documents for e.g. "KS" (keyer speed, 3 digits) and "KP" (key pitch,
+    /// 2 digits): querying "<CMD>;" answers "<CMD><digits>;". Takes only the
+    /// leading run of digits after the command prefix, tolerating the reply
+    /// either including or omitting its own trailing ";" (see
+    /// `getRawBool(_:)` for the same reasoning). Returns nil if the reply
+    /// doesn't match that shape at all.
+    public func getRawInt(_ cmd: String) async throws -> Int? {
+        let reply = try await sendRawCommand(cmd)
+        guard reply.hasPrefix(cmd) else { return nil }
+        let digits = reply.dropFirst(cmd.count).prefix { $0.isNumber }
+        return Int(digits)
+    }
+
+    /// Sets a fixed-width, zero-padded numeric CAT setting of the form
+    /// "<CMD><digits>;" — see `getRawInt(_:)`. `digits` is the field width
+    /// (e.g. 3 for "KS004;", 2 for "KP00;"), per the manual.
+    public func setRawInt(_ cmd: String, _ value: Int, digits: Int) async throws {
+        let padded = String(format: "%0\(digits)d", value)
+        try await sendRawCommandFireAndForget("\(cmd)\(padded)")
+    }
+
     /// Like `sendRawCommand`, but doesn't wait for or read any reply at
     /// all — for Set-style commands, which this rig (confirmed both by
     /// the CAT manual, which documents an Answer only for Read commands,

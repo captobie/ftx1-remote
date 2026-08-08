@@ -21,6 +21,12 @@ public enum RigCommand: Sendable, Equatable {
     /// CW electronic keyer on/off — see `RigState.keyerEnabled`. Maps to
     /// the FTX-1's raw "KR" CAT command.
     case setKeyer(Bool)
+    /// CW keyer speed, 4-60 WPM — see `RigState.cwSpeedWpm`. Maps to the
+    /// FTX-1's raw "KS" CAT command.
+    case setCWSpeed(wpm: Int)
+    /// CW sidetone/pitch, 300-1050 Hz in 10Hz steps — see
+    /// `RigState.cwPitchHz`. Maps to the FTX-1's raw "KP" CAT command.
+    case setCWPitch(hz: Int)
 
     private enum CodingKeys: String, CodingKey {
         case cmd
@@ -35,6 +41,8 @@ public enum RigCommand: Sendable, Equatable {
         case setPower = "set_power"
         case setBreakIn = "set_break_in"
         case setKeyer = "set_keyer"
+        case setCWSpeed = "set_cw_speed"
+        case setCWPitch = "set_cw_pitch"
     }
 }
 
@@ -57,6 +65,10 @@ extension RigCommand: Codable {
             self = .setBreakIn(try container.decode(Bool.self, forKey: .value))
         case .setKeyer:
             self = .setKeyer(try container.decode(Bool.self, forKey: .value))
+        case .setCWSpeed:
+            self = .setCWSpeed(wpm: try container.decode(Int.self, forKey: .value))
+        case .setCWPitch:
+            self = .setCWPitch(hz: try container.decode(Int.self, forKey: .value))
         }
     }
 
@@ -84,6 +96,12 @@ extension RigCommand: Codable {
         case .setKeyer(let on):
             try container.encode(CommandName.setKeyer, forKey: .cmd)
             try container.encode(on, forKey: .value)
+        case .setCWSpeed(let wpm):
+            try container.encode(CommandName.setCWSpeed, forKey: .cmd)
+            try container.encode(wpm, forKey: .value)
+        case .setCWPitch(let hz):
+            try container.encode(CommandName.setCWPitch, forKey: .cmd)
+            try container.encode(hz, forKey: .value)
         }
     }
 }

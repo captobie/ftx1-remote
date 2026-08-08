@@ -26,6 +26,12 @@ public struct RigState: Codable, Equatable, Sendable {
     public var breakIn: Bool?
     /// CW electronic keyer on/off (the FTX-1's raw "KR" CAT command).
     public var keyerEnabled: Bool?
+    /// CW keyer speed in WPM, 4-60 (the FTX-1's raw "KS" CAT command).
+    public var cwSpeedWpm: Int?
+    /// CW sidetone/pitch in Hz, 300-1050 in 10Hz steps (the FTX-1's raw "KP"
+    /// CAT command, which encodes this as 00-75 rather than Hz directly —
+    /// see `CommandQueue`/`HubService` for the conversion).
+    public var cwPitchHz: Int?
 
     public init(
         frequencyHz: Int = 0,
@@ -39,7 +45,9 @@ public struct RigState: Codable, Equatable, Sendable {
         secondaryMode: RigMode? = nil,
         powerLevel: Double? = nil,
         breakIn: Bool? = nil,
-        keyerEnabled: Bool? = nil
+        keyerEnabled: Bool? = nil,
+        cwSpeedWpm: Int? = nil,
+        cwPitchHz: Int? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -53,6 +61,8 @@ public struct RigState: Codable, Equatable, Sendable {
         self.powerLevel = powerLevel
         self.breakIn = breakIn
         self.keyerEnabled = keyerEnabled
+        self.cwSpeedWpm = cwSpeedWpm
+        self.cwPitchHz = cwPitchHz
     }
 }
 
