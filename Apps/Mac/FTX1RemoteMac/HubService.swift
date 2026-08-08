@@ -195,6 +195,10 @@ final class HubService: ObservableObject {
         // directly — see BreakInDelay.
         let bkDelayCode = try? await rigctld.getRawInt("SD")
         let cwSpot = try? await rigctld.getRawBool("CS")
+        // "ML1" reads MONI level specifically — "ML0" would read MONI
+        // on/off instead, since both share the "ML" mnemonic under a P1
+        // sub-selector. See RigState.moniLevel.
+        let moniLevel = try? await rigctld.getRawInt("ML1")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -219,7 +223,8 @@ final class HubService: ObservableObject {
             cwSpeedWpm: cwSpeedWpm ?? rigState.cwSpeedWpm,
             cwPitchHz: cwPitchStep.map { 300 + $0 * 10 } ?? rigState.cwPitchHz,
             bkDelayMs: (bkDelayCode.flatMap(BreakInDelay.milliseconds(forCode:))) ?? rigState.bkDelayMs,
-            cwSpot: cwSpot ?? rigState.cwSpot
+            cwSpot: cwSpot ?? rigState.cwSpot,
+            moniLevel: moniLevel ?? rigState.moniLevel
         )
         await server.broadcast(rigState)
     }

@@ -40,6 +40,12 @@ public struct RigState: Codable, Equatable, Sendable {
     /// CW spot (sidetone-only zero-beat aid) on/off (the FTX-1's raw "CS"
     /// CAT command).
     public var cwSpot: Bool?
+    /// Monitor (sidetone) level, 0-100 (the FTX-1's raw "ML" CAT command
+    /// with its P1 sub-selector set to 1 — see `CommandQueue`/`HubService`).
+    /// Separate from monitor on/off, which "ML" also carries under P1=0 but
+    /// which this app doesn't expose — the physical MONI button handles
+    /// that on the rig itself.
+    public var moniLevel: Int?
 
     public init(
         frequencyHz: Int = 0,
@@ -57,7 +63,8 @@ public struct RigState: Codable, Equatable, Sendable {
         cwSpeedWpm: Int? = nil,
         cwPitchHz: Int? = nil,
         bkDelayMs: Int? = nil,
-        cwSpot: Bool? = nil
+        cwSpot: Bool? = nil,
+        moniLevel: Int? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -75,6 +82,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.cwPitchHz = cwPitchHz
         self.bkDelayMs = bkDelayMs
         self.cwSpot = cwSpot
+        self.moniLevel = moniLevel
     }
 }
 

@@ -33,6 +33,7 @@ struct MenuPageView: View {
     @State private var showingCWSpeedPopover = false
     @State private var showingCWPitchPopover = false
     @State private var showingBKDelayPopover = false
+    @State private var showingMoniLevelPopover = false
 
     /// Matches the rig's own page size — each physical menu page holds up
     /// to 28 items.
@@ -63,8 +64,9 @@ struct MenuPageView: View {
     /// Button 1 on every page is the rig's own page-select button (pressing
     /// it on the real MENU display cycles 1/3 → 2/3 → 3/3), so it gets a
     /// two-line "PAGE n/3" / mode-name label instead of a plain number.
-    /// CW button 8 is the electronic keyer (`RigCommand.setKeyer`), button 9
-    /// is break-in (`RigCommand.setBreakIn`), button 10 is keyer speed
+    /// CW button 2 is monitor level (`RigCommand.setMoniLevel`), button 8
+    /// is the electronic keyer (`RigCommand.setKeyer`), button 9 is
+    /// break-in (`RigCommand.setBreakIn`), button 10 is keyer speed
     /// (`RigCommand.setCWSpeed`), button 11 is CW pitch
     /// (`RigCommand.setCWPitch`), button 12 is break-in delay
     /// (`RigCommand.setBreakInDelay`), button 13 is zero-in
@@ -79,6 +81,8 @@ struct MenuPageView: View {
             } label: {
                 twoLineLabel(top: "PAGE \(selectedPage.pageNumber)/3", bottom: selectedPage.rawValue)
             }
+        } else if selectedPage == .cw, item == 2 {
+            moniLevelButton
         } else if selectedPage == .cw, item == 8 {
             menuButtonShell {
                 hub.send(.setKeyer(!(hub.rigState.keyerEnabled ?? false)))
@@ -191,6 +195,30 @@ struct MenuPageView: View {
                     }
                 ),
                 in: 0...(BreakInDelay.allValuesMs.count - 1)
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    /// Numeric like CW SPEED/PITCH/BK-DELAY, so it gets the same popover
+    /// `Stepper`. This only ever sets the raw "ML" command's *level*
+    /// sub-value (P1=1) — see `RigState.moniLevel` — not MONI on/off,
+    /// which shares the "ML" mnemonic under P1=0 but isn't exposed here.
+    private var moniLevelButton: some View {
+        menuButtonShell {
+            showingMoniLevelPopover = true
+        } label: {
+            twoLineLabel(top: "MONI LEVEL", bottom: hub.rigState.moniLevel.map { "\($0)" } ?? "—")
+        }
+        .popover(isPresented: $showingMoniLevelPopover) {
+            Stepper(
+                "\(hub.rigState.moniLevel ?? 50)",
+                value: Binding(
+                    get: { hub.rigState.moniLevel ?? 50 },
+                    set: { hub.send(.setMoniLevel(level: $0)) }
+                ),
+                in: 0...100
             )
             .padding()
             .frame(width: 180)

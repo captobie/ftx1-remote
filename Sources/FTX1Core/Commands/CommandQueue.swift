@@ -93,6 +93,12 @@ public actor CommandQueue {
             // and documents no reply — always targets Main, matching every
             // other raw menu command's single-VFO-focus assumption.
             try await rigctld.sendRawFireAndForget("ZI0")
+        case .setMoniLevel(let level):
+            // "ML" carries both MONI on/off and MONI level under the same
+            // mnemonic, distinguished by a P1 sub-selector baked into the
+            // command text itself ("ML0..." for on/off, "ML1..." for
+            // level) — see RigState.moniLevel.
+            try await rigctld.setRawInt("ML1", level, digits: 3)
         }
     }
 }

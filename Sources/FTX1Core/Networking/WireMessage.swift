@@ -41,6 +41,11 @@ public enum RigCommand: Sendable, Equatable {
     /// Main/Sub selector rather than an on/off state, and documents no
     /// reply).
     case triggerZeroIn
+    /// Monitor (sidetone) level, 0-100 — see `RigState.moniLevel`. Maps to
+    /// the FTX-1's raw "ML" CAT command with its P1 sub-selector set to 1
+    /// (level, as opposed to P1=0 for on/off, which this app doesn't
+    /// expose).
+    case setMoniLevel(level: Int)
 
     private enum CodingKeys: String, CodingKey {
         case cmd
@@ -60,6 +65,7 @@ public enum RigCommand: Sendable, Equatable {
         case setBreakInDelay = "set_bk_delay"
         case setCWSpot = "set_cw_spot"
         case triggerZeroIn = "zero_in"
+        case setMoniLevel = "set_moni_level"
     }
 }
 
@@ -92,6 +98,8 @@ extension RigCommand: Codable {
             self = .setCWSpot(try container.decode(Bool.self, forKey: .value))
         case .triggerZeroIn:
             self = .triggerZeroIn
+        case .setMoniLevel:
+            self = .setMoniLevel(level: try container.decode(Int.self, forKey: .value))
         }
     }
 
@@ -133,6 +141,9 @@ extension RigCommand: Codable {
             try container.encode(on, forKey: .value)
         case .triggerZeroIn:
             try container.encode(CommandName.triggerZeroIn, forKey: .cmd)
+        case .setMoniLevel(let level):
+            try container.encode(CommandName.setMoniLevel, forKey: .cmd)
+            try container.encode(level, forKey: .value)
         }
     }
 }
