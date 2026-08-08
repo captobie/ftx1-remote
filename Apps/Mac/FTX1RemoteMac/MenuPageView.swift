@@ -203,17 +203,20 @@ struct MenuPageView: View {
 
     /// Numeric like CW SPEED/PITCH/BK-DELAY, so it gets the same popover
     /// `Stepper`. This only ever sets the raw "ML" command's *level*
-    /// sub-value (P1=1) — see `RigState.moniLevel` — not MONI on/off,
-    /// which shares the "ML" mnemonic under P1=0 but isn't exposed here.
+    /// sub-value (P1=1) — see `RigState.moniLevel` — not the separate
+    /// on/off sub-value the same mnemonic carries under P1=0: on the real
+    /// rig, a level readback of 0 already means MONI is off, so that's
+    /// shown as "OFF" here rather than exposing a second button/command
+    /// for what's functionally the same on/off state.
     private var moniLevelButton: some View {
         menuButtonShell {
             showingMoniLevelPopover = true
         } label: {
-            twoLineLabel(top: "MONI LEVEL", bottom: hub.rigState.moniLevel.map { "\($0)" } ?? "—")
+            twoLineLabel(top: "MONI LEVEL", bottom: Self.moniLevelLabel(hub.rigState.moniLevel))
         }
         .popover(isPresented: $showingMoniLevelPopover) {
             Stepper(
-                "\(hub.rigState.moniLevel ?? 50)",
+                Self.moniLevelLabel(hub.rigState.moniLevel ?? 50),
                 value: Binding(
                     get: { hub.rigState.moniLevel ?? 50 },
                     set: { hub.send(.setMoniLevel(level: $0)) }
@@ -223,6 +226,12 @@ struct MenuPageView: View {
             .padding()
             .frame(width: 180)
         }
+    }
+
+    /// 0 reads as "OFF" (see `moniLevelButton`); `nil` (no poll yet) as "—".
+    private static func moniLevelLabel(_ level: Int?) -> String {
+        guard let level else { return "—" }
+        return level == 0 ? "OFF" : "\(level)"
     }
 
     private func menuButtonShell(action: @escaping () -> Void, @ViewBuilder label: () -> some View) -> some View {
