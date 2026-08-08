@@ -66,8 +66,10 @@
 <line x1="787.3" y1="336.5" x2="808.6" y2="327.7" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
 <line x1="804.3" y1="392.4" x2="826.9" y2="387.9" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
   <circle cx="512.0" cy="450.6" r="307.2" fill="url(#bezelGrad)" stroke="#4a4d53" stroke-width="6.1"/>
-  <circle cx="512.0" cy="450.6" r="264.2" fill="none" stroke="url(#glowGrad)" stroke-width="49.2" filter="url(#softBlur)" opacity="0.95"/>
-  <circle cx="512.0" cy="450.6" r="264.2" fill="none" stroke="url(#glowGrad)" stroke-width="19.7"/>
+  <path d="M 708.3 273.8 A 264.2 264.2 0 0 1 708.3 627.3" fill="none" stroke="url(#glowGrad)" stroke-width="49.2" stroke-linecap="round" filter="url(#softBlur)" opacity="0.95"/>
+<path d="M 315.7 627.3 A 264.2 264.2 0 0 1 315.7 273.8" fill="none" stroke="url(#glowGrad)" stroke-width="49.2" stroke-linecap="round" filter="url(#softBlur)" opacity="0.95"/>
+  <path d="M 708.3 273.8 A 264.2 264.2 0 0 1 708.3 627.3" fill="none" stroke="url(#glowGrad)" stroke-width="19.7" stroke-linecap="round"/>
+<path d="M 315.7 627.3 A 264.2 264.2 0 0 1 315.7 273.8" fill="none" stroke="url(#glowGrad)" stroke-width="19.7" stroke-linecap="round"/>
   <circle cx="512.0" cy="450.6" r="221.2" fill="url(#faceGrad)"/>
   <ellipse cx="441.2" cy="366.5" rx="92.9" ry="53.1" fill="#ffffff" opacity="0.16"/>
   <rect x="204.8" y="839.7" width="614.4" height="51.2" rx="25.6" fill="#9aa0a8"/>

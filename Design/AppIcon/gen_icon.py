@@ -1,5 +1,14 @@
 import math
 
+def arc_d(cx, cy, r, a0, a1):
+    """SVG path 'd' for an arc from angle a0 to a1 (degrees, 0=east, clockwise)."""
+    a0r, a1r = math.radians(a0), math.radians(a1)
+    x1, y1 = cx + r * math.cos(a0r), cy + r * math.sin(a0r)
+    x2, y2 = cx + r * math.cos(a1r), cy + r * math.sin(a1r)
+    large_arc = 1 if abs(a1 - a0) > 180 else 0
+    sweep = 1 if a1 > a0 else 0
+    return f"M {x1:.1f} {y1:.1f} A {r:.1f} {r:.1f} 0 {large_arc} {sweep} {x2:.1f} {y2:.1f}"
+
 def motif(S, cx, cy, palette, tinted=False):
     """Returns SVG markup for the FTX-1-inspired dial motif, centered at (cx,cy),
     sized relative to S (the content box side length)."""
@@ -38,11 +47,27 @@ def motif(S, cx, cy, palette, tinted=False):
     else:
         strip_fill = "url(#waterfall)"
 
+    # Blue light sits in two crescents on the left/right of the dial (like
+    # parentheses), cut off at top and bottom -- matches the real FTX-1.
+    arc_half_angle = 42
+    right_arc = arc_d(dial_cx, dial_cy, glow_r, -arc_half_angle, arc_half_angle)
+    left_arc = arc_d(dial_cx, dial_cy, glow_r, 180 - arc_half_angle, 180 + arc_half_angle)
+    arcs = [right_arc, left_arc]
+    glow_arcs = "\n".join(
+        f'<path d="{d}" fill="none" stroke="url(#glowGrad)" stroke-width="{glow_w:.1f}" '
+        f'stroke-linecap="round" filter="url(#softBlur)" opacity="0.95"/>'
+        for d in arcs
+    )
+    sharp_arcs = "\n".join(
+        f'<path d="{d}" fill="none" stroke="url(#glowGrad)" stroke-width="{glow_w*0.4:.1f}" stroke-linecap="round"/>'
+        for d in arcs
+    )
+
     return f'''
   {knurl_svg}
   <circle cx="{dial_cx:.1f}" cy="{dial_cy:.1f}" r="{bezel_r:.1f}" fill="url(#bezelGrad)" stroke="{palette["bezel_stroke"]}" stroke-width="{bezel_r*0.02:.1f}"/>
-  <circle cx="{dial_cx:.1f}" cy="{dial_cy:.1f}" r="{glow_r:.1f}" fill="none" stroke="url(#glowGrad)" stroke-width="{glow_w:.1f}" filter="url(#softBlur)" opacity="0.95"/>
-  <circle cx="{dial_cx:.1f}" cy="{dial_cy:.1f}" r="{glow_r:.1f}" fill="none" stroke="url(#glowGrad)" stroke-width="{glow_w*0.4:.1f}"/>
+  {glow_arcs}
+  {sharp_arcs}
   <circle cx="{dial_cx:.1f}" cy="{dial_cy:.1f}" r="{face_r:.1f}" fill="url(#faceGrad)"/>
   <ellipse cx="{dial_cx - face_r*0.32:.1f}" cy="{dial_cy - face_r*0.38:.1f}" rx="{face_r*0.42:.1f}" ry="{face_r*0.24:.1f}" fill="{palette['highlight']}" opacity="0.16"/>
   <rect x="{strip_x:.1f}" y="{strip_y:.1f}" width="{strip_w:.1f}" height="{strip_h:.1f}" rx="{strip_rx:.1f}" fill="{strip_fill}"/>
