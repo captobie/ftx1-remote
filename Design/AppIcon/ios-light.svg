@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2a2d33"/>
+      <stop offset="100%" stop-color="#0a0b0d"/>
+    </linearGradient>
+    <linearGradient id="bezelGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a4d53"/><stop offset="100%" stop-color="#101114"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5fc3ff"/><stop offset="100%" stop-color="#0060ff"/>
+    </linearGradient>
+    <radialGradient id="faceGrad" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#2c2e33"/><stop offset="100%" stop-color="#0e0f11"/>
+    </radialGradient>
+    <radialGradient id="ledGrad" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#3ddc71"/><stop offset="100%" stop-color="#0f7a34"/>
+    </radialGradient>
+    <linearGradient id="waterfall" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2ea1ff"/>
+      <stop offset="35%" stop-color="#7d6bff"/>
+      <stop offset="65%" stop-color="#ff5fa8"/>
+      <stop offset="100%" stop-color="#ff7a3d"/>
+    </linearGradient>
+    <filter id="softBlur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12.3"/>
+    </filter>
+    <filter id="dropShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+    
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#bgGrad)"/>
+  <g>
+    
+  <line x1="810.0" y1="450.6" x2="833.0" y2="450.6" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="804.3" y1="508.7" x2="826.9" y2="513.2" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="787.3" y1="564.6" x2="808.6" y2="573.4" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="759.8" y1="616.1" x2="778.9" y2="628.9" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="722.7" y1="661.3" x2="739.0" y2="677.6" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="677.6" y1="698.3" x2="690.4" y2="717.5" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="626.0" y1="725.9" x2="634.9" y2="747.1" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="570.1" y1="742.8" x2="574.6" y2="765.4" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="512.0" y1="748.5" x2="512.0" y2="771.6" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="453.9" y1="742.8" x2="449.4" y2="765.4" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="398.0" y1="725.9" x2="389.1" y2="747.1" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="346.4" y1="698.3" x2="333.6" y2="717.5" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="301.3" y1="661.3" x2="285.0" y2="677.6" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="264.2" y1="616.1" x2="245.1" y2="628.9" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="236.7" y1="564.6" x2="215.4" y2="573.4" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="219.7" y1="508.7" x2="197.1" y2="513.2" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="214.0" y1="450.6" x2="191.0" y2="450.6" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="219.7" y1="392.4" x2="197.1" y2="387.9" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="236.7" y1="336.5" x2="215.4" y2="327.7" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="264.2" y1="285.0" x2="245.1" y2="272.2" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="301.3" y1="239.9" x2="285.0" y2="223.6" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="346.4" y1="202.8" x2="333.6" y2="183.6" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="398.0" y1="175.3" x2="389.1" y2="154.0" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="453.9" y1="158.3" x2="449.4" y2="135.7" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="512.0" y1="152.6" x2="512.0" y2="129.5" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="570.1" y1="158.3" x2="574.6" y2="135.7" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="626.0" y1="175.3" x2="634.9" y2="154.0" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="677.6" y1="202.8" x2="690.4" y2="183.6" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="722.7" y1="239.9" x2="739.0" y2="223.6" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="759.8" y1="285.0" x2="778.9" y2="272.2" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="787.3" y1="336.5" x2="808.6" y2="327.7" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+<line x1="804.3" y1="392.4" x2="826.9" y2="387.9" stroke="#000000" stroke-width="5.5" stroke-linecap="round"/>
+  <circle cx="512.0" cy="450.6" r="307.2" fill="url(#bezelGrad)" stroke="#4a4d53" stroke-width="6.1"/>
+  <circle cx="512.0" cy="450.6" r="264.2" fill="none" stroke="url(#glowGrad)" stroke-width="49.2" filter="url(#softBlur)" opacity="0.95"/>
+  <circle cx="512.0" cy="450.6" r="264.2" fill="none" stroke="url(#glowGrad)" stroke-width="19.7"/>
+  <circle cx="512.0" cy="450.6" r="221.2" fill="url(#faceGrad)"/>
+  <ellipse cx="441.2" cy="366.5" rx="92.9" ry="53.1" fill="#ffffff" opacity="0.16"/>
+  <rect x="204.8" y="839.7" width="614.4" height="51.2" rx="25.6" fill="url(#waterfall)"/>
+  <circle cx="733.2" cy="641.0" r="28.7" fill="url(#ledGrad)"/>
+
+  </g>
+</svg>

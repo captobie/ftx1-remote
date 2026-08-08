@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2a2d33"/>
+      <stop offset="100%" stop-color="#0a0b0d"/>
+    </linearGradient>
+    <linearGradient id="bezelGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a4d53"/><stop offset="100%" stop-color="#101114"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5fc3ff"/><stop offset="100%" stop-color="#0060ff"/>
+    </linearGradient>
+    <radialGradient id="faceGrad" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#2c2e33"/><stop offset="100%" stop-color="#0e0f11"/>
+    </radialGradient>
+    <radialGradient id="ledGrad" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#3ddc71"/><stop offset="100%" stop-color="#0f7a34"/>
+    </radialGradient>
+    <linearGradient id="waterfall" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2ea1ff"/>
+      <stop offset="35%" stop-color="#7d6bff"/>
+      <stop offset="65%" stop-color="#ff5fa8"/>
+      <stop offset="100%" stop-color="#ff7a3d"/>
+    </linearGradient>
+    <filter id="softBlur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="9.9"/>
+    </filter>
+    <filter id="dropShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+    <clipPath id="clip"><rect x="100.0" y="100.0" width="824" height="824" rx="185.4"/></clipPath>
+  </defs>
+  <rect x="100.0" y="100.0" width="824" height="824" rx="185.4" fill="url(#bgGrad)" filter="url(#dropShadow)"/>
+  <g clip-path="url(#clip)">
+    
+  <line x1="751.8" y1="462.6" x2="770.3" y2="462.6" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="747.2" y1="509.3" x2="765.4" y2="513.0" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="733.5" y1="554.3" x2="750.7" y2="561.4" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="711.4" y1="595.8" x2="726.8" y2="606.1" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="681.6" y1="632.1" x2="694.7" y2="645.2" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="645.2" y1="661.9" x2="655.5" y2="677.3" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="603.8" y1="684.1" x2="610.9" y2="701.2" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="558.8" y1="697.7" x2="562.4" y2="715.9" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="512.0" y1="702.3" x2="512.0" y2="720.9" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="465.2" y1="697.7" x2="461.6" y2="715.9" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="420.2" y1="684.1" x2="413.1" y2="701.2" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="378.8" y1="661.9" x2="368.5" y2="677.3" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="342.4" y1="632.1" x2="329.3" y2="645.2" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="312.6" y1="595.8" x2="297.2" y2="606.1" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="290.5" y1="554.3" x2="273.3" y2="561.4" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="276.8" y1="509.3" x2="258.6" y2="513.0" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="272.2" y1="462.6" x2="253.7" y2="462.6" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="276.8" y1="415.8" x2="258.6" y2="412.2" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="290.5" y1="370.8" x2="273.3" y2="363.7" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="312.6" y1="329.3" x2="297.2" y2="319.0" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="342.4" y1="293.0" x2="329.3" y2="279.9" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="378.8" y1="263.2" x2="368.5" y2="247.8" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="420.2" y1="241.0" x2="413.1" y2="223.9" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="465.2" y1="227.4" x2="461.6" y2="209.2" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="512.0" y1="222.8" x2="512.0" y2="204.2" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="558.8" y1="227.4" x2="562.4" y2="209.2" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="603.8" y1="241.0" x2="610.9" y2="223.9" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="645.2" y1="263.2" x2="655.5" y2="247.8" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="681.6" y1="293.0" x2="694.7" y2="279.9" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="711.4" y1="329.3" x2="726.8" y2="319.0" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="733.5" y1="370.8" x2="750.7" y2="363.7" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+<line x1="747.2" y1="415.8" x2="765.4" y2="412.2" stroke="#000000" stroke-width="4.4" stroke-linecap="round"/>
+  <circle cx="512.0" cy="462.6" r="247.2" fill="url(#bezelGrad)" stroke="#4a4d53" stroke-width="4.9"/>
+  <circle cx="512.0" cy="462.6" r="212.6" fill="none" stroke="url(#glowGrad)" stroke-width="39.6" filter="url(#softBlur)" opacity="0.95"/>
+  <circle cx="512.0" cy="462.6" r="212.6" fill="none" stroke="url(#glowGrad)" stroke-width="15.8"/>
+  <circle cx="512.0" cy="462.6" r="178.0" fill="url(#faceGrad)"/>
+  <ellipse cx="455.0" cy="394.9" rx="74.8" ry="42.7" fill="#ffffff" opacity="0.16"/>
+  <rect x="264.8" y="775.7" width="494.4" height="41.2" rx="20.6" fill="url(#waterfall)"/>
+  <circle cx="690.0" cy="615.8" r="23.1" fill="url(#ledGrad)"/>
+
+  </g>
+</svg>
