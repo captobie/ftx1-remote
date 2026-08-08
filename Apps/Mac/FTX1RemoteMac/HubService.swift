@@ -191,6 +191,10 @@ final class HubService: ObservableObject {
         // "KP" reports pitch as 00-75 steps above a 300Hz floor, not Hz
         // directly — see RigState.cwPitchHz.
         let cwPitchStep = try? await rigctld.getRawInt("KP")
+        // "SD" reports delay as a non-linear 00-33 code, not milliseconds
+        // directly — see BreakInDelay.
+        let bkDelayCode = try? await rigctld.getRawInt("SD")
+        let cwSpot = try? await rigctld.getRawBool("CS")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -213,7 +217,9 @@ final class HubService: ObservableObject {
             breakIn: breakIn ?? rigState.breakIn,
             keyerEnabled: keyerEnabled ?? rigState.keyerEnabled,
             cwSpeedWpm: cwSpeedWpm ?? rigState.cwSpeedWpm,
-            cwPitchHz: cwPitchStep.map { 300 + $0 * 10 } ?? rigState.cwPitchHz
+            cwPitchHz: cwPitchStep.map { 300 + $0 * 10 } ?? rigState.cwPitchHz,
+            bkDelayMs: (bkDelayCode.flatMap(BreakInDelay.milliseconds(forCode:))) ?? rigState.bkDelayMs,
+            cwSpot: cwSpot ?? rigState.cwSpot
         )
         await server.broadcast(rigState)
     }

@@ -32,6 +32,7 @@ struct MenuPageView: View {
     @State private var selectedPage: MenuPage = .ssb
     @State private var showingCWSpeedPopover = false
     @State private var showingCWPitchPopover = false
+    @State private var showingBKDelayPopover = false
 
     /// Matches the rig's own page size — each physical menu page holds up
     /// to 28 items.
@@ -65,7 +66,10 @@ struct MenuPageView: View {
     /// CW button 8 is the electronic keyer (`RigCommand.setKeyer`), button 9
     /// is break-in (`RigCommand.setBreakIn`), button 10 is keyer speed
     /// (`RigCommand.setCWSpeed`), button 11 is CW pitch
-    /// (`RigCommand.setCWPitch`). Everything else is still a numbered
+    /// (`RigCommand.setCWPitch`), button 12 is break-in delay
+    /// (`RigCommand.setBreakInDelay`), button 13 is zero-in
+    /// (`RigCommand.triggerZeroIn`), button 14 is CW spot
+    /// (`RigCommand.setCWSpot`). Everything else is still a numbered
     /// placeholder pending real per-item functions.
     @ViewBuilder
     private func menuButton(for item: Int) -> some View {
@@ -91,6 +95,20 @@ struct MenuPageView: View {
             cwSpeedButton
         } else if selectedPage == .cw, item == 11 {
             cwPitchButton
+        } else if selectedPage == .cw, item == 12 {
+            bkDelayButton
+        } else if selectedPage == .cw, item == 13 {
+            menuButtonShell {
+                hub.send(.triggerZeroIn)
+            } label: {
+                twoLineLabel(top: "ZIN", bottom: "PUSH")
+            }
+        } else if selectedPage == .cw, item == 14 {
+            menuButtonShell {
+                hub.send(.setCWSpot(!(hub.rigState.cwSpot ?? false)))
+            } label: {
+                twoLineLabel(top: "CW SPOT", bottom: (hub.rigState.cwSpot ?? false) ? "ON" : "OFF")
+            }
         } else {
             menuButtonShell {
                 // Not yet wired to a CAT command — layout only.
@@ -142,6 +160,37 @@ struct MenuPageView: View {
                 ),
                 in: 300...1050,
                 step: 10
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    /// Like CW SPEED/PITCH, BK-DELAY is numeric rather than on/off, so it
+    /// gets the same tap-to-open-a-popover-`Stepper` treatment. Unlike
+    /// those two, its raw "SD" values aren't evenly spaced (see
+    /// `BreakInDelay`), so the stepper steps through `BreakInDelay`'s 0-33
+    /// code range rather than milliseconds directly, converting to/from
+    /// ms only at the `RigCommand` boundary.
+    private var bkDelayButton: some View {
+        menuButtonShell {
+            showingBKDelayPopover = true
+        } label: {
+            twoLineLabel(top: "BK-DELAY", bottom: hub.rigState.bkDelayMs.map { "\($0) ms" } ?? "—")
+        }
+        .popover(isPresented: $showingBKDelayPopover) {
+            let currentCode = BreakInDelay.code(forMilliseconds: hub.rigState.bkDelayMs ?? 300) ?? 6
+            Stepper(
+                "\(BreakInDelay.milliseconds(forCode: currentCode) ?? 300) ms",
+                value: Binding(
+                    get: { currentCode },
+                    set: { code in
+                        if let ms = BreakInDelay.milliseconds(forCode: code) {
+                            hub.send(.setBreakInDelay(ms: ms))
+                        }
+                    }
+                ),
+                in: 0...(BreakInDelay.allValuesMs.count - 1)
             )
             .padding()
             .frame(width: 180)

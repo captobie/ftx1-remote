@@ -32,6 +32,14 @@ public struct RigState: Codable, Equatable, Sendable {
     /// CAT command, which encodes this as 00-75 rather than Hz directly —
     /// see `CommandQueue`/`HubService` for the conversion).
     public var cwPitchHz: Int?
+    /// CW (semi) break-in delay in milliseconds — one of `BreakInDelay.
+    /// allValuesMs` (the FTX-1's raw "SD" CAT command, which encodes this as
+    /// a non-linear 00-33 code rather than milliseconds directly — see
+    /// `BreakInDelay`).
+    public var bkDelayMs: Int?
+    /// CW spot (sidetone-only zero-beat aid) on/off (the FTX-1's raw "CS"
+    /// CAT command).
+    public var cwSpot: Bool?
 
     public init(
         frequencyHz: Int = 0,
@@ -47,7 +55,9 @@ public struct RigState: Codable, Equatable, Sendable {
         breakIn: Bool? = nil,
         keyerEnabled: Bool? = nil,
         cwSpeedWpm: Int? = nil,
-        cwPitchHz: Int? = nil
+        cwPitchHz: Int? = nil,
+        bkDelayMs: Int? = nil,
+        cwSpot: Bool? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -63,7 +73,39 @@ public struct RigState: Codable, Equatable, Sendable {
         self.keyerEnabled = keyerEnabled
         self.cwSpeedWpm = cwSpeedWpm
         self.cwPitchHz = cwPitchHz
+        self.bkDelayMs = bkDelayMs
+        self.cwSpot = cwSpot
     }
+}
+
+/// The FTX-1's raw "SD" CW break-in delay CAT command doesn't encode
+/// milliseconds directly — it's a 2-digit code 00-33 per the CAT Operation
+/// Reference Manual: codes 00-05 are fixed odd values (30/50/100/150/200/
+/// 250ms), then 06-33 step linearly in 100ms increments up to 3000ms.
+public enum BreakInDelay {
+    /// Raw "SD" code (0-33) -> milliseconds. `nil` for any code outside
+    /// that range.
+    public static func milliseconds(forCode code: Int) -> Int? {
+        switch code {
+        case 0: 30
+        case 1: 50
+        case 2: 100
+        case 3: 150
+        case 4: 200
+        case 5: 250
+        case 6...33: 300 + (code - 6) * 100
+        default: nil
+        }
+    }
+
+    /// Reverse of `milliseconds(forCode:)`. Every value in `allValuesMs`
+    /// round-trips through this exactly.
+    public static func code(forMilliseconds ms: Int) -> Int? {
+        (0...33).first { milliseconds(forCode: $0) == ms }
+    }
+
+    /// All valid values in order, for driving a UI stepper/picker.
+    public static let allValuesMs: [Int] = (0...33).compactMap(milliseconds(forCode:))
 }
 
 public enum RigMode: String, Codable, Sendable, CaseIterable, Hashable {

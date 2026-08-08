@@ -81,6 +81,18 @@ public actor CommandQueue {
             // above a 300Hz floor (00-75), not Hz directly — see the CAT
             // Operation Reference Manual and RigState.cwPitchHz.
             try await rigctld.setRawInt("KP", (hz - 300) / 10, digits: 2)
+        case .setBreakInDelay(let ms):
+            // The FTX-1's "SD" CAT command encodes delay as a non-linear
+            // 00-33 code, not milliseconds directly — see BreakInDelay.
+            guard let code = BreakInDelay.code(forMilliseconds: ms) else { return }
+            try await rigctld.setRawInt("SD", code, digits: 2)
+        case .setCWSpot(let on):
+            try await rigctld.setRawBool("CS", on)
+        case .triggerZeroIn:
+            // "ZI" takes a Main/Sub selector (0/1), not an on/off state,
+            // and documents no reply — always targets Main, matching every
+            // other raw menu command's single-VFO-focus assumption.
+            try await rigctld.sendRawFireAndForget("ZI0")
         }
     }
 }

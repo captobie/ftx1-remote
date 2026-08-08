@@ -336,6 +336,17 @@ public actor RigctldClient {
     /// later read — confirmed by reading that source directly. `write(_:)`
     /// clears any stale buffered bytes at the start of the next round trip
     /// as a defensive backstop regardless.
+    /// Sends a raw CAT command that isn't shaped like a boolean or
+    /// fixed-width-int setting (see `setRawBool`/`setRawInt`) — for
+    /// momentary/action commands such as "ZI0" (CW auto zero-in), which
+    /// take a fixed literal parameter rather than a value derived from
+    /// app state, and (per the manual) get no reply. Not `private` since,
+    /// unlike `setRawBool`/`setRawInt`, there's no per-setting wrapper in
+    /// this file for `CommandQueue` to call instead.
+    func sendRawFireAndForget(_ cmd: String) async throws {
+        try await sendRawCommandFireAndForget(cmd)
+    }
+
     private func sendRawCommandFireAndForget(_ cmd: String) async throws {
         await acquireRoundTrip()
         defer { releaseRoundTrip() }

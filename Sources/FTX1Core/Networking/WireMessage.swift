@@ -27,6 +27,20 @@ public enum RigCommand: Sendable, Equatable {
     /// CW sidetone/pitch, 300-1050 Hz in 10Hz steps — see
     /// `RigState.cwPitchHz`. Maps to the FTX-1's raw "KP" CAT command.
     case setCWPitch(hz: Int)
+    /// CW (semi) break-in delay in milliseconds — must be one of
+    /// `BreakInDelay.allValuesMs`. See `RigState.bkDelayMs`. Maps to the
+    /// FTX-1's raw "SD" CAT command.
+    case setBreakInDelay(ms: Int)
+    /// CW spot on/off — see `RigState.cwSpot`. Maps to the FTX-1's raw "CS"
+    /// CAT command.
+    case setCWSpot(Bool)
+    /// Triggers the FTX-1's CW auto zero-in function on the Main VFO —
+    /// momentary, not a stored setting, so unlike every other case there's
+    /// no associated value to round-trip. Maps to the FTX-1's raw "ZI0"
+    /// CAT command (per the CAT Operation Reference Manual, "ZI" takes a
+    /// Main/Sub selector rather than an on/off state, and documents no
+    /// reply).
+    case triggerZeroIn
 
     private enum CodingKeys: String, CodingKey {
         case cmd
@@ -43,6 +57,9 @@ public enum RigCommand: Sendable, Equatable {
         case setKeyer = "set_keyer"
         case setCWSpeed = "set_cw_speed"
         case setCWPitch = "set_cw_pitch"
+        case setBreakInDelay = "set_bk_delay"
+        case setCWSpot = "set_cw_spot"
+        case triggerZeroIn = "zero_in"
     }
 }
 
@@ -69,6 +86,12 @@ extension RigCommand: Codable {
             self = .setCWSpeed(wpm: try container.decode(Int.self, forKey: .value))
         case .setCWPitch:
             self = .setCWPitch(hz: try container.decode(Int.self, forKey: .value))
+        case .setBreakInDelay:
+            self = .setBreakInDelay(ms: try container.decode(Int.self, forKey: .value))
+        case .setCWSpot:
+            self = .setCWSpot(try container.decode(Bool.self, forKey: .value))
+        case .triggerZeroIn:
+            self = .triggerZeroIn
         }
     }
 
@@ -102,6 +125,14 @@ extension RigCommand: Codable {
         case .setCWPitch(let hz):
             try container.encode(CommandName.setCWPitch, forKey: .cmd)
             try container.encode(hz, forKey: .value)
+        case .setBreakInDelay(let ms):
+            try container.encode(CommandName.setBreakInDelay, forKey: .cmd)
+            try container.encode(ms, forKey: .value)
+        case .setCWSpot(let on):
+            try container.encode(CommandName.setCWSpot, forKey: .cmd)
+            try container.encode(on, forKey: .value)
+        case .triggerZeroIn:
+            try container.encode(CommandName.triggerZeroIn, forKey: .cmd)
         }
     }
 }
