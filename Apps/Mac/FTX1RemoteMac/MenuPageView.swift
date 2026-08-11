@@ -21,6 +21,21 @@ enum MenuPage: String, CaseIterable, Identifiable {
         case .fm: 3
         }
     }
+
+    /// The previous/next page in the rig's own cycle (1/3 → 2/3 → 3/3 →
+    /// wraps back to 1/3), used by each page's shared left/right nav
+    /// buttons (item 22 / item 28).
+    var previous: MenuPage {
+        let cases = Self.allCases
+        let index = cases.firstIndex(of: self)!
+        return cases[(index - 1 + cases.count) % cases.count]
+    }
+
+    var next: MenuPage {
+        let cases = Self.allCases
+        let index = cases.firstIndex(of: self)!
+        return cases[(index + 1) % cases.count]
+    }
 }
 
 /// Grid of buttons mirroring one of the FTX-1's three menu pages. Layout
@@ -64,6 +79,11 @@ struct MenuPageView: View {
     /// Button 1 on every page is the rig's own page-select button (pressing
     /// it on the real MENU display cycles 1/3 → 2/3 → 3/3), so it gets a
     /// two-line "PAGE n/3" / mode-name label instead of a plain number.
+    /// Buttons 22 and 28 are left/right nav to the previous/next page in
+    /// that cycle, shared by whichever pages don't repurpose the slot:
+    /// SSB has its own RF POWER at 22, so nav-left only shows on CW/FM;
+    /// FM/C4FM has its own APRS SETTING at 28, so nav-right only shows on
+    /// SSB/CW.
     /// CW button 2 is monitor level (`RigCommand.setMoniLevel`), button 8
     /// is the electronic keyer (`RigCommand.setKeyer`), button 9 is
     /// break-in (`RigCommand.setBreakIn`), button 10 is keyer speed
@@ -80,6 +100,18 @@ struct MenuPageView: View {
                 // Not yet wired — mirrors the rig's own page-select button.
             } label: {
                 twoLineLabel(top: "PAGE \(selectedPage.pageNumber)/3", bottom: selectedPage.rawValue)
+            }
+        } else if selectedPage != .ssb, item == 22 {
+            menuButtonShell {
+                selectedPage = selectedPage.previous
+            } label: {
+                twoLineLabel(top: "◀", bottom: selectedPage.previous.rawValue)
+            }
+        } else if selectedPage != .fm, item == 28 {
+            menuButtonShell {
+                selectedPage = selectedPage.next
+            } label: {
+                twoLineLabel(top: "▶", bottom: selectedPage.next.rawValue)
             }
         } else if selectedPage == .cw, item == 2 {
             moniLevelButton
