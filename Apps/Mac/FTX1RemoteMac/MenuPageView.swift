@@ -55,6 +55,13 @@ struct MenuPageView: View {
     private static let itemsPerPage = 28
     private static let columns = 7
 
+    /// CW page item numbers with no corresponding rig function — confirmed
+    /// against the real MENU display, not just "not yet wired." Rendered
+    /// as invisible (not just unlabeled) placeholders so they don't get
+    /// mistaken for still-pending work, while keeping the grid's row
+    /// alignment intact.
+    private static let hiddenCWItems: Set<Int> = [3, 4, 5, 6, 7, 15, 16, 17, 18, 23, 24, 25, 26, 27]
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Picker("Menu page", selection: $selectedPage) {
@@ -93,7 +100,9 @@ struct MenuPageView: View {
     /// (`RigCommand.triggerZeroIn`), button 14 is CW spot
     /// (`RigCommand.setCWSpot`). Buttons 19-21 (MESSAGE/PLAY/RECORD, the CW
     /// MESSAGE memory) are visible-but-disabled — see
-    /// `disabledCWMessageButton`. Everything else is still a numbered
+    /// `disabledCWMessageButton`. `hiddenCWItems` (3-7, 15-18, 23-27) have
+    /// no rig function at all on this page and render invisibly — see
+    /// `hiddenButtonPlaceholder`. Everything else is still a numbered
     /// placeholder pending real per-item functions.
     @ViewBuilder
     private func menuButton(for item: Int) -> some View {
@@ -153,6 +162,8 @@ struct MenuPageView: View {
             disabledCWMessageButton(top: "PLAY")
         } else if selectedPage == .cw, item == 21 {
             disabledCWMessageButton(top: "RECORD")
+        } else if selectedPage == .cw, Self.hiddenCWItems.contains(item) {
+            hiddenButtonPlaceholder(for: item)
         } else {
             menuButtonShell {
                 // Not yet wired to a CAT command — layout only.
@@ -291,6 +302,22 @@ struct MenuPageView: View {
                 .foregroundStyle(.secondary)
         }
         .disabled(true)
+    }
+
+    /// For `hiddenCWItems` — same shell/sizing as every other button (so
+    /// the grid's row heights stay aligned with neighboring visible
+    /// buttons) but fully invisible and non-interactive, since these item
+    /// numbers have no real function on the CW page at all.
+    private func hiddenButtonPlaceholder(for item: Int) -> some View {
+        menuButtonShell {
+            // No-op — this item number has no function on the CW page.
+        } label: {
+            Text("\(item)")
+                .font(.system(.body, design: .monospaced))
+        }
+        .opacity(0)
+        .disabled(true)
+        .allowsHitTesting(false)
     }
 
     private func menuButtonShell(action: @escaping () -> Void, @ViewBuilder label: () -> some View) -> some View {
