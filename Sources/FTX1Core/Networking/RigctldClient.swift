@@ -318,6 +318,23 @@ public actor RigctldClient {
         try await sendRawCommandFireAndForget("\(cmd)\(padded)")
     }
 
+    /// Reads P3 of the FTX-1's raw "RI" (RADIO INFORMATION) status command —
+    /// 0 = stopped, 1 = recording, 2 = playing (CW MESSAGE record/playback
+    /// state — see `RigState.cwMessageStatus`). RI's answer packs 8
+    /// single-digit fields ("RI" + P1..P8 + ";") rather than one trailing
+    /// run of digits, so `getRawInt` isn't usable here — it would
+    /// concatenate all 8 into one number instead of isolating P3. RI also
+    /// reports several other fields (Hi-SWR, TX state, tuner, scan,
+    /// squelch) this app doesn't use yet. Read-only per the manual (no
+    /// Set), queried as "RI0" (P1 fixed to 0).
+    public func getCWMessageStatus() async throws -> Int? {
+        let reply = try await sendRawCommand("RI0")
+        guard reply.hasPrefix("RI") else { return nil }
+        let fields = Array(reply.dropFirst(2))
+        guard fields.count >= 3 else { return nil }
+        return fields[2].wholeNumberValue
+    }
+
     /// Like `sendRawCommand`, but doesn't wait for or read any reply at
     /// all — for Set-style commands, which this rig (confirmed both by
     /// the CAT manual, which documents an Answer only for Read commands,

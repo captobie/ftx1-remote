@@ -46,6 +46,13 @@ public struct RigState: Codable, Equatable, Sendable {
     /// which this app doesn't expose — the physical MONI button handles
     /// that on the rig itself.
     public var moniLevel: Int?
+    /// CW MESSAGE memory record/playback state (the FTX-1's raw "RI" CAT
+    /// command's P3 field) — reflects whichever channel is currently
+    /// recording or playing, not which channel that is (RI doesn't report
+    /// that). The active channel itself is UI-local state in
+    /// `MenuPageView`, not part of this snapshot — see
+    /// `RigCommand.selectCWMessageChannel`.
+    public var cwMessageStatus: CWMessageStatus?
 
     public init(
         frequencyHz: Int = 0,
@@ -64,7 +71,8 @@ public struct RigState: Codable, Equatable, Sendable {
         cwPitchHz: Int? = nil,
         bkDelayMs: Int? = nil,
         cwSpot: Bool? = nil,
-        moniLevel: Int? = nil
+        moniLevel: Int? = nil,
+        cwMessageStatus: CWMessageStatus? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -83,7 +91,16 @@ public struct RigState: Codable, Equatable, Sendable {
         self.bkDelayMs = bkDelayMs
         self.cwSpot = cwSpot
         self.moniLevel = moniLevel
+        self.cwMessageStatus = cwMessageStatus
     }
+}
+
+/// CW MESSAGE memory record/playback state, per the FTX-1's raw "RI" CAT
+/// command's P3 field — see `RigState.cwMessageStatus`.
+public enum CWMessageStatus: Int, Codable, Sendable {
+    case stopped = 0
+    case recording = 1
+    case playing = 2
 }
 
 /// The FTX-1's raw "SD" CW break-in delay CAT command doesn't encode

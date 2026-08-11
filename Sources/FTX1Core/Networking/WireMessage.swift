@@ -46,6 +46,21 @@ public enum RigCommand: Sendable, Equatable {
     /// (level, as opposed to P1=0 for on/off, which this app doesn't
     /// expose).
     case setMoniLevel(level: Int)
+    /// Selects which CW MESSAGE memory channel (1-5) is "active" on the
+    /// rig — doesn't itself start playback or recording. Maps to the
+    /// FTX-1's raw "LM" CAT command with P1=0 (the message-select
+    /// sub-mode, as opposed to P1=1 for `setCWMessageRecording`).
+    case selectCWMessageChannel(Int)
+    /// Starts/stops recording spoken CW audio into whichever channel
+    /// `selectCWMessageChannel` last selected. Maps to the FTX-1's raw
+    /// "LM" CAT command with P1=1 (the record sub-mode).
+    case setCWMessageRecording(Bool)
+    /// Starts playback of a CW MESSAGE channel (0 to stop, 1-5 to play
+    /// that channel) — independent of whatever `selectCWMessageChannel`
+    /// last selected. Maps to the FTX-1's raw "KY" CAT command with P1
+    /// fixed to 1 (CW MESSAGE Memory, as opposed to 0 for CW TEXT Memory
+    /// / typed keyer-memory content, which this app doesn't expose).
+    case playCWMessage(channel: Int)
 
     private enum CodingKeys: String, CodingKey {
         case cmd
@@ -66,6 +81,9 @@ public enum RigCommand: Sendable, Equatable {
         case setCWSpot = "set_cw_spot"
         case triggerZeroIn = "zero_in"
         case setMoniLevel = "set_moni_level"
+        case selectCWMessageChannel = "select_cw_message_channel"
+        case setCWMessageRecording = "set_cw_message_recording"
+        case playCWMessage = "play_cw_message"
     }
 }
 
@@ -100,6 +118,12 @@ extension RigCommand: Codable {
             self = .triggerZeroIn
         case .setMoniLevel:
             self = .setMoniLevel(level: try container.decode(Int.self, forKey: .value))
+        case .selectCWMessageChannel:
+            self = .selectCWMessageChannel(try container.decode(Int.self, forKey: .value))
+        case .setCWMessageRecording:
+            self = .setCWMessageRecording(try container.decode(Bool.self, forKey: .value))
+        case .playCWMessage:
+            self = .playCWMessage(channel: try container.decode(Int.self, forKey: .value))
         }
     }
 
@@ -144,6 +168,15 @@ extension RigCommand: Codable {
         case .setMoniLevel(let level):
             try container.encode(CommandName.setMoniLevel, forKey: .cmd)
             try container.encode(level, forKey: .value)
+        case .selectCWMessageChannel(let channel):
+            try container.encode(CommandName.selectCWMessageChannel, forKey: .cmd)
+            try container.encode(channel, forKey: .value)
+        case .setCWMessageRecording(let on):
+            try container.encode(CommandName.setCWMessageRecording, forKey: .cmd)
+            try container.encode(on, forKey: .value)
+        case .playCWMessage(let channel):
+            try container.encode(CommandName.playCWMessage, forKey: .cmd)
+            try container.encode(channel, forKey: .value)
         }
     }
 }

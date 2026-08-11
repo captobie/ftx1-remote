@@ -99,6 +99,23 @@ public actor CommandQueue {
             // command text itself ("ML0..." for on/off, "ML1..." for
             // level) — see RigState.moniLevel.
             try await rigctld.setRawInt("ML1", level, digits: 3)
+        case .selectCWMessageChannel(let channel):
+            // "LM" (LOAD MESSAGE) packs channel-select and record start/
+            // stop under one mnemonic via a P1 sub-selector, just like "ML"
+            // does for MONI on/off vs level — P1=0 is the message-select
+            // branch, whose P2 is which channel (1-5) becomes "active" for
+            // setCWMessageRecording and the rig's own MESSAGE button.
+            try await rigctld.setRawInt("LM0", channel, digits: 1)
+        case .setCWMessageRecording(let on):
+            // P1=1 is "LM"'s record branch — starts/stops recording into
+            // whichever channel selectCWMessageChannel last selected.
+            try await rigctld.setRawBool("LM1", on)
+        case .playCWMessage(let channel):
+            // "KY" (CW KEYING MEMORY PLAY) P1 fixed to 1 (CW MESSAGE
+            // Memory, as opposed to 0 for CW TEXT Memory, which this app
+            // doesn't expose) — P2 is 0 to stop or 1-5 to start playing
+            // that channel.
+            try await rigctld.setRawInt("KY1", channel, digits: 1)
         }
     }
 }

@@ -199,6 +199,7 @@ final class HubService: ObservableObject {
         // on/off instead, since both share the "ML" mnemonic under a P1
         // sub-selector. See RigState.moniLevel.
         let moniLevel = try? await rigctld.getRawInt("ML1")
+        let cwMessageStatusRaw = try? await rigctld.getCWMessageStatus()
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -224,7 +225,8 @@ final class HubService: ObservableObject {
             cwPitchHz: cwPitchStep.map { 300 + $0 * 10 } ?? rigState.cwPitchHz,
             bkDelayMs: (bkDelayCode.flatMap(BreakInDelay.milliseconds(forCode:))) ?? rigState.bkDelayMs,
             cwSpot: cwSpot ?? rigState.cwSpot,
-            moniLevel: moniLevel ?? rigState.moniLevel
+            moniLevel: moniLevel ?? rigState.moniLevel,
+            cwMessageStatus: cwMessageStatusRaw.flatMap(CWMessageStatus.init(rawValue:)) ?? rigState.cwMessageStatus
         )
         await server.broadcast(rigState)
     }

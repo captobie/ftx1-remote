@@ -91,7 +91,9 @@ struct MenuPageView: View {
     /// (`RigCommand.setCWPitch`), button 12 is break-in delay
     /// (`RigCommand.setBreakInDelay`), button 13 is zero-in
     /// (`RigCommand.triggerZeroIn`), button 14 is CW spot
-    /// (`RigCommand.setCWSpot`). Everything else is still a numbered
+    /// (`RigCommand.setCWSpot`). Buttons 19-21 (MESSAGE/PLAY/RECORD, the CW
+    /// MESSAGE memory) are visible-but-disabled — see
+    /// `disabledCWMessageButton`. Everything else is still a numbered
     /// placeholder pending real per-item functions.
     @ViewBuilder
     private func menuButton(for item: Int) -> some View {
@@ -145,6 +147,12 @@ struct MenuPageView: View {
             } label: {
                 twoLineLabel(top: "CW SPOT", bottom: (hub.rigState.cwSpot ?? false) ? "ON" : "OFF")
             }
+        } else if selectedPage == .cw, item == 19 {
+            disabledCWMessageButton(top: "MESSAGE")
+        } else if selectedPage == .cw, item == 20 {
+            disabledCWMessageButton(top: "PLAY")
+        } else if selectedPage == .cw, item == 21 {
+            disabledCWMessageButton(top: "RECORD")
         } else {
             menuButtonShell {
                 // Not yet wired to a CAT command — layout only.
@@ -264,6 +272,25 @@ struct MenuPageView: View {
     private static func moniLevelLabel(_ level: Int?) -> String {
         guard let level else { return "—" }
         return level == 0 ? "OFF" : "\(level)"
+    }
+
+    /// MESSAGE/PLAY/RECORD (CW MESSAGE memory, buttons 19-21) are wired to
+    /// real CAT commands — `RigCommand.selectCWMessageChannel`/
+    /// `.playCWMessage`/`.setCWMessageRecording`, still implemented in
+    /// `CommandQueue` — but behaved unreliably against the real rig and
+    /// this is low-priority, so they're deprioritized rather than debugged
+    /// further right now. Left visible-but-disabled (rather than removed
+    /// or reverted to a plain numbered placeholder) so the commands and
+    /// `RigState.cwMessageStatus` plumbing are ready to reconnect once
+    /// this gets revisited.
+    private func disabledCWMessageButton(top: String) -> some View {
+        menuButtonShell {
+            // Deliberately a no-op — see doc comment above.
+        } label: {
+            twoLineLabel(top: top, bottom: "—")
+                .foregroundStyle(.secondary)
+        }
+        .disabled(true)
     }
 
     private func menuButtonShell(action: @escaping () -> Void, @ViewBuilder label: () -> some View) -> some View {
