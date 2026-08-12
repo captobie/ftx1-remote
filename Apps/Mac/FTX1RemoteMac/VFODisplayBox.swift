@@ -14,7 +14,7 @@ struct VFODisplayBox: View {
                 .font(.caption)
                 .foregroundStyle(isActive ? .primary : .secondary)
             Text(formattedFrequency)
-                .font(.system(size: 26, weight: .medium, design: .monospaced))
+                .font(.system(size: 38, weight: .medium, design: .monospaced))
                 .foregroundStyle(digitColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)

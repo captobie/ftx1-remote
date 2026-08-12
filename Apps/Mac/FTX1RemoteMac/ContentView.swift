@@ -30,10 +30,9 @@ struct ContentView: View {
                 VFODisplayBox(label: "VFO B", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: false, mode: hub.rigState.secondaryMode?.displayName ?? "—")
             }
 
-            if let swr = hub.rigState.swr {
-                Text("SWR \(swr, specifier: "%.2f")")
-                    .font(.system(.body, design: .monospaced))
-            }
+            Text(swrLabel)
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
 
             pttButton
 
@@ -110,6 +109,16 @@ struct ContentView: View {
                         hub.send(.setPTT(false))
                     }
             )
+    }
+
+    /// Reserves the SWR row's height even before there's a reading (rather
+    /// than omitting the row via `if let`), so the window's total content
+    /// height — fixed once the disconnected layout first appears — doesn't
+    /// grow on connect and squeeze the frequency digits' `minimumScaleFactor`
+    /// down to fit.
+    private var swrLabel: String {
+        guard let swr = hub.rigState.swr else { return "SWR --" }
+        return String(format: "SWR %.2f", swr)
     }
 
     private var displayedPowerLevel: Double {
