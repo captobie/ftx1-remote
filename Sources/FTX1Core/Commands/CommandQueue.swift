@@ -116,6 +116,18 @@ public actor CommandQueue {
             // doesn't expose) — P2 is 0 to stop or 1-5 to start playing
             // that channel.
             try await rigctld.setRawInt("KY1", channel, digits: 1)
+        case .setMox(let on):
+            try await rigctld.setRawBool("MX", on)
+        case .setAtt(let on):
+            // "RA"'s P1 is documented as always "0" (not a band selector,
+            // unlike "PA"'s below) — baked into the mnemonic like "ML1"/
+            // "LM0" above.
+            try await rigctld.setRawBool("RA0", on)
+        case .setPreamp(let mode):
+            // "PA" P1 selects HF/50 vs VHF vs UHF; fixed to 0 (HF/50) here —
+            // see RigState.preampMode. P2 is then a 3-way IPO/AMP1/AMP2
+            // selector, not a boolean, so this uses setRawInt like moniLevel.
+            try await rigctld.setRawInt("PA0", mode, digits: 1)
         }
     }
 }

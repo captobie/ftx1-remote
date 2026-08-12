@@ -61,6 +61,17 @@ public enum RigCommand: Sendable, Equatable {
     /// fixed to 1 (CW MESSAGE Memory, as opposed to 0 for CW TEXT Memory
     /// / typed keyer-memory content, which this app doesn't expose).
     case playCWMessage(channel: Int)
+    /// MOX (manual transmit) on/off — see `RigState.moxEnabled`. Maps to the
+    /// FTX-1's raw "MX" CAT command. Note this actually keys the
+    /// transmitter, same as `setPTT`.
+    case setMox(Bool)
+    /// RF attenuator on/off — see `RigState.attEnabled`. Maps to the FTX-1's
+    /// raw "RA" CAT command (P1 fixed to "0" per the manual).
+    case setAtt(Bool)
+    /// HF/50MHz preamp/IPO selector, 0-2 (IPO/AMP1/AMP2) — see
+    /// `RigState.preampMode`. Maps to the FTX-1's raw "PA" CAT command with
+    /// its band-selector P1 fixed to 0 (HF/50).
+    case setPreamp(mode: Int)
 
     private enum CodingKeys: String, CodingKey {
         case cmd
@@ -84,6 +95,9 @@ public enum RigCommand: Sendable, Equatable {
         case selectCWMessageChannel = "select_cw_message_channel"
         case setCWMessageRecording = "set_cw_message_recording"
         case playCWMessage = "play_cw_message"
+        case setMox = "set_mox"
+        case setAtt = "set_att"
+        case setPreamp = "set_preamp"
     }
 }
 
@@ -124,6 +138,12 @@ extension RigCommand: Codable {
             self = .setCWMessageRecording(try container.decode(Bool.self, forKey: .value))
         case .playCWMessage:
             self = .playCWMessage(channel: try container.decode(Int.self, forKey: .value))
+        case .setMox:
+            self = .setMox(try container.decode(Bool.self, forKey: .value))
+        case .setAtt:
+            self = .setAtt(try container.decode(Bool.self, forKey: .value))
+        case .setPreamp:
+            self = .setPreamp(mode: try container.decode(Int.self, forKey: .value))
         }
     }
 
@@ -177,6 +197,15 @@ extension RigCommand: Codable {
         case .playCWMessage(let channel):
             try container.encode(CommandName.playCWMessage, forKey: .cmd)
             try container.encode(channel, forKey: .value)
+        case .setMox(let on):
+            try container.encode(CommandName.setMox, forKey: .cmd)
+            try container.encode(on, forKey: .value)
+        case .setAtt(let on):
+            try container.encode(CommandName.setAtt, forKey: .cmd)
+            try container.encode(on, forKey: .value)
+        case .setPreamp(let mode):
+            try container.encode(CommandName.setPreamp, forKey: .cmd)
+            try container.encode(mode, forKey: .value)
         }
     }
 }

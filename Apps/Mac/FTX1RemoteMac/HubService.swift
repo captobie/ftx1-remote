@@ -200,6 +200,9 @@ final class HubService: ObservableObject {
         // sub-selector. See RigState.moniLevel.
         let moniLevel = try? await rigctld.getRawInt("ML1")
         let cwMessageStatusRaw = try? await rigctld.getCWMessageStatus()
+        let moxEnabled = try? await rigctld.getRawBool("MX")
+        let attEnabled = try? await rigctld.getRawBool("RA0")
+        let preampMode = try? await rigctld.getRawInt("PA0")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -226,7 +229,10 @@ final class HubService: ObservableObject {
             bkDelayMs: (bkDelayCode.flatMap(BreakInDelay.milliseconds(forCode:))) ?? rigState.bkDelayMs,
             cwSpot: cwSpot ?? rigState.cwSpot,
             moniLevel: moniLevel ?? rigState.moniLevel,
-            cwMessageStatus: cwMessageStatusRaw.flatMap(CWMessageStatus.init(rawValue:)) ?? rigState.cwMessageStatus
+            cwMessageStatus: cwMessageStatusRaw.flatMap(CWMessageStatus.init(rawValue:)) ?? rigState.cwMessageStatus,
+            moxEnabled: moxEnabled ?? rigState.moxEnabled,
+            attEnabled: attEnabled ?? rigState.attEnabled,
+            preampMode: preampMode ?? rigState.preampMode
         )
         await server.broadcast(rigState)
     }

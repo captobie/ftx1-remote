@@ -53,6 +53,17 @@ public struct RigState: Codable, Equatable, Sendable {
     /// `MenuPageView`, not part of this snapshot — see
     /// `RigCommand.selectCWMessageChannel`.
     public var cwMessageStatus: CWMessageStatus?
+    /// MOX (manual transmit, i.e. CAT-triggered TX independent of PTT/VOX)
+    /// on/off (the FTX-1's raw "MX" CAT command).
+    public var moxEnabled: Bool?
+    /// RF attenuator on/off (the FTX-1's raw "RA" CAT command, whose P1 is
+    /// documented as always "0" — not a band selector like "PA"'s P1 below).
+    public var attEnabled: Bool?
+    /// HF/50MHz preamp/IPO selector: 0 = IPO, 1 = AMP1, 2 = AMP2 (the FTX-1's
+    /// raw "PA" CAT command with its P1 band-selector fixed to 0 for HF/50 —
+    /// P1=1/2 address the separate VHF/UHF preamp toggles, which this app
+    /// doesn't expose).
+    public var preampMode: Int?
 
     public init(
         frequencyHz: Int = 0,
@@ -72,7 +83,10 @@ public struct RigState: Codable, Equatable, Sendable {
         bkDelayMs: Int? = nil,
         cwSpot: Bool? = nil,
         moniLevel: Int? = nil,
-        cwMessageStatus: CWMessageStatus? = nil
+        cwMessageStatus: CWMessageStatus? = nil,
+        moxEnabled: Bool? = nil,
+        attEnabled: Bool? = nil,
+        preampMode: Int? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -92,6 +106,9 @@ public struct RigState: Codable, Equatable, Sendable {
         self.cwSpot = cwSpot
         self.moniLevel = moniLevel
         self.cwMessageStatus = cwMessageStatus
+        self.moxEnabled = moxEnabled
+        self.attEnabled = attEnabled
+        self.preampMode = preampMode
     }
 }
 

@@ -91,6 +91,9 @@ struct MenuPageView: View {
     /// SSB has its own RF POWER at 22, so nav-left only shows on CW/FM;
     /// FM/C4FM has its own APRS SETTING at 28, so nav-right only shows on
     /// SSB/CW.
+    /// SSB button 8 is MOX (`RigCommand.setMox`), button 9 is the RF
+    /// attenuator (`RigCommand.setAtt`), button 10 is the HF/50 preamp/IPO
+    /// selector (`RigCommand.setPreamp`, cycling IPO/AMP1/AMP2 per tap).
     /// CW button 2 is monitor level (`RigCommand.setMoniLevel`), button 8
     /// is the electronic keyer (`RigCommand.setKeyer`), button 9 is
     /// break-in (`RigCommand.setBreakIn`), button 10 is keyer speed
@@ -123,6 +126,24 @@ struct MenuPageView: View {
                 selectedPage = selectedPage.next
             } label: {
                 twoLineLabel(top: "▶", bottom: selectedPage.next.rawValue)
+            }
+        } else if selectedPage == .ssb, item == 8 {
+            menuButtonShell {
+                hub.send(.setMox(!(hub.rigState.moxEnabled ?? false)))
+            } label: {
+                twoLineLabel(top: "MOX", bottom: (hub.rigState.moxEnabled ?? false) ? "ON" : "OFF")
+            }
+        } else if selectedPage == .ssb, item == 9 {
+            menuButtonShell {
+                hub.send(.setAtt(!(hub.rigState.attEnabled ?? false)))
+            } label: {
+                twoLineLabel(top: "ATT", bottom: (hub.rigState.attEnabled ?? false) ? "ON" : "OFF")
+            }
+        } else if selectedPage == .ssb, item == 10 {
+            menuButtonShell {
+                hub.send(.setPreamp(mode: ((hub.rigState.preampMode ?? 0) + 1) % 3))
+            } label: {
+                twoLineLabel(top: "IPO/AMP", bottom: Self.preampLabel(hub.rigState.preampMode))
             }
         } else if selectedPage == .cw, item == 2 {
             moniLevelButton
@@ -283,6 +304,19 @@ struct MenuPageView: View {
     private static func moniLevelLabel(_ level: Int?) -> String {
         guard let level else { return "—" }
         return level == 0 ? "OFF" : "\(level)"
+    }
+
+    /// IPO/AMP (button 10, SSB page) cycles 0/1/2 on each tap rather than
+    /// opening a popover, matching a physical MENU button's own behavior for
+    /// a small fixed set of choices (unlike CW SPEED/PITCH/BK-DELAY/MONI
+    /// LEVEL's wide numeric ranges, which need a Stepper).
+    private static func preampLabel(_ mode: Int?) -> String {
+        switch mode {
+        case 0: "IPO"
+        case 1: "AMP1"
+        case 2: "AMP2"
+        default: "—"
+        }
     }
 
     /// MESSAGE/PLAY/RECORD (CW MESSAGE memory, buttons 19-21) are wired to
