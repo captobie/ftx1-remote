@@ -76,6 +76,12 @@ public enum RigCommand: Sendable, Equatable {
     /// the FTX-1's raw "AC" CAT command with P1/P2 fixed to 0/0 (internal
     /// tuner, Antenna-Tuner mode).
     case setTuner(Bool)
+    /// Starts an antenna tuning cycle — momentary, not a stored setting
+    /// (like `triggerZeroIn`, no associated value). Maps to the FTX-1's raw
+    /// "AC" command with P3=3 ("Tuning Start"), same P1/P2 addressing as
+    /// `setTuner` (P1=1 confirmed against this rig's real hardware, P2=0
+    /// Antenna-Tuner mode).
+    case triggerAntennaTune
 
     private enum CodingKeys: String, CodingKey {
         case cmd
@@ -103,6 +109,7 @@ public enum RigCommand: Sendable, Equatable {
         case setAtt = "set_att"
         case setPreamp = "set_preamp"
         case setTuner = "set_tuner"
+        case triggerAntennaTune = "trigger_antenna_tune"
     }
 }
 
@@ -151,6 +158,8 @@ extension RigCommand: Codable {
             self = .setPreamp(mode: try container.decode(Int.self, forKey: .value))
         case .setTuner:
             self = .setTuner(try container.decode(Bool.self, forKey: .value))
+        case .triggerAntennaTune:
+            self = .triggerAntennaTune
         }
     }
 
@@ -216,6 +225,8 @@ extension RigCommand: Codable {
         case .setTuner(let on):
             try container.encode(CommandName.setTuner, forKey: .cmd)
             try container.encode(on, forKey: .value)
+        case .triggerAntennaTune:
+            try container.encode(CommandName.triggerAntennaTune, forKey: .cmd)
         }
     }
 }

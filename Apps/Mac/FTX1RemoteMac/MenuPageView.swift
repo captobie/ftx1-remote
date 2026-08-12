@@ -94,8 +94,12 @@ struct MenuPageView: View {
     /// SSB button 8 is MOX (`RigCommand.setMox`), button 9 is the RF
     /// attenuator (`RigCommand.setAtt`), button 10 is the HF/50 preamp/IPO
     /// selector (`RigCommand.setPreamp`, cycling IPO/AMP1/AMP2 per tap),
-    /// button 16 is the antenna tuner (`RigCommand.setTuner`, single-tap
-    /// toggle like MOX/ATT).
+    /// button 15 is antenna tuning (`RigCommand.triggerAntennaTune`,
+    /// single-tap momentary action like CW page's ZIN), button 16 is the
+    /// antenna tuner on/off (`RigCommand.setTuner`, single-tap toggle like
+    /// MOX/ATT). Button 17 has no rig function on this page — confirmed
+    /// against the real MENU display, same reasoning as `hiddenCWItems`
+    /// below — and renders invisibly via `hiddenButtonPlaceholder`.
     /// CW button 2 is monitor level (`RigCommand.setMoniLevel`), button 8
     /// is the electronic keyer (`RigCommand.setKeyer`), button 9 is
     /// break-in (`RigCommand.setBreakIn`), button 10 is keyer speed
@@ -147,12 +151,20 @@ struct MenuPageView: View {
             } label: {
                 twoLineLabel(top: "IPO/AMP", bottom: Self.preampLabel(hub.rigState.preampMode))
             }
+        } else if selectedPage == .ssb, item == 15 {
+            menuButtonShell {
+                hub.send(.triggerAntennaTune)
+            } label: {
+                twoLineLabel(top: "ANT TUNE", bottom: "PUSH")
+            }
         } else if selectedPage == .ssb, item == 16 {
             menuButtonShell {
                 hub.send(.setTuner(!(hub.rigState.tunerEnabled ?? false)))
             } label: {
                 twoLineLabel(top: "TUNER", bottom: (hub.rigState.tunerEnabled ?? false) ? "ON" : "OFF")
             }
+        } else if selectedPage == .ssb, item == 17 {
+            hiddenButtonPlaceholder(for: item)
         } else if selectedPage == .cw, item == 2 {
             moniLevelButton
         } else if selectedPage == .cw, item == 8 {

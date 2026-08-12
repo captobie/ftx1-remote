@@ -144,6 +144,11 @@ public actor CommandQueue {
             // get side can't reuse this same "AC10" prefix — see
             // RigctldClient.getTunerEnabled().
             try await rigctld.setRawBool("AC10", on)
+        case .triggerAntennaTune:
+            // Same "AC" command as .setTuner, P3=3 ("Tuning Start") instead
+            // of an on/off value — momentary, like .triggerZeroIn above, so
+            // fire-and-forget rather than setRawBool/setRawInt.
+            try await rigctld.sendRawFireAndForget("AC103")
         }
     }
 }
