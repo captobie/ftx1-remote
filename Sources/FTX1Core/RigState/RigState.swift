@@ -64,6 +64,10 @@ public struct RigState: Codable, Equatable, Sendable {
     /// P1=1/2 address the separate VHF/UHF preamp toggles, which this app
     /// doesn't expose).
     public var preampMode: Int?
+    /// Antenna tuner engaged on/off (the FTX-1's raw "AC" CAT command's P3;
+    /// see `CommandQueue`'s `.setTuner` case for the P1/P2 addressing this
+    /// app uses, and `RigctldClient.getTunerEnabled()` for how it's read).
+    public var tunerEnabled: Bool?
 
     public init(
         frequencyHz: Int = 0,
@@ -86,7 +90,8 @@ public struct RigState: Codable, Equatable, Sendable {
         cwMessageStatus: CWMessageStatus? = nil,
         moxEnabled: Bool? = nil,
         attEnabled: Bool? = nil,
-        preampMode: Int? = nil
+        preampMode: Int? = nil,
+        tunerEnabled: Bool? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -109,6 +114,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.moxEnabled = moxEnabled
         self.attEnabled = attEnabled
         self.preampMode = preampMode
+        self.tunerEnabled = tunerEnabled
     }
 }
 

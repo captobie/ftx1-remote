@@ -93,7 +93,9 @@ struct MenuPageView: View {
     /// SSB/CW.
     /// SSB button 8 is MOX (`RigCommand.setMox`), button 9 is the RF
     /// attenuator (`RigCommand.setAtt`), button 10 is the HF/50 preamp/IPO
-    /// selector (`RigCommand.setPreamp`, cycling IPO/AMP1/AMP2 per tap).
+    /// selector (`RigCommand.setPreamp`, cycling IPO/AMP1/AMP2 per tap),
+    /// button 16 is the antenna tuner (`RigCommand.setTuner`, single-tap
+    /// toggle like MOX/ATT).
     /// CW button 2 is monitor level (`RigCommand.setMoniLevel`), button 8
     /// is the electronic keyer (`RigCommand.setKeyer`), button 9 is
     /// break-in (`RigCommand.setBreakIn`), button 10 is keyer speed
@@ -144,6 +146,12 @@ struct MenuPageView: View {
                 hub.send(.setPreamp(mode: ((hub.rigState.preampMode ?? 0) + 1) % 3))
             } label: {
                 twoLineLabel(top: "IPO/AMP", bottom: Self.preampLabel(hub.rigState.preampMode))
+            }
+        } else if selectedPage == .ssb, item == 16 {
+            menuButtonShell {
+                hub.send(.setTuner(!(hub.rigState.tunerEnabled ?? false)))
+            } label: {
+                twoLineLabel(top: "TUNER", bottom: (hub.rigState.tunerEnabled ?? false) ? "ON" : "OFF")
             }
         } else if selectedPage == .cw, item == 2 {
             moniLevelButton

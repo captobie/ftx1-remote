@@ -72,6 +72,10 @@ public enum RigCommand: Sendable, Equatable {
     /// `RigState.preampMode`. Maps to the FTX-1's raw "PA" CAT command with
     /// its band-selector P1 fixed to 0 (HF/50).
     case setPreamp(mode: Int)
+    /// Antenna tuner engaged on/off — see `RigState.tunerEnabled`. Maps to
+    /// the FTX-1's raw "AC" CAT command with P1/P2 fixed to 0/0 (internal
+    /// tuner, Antenna-Tuner mode).
+    case setTuner(Bool)
 
     private enum CodingKeys: String, CodingKey {
         case cmd
@@ -98,6 +102,7 @@ public enum RigCommand: Sendable, Equatable {
         case setMox = "set_mox"
         case setAtt = "set_att"
         case setPreamp = "set_preamp"
+        case setTuner = "set_tuner"
     }
 }
 
@@ -144,6 +149,8 @@ extension RigCommand: Codable {
             self = .setAtt(try container.decode(Bool.self, forKey: .value))
         case .setPreamp:
             self = .setPreamp(mode: try container.decode(Int.self, forKey: .value))
+        case .setTuner:
+            self = .setTuner(try container.decode(Bool.self, forKey: .value))
         }
     }
 
@@ -206,6 +213,9 @@ extension RigCommand: Codable {
         case .setPreamp(let mode):
             try container.encode(CommandName.setPreamp, forKey: .cmd)
             try container.encode(mode, forKey: .value)
+        case .setTuner(let on):
+            try container.encode(CommandName.setTuner, forKey: .cmd)
+            try container.encode(on, forKey: .value)
         }
     }
 }

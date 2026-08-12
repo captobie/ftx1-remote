@@ -128,6 +128,22 @@ public actor CommandQueue {
             // see RigState.preampMode. P2 is then a 3-way IPO/AMP1/AMP2
             // selector, not a boolean, so this uses setRawInt like moniLevel.
             try await rigctld.setRawInt("PA0", mode, digits: 1)
+        case .setTuner(let on):
+            // "AC" (ANTENNA TUNER CONTROL) takes three params (P1: internal/
+            // external tuner, P2: Antenna-Tuner-mode vs ATAS, P3: on/off).
+            // The manual labels P1=0 "Internal Antenna Tuner (FTX-1
+            // optima)" — but on this user's real FTX-1 Optima (which does
+            // have the internal tuner), P1=0 silently did nothing, while
+            // P1=1 ("External Antenna Tuner") is what actually works.
+            // Confirmed against real hardware, not merely inferred from the
+            // manual text — don't "fix" this back to P1=0 without
+            // retesting. P2 fixed to 0 (Antenna-Tuner mode, not ATAS,
+            // matching this rig's TUNER SELECT="OPTION" rather than
+            // "ATAS"). Baked into the mnemonic like "RA0"/"ML1"/"LM0"
+            // above. Its Read command has no params at all though, so the
+            // get side can't reuse this same "AC10" prefix — see
+            // RigctldClient.getTunerEnabled().
+            try await rigctld.setRawBool("AC10", on)
         }
     }
 }

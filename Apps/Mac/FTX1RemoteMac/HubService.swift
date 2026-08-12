@@ -203,6 +203,7 @@ final class HubService: ObservableObject {
         let moxEnabled = try? await rigctld.getRawBool("MX")
         let attEnabled = try? await rigctld.getRawBool("RA0")
         let preampMode = try? await rigctld.getRawInt("PA0")
+        let tunerEnabled = try? await rigctld.getTunerEnabled()
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -232,7 +233,8 @@ final class HubService: ObservableObject {
             cwMessageStatus: cwMessageStatusRaw.flatMap(CWMessageStatus.init(rawValue:)) ?? rigState.cwMessageStatus,
             moxEnabled: moxEnabled ?? rigState.moxEnabled,
             attEnabled: attEnabled ?? rigState.attEnabled,
-            preampMode: preampMode ?? rigState.preampMode
+            preampMode: preampMode ?? rigState.preampMode,
+            tunerEnabled: tunerEnabled ?? rigState.tunerEnabled
         )
         await server.broadcast(rigState)
     }

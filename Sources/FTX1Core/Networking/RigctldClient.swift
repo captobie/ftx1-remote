@@ -335,6 +335,24 @@ public actor RigctldClient {
         return fields[2].wholeNumberValue
     }
 
+    /// Reads whether the FTX-1's antenna tuner is engaged — P3 of the raw
+    /// "AC" (ANTENNA TUNER CONTROL) command's Answer (see `CommandQueue`'s
+    /// `.setTuner` case for the P1/P2 addressing the Set side uses — the
+    /// Read side doesn't need to match it, see below). "AC"'s Read command
+    /// takes no parameters at all ("AC;", unlike most raw commands this app
+    /// wires, which repeat a fixed sub-selector prefix on both Read and
+    /// Set), and its Answer packs three single-digit fields ("AC" + P1 + P2
+    /// + P3 + ";") reporting whichever tuner is actually active, so neither
+    /// `getRawBool` nor `getRawInt` is usable here — same reasoning as
+    /// `getCWMessageStatus()` above.
+    public func getTunerEnabled() async throws -> Bool? {
+        let reply = try await sendRawCommand("AC")
+        guard reply.hasPrefix("AC") else { return nil }
+        let fields = Array(reply.dropFirst(2))
+        guard fields.count >= 3 else { return nil }
+        return fields[2] == "1"
+    }
+
     /// Like `sendRawCommand`, but doesn't wait for or read any reply at
     /// all — for Set-style commands, which this rig (confirmed both by
     /// the CAT manual, which documents an Answer only for Read commands,
