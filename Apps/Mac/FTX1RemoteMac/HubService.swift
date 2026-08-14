@@ -204,6 +204,7 @@ final class HubService: ObservableObject {
         let attEnabled = try? await rigctld.getRawBool("RA0")
         let preampMode = try? await rigctld.getRawInt("PA0")
         let tunerEnabled = try? await rigctld.getTunerEnabled()
+        let displaySettings = try? await rigctld.getDisplaySettings()
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -234,7 +235,9 @@ final class HubService: ObservableObject {
             moxEnabled: moxEnabled ?? rigState.moxEnabled,
             attEnabled: attEnabled ?? rigState.attEnabled,
             preampMode: preampMode ?? rigState.preampMode,
-            tunerEnabled: tunerEnabled ?? rigState.tunerEnabled
+            tunerEnabled: tunerEnabled ?? rigState.tunerEnabled,
+            displayContrast: (displaySettings.map { $0.contrast }) ?? rigState.displayContrast,
+            displayDimmer: (displaySettings.map { $0.brightness }) ?? rigState.displayDimmer
         )
         await server.broadcast(rigState)
     }

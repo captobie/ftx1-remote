@@ -353,6 +353,39 @@ public actor RigctldClient {
         return fields[2] == "1"
     }
 
+    /// Reads the FTX-1's raw "DA" (DIMMER) command — its Answer packs three
+    /// independently-adjustable 2-digit fields behind a fixed 2-digit P1
+    /// ("DA" + P1(00, fixed) + P2(contrast) + P3(TFT brightness) +
+    /// P4(LED brightness) + ";"), so neither `getRawInt` (which assumes one
+    /// trailing run of digits is one value) nor `getRawBool` fit — same
+    /// reasoning as `getTunerEnabled()`/`getCWMessageStatus()` above, just
+    /// with 2-digit fields instead of 1-digit ones.
+    public func getDisplaySettings() async throws -> (contrast: Int, brightness: Int, ledBrightness: Int)? {
+        let reply = try await sendRawCommand("DA")
+        guard reply.hasPrefix("DA") else { return nil }
+        let digits = Array(reply.dropFirst(2).prefix { $0.isNumber })
+        guard digits.count >= 8,
+              let contrast = Int(String(digits[2...3])),
+              let brightness = Int(String(digits[4...5])),
+              let ledBrightness = Int(String(digits[6...7]))
+        else { return nil }
+        return (contrast, brightness, ledBrightness)
+    }
+
+    /// Sets all three of "DA"'s fields at once — per the manual, Set always
+    /// writes P2/P3/P4 together in one command, there's no way to address
+    /// just one field. Callers that only want to change one value (e.g. a
+    /// D-CONTRAST stepper) must read the current triple via
+    /// `getDisplaySettings()` first and pass the other two through
+    /// unchanged, the same read-modify-write shape `CommandQueue` already
+    /// uses.
+    public func setDisplaySettings(contrast: Int, brightness: Int, ledBrightness: Int) async throws {
+        let p2 = String(format: "%02d", contrast)
+        let p3 = String(format: "%02d", brightness)
+        let p4 = String(format: "%02d", ledBrightness)
+        try await sendRawCommandFireAndForget("DA00\(p2)\(p3)\(p4)")
+    }
+
     /// Like `sendRawCommand`, but doesn't wait for or read any reply at
     /// all — for Set-style commands, which this rig (confirmed both by
     /// the CAT manual, which documents an Answer only for Read commands,

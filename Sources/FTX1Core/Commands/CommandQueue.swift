@@ -149,6 +149,25 @@ public actor CommandQueue {
             // of an on/off value — momentary, like .triggerZeroIn above, so
             // fire-and-forget rather than setRawBool/setRawInt.
             try await rigctld.sendRawFireAndForget("AC103")
+        case .setDisplayContrast(let value):
+            // "DA" sets contrast/brightness/LED-brightness together in one
+            // command — read the current triple first so the other two
+            // fields aren't clobbered back to whatever this fallback
+            // defaults to. Matches the physical MENU button's own behavior
+            // (adjusting one item leaves the others alone).
+            let current = try? await rigctld.getDisplaySettings()
+            try await rigctld.setDisplaySettings(
+                contrast: value,
+                brightness: current?.brightness ?? 10,
+                ledBrightness: current?.ledBrightness ?? 10
+            )
+        case .setDisplayDimmer(let value):
+            let current = try? await rigctld.getDisplaySettings()
+            try await rigctld.setDisplaySettings(
+                contrast: current?.contrast ?? 10,
+                brightness: value,
+                ledBrightness: current?.ledBrightness ?? 10
+            )
         }
     }
 }

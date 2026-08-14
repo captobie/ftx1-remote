@@ -82,6 +82,15 @@ public enum RigCommand: Sendable, Equatable {
     /// `setTuner` (P1=1 confirmed against this rig's real hardware, P2=0
     /// Antenna-Tuner mode).
     case triggerAntennaTune
+    /// TFT display contrast, 0-20 — see `RigState.displayContrast`. Maps to
+    /// the FTX-1's raw "DA" CAT command's P2 field (read-modify-write, since
+    /// "DA" sets contrast/brightness/LED-brightness together — see
+    /// `RigctldClient.setDisplaySettings(...)`).
+    case setDisplayContrast(Int)
+    /// TFT display backlight brightness ("dimmer"), 0-20 — see
+    /// `RigState.displayDimmer`. Maps to the FTX-1's raw "DA" CAT command's
+    /// P3 field, same read-modify-write mechanism as `setDisplayContrast`.
+    case setDisplayDimmer(Int)
 
     private enum CodingKeys: String, CodingKey {
         case cmd
@@ -110,6 +119,8 @@ public enum RigCommand: Sendable, Equatable {
         case setPreamp = "set_preamp"
         case setTuner = "set_tuner"
         case triggerAntennaTune = "trigger_antenna_tune"
+        case setDisplayContrast = "set_display_contrast"
+        case setDisplayDimmer = "set_display_dimmer"
     }
 }
 
@@ -160,6 +171,10 @@ extension RigCommand: Codable {
             self = .setTuner(try container.decode(Bool.self, forKey: .value))
         case .triggerAntennaTune:
             self = .triggerAntennaTune
+        case .setDisplayContrast:
+            self = .setDisplayContrast(try container.decode(Int.self, forKey: .value))
+        case .setDisplayDimmer:
+            self = .setDisplayDimmer(try container.decode(Int.self, forKey: .value))
         }
     }
 
@@ -227,6 +242,12 @@ extension RigCommand: Codable {
             try container.encode(on, forKey: .value)
         case .triggerAntennaTune:
             try container.encode(CommandName.triggerAntennaTune, forKey: .cmd)
+        case .setDisplayContrast(let value):
+            try container.encode(CommandName.setDisplayContrast, forKey: .cmd)
+            try container.encode(value, forKey: .value)
+        case .setDisplayDimmer(let value):
+            try container.encode(CommandName.setDisplayDimmer, forKey: .cmd)
+            try container.encode(value, forKey: .value)
         }
     }
 }

@@ -49,6 +49,8 @@ struct MenuPageView: View {
     @State private var showingCWPitchPopover = false
     @State private var showingBKDelayPopover = false
     @State private var showingMoniLevelPopover = false
+    @State private var showingDisplayContrastPopover = false
+    @State private var showingDisplayDimmerPopover = false
 
     /// Matches the rig's own page size — each physical menu page holds up
     /// to 28 items.
@@ -91,6 +93,13 @@ struct MenuPageView: View {
     /// SSB has its own RF POWER at 22, so nav-left only shows on CW/FM;
     /// FM/C4FM has its own APRS SETTING at 28, so nav-right only shows on
     /// SSB/CW.
+    /// SSB button 6 is TFT display contrast (`RigCommand.
+    /// setDisplayContrast`), button 7 is TFT backlight dimmer
+    /// (`RigCommand.setDisplayDimmer`) — both popover `Stepper`s like CW
+    /// SPEED/PITCH, sharing the FTX-1's raw "DA" command (see
+    /// `RigctldClient.getDisplaySettings()`). Button 5, D-COLOR, has no
+    /// known CAT command (checked the full manual, including the numbered
+    /// `EX` menu chart) and is left a plain numbered placeholder.
     /// SSB button 8 is MOX (`RigCommand.setMox`), button 9 is the RF
     /// attenuator (`RigCommand.setAtt`), button 10 is the HF/50 preamp/IPO
     /// selector (`RigCommand.setPreamp`, cycling IPO/AMP1/AMP2 per tap),
@@ -133,6 +142,10 @@ struct MenuPageView: View {
             } label: {
                 twoLineLabel(top: "▶", bottom: selectedPage.next.rawValue)
             }
+        } else if selectedPage == .ssb, item == 6 {
+            displayContrastButton
+        } else if selectedPage == .ssb, item == 7 {
+            displayDimmerButton
         } else if selectedPage == .ssb, item == 8 {
             menuButtonShell {
                 hub.send(.setMox(!(hub.rigState.moxEnabled ?? false)))
@@ -314,6 +327,56 @@ struct MenuPageView: View {
                     set: { hub.send(.setMoniLevel(level: $0)) }
                 ),
                 in: 0...100
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    /// SSB button 6, D-CONTRAST. Numeric like CW SPEED/PITCH/BK-DELAY/MONI
+    /// LEVEL, so it gets the same tap-to-open-a-popover-`Stepper` treatment —
+    /// maps to the FTX-1's raw "DA" CAT command's P2 field, which (unlike
+    /// every other numeric button here) is packed alongside two other
+    /// independently-adjustable fields in one Set command, so
+    /// `RigCommand.setDisplayContrast`/`CommandQueue` read the current
+    /// triple before writing so DIMMER's value isn't clobbered — see
+    /// `RigctldClient.getDisplaySettings()`/`setDisplaySettings(...)`.
+    private var displayContrastButton: some View {
+        menuButtonShell {
+            showingDisplayContrastPopover = true
+        } label: {
+            twoLineLabel(top: "D-CONTRAST", bottom: hub.rigState.displayContrast.map { "\($0)" } ?? "—")
+        }
+        .popover(isPresented: $showingDisplayContrastPopover) {
+            Stepper(
+                "\(hub.rigState.displayContrast ?? 10)",
+                value: Binding(
+                    get: { hub.rigState.displayContrast ?? 10 },
+                    set: { hub.send(.setDisplayContrast($0)) }
+                ),
+                in: 0...20
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    /// SSB button 7, DIMMER (TFT backlight brightness) — same "DA" command
+    /// as `displayContrastButton` above, its P3 field.
+    private var displayDimmerButton: some View {
+        menuButtonShell {
+            showingDisplayDimmerPopover = true
+        } label: {
+            twoLineLabel(top: "DIMMER", bottom: hub.rigState.displayDimmer.map { "\($0)" } ?? "—")
+        }
+        .popover(isPresented: $showingDisplayDimmerPopover) {
+            Stepper(
+                "\(hub.rigState.displayDimmer ?? 10)",
+                value: Binding(
+                    get: { hub.rigState.displayDimmer ?? 10 },
+                    set: { hub.send(.setDisplayDimmer($0)) }
+                ),
+                in: 0...20
             )
             .padding()
             .frame(width: 180)

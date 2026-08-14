@@ -68,6 +68,14 @@ public struct RigState: Codable, Equatable, Sendable {
     /// see `CommandQueue`'s `.setTuner` case for the P1/P2 addressing this
     /// app uses, and `RigctldClient.getTunerEnabled()` for how it's read).
     public var tunerEnabled: Bool?
+    /// TFT display contrast, 0-20 (the FTX-1's raw "DA" CAT command's P2 —
+    /// see `CommandQueue`'s `.setDisplayContrast` case and
+    /// `RigctldClient.getDisplaySettings()`/`setDisplaySettings(...)` for
+    /// why this needs read-modify-write rather than a simple `setRawInt`).
+    public var displayContrast: Int?
+    /// TFT display backlight brightness, 0-20 ("DA"'s P3 — see
+    /// `displayContrast` above for the shared read-modify-write mechanism).
+    public var displayDimmer: Int?
 
     public init(
         frequencyHz: Int = 0,
@@ -91,7 +99,9 @@ public struct RigState: Codable, Equatable, Sendable {
         moxEnabled: Bool? = nil,
         attEnabled: Bool? = nil,
         preampMode: Int? = nil,
-        tunerEnabled: Bool? = nil
+        tunerEnabled: Bool? = nil,
+        displayContrast: Int? = nil,
+        displayDimmer: Int? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -115,6 +125,8 @@ public struct RigState: Codable, Equatable, Sendable {
         self.attEnabled = attEnabled
         self.preampMode = preampMode
         self.tunerEnabled = tunerEnabled
+        self.displayContrast = displayContrast
+        self.displayDimmer = displayDimmer
     }
 }
 
