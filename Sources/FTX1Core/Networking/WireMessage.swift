@@ -91,6 +91,24 @@ public enum RigCommand: Sendable, Equatable {
     /// `RigState.displayDimmer`. Maps to the FTX-1's raw "DA" CAT command's
     /// P3 field, same read-modify-write mechanism as `setDisplayContrast`.
     case setDisplayDimmer(Int)
+    /// Writes one item of the FTX-1's deep SET-mode settings (Radio/CW/
+    /// Operation/Display/Extension/APRS Setting — see
+    /// `DeepSettingsCatalog`), addressed by `p1`/`p2`/`p3` (category/tab/
+    /// item) rather than a dedicated mnemonic. `rawValue` is already
+    /// encoded to the item's expected CAT shape via
+    /// `DeepSettingItem.encode(_:)` — this case is a generic passthrough,
+    /// covering every item in the catalog with a single `RigCommand` case
+    /// rather than one per item (there are ~300).
+    case setMenuItem(p1: Int, p2: Int, p3: Int, rawValue: String)
+
+    /// Wire payload for `.setMenuItem`, the one case here with more than a
+    /// single associated value.
+    private struct MenuItemPayload: Codable, Sendable, Equatable {
+        let p1: Int
+        let p2: Int
+        let p3: Int
+        let rawValue: String
+    }
 
     private enum CodingKeys: String, CodingKey {
         case cmd
@@ -121,6 +139,7 @@ public enum RigCommand: Sendable, Equatable {
         case triggerAntennaTune = "trigger_antenna_tune"
         case setDisplayContrast = "set_display_contrast"
         case setDisplayDimmer = "set_display_dimmer"
+        case setMenuItem = "set_menu_item"
     }
 }
 
@@ -175,6 +194,9 @@ extension RigCommand: Codable {
             self = .setDisplayContrast(try container.decode(Int.self, forKey: .value))
         case .setDisplayDimmer:
             self = .setDisplayDimmer(try container.decode(Int.self, forKey: .value))
+        case .setMenuItem:
+            let payload = try container.decode(MenuItemPayload.self, forKey: .value)
+            self = .setMenuItem(p1: payload.p1, p2: payload.p2, p3: payload.p3, rawValue: payload.rawValue)
         }
     }
 
@@ -248,6 +270,9 @@ extension RigCommand: Codable {
         case .setDisplayDimmer(let value):
             try container.encode(CommandName.setDisplayDimmer, forKey: .cmd)
             try container.encode(value, forKey: .value)
+        case .setMenuItem(let p1, let p2, let p3, let rawValue):
+            try container.encode(CommandName.setMenuItem, forKey: .cmd)
+            try container.encode(MenuItemPayload(p1: p1, p2: p2, p3: p3, rawValue: rawValue), forKey: .value)
         }
     }
 }

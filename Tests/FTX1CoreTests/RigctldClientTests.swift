@@ -66,6 +66,36 @@ final class RigctldClientTests: XCTestCase {
         await client.disconnect()
     }
 
+    /// `getMenuItem`/`setMenuItem` are the generic "EX" (MENU) passthrough
+    /// behind Deep Settings (see `DeepSettingsCatalog`) — one mechanism
+    /// addressing all ~300 Table 3 items via P1/P2/P3, instead of one
+    /// dedicated mnemonic per item like `getRawInt`/`setRawBool`. Confirms
+    /// the 6-digit P1P2P3 address is built/stripped correctly and that a
+    /// non-numeric P4 (ASCII text items exist in Table 3) round-trips as
+    /// a raw string, unlike `getRawInt` which assumes P4 is all digits.
+    func testMenuItemGenericGetSet() async throws {
+        let server = try FakeRigctldServer.start()
+        defer { server.stop() }
+
+        let client = RigctldClient(host: "127.0.0.1", port: server.port)
+        try await client.connect()
+
+        server.respondRaw(to: "W EX040108; ;", bytes: Array("EX040108020\0".utf8))
+        let value = try await client.getMenuItem(p1: 4, p2: 1, p3: 8)
+        XCTAssertEqual(value, "020")
+
+        server.respondRaw(to: "W EX050101; ;", bytes: Array("EX050101CARL\0".utf8))
+        let text = try await client.getMenuItem(p1: 5, p2: 1, p3: 1)
+        // An ASCII-text item's P4 (e.g. Table 3's MY CALL) round-trips as a
+        // raw string, unlike getRawInt which assumes an all-digit P4.
+        XCTAssertEqual(text, "CARL")
+
+        server.respondRaw(to: "W EX040108020; ;", bytes: [])
+        try await client.setMenuItem(p1: 4, p2: 1, p3: 8, rawValue: "020")
+
+        await client.disconnect()
+    }
+
     /// Regression test for the actual reported bug: the real rig sometimes
     /// never replies to a raw Set command at all (the manual doesn't
     /// promise an Answer for those), and `sendRawCommand` had no timeout —

@@ -386,6 +386,36 @@ public actor RigctldClient {
         try await sendRawCommandFireAndForget("DA00\(p2)\(p3)\(p4)")
     }
 
+    /// Reads one item from the FTX-1's "EX" (MENU) command — the deep
+    /// SET-mode settings (Radio/CW/Operation/Display/Extension/APRS
+    /// Setting on the real rig, "Table 3" in the CAT manual), addressed by
+    /// `P1` (category), `P2` (tab), `P3` (item) rather than each having its
+    /// own mnemonic like "BI"/"KR"/etc. Read command is "EX" + 2-digit P1 +
+    /// 2-digit P2 + 2-digit P3 + ";"; Answer echoes that same 6-digit
+    /// address back before the value (P4), whose width/shape (plain digits,
+    /// signed digits, or ASCII text) varies per item — so this returns the
+    /// raw P4 substring rather than attempting to parse it, leaving typed
+    /// decoding to `DeepSettingItem` (see DeepSettingsCatalog.swift), the
+    /// same "raw CAT layer stays dumb" split `getRawInt`/`getRawBool` use.
+    public func getMenuItem(p1: Int, p2: Int, p3: Int) async throws -> String? {
+        let prefix = "EX" + String(format: "%02d%02d%02d", p1, p2, p3)
+        let reply = try await sendRawCommand(prefix)
+        guard reply.hasPrefix(prefix) else { return nil }
+        var value = String(reply.dropFirst(prefix.count))
+        if value.hasSuffix(";") { value.removeLast() }
+        return value
+    }
+
+    /// Writes one "EX" menu item — see `getMenuItem(p1:p2:p3:)`. `rawValue`
+    /// is P4 already encoded to the item's expected shape (caller's
+    /// responsibility, via `DeepSettingItem.encode(_:)`). Fire-and-forget
+    /// like `setRawBool`/`setRawInt`, since Set commands on this rig don't
+    /// get a reply.
+    public func setMenuItem(p1: Int, p2: Int, p3: Int, rawValue: String) async throws {
+        let prefix = "EX" + String(format: "%02d%02d%02d", p1, p2, p3)
+        try await sendRawFireAndForget(prefix + rawValue)
+    }
+
     /// Like `sendRawCommand`, but doesn't wait for or read any reply at
     /// all — for Set-style commands, which this rig (confirmed both by
     /// the CAT manual, which documents an Answer only for Read commands,

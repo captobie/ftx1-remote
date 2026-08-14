@@ -51,6 +51,18 @@ struct MenuPageView: View {
     @State private var showingMoniLevelPopover = false
     @State private var showingDisplayContrastPopover = false
     @State private var showingDisplayDimmerPopover = false
+    @State private var activeDeepSettings: ActiveDeepSettings?
+
+    /// Identifies which Deep Settings screen (see `DeepSettingsView`) is
+    /// presented as a sheet — FM/C4FM page buttons 23-28, the rig's own
+    /// page-3 bottom row (Radio/CW/Operation/Display/Extension/APRS
+    /// Setting). `title` doubles as the id since these six are fixed and
+    /// distinct.
+    private struct ActiveDeepSettings: Identifiable {
+        let title: String
+        let p1s: [Int]
+        var id: String { title }
+    }
 
     /// Matches the rig's own page size — each physical menu page holds up
     /// to 28 items.
@@ -82,6 +94,10 @@ struct MenuPageView: View {
                     menuButton(for: item)
                 }
             }
+        }
+        .sheet(item: $activeDeepSettings) { destination in
+            DeepSettingsView(title: destination.title, p1s: destination.p1s)
+                .environmentObject(hub)
         }
     }
 
@@ -218,6 +234,20 @@ struct MenuPageView: View {
             disabledCWMessageButton(top: "RECORD")
         } else if selectedPage == .cw, Self.hiddenCWItems.contains(item) {
             hiddenButtonPlaceholder(for: item)
+        } else if selectedPage == .fm, item == 23 {
+            deepSettingsButton(top: "RADIO", bottom: "SETTING", title: "RADIO SETTING", p1s: [1])
+        } else if selectedPage == .fm, item == 24 {
+            deepSettingsButton(top: "CW", bottom: "SETTING", title: "CW SETTING", p1s: [2])
+        } else if selectedPage == .fm, item == 25 {
+            deepSettingsButton(top: "OPERATION", bottom: "SETTING", title: "OPERATION SETTING", p1s: [3])
+        } else if selectedPage == .fm, item == 26 {
+            deepSettingsButton(top: "DISPLAY", bottom: "SETTING", title: "DISPLAY SETTING", p1s: [4])
+        } else if selectedPage == .fm, item == 27 {
+            deepSettingsButton(top: "EXTENSION", bottom: "SETTING", title: "EXTENSION SETTING", p1s: [5])
+        } else if selectedPage == .fm, item == 28 {
+            // The physical APRS SETTING button spans three Table 3
+            // categories (APRS Setting/Beacon/Filter, p1 6-8) on one screen.
+            deepSettingsButton(top: "APRS", bottom: "SETTING", title: "APRS SETTING", p1s: [6, 7, 8])
         } else {
             menuButtonShell {
                 // Not yet wired to a CAT command — layout only.
@@ -225,6 +255,18 @@ struct MenuPageView: View {
                 Text("\(item)")
                     .font(.system(.body, design: .monospaced))
             }
+        }
+    }
+
+    /// FM/C4FM page bottom-row buttons (23-28) all open the same generic
+    /// `DeepSettingsView`, just addressed at a different Table 3 category —
+    /// unlike every other button on this grid, none of these needs its own
+    /// `@State` popover flag, since they all share `activeDeepSettings`.
+    private func deepSettingsButton(top: String, bottom: String, title: String, p1s: [Int]) -> some View {
+        menuButtonShell {
+            activeDeepSettings = ActiveDeepSettings(title: title, p1s: p1s)
+        } label: {
+            twoLineLabelEqualSize(top: top, bottom: bottom)
         }
     }
 
@@ -450,6 +492,18 @@ struct MenuPageView: View {
         VStack(spacing: 2) {
             Text(top).font(.caption2)
             Text(bottom).font(.system(.body, design: .monospaced))
+        }
+    }
+
+    /// Like `twoLineLabel`, but both lines share one font size — used by
+    /// `deepSettingsButton`, where top/bottom are both short label words
+    /// (e.g. "RADIO" / "SETTING") rather than a name/value pair, so the
+    /// size split that suits every other button's name+value labels looks
+    /// mismatched here.
+    private func twoLineLabelEqualSize(top: String, bottom: String) -> some View {
+        VStack(spacing: 2) {
+            Text(top).font(.caption2)
+            Text(bottom).font(.caption2)
         }
     }
 }

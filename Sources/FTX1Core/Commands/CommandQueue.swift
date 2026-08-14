@@ -168,6 +168,8 @@ public actor CommandQueue {
                 brightness: value,
                 ledBrightness: current?.ledBrightness ?? 10
             )
+        case .setMenuItem(let p1, let p2, let p3, let rawValue):
+            try await rigctld.setMenuItem(p1: p1, p2: p2, p3: p3, rawValue: rawValue)
         }
     }
 }

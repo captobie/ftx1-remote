@@ -133,6 +133,16 @@ final class HubService: ObservableObject {
         Task { await commandQueue.enqueue(command) }
     }
 
+    /// On-demand read for one Deep Settings item (see DeepSettingsCatalog),
+    /// called only while a Deep Settings tab is open — bypasses
+    /// `CommandQueue` directly, the same way the poll loop's getters do.
+    /// These ~300 rarely-changed settings deliberately aren't part of the
+    /// 500ms poll/broadcast cycle alongside VFO/SWR/PTT; they're fetched
+    /// straight into the settings screen's own state instead of `rigState`.
+    func readMenuItem(p1: Int, p2: Int, p3: Int) async -> String? {
+        try? await rigctld.getMenuItem(p1: p1, p2: p2, p3: p3)
+    }
+
     private func connectRigctld() {
         guard runLoopTask == nil else { return }
         runLoopTask = Task { await runConnectionLoop() }
