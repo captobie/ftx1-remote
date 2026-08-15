@@ -161,7 +161,7 @@ public enum DeepSettingsCatalog {
     /// Populated incrementally, one `p1` category at a time, each
     /// spot-checked against real hardware before being trusted — same
     /// practice as every other raw CAT command wired in this app so far.
-    public static let items: [DeepSettingItem] = radioSettingItems + displaySettingItems
+    public static let items: [DeepSettingItem] = radioSettingItems + cwSettingItems + displaySettingItems
 
     /// P1=04 (DISPLAY SETTING), transcribed from the CAT manual's Table 3,
     /// page 13. Not yet hardware-verified — encodings/labels here are as
@@ -447,6 +447,77 @@ public enum DeepSettingsCatalog {
         DeepSettingItem(p1: 1, p2: 6, p3: 3, category: "RADIO SETTING", tab: "DIGITAL", label: "STANDBY BEEP", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
         DeepSettingItem(p1: 1, p2: 6, p3: 4, category: "RADIO SETTING", tab: "DIGITAL", label: "DP-ID LIST", valueType: .readOnly),
         DeepSettingItem(p1: 1, p2: 6, p3: 5, category: "RADIO SETTING", tab: "DIGITAL", label: "RADIO ID", valueType: .readOnly),
+    ]
+
+    /// CW SETTING-only reused value type — the five CW MEMORY items on the
+    /// KEYER tab all share this shape.
+    private enum CWSettingShared {
+        static let memoryType = DeepSettingValueType.enumeration(cases: [
+            .init(0, "TEXT"), .init(1, "MESSAGE"),
+        ], digits: 1)
+    }
+
+    /// P1=02 (CW SETTING), transcribed from the CAT manual's Table 3, page
+    /// 11. Not yet hardware-verified. Reuses several `RadioSettingShared`
+    /// value types where MODE CW's fields are identical to RADIO SETTING's
+    /// mode tabs (AF gains, AGC delays, cut filters, USB OUT LEVEL, RPTT
+    /// SELECT, and MODE CW's NAR WIDTH list, which matches MODE DATA/RTTY's
+    /// rather than MODE SSB's).
+    private static let cwSettingItems: [DeepSettingItem] = [
+        // 02.01 (MODE CW)
+        DeepSettingItem(p1: 2, p2: 1, p3: 1, category: "CW SETTING", tab: "MODE CW", label: "AF TREBLE GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 2, p2: 1, p3: 2, category: "CW SETTING", tab: "MODE CW", label: "AF MIDDLE TONE GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 2, p2: 1, p3: 3, category: "CW SETTING", tab: "MODE CW", label: "AF BASS GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 2, p2: 1, p3: 4, category: "CW SETTING", tab: "MODE CW", label: "AGC FAST DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 2, p2: 1, p3: 5, category: "CW SETTING", tab: "MODE CW", label: "AGC MID DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 2, p2: 1, p3: 6, category: "CW SETTING", tab: "MODE CW", label: "AGC SLOW DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 2, p2: 1, p3: 7, category: "CW SETTING", tab: "MODE CW", label: "LCUT FREQ", valueType: .enumeration(cases: RadioSettingShared.lcutFreqCases, digits: 2)),
+        DeepSettingItem(p1: 2, p2: 1, p3: 8, category: "CW SETTING", tab: "MODE CW", label: "LCUT SLOPE", valueType: RadioSettingShared.cutSlope),
+        DeepSettingItem(p1: 2, p2: 1, p3: 9, category: "CW SETTING", tab: "MODE CW", label: "HCUT FREQ", valueType: .enumeration(cases: RadioSettingShared.hcutFreqCases, digits: 2)),
+        DeepSettingItem(p1: 2, p2: 1, p3: 10, category: "CW SETTING", tab: "MODE CW", label: "HCUT SLOPE", valueType: RadioSettingShared.cutSlope),
+        DeepSettingItem(p1: 2, p2: 1, p3: 11, category: "CW SETTING", tab: "MODE CW", label: "USB OUT LEVEL", valueType: RadioSettingShared.outLevel),
+        DeepSettingItem(p1: 2, p2: 1, p3: 12, category: "CW SETTING", tab: "MODE CW", label: "RPTT SELECT", valueType: RadioSettingShared.rpttSelect),
+        DeepSettingItem(p1: 2, p2: 1, p3: 13, category: "CW SETTING", tab: "MODE CW", label: "NAR WIDTH", valueType: .enumeration(cases: RadioSettingShared.dataNarWidthCases, digits: 2)),
+        DeepSettingItem(p1: 2, p2: 1, p3: 14, category: "CW SETTING", tab: "MODE CW", label: "PC KEYING", valueType: RadioSettingShared.rpttSelect),
+        DeepSettingItem(p1: 2, p2: 1, p3: 15, category: "CW SETTING", tab: "MODE CW", label: "CW BK-IN TYPE", valueType: .enumeration(cases: [
+            .init(0, "SEMI"), .init(1, "FULL"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 2, p2: 1, p3: 16, category: "CW SETTING", tab: "MODE CW", label: "CW FREQ DISPLAY", valueType: .enumeration(cases: [
+            .init(0, "DIRECT FREQ"), .init(1, "PITCH OFFSET"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 2, p2: 1, p3: 17, category: "CW SETTING", tab: "MODE CW", label: "QSK DELAY TIME", valueType: .enumeration(cases: [
+            .init(0, "15 msec"), .init(1, "20 msec"), .init(2, "25 msec"), .init(3, "30 msec"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 2, p2: 1, p3: 18, category: "CW SETTING", tab: "MODE CW", label: "CW INDICATOR", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+
+        // 02.02 (KEYER)
+        DeepSettingItem(p1: 2, p2: 2, p3: 1, category: "CW SETTING", tab: "KEYER", label: "KEYER TYPE", valueType: .enumeration(cases: [
+            .init(0, "OFF"), .init(1, "BUG"), .init(2, "ELEKEY-A"), .init(3, "ELEKEY-B"), .init(4, "ELEKEY-Y"), .init(5, "ACS"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 2, p2: 2, p3: 2, category: "CW SETTING", tab: "KEYER", label: "KEYER DOT/DASH", valueType: .enumeration(cases: [
+            .init(0, "NOR"), .init(1, "REV"),
+        ], digits: 1)),
+        // The manual's cell claims raw P4 is the weight ×10 (25-45 for
+        // 2.5-4.5) — confirmed wrong against real hardware: a live "EX
+        // 02.02.03" probe returned raw "05" while the rig's own physical
+        // MENU display read 3.0, which only fits a 0-based offset (00 =
+        // 2.5, 20 = 4.5, 0.1/step), not the manual's literal ×10 encoding.
+        // Same class of manual/hardware mismatch as AUTO POWER OFF/DCS
+        // CODE's digit-count errors, but this one's the *value mapping*
+        // itself, not just the digit width.
+        DeepSettingItem(p1: 2, p2: 2, p3: 3, category: "CW SETTING", tab: "KEYER", label: "CW WEIGHT", valueType: .enumeration(cases: (0...20).map {
+            .init($0, String(format: "%.1f", 2.5 + Double($0) / 10))
+        }, digits: 2)),
+        DeepSettingItem(p1: 2, p2: 2, p3: 4, category: "CW SETTING", tab: "KEYER", label: "NUMBER STYLE", valueType: .enumeration(cases: [
+            .init(0, "1290"), .init(1, "AUNO"), .init(2, "AUNT"), .init(3, "A2NO"), .init(4, "A2NT"), .init(5, "12NO"), .init(6, "12NT"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 2, p2: 2, p3: 5, category: "CW SETTING", tab: "KEYER", label: "CONTEST NUMBER", valueType: .intRange(1...9999, digits: 4, unit: nil, step: 1)),
+        DeepSettingItem(p1: 2, p2: 2, p3: 6, category: "CW SETTING", tab: "KEYER", label: "CW MEMORY 1", valueType: CWSettingShared.memoryType),
+        DeepSettingItem(p1: 2, p2: 2, p3: 7, category: "CW SETTING", tab: "KEYER", label: "CW MEMORY 2", valueType: CWSettingShared.memoryType),
+        DeepSettingItem(p1: 2, p2: 2, p3: 8, category: "CW SETTING", tab: "KEYER", label: "CW MEMORY 3", valueType: CWSettingShared.memoryType),
+        DeepSettingItem(p1: 2, p2: 2, p3: 9, category: "CW SETTING", tab: "KEYER", label: "CW MEMORY 4", valueType: CWSettingShared.memoryType),
+        DeepSettingItem(p1: 2, p2: 2, p3: 10, category: "CW SETTING", tab: "KEYER", label: "CW MEMORY 5", valueType: CWSettingShared.memoryType),
+        DeepSettingItem(p1: 2, p2: 2, p3: 11, category: "CW SETTING", tab: "KEYER", label: "REPEAT INTERVAL", valueType: .intRange(1...60, digits: 2, unit: "sec", step: 1)),
     ]
 
     private static let autoPowerOffCases: [DeepSettingValueType.EnumerationCase] = {

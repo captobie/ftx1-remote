@@ -69,6 +69,14 @@ final class DeepSettingsCatalogTests: XCTestCase {
         XCTAssertEqual(radioItems.count, 108)
     }
 
+    func testCWSettingTabCounts() {
+        let cwItems = DeepSettingsCatalog.items(forP1: 2)
+        let countsByTab = Dictionary(grouping: cwItems, by: \.p2).mapValues(\.count)
+        XCTAssertEqual(countsByTab[1], 18, "MODE CW")
+        XCTAssertEqual(countsByTab[2], 11, "KEYER")
+        XCTAssertEqual(cwItems.count, 29)
+    }
+
     func testDisplaySettingTabCounts() {
         let displayItems = DeepSettingsCatalog.items(forP1: 4)
         let countsByTab = Dictionary(grouping: displayItems, by: \.p2).mapValues(\.count)
