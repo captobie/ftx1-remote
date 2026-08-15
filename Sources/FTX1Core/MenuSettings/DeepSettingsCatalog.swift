@@ -22,8 +22,10 @@ public enum DeepSettingValueType: Sendable {
 
     case toggle(offLabel: String, onLabel: String)
     case enumeration(cases: [EnumerationCase], digits: Int)
-    case intRange(ClosedRange<Int>, digits: Int, unit: String?)
-    case signedRange(ClosedRange<Int>, digits: Int, unit: String?)
+    /// `step` is the Stepper's UI increment (e.g. 20 for a "20msec/step"
+    /// field) — decode/encode round-trip the raw value regardless of step.
+    case intRange(ClosedRange<Int>, digits: Int, unit: String?, step: Int)
+    case signedRange(ClosedRange<Int>, digits: Int, unit: String?, step: Int)
     case text(maxLength: Int)
     /// P4 is documented as "—" (a list, ID, or other non-editable readout).
     case readOnly
@@ -40,10 +42,10 @@ extension DeepSettingValueType: Equatable {
             return a1 == b1 && a2 == b2
         case (.enumeration(let a1, let a2), .enumeration(let b1, let b2)):
             return a1 == b1 && a2 == b2
-        case (.intRange(let a1, let a2, let a3), .intRange(let b1, let b2, let b3)):
-            return a1 == b1 && a2 == b2 && a3 == b3
-        case (.signedRange(let a1, let a2, let a3), .signedRange(let b1, let b2, let b3)):
-            return a1 == b1 && a2 == b2 && a3 == b3
+        case (.intRange(let a1, let a2, let a3, let a4), .intRange(let b1, let b2, let b3, let b4)):
+            return a1 == b1 && a2 == b2 && a3 == b3 && a4 == b4
+        case (.signedRange(let a1, let a2, let a3, let a4), .signedRange(let b1, let b2, let b3, let b4)):
+            return a1 == b1 && a2 == b2 && a3 == b3 && a4 == b4
         case (.text(let a), .text(let b)):
             return a == b
         case (.readOnly, .readOnly), (.action, .action):
@@ -105,7 +107,7 @@ public struct DeepSettingItem: Identifiable, Sendable, Equatable {
         case .enumeration(_, let digits):
             guard let index = Int(raw.prefix(digits)) else { return nil }
             return .int(index)
-        case .intRange(_, let digits, _):
+        case .intRange(_, let digits, _, _):
             guard let value = Int(raw.prefix(digits)) else { return nil }
             return .int(value)
         case .signedRange:
@@ -126,9 +128,9 @@ public struct DeepSettingItem: Identifiable, Sendable, Equatable {
             return on ? "1" : "0"
         case (.enumeration(_, let digits), .int(let index)):
             return String(format: "%0\(digits)d", index)
-        case (.intRange(_, let digits, _), .int(let v)):
+        case (.intRange(_, let digits, _, _), .int(let v)):
             return String(format: "%0\(digits)d", v)
-        case (.signedRange(_, let digits, _), .int(let v)):
+        case (.signedRange(_, let digits, _, _), .int(let v)):
             let sign = v < 0 ? "-" : "+"
             return sign + String(format: "%0\(digits)d", abs(v))
         case (.text(let maxLength), .text(let s)):
@@ -159,7 +161,7 @@ public enum DeepSettingsCatalog {
     /// Populated incrementally, one `p1` category at a time, each
     /// spot-checked against real hardware before being trusted — same
     /// practice as every other raw CAT command wired in this app so far.
-    public static let items: [DeepSettingItem] = displaySettingItems
+    public static let items: [DeepSettingItem] = radioSettingItems + displaySettingItems
 
     /// P1=04 (DISPLAY SETTING), transcribed from the CAT manual's Table 3,
     /// page 13. Not yet hardware-verified — encodings/labels here are as
@@ -178,6 +180,275 @@ public enum DeepSettingsCatalog {
     /// needs 2). Index 0 is OFF, indices 1-24 step linearly by 0.5h up to
     /// 12h — generated rather than hand-listed to avoid 24 chances to
     /// mistype a half-hour label.
+    /// P1=01 (RADIO SETTING) value types shared across the MODE SSB/AM/FM/
+    /// DATA/RTTY tabs — Table 3 repeats the same field definitions (AF
+    /// TREBLE/MIDDLE/BASS GAIN, AGC delays, LCUT/HCUT FREQ+SLOPE, USB OUT
+    /// LEVEL/MOD GAIN, TX BPF SEL, MOD SOURCE, RPTT SELECT) once per mode.
+    /// Declared once from MODE SSB's cells (the most legibly printed) and
+    /// reused, rather than re-derived per tab: a couple of other tabs'
+    /// printed "Digits" column for these exact same fields didn't scan
+    /// legibly (e.g. RTTY/FM's USB OUT LEVEL cell read as 1 digit, which
+    /// can't hold a 0-100 range at all — almost certainly a column-
+    /// alignment artifact in that particular cell, not a real per-mode
+    /// difference in an otherwise identical field).
+    private enum RadioSettingShared {
+        static let signedGain = DeepSettingValueType.signedRange(-20...10, digits: 2, unit: "dB", step: 1)
+        static let agcDelay = DeepSettingValueType.intRange(20...4000, digits: 4, unit: "msec", step: 20)
+        static let cutSlope = DeepSettingValueType.enumeration(cases: [
+            .init(0, "6 dB/oct"), .init(1, "18 dB/oct"),
+        ], digits: 1)
+        static let outLevel = DeepSettingValueType.intRange(0...100, digits: 3, unit: nil, step: 1)
+        static let txBPFSel = DeepSettingValueType.enumeration(cases: [
+            .init(0, "50-3050 Hz"), .init(1, "100-2900 Hz"), .init(2, "200-2800 Hz"), .init(3, "300-2700 Hz"), .init(4, "400-2600 Hz"),
+        ], digits: 1)
+        static let modSource = DeepSettingValueType.enumeration(cases: [
+            .init(0, "MIC"), .init(1, "USB"), .init(2, "Bluetooth"), .init(3, "AUTO"),
+        ], digits: 1)
+        static let rpttSelect = DeepSettingValueType.enumeration(cases: [
+            .init(0, "OFF"), .init(1, "RTS"), .init(2, "DTR"),
+        ], digits: 1)
+
+        /// 00: OFF, 01-19: 100 Hz-1000 Hz in 50 Hz steps.
+        static let lcutFreqCases: [DeepSettingValueType.EnumerationCase] = {
+            var cases: [DeepSettingValueType.EnumerationCase] = [.init(0, "OFF")]
+            for index in 1...19 { cases.append(.init(index, "\(100 + (index - 1) * 50) Hz")) }
+            return cases
+        }()
+
+        /// 00: OFF, 01-67: 700 Hz-4000 Hz in 50 Hz steps.
+        static let hcutFreqCases: [DeepSettingValueType.EnumerationCase] = {
+            var cases: [DeepSettingValueType.EnumerationCase] = [.init(0, "OFF")]
+            for index in 1...67 { cases.append(.init(index, "\(700 + (index - 1) * 50) Hz")) }
+            return cases
+        }()
+
+        /// MODE SSB's NAR WIDTH list — non-linear, hand-listed from the
+        /// manual (distinct from MODE DATA/RTTY's list below).
+        static let ssbNarWidthCases: [DeepSettingValueType.EnumerationCase] = [
+            .init(0, "300 Hz"), .init(1, "400 Hz"), .init(2, "600 Hz"), .init(3, "850 Hz"), .init(4, "1100 Hz"),
+            .init(5, "1200 Hz"), .init(6, "1500 Hz"), .init(7, "1650 Hz"), .init(8, "1800 Hz"), .init(9, "1950 Hz"),
+            .init(10, "2100 Hz"), .init(11, "2250 Hz"), .init(12, "2400 Hz"), .init(13, "2450 Hz"), .init(14, "2500 Hz"),
+            .init(15, "2600 Hz"), .init(16, "2700 Hz"), .init(17, "2800 Hz"), .init(18, "2900 Hz"), .init(19, "3000 Hz"),
+            .init(20, "3200 Hz"), .init(21, "3500 Hz"), .init(22, "4000 Hz"),
+        ]
+
+        /// MODE DATA/RTTY's shared NAR WIDTH list — non-linear, distinct
+        /// from MODE SSB's above.
+        static let dataNarWidthCases: [DeepSettingValueType.EnumerationCase] = [
+            .init(0, "50 Hz"), .init(1, "100 Hz"), .init(2, "150 Hz"), .init(3, "200 Hz"), .init(4, "250 Hz"),
+            .init(5, "300 Hz"), .init(6, "350 Hz"), .init(7, "400 Hz"), .init(8, "450 Hz"), .init(9, "500 Hz"),
+            .init(10, "600 Hz"), .init(11, "800 Hz"), .init(12, "1200 Hz"), .init(13, "1400 Hz"), .init(14, "1700 Hz"),
+            .init(15, "2000 Hz"), .init(16, "2400 Hz"), .init(17, "3200 Hz"), .init(18, "3500 Hz"), .init(19, "4000 Hz"),
+        ]
+
+        static let cwAutoMode = DeepSettingValueType.enumeration(cases: [
+            .init(0, "OFF"), .init(1, "50 MHz"), .init(2, "ON"),
+        ], digits: 1)
+
+        // MODE FM-only shared bits below.
+
+        static let rptShift = DeepSettingValueType.enumeration(cases: [
+            .init(0, "-"), .init(1, "SIMPLEX"), .init(2, "+"), .init(3, "ARS"),
+        ], digits: 1)
+        static let sqlType = DeepSettingValueType.enumeration(cases: [
+            .init(0, "OFF"), .init(1, "ENC"), .init(2, "TSQ"), .init(3, "DCS"), .init(4, "PR FREQ"), .init(5, "REV TONE"),
+        ], digits: 1)
+        static let dcsRevers = DeepSettingValueType.enumeration(cases: [
+            .init(0, "NORMAL"), .init(1, "REVERS"),
+        ], digits: 1)
+        static let dtmfDelay = DeepSettingValueType.enumeration(cases: [
+            .init(0, "50 ms"), .init(1, "250 ms"), .init(2, "450 ms"), .init(3, "750 ms"), .init(4, "1000 ms"),
+        ], digits: 1)
+        static let dtmfSpeed = DeepSettingValueType.enumeration(cases: [
+            .init(0, "50 ms"), .init(1, "100 ms"),
+        ], digits: 1)
+
+        /// The standard 50-tone CTCSS table (index 0 = 67.0 Hz, index 49 =
+        /// 254.1 Hz, matching Table 3's "00: 67.0 - 49: 254.1Hz"). Well-
+        /// known/industry-standard, not specific to this rig — still worth
+        /// spot-checking a couple of index values against the real MENU
+        /// display before trusting it fully.
+        static let toneFreqCases: [DeepSettingValueType.EnumerationCase] = {
+            let tones = [
+                67.0, 69.3, 71.9, 74.4, 77.0, 79.7, 82.5, 85.4, 88.5, 91.5,
+                94.8, 97.4, 100.0, 103.5, 107.2, 110.9, 114.8, 118.8, 123.0, 127.3,
+                131.8, 136.5, 141.3, 146.2, 151.4, 156.7, 159.8, 162.2, 165.5, 167.9,
+                171.3, 173.8, 177.3, 179.9, 183.5, 186.2, 189.9, 192.8, 196.6, 199.5,
+                203.5, 206.5, 210.7, 218.1, 225.7, 229.1, 233.6, 241.8, 250.3, 254.1,
+            ]
+            return tones.enumerated().map { .init($0.offset, "\($0.element) Hz") }
+        }()
+
+        /// The standard 104-code DCS table (index 0 = code 023, index 103 =
+        /// code 754, matching Table 3's "00: 023 - 103: 754"). Same
+        /// well-known-standard caveat as `toneFreqCases` above.
+        static let dcsCodeCases: [DeepSettingValueType.EnumerationCase] = {
+            let codes = [
+                "023", "025", "026", "031", "032", "036", "043", "047", "051", "053",
+                "054", "065", "071", "072", "073", "074", "114", "115", "116", "122",
+                "125", "131", "132", "134", "143", "145", "152", "155", "156", "162",
+                "165", "172", "174", "205", "212", "223", "225", "226", "243", "244",
+                "245", "246", "251", "252", "255", "261", "263", "265", "266", "271",
+                "274", "306", "311", "315", "325", "331", "332", "343", "346", "351",
+                "356", "364", "365", "371", "411", "412", "413", "423", "431", "432",
+                "445", "446", "452", "454", "455", "462", "464", "465", "466", "503",
+                "506", "516", "523", "526", "532", "546", "565", "606", "612", "624",
+                "627", "631", "632", "654", "662", "664", "703", "712", "723", "731",
+                "732", "734", "743", "754",
+            ]
+            return codes.enumerated().map { .init($0.offset, $0.element) }
+        }()
+    }
+
+    /// P1=01 (RADIO SETTING), transcribed from the CAT manual's Table 3,
+    /// pages 10-11. Not yet hardware-verified. Two items whose CAT shape
+    /// couldn't be pinned down precisely from the manual's own printed
+    /// cell (see inline comments): RPT SHIFT(144MHz)/(430MHz)'s odd
+    /// "0-100MHz" range text, likely meaning a 0-100 step count rather
+    /// than literally 100MHz.
+    private static let radioSettingItems: [DeepSettingItem] = [
+        // 01.01 (MODE SSB)
+        DeepSettingItem(p1: 1, p2: 1, p3: 1, category: "RADIO SETTING", tab: "MODE SSB", label: "AF TREBLE GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 1, p3: 2, category: "RADIO SETTING", tab: "MODE SSB", label: "AF MIDDLE TONE GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 1, p3: 3, category: "RADIO SETTING", tab: "MODE SSB", label: "AF BASS GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 1, p3: 4, category: "RADIO SETTING", tab: "MODE SSB", label: "AGC FAST DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 1, p3: 5, category: "RADIO SETTING", tab: "MODE SSB", label: "AGC MID DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 1, p3: 6, category: "RADIO SETTING", tab: "MODE SSB", label: "AGC SLOW DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 1, p3: 7, category: "RADIO SETTING", tab: "MODE SSB", label: "LCUT FREQ", valueType: .enumeration(cases: RadioSettingShared.lcutFreqCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 1, p3: 8, category: "RADIO SETTING", tab: "MODE SSB", label: "LCUT SLOPE", valueType: RadioSettingShared.cutSlope),
+        DeepSettingItem(p1: 1, p2: 1, p3: 9, category: "RADIO SETTING", tab: "MODE SSB", label: "HCUT FREQ", valueType: .enumeration(cases: RadioSettingShared.hcutFreqCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 1, p3: 10, category: "RADIO SETTING", tab: "MODE SSB", label: "HCUT SLOPE", valueType: RadioSettingShared.cutSlope),
+        DeepSettingItem(p1: 1, p2: 1, p3: 11, category: "RADIO SETTING", tab: "MODE SSB", label: "USB OUT LEVEL", valueType: RadioSettingShared.outLevel),
+        DeepSettingItem(p1: 1, p2: 1, p3: 12, category: "RADIO SETTING", tab: "MODE SSB", label: "TX BPF SEL", valueType: RadioSettingShared.txBPFSel),
+        DeepSettingItem(p1: 1, p2: 1, p3: 13, category: "RADIO SETTING", tab: "MODE SSB", label: "MOD SOURCE", valueType: RadioSettingShared.modSource),
+        DeepSettingItem(p1: 1, p2: 1, p3: 14, category: "RADIO SETTING", tab: "MODE SSB", label: "USB MOD GAIN", valueType: RadioSettingShared.outLevel),
+        DeepSettingItem(p1: 1, p2: 1, p3: 15, category: "RADIO SETTING", tab: "MODE SSB", label: "RPTT SELECT", valueType: RadioSettingShared.rpttSelect),
+        DeepSettingItem(p1: 1, p2: 1, p3: 16, category: "RADIO SETTING", tab: "MODE SSB", label: "NAR WIDTH", valueType: .enumeration(cases: RadioSettingShared.ssbNarWidthCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 1, p3: 17, category: "RADIO SETTING", tab: "MODE SSB", label: "CW AUTO MODE", valueType: RadioSettingShared.cwAutoMode),
+
+        // 01.02 (MODE AM) — same fields as MODE SSB minus NAR WIDTH/CW AUTO MODE
+        DeepSettingItem(p1: 1, p2: 2, p3: 1, category: "RADIO SETTING", tab: "MODE AM", label: "AF TREBLE GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 2, p3: 2, category: "RADIO SETTING", tab: "MODE AM", label: "AF MIDDLE TONE GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 2, p3: 3, category: "RADIO SETTING", tab: "MODE AM", label: "AF BASS GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 2, p3: 4, category: "RADIO SETTING", tab: "MODE AM", label: "AGC FAST DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 2, p3: 5, category: "RADIO SETTING", tab: "MODE AM", label: "AGC MID DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 2, p3: 6, category: "RADIO SETTING", tab: "MODE AM", label: "AGC SLOW DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 2, p3: 7, category: "RADIO SETTING", tab: "MODE AM", label: "LCUT FREQ", valueType: .enumeration(cases: RadioSettingShared.lcutFreqCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 2, p3: 8, category: "RADIO SETTING", tab: "MODE AM", label: "LCUT SLOPE", valueType: RadioSettingShared.cutSlope),
+        DeepSettingItem(p1: 1, p2: 2, p3: 9, category: "RADIO SETTING", tab: "MODE AM", label: "HCUT FREQ", valueType: .enumeration(cases: RadioSettingShared.hcutFreqCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 2, p3: 10, category: "RADIO SETTING", tab: "MODE AM", label: "HCUT SLOPE", valueType: RadioSettingShared.cutSlope),
+        DeepSettingItem(p1: 1, p2: 2, p3: 11, category: "RADIO SETTING", tab: "MODE AM", label: "USB OUT LEVEL", valueType: RadioSettingShared.outLevel),
+        DeepSettingItem(p1: 1, p2: 2, p3: 12, category: "RADIO SETTING", tab: "MODE AM", label: "TX BPF SEL", valueType: RadioSettingShared.txBPFSel),
+        DeepSettingItem(p1: 1, p2: 2, p3: 13, category: "RADIO SETTING", tab: "MODE AM", label: "MOD SOURCE", valueType: RadioSettingShared.modSource),
+        DeepSettingItem(p1: 1, p2: 2, p3: 14, category: "RADIO SETTING", tab: "MODE AM", label: "USB MOD GAIN", valueType: RadioSettingShared.outLevel),
+        DeepSettingItem(p1: 1, p2: 2, p3: 15, category: "RADIO SETTING", tab: "MODE AM", label: "RPTT SELECT", valueType: RadioSettingShared.rpttSelect),
+
+        // 01.03 (MODE FM) — no TX BPF SEL; adds repeater/DTMF/APRS-tone fields
+        DeepSettingItem(p1: 1, p2: 3, p3: 1, category: "RADIO SETTING", tab: "MODE FM", label: "AF TREBLE GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 3, p3: 2, category: "RADIO SETTING", tab: "MODE FM", label: "AF MIDDLE TONE GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 3, p3: 3, category: "RADIO SETTING", tab: "MODE FM", label: "AF BASS GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 3, p3: 4, category: "RADIO SETTING", tab: "MODE FM", label: "AGC FAST DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 3, p3: 5, category: "RADIO SETTING", tab: "MODE FM", label: "AGC MID DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 3, p3: 6, category: "RADIO SETTING", tab: "MODE FM", label: "AGC SLOW DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 3, p3: 7, category: "RADIO SETTING", tab: "MODE FM", label: "LCUT FREQ", valueType: .enumeration(cases: RadioSettingShared.lcutFreqCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 8, category: "RADIO SETTING", tab: "MODE FM", label: "LCUT SLOPE", valueType: RadioSettingShared.cutSlope),
+        DeepSettingItem(p1: 1, p2: 3, p3: 9, category: "RADIO SETTING", tab: "MODE FM", label: "HCUT FREQ", valueType: .enumeration(cases: RadioSettingShared.hcutFreqCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 10, category: "RADIO SETTING", tab: "MODE FM", label: "HCUT SLOPE", valueType: RadioSettingShared.cutSlope),
+        DeepSettingItem(p1: 1, p2: 3, p3: 11, category: "RADIO SETTING", tab: "MODE FM", label: "USB OUT LEVEL", valueType: RadioSettingShared.outLevel),
+        DeepSettingItem(p1: 1, p2: 3, p3: 12, category: "RADIO SETTING", tab: "MODE FM", label: "MOD SOURCE", valueType: RadioSettingShared.modSource),
+        DeepSettingItem(p1: 1, p2: 3, p3: 13, category: "RADIO SETTING", tab: "MODE FM", label: "USB MOD GAIN", valueType: RadioSettingShared.outLevel),
+        DeepSettingItem(p1: 1, p2: 3, p3: 14, category: "RADIO SETTING", tab: "MODE FM", label: "RPTT SELECT", valueType: RadioSettingShared.rpttSelect),
+        DeepSettingItem(p1: 1, p2: 3, p3: 15, category: "RADIO SETTING", tab: "MODE FM", label: "RPT SHIFT", valueType: RadioSettingShared.rptShift),
+        DeepSettingItem(p1: 1, p2: 3, p3: 16, category: "RADIO SETTING", tab: "MODE FM", label: "RPT SHIFT (28MHz)", valueType: .intRange(0...1000, digits: 4, unit: "kHz", step: 10)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 17, category: "RADIO SETTING", tab: "MODE FM", label: "RPT SHIFT (50MHz)", valueType: .intRange(0...4000, digits: 4, unit: "kHz", step: 10)),
+        // The manual's own cell reads "0-100MHz (P4=0000-0100, 50kHz/step)"
+        // for both of these — 100MHz literally would be an absurd repeater
+        // shift, so this is almost certainly a 0-100 step count (0-5MHz in
+        // 50kHz steps), not a literal MHz range. Left as a raw step count
+        // pending hardware confirmation of the real shift range.
+        DeepSettingItem(p1: 1, p2: 3, p3: 18, category: "RADIO SETTING", tab: "MODE FM", label: "RPT SHIFT (144MHz)", valueType: .intRange(0...100, digits: 4, unit: "× 50 kHz steps", step: 1)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 19, category: "RADIO SETTING", tab: "MODE FM", label: "RPT SHIFT (430MHz)", valueType: .intRange(0...100, digits: 4, unit: "× 50 kHz steps", step: 1)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 20, category: "RADIO SETTING", tab: "MODE FM", label: "SQL TYPE", valueType: RadioSettingShared.sqlType),
+        DeepSettingItem(p1: 1, p2: 3, p3: 21, category: "RADIO SETTING", tab: "MODE FM", label: "TONE FREQ", valueType: .enumeration(cases: RadioSettingShared.toneFreqCases, digits: 2)),
+        // Manual prints Digits=2 here, but 104 entries (index 000-103) need
+        // 3 — same category of manual digit-count error as DISPLAY
+        // SETTING's AUTO POWER OFF, caught by testDigitsAreWideEnoughForDeclaredRange.
+        DeepSettingItem(p1: 1, p2: 3, p3: 22, category: "RADIO SETTING", tab: "MODE FM", label: "DCS CODE", valueType: .enumeration(cases: RadioSettingShared.dcsCodeCases, digits: 3)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 23, category: "RADIO SETTING", tab: "MODE FM", label: "DCS RX REVERS", valueType: RadioSettingShared.dcsRevers),
+        DeepSettingItem(p1: 1, p2: 3, p3: 24, category: "RADIO SETTING", tab: "MODE FM", label: "DCS TX REVERS", valueType: RadioSettingShared.dcsRevers),
+        DeepSettingItem(p1: 1, p2: 3, p3: 25, category: "RADIO SETTING", tab: "MODE FM", label: "PR FREQ", valueType: .intRange(300...3000, digits: 4, unit: "Hz", step: 100)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 26, category: "RADIO SETTING", tab: "MODE FM", label: "DTMF DELAY", valueType: RadioSettingShared.dtmfDelay),
+        DeepSettingItem(p1: 1, p2: 3, p3: 27, category: "RADIO SETTING", tab: "MODE FM", label: "DTMF SPEED", valueType: RadioSettingShared.dtmfSpeed),
+        DeepSettingItem(p1: 1, p2: 3, p3: 28, category: "RADIO SETTING", tab: "MODE FM", label: "DTMF MEMORY 1", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 29, category: "RADIO SETTING", tab: "MODE FM", label: "DTMF MEMORY 2", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 30, category: "RADIO SETTING", tab: "MODE FM", label: "DTMF MEMORY 3", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 31, category: "RADIO SETTING", tab: "MODE FM", label: "DTMF MEMORY 4", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 32, category: "RADIO SETTING", tab: "MODE FM", label: "DTMF MEMORY 5", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 33, category: "RADIO SETTING", tab: "MODE FM", label: "DTMF MEMORY 6", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 34, category: "RADIO SETTING", tab: "MODE FM", label: "DTMF MEMORY 7", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 35, category: "RADIO SETTING", tab: "MODE FM", label: "DTMF MEMORY 8", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 36, category: "RADIO SETTING", tab: "MODE FM", label: "DTMF MEMORY 9", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 1, p2: 3, p3: 37, category: "RADIO SETTING", tab: "MODE FM", label: "DTMF MEMORY 10", valueType: .text(maxLength: 16)),
+
+        // 01.04 (MODE DATA) — has TX BPF SEL (like SSB/AM); adds PSK TONE/DATA SHIFT
+        DeepSettingItem(p1: 1, p2: 4, p3: 1, category: "RADIO SETTING", tab: "MODE DATA", label: "AF TREBLE GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 4, p3: 2, category: "RADIO SETTING", tab: "MODE DATA", label: "AF MIDDLE TONE GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 4, p3: 3, category: "RADIO SETTING", tab: "MODE DATA", label: "AF BASS GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 4, p3: 4, category: "RADIO SETTING", tab: "MODE DATA", label: "AGC FAST DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 4, p3: 5, category: "RADIO SETTING", tab: "MODE DATA", label: "AGC MID DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 4, p3: 6, category: "RADIO SETTING", tab: "MODE DATA", label: "AGC SLOW DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 4, p3: 7, category: "RADIO SETTING", tab: "MODE DATA", label: "LCUT FREQ", valueType: .enumeration(cases: RadioSettingShared.lcutFreqCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 4, p3: 8, category: "RADIO SETTING", tab: "MODE DATA", label: "LCUT SLOPE", valueType: RadioSettingShared.cutSlope),
+        DeepSettingItem(p1: 1, p2: 4, p3: 9, category: "RADIO SETTING", tab: "MODE DATA", label: "HCUT FREQ", valueType: .enumeration(cases: RadioSettingShared.hcutFreqCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 4, p3: 10, category: "RADIO SETTING", tab: "MODE DATA", label: "HCUT SLOPE", valueType: RadioSettingShared.cutSlope),
+        DeepSettingItem(p1: 1, p2: 4, p3: 11, category: "RADIO SETTING", tab: "MODE DATA", label: "USB OUT LEVEL", valueType: RadioSettingShared.outLevel),
+        DeepSettingItem(p1: 1, p2: 4, p3: 12, category: "RADIO SETTING", tab: "MODE DATA", label: "TX BPF SEL", valueType: RadioSettingShared.txBPFSel),
+        DeepSettingItem(p1: 1, p2: 4, p3: 13, category: "RADIO SETTING", tab: "MODE DATA", label: "MOD SOURCE", valueType: RadioSettingShared.modSource),
+        DeepSettingItem(p1: 1, p2: 4, p3: 14, category: "RADIO SETTING", tab: "MODE DATA", label: "USB MOD GAIN", valueType: RadioSettingShared.outLevel),
+        DeepSettingItem(p1: 1, p2: 4, p3: 15, category: "RADIO SETTING", tab: "MODE DATA", label: "RPTT SELECT", valueType: RadioSettingShared.rpttSelect),
+        DeepSettingItem(p1: 1, p2: 4, p3: 16, category: "RADIO SETTING", tab: "MODE DATA", label: "NAR WIDTH", valueType: .enumeration(cases: RadioSettingShared.dataNarWidthCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 4, p3: 17, category: "RADIO SETTING", tab: "MODE DATA", label: "PSK TONE", valueType: .enumeration(cases: [
+            .init(0, "1000 Hz"), .init(1, "1500 Hz"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 1, p2: 4, p3: 18, category: "RADIO SETTING", tab: "MODE DATA", label: "DATA SHIFT (SSB)", valueType: .intRange(0...3000, digits: 4, unit: "Hz", step: 10)),
+
+        // 01.05 (MODE RTTY) — no TX BPF SEL/MOD SOURCE/USB MOD GAIN
+        DeepSettingItem(p1: 1, p2: 5, p3: 1, category: "RADIO SETTING", tab: "MODE RTTY", label: "AF TREBLE GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 5, p3: 2, category: "RADIO SETTING", tab: "MODE RTTY", label: "AF MIDDLE TONE GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 5, p3: 3, category: "RADIO SETTING", tab: "MODE RTTY", label: "AF BASS GAIN", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 1, p2: 5, p3: 4, category: "RADIO SETTING", tab: "MODE RTTY", label: "AGC FAST DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 5, p3: 5, category: "RADIO SETTING", tab: "MODE RTTY", label: "AGC MID DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 5, p3: 6, category: "RADIO SETTING", tab: "MODE RTTY", label: "AGC SLOW DELAY", valueType: RadioSettingShared.agcDelay),
+        DeepSettingItem(p1: 1, p2: 5, p3: 7, category: "RADIO SETTING", tab: "MODE RTTY", label: "LCUT FREQ", valueType: .enumeration(cases: RadioSettingShared.lcutFreqCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 5, p3: 8, category: "RADIO SETTING", tab: "MODE RTTY", label: "LCUT SLOPE", valueType: RadioSettingShared.cutSlope),
+        DeepSettingItem(p1: 1, p2: 5, p3: 9, category: "RADIO SETTING", tab: "MODE RTTY", label: "HCUT FREQ", valueType: .enumeration(cases: RadioSettingShared.hcutFreqCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 5, p3: 10, category: "RADIO SETTING", tab: "MODE RTTY", label: "HCUT SLOPE", valueType: RadioSettingShared.cutSlope),
+        DeepSettingItem(p1: 1, p2: 5, p3: 11, category: "RADIO SETTING", tab: "MODE RTTY", label: "USB OUT LEVEL", valueType: RadioSettingShared.outLevel),
+        DeepSettingItem(p1: 1, p2: 5, p3: 12, category: "RADIO SETTING", tab: "MODE RTTY", label: "RPTT SELECT", valueType: RadioSettingShared.rpttSelect),
+        DeepSettingItem(p1: 1, p2: 5, p3: 13, category: "RADIO SETTING", tab: "MODE RTTY", label: "NAR WIDTH", valueType: .enumeration(cases: RadioSettingShared.dataNarWidthCases, digits: 2)),
+        DeepSettingItem(p1: 1, p2: 5, p3: 14, category: "RADIO SETTING", tab: "MODE RTTY", label: "MARK FREQUENCY", valueType: .enumeration(cases: [
+            .init(0, "1275 Hz"), .init(1, "2125 Hz"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 1, p2: 5, p3: 15, category: "RADIO SETTING", tab: "MODE RTTY", label: "SHIFT FREQUENCY", valueType: .enumeration(cases: [
+            .init(0, "170 Hz"), .init(1, "200 Hz"), .init(2, "425 Hz"), .init(3, "850 Hz"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 1, p2: 5, p3: 16, category: "RADIO SETTING", tab: "MODE RTTY", label: "POLARITY-TX", valueType: .enumeration(cases: [
+            .init(0, "NOR"), .init(1, "REV"),
+        ], digits: 1)),
+
+        // 01.06 (DIGITAL)
+        DeepSettingItem(p1: 1, p2: 6, p3: 1, category: "RADIO SETTING", tab: "DIGITAL", label: "DIGITAL POPUP", valueType: .enumeration(cases: {
+            var cases: [DeepSettingValueType.EnumerationCase] = [.init(0, "OFF")]
+            for index in 1...59 { cases.append(.init(index, "\(index + 1) sec")) }
+            cases.append(.init(60, "CONTINUE"))
+            return cases
+        }(), digits: 2)),
+        DeepSettingItem(p1: 1, p2: 6, p3: 2, category: "RADIO SETTING", tab: "DIGITAL", label: "LOCATION SERVICE", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 1, p2: 6, p3: 3, category: "RADIO SETTING", tab: "DIGITAL", label: "STANDBY BEEP", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 1, p2: 6, p3: 4, category: "RADIO SETTING", tab: "DIGITAL", label: "DP-ID LIST", valueType: .readOnly),
+        DeepSettingItem(p1: 1, p2: 6, p3: 5, category: "RADIO SETTING", tab: "DIGITAL", label: "RADIO ID", valueType: .readOnly),
+    ]
+
     private static let autoPowerOffCases: [DeepSettingValueType.EnumerationCase] = {
         var cases: [DeepSettingValueType.EnumerationCase] = [.init(0, "OFF")]
         for index in 1...24 {

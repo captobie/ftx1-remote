@@ -156,7 +156,7 @@ private struct DeepSettingRow: View {
             } else {
                 Text("—").foregroundStyle(.secondary)
             }
-        case .intRange(let range, _, let unit):
+        case .intRange(let range, _, let unit, let step):
             if case .int(let value) = decoded {
                 Stepper(
                     unit.map { "\(value) \($0)" } ?? "\(value)",
@@ -166,13 +166,14 @@ private struct DeepSettingRow: View {
                             if let encoded = item.encode(.int(newValue)) { onSet(encoded) }
                         }
                     ),
-                    in: range
+                    in: range,
+                    step: step
                 )
                 .frame(maxWidth: 220)
             } else {
                 Text("—").foregroundStyle(.secondary)
             }
-        case .signedRange(let range, _, let unit):
+        case .signedRange(let range, _, let unit, let step):
             if case .int(let value) = decoded {
                 Stepper(
                     unit.map { "\(value) \($0)" } ?? "\(value)",
@@ -182,7 +183,8 @@ private struct DeepSettingRow: View {
                             if let encoded = item.encode(.int(newValue)) { onSet(encoded) }
                         }
                     ),
-                    in: range
+                    in: range,
+                    step: step
                 )
                 .frame(maxWidth: 220)
             } else {
