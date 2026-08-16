@@ -90,6 +90,18 @@ final class DeepSettingsCatalogTests: XCTestCase {
         XCTAssertEqual(opItems.count, 88)
     }
 
+    func testExtensionSettingTabCounts() {
+        let extItems = DeepSettingsCatalog.items(forP1: 5)
+        let countsByTab = Dictionary(grouping: extItems, by: \.p2).mapValues(\.count)
+        XCTAssertEqual(countsByTab[1], 7, "DATE&TIME")
+        XCTAssertEqual(countsByTab[2], 3, "MY POSITION (confirmed its own tab via live rig probe)")
+        XCTAssertEqual(countsByTab[3], 7, "SD CARD")
+        XCTAssertEqual(countsByTab[4], 1, "SOFT VERSION")
+        XCTAssertEqual(countsByTab[5], 1, "CALIBRATION")
+        XCTAssertEqual(countsByTab[6], 4, "RESET (includes CERTIFICATION)")
+        XCTAssertEqual(extItems.count, 23)
+    }
+
     func testDisplaySettingTabCounts() {
         let displayItems = DeepSettingsCatalog.items(forP1: 4)
         let countsByTab = Dictionary(grouping: displayItems, by: \.p2).mapValues(\.count)

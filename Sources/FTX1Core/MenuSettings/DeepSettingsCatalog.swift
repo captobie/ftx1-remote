@@ -161,7 +161,7 @@ public enum DeepSettingsCatalog {
     /// Populated incrementally, one `p1` category at a time, each
     /// spot-checked against real hardware before being trusted — same
     /// practice as every other raw CAT command wired in this app so far.
-    public static let items: [DeepSettingItem] = radioSettingItems + cwSettingItems + operationSettingItems + displaySettingItems
+    public static let items: [DeepSettingItem] = radioSettingItems + cwSettingItems + operationSettingItems + extensionSettingItems + displaySettingItems
 
     /// P1=04 (DISPLAY SETTING), transcribed from the CAT manual's Table 3,
     /// page 13. Not yet hardware-verified — encodings/labels here are as
@@ -734,6 +734,85 @@ public enum DeepSettingsCatalog {
             .init(0, "4800 bps"), .init(1, "9600 bps"), .init(2, "19200 bps"), .init(3, "38400 bps"), .init(4, "115200 bps"),
         ], digits: 1)),
         DeepSettingItem(p1: 3, p2: 7, p3: 15, category: "OPERATION SETTING", tab: "OPTION", label: "BLUETOOTH", valueType: .readOnly),
+    ]
+
+    /// P1=05 (EXTENSION SETTING), transcribed from the CAT manual's Table
+    /// 3, page 13. Not yet hardware-verified.
+    ///
+    /// Corrected 2026-08-16 against real hardware: this category has 6 P2
+    /// tabs, not 5. The printed table visually labels the "(MY POSITION)"
+    /// sub-block "01" (same as DATE&TIME right above it) with P3 continuing
+    /// 08-10 — read at first as a sub-grouping *within* DATE&TIME (P2=01),
+    /// the same way "(CERTIFICATION)" genuinely does continue RESET's P3
+    /// numbering below. That reading was wrong for MY POSITION specifically:
+    /// a live probe of `EX050109`/`EX050110` (the address that transcription
+    /// implied) returned `"?;"` (error) from the real rig, while
+    /// `EX050202`/`EX050203` returned real latitude/longitude-shaped data —
+    /// meaning MY POSITION is genuinely its own P2=02 tab with P3 restarting
+    /// at 01, and everything from SD CARD onward shifts up by one P2 (SD
+    /// CARD=03, SOFT VERSION=04, CALIBRATION=05, RESET=06). Confirmed via
+    /// `EX050201` (MY POSITION toggle, returned "0") and `EX050302`/
+    /// `EX050303` (MEM LIST SAVE/MENU LOAD's corrected addresses, both
+    /// returned `"?;"` matching the manual's "no value" for those). Surfaced
+    /// because the app was showing MY POSITION's lat/long under MEM LIST
+    /// SAVE/MENU LOAD's disabled rows — the SD CARD tab was silently
+    /// reading the wrong addresses. CERTIFICATION's "continues RESET"
+    /// reading is unaffected by this — not re-verified live, but its P2=05→
+    /// now 06 shift is purely mechanical from the block above it moving.
+    ///
+    /// TIME ZONE's raw value is in 0.1h units (not a friendly decimal
+    /// label like CW WEIGHT got) — the range/step (-120...140 by 5) is
+    /// wide enough that hand-generating friendly labels risked more
+    /// transcription error than it was worth for a rarely-touched field;
+    /// `unit` on the Stepper says "× 0.1h" instead.
+    ///
+    /// MEM LIST LOAD/SAVE, MENU LOAD/SAVE, FIRMWARE UPDATE, FORMAT,
+    /// CALIBRATION, MEMORY CLEAR, MENU CLEAR, and ALL RESET are all
+    /// `.action` — per this feature's original scope, destructive/
+    /// irreversible items are rendered but deliberately not wired to fire.
+    private static let extensionSettingItems: [DeepSettingItem] = [
+        // 05.01 (DATE&TIME)
+        DeepSettingItem(p1: 5, p2: 1, p3: 1, category: "EXTENSION SETTING", tab: "DATE&TIME", label: "TIME ZONE", valueType: .signedRange(-120...140, digits: 3, unit: "× 0.1h", step: 5)),
+        DeepSettingItem(p1: 5, p2: 1, p3: 2, category: "EXTENSION SETTING", tab: "DATE&TIME", label: "DAY", valueType: .readOnly),
+        DeepSettingItem(p1: 5, p2: 1, p3: 3, category: "EXTENSION SETTING", tab: "DATE&TIME", label: "MONTH", valueType: .readOnly),
+        DeepSettingItem(p1: 5, p2: 1, p3: 4, category: "EXTENSION SETTING", tab: "DATE&TIME", label: "YEAR", valueType: .readOnly),
+        DeepSettingItem(p1: 5, p2: 1, p3: 5, category: "EXTENSION SETTING", tab: "DATE&TIME", label: "HOUR", valueType: .readOnly),
+        DeepSettingItem(p1: 5, p2: 1, p3: 6, category: "EXTENSION SETTING", tab: "DATE&TIME", label: "MINUTE", valueType: .readOnly),
+        DeepSettingItem(p1: 5, p2: 1, p3: 7, category: "EXTENSION SETTING", tab: "DATE&TIME", label: "GPS TIME SET", valueType: .enumeration(cases: [
+            .init(0, "AUTO"), .init(1, "MANUAL"),
+        ], digits: 1)),
+
+        // 05.02 (MY POSITION) — its own tab, confirmed via live probe (see above)
+        DeepSettingItem(p1: 5, p2: 2, p3: 1, category: "EXTENSION SETTING", tab: "MY POSITION", label: "MY POSITION", valueType: .enumeration(cases: [
+            .init(0, "GPS"), .init(1, "MANUAL"),
+        ], digits: 1)),
+        // Compound lat/long strings (live-probed reply looked like
+        // "N  00 00.00'..." / "E 000 00.00'...") — not a plain fixed-width
+        // numeric/text field, left read-only rather than building a
+        // bespoke editor for one item pair.
+        DeepSettingItem(p1: 5, p2: 2, p3: 2, category: "EXTENSION SETTING", tab: "MY POSITION", label: "MY POSITION LATITUDE", valueType: .readOnly),
+        DeepSettingItem(p1: 5, p2: 2, p3: 3, category: "EXTENSION SETTING", tab: "MY POSITION", label: "MY POSITION LONGITUDE", valueType: .readOnly),
+
+        // 05.03 (SD CARD)
+        DeepSettingItem(p1: 5, p2: 3, p3: 1, category: "EXTENSION SETTING", tab: "SD CARD", label: "MEM LIST LOAD", valueType: .action),
+        DeepSettingItem(p1: 5, p2: 3, p3: 2, category: "EXTENSION SETTING", tab: "SD CARD", label: "MEM LIST SAVE", valueType: .action),
+        DeepSettingItem(p1: 5, p2: 3, p3: 3, category: "EXTENSION SETTING", tab: "SD CARD", label: "MENU LOAD", valueType: .action),
+        DeepSettingItem(p1: 5, p2: 3, p3: 4, category: "EXTENSION SETTING", tab: "SD CARD", label: "MENU SAVE", valueType: .action),
+        DeepSettingItem(p1: 5, p2: 3, p3: 5, category: "EXTENSION SETTING", tab: "SD CARD", label: "INFORMATIONS", valueType: .readOnly),
+        DeepSettingItem(p1: 5, p2: 3, p3: 6, category: "EXTENSION SETTING", tab: "SD CARD", label: "FIRMWARE UPDATE", valueType: .action),
+        DeepSettingItem(p1: 5, p2: 3, p3: 7, category: "EXTENSION SETTING", tab: "SD CARD", label: "FORMAT", valueType: .action),
+
+        // 05.04 (SOFT VERSION)
+        DeepSettingItem(p1: 5, p2: 4, p3: 1, category: "EXTENSION SETTING", tab: "SOFT VERSION", label: "SOFT VERSION", valueType: .readOnly),
+
+        // 05.05 (CALIBRATION)
+        DeepSettingItem(p1: 5, p2: 5, p3: 1, category: "EXTENSION SETTING", tab: "CALIBRATION", label: "CALIBRATION", valueType: .action),
+
+        // 05.06 (RESET, includes CERTIFICATION as P3 04 — see above)
+        DeepSettingItem(p1: 5, p2: 6, p3: 1, category: "EXTENSION SETTING", tab: "RESET", label: "MEMORY CLEAR", valueType: .action),
+        DeepSettingItem(p1: 5, p2: 6, p3: 2, category: "EXTENSION SETTING", tab: "RESET", label: "MENU CLEAR", valueType: .action),
+        DeepSettingItem(p1: 5, p2: 6, p3: 3, category: "EXTENSION SETTING", tab: "RESET", label: "ALL RESET", valueType: .action),
+        DeepSettingItem(p1: 5, p2: 6, p3: 4, category: "EXTENSION SETTING", tab: "RESET", label: "CERTIFICATION", valueType: .readOnly),
     ]
 
     private static let autoPowerOffCases: [DeepSettingValueType.EnumerationCase] = {
