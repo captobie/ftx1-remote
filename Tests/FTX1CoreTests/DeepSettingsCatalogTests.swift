@@ -77,6 +77,19 @@ final class DeepSettingsCatalogTests: XCTestCase {
         XCTAssertEqual(cwItems.count, 29)
     }
 
+    func testOperationSettingTabCounts() {
+        let opItems = DeepSettingsCatalog.items(forP1: 3)
+        let countsByTab = Dictionary(grouping: opItems, by: \.p2).mapValues(\.count)
+        XCTAssertEqual(countsByTab[1], 17, "GENERAL")
+        XCTAssertEqual(countsByTab[2], 4, "BAND-SCAN")
+        XCTAssertEqual(countsByTab[3], 6, "RX-DSP")
+        XCTAssertEqual(countsByTab[4], 19, "TX AUDIO")
+        XCTAssertEqual(countsByTab[5], 13, "TX GENERAL")
+        XCTAssertEqual(countsByTab[6], 14, "KEY/DIAL")
+        XCTAssertEqual(countsByTab[7], 15, "OPTION")
+        XCTAssertEqual(opItems.count, 88)
+    }
+
     func testDisplaySettingTabCounts() {
         let displayItems = DeepSettingsCatalog.items(forP1: 4)
         let countsByTab = Dictionary(grouping: displayItems, by: \.p2).mapValues(\.count)

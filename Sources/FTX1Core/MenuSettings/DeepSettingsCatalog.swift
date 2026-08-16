@@ -161,7 +161,7 @@ public enum DeepSettingsCatalog {
     /// Populated incrementally, one `p1` category at a time, each
     /// spot-checked against real hardware before being trusted — same
     /// practice as every other raw CAT command wired in this app so far.
-    public static let items: [DeepSettingItem] = radioSettingItems + cwSettingItems + displaySettingItems
+    public static let items: [DeepSettingItem] = radioSettingItems + cwSettingItems + operationSettingItems + displaySettingItems
 
     /// P1=04 (DISPLAY SETTING), transcribed from the CAT manual's Table 3,
     /// page 13. Not yet hardware-verified — encodings/labels here are as
@@ -518,6 +518,222 @@ public enum DeepSettingsCatalog {
         DeepSettingItem(p1: 2, p2: 2, p3: 9, category: "CW SETTING", tab: "KEYER", label: "CW MEMORY 4", valueType: CWSettingShared.memoryType),
         DeepSettingItem(p1: 2, p2: 2, p3: 10, category: "CW SETTING", tab: "KEYER", label: "CW MEMORY 5", valueType: CWSettingShared.memoryType),
         DeepSettingItem(p1: 2, p2: 2, p3: 11, category: "CW SETTING", tab: "KEYER", label: "REPEAT INTERVAL", valueType: .intRange(1...60, digits: 2, unit: "sec", step: 1)),
+    ]
+
+    /// P1=03 (OPERATION SETTING)-only reused value types.
+    private enum OperationSettingShared {
+        static let catRate = DeepSettingValueType.enumeration(cases: [
+            .init(0, "4800 bps"), .init(1, "9600 bps"), .init(2, "19200 bps"), .init(3, "38400 bps"), .init(4, "115200 bps"),
+        ], digits: 1)
+        static let catTimeout = DeepSettingValueType.enumeration(cases: [
+            .init(0, "10 msec"), .init(1, "100 msec"), .init(2, "1000 msec"), .init(3, "3000 msec"),
+        ], digits: 1)
+        static let prmtrcBwth = DeepSettingValueType.intRange(0...10, digits: 2, unit: nil, step: 1)
+
+        /// 00: OFF, 01-07: 100 Hz-700 Hz in 100 Hz steps.
+        static let prmtrcFreq1Cases: [DeepSettingValueType.EnumerationCase] = {
+            var cases: [DeepSettingValueType.EnumerationCase] = [.init(0, "OFF")]
+            for index in 1...7 { cases.append(.init(index, "\(index * 100) Hz")) }
+            return cases
+        }()
+        /// 00: OFF, 01-09: 700 Hz-1500 Hz in 100 Hz steps.
+        static let prmtrcFreq2Cases: [DeepSettingValueType.EnumerationCase] = {
+            var cases: [DeepSettingValueType.EnumerationCase] = [.init(0, "OFF")]
+            for index in 1...9 { cases.append(.init(index, "\(700 + (index - 1) * 100) Hz")) }
+            return cases
+        }()
+        /// 00: OFF, 01-18: 1500 Hz-3200 Hz in 100 Hz steps.
+        static let prmtrcFreq3Cases: [DeepSettingValueType.EnumerationCase] = {
+            var cases: [DeepSettingValueType.EnumerationCase] = [.init(0, "OFF")]
+            for index in 1...18 { cases.append(.init(index, "\(1500 + (index - 1) * 100) Hz")) }
+            return cases
+        }()
+
+        /// MIC P1-P4's shared 21-option programmable-button assignment list.
+        static let micAssignCases = DeepSettingValueType.enumeration(cases: [
+            .init(0, "LOCK"), .init(1, "QMB"), .init(2, ">/<"), .init(3, "V/M"), .init(4, "TUNER"),
+            .init(5, "VOX/MOX"), .init(6, "MODE"), .init(7, "ZIN/SPOT"), .init(8, "SPLIT"), .init(9, "FINE"),
+            .init(10, "NAR"), .init(11, "NB"), .init(12, "DNR"), .init(13, "FREQ UP"), .init(14, "FREQ DOWN"),
+            .init(15, "BAND UP"), .init(16, "BAND DOWN"), .init(17, "ATT"), .init(18, "IPO"), .init(19, "DNF"),
+            .init(20, "AGC"),
+        ], digits: 2)
+
+        static let dialStep5_10_20 = DeepSettingValueType.enumeration(cases: [
+            .init(0, "5 Hz"), .init(1, "10 Hz"), .init(2, "20 Hz"),
+        ], digits: 1)
+    }
+
+    /// P1=03 (OPERATION SETTING), transcribed from the CAT manual's Table
+    /// 3, pages 12-13. Not yet hardware-verified except where noted below.
+    ///
+    /// TX GENERAL's HF MAX POWER was printed as "005-010" — read instead
+    /// as "005-100" (matching every other MAX POWER field here and
+    /// OPTION's own HF MAX POWER) since 10W looked like a misprint;
+    /// **user confirmed 100W is correct** against real hardware.
+    ///
+    /// KEY/DIAL's MIC UP/MIC DOWN are left as `.readOnly` placeholders —
+    /// their P4 column was blank in the printed table, unlike MIC P1-P4's
+    /// shared 21-option list right above them, so their real shape (if
+    /// any) is unknown. **Deliberately deferred, not urgent** — revisit
+    /// later rather than guess.
+    private static let operationSettingItems: [DeepSettingItem] = [
+        // 03.01 (GENERAL)
+        DeepSettingItem(p1: 3, p2: 1, p3: 1, category: "OPERATION SETTING", tab: "GENERAL", label: "BEEP LEVEL", valueType: .intRange(0...100, digits: 3, unit: nil, step: 1)),
+        DeepSettingItem(p1: 3, p2: 1, p3: 2, category: "OPERATION SETTING", tab: "GENERAL", label: "RF/SQL VR", valueType: .enumeration(cases: [
+            .init(0, "RF"), .init(1, "SQL"), .init(2, "SQL (FM mode only)"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 1, p3: 3, category: "OPERATION SETTING", tab: "GENERAL", label: "TUN/LIN PORT SELECT", valueType: .enumeration(cases: [
+            .init(0, "EXT-TUNER"), .init(1, "LINEAR"), .init(2, "CAT-3"), .init(3, "GPO"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 1, p3: 4, category: "OPERATION SETTING", tab: "GENERAL", label: "TUNER SELECT", valueType: .enumeration(cases: [
+            .init(0, "INT"), .init(1, "INT (FAST)"), .init(2, "EXT"), .init(3, "ATAS"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 1, p3: 5, category: "OPERATION SETTING", tab: "GENERAL", label: "CAT-1 RATE", valueType: OperationSettingShared.catRate),
+        DeepSettingItem(p1: 3, p2: 1, p3: 6, category: "OPERATION SETTING", tab: "GENERAL", label: "CAT-1 TIME OUT TIMER", valueType: OperationSettingShared.catTimeout),
+        DeepSettingItem(p1: 3, p2: 1, p3: 7, category: "OPERATION SETTING", tab: "GENERAL", label: "CAT-1/CAT-3 STOP BIT", valueType: .enumeration(cases: [
+            .init(0, "1 bit"), .init(1, "2 bit"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 1, p3: 8, category: "OPERATION SETTING", tab: "GENERAL", label: "CAT-2 RATE", valueType: OperationSettingShared.catRate),
+        DeepSettingItem(p1: 3, p2: 1, p3: 9, category: "OPERATION SETTING", tab: "GENERAL", label: "CAT-2 TIME OUT TIMER", valueType: OperationSettingShared.catTimeout),
+        DeepSettingItem(p1: 3, p2: 1, p3: 10, category: "OPERATION SETTING", tab: "GENERAL", label: "CAT-3 RATE", valueType: OperationSettingShared.catRate),
+        DeepSettingItem(p1: 3, p2: 1, p3: 11, category: "OPERATION SETTING", tab: "GENERAL", label: "CAT-3 TIME OUT TIMER", valueType: OperationSettingShared.catTimeout),
+        DeepSettingItem(p1: 3, p2: 1, p3: 12, category: "OPERATION SETTING", tab: "GENERAL", label: "TX TIME OUT TIMER", valueType: .enumeration(cases: {
+            var cases: [DeepSettingValueType.EnumerationCase] = [.init(0, "OFF")]
+            for index in 1...30 { cases.append(.init(index, "\(index) min")) }
+            return cases
+        }(), digits: 2)),
+        DeepSettingItem(p1: 3, p2: 1, p3: 13, category: "OPERATION SETTING", tab: "GENERAL", label: "REF FREQ ADJ", valueType: .signedRange(-25...25, digits: 2, unit: nil, step: 1)),
+        DeepSettingItem(p1: 3, p2: 1, p3: 14, category: "OPERATION SETTING", tab: "GENERAL", label: "CHARGE CONTROL", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 3, p2: 1, p3: 15, category: "OPERATION SETTING", tab: "GENERAL", label: "SUB BAND MUTE", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 3, p2: 1, p3: 16, category: "OPERATION SETTING", tab: "GENERAL", label: "SPEAKER SELECT", valueType: .enumeration(cases: [
+            .init(0, "Auto"), .init(1, "INT"), .init(2, "BOTH"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 1, p3: 17, category: "OPERATION SETTING", tab: "GENERAL", label: "DITHER", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+
+        // 03.02 (BAND-SCAN)
+        DeepSettingItem(p1: 3, p2: 2, p3: 1, category: "OPERATION SETTING", tab: "BAND-SCAN", label: "QMB CH", valueType: .enumeration(cases: [
+            .init(0, "5ch"), .init(1, "10ch"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 2, p3: 2, category: "OPERATION SETTING", tab: "BAND-SCAN", label: "BAND STACK", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 3, p2: 2, p3: 3, category: "OPERATION SETTING", tab: "BAND-SCAN", label: "BAND EDGE", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 3, p2: 2, p3: 4, category: "OPERATION SETTING", tab: "BAND-SCAN", label: "SCAN RESUME", valueType: .enumeration(cases: [
+            .init(0, "BUSY"), .init(1, "HOLD"), .init(2, "1 sec"), .init(3, "3 sec"), .init(4, "5 sec"),
+        ], digits: 1)),
+
+        // 03.03 (RX-DSP)
+        DeepSettingItem(p1: 3, p2: 3, p3: 1, category: "OPERATION SETTING", tab: "RX-DSP", label: "IF NOTCH WIDTH", valueType: .enumeration(cases: [
+            .init(0, "NARROW"), .init(1, "WIDE"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 3, p3: 2, category: "OPERATION SETTING", tab: "RX-DSP", label: "NB REJECTION", valueType: .enumeration(cases: [
+            .init(0, "LOW"), .init(1, "MID"), .init(2, "HIGH"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 3, p3: 3, category: "OPERATION SETTING", tab: "RX-DSP", label: "NB WIDTH", valueType: .enumeration(cases: [
+            .init(0, "NARROW"), .init(1, "MEDIUM"), .init(2, "WIDE"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 3, p3: 4, category: "OPERATION SETTING", tab: "RX-DSP", label: "APF WIDTH", valueType: .enumeration(cases: [
+            .init(0, "NARROW"), .init(1, "MEDIUM"), .init(2, "WIDE"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 3, p3: 5, category: "OPERATION SETTING", tab: "RX-DSP", label: "CONTOUR LEVEL", valueType: .signedRange(-40...20, digits: 2, unit: nil, step: 1)),
+        DeepSettingItem(p1: 3, p2: 3, p3: 6, category: "OPERATION SETTING", tab: "RX-DSP", label: "CONTOUR WIDTH", valueType: .intRange(1...11, digits: 2, unit: nil, step: 1)),
+
+        // 03.04 (TX AUDIO)
+        DeepSettingItem(p1: 3, p2: 4, p3: 1, category: "OPERATION SETTING", tab: "TX AUDIO", label: "AMC RELEASE TIME", valueType: .enumeration(cases: [
+            .init(0, "FAST"), .init(1, "MID"), .init(2, "SLOW"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 4, p3: 2, category: "OPERATION SETTING", tab: "TX AUDIO", label: "PRMTRC EQ1 FREQ", valueType: .enumeration(cases: OperationSettingShared.prmtrcFreq1Cases, digits: 2)),
+        DeepSettingItem(p1: 3, p2: 4, p3: 3, category: "OPERATION SETTING", tab: "TX AUDIO", label: "PRMTRC EQ1 LEVEL", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 3, p2: 4, p3: 4, category: "OPERATION SETTING", tab: "TX AUDIO", label: "PRMTRC EQ1 BWTH", valueType: OperationSettingShared.prmtrcBwth),
+        DeepSettingItem(p1: 3, p2: 4, p3: 5, category: "OPERATION SETTING", tab: "TX AUDIO", label: "PRMTRC EQ2 FREQ", valueType: .enumeration(cases: OperationSettingShared.prmtrcFreq2Cases, digits: 2)),
+        DeepSettingItem(p1: 3, p2: 4, p3: 6, category: "OPERATION SETTING", tab: "TX AUDIO", label: "PRMTRC EQ2 LEVEL", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 3, p2: 4, p3: 7, category: "OPERATION SETTING", tab: "TX AUDIO", label: "PRMTRC EQ2 BWTH", valueType: OperationSettingShared.prmtrcBwth),
+        DeepSettingItem(p1: 3, p2: 4, p3: 8, category: "OPERATION SETTING", tab: "TX AUDIO", label: "PRMTRC EQ3 FREQ", valueType: .enumeration(cases: OperationSettingShared.prmtrcFreq3Cases, digits: 2)),
+        DeepSettingItem(p1: 3, p2: 4, p3: 9, category: "OPERATION SETTING", tab: "TX AUDIO", label: "PRMTRC EQ3 LEVEL", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 3, p2: 4, p3: 10, category: "OPERATION SETTING", tab: "TX AUDIO", label: "PRMTRC EQ3 BWTH", valueType: OperationSettingShared.prmtrcBwth),
+        DeepSettingItem(p1: 3, p2: 4, p3: 11, category: "OPERATION SETTING", tab: "TX AUDIO", label: "P PRMTRC EQ1 FREQ", valueType: .enumeration(cases: OperationSettingShared.prmtrcFreq1Cases, digits: 2)),
+        DeepSettingItem(p1: 3, p2: 4, p3: 12, category: "OPERATION SETTING", tab: "TX AUDIO", label: "P PRMTRC EQ1 LEVEL", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 3, p2: 4, p3: 13, category: "OPERATION SETTING", tab: "TX AUDIO", label: "P PRMTRC EQ1 BWTH", valueType: OperationSettingShared.prmtrcBwth),
+        DeepSettingItem(p1: 3, p2: 4, p3: 14, category: "OPERATION SETTING", tab: "TX AUDIO", label: "P PRMTRC EQ2 FREQ", valueType: .enumeration(cases: OperationSettingShared.prmtrcFreq2Cases, digits: 2)),
+        DeepSettingItem(p1: 3, p2: 4, p3: 15, category: "OPERATION SETTING", tab: "TX AUDIO", label: "P PRMTRC EQ2 LEVEL", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 3, p2: 4, p3: 16, category: "OPERATION SETTING", tab: "TX AUDIO", label: "P PRMTRC EQ2 BWTH", valueType: OperationSettingShared.prmtrcBwth),
+        DeepSettingItem(p1: 3, p2: 4, p3: 17, category: "OPERATION SETTING", tab: "TX AUDIO", label: "P PRMTRC EQ3 FREQ", valueType: .enumeration(cases: OperationSettingShared.prmtrcFreq3Cases, digits: 2)),
+        DeepSettingItem(p1: 3, p2: 4, p3: 18, category: "OPERATION SETTING", tab: "TX AUDIO", label: "P PRMTRC EQ3 LEVEL", valueType: RadioSettingShared.signedGain),
+        DeepSettingItem(p1: 3, p2: 4, p3: 19, category: "OPERATION SETTING", tab: "TX AUDIO", label: "P PRMTRC EQ3 BWTH", valueType: OperationSettingShared.prmtrcBwth),
+
+        // 03.05 (TX GENERAL)
+        DeepSettingItem(p1: 3, p2: 5, p3: 1, category: "OPERATION SETTING", tab: "TX GENERAL", label: "MAX POWER (BAT)", valueType: .intRange(5...60, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 5, p3: 2, category: "OPERATION SETTING", tab: "TX GENERAL", label: "QRP MODE", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        // Printed as "005-010" — almost certainly a misread/misprint of
+        // "005-100" (every other MAX POWER field here, and OPTION's own
+        // HF MAX POWER below, go to 100/50, not 10). Using 100 pending a
+        // hardware check specifically on this field's real upper bound.
+        DeepSettingItem(p1: 3, p2: 5, p3: 3, category: "OPERATION SETTING", tab: "TX GENERAL", label: "HF MAX POWER", valueType: .intRange(5...100, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 5, p3: 4, category: "OPERATION SETTING", tab: "TX GENERAL", label: "50M MAX POWER", valueType: .intRange(5...60, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 5, p3: 5, category: "OPERATION SETTING", tab: "TX GENERAL", label: "70M MAX POWER", valueType: .intRange(5...60, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 5, p3: 6, category: "OPERATION SETTING", tab: "TX GENERAL", label: "144M MAX POWER", valueType: .intRange(5...100, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 5, p3: 7, category: "OPERATION SETTING", tab: "TX GENERAL", label: "430M MAX POWER", valueType: .intRange(5...100, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 5, p3: 8, category: "OPERATION SETTING", tab: "TX GENERAL", label: "AM HF/50 MAX POWER", valueType: .intRange(5...25, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 5, p3: 9, category: "OPERATION SETTING", tab: "TX GENERAL", label: "AM V/U MAX POWER", valueType: .intRange(5...25, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 5, p3: 10, category: "OPERATION SETTING", tab: "TX GENERAL", label: "VOX SELECT", valueType: .enumeration(cases: [
+            .init(0, "MIC"), .init(1, "USB"), .init(2, "Bluetooth"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 5, p3: 11, category: "OPERATION SETTING", tab: "TX GENERAL", label: "EMERGENCY FREQ TX", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 3, p2: 5, p3: 12, category: "OPERATION SETTING", tab: "TX GENERAL", label: "TX INHIBIT", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 3, p2: 5, p3: 13, category: "OPERATION SETTING", tab: "TX GENERAL", label: "METER DETECTOR", valueType: .enumeration(cases: [
+            .init(0, "AVERAGE"), .init(1, "PEAK"),
+        ], digits: 1)),
+
+        // 03.06 (KEY/DIAL)
+        DeepSettingItem(p1: 3, p2: 6, p3: 1, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "SSB/CW DIAL STEP", valueType: OperationSettingShared.dialStep5_10_20),
+        DeepSettingItem(p1: 3, p2: 6, p3: 2, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "RTTY/PSK DIAL STEP", valueType: OperationSettingShared.dialStep5_10_20),
+        DeepSettingItem(p1: 3, p2: 6, p3: 3, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "FM DIAL STEP", valueType: .enumeration(cases: [
+            .init(0, "5 kHz"), .init(1, "6.25 kHz"), .init(2, "10 kHz"), .init(3, "12.5 kHz"), .init(4, "20 kHz"), .init(5, "25 kHz"), .init(6, "Auto"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 6, p3: 4, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "CH STEP", valueType: .enumeration(cases: [
+            .init(0, "1 kHz"), .init(1, "1.25 kHz"), .init(2, "2.5 kHz"), .init(3, "10 kHz"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 6, p3: 5, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "AM CH STEP", valueType: .enumeration(cases: [
+            .init(0, "2.5 kHz"), .init(1, "5 kHz"), .init(2, "9 kHz"), .init(3, "10 kHz"), .init(4, "12.5 kHz"), .init(5, "25 kHz"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 6, p3: 6, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "FM CH STEP", valueType: .enumeration(cases: [
+            .init(0, "5 kHz"), .init(1, "6.25 kHz"), .init(2, "10 kHz"), .init(3, "12.5 kHz"), .init(4, "20 kHz"), .init(5, "25 kHz"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 6, p3: 7, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "MAIN STEPS PER REV.", valueType: .enumeration(cases: [
+            .init(0, "50"), .init(1, "100"), .init(2, "200"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 6, p3: 8, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "MIC P1", valueType: OperationSettingShared.micAssignCases),
+        DeepSettingItem(p1: 3, p2: 6, p3: 9, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "MIC P2", valueType: OperationSettingShared.micAssignCases),
+        DeepSettingItem(p1: 3, p2: 6, p3: 10, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "MIC P3", valueType: OperationSettingShared.micAssignCases),
+        DeepSettingItem(p1: 3, p2: 6, p3: 11, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "MIC P4", valueType: OperationSettingShared.micAssignCases),
+        DeepSettingItem(p1: 3, p2: 6, p3: 12, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "MIC UP", valueType: .readOnly),
+        DeepSettingItem(p1: 3, p2: 6, p3: 13, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "MIC DOWN", valueType: .readOnly),
+        DeepSettingItem(p1: 3, p2: 6, p3: 14, category: "OPERATION SETTING", tab: "KEY/DIAL", label: "MIC SCAN", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+
+        // 03.07 (OPTION)
+        DeepSettingItem(p1: 3, p2: 7, p3: 1, category: "OPERATION SETTING", tab: "OPTION", label: "TUNER TYPE SEL ANT1", valueType: .enumeration(cases: [
+            .init(0, "INT"), .init(1, "INT (FAST)"), .init(2, "EXT"), .init(3, "ATAS"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 7, p3: 2, category: "OPERATION SETTING", tab: "OPTION", label: "TUNER TYPE SEL ANT2", valueType: .enumeration(cases: [
+            .init(0, "INT"), .init(1, "INT (FAST)"), .init(2, "EXT"), .init(3, "ATAS"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 7, p3: 3, category: "OPERATION SETTING", tab: "OPTION", label: "ANT2 OPERATION", valueType: .enumeration(cases: [
+            .init(0, "TRX"), .init(1, "TX-ANT1, RX-ANT2"), .init(2, "TRX-ANT1, RX-ANT2"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 7, p3: 4, category: "OPERATION SETTING", tab: "OPTION", label: "HF ANT SELECT", valueType: .enumeration(cases: [
+            .init(0, "ANT1"), .init(1, "ANT2"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 7, p3: 5, category: "OPERATION SETTING", tab: "OPTION", label: "HF MAX POWER", valueType: .intRange(5...100, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 7, p3: 6, category: "OPERATION SETTING", tab: "OPTION", label: "50M MAX POWER", valueType: .intRange(5...100, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 7, p3: 7, category: "OPERATION SETTING", tab: "OPTION", label: "70M MAX POWER", valueType: .intRange(5...50, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 7, p3: 8, category: "OPERATION SETTING", tab: "OPTION", label: "144M MAX POWER", valueType: .intRange(5...50, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 7, p3: 9, category: "OPERATION SETTING", tab: "OPTION", label: "430M MAX POWER", valueType: .intRange(5...50, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 7, p3: 10, category: "OPERATION SETTING", tab: "OPTION", label: "AM MAX POWER", valueType: .intRange(5...25, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 7, p3: 11, category: "OPERATION SETTING", tab: "OPTION", label: "AM V/U MAX POWER", valueType: .intRange(5...13, digits: 3, unit: "W", step: 1)),
+        DeepSettingItem(p1: 3, p2: 7, p3: 12, category: "OPERATION SETTING", tab: "OPTION", label: "GPS", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 3, p2: 7, p3: 13, category: "OPERATION SETTING", tab: "OPTION", label: "GPS PINNING", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 3, p2: 7, p3: 14, category: "OPERATION SETTING", tab: "OPTION", label: "GPS BAUDRATE", valueType: .enumeration(cases: [
+            .init(0, "4800 bps"), .init(1, "9600 bps"), .init(2, "19200 bps"), .init(3, "38400 bps"), .init(4, "115200 bps"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 3, p2: 7, p3: 15, category: "OPERATION SETTING", tab: "OPTION", label: "BLUETOOTH", valueType: .readOnly),
     ]
 
     private static let autoPowerOffCases: [DeepSettingValueType.EnumerationCase] = {
