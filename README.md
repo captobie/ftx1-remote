@@ -14,28 +14,65 @@ Shared Swift package for the FTX-1 remote control app (Mac hub + iOS/iPadOS clie
   iPhone app (`Apps/iOS/FTX1RemoteiOS`) is a focused single-rig-control
   view — no attempt to mirror the Mac's dense layout. iPad target strategy
   (separate target vs. shared iOS target with size classes) is still open.
+  Neither the numbered MENU grid nor the Deep Settings screens (see below)
+  have an iOS UI yet — both are Mac-only.
+- **The Mac's own local UI calls `HubService` directly**, not through
+  `RigWebSocketClient` round-tripping to itself — see the repo root
+  `CLAUDE.md` for why this diverged from the original plan. The WebSocket
+  path is exercised by remote (iOS) clients only today.
 - **State sync is push-based.** The Mac broadcasts a `RigStatePush` whenever
-  rigctld reports a change; clients don't poll.
+  rigctld reports a change; clients don't poll. This only covers live
+  telemetry (VFO, mode, power, SWR, PTT) and the numbered MENU grid's
+  fields — Deep Settings values are fetched on-demand instead (see below),
+  not part of this broadcast.
 - **Commands are serialized** through `CommandQueue` on the Mac side, since
   rigctld handles one request/response cycle at a time.
+- **Two menu systems, both driven by raw CAT passthrough** (most FTX-1 menu
+  items have no hamlib func/level equivalent, per the CAT Operation
+  Reference Manual):
+  - The numbered **MENU grid** (`MenuPageView`, Mac app target) — one
+    `RigCommand` case, `RigState` field, and hand-written button per item,
+    wired individually as needed.
+  - The page-3 **Deep Settings** screens (`DeepSettingsView`, Mac app
+    target) — Radio/CW/Operation/Display/Extension/APRS Setting, a
+    different, much larger part of the rig's menu system (addressed via
+    the single "EX" CAT command's P1/P2/P3 category/tab/item scheme, per
+    the manual's "Table 3"). Driven generically by `DeepSettingsCatalog`
+    (`Sources/FTX1Core/MenuSettings/`) plus one generic `RigCommand` case
+    (`.setMenuItem`) and one generic `RigctldClient` method pair
+    (`getMenuItem`/`setMenuItem`) — adding an item is a catalog entry, not
+    a new case/field/branch. All six categories are populated (~254 items
+    total) as of the commit history in `DeepSettingsCatalog.swift`.
 
 ## Module layout
 
 ```
 Sources/FTX1Core/
-├── RigState/       RigState, RigMode — the shared state model
-├── Networking/      WireMessage (JSON protocol), RigctldClient (Mac-only,
-│                    TCP to rigctld), RigWebSocketClient (WS client, used
-│                    by mobile and optionally the Mac's own UI)
-└── Commands/        CommandQueue — serializes RigCommands into rigctld calls
+├── RigState/       RigState, RigMode, BandPlan — shared state model + band table
+├── Networking/      WireMessage (JSON protocol: RigCommand/RigStatePush),
+│                    RigctldClient (Mac-only, TCP to rigctld, incl. raw CAT
+│                    passthrough), RigWebSocketClient (WS client, used by
+│                    mobile — see Architecture above re: the Mac's own UI)
+├── Commands/        CommandQueue — serializes RigCommands into rigctld calls
+└── MenuSettings/    DeepSettingsCatalog — static, table-driven catalog
+                     behind the Deep Settings screens (see Architecture)
 ```
 
-## Not yet built
+## Not yet built / open
 
 - Full state diffing / reconnect-and-resync logic for `RigWebSocketClient`.
-- Band → frequency table for `CommandQueue.setBand`.
-- Real `NWConnection` state-handling (`connect()` in `RigctldClient` has a
-  TODO for waiting on `.ready` with a timeout).
+- iOS/iPadOS UI for either the numbered MENU grid or Deep Settings.
+- PTT port's `-P RIG` keying-type assumption not stress-tested against a
+  real separate PTT interface.
+- Most of the numbered MENU grid's ~84 buttons are still unwired
+  placeholders (wired one at a time as needed — see `MenuPageView.swift`
+  for the current count). Deep Settings, a separate/larger system, is
+  fully populated — see above.
+- Deep Settings: RADIO SETTING's WIRES-X tab (no CAT manual source yet —
+  postdates the manual's firmware revision), KEY/DIAL's MIC UP/MIC DOWN
+  (unknown shape, deliberately deferred), and the manual's P1=09 "PRESET"
+  category (5 full radio-setting presets — no page-3 button maps to it,
+  out of scope until that's decided).
 
 ## Mac UI scope (resolved)
 
