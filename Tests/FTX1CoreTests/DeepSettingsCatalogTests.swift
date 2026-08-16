@@ -102,6 +102,37 @@ final class DeepSettingsCatalogTests: XCTestCase {
         XCTAssertEqual(extItems.count, 23)
     }
 
+    func testAPRSSettingTabCounts() {
+        let items = DeepSettingsCatalog.items(forP1: 6)
+        let countsByTab = Dictionary(grouping: items, by: \.p2).mapValues(\.count)
+        XCTAssertEqual(countsByTab[1], 6, "GENERAL")
+        XCTAssertEqual(countsByTab[2], 8, "MSG TEMPLATE")
+        XCTAssertEqual(countsByTab[3], 5, "MY SYMBOL")
+        XCTAssertEqual(countsByTab[4], 1, "DIGI PATH")
+        XCTAssertEqual(items.count, 20)
+    }
+
+    func testAPRSBeaconTabCounts() {
+        let items = DeepSettingsCatalog.items(forP1: 7)
+        let countsByTab = Dictionary(grouping: items, by: \.p2).mapValues(\.count)
+        XCTAssertEqual(countsByTab[1], 6, "BEACON SET.")
+        XCTAssertEqual(countsByTab[2], 5, "AUTO BEACON")
+        XCTAssertEqual(countsByTab[3], 7, "SmartBeac.")
+        XCTAssertEqual(countsByTab[4], 8, "BEACON TEXT")
+        XCTAssertEqual(items.count, 26)
+    }
+
+    func testAPRSFilterTabCounts() {
+        let items = DeepSettingsCatalog.items(forP1: 8)
+        let countsByTab = Dictionary(grouping: items, by: \.p2).mapValues(\.count)
+        XCTAssertEqual(countsByTab[1], 1, "LIST SETTING")
+        XCTAssertEqual(countsByTab[2], 8, "STATION LIST")
+        XCTAssertEqual(countsByTab[3], 2, "POPUP")
+        XCTAssertEqual(countsByTab[4], 5, "RINGER")
+        XCTAssertEqual(countsByTab[5], 9, "MSG FIL. (confirmed via live probe, not P2=06)")
+        XCTAssertEqual(items.count, 25)
+    }
+
     func testDisplaySettingTabCounts() {
         let displayItems = DeepSettingsCatalog.items(forP1: 4)
         let countsByTab = Dictionary(grouping: displayItems, by: \.p2).mapValues(\.count)

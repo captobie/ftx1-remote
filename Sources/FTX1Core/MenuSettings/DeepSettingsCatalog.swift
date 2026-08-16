@@ -161,7 +161,7 @@ public enum DeepSettingsCatalog {
     /// Populated incrementally, one `p1` category at a time, each
     /// spot-checked against real hardware before being trusted — same
     /// practice as every other raw CAT command wired in this app so far.
-    public static let items: [DeepSettingItem] = radioSettingItems + cwSettingItems + operationSettingItems + extensionSettingItems + displaySettingItems
+    public static let items: [DeepSettingItem] = radioSettingItems + cwSettingItems + operationSettingItems + extensionSettingItems + aprsSettingItems + aprsBeaconItems + aprsFilterItems + displaySettingItems
 
     /// P1=04 (DISPLAY SETTING), transcribed from the CAT manual's Table 3,
     /// page 13. Not yet hardware-verified — encodings/labels here are as
@@ -813,6 +813,170 @@ public enum DeepSettingsCatalog {
         DeepSettingItem(p1: 5, p2: 6, p3: 2, category: "EXTENSION SETTING", tab: "RESET", label: "MENU CLEAR", valueType: .action),
         DeepSettingItem(p1: 5, p2: 6, p3: 3, category: "EXTENSION SETTING", tab: "RESET", label: "ALL RESET", valueType: .action),
         DeepSettingItem(p1: 5, p2: 6, p3: 4, category: "EXTENSION SETTING", tab: "RESET", label: "CERTIFICATION", valueType: .readOnly),
+    ]
+
+    /// P1=06/07/08 (APRS SETTING/BEACON/FILTER) — the physical rig's single
+    /// "APRS SETTING" page-3 button spans all three. Transcribed from the
+    /// CAT manual's Table 3, page 14. Two apparent gaps in the *printed*
+    /// table turned out to be digit misreads on a dense scan, not real
+    /// gaps — caught by live-probing before transcribing rather than after
+    /// (the Extension Setting lesson): APRS SETTING/GENERAL's "APRS
+    /// DESTINATION" looked like it jumped from P3=05 to P3=09, but a probe
+    /// of `EX060106` returned the manual's documented fixed value
+    /// ("APYX01"), confirming it's actually P3=06 (6 read as 9). Likewise
+    /// APRS FILTER looked like it jumped from RINGER (P2=04) to a
+    /// "MSG FIL." at P2=06, but `EX080501` returned real message-group
+    /// data, confirming MSG FIL. is actually P2=05, no gap (5 read as 6).
+    /// Every other tab boundary here was spot-checked live too before
+    /// committing to this transcription.
+    ///
+    /// ICON1-3/USER's values are actual APRS symbol-table codes (a table
+    /// selector character, "/" or "\", plus a symbol character — see
+    /// Table 4, manual page 16, e.g. "/#" DIGI, "\Y" Yaesu Radios) rather
+    /// than a simple numbered list — represented as free 2-character text
+    /// instead of a ~48-entry picker, since this is a niche field.
+    ///
+    /// (Also found while reading these pages: the manual has a P1=09
+    /// "PRESET" category — 5 full radio-settings preset slots — not
+    /// mentioned anywhere in this app's page-3 button set. Out of scope
+    /// here; noted for later.)
+    private static let aprsSettingItems: [DeepSettingItem] = [
+        // 06.01 (GENERAL)
+        DeepSettingItem(p1: 6, p2: 1, p3: 1, category: "APRS SETTING", tab: "GENERAL", label: "MODEM SELECT", valueType: .enumeration(cases: [
+            .init(0, "OFF"), .init(1, "AUTO"), .init(2, "MAIN"), .init(3, "SUB"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 6, p2: 1, p3: 2, category: "APRS SETTING", tab: "GENERAL", label: "MODEM TYPE", valueType: .enumeration(cases: [
+            .init(0, "1200 bps"), .init(1, "9600 bps"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 6, p2: 1, p3: 3, category: "APRS SETTING", tab: "GENERAL", label: "APRS AF MUTE", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 6, p2: 1, p3: 4, category: "APRS SETTING", tab: "GENERAL", label: "APRS TX DELAY", valueType: .enumeration(cases: [
+            .init(0, "100 ms"), .init(1, "200 ms"), .init(2, "300 ms"), .init(3, "400 ms"), .init(4, "500 ms"), .init(5, "750 ms"), .init(6, "1000 ms"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 6, p2: 1, p3: 5, category: "APRS SETTING", tab: "GENERAL", label: "CALLSIGN (APRS)", valueType: .text(maxLength: 8)),
+        // Confirmed via live probe (EX060106) — the manual's printed table
+        // looked like it jumped to P3=09.
+        DeepSettingItem(p1: 6, p2: 1, p3: 6, category: "APRS SETTING", tab: "GENERAL", label: "APRS DESTINATION", valueType: .readOnly),
+
+        // 06.02 (MSG TEMPLATE)
+        DeepSettingItem(p1: 6, p2: 2, p3: 1, category: "APRS SETTING", tab: "MSG TEMPLATE", label: "MESSAGE TEXT1", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 6, p2: 2, p3: 2, category: "APRS SETTING", tab: "MSG TEMPLATE", label: "MESSAGE TEXT2", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 6, p2: 2, p3: 3, category: "APRS SETTING", tab: "MSG TEMPLATE", label: "MESSAGE TEXT3", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 6, p2: 2, p3: 4, category: "APRS SETTING", tab: "MSG TEMPLATE", label: "MESSAGE TEXT4", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 6, p2: 2, p3: 5, category: "APRS SETTING", tab: "MSG TEMPLATE", label: "MESSAGE TEXT5", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 6, p2: 2, p3: 6, category: "APRS SETTING", tab: "MSG TEMPLATE", label: "MESSAGE TEXT6", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 6, p2: 2, p3: 7, category: "APRS SETTING", tab: "MSG TEMPLATE", label: "MESSAGE TEXT7", valueType: .text(maxLength: 16)),
+        DeepSettingItem(p1: 6, p2: 2, p3: 8, category: "APRS SETTING", tab: "MSG TEMPLATE", label: "MESSAGE TEXT8", valueType: .text(maxLength: 16)),
+
+        // 06.03 (MY SYMBOL)
+        DeepSettingItem(p1: 6, p2: 3, p3: 1, category: "APRS SETTING", tab: "MY SYMBOL", label: "MY SYMBOL", valueType: .enumeration(cases: [
+            .init(0, "ICON1"), .init(1, "ICON2"), .init(2, "ICON3"), .init(3, "USER"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 6, p2: 3, p3: 2, category: "APRS SETTING", tab: "MY SYMBOL", label: "ICON1", valueType: .text(maxLength: 2)),
+        DeepSettingItem(p1: 6, p2: 3, p3: 3, category: "APRS SETTING", tab: "MY SYMBOL", label: "ICON2", valueType: .text(maxLength: 2)),
+        DeepSettingItem(p1: 6, p2: 3, p3: 4, category: "APRS SETTING", tab: "MY SYMBOL", label: "ICON3", valueType: .text(maxLength: 2)),
+        DeepSettingItem(p1: 6, p2: 3, p3: 5, category: "APRS SETTING", tab: "MY SYMBOL", label: "USER", valueType: .text(maxLength: 2)),
+
+        // 06.04 (DIGI PATH)
+        DeepSettingItem(p1: 6, p2: 4, p3: 1, category: "APRS SETTING", tab: "DIGI PATH", label: "PATH SELECT", valueType: .enumeration(cases: [
+            .init(0, "OFF"), .init(1, "WIDE1-1"), .init(2, "WIDE1-1,WIDE2-1"),
+        ], digits: 1)),
+    ]
+
+    private static let aprsBeaconItems: [DeepSettingItem] = [
+        // 07.01 (BEACON SET.)
+        DeepSettingItem(p1: 7, p2: 1, p3: 1, category: "APRS BEACON", tab: "BEACON SET.", label: "BEACON TYPE", valueType: .enumeration(cases: [
+            .init(0, "OFF"), .init(1, "AUTO"), .init(2, "SMART"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 7, p2: 1, p3: 2, category: "APRS BEACON", tab: "BEACON SET.", label: "INFO AMBIGUITY", valueType: .enumeration(cases: [
+            .init(0, "OFF"), .init(1, "1 dig"), .init(2, "2 dig"), .init(3, "3 dig"), .init(4, "4 dig"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 7, p2: 1, p3: 3, category: "APRS BEACON", tab: "BEACON SET.", label: "INFO SPEED/COURSE", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 7, p2: 1, p3: 4, category: "APRS BEACON", tab: "BEACON SET.", label: "INFO ALTITUDE", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 7, p2: 1, p3: 5, category: "APRS BEACON", tab: "BEACON SET.", label: "POSITION COMMENT", valueType: .enumeration(cases: [
+            .init(0, "Off duty"), .init(1, "En Route"), .init(2, "In Service"), .init(3, "Returning"), .init(4, "Committed"),
+            .init(5, "Special"), .init(6, "Priority"), .init(7, "Custom 0"), .init(8, "Custom 1"), .init(9, "Custom 2"),
+            .init(10, "Custom 3"), .init(11, "Custom 4"), .init(12, "Custom 5"), .init(13, "Custom 6"), .init(14, "EMERGENCY!"),
+        ], digits: 2)),
+        DeepSettingItem(p1: 7, p2: 1, p3: 6, category: "APRS BEACON", tab: "BEACON SET.", label: "EMERGENCY BEACON", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+
+        // 07.02 (AUTO BEACON)
+        DeepSettingItem(p1: 7, p2: 2, p3: 1, category: "APRS BEACON", tab: "AUTO BEACON", label: "INTERVAL TIME", valueType: .enumeration(cases: [
+            .init(0, "30 sec"), .init(1, "1 min"), .init(2, "2 min"), .init(3, "3 min"), .init(4, "5 min"),
+            .init(5, "10 min"), .init(6, "15 min"), .init(7, "20 min"), .init(8, "30 min"), .init(9, "60 min"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 7, p2: 2, p3: 2, category: "APRS BEACON", tab: "AUTO BEACON", label: "PROPORTIONAL", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 7, p2: 2, p3: 3, category: "APRS BEACON", tab: "AUTO BEACON", label: "DECAY", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 7, p2: 2, p3: 4, category: "APRS BEACON", tab: "AUTO BEACON", label: "AUTO LOW SPEED", valueType: .intRange(1...99, digits: 2, unit: "km/h or mph", step: 1)),
+        DeepSettingItem(p1: 7, p2: 2, p3: 5, category: "APRS BEACON", tab: "AUTO BEACON", label: "BEACON DELAY", valueType: .intRange(5...180, digits: 3, unit: "sec", step: 1)),
+
+        // 07.03 (SmartBeac.)
+        DeepSettingItem(p1: 7, p2: 3, p3: 1, category: "APRS BEACON", tab: "SmartBeac.", label: "SMART LOW SPEED", valueType: .intRange(2...30, digits: 2, unit: "km/h or mph", step: 1)),
+        DeepSettingItem(p1: 7, p2: 3, p3: 2, category: "APRS BEACON", tab: "SmartBeac.", label: "SMART HIGH SPEED", valueType: .intRange(3...90, digits: 2, unit: "km/h or mph", step: 1)),
+        DeepSettingItem(p1: 7, p2: 3, p3: 3, category: "APRS BEACON", tab: "SmartBeac.", label: "SMART SLOW RATE", valueType: .intRange(1...100, digits: 3, unit: "min", step: 1)),
+        DeepSettingItem(p1: 7, p2: 3, p3: 4, category: "APRS BEACON", tab: "SmartBeac.", label: "SMART FAST RATE", valueType: .intRange(10...180, digits: 3, unit: "sec", step: 1)),
+        DeepSettingItem(p1: 7, p2: 3, p3: 5, category: "APRS BEACON", tab: "SmartBeac.", label: "SMART TURN ANGLE", valueType: .intRange(5...90, digits: 2, unit: "°", step: 1)),
+        DeepSettingItem(p1: 7, p2: 3, p3: 6, category: "APRS BEACON", tab: "SmartBeac.", label: "SMART TURN SLOPE", valueType: .intRange(1...255, digits: 3, unit: nil, step: 1)),
+        DeepSettingItem(p1: 7, p2: 3, p3: 7, category: "APRS BEACON", tab: "SmartBeac.", label: "SMART TURN TIME", valueType: .intRange(5...180, digits: 3, unit: "sec", step: 1)),
+
+        // 07.04 (BEACON TEXT)
+        DeepSettingItem(p1: 7, p2: 4, p3: 1, category: "APRS BEACON", tab: "BEACON TEXT", label: "STATUS TEXT SELECT", valueType: .enumeration(cases: [
+            .init(0, "OFF"), .init(1, "TEXT1"), .init(2, "TEXT2"), .init(3, "TEXT3"), .init(4, "TEXT4"), .init(5, "TEXT5"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 7, p2: 4, p3: 2, category: "APRS BEACON", tab: "BEACON TEXT", label: "TX RATE", valueType: .enumeration(cases: [
+            .init(0, "1/1"), .init(1, "1/2"), .init(2, "1/3"), .init(3, "1/4"), .init(4, "1/5"), .init(5, "1/6"), .init(6, "1/7"), .init(7, "1/8"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 7, p2: 4, p3: 3, category: "APRS BEACON", tab: "BEACON TEXT", label: "BEACON FREQUENCY", valueType: .enumeration(cases: [
+            .init(0, "None"), .init(1, "FREQUENCY"), .init(2, "FREQ & SQL & SHIFT"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 7, p2: 4, p3: 4, category: "APRS BEACON", tab: "BEACON TEXT", label: "STATUS TEXT1", valueType: .text(maxLength: 60)),
+        DeepSettingItem(p1: 7, p2: 4, p3: 5, category: "APRS BEACON", tab: "BEACON TEXT", label: "STATUS TEXT2", valueType: .text(maxLength: 60)),
+        DeepSettingItem(p1: 7, p2: 4, p3: 6, category: "APRS BEACON", tab: "BEACON TEXT", label: "STATUS TEXT3", valueType: .text(maxLength: 60)),
+        DeepSettingItem(p1: 7, p2: 4, p3: 7, category: "APRS BEACON", tab: "BEACON TEXT", label: "STATUS TEXT4", valueType: .text(maxLength: 60)),
+        DeepSettingItem(p1: 7, p2: 4, p3: 8, category: "APRS BEACON", tab: "BEACON TEXT", label: "STATUS TEXT5", valueType: .text(maxLength: 60)),
+    ]
+
+    private static let aprsFilterItems: [DeepSettingItem] = [
+        // 08.01 (LIST SETTING)
+        DeepSettingItem(p1: 8, p2: 1, p3: 1, category: "APRS FILTER", tab: "LIST SETTING", label: "STATION LIST SORT", valueType: .enumeration(cases: [
+            .init(0, "TIME"), .init(1, "CALLSIGN"), .init(2, "DISTANCE"),
+        ], digits: 1)),
+
+        // 08.02 (STATION LIST)
+        DeepSettingItem(p1: 8, p2: 2, p3: 1, category: "APRS FILTER", tab: "STATION LIST", label: "Mic-E", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 8, p2: 2, p3: 2, category: "APRS FILTER", tab: "STATION LIST", label: "POSITION", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 8, p2: 2, p3: 3, category: "APRS FILTER", tab: "STATION LIST", label: "WEATHER", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 8, p2: 2, p3: 4, category: "APRS FILTER", tab: "STATION LIST", label: "OBJECT", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 8, p2: 2, p3: 5, category: "APRS FILTER", tab: "STATION LIST", label: "ITEM", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 8, p2: 2, p3: 6, category: "APRS FILTER", tab: "STATION LIST", label: "STATUS", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 8, p2: 2, p3: 7, category: "APRS FILTER", tab: "STATION LIST", label: "OTHER", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 8, p2: 2, p3: 8, category: "APRS FILTER", tab: "STATION LIST", label: "ALTNET", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+
+        // 08.03 (POPUP)
+        DeepSettingItem(p1: 8, p2: 3, p3: 1, category: "APRS FILTER", tab: "POPUP", label: "BEACON", valueType: .enumeration(cases: [
+            .init(0, "OFF"), .init(1, "3 sec"), .init(2, "5 sec"), .init(3, "10 sec"), .init(4, "HOLD"),
+        ], digits: 1)),
+        DeepSettingItem(p1: 8, p2: 3, p3: 2, category: "APRS FILTER", tab: "POPUP", label: "MESSAGE", valueType: .enumeration(cases: [
+            .init(0, "OFF"), .init(1, "3 sec"), .init(2, "5 sec"), .init(3, "10 sec"), .init(4, "HOLD"),
+        ], digits: 1)),
+
+        // 08.04 (RINGER)
+        DeepSettingItem(p1: 8, p2: 4, p3: 1, category: "APRS FILTER", tab: "RINGER", label: "TX BEACON", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 8, p2: 4, p3: 2, category: "APRS FILTER", tab: "RINGER", label: "RX BEACON", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 8, p2: 4, p3: 3, category: "APRS FILTER", tab: "RINGER", label: "TX MESSAGE", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 8, p2: 4, p3: 4, category: "APRS FILTER", tab: "RINGER", label: "RX MESSAGE", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+        DeepSettingItem(p1: 8, p2: 4, p3: 5, category: "APRS FILTER", tab: "RINGER", label: "MY PACKET", valueType: .toggle(offLabel: "OFF", onLabel: "ON")),
+
+        // 08.05 (MSG FIL.) — confirmed via live probe (EX080501); manual's
+        // printed table looked like this tab was at P2=06 with a gap at 05.
+        DeepSettingItem(p1: 8, p2: 5, p3: 1, category: "APRS FILTER", tab: "MSG FIL.", label: "MESSAGE GROUP1", valueType: .text(maxLength: 9)),
+        DeepSettingItem(p1: 8, p2: 5, p3: 2, category: "APRS FILTER", tab: "MSG FIL.", label: "MESSAGE GROUP2", valueType: .text(maxLength: 9)),
+        DeepSettingItem(p1: 8, p2: 5, p3: 3, category: "APRS FILTER", tab: "MSG FIL.", label: "MESSAGE GROUP3", valueType: .text(maxLength: 9)),
+        DeepSettingItem(p1: 8, p2: 5, p3: 4, category: "APRS FILTER", tab: "MSG FIL.", label: "MESSAGE GROUP4", valueType: .text(maxLength: 9)),
+        DeepSettingItem(p1: 8, p2: 5, p3: 5, category: "APRS FILTER", tab: "MSG FIL.", label: "MESSAGE GROUP5", valueType: .text(maxLength: 9)),
+        DeepSettingItem(p1: 8, p2: 5, p3: 6, category: "APRS FILTER", tab: "MSG FIL.", label: "MESSAGE GROUP6", valueType: .text(maxLength: 9)),
+        DeepSettingItem(p1: 8, p2: 5, p3: 7, category: "APRS FILTER", tab: "MSG FIL.", label: "BULLETIN 1", valueType: .text(maxLength: 9)),
+        DeepSettingItem(p1: 8, p2: 5, p3: 8, category: "APRS FILTER", tab: "MSG FIL.", label: "BULLETIN 2", valueType: .text(maxLength: 9)),
+        DeepSettingItem(p1: 8, p2: 5, p3: 9, category: "APRS FILTER", tab: "MSG FIL.", label: "BULLETIN 3", valueType: .text(maxLength: 9)),
     ]
 
     private static let autoPowerOffCases: [DeepSettingValueType.EnumerationCase] = {
