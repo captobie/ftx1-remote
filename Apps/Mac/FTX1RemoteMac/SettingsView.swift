@@ -1,13 +1,17 @@
 import AppKit
+import FTX1Core
 import SwiftUI
 
-/// rigctld launch configuration, overriding the defaults in
-/// `RigctldSettings`. Presented as a sheet from `ContentView`.
+/// App settings, presented as a tabbed sheet from `ContentView`.
 ///
-/// Edits are held in local `@State`, not written back to `RigctldSettings`
-/// until "Done" — so "Cancel" can discard them (e.g. an accidental empty
-/// binary path) rather than the old `@AppStorage` bindings, which wrote on
-/// every keystroke with no way to back out.
+/// The "rigctld" tab's edits are held in local `@State`, not written back
+/// to `RigctldSettings` until "Done" — so "Cancel" can discard them (e.g.
+/// an accidental empty binary path) rather than the old `@AppStorage`
+/// bindings, which wrote on every keystroke with no way to back out. The
+/// "Appearance" tab has no such failure mode (there's no invalid theme),
+/// so it applies instantly via `@AppStorage` instead, the same way macOS's
+/// own System Settings appearance picker does — Cancel/Done only govern
+/// the rigctld tab.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -32,35 +36,11 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("rigctld Settings")
-                .font(.title2)
-
-            Form {
-                HStack {
-                    Picker("Binary path", selection: $binaryPath) {
-                        ForEach(availableBinaryPaths, id: \.self) { path in
-                            Text(path).tag(path)
-                        }
-                    }
-                    Button("Choose…") { chooseBinaryPath() }
-                }
-                TextField("Model number", value: $modelNumber, format: .number.grouping(.never))
-                Picker("Serial device", selection: $devicePath) {
-                    ForEach(availableDevices, id: \.self) { device in
-                        Text((device as NSString).lastPathComponent).tag(device)
-                    }
-                }
-                Picker("Baud rate", selection: $baudRate) {
-                    ForEach(baudRateOptionsIncludingCurrent, id: \.self) { rate in
-                        Text("\(rate)").tag(rate)
-                    }
-                }
-                Picker("PTT port", selection: $pttPort) {
-                    Text("None (use CAT on main port)").tag("")
-                    ForEach(availableDevices, id: \.self) { device in
-                        Text((device as NSString).lastPathComponent).tag(device)
-                    }
-                }
+            TabView {
+                rigctldTab
+                    .tabItem { Text("rigctld") }
+                AppearanceSettingsTab()
+                    .tabItem { Text("Appearance") }
             }
 
             HStack {
@@ -72,11 +52,42 @@ struct SettingsView: View {
             }
         }
         .padding(24)
-        .frame(minWidth: 380)
+        .frame(minWidth: 420, minHeight: 320)
         .onAppear {
             refreshAvailableDevices()
             refreshAvailableBinaryPaths()
         }
+    }
+
+    private var rigctldTab: some View {
+        Form {
+            HStack {
+                Picker("Binary path", selection: $binaryPath) {
+                    ForEach(availableBinaryPaths, id: \.self) { path in
+                        Text(path).tag(path)
+                    }
+                }
+                Button("Choose…") { chooseBinaryPath() }
+            }
+            TextField("Model number", value: $modelNumber, format: .number.grouping(.never))
+            Picker("Serial device", selection: $devicePath) {
+                ForEach(availableDevices, id: \.self) { device in
+                    Text((device as NSString).lastPathComponent).tag(device)
+                }
+            }
+            Picker("Baud rate", selection: $baudRate) {
+                ForEach(baudRateOptionsIncludingCurrent, id: \.self) { rate in
+                    Text("\(rate)").tag(rate)
+                }
+            }
+            Picker("PTT port", selection: $pttPort) {
+                Text("None (use CAT on main port)").tag("")
+                ForEach(availableDevices, id: \.self) { device in
+                    Text((device as NSString).lastPathComponent).tag(device)
+                }
+            }
+        }
+        .padding(.top, 8)
     }
 
     private func save() {
@@ -145,6 +156,33 @@ struct SettingsView: View {
             paths.append(binaryPath)
         }
         availableBinaryPaths = paths.sorted()
+    }
+}
+
+/// App appearance controls. Just the theme for now — future appearance
+/// settings (VFO display color, background color, per repo CLAUDE.md)
+/// belong here too, following `AppTheme`'s `AppearanceSettings`-backed
+/// pattern.
+private struct AppearanceSettingsTab: View {
+    @AppStorage(AppearanceSettings.themeKey) private var themeRawValue = AppTheme.system.rawValue
+
+    private var theme: Binding<AppTheme> {
+        Binding(
+            get: { AppTheme(rawValue: themeRawValue) ?? .system },
+            set: { themeRawValue = $0.rawValue }
+        )
+    }
+
+    var body: some View {
+        Form {
+            Picker("Theme", selection: theme) {
+                ForEach(AppTheme.allCases, id: \.self) { option in
+                    Text(option.displayName).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+        .padding(.top, 8)
     }
 }
 
