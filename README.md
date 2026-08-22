@@ -10,16 +10,20 @@ Shared Swift package for the FTX-1 remote control app (Mac hub + iOS/iPadOS clie
   `NWListener`/`NWProtocolWebSocket`, since `URLSessionWebSocketTask` is
   client-only) that broadcasts state and accepts commands.
 - **Mobile apps never talk to rigctld directly.** iOS/iPadOS use
-  `RigWebSocketClient` to connect to `<mac-tailscale-hostname>:PORT`. The
-  iPhone app (`Apps/iOS/FTX1RemoteiOS`) is a focused single-rig-control
-  view — no attempt to mirror the Mac's dense layout. iPad target strategy
-  (separate target vs. shared iOS target with size classes) is still open.
-  Neither the numbered MENU grid nor the Deep Settings screens (see below)
-  have an iOS UI yet — both are Mac-only.
+  `RigWebSocketClient` (via the shared `RigClientViewModel`) to connect to
+  `<mac-tailscale-hostname>:PORT`. The iPhone app (`Apps/iOS/FTX1RemoteiOS`)
+  is a focused single-rig-control view — no attempt to mirror the Mac's
+  dense layout. The iPad app (`Apps/iPad/FTX1RemoteiPad`) is a separate
+  Xcode target (resolved decision, not a shared iOS target with size
+  classes) that *does* mirror the Mac's dense layout — VFO A/B side by
+  side, SWR/PTT/power/band/mode, plus the numbered MENU grid, all shared
+  with the Mac via a `RigController` protocol rather than duplicated (see
+  Module layout below). The Deep Settings screens are still Mac-only on
+  every mobile target, iPad included — see below for why.
 - **The Mac's own local UI calls `HubService` directly**, not through
   `RigWebSocketClient` round-tripping to itself — see the repo root
   `CLAUDE.md` for why this diverged from the original plan. The WebSocket
-  path is exercised by remote (iOS) clients only today.
+  path is exercised by remote (iOS/iPad) clients only today.
 - **State sync is push-based.** The Mac broadcasts a `RigStatePush` whenever
   rigctld reports a change; clients don't poll. This only covers live
   telemetry (VFO, mode, power, SWR, PTT) and the numbered MENU grid's
@@ -30,11 +34,14 @@ Shared Swift package for the FTX-1 remote control app (Mac hub + iOS/iPadOS clie
 - **Two menu systems, both driven by raw CAT passthrough** (most FTX-1 menu
   items have no hamlib func/level equivalent, per the CAT Operation
   Reference Manual):
-  - The numbered **MENU grid** (`MenuPageView`, Mac app target) — one
-    `RigCommand` case, `RigState` field, and hand-written button per item,
-    wired individually as needed.
+  - The numbered **MENU grid** (`MenuPageView`, `Sources/FTX1Core/UI/` —
+    shared by Mac and iPad) — one `RigCommand` case, `RigState` field, and
+    hand-written button per item, wired individually as needed. Generic
+    over a `RigController` protocol (`rigState`/`send`/...) so it can be
+    driven by either `HubService` (Mac) or `RigClientViewModel` (mobile)
+    without duplicating the file per target.
   - The page-3 **Deep Settings** screens (`DeepSettingsView`, Mac app
-    target) — Radio/CW/Operation/Display/Extension/APRS Setting, a
+    target only) — Radio/CW/Operation/Display/Extension/APRS Setting, a
     different, much larger part of the rig's menu system (addressed via
     the single "EX" CAT command's P1/P2/P3 category/tab/item scheme, per
     the manual's "Table 3"). Driven generically by `DeepSettingsCatalog`
@@ -43,6 +50,13 @@ Shared Swift package for the FTX-1 remote control app (Mac hub + iOS/iPadOS clie
     (`getMenuItem`/`setMenuItem`) — adding an item is a catalog entry, not
     a new case/field/branch. All six categories are populated (~254 items
     total) as of the commit history in `DeepSettingsCatalog.swift`.
+    **Not available on mobile** (iOS or iPad): it needs
+    `HubService.readMenuItem`, a live per-item read only the Mac's direct
+    rigctld link can do, and the WebSocket wire protocol has no
+    request/response mechanism today — only fire-and-forget `RigCommand`
+    and one-way `RigStatePush`. On iPad, `MenuPageView`'s FM page shows a
+    disabled "SOON" placeholder for these 6 buttons instead of opening a
+    broken screen (`RigController.supportsDeepSettings`).
 
 ## Module layout
 
@@ -52,16 +66,27 @@ Sources/FTX1Core/
 ├── Networking/      WireMessage (JSON protocol: RigCommand/RigStatePush),
 │                    RigctldClient (Mac-only, TCP to rigctld, incl. raw CAT
 │                    passthrough), RigWebSocketClient (WS client, used by
-│                    mobile — see Architecture above re: the Mac's own UI)
+│                    mobile — see Architecture above re: the Mac's own UI),
+│                    RigClientViewModel (ObservableObject wrapping
+│                    RigWebSocketClient, shared by iOS + iPad)
 ├── Commands/        CommandQueue — serializes RigCommands into rigctld calls
-└── MenuSettings/    DeepSettingsCatalog — static, table-driven catalog
-                     behind the Deep Settings screens (see Architecture)
+├── MenuSettings/    DeepSettingsCatalog — static, table-driven catalog
+│                    behind the Deep Settings screens (see Architecture)
+└── UI/              RigController (protocol HubService/RigClientViewModel
+                     both conform to), MenuPageView (numbered MENU grid,
+                     generic over RigController, shared by Mac + iPad),
+                     VFODisplayBox (dense VFO A/B readout, shared by Mac +
+                     iPad)
 ```
 
 ## Not yet built / open
 
 - Full state diffing / reconnect-and-resync logic for `RigWebSocketClient`.
-- iOS/iPadOS UI for either the numbered MENU grid or Deep Settings.
+- A wire-protocol request/response mechanism for Deep Settings reads on
+  mobile (see Architecture above) — blocks bringing `DeepSettingsView` to
+  iOS or iPad; iPad's Deep Settings buttons show a "SOON" placeholder until
+  this exists.
+- iOS UI for the numbered MENU grid (iPad has it; iOS doesn't yet).
 - PTT port's `-P RIG` keying-type assumption not stress-tested against a
   real separate PTT interface.
 - Most of the numbered MENU grid's ~84 buttons are still unwired

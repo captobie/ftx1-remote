@@ -26,7 +26,26 @@ over Tailscale, without needing to be physically near the rig.
   feature built so far (Menu grid, Deep Settings) uses the direct-call path,
   and it works fine since `HubService` still broadcasts every applied
   command to remote clients regardless of how it was triggered. The
-  WebSocket path exists for remote (iOS) clients only in practice today.
+  WebSocket path exists for remote (iOS/iPad) clients only in practice
+  today.
+- **Views shared across app targets go through a `RigController` protocol**
+  (`Sources/FTX1Core/UI/RigController.swift`), not a concrete type — the Mac
+  drives them with `HubService` (direct rigctld access), mobile clients
+  drive them with `RigClientViewModel` (WebSocket only). `MenuPageView` is
+  the first (and so far only) view built this way, generic over
+  `RigController`. When adding another view meant to appear on more than
+  one app target, follow this pattern rather than duplicating the file per
+  target or coupling it to `HubService` directly.
+- **`DeepSettingsView` is still Mac-only, deliberately.** It needs
+  `HubService.readMenuItem` — a live per-item read only the Mac's direct
+  rigctld link supports. The WebSocket wire protocol has no request/
+  response mechanism today, only fire-and-forget `RigCommand` and one-way
+  `RigStatePush`, so a remote client has no way to fetch a Deep Settings
+  item's current value. `RigController.supportsDeepSettings`/
+  `deepSettingsDestination` is the seam for this: `HubService` returns a
+  real destination, every other conformer defaults to unsupported. Don't
+  try to light this up for iOS/iPad without first designing that
+  request/response addition (see `Apps/iPad/` note below).
 - **Tailscale** handles remote network routing between Mac and mobile devices
   (already set up and working — don't relitigate this).
 - **State sync is push-based**, not polled. The Mac pushes state changes
@@ -50,30 +69,50 @@ over Tailscale, without needing to be physically near the rig.
   - `Networking/` — `WireMessage` (`RigCommand`/`RigStatePush`, the JSON wire
     protocol), `RigctldClient` (Mac-only, TCP to rigctld, incl. raw CAT
     passthrough), `RigWebSocketClient` (WS client, used by mobile and — for
-    now — nothing on the Mac side, see above).
+    now — nothing on the Mac side, see above), `RigClientViewModel`
+    (`ObservableObject` wrapping `RigWebSocketClient` for SwiftUI — shared by
+    the iOS and iPad app targets so their connection logic can't drift
+    apart; conforms to `RigController`, see `UI/` below).
   - `Commands/` — `CommandQueue`, serializes `RigCommand`s into rigctld
     calls one at a time.
   - `MenuSettings/` — `DeepSettingsCatalog`/`DeepSettingItem`/
     `DeepSettingValueType`: the static, table-driven catalog behind the
     page-3 Deep Settings screens (see below).
+  - `UI/` — SwiftUI views/protocols shared across more than one app target.
+    `RigController` (the protocol `HubService`/`RigClientViewModel` both
+    conform to — see Architecture above), `MenuPageView` (the numbered 7×4
+    MENU grid, generic over `RigController`, one hand-written button per
+    item), `VFODisplayBox` (the dense side-by-side VFO A/B readout used by
+    Mac and iPad). Only put a view here once it's actually needed on more
+    than one target — `FrequencyDisplay` (iOS's single-VFO readout) stays
+    in the iOS app target since nothing else uses it.
 - `Apps/Mac/FTX1RemoteMac/` — Mac app target source (canonical location;
   the Xcode project at `FTX1RemoteMac/FTX1RemoteMac.xcodeproj` points at
   this directory via a synchronized group, not a separate copy). Owns the
   rigctld connection and WebSocket server (`HubService`, `RigWebSocketServer`,
-  `RigctldProcessController`). Dense multi-pane UI (`ContentView`: VFO,
-  meters, band/mode selectors all visible at once) plus two menu systems:
-  `MenuPageView` (the numbered 7×4 MENU grid, one hand-written button per
-  item) and `DeepSettingsView` (the page-3 category screens, rendered
-  generically from `DeepSettingsCatalog`).
+  `RigctldProcessController`), plus `HubService`'s `RigController`
+  conformance (`HubService+RigController.swift` — the only conformer that
+  builds a real `DeepSettingsView` destination). Dense multi-pane UI
+  (`ContentView`: VFO, meters, band/mode selectors all visible at once)
+  plus two menu systems: `MenuPageView` (shared, see `Sources/FTX1Core/UI/`
+  above) and `DeepSettingsView` (Mac-only — the page-3 category screens,
+  rendered generically from `DeepSettingsCatalog`).
 - `Apps/iOS/FTX1RemoteiOS/` — iPhone app target. WebSocket client only
   (`RigClientViewModel`/`RigWebSocketClient`), never touches `RigctldClient`
   directly. Focused single-rig-control view (frequency, SWR, PTT, mode grid)
-  — don't try to cram the Mac's dense layout or either menu system in here
-  without deciding that's actually wanted; neither menu system has an iOS
-  UI yet.
-- `Apps/iPad/` (or shared iOS target with size classes) — not started.
-  Splits the difference between Mac density and iPhone focus; strategy
-  still open.
+  — don't try to cram the Mac's dense layout or `MenuPageView` in here
+  without deciding that's actually wanted; iOS still has no menu-grid UI
+  (iPad does — see below). `DeepSettingsView` isn't available to any mobile
+  target yet either way (see Architecture above).
+- `Apps/iPad/FTX1RemoteiPad/` — iPad app target, separate from iOS (not a
+  universal/size-classes target — resolved decision, don't relitigate).
+  WebSocket client only, same as iOS. Dense layout modeled on the Mac's
+  `ContentView` (VFO A/B side by side via the shared `VFODisplayBox`, SWR,
+  PTT, power, band/mode) plus the shared `MenuPageView` grid. The FM page's
+  6 Deep Settings buttons render a disabled "SOON" placeholder rather than
+  opening `DeepSettingsView` — see the `RigController`/Deep Settings note
+  above for why, and don't wire them up without first adding the wire-
+  protocol read/response mechanism that unblocks it.
 
 ## Working conventions
 
@@ -99,9 +138,10 @@ over Tailscale, without needing to be physically near the rig.
 - Build/test the shared package: `swift build`, `swift test` (from repo
   root — `Package.swift` covers only the `FTX1Core` library + test target).
 - Build an app target: `xcodebuild -project
-  FTX1RemoteMac/FTX1RemoteMac.xcodeproj -scheme <FTX1RemoteMac|FTX1RemoteiOS>
-  -destination '<platform=macOS|generic/platform=iOS Simulator>' build`
-  — not `swift build`, which doesn't cover the app targets at all.
+  FTX1RemoteMac/FTX1RemoteMac.xcodeproj -scheme
+  <FTX1RemoteMac|FTX1RemoteiOS|FTX1RemoteiPad> -destination
+  '<platform=macOS|generic/platform=iOS Simulator>' build` — not
+  `swift build`, which doesn't cover the app targets at all.
 - Run the Mac app: `open` the built `.app` under
   `~/Library/Developer/Xcode/DerivedData/FTX1RemoteMac-*/Build/Products/Debug/`,
   or Cmd+R in Xcode.
