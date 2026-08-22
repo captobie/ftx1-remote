@@ -1,14 +1,23 @@
 import SwiftUI
 
 /// One VFO's frequency rendered as a dark digital-readout box, styled after
-/// the rig's own LCD — used in a side-by-side pair in `ContentView`.
-struct VFODisplayBox: View {
+/// the rig's own LCD — used in a side-by-side pair in `ContentView`. Shared
+/// by the Mac and iPad apps, which both want the dense side-by-side VFO A/B
+/// layout (iOS uses its own single-VFO `FrequencyDisplay` instead).
+public struct VFODisplayBox: View {
     let label: String
     let frequencyHz: Int?
     let isActive: Bool
     let mode: String
 
-    var body: some View {
+    public init(label: String, frequencyHz: Int?, isActive: Bool, mode: String) {
+        self.label = label
+        self.frequencyHz = frequencyHz
+        self.isActive = isActive
+        self.mode = mode
+    }
+
+    public var body: some View {
         VStack(alignment: .trailing, spacing: 6) {
             Text(label)
                 .font(.caption)

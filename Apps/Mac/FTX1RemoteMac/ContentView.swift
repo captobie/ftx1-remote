@@ -73,7 +73,7 @@ struct ContentView: View {
                 .pickerStyle(.segmented)
             }
 
-            MenuPageView()
+            MenuPageView<HubService>()
         }
         .padding(40)
         .frame(minWidth: 560, minHeight: 360)

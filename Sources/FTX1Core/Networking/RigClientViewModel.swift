@@ -1,31 +1,32 @@
 import Combine
-import FTX1Core
 import Foundation
 
 /// Client-side counterpart to the Mac hub's `HubService` — owns the
 /// `RigWebSocketClient` connection to the Mac's `RigWebSocketServer` and
 /// exposes the live rig state to SwiftUI. Never talks to rigctld directly
-/// (see repo root CLAUDE.md): this app is a WebSocket client only.
+/// (see repo root CLAUDE.md): this app is a WebSocket client only. Shared by
+/// the iOS and iPadOS app targets so their connection logic can't drift
+/// apart.
 @MainActor
-final class RigClientViewModel: ObservableObject {
-    enum ConnectionState: Equatable {
+public final class RigClientViewModel: ObservableObject, RigController {
+    public enum ConnectionState: Equatable {
         case disconnected
         case connecting
         case connected
         case failed(String)
     }
 
-    @Published private(set) var rigState = RigState()
-    @Published private(set) var connectionState: ConnectionState = .disconnected
+    @Published public private(set) var rigState = RigState()
+    @Published public private(set) var connectionState: ConnectionState = .disconnected
 
     private var client: RigWebSocketClient?
     private let port: UInt16
 
-    init(port: UInt16 = 8765) {
+    public init(port: UInt16 = 8765) {
         self.port = port
     }
 
-    func connect(toHost host: String) {
+    public func connect(toHost host: String) {
         guard !host.isEmpty, let url = URL(string: "ws://\(host):\(port)") else {
             connectionState = .failed("Invalid host")
             return
@@ -52,14 +53,14 @@ final class RigClientViewModel: ObservableObject {
         }
     }
 
-    func disconnect() {
+    public func disconnect() {
         guard let client else { return }
         Task { await client.disconnect() }
         self.client = nil
         connectionState = .disconnected
     }
 
-    func send(_ command: RigCommand) {
+    public func send(_ command: RigCommand) {
         guard let client else { return }
         Task { try? await client.send(command) }
     }

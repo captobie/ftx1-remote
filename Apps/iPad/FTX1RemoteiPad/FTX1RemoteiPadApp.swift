@@ -2,7 +2,7 @@ import FTX1Core
 import SwiftUI
 
 @main
-struct FTX1RemoteiOSApp: App {
+struct FTX1RemoteiPadApp: App {
     @StateObject private var viewModel = RigClientViewModel()
 
     var body: some Scene {

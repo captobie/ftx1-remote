@@ -1,4 +1,3 @@
-import FTX1Core
 import SwiftUI
 
 /// Which of the FTX-1's three physical menu pages (accessed via a long-press
@@ -38,12 +37,29 @@ enum MenuPage: String, CaseIterable, Identifiable {
     }
 }
 
+/// Matches the rig's own page size — each physical menu page holds up to 28
+/// items. File-scope rather than a stored `static let` on `MenuPageView`
+/// itself — Swift doesn't allow stored static properties on generic types.
+private let menuPageItemsPerPage = 28
+private let menuPageColumns = 7
+
+/// CW page item numbers with no corresponding rig function — confirmed
+/// against the real MENU display, not just "not yet wired." Rendered as
+/// invisible (not just unlabeled) placeholders so they don't get mistaken
+/// for still-pending work, while keeping the grid's row alignment intact.
+private let menuPageHiddenCWItems: Set<Int> = [3, 4, 5, 6, 7, 15, 16, 17, 18, 23, 24, 25, 26, 27]
+
 /// Grid of buttons mirroring one of the FTX-1's three menu pages. Layout
 /// only for now — each button is a numbered placeholder; actual per-item
 /// functions (which menu number maps to which CAT command) land once the
 /// layout itself is confirmed against the real rig.
-struct MenuPageView: View {
-    @EnvironmentObject private var hub: HubService
+///
+/// Generic over `RigController` so it can be embedded against either the
+/// Mac's `HubService` (talks to rigctld directly) or a mobile client's
+/// `RigClientViewModel` (talks over WebSocket) without duplicating this
+/// file — see `RigController`.
+public struct MenuPageView<Controller: RigController>: View {
+    @EnvironmentObject private var hub: Controller
     @State private var selectedPage: MenuPage = .ssb
     @State private var showingCWSpeedPopover = false
     @State private var showingCWPitchPopover = false
@@ -64,19 +80,9 @@ struct MenuPageView: View {
         var id: String { title }
     }
 
-    /// Matches the rig's own page size — each physical menu page holds up
-    /// to 28 items.
-    private static let itemsPerPage = 28
-    private static let columns = 7
+    public init() {}
 
-    /// CW page item numbers with no corresponding rig function — confirmed
-    /// against the real MENU display, not just "not yet wired." Rendered
-    /// as invisible (not just unlabeled) placeholders so they don't get
-    /// mistaken for still-pending work, while keeping the grid's row
-    /// alignment intact.
-    private static let hiddenCWItems: Set<Int> = [3, 4, 5, 6, 7, 15, 16, 17, 18, 23, 24, 25, 26, 27]
-
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Picker("Menu page", selection: $selectedPage) {
                 ForEach(MenuPage.allCases) { page in
@@ -87,17 +93,16 @@ struct MenuPageView: View {
             .labelsHidden()
 
             LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: Self.columns),
+                columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: menuPageColumns),
                 spacing: 6
             ) {
-                ForEach(1...Self.itemsPerPage, id: \.self) { item in
+                ForEach(1...menuPageItemsPerPage, id: \.self) { item in
                     menuButton(for: item)
                 }
             }
         }
         .sheet(item: $activeDeepSettings) { destination in
-            DeepSettingsView(title: destination.title, p1s: destination.p1s)
-                .environmentObject(hub)
+            hub.deepSettingsDestination(title: destination.title, p1s: destination.p1s)
         }
     }
 
@@ -232,7 +237,7 @@ struct MenuPageView: View {
             disabledCWMessageButton(top: "PLAY")
         } else if selectedPage == .cw, item == 21 {
             disabledCWMessageButton(top: "RECORD")
-        } else if selectedPage == .cw, Self.hiddenCWItems.contains(item) {
+        } else if selectedPage == .cw, menuPageHiddenCWItems.contains(item) {
             hiddenButtonPlaceholder(for: item)
         } else if selectedPage == .fm, item == 23 {
             deepSettingsButton(top: "RADIO", bottom: "SETTING", title: "RADIO SETTING", p1s: [1])
@@ -259,14 +264,29 @@ struct MenuPageView: View {
     }
 
     /// FM/C4FM page bottom-row buttons (23-28) all open the same generic
-    /// `DeepSettingsView`, just addressed at a different Table 3 category —
-    /// unlike every other button on this grid, none of these needs its own
-    /// `@State` popover flag, since they all share `activeDeepSettings`.
+    /// Deep Settings destination, just addressed at a different Table 3
+    /// category — unlike every other button on this grid, none of these
+    /// needs its own `@State` popover flag, since they all share
+    /// `activeDeepSettings`. Only meaningful when `hub.supportsDeepSettings`
+    /// (currently the Mac's `HubService` only — see `RigController`); other
+    /// controllers get a disabled placeholder instead of a sheet that would
+    /// open to a screen of blank rows.
+    @ViewBuilder
     private func deepSettingsButton(top: String, bottom: String, title: String, p1s: [Int]) -> some View {
-        menuButtonShell {
-            activeDeepSettings = ActiveDeepSettings(title: title, p1s: p1s)
-        } label: {
-            twoLineLabelEqualSize(top: top, bottom: bottom)
+        if hub.supportsDeepSettings {
+            menuButtonShell {
+                activeDeepSettings = ActiveDeepSettings(title: title, p1s: p1s)
+            } label: {
+                twoLineLabelEqualSize(top: top, bottom: bottom)
+            }
+        } else {
+            menuButtonShell {
+                // Deliberately a no-op — see doc comment above.
+            } label: {
+                twoLineLabelEqualSize(top: top, bottom: "SOON")
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(true)
         }
     }
 
@@ -508,9 +528,20 @@ struct MenuPageView: View {
     }
 }
 
+#if DEBUG
+/// Preview-only stand-in for a real controller (`HubService`/
+/// `RigClientViewModel`) — this package can't depend on either app target,
+/// so `MenuPageView`'s preview needs its own minimal `RigController`.
+@MainActor
+private final class PreviewRigController: ObservableObject, RigController {
+    @Published var rigState = RigState()
+    func send(_ command: RigCommand) {}
+}
+
 #Preview {
-    MenuPageView()
-        .environmentObject(HubService())
+    MenuPageView<PreviewRigController>()
+        .environmentObject(PreviewRigController())
         .padding(40)
         .frame(width: 560)
 }
+#endif
