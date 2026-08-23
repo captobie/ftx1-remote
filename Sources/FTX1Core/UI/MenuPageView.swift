@@ -68,6 +68,9 @@ public struct MenuPageView<Controller: RigController>: View {
     @State private var showingDisplayContrastPopover = false
     @State private var showingDisplayDimmerPopover = false
     @State private var showingDisplayLevelPopover = false
+    @State private var showingRFPowerPopover = false
+    @State private var isDraggingRFPower = false
+    @State private var localRFPowerLevel: Double = 0
     @State private var activeDeepSettings: ActiveDeepSettings?
 
     /// Identifies which Deep Settings screen (see `DeepSettingsView`) is
@@ -112,9 +115,10 @@ public struct MenuPageView<Controller: RigController>: View {
     /// two-line "PAGE n/3" / mode-name label instead of a plain number.
     /// Buttons 22 and 28 are left/right nav to the previous/next page in
     /// that cycle, shared by whichever pages don't repurpose the slot:
-    /// SSB has its own RF POWER at 22, so nav-left only shows on CW/FM;
-    /// FM/C4FM has its own APRS SETTING at 28, so nav-right only shows on
-    /// SSB/CW.
+    /// SSB has its own RF POWER at 22 (`RigCommand.setPowerLevel`, popover
+    /// `Slider` rather than a `Stepper` — see `rfPowerButton`), so nav-left
+    /// only shows on CW/FM; FM/C4FM has its own APRS SETTING at 28, so
+    /// nav-right only shows on SSB/CW.
     /// SSB button 2 is spectrum scope display level (`RigCommand.
     /// setDisplayLevel`, popover `Stepper`, -30.0 to +30.0 dB), button 3 is
     /// peak-hold level (`RigCommand.setDisplayPeak`, single-tap cycling
@@ -161,6 +165,8 @@ public struct MenuPageView<Controller: RigController>: View {
             } label: {
                 twoLineLabel(top: "PAGE \(selectedPage.pageNumber)/3", bottom: selectedPage.rawValue)
             }
+        } else if selectedPage == .ssb, item == 22 {
+            rfPowerButton
         } else if selectedPage != .ssb, item == 22 {
             menuButtonShell {
                 selectedPage = selectedPage.previous
@@ -494,6 +500,60 @@ public struct MenuPageView<Controller: RigController>: View {
             .padding()
             .frame(width: 180)
         }
+    }
+
+    /// SSB button 22, RF POWER (0-100% output power, relative to whatever
+    /// per-band MAX POWER ceiling applies — a separate setting, under Deep
+    /// Settings' OPERATION SETTING category, not this button). This is the
+    /// one popover control that uses a `Slider` rather than a `Stepper`
+    /// like every other numeric button here (CW SPEED/PITCH, BK-DELAY,
+    /// MONI LEVEL, D-CONTRAST/DIMMER/LEVEL) — it's the same continuous
+    /// hamlib `RFPOWER` level this popover replaces from its previous home
+    /// as a standalone slider in the Mac app's `ContentView`, and dragging
+    /// through 100 discrete 1%-`Stepper` taps would be impractical where a
+    /// drag gesture works naturally. Commits via `hub.send(.setPowerLevel)`
+    /// only on drag release (`onEditingChanged`'s `editing == false`), not
+    /// continuously, to avoid flooding rigctld with a command per pixel of
+    /// drag — `isDraggingRFPower`/`localRFPowerLevel` mirror the same
+    /// smooth-during-drag technique `ContentView`'s slider used.
+    private var rfPowerButton: some View {
+        menuButtonShell {
+            showingRFPowerPopover = true
+        } label: {
+            twoLineLabel(top: "RF POWER", bottom: Self.rfPowerLabel(hub.rigState.powerLevel))
+        }
+        .popover(isPresented: $showingRFPowerPopover) {
+            VStack(spacing: 8) {
+                Text(Self.rfPowerLabel(displayedRFPowerLevel))
+                Slider(
+                    value: Binding(
+                        get: { displayedRFPowerLevel },
+                        set: { localRFPowerLevel = $0 }
+                    ),
+                    in: 0...1,
+                    onEditingChanged: { editing in
+                        if editing {
+                            localRFPowerLevel = hub.rigState.powerLevel ?? 0
+                            isDraggingRFPower = true
+                        } else {
+                            isDraggingRFPower = false
+                            hub.send(.setPowerLevel(localRFPowerLevel))
+                        }
+                    }
+                )
+            }
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    private var displayedRFPowerLevel: Double {
+        isDraggingRFPower ? localRFPowerLevel : (hub.rigState.powerLevel ?? 0)
+    }
+
+    private static func rfPowerLabel(_ level: Double?) -> String {
+        guard let level else { return "—" }
+        return "\(Int((level * 100).rounded()))%"
     }
 
     private static func displayLevelLabel(_ dB: Double?) -> String {

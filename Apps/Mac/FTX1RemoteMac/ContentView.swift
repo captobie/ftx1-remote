@@ -5,8 +5,6 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var hub: HubService
     @State private var showingSettings = false
-    @State private var isDraggingPower = false
-    @State private var localPowerLevel: Double = 0
     @State private var isPTTPressed = false
 
     var body: some View {
@@ -35,26 +33,6 @@ struct ContentView: View {
                 .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
 
             pttButton
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Power: \(Int(displayedPowerLevel * 100))%")
-                Slider(
-                    value: Binding(
-                        get: { displayedPowerLevel },
-                        set: { localPowerLevel = $0 }
-                    ),
-                    in: 0...1,
-                    onEditingChanged: { editing in
-                        if editing {
-                            localPowerLevel = hub.rigState.powerLevel ?? 0
-                            isDraggingPower = true
-                        } else {
-                            isDraggingPower = false
-                            hub.send(.setPowerLevel(localPowerLevel))
-                        }
-                    }
-                )
-            }
 
             HStack(spacing: 16) {
                 Picker("Band", selection: bandBinding) {
@@ -119,10 +97,6 @@ struct ContentView: View {
     private var swrLabel: String {
         guard let swr = hub.rigState.swr else { return "SWR --" }
         return String(format: "SWR %.2f", swr)
-    }
-
-    private var displayedPowerLevel: Double {
-        isDraggingPower ? localPowerLevel : (hub.rigState.powerLevel ?? 0)
     }
 
     /// Falls back to the first band in the plan if the active frequency
