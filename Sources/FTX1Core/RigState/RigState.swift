@@ -76,6 +76,15 @@ public struct RigState: Codable, Equatable, Sendable {
     /// TFT display backlight brightness, 0-20 ("DA"'s P3 — see
     /// `displayContrast` above for the shared read-modify-write mechanism).
     public var displayDimmer: Int?
+    /// Spectrum scope display level, -30.0 to +30.0 dB in 0.5dB steps (the
+    /// FTX-1's raw "SS" CAT command's LEVEL sub-function, P2=4 — see
+    /// `RigctldClient.getSpectrumScopeLevel()`/`setSpectrumScopeLevel(_:)`).
+    public var displayLevel: Double?
+    /// Spectrum scope peak-hold level, 0-4 (LV1-LV5) — "SS"'s PEAK
+    /// sub-function, P2=1.
+    public var displayPeak: Int?
+    /// Spectrum scope marker on/off — "SS"'s MARKER sub-function, P2=2.
+    public var displayMarker: Bool?
 
     public init(
         frequencyHz: Int = 0,
@@ -101,7 +110,10 @@ public struct RigState: Codable, Equatable, Sendable {
         preampMode: Int? = nil,
         tunerEnabled: Bool? = nil,
         displayContrast: Int? = nil,
-        displayDimmer: Int? = nil
+        displayDimmer: Int? = nil,
+        displayLevel: Double? = nil,
+        displayPeak: Int? = nil,
+        displayMarker: Bool? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -127,6 +139,9 @@ public struct RigState: Codable, Equatable, Sendable {
         self.tunerEnabled = tunerEnabled
         self.displayContrast = displayContrast
         self.displayDimmer = displayDimmer
+        self.displayLevel = displayLevel
+        self.displayPeak = displayPeak
+        self.displayMarker = displayMarker
     }
 }
 

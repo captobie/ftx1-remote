@@ -91,6 +91,16 @@ public enum RigCommand: Sendable, Equatable {
     /// `RigState.displayDimmer`. Maps to the FTX-1's raw "DA" CAT command's
     /// P3 field, same read-modify-write mechanism as `setDisplayContrast`.
     case setDisplayDimmer(Int)
+    /// Spectrum scope display level, -30.0 to +30.0 dB in 0.5dB steps — see
+    /// `RigState.displayLevel`. Maps to the FTX-1's raw "SS" CAT command's
+    /// LEVEL sub-function (P2=4).
+    case setDisplayLevel(Double)
+    /// Spectrum scope peak-hold level, 0-4 (LV1-LV5) — see
+    /// `RigState.displayPeak`. Maps to "SS"'s PEAK sub-function (P2=1).
+    case setDisplayPeak(Int)
+    /// Spectrum scope marker on/off — see `RigState.displayMarker`. Maps to
+    /// "SS"'s MARKER sub-function (P2=2).
+    case setDisplayMarker(Bool)
     /// Writes one item of the FTX-1's deep SET-mode settings (Radio/CW/
     /// Operation/Display/Extension/APRS Setting — see
     /// `DeepSettingsCatalog`), addressed by `p1`/`p2`/`p3` (category/tab/
@@ -139,6 +149,9 @@ public enum RigCommand: Sendable, Equatable {
         case triggerAntennaTune = "trigger_antenna_tune"
         case setDisplayContrast = "set_display_contrast"
         case setDisplayDimmer = "set_display_dimmer"
+        case setDisplayLevel = "set_display_level"
+        case setDisplayPeak = "set_display_peak"
+        case setDisplayMarker = "set_display_marker"
         case setMenuItem = "set_menu_item"
     }
 }
@@ -194,6 +207,12 @@ extension RigCommand: Codable {
             self = .setDisplayContrast(try container.decode(Int.self, forKey: .value))
         case .setDisplayDimmer:
             self = .setDisplayDimmer(try container.decode(Int.self, forKey: .value))
+        case .setDisplayLevel:
+            self = .setDisplayLevel(try container.decode(Double.self, forKey: .value))
+        case .setDisplayPeak:
+            self = .setDisplayPeak(try container.decode(Int.self, forKey: .value))
+        case .setDisplayMarker:
+            self = .setDisplayMarker(try container.decode(Bool.self, forKey: .value))
         case .setMenuItem:
             let payload = try container.decode(MenuItemPayload.self, forKey: .value)
             self = .setMenuItem(p1: payload.p1, p2: payload.p2, p3: payload.p3, rawValue: payload.rawValue)
@@ -270,6 +289,15 @@ extension RigCommand: Codable {
         case .setDisplayDimmer(let value):
             try container.encode(CommandName.setDisplayDimmer, forKey: .cmd)
             try container.encode(value, forKey: .value)
+        case .setDisplayLevel(let value):
+            try container.encode(CommandName.setDisplayLevel, forKey: .cmd)
+            try container.encode(value, forKey: .value)
+        case .setDisplayPeak(let value):
+            try container.encode(CommandName.setDisplayPeak, forKey: .cmd)
+            try container.encode(value, forKey: .value)
+        case .setDisplayMarker(let on):
+            try container.encode(CommandName.setDisplayMarker, forKey: .cmd)
+            try container.encode(on, forKey: .value)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try container.encode(CommandName.setMenuItem, forKey: .cmd)
             try container.encode(MenuItemPayload(p1: p1, p2: p2, p3: p3, rawValue: rawValue), forKey: .value)

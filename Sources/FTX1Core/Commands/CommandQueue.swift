@@ -168,6 +168,15 @@ public actor CommandQueue {
                 brightness: value,
                 ledBrightness: current?.ledBrightness ?? 10
             )
+        case .setDisplayLevel(let dB):
+            try await rigctld.setSpectrumScopeLevel(dB)
+        case .setDisplayPeak(let level):
+            // "SS"'s PEAK sub-function packs P3 (the value) ahead of P4-P7,
+            // which the manual documents as always "0" — see
+            // RigctldClient.setRawPackedDigit(_:_:trailingZeros:).
+            try await rigctld.setRawPackedDigit("SS01", level, trailingZeros: 4)
+        case .setDisplayMarker(let on):
+            try await rigctld.setRawPackedDigit("SS02", on ? 1 : 0, trailingZeros: 4)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try await rigctld.setMenuItem(p1: p1, p2: p2, p3: p3, rawValue: rawValue)
         }

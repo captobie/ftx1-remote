@@ -318,6 +318,65 @@ public actor RigctldClient {
         try await sendRawCommandFireAndForget("\(cmd)\(padded)")
     }
 
+    /// Reads a single-digit sub-field addressed by a full-width raw CAT
+    /// prefix (P1/P2 baked into `cmd`, matching the "PA0"/"RA0"/"ML1"-style
+    /// fixed-sub-selector pattern other raw commands use), where the
+    /// reply's remaining digits are themselves a multi-field packed value
+    /// and only the first one is wanted — e.g. the FTX-1's raw "SS"
+    /// (SPECTRUM SCOPE) command answers with P1 P2 P3 P4 P5 P6 P7 packed
+    /// together with no separators, so `getRawInt`'s "take the whole
+    /// trailing digit run as one number" parsing would misread e.g. PEAK
+    /// LV5's "20000" reply as 20000 instead of 2.
+    public func getRawDigit(_ cmd: String) async throws -> Int? {
+        let reply = try await sendRawCommand(cmd)
+        guard reply.hasPrefix(cmd) else { return nil }
+        return reply.dropFirst(cmd.count).first?.wholeNumberValue
+    }
+
+    /// Sets a single-digit sub-field the same shape `getRawDigit(_:)` reads,
+    /// where the manual documents the remaining fields after it as fixed
+    /// "0" — e.g. "SS"'s PEAK (P3, followed by P4-P7 all "0") and MARKER
+    /// (P3, followed by P4-P7 all "0") sub-functions. Unlike `setRawInt`,
+    /// which zero-*pads* a single value to a field width, this writes one
+    /// real digit followed by a fixed run of literal zero digits for the
+    /// unused trailing fields the manual documents as always "0" — sending
+    /// a short command (e.g. just "SS021" instead of the full 7-digit
+    /// "SS0210000") doesn't match the command's documented digit width and
+    /// hasn't been tested against the real rig.
+    public func setRawPackedDigit(_ cmd: String, _ digit: Int, trailingZeros: Int) async throws {
+        try await sendRawCommandFireAndForget("\(cmd)\(digit)\(String(repeating: "0", count: trailingZeros))")
+    }
+
+    /// Reads the FTX-1's raw "SS" (SPECTRUM SCOPE) command's LEVEL
+    /// sub-function (P2=4) — unlike PEAK/MARKER above, LEVEL's P3-P7 aren't
+    /// separate fixed/variable fields at all: the manual documents them
+    /// together as one 5-character signed decimal ("-30.0" to "+30.0" in
+    /// 0.5dB steps, e.g. "+15.0"). Takes only the leading run of
+    /// digit/"."/"+"/"-" characters before parsing (same reasoning as
+    /// `getRawInt`'s digit-only prefix) rather than handing `Double.init`
+    /// the whole remainder: the reply's trailing ";" is the CAT protocol's
+    /// own terminator character, part of the payload bytes and not stripped
+    /// by `readLine()` (which only strips rigctld's own `\0`/`\n` framing) —
+    /// passing that ";" straight into `Double.init` made it fail to parse
+    /// every reply, always returning nil regardless of the radio's actual
+    /// setting.
+    public func getSpectrumScopeLevel() async throws -> Double? {
+        let reply = try await sendRawCommand("SS04")
+        guard reply.hasPrefix("SS04") else { return nil }
+        let value = reply.dropFirst(4).prefix { $0.isNumber || $0 == "." || $0 == "+" || $0 == "-" }
+        return Double(value)
+    }
+
+    /// Sets "SS"'s LEVEL sub-function — see `getSpectrumScopeLevel()`. `%04.1f`
+    /// zero-pads the magnitude to the manual's fixed "XX.X" width (e.g. 8.5
+    /// -> "08.5", 15.0 -> "15.0") to match the 5-byte-total shape with the
+    /// leading sign character.
+    public func setSpectrumScopeLevel(_ dB: Double) async throws {
+        let sign = dB < 0 ? "-" : "+"
+        let formatted = String(format: "%04.1f", abs(dB))
+        try await sendRawCommandFireAndForget("SS04\(sign)\(formatted)")
+    }
+
     /// Reads P3 of the FTX-1's raw "RI" (RADIO INFORMATION) status command —
     /// 0 = stopped, 1 = recording, 2 = playing (CW MESSAGE record/playback
     /// state — see `RigState.cwMessageStatus`). RI's answer packs 8

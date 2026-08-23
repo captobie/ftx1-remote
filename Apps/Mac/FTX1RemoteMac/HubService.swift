@@ -215,6 +215,12 @@ final class HubService: ObservableObject {
         let preampMode = try? await rigctld.getRawInt("PA0")
         let tunerEnabled = try? await rigctld.getTunerEnabled()
         let displaySettings = try? await rigctld.getDisplaySettings()
+        let displayLevel = try? await rigctld.getSpectrumScopeLevel()
+        // "SS01"/"SS02" address PEAK/MARKER's fixed P1/P2 prefix — see
+        // RigctldClient.getRawDigit() for why a plain getRawInt/getRawBool
+        // wouldn't parse these correctly.
+        let displayPeak = try? await rigctld.getRawDigit("SS01")
+        let displayMarker = try? await rigctld.getRawBool("SS02")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -247,7 +253,10 @@ final class HubService: ObservableObject {
             preampMode: preampMode ?? rigState.preampMode,
             tunerEnabled: tunerEnabled ?? rigState.tunerEnabled,
             displayContrast: (displaySettings.map { $0.contrast }) ?? rigState.displayContrast,
-            displayDimmer: (displaySettings.map { $0.brightness }) ?? rigState.displayDimmer
+            displayDimmer: (displaySettings.map { $0.brightness }) ?? rigState.displayDimmer,
+            displayLevel: displayLevel ?? rigState.displayLevel,
+            displayPeak: displayPeak ?? rigState.displayPeak,
+            displayMarker: displayMarker ?? rigState.displayMarker
         )
         await server.broadcast(rigState)
     }

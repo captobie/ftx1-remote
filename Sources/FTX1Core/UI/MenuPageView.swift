@@ -67,6 +67,7 @@ public struct MenuPageView<Controller: RigController>: View {
     @State private var showingMoniLevelPopover = false
     @State private var showingDisplayContrastPopover = false
     @State private var showingDisplayDimmerPopover = false
+    @State private var showingDisplayLevelPopover = false
     @State private var activeDeepSettings: ActiveDeepSettings?
 
     /// Identifies which Deep Settings screen (see `DeepSettingsView`) is
@@ -114,6 +115,13 @@ public struct MenuPageView<Controller: RigController>: View {
     /// SSB has its own RF POWER at 22, so nav-left only shows on CW/FM;
     /// FM/C4FM has its own APRS SETTING at 28, so nav-right only shows on
     /// SSB/CW.
+    /// SSB button 2 is spectrum scope display level (`RigCommand.
+    /// setDisplayLevel`, popover `Stepper`, -30.0 to +30.0 dB), button 3 is
+    /// peak-hold level (`RigCommand.setDisplayPeak`, single-tap cycling
+    /// LV1-LV5 like IPO/AMP), button 4 is the marker on/off (`RigCommand.
+    /// setDisplayMarker`, single-tap toggle) — all three share the FTX-1's
+    /// raw "SS" (SPECTRUM SCOPE) CAT command, addressed at different P2
+    /// sub-functions.
     /// SSB button 6 is TFT display contrast (`RigCommand.
     /// setDisplayContrast`), button 7 is TFT backlight dimmer
     /// (`RigCommand.setDisplayDimmer`) — both popover `Stepper`s like CW
@@ -164,6 +172,16 @@ public struct MenuPageView<Controller: RigController>: View {
                 selectedPage = selectedPage.next
             } label: {
                 twoLineLabel(top: "▶", bottom: selectedPage.next.rawValue)
+            }
+        } else if selectedPage == .ssb, item == 2 {
+            displayLevelButton
+        } else if selectedPage == .ssb, item == 3 {
+            displayPeakButton
+        } else if selectedPage == .ssb, item == 4 {
+            menuButtonShell {
+                hub.send(.setDisplayMarker(!(hub.rigState.displayMarker ?? false)))
+            } label: {
+                twoLineLabel(top: "D-MARKER", bottom: (hub.rigState.displayMarker ?? false) ? "ON" : "OFF")
             }
         } else if selectedPage == .ssb, item == 5 {
             disabledPlaceholderButton(top: "D-COLOR")
@@ -447,6 +465,57 @@ public struct MenuPageView<Controller: RigController>: View {
             .padding()
             .frame(width: 180)
         }
+    }
+
+    /// SSB button 2, D-LEVEL (spectrum scope display level, -30.0 to +30.0
+    /// dB in 0.5dB steps) — popover `Stepper` like CW SPEED/PITCH, but with
+    /// a `Double` step since this value isn't integer WPM/Hz. Maps to the
+    /// FTX-1's raw "SS" CAT command's LEVEL sub-function (P2=4) — unlike
+    /// D-CONTRAST/DIMMER's "DA", "SS" only needs read-then-write for the one
+    /// sub-function being changed, not a shared packed triple, since its
+    /// Read command lets you address just that sub-function (`RigctldClient.
+    /// getSpectrumScopeLevel()`/`setSpectrumScopeLevel(_:)`).
+    private var displayLevelButton: some View {
+        menuButtonShell {
+            showingDisplayLevelPopover = true
+        } label: {
+            twoLineLabel(top: "D-LEVEL", bottom: Self.displayLevelLabel(hub.rigState.displayLevel))
+        }
+        .popover(isPresented: $showingDisplayLevelPopover) {
+            Stepper(
+                Self.displayLevelLabel(hub.rigState.displayLevel ?? 0),
+                value: Binding(
+                    get: { hub.rigState.displayLevel ?? 0 },
+                    set: { hub.send(.setDisplayLevel($0)) }
+                ),
+                in: -30...30,
+                step: 0.5
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    private static func displayLevelLabel(_ dB: Double?) -> String {
+        guard let dB else { return "—" }
+        return String(format: "%+.1f dB", dB)
+    }
+
+    /// SSB button 3, D-PEAK (spectrum scope peak-hold level, LV1-LV5) —
+    /// single-tap-cycles-to-next like IPO/AMP (button 10) rather than a
+    /// popover `Stepper`, matching a physical MENU button's own behavior for
+    /// a small fixed choice set. Maps to "SS"'s PEAK sub-function (P2=1).
+    private var displayPeakButton: some View {
+        menuButtonShell {
+            hub.send(.setDisplayPeak(((hub.rigState.displayPeak ?? 0) + 1) % 5))
+        } label: {
+            twoLineLabel(top: "D-PEAK", bottom: Self.displayPeakLabel(hub.rigState.displayPeak))
+        }
+    }
+
+    private static func displayPeakLabel(_ level: Int?) -> String {
+        guard let level else { return "—" }
+        return "LV\(level + 1)"
     }
 
     /// 0 reads as "OFF" (see `moniLevelButton`); `nil` (no poll yet) as "—".
