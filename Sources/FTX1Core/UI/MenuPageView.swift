@@ -120,7 +120,9 @@ public struct MenuPageView<Controller: RigController>: View {
     /// SPEED/PITCH, sharing the FTX-1's raw "DA" command (see
     /// `RigctldClient.getDisplaySettings()`). Button 5, D-COLOR, has no
     /// known CAT command (checked the full manual, including the numbered
-    /// `EX` menu chart) and is left a plain numbered placeholder.
+    /// `EX` menu chart) — shown visible-but-disabled via
+    /// `disabledPlaceholderButton` rather than a plain numbered placeholder,
+    /// so its real label is on the grid even though it's not wired yet.
     /// SSB button 8 is MOX (`RigCommand.setMox`), button 9 is the RF
     /// attenuator (`RigCommand.setAtt`), button 10 is the HF/50 preamp/IPO
     /// selector (`RigCommand.setPreamp`, cycling IPO/AMP1/AMP2 per tap),
@@ -163,6 +165,8 @@ public struct MenuPageView<Controller: RigController>: View {
             } label: {
                 twoLineLabel(top: "▶", bottom: selectedPage.next.rawValue)
             }
+        } else if selectedPage == .ssb, item == 5 {
+            disabledPlaceholderButton(top: "D-COLOR")
         } else if selectedPage == .ssb, item == 6 {
             displayContrastButton
         } else if selectedPage == .ssb, item == 7 {
@@ -474,8 +478,17 @@ public struct MenuPageView<Controller: RigController>: View {
     /// `RigState.cwMessageStatus` plumbing are ready to reconnect once
     /// this gets revisited.
     private func disabledCWMessageButton(top: String) -> some View {
+        disabledPlaceholderButton(top: top)
+    }
+
+    /// Visible-but-disabled placeholder for a button whose rig label is
+    /// known but which isn't wired to a CAT command yet (either because none
+    /// exists, like SSB's D-COLOR, or because it's deprioritized, like CW
+    /// MESSAGE/PLAY/RECORD above) — shows the real name instead of a bare
+    /// numbered placeholder, without implying it's tappable.
+    private func disabledPlaceholderButton(top: String) -> some View {
         menuButtonShell {
-            // Deliberately a no-op — see doc comment above.
+            // Deliberately a no-op — see callers' doc comments above.
         } label: {
             twoLineLabel(top: top, bottom: "—")
                 .foregroundStyle(.secondary)
