@@ -61,6 +61,12 @@ private let menuPageHiddenCWItems: Set<Int> = [3, 4, 5, 6, 7, 15, 16, 17, 18, 23
 public struct MenuPageView<Controller: RigController>: View {
     @EnvironmentObject private var hub: Controller
     @State private var selectedPage: MenuPage = .ssb
+    /// Read via `@AppStorage`, not `AppearanceSettings.buttonValueColor`
+    /// directly — a plain `UserDefaults` read gives SwiftUI nothing to
+    /// track, so this view wouldn't re-render when the setting changes in
+    /// `SettingsView`'s Appearance tab. `@AppStorage` ties the read to the
+    /// same key and invalidates this view on change.
+    @AppStorage(AppearanceSettings.buttonValueColorKey) private var buttonValueColorRawValue = ButtonValueColor.orange.rawValue
     @State private var showingCWSpeedPopover = false
     @State private var showingCWPitchPopover = false
     @State private var showingBKDelayPopover = false
@@ -619,7 +625,7 @@ public struct MenuPageView<Controller: RigController>: View {
         menuButtonShell {
             // Deliberately a no-op — see callers' doc comments above.
         } label: {
-            twoLineLabel(top: top, bottom: "—")
+            twoLineLabel(top: top, bottom: "—", colorizeValue: false)
                 .foregroundStyle(.secondary)
         }
         .disabled(true)
@@ -650,10 +656,24 @@ public struct MenuPageView<Controller: RigController>: View {
         .buttonStyle(.bordered)
     }
 
-    private func twoLineLabel(top: String, bottom: String) -> some View {
+    /// The bottom line is the button's current *setting* — colorized via
+    /// `AppearanceSettings.buttonValueColor` (orange by default), matching
+    /// how the rig's own MENU display shows the function name in white and
+    /// the setting in orange. `colorizeValue: false` opts a caller out
+    /// entirely (rather than passing `.secondary`) so an ancestor's own
+    /// `.foregroundStyle` (e.g. `disabledPlaceholderButton`'s dimming) isn't
+    /// overridden by an explicit style set here.
+    private func twoLineLabel(top: String, bottom: String, colorizeValue: Bool = true) -> some View {
         VStack(spacing: 2) {
             Text(top).font(.caption2)
-            Text(bottom).font(.system(.body, design: .monospaced))
+            if colorizeValue {
+                Text(bottom)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundStyle((ButtonValueColor(rawValue: buttonValueColorRawValue) ?? .orange).color)
+            } else {
+                Text(bottom)
+                    .font(.system(.body, design: .monospaced))
+            }
         }
     }
 
