@@ -159,17 +159,25 @@ struct SettingsView: View {
     }
 }
 
-/// App appearance controls. Just the theme for now — future appearance
-/// settings (VFO display color, background color, per repo CLAUDE.md)
-/// belong here too, following `AppTheme`'s `AppearanceSettings`-backed
-/// pattern.
+/// App appearance controls. Theme plus the MENU grid's button value color —
+/// future appearance settings (VFO display color, background color, per
+/// repo CLAUDE.md) belong here too, following `AppTheme`/`ButtonValueColor`'s
+/// `AppearanceSettings`-backed pattern.
 private struct AppearanceSettingsTab: View {
     @AppStorage(AppearanceSettings.themeKey) private var themeRawValue = AppTheme.system.rawValue
+    @AppStorage(AppearanceSettings.buttonValueColorKey) private var buttonValueColorRawValue = ButtonValueColor.orange.rawValue
 
     private var theme: Binding<AppTheme> {
         Binding(
             get: { AppTheme(rawValue: themeRawValue) ?? .system },
             set: { themeRawValue = $0.rawValue }
+        )
+    }
+
+    private var buttonValueColor: Binding<ButtonValueColor> {
+        Binding(
+            get: { ButtonValueColor(rawValue: buttonValueColorRawValue) ?? .orange },
+            set: { buttonValueColorRawValue = $0.rawValue }
         )
     }
 
@@ -181,6 +189,12 @@ private struct AppearanceSettingsTab: View {
                 }
             }
             .pickerStyle(.segmented)
+
+            Picker("Button Value Color", selection: buttonValueColor) {
+                ForEach(ButtonValueColor.allCases, id: \.self) { option in
+                    Text(option.displayName).tag(option)
+                }
+            }
         }
         .padding(.top, 8)
     }

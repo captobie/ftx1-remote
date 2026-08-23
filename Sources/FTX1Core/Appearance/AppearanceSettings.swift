@@ -8,6 +8,7 @@ import Foundation
 /// see `AppTheme`).
 public enum AppearanceSettings {
     public static let themeKey = "appearance.theme"
+    public static let buttonValueColorKey = "appearance.buttonValueColor"
 
     public static var theme: AppTheme {
         get {
@@ -15,6 +16,17 @@ public enum AppearanceSettings {
         }
         set {
             UserDefaults.standard.set(newValue.rawValue, forKey: themeKey)
+        }
+    }
+
+    /// See `ButtonValueColor` — the MENU grid's per-button setting-value
+    /// color, defaulting to orange like the rig's own display.
+    public static var buttonValueColor: ButtonValueColor {
+        get {
+            UserDefaults.standard.string(forKey: buttonValueColorKey).flatMap(ButtonValueColor.init(rawValue:)) ?? .orange
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: buttonValueColorKey)
         }
     }
 }
