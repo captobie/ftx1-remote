@@ -28,9 +28,13 @@ struct ContentView: View {
                 VFODisplayBox(label: "VFO B", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: false, mode: hub.rigState.secondaryMode?.displayName ?? "—")
             }
 
-            Text(swrLabel)
-                .font(.system(.body, design: .monospaced))
-                .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
+            HStack(alignment: .bottom, spacing: 12) {
+                SMeterView(smeterDb: hub.rigState.smeterDb, swr: hub.rigState.swr, ptt: hub.rigState.ptt)
+                    .frame(width: 280)
+                Text(swrLabel)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
+            }
 
             pttButton
 
