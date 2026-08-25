@@ -188,6 +188,11 @@ final class HubService: ObservableObject {
         let (modeName, _) = try await rigctld.getMode()
         let ptt = try await rigctld.getPTT()
         let swr = try await rigctld.getLevel("SWR")
+        // Best-effort like the raw CAT reads below, but deliberately NOT
+        // carried forward from the previous poll on failure: a live meter
+        // should fall to rest, not freeze on a stale reading (e.g. during
+        // TX, when the rig has no RX strength to report).
+        let smeterDb = try? await rigctld.getLevel("STRENGTH")
         let powerWatts = try await rigctld.getLevel("RFPOWER_METER_WATTS")
         let powerLevel = try await rigctld.getLevel("RFPOWER")
         // Best-effort: these go through rigctld's raw CAT passthrough (see
@@ -256,7 +261,8 @@ final class HubService: ObservableObject {
             displayDimmer: (displaySettings.map { $0.brightness }) ?? rigState.displayDimmer,
             displayLevel: displayLevel ?? rigState.displayLevel,
             displayPeak: displayPeak ?? rigState.displayPeak,
-            displayMarker: displayMarker ?? rigState.displayMarker
+            displayMarker: displayMarker ?? rigState.displayMarker,
+            smeterDb: smeterDb ?? nil
         )
         await server.broadcast(rigState)
     }

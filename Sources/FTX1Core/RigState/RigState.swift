@@ -85,6 +85,12 @@ public struct RigState: Codable, Equatable, Sendable {
     public var displayPeak: Int?
     /// Spectrum scope marker on/off — "SS"'s MARKER sub-function, P2=2.
     public var displayMarker: Bool?
+    /// Received signal strength in dB relative to S9 (hamlib's "STRENGTH"
+    /// level convention: S0 ≈ -54, S9 = 0, "+60" = +60). nil when there's
+    /// no current reading — e.g. before the first poll, or while
+    /// transmitting — so the meter needle can fall to rest rather than
+    /// freeze on a stale value.
+    public var smeterDb: Double?
 
     public init(
         frequencyHz: Int = 0,
@@ -113,7 +119,8 @@ public struct RigState: Codable, Equatable, Sendable {
         displayDimmer: Int? = nil,
         displayLevel: Double? = nil,
         displayPeak: Int? = nil,
-        displayMarker: Bool? = nil
+        displayMarker: Bool? = nil,
+        smeterDb: Double? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -142,6 +149,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.displayLevel = displayLevel
         self.displayPeak = displayPeak
         self.displayMarker = displayMarker
+        self.smeterDb = smeterDb
     }
 }
 
