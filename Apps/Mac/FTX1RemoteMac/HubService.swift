@@ -69,8 +69,8 @@ final class HubService: ObservableObject {
     /// see "rig offline" rather than being unable to reach the Mac at all.
     func start() {
         Task { [weak self, commandQueue] in
-            await commandQueue.setOnCommandApplied { _ in
-                Task { @MainActor in try? await self?.refreshState() }
+            await commandQueue.setOnCommandApplied { command in
+                Task { @MainActor in self?.applyOptimistically(command) }
             }
         }
 
@@ -131,6 +131,51 @@ final class HubService: ObservableObject {
             return
         }
         Task { await commandQueue.enqueue(command) }
+    }
+
+    /// Mirrors a just-applied `RigCommand` straight into `rigState`, called
+    /// once `CommandQueue` confirms the write reached rigctld (see
+    /// `start()`'s `onCommandApplied` wiring). Without this, the UI has no
+    /// way to reflect a change until the next full `refreshState()` poll
+    /// picks it up — and since that poll is ~20 sequential rigctld round
+    /// trips, that's routinely a second or two, during which a control
+    /// bound straight to `rigState` (e.g. `MenuPageView`'s RF POWER slider)
+    /// visibly snaps back to the pre-change value before "catching up".
+    /// This only predicts the outcome of a command that's already
+    /// succeeded on the rig — a genuine mismatch (e.g. the rig clamping an
+    /// out-of-range value) self-corrects at the next poll tick, same as any
+    /// other externally-driven change (e.g. the front panel).
+    private func applyOptimistically(_ command: RigCommand) {
+        switch command {
+        case .setFrequency(let hz): rigState.frequencyHz = hz
+        case .setMode(let mode): rigState.mode = mode
+        case .setPTT(let on): rigState.ptt = on
+        case .setBand: break // resolved into .setFrequency before reaching CommandQueue — see send(_:)
+        case .setPowerLevel(let level): rigState.powerLevel = level
+        case .setBreakIn(let on): rigState.breakIn = on
+        case .setKeyer(let on): rigState.keyerEnabled = on
+        case .setCWSpeed(let wpm): rigState.cwSpeedWpm = wpm
+        case .setCWPitch(let hz): rigState.cwPitchHz = hz
+        case .setBreakInDelay(let ms): rigState.bkDelayMs = ms
+        case .setCWSpot(let on): rigState.cwSpot = on
+        case .setMoniLevel(let level): rigState.moniLevel = level
+        case .setMox(let on): rigState.moxEnabled = on
+        case .setAtt(let on): rigState.attEnabled = on
+        case .setPreamp(let mode): rigState.preampMode = mode
+        case .setTuner(let on): rigState.tunerEnabled = on
+        case .setDisplayContrast(let value): rigState.displayContrast = value
+        case .setDisplayDimmer(let value): rigState.displayDimmer = value
+        case .setDisplayLevel(let dB): rigState.displayLevel = dB
+        case .setDisplayPeak(let level): rigState.displayPeak = level
+        case .setDisplayMarker(let on): rigState.displayMarker = on
+        // Momentary triggers, and CW MESSAGE record/select/play (whose
+        // `cwMessageStatus` doesn't map 1:1 from any single command — see
+        // RigState.cwMessageStatus) have no direct optimistic value; left
+        // to the next poll, same as before.
+        case .triggerZeroIn, .triggerAntennaTune, .selectCWMessageChannel,
+             .setCWMessageRecording, .playCWMessage, .setMenuItem:
+            break
+        }
     }
 
     /// On-demand read for one Deep Settings item (see DeepSettingsCatalog),

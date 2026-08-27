@@ -52,7 +52,11 @@ public actor RigctldClient {
     }
 
     public func connect(timeout: Duration = .seconds(5)) async throws {
-        let conn = NWConnection(host: host, port: port, using: .tcp)
+        let tcpOptions = NWProtocolTCP.Options()
+        tcpOptions.noDelay = true
+        let params = NWParameters(tls: nil, tcp: tcpOptions)
+
+        let conn = NWConnection(host: host, port: port, using: params)
         self.connection = conn
         readBuffer.removeAll()
 
