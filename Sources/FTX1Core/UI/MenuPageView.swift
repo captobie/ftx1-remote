@@ -79,6 +79,8 @@ public struct MenuPageView<Controller: RigController>: View {
     @State private var localRFPowerLevel: Double = 0
     @State private var showingMicGainPopover = false
     @State private var showingAMCLevelPopover = false
+    @State private var showingVoxGainPopover = false
+    @State private var showingVoxDelayPopover = false
     @State private var activeDeepSettings: ActiveDeepSettings?
 
     /// Identifies which Deep Settings screen (see `DeepSettingsView`) is
@@ -156,7 +158,15 @@ public struct MenuPageView<Controller: RigController>: View {
     /// SPEED/PITCH, mapping to the FTX-1's raw "MG" command, 0-100), button
     /// 24 is AMC level (`RigCommand.setAMCLevel`, same popover-`Stepper`
     /// treatment, raw "AO" command, 1-100) — AMC (Automatic Mic Compressor)
-    /// is this rig's speech-compression output level.
+    /// is this rig's speech-compression output level. Button 25 is VOX
+    /// on/off (`RigCommand.setVox`, single-tap toggle like MOX/ATT, raw "VX"
+    /// command), button 26 is VOX gain (`RigCommand.setVoxGain`, popover
+    /// `Stepper` like MIC GAIN, raw "VG" command, 0-100), button 27 is VOX
+    /// delay (`RigCommand.setVoxDelay`, popover `Stepper` like BK-DELAY,
+    /// stepping through `RigDelayCode`'s 0-33 code range rather than
+    /// milliseconds directly, raw "VD" command — confirmed against real
+    /// hardware to share BK-DELAY's 100ms-step encoding despite the
+    /// manual's inconsistent step-size note, see `RigDelayCode`).
     /// CW button 2 is monitor level (`RigCommand.setMoniLevel`), button 8
     /// is the electronic keyer (`RigCommand.setKeyer`), button 9 is
     /// break-in (`RigCommand.setBreakIn`), button 10 is keyer speed
@@ -244,6 +254,12 @@ public struct MenuPageView<Controller: RigController>: View {
             micGainButton
         } else if selectedPage == .ssb, item == 24 {
             amcLevelButton
+        } else if selectedPage == .ssb, item == 25 {
+            voxButton
+        } else if selectedPage == .ssb, item == 26 {
+            voxGainButton
+        } else if selectedPage == .ssb, item == 27 {
+            voxDelayButton
         } else if selectedPage == .cw, item == 2 {
             moniLevelButton
         } else if selectedPage == .cw, item == 8 {
@@ -385,7 +401,7 @@ public struct MenuPageView<Controller: RigController>: View {
     /// Like CW SPEED/PITCH, BK-DELAY is numeric rather than on/off, so it
     /// gets the same tap-to-open-a-popover-`Stepper` treatment. Unlike
     /// those two, its raw "SD" values aren't evenly spaced (see
-    /// `BreakInDelay`), so the stepper steps through `BreakInDelay`'s 0-33
+    /// `RigDelayCode`), so the stepper steps through `RigDelayCode`'s 0-33
     /// code range rather than milliseconds directly, converting to/from
     /// ms only at the `RigCommand` boundary.
     private var bkDelayButton: some View {
@@ -395,18 +411,18 @@ public struct MenuPageView<Controller: RigController>: View {
             twoLineLabel(top: "BK-DELAY", bottom: hub.rigState.bkDelayMs.map { "\($0) ms" } ?? "—")
         }
         .popover(isPresented: $showingBKDelayPopover) {
-            let currentCode = BreakInDelay.code(forMilliseconds: hub.rigState.bkDelayMs ?? 300) ?? 6
+            let currentCode = RigDelayCode.code(forMilliseconds: hub.rigState.bkDelayMs ?? 300) ?? 6
             Stepper(
-                "\(BreakInDelay.milliseconds(forCode: currentCode) ?? 300) ms",
+                "\(RigDelayCode.milliseconds(forCode: currentCode) ?? 300) ms",
                 value: Binding(
                     get: { currentCode },
                     set: { code in
-                        if let ms = BreakInDelay.milliseconds(forCode: code) {
+                        if let ms = RigDelayCode.milliseconds(forCode: code) {
                             hub.send(.setBreakInDelay(ms: ms))
                         }
                     }
                 ),
-                in: 0...(BreakInDelay.allValuesMs.count - 1)
+                in: 0...(RigDelayCode.allValuesMs.count - 1)
             )
             .padding()
             .frame(width: 180)
@@ -606,6 +622,71 @@ public struct MenuPageView<Controller: RigController>: View {
                     set: { hub.send(.setAMCLevel($0)) }
                 ),
                 in: 1...100
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    /// SSB button 25, VOX — on/off like MOX/ATT/BK-IN/KEYER, so a single tap
+    /// just flips it rather than opening a popover. Maps to the FTX-1's raw
+    /// "VX" CAT command.
+    private var voxButton: some View {
+        menuButtonShell {
+            hub.send(.setVox(!(hub.rigState.voxEnabled ?? false)))
+        } label: {
+            twoLineLabel(top: "VOX", bottom: (hub.rigState.voxEnabled ?? false) ? "ON" : "OFF")
+        }
+    }
+
+    /// SSB button 26, VOX GAIN — numeric like MIC GAIN, same popover
+    /// `Stepper` treatment. Maps to the FTX-1's raw "VG" CAT command, a
+    /// plain 0-100 value with no P2 sub-function.
+    private var voxGainButton: some View {
+        menuButtonShell {
+            showingVoxGainPopover = true
+        } label: {
+            twoLineLabel(top: "VOX GAIN", bottom: hub.rigState.voxGain.map { "\($0)" } ?? "—")
+        }
+        .popover(isPresented: $showingVoxGainPopover) {
+            Stepper(
+                "\(hub.rigState.voxGain ?? 50)",
+                value: Binding(
+                    get: { hub.rigState.voxGain ?? 50 },
+                    set: { hub.send(.setVoxGain($0)) }
+                ),
+                in: 0...100
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    /// SSB button 27, VOX DELAY — numeric like BK-DELAY, same popover
+    /// `Stepper` treatment stepping through `RigDelayCode`'s 0-33 code range
+    /// rather than milliseconds directly. Maps to the FTX-1's raw "VD" CAT
+    /// command, which shares its non-linear encoding with BK-DELAY's "SD" —
+    /// see `RigDelayCode`'s doc comment for a manual inconsistency in "VD"'s
+    /// step-size note that's still unconfirmed against real hardware.
+    private var voxDelayButton: some View {
+        menuButtonShell {
+            showingVoxDelayPopover = true
+        } label: {
+            twoLineLabel(top: "VOX DELAY", bottom: hub.rigState.voxDelayMs.map { "\($0) ms" } ?? "—")
+        }
+        .popover(isPresented: $showingVoxDelayPopover) {
+            let currentCode = RigDelayCode.code(forMilliseconds: hub.rigState.voxDelayMs ?? 300) ?? 6
+            Stepper(
+                "\(RigDelayCode.milliseconds(forCode: currentCode) ?? 300) ms",
+                value: Binding(
+                    get: { currentCode },
+                    set: { code in
+                        if let ms = RigDelayCode.milliseconds(forCode: code) {
+                            hub.send(.setVoxDelay(ms: ms))
+                        }
+                    }
+                ),
+                in: 0...(RigDelayCode.allValuesMs.count - 1)
             )
             .padding()
             .frame(width: 180)

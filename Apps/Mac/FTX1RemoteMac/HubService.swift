@@ -179,6 +179,9 @@ final class HubService: ObservableObject {
         case .setDisplayMarker(let on): rigState.displayMarker = on
         case .setMicGain(let value): rigState.micGain = value
         case .setAMCLevel(let value): rigState.amcLevel = value
+        case .setVox(let on): rigState.voxEnabled = on
+        case .setVoxGain(let value): rigState.voxGain = value
+        case .setVoxDelay(let ms): rigState.voxDelayMs = ms
         // Momentary triggers, and CW MESSAGE record/select/play (whose
         // `cwMessageStatus` doesn't map 1:1 from any single command — see
         // RigState.cwMessageStatus) have no direct optimistic value; left
@@ -282,7 +285,7 @@ final class HubService: ObservableObject {
         // directly — see RigState.cwPitchHz.
         let cwPitchStep = try? await rigctld.getRawInt("KP")
         // "SD" reports delay as a non-linear 00-33 code, not milliseconds
-        // directly — see BreakInDelay.
+        // directly — see RigDelayCode.
         let bkDelayCode = try? await rigctld.getRawInt("SD")
         let cwSpot = try? await rigctld.getRawBool("CS")
         // "ML1" reads MONI level specifically — "ML0" would read MONI
@@ -303,6 +306,11 @@ final class HubService: ObservableObject {
         let displayMarker = try? await rigctld.getRawBool("SS02")
         let micGain = try? await rigctld.getRawInt("MG")
         let amcLevel = try? await rigctld.getRawInt("AO")
+        let voxEnabled = try? await rigctld.getRawBool("VX")
+        let voxGain = try? await rigctld.getRawInt("VG")
+        // "VD" reports delay as the same non-linear 00-33 code as "SD" — see
+        // RigDelayCode.
+        let voxDelayCode = try? await rigctld.getRawInt("VD")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -326,7 +334,7 @@ final class HubService: ObservableObject {
             keyerEnabled: keyerEnabled ?? rigState.keyerEnabled,
             cwSpeedWpm: cwSpeedWpm ?? rigState.cwSpeedWpm,
             cwPitchHz: cwPitchStep.map { 300 + $0 * 10 } ?? rigState.cwPitchHz,
-            bkDelayMs: (bkDelayCode.flatMap(BreakInDelay.milliseconds(forCode:))) ?? rigState.bkDelayMs,
+            bkDelayMs: (bkDelayCode.flatMap(RigDelayCode.milliseconds(forCode:))) ?? rigState.bkDelayMs,
             cwSpot: cwSpot ?? rigState.cwSpot,
             moniLevel: moniLevel ?? rigState.moniLevel,
             cwMessageStatus: cwMessageStatusRaw.flatMap(CWMessageStatus.init(rawValue:)) ?? rigState.cwMessageStatus,
@@ -341,6 +349,9 @@ final class HubService: ObservableObject {
             displayMarker: displayMarker ?? rigState.displayMarker,
             micGain: micGain ?? rigState.micGain,
             amcLevel: amcLevel ?? rigState.amcLevel,
+            voxEnabled: voxEnabled ?? rigState.voxEnabled,
+            voxGain: voxGain ?? rigState.voxGain,
+            voxDelayMs: (voxDelayCode.flatMap(RigDelayCode.milliseconds(forCode:))) ?? rigState.voxDelayMs,
             smeterDb: smeterDb ?? nil
         )
         await server.broadcast(rigState)

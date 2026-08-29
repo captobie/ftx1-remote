@@ -83,8 +83,8 @@ public actor CommandQueue {
             try await rigctld.setRawInt("KP", (hz - 300) / 10, digits: 2)
         case .setBreakInDelay(let ms):
             // The FTX-1's "SD" CAT command encodes delay as a non-linear
-            // 00-33 code, not milliseconds directly — see BreakInDelay.
-            guard let code = BreakInDelay.code(forMilliseconds: ms) else { return }
+            // 00-33 code, not milliseconds directly — see RigDelayCode.
+            guard let code = RigDelayCode.code(forMilliseconds: ms) else { return }
             try await rigctld.setRawInt("SD", code, digits: 2)
         case .setCWSpot(let on):
             try await rigctld.setRawBool("CS", on)
@@ -181,6 +181,16 @@ public actor CommandQueue {
             try await rigctld.setRawInt("MG", value, digits: 3)
         case .setAMCLevel(let value):
             try await rigctld.setRawInt("AO", value, digits: 3)
+        case .setVox(let on):
+            try await rigctld.setRawBool("VX", on)
+        case .setVoxGain(let value):
+            try await rigctld.setRawInt("VG", value, digits: 3)
+        case .setVoxDelay(let ms):
+            // Same non-linear 00-33 code as "SD" (see .setBreakInDelay) —
+            // see RigDelayCode's doc comment for the manual's inconsistent
+            // step-size note between the two commands.
+            guard let code = RigDelayCode.code(forMilliseconds: ms) else { return }
+            try await rigctld.setRawInt("VD", code, digits: 2)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try await rigctld.setMenuItem(p1: p1, p2: p2, p3: p3, rawValue: rawValue)
         }
