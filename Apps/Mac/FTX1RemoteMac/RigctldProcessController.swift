@@ -1,3 +1,4 @@
+import FTX1Core
 import Foundation
 
 /// Spawns and kills the `rigctld` daemon itself — this is the piece of the
@@ -33,18 +34,28 @@ final class RigctldProcessController {
     private var process: Process?
     var onStateChange: ((State) -> Void)?
 
-    /// Starts rigctld, first checking for — and clearing — a stale rigctld
-    /// left over from a previous run. Xcode's Stop button often hard-kills
-    /// the debuggee without running `applicationWillTerminate`, which can
-    /// orphan the rigctld child we spawned; if that happens, the next start
-    /// attempt would otherwise fail immediately because the old one is
-    /// still holding the port.
+    /// Starts rigctld, first checking whether one is already listening on
+    /// the configured port. If so, it's probed for liveness (`isHealthy`)
+    /// rather than killed outright: another client (e.g. WSJT-X) may be
+    /// mid-session with it, and killing-by-name unconditionally used to cut
+    /// that connection out from under it on every FTX1Remote launch. A
+    /// responsive instance is adopted — `process` stays nil, so `stop()`
+    /// later won't touch it either, leaving it running for whoever else is
+    /// using it. Only an unresponsive one is treated as stale and cleared:
+    /// Xcode's Stop button often hard-kills the debuggee without running
+    /// `applicationWillTerminate`, which can orphan the rigctld child we
+    /// spawned, and the next start attempt would otherwise fail immediately
+    /// because the dead one is still holding the port.
     func start(with config: Configuration) async {
         guard process == nil else { return }
         setState(.starting)
 
-        if let stalePID = await findRigctldListening(onPort: config.port) {
-            await terminate(pid: stalePID)
+        if let existingPID = await findRigctldListening(onPort: config.port) {
+            if await isHealthy(host: config.host, port: config.port) {
+                setState(.running)
+                return
+            }
+            await terminate(pid: existingPID)
         }
 
         let proc = Process()
@@ -119,6 +130,25 @@ final class RigctldProcessController {
     private func setState(_ newState: State) {
         state = newState
         onStateChange?(newState)
+    }
+
+    /// Probes whether a rigctld already listening on `host`/`port` actually
+    /// answers, so `start()` can adopt it instead of assuming "listening on
+    /// the port" alone means "safe to reuse." Only checks liveness (a
+    /// connect + one round trip) — not whether it was started with the same
+    /// model/device/baud rate as `config`, which this app has no way to ask
+    /// an already-running rigctld for.
+    private func isHealthy(host: String, port: UInt16) async -> Bool {
+        let client = RigctldClient(host: host, port: port)
+        do {
+            try await client.connect(timeout: .milliseconds(500))
+            _ = try await client.getFrequency()
+            await client.disconnect()
+            return true
+        } catch {
+            await client.disconnect()
+            return false
+        }
     }
 
     /// Looks for a process already listening on `port`. Only reports one
