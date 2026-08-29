@@ -54,6 +54,13 @@ final class AudioCaptureEngine {
     private let fftSetup: FFTSetup
     private let log2n: vDSP_Length
     private var isRunning = false
+    /// The caller's most recent intent, set synchronously in `start()`/
+    /// `stop()` — distinct from `isRunning` because granting microphone
+    /// access is asynchronous (see `start(deviceUID:)`), so there's a
+    /// window where a `stop()` can land before the engine has actually
+    /// started. Checked when the permission callback finally fires so a
+    /// disconnect during that window doesn't start capture anyway.
+    private var shouldBeRunning = false
 
     // User-adjustable zoom, on top of the auto-gain baseline above — the
     // up/down arrows in ContentView drive these through HubService, which
@@ -80,12 +87,62 @@ final class AudioCaptureEngine {
     /// default input", otherwise it's resolved back to a live
     /// `AudioDeviceID` via `AudioInputDeviceLister`. Safe to call again
     /// while already running (no-ops).
+    ///
+    /// Explicitly resolves the microphone permission prompt first, via
+    /// `AVCaptureDevice.requestAccess` — the very first connect after
+    /// install is also the very first time this app ever touches the mic,
+    /// and asking `AVAudioEngine` to start capturing while that system
+    /// prompt is still pending just throws, silently, with no retry. That
+    /// used to mean the display never activated on a first connect, only
+    /// on a second one (by which point the user had already answered the
+    /// prompt from the first attempt).
     func start(deviceUID: String) {
+        guard !shouldBeRunning else { return }
+        shouldBeRunning = true
+
+        AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+            Task { @MainActor in
+                guard let self, self.shouldBeRunning, granted else { return }
+                self.beginCapture(deviceUID: deviceUID)
+            }
+        }
+    }
+
+    /// True once `engine` — a single instance reused for the app's whole
+    /// lifetime, never recreated — has been started successfully at least
+    /// once. Its very first `start()` is unreliable about actually
+    /// delivering tap buffers (a known AVAudioEngine quirk, independent of
+    /// device selection or permissions), which is what made the display
+    /// never activate on a genuinely first connect while every connect
+    /// after a disconnect — really just the engine's *second* start() —
+    /// worked fine. See the warm-up cycle in `beginCapture`.
+    private var hasStartedEngineBefore = false
+
+    private func beginCapture(deviceUID: String) {
         guard !isRunning else { return }
+        startEngine(deviceUID: deviceUID)
+        guard isRunning, !hasStartedEngineBefore else { return }
+        hasStartedEngineBefore = true
 
+        // Silently do the "disconnect and reconnect" the user used to have
+        // to do by hand: stop this first start immediately and start again
+        // right away, so the engine's *second* start — the one that
+        // reliably delivers buffers — happens automatically before the
+        // user ever sees a dead display.
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+        isRunning = false
+        startEngine(deviceUID: deviceUID)
+    }
+
+    private func startEngine(deviceUID: String) {
         let inputNode = engine.inputNode
-        engine.prepare()
 
+        // Set before prepare()/start() — kAudioOutputUnitProperty_CurrentDevice
+        // needs to land before the underlying audio unit is initialized;
+        // setting it afterward risks being silently ignored, leaving
+        // capture on the system default device instead of the one chosen
+        // in Settings.
         if !deviceUID.isEmpty, let deviceID = AudioInputDeviceLister.deviceID(forUID: deviceUID),
            let audioUnit = inputNode.audioUnit {
             var mutableDeviceID = deviceID
@@ -99,11 +156,14 @@ final class AudioCaptureEngine {
             )
         }
 
-        // Created fresh per start() and captured directly by the tap
-        // closure below (not stored on self) — process(buffer:bitmap:gain:)
-        // runs on the tap's real-time audio thread, while start()/stop()
-        // run on the main actor, so there's no property shared across
-        // both that would need its own synchronization.
+        engine.prepare()
+
+        // Created fresh per startEngine() call and captured directly by
+        // the tap closure below (not stored on self) —
+        // process(buffer:bitmap:gain:) runs on the tap's real-time audio
+        // thread, while start()/stop() run on the main actor, so there's
+        // no property shared across both that would need its own
+        // synchronization.
         let bitmap = WaterfallBitmap(binCount: binCount, historyRows: historyRows)
         let gain = AutoGainState(minimumPeakDb: waterfallMinimumPeakDb, minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
 
@@ -131,8 +191,12 @@ final class AudioCaptureEngine {
     }
 
     /// Idempotent — safe to call when not running (e.g. `HubService`
-    /// calls this defensively on every path out of `.connected`).
+    /// calls this defensively on every path out of `.connected`), and
+    /// safe to call while a permission decision is still pending from
+    /// `start()` (clears `shouldBeRunning` so that callback becomes a
+    /// no-op instead of starting capture after the fact).
     func stop() {
+        shouldBeRunning = false
         guard isRunning else { return }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
