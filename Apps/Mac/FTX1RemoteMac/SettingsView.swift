@@ -39,6 +39,8 @@ struct SettingsView: View {
             TabView {
                 rigctldTab
                     .tabItem { Text("rigctld") }
+                AudioSettingsTab()
+                    .tabItem { Text("Audio") }
                 AppearanceSettingsTab()
                     .tabItem { Text("Appearance") }
             }
@@ -156,6 +158,43 @@ struct SettingsView: View {
             paths.append(binaryPath)
         }
         availableBinaryPaths = paths.sorted()
+    }
+}
+
+/// Sound card input selection, ahead of features that will need it (e.g. a
+/// waterfall/spectrum display). Applies instantly via `@AppStorage`, same
+/// as `AppearanceSettingsTab` below — picking from an enumerated device
+/// list has no invalid-input failure mode, unlike the rigctld tab's free-
+/// text fields.
+private struct AudioSettingsTab: View {
+    @AppStorage(AudioInputSettings.deviceUIDKey) private var deviceUID = ""
+    @State private var availableDevices: [AudioInputDevice] = []
+
+    var body: some View {
+        Form {
+            Picker("Input device", selection: $deviceUID) {
+                Text("System Default").tag("")
+                ForEach(availableDevices) { device in
+                    Text(device.name).tag(device.uid)
+                }
+            }
+            Text("Used by future audio features, such as a waterfall display, not by the rig connection itself.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.top, 8)
+        .onAppear { refreshAvailableDevices() }
+    }
+
+    /// Keeps the currently configured device in the list even if it's not
+    /// currently plugged in, so an offline sound card doesn't lose its
+    /// setting — same reasoning as `SettingsView.refreshAvailableDevices`.
+    private func refreshAvailableDevices() {
+        var devices = AudioInputDeviceLister.availableInputDevices()
+        if !deviceUID.isEmpty, !devices.contains(where: { $0.uid == deviceUID }) {
+            devices.append(AudioInputDevice(id: 0, uid: deviceUID, name: "\(deviceUID) (not connected)"))
+        }
+        availableDevices = devices
     }
 }
 
