@@ -85,6 +85,11 @@ public struct RigState: Codable, Equatable, Sendable {
     public var displayPeak: Int?
     /// Spectrum scope marker on/off — "SS"'s MARKER sub-function, P2=2.
     public var displayMarker: Bool?
+    /// Microphone gain, 0-100 (the FTX-1's raw "MG" CAT command).
+    public var micGain: Int?
+    /// AMC (Automatic Mic Compressor) output level, 1-100 (the FTX-1's raw
+    /// "AO" CAT command).
+    public var amcLevel: Int?
     /// Received signal strength in dB relative to S9 (hamlib's "STRENGTH"
     /// level convention: S0 ≈ -54, S9 = 0, "+60" = +60). nil when there's
     /// no current reading — e.g. before the first poll, or while
@@ -120,6 +125,8 @@ public struct RigState: Codable, Equatable, Sendable {
         displayLevel: Double? = nil,
         displayPeak: Int? = nil,
         displayMarker: Bool? = nil,
+        micGain: Int? = nil,
+        amcLevel: Int? = nil,
         smeterDb: Double? = nil
     ) {
         self.frequencyHz = frequencyHz
@@ -149,6 +156,8 @@ public struct RigState: Codable, Equatable, Sendable {
         self.displayLevel = displayLevel
         self.displayPeak = displayPeak
         self.displayMarker = displayMarker
+        self.micGain = micGain
+        self.amcLevel = amcLevel
         self.smeterDb = smeterDb
     }
 }

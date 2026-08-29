@@ -177,6 +177,10 @@ public actor CommandQueue {
             try await rigctld.setRawPackedDigit("SS01", level, trailingZeros: 4)
         case .setDisplayMarker(let on):
             try await rigctld.setRawPackedDigit("SS02", on ? 1 : 0, trailingZeros: 4)
+        case .setMicGain(let value):
+            try await rigctld.setRawInt("MG", value, digits: 3)
+        case .setAMCLevel(let value):
+            try await rigctld.setRawInt("AO", value, digits: 3)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try await rigctld.setMenuItem(p1: p1, p2: p2, p3: p3, rawValue: rawValue)
         }

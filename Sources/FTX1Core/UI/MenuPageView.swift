@@ -77,6 +77,8 @@ public struct MenuPageView<Controller: RigController>: View {
     @State private var showingRFPowerPopover = false
     @State private var isDraggingRFPower = false
     @State private var localRFPowerLevel: Double = 0
+    @State private var showingMicGainPopover = false
+    @State private var showingAMCLevelPopover = false
     @State private var activeDeepSettings: ActiveDeepSettings?
 
     /// Identifies which Deep Settings screen (see `DeepSettingsView`) is
@@ -149,7 +151,12 @@ public struct MenuPageView<Controller: RigController>: View {
     /// antenna tuner on/off (`RigCommand.setTuner`, single-tap toggle like
     /// MOX/ATT). Button 17 has no rig function on this page — confirmed
     /// against the real MENU display, same reasoning as `hiddenCWItems`
-    /// below — and renders invisibly via `hiddenButtonPlaceholder`.
+    /// below — and renders invisibly via `hiddenButtonPlaceholder`. Button
+    /// 23 is mic gain (`RigCommand.setMicGain`, popover `Stepper` like CW
+    /// SPEED/PITCH, mapping to the FTX-1's raw "MG" command, 0-100), button
+    /// 24 is AMC level (`RigCommand.setAMCLevel`, same popover-`Stepper`
+    /// treatment, raw "AO" command, 1-100) — AMC (Automatic Mic Compressor)
+    /// is this rig's speech-compression output level.
     /// CW button 2 is monitor level (`RigCommand.setMoniLevel`), button 8
     /// is the electronic keyer (`RigCommand.setKeyer`), button 9 is
     /// break-in (`RigCommand.setBreakIn`), button 10 is keyer speed
@@ -233,6 +240,10 @@ public struct MenuPageView<Controller: RigController>: View {
             }
         } else if selectedPage == .ssb, item == 17 {
             hiddenButtonPlaceholder(for: item)
+        } else if selectedPage == .ssb, item == 23 {
+            micGainButton
+        } else if selectedPage == .ssb, item == 24 {
+            amcLevelButton
         } else if selectedPage == .cw, item == 2 {
             moniLevelButton
         } else if selectedPage == .cw, item == 8 {
@@ -548,6 +559,54 @@ public struct MenuPageView<Controller: RigController>: View {
                     }
                 )
             }
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    /// SSB button 23, MIC GAIN — numeric like CW SPEED/PITCH/BK-DELAY/MONI
+    /// LEVEL, so it gets the same tap-to-open-a-popover-`Stepper` treatment.
+    /// Maps to the FTX-1's raw "MG" CAT command, a plain 0-100 value with no
+    /// P2 sub-function (unlike D-CONTRAST/DIMMER's packed "DA").
+    private var micGainButton: some View {
+        menuButtonShell {
+            showingMicGainPopover = true
+        } label: {
+            twoLineLabel(top: "MIC GAIN", bottom: hub.rigState.micGain.map { "\($0)" } ?? "—")
+        }
+        .popover(isPresented: $showingMicGainPopover) {
+            Stepper(
+                "\(hub.rigState.micGain ?? 50)",
+                value: Binding(
+                    get: { hub.rigState.micGain ?? 50 },
+                    set: { hub.send(.setMicGain($0)) }
+                ),
+                in: 0...100
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    /// SSB button 24, AMC LEVEL (Automatic Mic Compressor output level) —
+    /// same popover-`Stepper` treatment as `micGainButton`, mapping to the
+    /// FTX-1's raw "AO" CAT command. Its documented range is 1-100 (not
+    /// 0-100 like MIC GAIN).
+    private var amcLevelButton: some View {
+        menuButtonShell {
+            showingAMCLevelPopover = true
+        } label: {
+            twoLineLabel(top: "AMC LEVEL", bottom: hub.rigState.amcLevel.map { "\($0)" } ?? "—")
+        }
+        .popover(isPresented: $showingAMCLevelPopover) {
+            Stepper(
+                "\(hub.rigState.amcLevel ?? 50)",
+                value: Binding(
+                    get: { hub.rigState.amcLevel ?? 50 },
+                    set: { hub.send(.setAMCLevel($0)) }
+                ),
+                in: 1...100
+            )
             .padding()
             .frame(width: 180)
         }
