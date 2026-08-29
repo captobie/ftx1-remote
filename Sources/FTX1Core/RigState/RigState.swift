@@ -118,13 +118,14 @@ public struct RigState: Codable, Equatable, Sendable {
     /// treatment as `RigctldClient.getTunerEnabled()`'s "AC" command.
     public var agcMode: Int?
     /// Parametric Microphone Equalizer on/off (the FTX-1's raw "PR" CAT
-    /// command, P1 fixed to "1" — see `RigCommand.setMicEQ`). "PR"'s own P2
-    /// field is 1/2, not the usual 0/1 — and the manual's stated mapping
-    /// (1: OFF, 2: ON) is **confirmed backwards against real hardware**:
-    /// P2=1 is actually ON, P2=2 is actually OFF. This property itself is a
-    /// normal `Bool`; the raw-value encoding/decoding (using the
-    /// hardware-confirmed mapping, not the manual's) lives in
-    /// `CommandQueue`/`HubService.refreshState`.
+    /// command, P1 fixed to "1" — see `RigCommand.setMicEQ`). **The
+    /// manual's documented P2 values (1: OFF, 2: ON) are confirmed simply
+    /// wrong against real hardware** — a live probe read the rig's actual
+    /// current P2 back as "0" (a value the manual doesn't even list), and
+    /// toggling between "PR10;"/"PR11;", confirmed against the rig's own
+    /// display after each write, showed the real encoding is plain 0/1 —
+    /// same shape as every other boolean raw command here (`getRawBool`/
+    /// `setRawBool`), not the special 1/2 case it was briefly coded as.
     public var micEQEnabled: Bool?
     /// Speech processor (compressor) level, 0-100 (the FTX-1's raw "PL"
     /// CAT command). 0 means "OFF" per the manual, same convention as

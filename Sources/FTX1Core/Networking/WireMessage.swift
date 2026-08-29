@@ -132,11 +132,11 @@ public enum RigCommand: Sendable, Equatable {
     /// Maps to the FTX-1's raw "PR" (SPEECH PROCESSOR) CAT command, P1 fixed
     /// to "1" (Parametric Microphone Equalizer, as opposed to P1=0, the
     /// separate Speech Processor master on/off this app doesn't expose).
-    /// Unlike every other boolean here, "PR"'s own P2 is 1/2 rather than
-    /// 0/1 — and the manual's documented mapping (1: OFF, 2: ON) is
-    /// confirmed backwards against real hardware (P2=1 is actually ON).
-    /// Encoding/decoding this (using the hardware-confirmed mapping) is
-    /// `CommandQueue`'s/`HubService`'s job, not this case's.
+    /// The manual documents its own P2 as 1: OFF, 2: ON, but that's
+    /// confirmed simply wrong against real hardware — see
+    /// `RigState.micEQEnabled`'s doc comment. Real P2 is plain 0/1, so this
+    /// is a normal `setRawBool`/`getRawBool` case in `CommandQueue`/
+    /// `HubService`, no special encoding needed after all.
     case setMicEQ(Bool)
     /// Speech processor (compressor) level, 0-100 — see `RigState.
     /// procLevel`. 0 reads/sets as "OFF" per the manual, same convention as
