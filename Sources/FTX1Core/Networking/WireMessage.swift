@@ -117,6 +117,17 @@ public enum RigCommand: Sendable, Equatable {
     /// allValuesMs`, same non-linear 00-33 code as `setBreakInDelay`. See
     /// `RigState.voxDelayMs`. Maps to the FTX-1's raw "VD" CAT command.
     case setVoxDelay(ms: Int)
+    /// Auto notch (DNF, "Digital Notch Filter" on the rig's own button
+    /// label) on/off — see `RigState.dnfEnabled`. Maps to the FTX-1's raw
+    /// "BC" CAT command, P1 fixed to "0" (MAIN-side), same fixed-sub-
+    /// selector shape as "RA0"/"ML1".
+    case setDNF(Bool)
+    /// AGC mode, 0-4 (OFF/FAST/MID/SLOW/AUTO) — see `RigState.agcMode`.
+    /// Maps to the FTX-1's raw "GT" CAT command, P1 fixed to "0"
+    /// (MAIN-side). Only 0-4 are valid to *set*; the Read side can answer
+    /// with 5/6 too (AUTO-MID/AUTO-SLOW, sub-states of AUTO) — see
+    /// `RigctldClient`'s "GT0" read and `RigState.agcMode`'s doc comment.
+    case setAGC(mode: Int)
     /// Writes one item of the FTX-1's deep SET-mode settings (Radio/CW/
     /// Operation/Display/Extension/APRS Setting — see
     /// `DeepSettingsCatalog`), addressed by `p1`/`p2`/`p3` (category/tab/
@@ -173,6 +184,8 @@ public enum RigCommand: Sendable, Equatable {
         case setVox = "set_vox"
         case setVoxGain = "set_vox_gain"
         case setVoxDelay = "set_vox_delay"
+        case setDNF = "set_dnf"
+        case setAGC = "set_agc"
         case setMenuItem = "set_menu_item"
     }
 }
@@ -244,6 +257,10 @@ extension RigCommand: Codable {
             self = .setVoxGain(try container.decode(Int.self, forKey: .value))
         case .setVoxDelay:
             self = .setVoxDelay(ms: try container.decode(Int.self, forKey: .value))
+        case .setDNF:
+            self = .setDNF(try container.decode(Bool.self, forKey: .value))
+        case .setAGC:
+            self = .setAGC(mode: try container.decode(Int.self, forKey: .value))
         case .setMenuItem:
             let payload = try container.decode(MenuItemPayload.self, forKey: .value)
             self = .setMenuItem(p1: payload.p1, p2: payload.p2, p3: payload.p3, rawValue: payload.rawValue)
@@ -344,6 +361,12 @@ extension RigCommand: Codable {
         case .setVoxDelay(let ms):
             try container.encode(CommandName.setVoxDelay, forKey: .cmd)
             try container.encode(ms, forKey: .value)
+        case .setDNF(let on):
+            try container.encode(CommandName.setDNF, forKey: .cmd)
+            try container.encode(on, forKey: .value)
+        case .setAGC(let mode):
+            try container.encode(CommandName.setAGC, forKey: .cmd)
+            try container.encode(mode, forKey: .value)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try container.encode(CommandName.setMenuItem, forKey: .cmd)
             try container.encode(MenuItemPayload(p1: p1, p2: p2, p3: p3, rawValue: rawValue), forKey: .value)

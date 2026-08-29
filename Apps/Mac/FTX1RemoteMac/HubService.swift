@@ -192,6 +192,8 @@ final class HubService: ObservableObject {
         case .setVox(let on): rigState.voxEnabled = on
         case .setVoxGain(let value): rigState.voxGain = value
         case .setVoxDelay(let ms): rigState.voxDelayMs = ms
+        case .setDNF(let on): rigState.dnfEnabled = on
+        case .setAGC(let mode): rigState.agcMode = mode
         // Momentary triggers, and CW MESSAGE record/select/play (whose
         // `cwMessageStatus` doesn't map 1:1 from any single command — see
         // RigState.cwMessageStatus) have no direct optimistic value; left
@@ -352,6 +354,13 @@ final class HubService: ObservableObject {
         // "VD" reports delay as the same non-linear 00-33 code as "SD" — see
         // RigDelayCode.
         let voxDelayCode = try? await rigctld.getRawInt("VD")
+        // "BC0" reads AUTO NOTCH (DNF) with its fixed MAIN-side P1 baked in,
+        // same shape as "RA0"/"MX" above.
+        let dnfEnabled = try? await rigctld.getRawBool("BC0")
+        // "GT0" reads AGC with its fixed MAIN-side P1 baked in — unlike the
+        // Set side (0-4 only), the Answer's value digit can come back 0-6;
+        // see RigState.agcMode for why that's still fine to store as-is.
+        let agcMode = try? await rigctld.getRawInt("GT0")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -393,7 +402,9 @@ final class HubService: ObservableObject {
             voxEnabled: voxEnabled ?? rigState.voxEnabled,
             voxGain: voxGain ?? rigState.voxGain,
             voxDelayMs: (voxDelayCode.flatMap(RigDelayCode.milliseconds(forCode:))) ?? rigState.voxDelayMs,
-            smeterDb: smeterDb ?? nil
+            smeterDb: smeterDb ?? nil,
+            dnfEnabled: dnfEnabled ?? rigState.dnfEnabled,
+            agcMode: agcMode ?? rigState.agcMode
         )
         await server.broadcast(rigState)
     }

@@ -104,6 +104,19 @@ public struct RigState: Codable, Equatable, Sendable {
     /// transmitting — so the meter needle can fall to rest rather than
     /// freeze on a stale value.
     public var smeterDb: Double?
+    /// Auto notch (DNF) on/off (the FTX-1's raw "BC" CAT command, P1 fixed
+    /// to MAIN-side).
+    public var dnfEnabled: Bool?
+    /// AGC mode (the FTX-1's raw "GT" CAT command, P1 fixed to MAIN-side):
+    /// 0 OFF, 1 FAST, 2 MID, 3 SLOW, 4 AUTO — those five are the only values
+    /// the Set side accepts. The Read side's Answer can also report 5
+    /// (AUTO-MID) or 6 (AUTO-SLOW), sub-states AGC settles into while in
+    /// AUTO mode rather than distinct settings a user chose — treat 4/5/6
+    /// as all meaning "AUTO" for display (see `MenuPageView.agcLabel(_:)`),
+    /// and collapse them before cycling to the next mode on a tap (see
+    /// `MenuPageView.agcCollapsedMode(_:)`), same asymmetric P1/P3
+    /// treatment as `RigctldClient.getTunerEnabled()`'s "AC" command.
+    public var agcMode: Int?
 
     public init(
         frequencyHz: Int = 0,
@@ -138,7 +151,9 @@ public struct RigState: Codable, Equatable, Sendable {
         voxEnabled: Bool? = nil,
         voxGain: Int? = nil,
         voxDelayMs: Int? = nil,
-        smeterDb: Double? = nil
+        smeterDb: Double? = nil,
+        dnfEnabled: Bool? = nil,
+        agcMode: Int? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -173,6 +188,8 @@ public struct RigState: Codable, Equatable, Sendable {
         self.voxGain = voxGain
         self.voxDelayMs = voxDelayMs
         self.smeterDb = smeterDb
+        self.dnfEnabled = dnfEnabled
+        self.agcMode = agcMode
     }
 }
 
