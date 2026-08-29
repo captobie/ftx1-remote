@@ -101,6 +101,12 @@ public enum RigCommand: Sendable, Equatable {
     /// Spectrum scope marker on/off — see `RigState.displayMarker`. Maps to
     /// "SS"'s MARKER sub-function (P2=2).
     case setDisplayMarker(Bool)
+    /// Microphone gain, 0-100 — see `RigState.micGain`. Maps to the FTX-1's
+    /// raw "MG" CAT command.
+    case setMicGain(Int)
+    /// AMC (Automatic Mic Compressor) output level, 1-100 — see
+    /// `RigState.amcLevel`. Maps to the FTX-1's raw "AO" CAT command.
+    case setAMCLevel(Int)
     /// Writes one item of the FTX-1's deep SET-mode settings (Radio/CW/
     /// Operation/Display/Extension/APRS Setting — see
     /// `DeepSettingsCatalog`), addressed by `p1`/`p2`/`p3` (category/tab/
@@ -152,6 +158,8 @@ public enum RigCommand: Sendable, Equatable {
         case setDisplayLevel = "set_display_level"
         case setDisplayPeak = "set_display_peak"
         case setDisplayMarker = "set_display_marker"
+        case setMicGain = "set_mic_gain"
+        case setAMCLevel = "set_amc_level"
         case setMenuItem = "set_menu_item"
     }
 }
@@ -213,6 +221,10 @@ extension RigCommand: Codable {
             self = .setDisplayPeak(try container.decode(Int.self, forKey: .value))
         case .setDisplayMarker:
             self = .setDisplayMarker(try container.decode(Bool.self, forKey: .value))
+        case .setMicGain:
+            self = .setMicGain(try container.decode(Int.self, forKey: .value))
+        case .setAMCLevel:
+            self = .setAMCLevel(try container.decode(Int.self, forKey: .value))
         case .setMenuItem:
             let payload = try container.decode(MenuItemPayload.self, forKey: .value)
             self = .setMenuItem(p1: payload.p1, p2: payload.p2, p3: payload.p3, rawValue: payload.rawValue)
@@ -298,6 +310,12 @@ extension RigCommand: Codable {
         case .setDisplayMarker(let on):
             try container.encode(CommandName.setDisplayMarker, forKey: .cmd)
             try container.encode(on, forKey: .value)
+        case .setMicGain(let value):
+            try container.encode(CommandName.setMicGain, forKey: .cmd)
+            try container.encode(value, forKey: .value)
+        case .setAMCLevel(let value):
+            try container.encode(CommandName.setAMCLevel, forKey: .cmd)
+            try container.encode(value, forKey: .value)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try container.encode(CommandName.setMenuItem, forKey: .cmd)
             try container.encode(MenuItemPayload(p1: p1, p2: p2, p3: p3, rawValue: rawValue), forKey: .value)

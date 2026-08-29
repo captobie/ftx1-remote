@@ -177,6 +177,8 @@ final class HubService: ObservableObject {
         case .setDisplayLevel(let dB): rigState.displayLevel = dB
         case .setDisplayPeak(let level): rigState.displayPeak = level
         case .setDisplayMarker(let on): rigState.displayMarker = on
+        case .setMicGain(let value): rigState.micGain = value
+        case .setAMCLevel(let value): rigState.amcLevel = value
         // Momentary triggers, and CW MESSAGE record/select/play (whose
         // `cwMessageStatus` doesn't map 1:1 from any single command — see
         // RigState.cwMessageStatus) have no direct optimistic value; left
@@ -299,6 +301,8 @@ final class HubService: ObservableObject {
         // wouldn't parse these correctly.
         let displayPeak = try? await rigctld.getRawDigit("SS01")
         let displayMarker = try? await rigctld.getRawBool("SS02")
+        let micGain = try? await rigctld.getRawInt("MG")
+        let amcLevel = try? await rigctld.getRawInt("AO")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -335,6 +339,8 @@ final class HubService: ObservableObject {
             displayLevel: displayLevel ?? rigState.displayLevel,
             displayPeak: displayPeak ?? rigState.displayPeak,
             displayMarker: displayMarker ?? rigState.displayMarker,
+            micGain: micGain ?? rigState.micGain,
+            amcLevel: amcLevel ?? rigState.amcLevel,
             smeterDb: smeterDb ?? nil
         )
         await server.broadcast(rigState)
