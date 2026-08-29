@@ -82,6 +82,8 @@ public struct MenuPageView<Controller: RigController>: View {
     @State private var showingVoxGainPopover = false
     @State private var showingVoxDelayPopover = false
     @State private var showingProcLevelPopover = false
+    @State private var showingNBLevelPopover = false
+    @State private var showingDNRLevelPopover = false
     @State private var activeDeepSettings: ActiveDeepSettings?
 
     /// Identifies which Deep Settings screen (see `DeepSettingsView`) is
@@ -171,7 +173,31 @@ public struct MenuPageView<Controller: RigController>: View {
     /// MOX/ATT). Button 17 has no rig function on this page — confirmed
     /// against the real MENU display, same reasoning as `hiddenCWItems`
     /// below — and renders invisibly via `hiddenButtonPlaceholder`. Button
-    /// 23 is mic gain (`RigCommand.setMicGain`, popover `Stepper` like CW
+    /// 18 is NB (`RigCommand.setNBLevel`, popover `Stepper` like MONI LEVEL/
+    /// PROC LEVEL, 0-10, raw "NL" NOISE BLANKER LEVEL command with fixed
+    /// MAIN-side P1 — 0 reads "OFF" per the manual, same convention as those
+    /// two, see `nbLevelLabel(_:)`), button 19 is DNR (`RigCommand.
+    /// setDNRLevel`, same popover-`Stepper` treatment, raw "RL" NOISE
+    /// REDUCTION LEVEL command, also fixed-P1/0-10/0-is-OFF, see
+    /// `dnrLevelLabel(_:)`). Button 20 is ANT (`RigCommand.setAntSelect`,
+    /// single-tap toggle like IPO/AMP rather than a popover, cycling ANT1/
+    /// ANT2) — unlike every other numbered-grid button, this has no
+    /// dedicated 2-letter mnemonic at all; it's Table 3's "HF ANT SELECT"
+    /// item (`DeepSettingsCatalog`'s OPERATION SETTING / OPTION / p3=4),
+    /// reusing the generic "EX" `RigCommand.setMenuItem`/`RigctldClient.
+    /// getMenuItem` passthrough Deep Settings uses, just for this one fixed
+    /// address rather than the on-demand per-item read `DeepSettingsView`
+    /// needs — `HubService`'s regular poll loop reads it like every other
+    /// field here, so this doesn't need the wire-protocol request/response
+    /// addition that gates Deep Settings on mobile (see the Architecture
+    /// note in CLAUDE.md). Button 21 is TXW (`RigCommand.setTXW`, raw "TS"
+    /// command — unlike most booleans here, "TS" has no MAIN/SUB P1
+    /// selector at all, just a bare digit) — hardware-confirmed working,
+    /// but visible-but-disabled via `disabledTXWButton` since the user
+    /// doesn't know what it does or use it, same deprioritized treatment as
+    /// CW MESSAGE/PLAY/RECORD below. NB/DNR/ANT are hardware-confirmed
+    /// working too.
+    /// Button 23 is mic gain (`RigCommand.setMicGain`, popover `Stepper` like CW
     /// SPEED/PITCH, mapping to the FTX-1's raw "MG" command, 0-100), button
     /// 24 is AMC level (`RigCommand.setAMCLevel`, same popover-`Stepper`
     /// treatment, raw "AO" command, 1-100) — AMC (Automatic Mic Compressor)
@@ -287,6 +313,18 @@ public struct MenuPageView<Controller: RigController>: View {
             }
         } else if selectedPage == .ssb, item == 17 {
             hiddenButtonPlaceholder(for: item)
+        } else if selectedPage == .ssb, item == 18 {
+            nbLevelButton
+        } else if selectedPage == .ssb, item == 19 {
+            dnrLevelButton
+        } else if selectedPage == .ssb, item == 20 {
+            menuButtonShell {
+                hub.send(.setAntSelect(((hub.rigState.antSelect ?? 0) + 1) % 2))
+            } label: {
+                twoLineLabel(top: "ANT", bottom: Self.antSelectLabel(hub.rigState.antSelect))
+            }
+        } else if selectedPage == .ssb, item == 21 {
+            disabledTXWButton
         } else if selectedPage == .ssb, item == 23 {
             micGainButton
         } else if selectedPage == .ssb, item == 24 {
@@ -695,6 +733,77 @@ public struct MenuPageView<Controller: RigController>: View {
         return level == 0 ? "OFF" : "\(level)"
     }
 
+    /// SSB button 18, NB — numeric like MONI LEVEL/PROC LEVEL, same popover
+    /// `Stepper` treatment, mapping to the FTX-1's raw "NL" (NOISE BLANKER
+    /// LEVEL) CAT command, 0-10.
+    private var nbLevelButton: some View {
+        menuButtonShell {
+            showingNBLevelPopover = true
+        } label: {
+            twoLineLabel(top: "NB", bottom: Self.nbLevelLabel(hub.rigState.nbLevel))
+        }
+        .popover(isPresented: $showingNBLevelPopover) {
+            Stepper(
+                Self.nbLevelLabel(hub.rigState.nbLevel ?? 5),
+                value: Binding(
+                    get: { hub.rigState.nbLevel ?? 5 },
+                    set: { hub.send(.setNBLevel($0)) }
+                ),
+                in: 0...10
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    /// 0 reads as "OFF" (see `nbLevelButton`); `nil` (no poll yet) as "—".
+    private static func nbLevelLabel(_ level: Int?) -> String {
+        guard let level else { return "—" }
+        return level == 0 ? "OFF" : "\(level)"
+    }
+
+    /// SSB button 19, DNR — numeric like NB, same popover `Stepper`
+    /// treatment, mapping to the FTX-1's raw "RL" (NOISE REDUCTION LEVEL)
+    /// CAT command, 0-10.
+    private var dnrLevelButton: some View {
+        menuButtonShell {
+            showingDNRLevelPopover = true
+        } label: {
+            twoLineLabel(top: "DNR", bottom: Self.dnrLevelLabel(hub.rigState.dnrLevel))
+        }
+        .popover(isPresented: $showingDNRLevelPopover) {
+            Stepper(
+                Self.dnrLevelLabel(hub.rigState.dnrLevel ?? 5),
+                value: Binding(
+                    get: { hub.rigState.dnrLevel ?? 5 },
+                    set: { hub.send(.setDNRLevel($0)) }
+                ),
+                in: 0...10
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    /// 0 reads as "OFF" (see `dnrLevelButton`); `nil` (no poll yet) as "—".
+    private static func dnrLevelLabel(_ level: Int?) -> String {
+        guard let level else { return "—" }
+        return level == 0 ? "OFF" : "\(level)"
+    }
+
+    /// SSB button 20, ANT — cycles ANT1/ANT2 on each tap like IPO/AMP,
+    /// matching a physical MENU button's own behavior for a small fixed
+    /// choice set. See `RigState.antSelect`'s doc comment for why this one
+    /// button goes through the generic "EX" passthrough rather than a
+    /// dedicated mnemonic.
+    private static func antSelectLabel(_ mode: Int?) -> String {
+        switch mode {
+        case 0: "ANT1"
+        case 1: "ANT2"
+        default: "—"
+        }
+    }
+
     /// SSB button 25, VOX — on/off like MOX/ATT/BK-IN/KEYER, so a single tap
     /// just flips it rather than opening a popover. Maps to the FTX-1's raw
     /// "VX" CAT command.
@@ -851,11 +960,24 @@ public struct MenuPageView<Controller: RigController>: View {
         disabledPlaceholderButton(top: top)
     }
 
+    /// SSB button 21, TXW. Wired end-to-end (`RigCommand.setTXW`, raw "TS"
+    /// CAT command) and confirmed it *works* against real hardware — but
+    /// the user doesn't know what TXW actually does or use it, so rather
+    /// than surface a live toggle for a function that's a mystery in
+    /// practice, this is deprioritized the same way CW MESSAGE/PLAY/RECORD
+    /// are above: visible-but-disabled, plumbing left in place
+    /// (`RigState.txwEnabled`, `CommandQueue`, `HubService`'s optimistic-
+    /// apply + poll) so it's ready to reconnect if a future need for it
+    /// turns up.
+    private var disabledTXWButton: some View {
+        disabledPlaceholderButton(top: "TXW")
+    }
+
     /// Visible-but-disabled placeholder for a button whose rig label is
     /// known but which isn't wired to a CAT command yet (either because none
     /// exists, like SSB's D-COLOR, or because it's deprioritized, like CW
-    /// MESSAGE/PLAY/RECORD above) — shows the real name instead of a bare
-    /// numbered placeholder, without implying it's tappable.
+    /// MESSAGE/PLAY/RECORD and TXW above) — shows the real name instead of a
+    /// plain numbered placeholder, without implying it's tappable.
     private func disabledPlaceholderButton(top: String) -> some View {
         menuButtonShell {
             // Deliberately a no-op — see callers' doc comments above.

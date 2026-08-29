@@ -143,6 +143,23 @@ public enum RigCommand: Sendable, Equatable {
     /// `RigState.moniLevel`. Maps to the FTX-1's raw "PL" (SPEECH PROCESSOR
     /// LEVEL) CAT command.
     case setProcLevel(Int)
+    /// Noise blanker level, 0-10 — see `RigState.nbLevel`. 0 reads/sets as
+    /// "OFF" per the manual, same convention as `setProcLevel`. Maps to the
+    /// FTX-1's raw "NL" (NOISE BLANKER LEVEL) CAT command, P1 fixed to "0"
+    /// (MAIN-side).
+    case setNBLevel(Int)
+    /// Digital noise reduction (DNR) level, 0-10 — see `RigState.dnrLevel`.
+    /// Maps to the FTX-1's raw "RL" (NOISE REDUCTION LEVEL) CAT command, P1
+    /// fixed to "0" (MAIN-side), same shape as `setNBLevel`.
+    case setDNRLevel(Int)
+    /// HF antenna connector selector: 0 = ANT1, 1 = ANT2 — see
+    /// `RigState.antSelect`. No dedicated mnemonic; goes through the same
+    /// "EX" (MENU) passthrough as `.setMenuItem` below, addressed at Table
+    /// 3's fixed p1=3/p2=7/p3=4 ("HF ANT SELECT").
+    case setAntSelect(Int)
+    /// TXW on/off — see `RigState.txwEnabled`. Maps to the FTX-1's raw "TS"
+    /// CAT command, a bare boolean with no MAIN/SUB P1 selector.
+    case setTXW(Bool)
     /// Writes one item of the FTX-1's deep SET-mode settings (Radio/CW/
     /// Operation/Display/Extension/APRS Setting — see
     /// `DeepSettingsCatalog`), addressed by `p1`/`p2`/`p3` (category/tab/
@@ -203,6 +220,10 @@ public enum RigCommand: Sendable, Equatable {
         case setAGC = "set_agc"
         case setMicEQ = "set_mic_eq"
         case setProcLevel = "set_proc_level"
+        case setNBLevel = "set_nb_level"
+        case setDNRLevel = "set_dnr_level"
+        case setAntSelect = "set_ant_select"
+        case setTXW = "set_txw"
         case setMenuItem = "set_menu_item"
     }
 }
@@ -282,6 +303,14 @@ extension RigCommand: Codable {
             self = .setMicEQ(try container.decode(Bool.self, forKey: .value))
         case .setProcLevel:
             self = .setProcLevel(try container.decode(Int.self, forKey: .value))
+        case .setNBLevel:
+            self = .setNBLevel(try container.decode(Int.self, forKey: .value))
+        case .setDNRLevel:
+            self = .setDNRLevel(try container.decode(Int.self, forKey: .value))
+        case .setAntSelect:
+            self = .setAntSelect(try container.decode(Int.self, forKey: .value))
+        case .setTXW:
+            self = .setTXW(try container.decode(Bool.self, forKey: .value))
         case .setMenuItem:
             let payload = try container.decode(MenuItemPayload.self, forKey: .value)
             self = .setMenuItem(p1: payload.p1, p2: payload.p2, p3: payload.p3, rawValue: payload.rawValue)
@@ -394,6 +423,18 @@ extension RigCommand: Codable {
         case .setProcLevel(let level):
             try container.encode(CommandName.setProcLevel, forKey: .cmd)
             try container.encode(level, forKey: .value)
+        case .setNBLevel(let level):
+            try container.encode(CommandName.setNBLevel, forKey: .cmd)
+            try container.encode(level, forKey: .value)
+        case .setDNRLevel(let level):
+            try container.encode(CommandName.setDNRLevel, forKey: .cmd)
+            try container.encode(level, forKey: .value)
+        case .setAntSelect(let mode):
+            try container.encode(CommandName.setAntSelect, forKey: .cmd)
+            try container.encode(mode, forKey: .value)
+        case .setTXW(let on):
+            try container.encode(CommandName.setTXW, forKey: .cmd)
+            try container.encode(on, forKey: .value)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try container.encode(CommandName.setMenuItem, forKey: .cmd)
             try container.encode(MenuItemPayload(p1: p1, p2: p2, p3: p3, rawValue: rawValue), forKey: .value)

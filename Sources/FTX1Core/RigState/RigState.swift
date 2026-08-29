@@ -131,6 +131,26 @@ public struct RigState: Codable, Equatable, Sendable {
     /// CAT command). 0 means "OFF" per the manual, same convention as
     /// `moniLevel`.
     public var procLevel: Int?
+    /// Noise blanker level, 0-10 (the FTX-1's raw "NL" NOISE BLANKER LEVEL
+    /// CAT command, P1 fixed to MAIN-side same as "RA0"/"BC0"). 0 means
+    /// "OFF" per the manual, same convention as `moniLevel`/`procLevel`.
+    public var nbLevel: Int?
+    /// Digital noise reduction (DNR) level, 0-10 (the FTX-1's raw "RL"
+    /// NOISE REDUCTION LEVEL CAT command, P1 fixed to MAIN-side). 0 means
+    /// "OFF" per the manual, same convention as `nbLevel`.
+    public var dnrLevel: Int?
+    /// HF antenna connector selector: 0 = ANT1, 1 = ANT2. Unlike every other
+    /// field here, this has no dedicated 2-letter CAT mnemonic — it's Table
+    /// 3's "HF ANT SELECT" item (`DeepSettingsCatalog`'s OPERATION SETTING /
+    /// OPTION / p3=4), read/written through the same generic "EX" passthrough
+    /// (`RigctldClient.getMenuItem`/`RigCommand.setMenuItem`) Deep Settings
+    /// uses — reused here just for this one item's get/set shape, not the
+    /// on-demand `readMenuItem` mechanism `DeepSettingsView` needs (see
+    /// `RigCommand.setAntSelect`).
+    public var antSelect: Int?
+    /// TXW on/off (the FTX-1's raw "TS" CAT command) — unlike most booleans
+    /// here, "TS" has no MAIN/SUB P1 selector at all, just a bare 0/1.
+    public var txwEnabled: Bool?
 
     public init(
         frequencyHz: Int = 0,
@@ -169,7 +189,11 @@ public struct RigState: Codable, Equatable, Sendable {
         dnfEnabled: Bool? = nil,
         agcMode: Int? = nil,
         micEQEnabled: Bool? = nil,
-        procLevel: Int? = nil
+        procLevel: Int? = nil,
+        nbLevel: Int? = nil,
+        dnrLevel: Int? = nil,
+        antSelect: Int? = nil,
+        txwEnabled: Bool? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -208,6 +232,10 @@ public struct RigState: Codable, Equatable, Sendable {
         self.agcMode = agcMode
         self.micEQEnabled = micEQEnabled
         self.procLevel = procLevel
+        self.nbLevel = nbLevel
+        self.dnrLevel = dnrLevel
+        self.antSelect = antSelect
+        self.txwEnabled = txwEnabled
     }
 }
 
