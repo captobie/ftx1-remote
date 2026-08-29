@@ -32,10 +32,10 @@ public struct RigState: Codable, Equatable, Sendable {
     /// CAT command, which encodes this as 00-75 rather than Hz directly —
     /// see `CommandQueue`/`HubService` for the conversion).
     public var cwPitchHz: Int?
-    /// CW (semi) break-in delay in milliseconds — one of `BreakInDelay.
+    /// CW (semi) break-in delay in milliseconds — one of `RigDelayCode.
     /// allValuesMs` (the FTX-1's raw "SD" CAT command, which encodes this as
     /// a non-linear 00-33 code rather than milliseconds directly — see
-    /// `BreakInDelay`).
+    /// `RigDelayCode`).
     public var bkDelayMs: Int?
     /// CW spot (sidetone-only zero-beat aid) on/off (the FTX-1's raw "CS"
     /// CAT command).
@@ -90,6 +90,14 @@ public struct RigState: Codable, Equatable, Sendable {
     /// AMC (Automatic Mic Compressor) output level, 1-100 (the FTX-1's raw
     /// "AO" CAT command).
     public var amcLevel: Int?
+    /// VOX (voice-operated TX) on/off (the FTX-1's raw "VX" CAT command).
+    public var voxEnabled: Bool?
+    /// VOX gain, 0-100 (the FTX-1's raw "VG" CAT command).
+    public var voxGain: Int?
+    /// VOX delay in milliseconds — one of `RigDelayCode.allValuesMs` (the
+    /// FTX-1's raw "VD" CAT command, which encodes this as the same
+    /// non-linear 00-33 code as `bkDelayMs`'s "SD" — see `RigDelayCode`).
+    public var voxDelayMs: Int?
     /// Received signal strength in dB relative to S9 (hamlib's "STRENGTH"
     /// level convention: S0 ≈ -54, S9 = 0, "+60" = +60). nil when there's
     /// no current reading — e.g. before the first poll, or while
@@ -127,6 +135,9 @@ public struct RigState: Codable, Equatable, Sendable {
         displayMarker: Bool? = nil,
         micGain: Int? = nil,
         amcLevel: Int? = nil,
+        voxEnabled: Bool? = nil,
+        voxGain: Int? = nil,
+        voxDelayMs: Int? = nil,
         smeterDb: Double? = nil
     ) {
         self.frequencyHz = frequencyHz
@@ -158,6 +169,9 @@ public struct RigState: Codable, Equatable, Sendable {
         self.displayMarker = displayMarker
         self.micGain = micGain
         self.amcLevel = amcLevel
+        self.voxEnabled = voxEnabled
+        self.voxGain = voxGain
+        self.voxDelayMs = voxDelayMs
         self.smeterDb = smeterDb
     }
 }
@@ -170,12 +184,17 @@ public enum CWMessageStatus: Int, Codable, Sendable {
     case playing = 2
 }
 
-/// The FTX-1's raw "SD" CW break-in delay CAT command doesn't encode
-/// milliseconds directly — it's a 2-digit code 00-33 per the CAT Operation
+/// Shared by the FTX-1's raw "SD" (CW break-in delay, `bkDelayMs`) and "VD"
+/// (VOX delay, `voxDelayMs`) CAT commands — neither encodes milliseconds
+/// directly; both use the same 2-digit code 00-33 per the CAT Operation
 /// Reference Manual: codes 00-05 are fixed odd values (30/50/100/150/200/
 /// 250ms), then 06-33 step linearly in 100ms increments up to 3000ms.
-public enum BreakInDelay {
-    /// Raw "SD" code (0-33) -> milliseconds. `nil` for any code outside
+/// "VD"'s own table in the manual prints its step note as "10 msec
+/// multiples" rather than "100 msec steps" like "SD"'s — a manual typo,
+/// confirmed against real hardware: VOX DELAY steps in 100ms increments
+/// same as BK-DELAY, matching this shared table.
+public enum RigDelayCode {
+    /// Raw "SD"/"VD" code (0-33) -> milliseconds. `nil` for any code outside
     /// that range.
     public static func milliseconds(forCode code: Int) -> Int? {
         switch code {

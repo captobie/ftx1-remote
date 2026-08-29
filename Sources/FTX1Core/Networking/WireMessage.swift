@@ -28,7 +28,7 @@ public enum RigCommand: Sendable, Equatable {
     /// `RigState.cwPitchHz`. Maps to the FTX-1's raw "KP" CAT command.
     case setCWPitch(hz: Int)
     /// CW (semi) break-in delay in milliseconds — must be one of
-    /// `BreakInDelay.allValuesMs`. See `RigState.bkDelayMs`. Maps to the
+    /// `RigDelayCode.allValuesMs`. See `RigState.bkDelayMs`. Maps to the
     /// FTX-1's raw "SD" CAT command.
     case setBreakInDelay(ms: Int)
     /// CW spot on/off — see `RigState.cwSpot`. Maps to the FTX-1's raw "CS"
@@ -107,6 +107,16 @@ public enum RigCommand: Sendable, Equatable {
     /// AMC (Automatic Mic Compressor) output level, 1-100 — see
     /// `RigState.amcLevel`. Maps to the FTX-1's raw "AO" CAT command.
     case setAMCLevel(Int)
+    /// VOX (voice-operated TX) on/off — see `RigState.voxEnabled`. Maps to
+    /// the FTX-1's raw "VX" CAT command.
+    case setVox(Bool)
+    /// VOX gain, 0-100 — see `RigState.voxGain`. Maps to the FTX-1's raw
+    /// "VG" CAT command.
+    case setVoxGain(Int)
+    /// VOX delay in milliseconds — must be one of `RigDelayCode.
+    /// allValuesMs`, same non-linear 00-33 code as `setBreakInDelay`. See
+    /// `RigState.voxDelayMs`. Maps to the FTX-1's raw "VD" CAT command.
+    case setVoxDelay(ms: Int)
     /// Writes one item of the FTX-1's deep SET-mode settings (Radio/CW/
     /// Operation/Display/Extension/APRS Setting — see
     /// `DeepSettingsCatalog`), addressed by `p1`/`p2`/`p3` (category/tab/
@@ -160,6 +170,9 @@ public enum RigCommand: Sendable, Equatable {
         case setDisplayMarker = "set_display_marker"
         case setMicGain = "set_mic_gain"
         case setAMCLevel = "set_amc_level"
+        case setVox = "set_vox"
+        case setVoxGain = "set_vox_gain"
+        case setVoxDelay = "set_vox_delay"
         case setMenuItem = "set_menu_item"
     }
 }
@@ -225,6 +238,12 @@ extension RigCommand: Codable {
             self = .setMicGain(try container.decode(Int.self, forKey: .value))
         case .setAMCLevel:
             self = .setAMCLevel(try container.decode(Int.self, forKey: .value))
+        case .setVox:
+            self = .setVox(try container.decode(Bool.self, forKey: .value))
+        case .setVoxGain:
+            self = .setVoxGain(try container.decode(Int.self, forKey: .value))
+        case .setVoxDelay:
+            self = .setVoxDelay(ms: try container.decode(Int.self, forKey: .value))
         case .setMenuItem:
             let payload = try container.decode(MenuItemPayload.self, forKey: .value)
             self = .setMenuItem(p1: payload.p1, p2: payload.p2, p3: payload.p3, rawValue: payload.rawValue)
@@ -316,6 +335,15 @@ extension RigCommand: Codable {
         case .setAMCLevel(let value):
             try container.encode(CommandName.setAMCLevel, forKey: .cmd)
             try container.encode(value, forKey: .value)
+        case .setVox(let on):
+            try container.encode(CommandName.setVox, forKey: .cmd)
+            try container.encode(on, forKey: .value)
+        case .setVoxGain(let value):
+            try container.encode(CommandName.setVoxGain, forKey: .cmd)
+            try container.encode(value, forKey: .value)
+        case .setVoxDelay(let ms):
+            try container.encode(CommandName.setVoxDelay, forKey: .cmd)
+            try container.encode(ms, forKey: .value)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try container.encode(CommandName.setMenuItem, forKey: .cmd)
             try container.encode(MenuItemPayload(p1: p1, p2: p2, p3: p3, rawValue: rawValue), forKey: .value)
