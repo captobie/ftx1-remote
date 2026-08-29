@@ -41,13 +41,17 @@ final class HubService: ObservableObject {
 
     private let pollInterval: Duration
     private let reconnectDelay: Duration
+    private let startupRetryInterval: Duration
+    private let startupGracePeriod: Duration
 
     init(
         rigctldHost: String = "127.0.0.1",
         rigctldPort: UInt16 = 4532,
         webSocketPort: UInt16 = 8765,
         pollInterval: Duration = .milliseconds(500),
-        reconnectDelay: Duration = .seconds(3)
+        reconnectDelay: Duration = .seconds(3),
+        startupRetryInterval: Duration = .milliseconds(250),
+        startupGracePeriod: Duration = .seconds(10)
     ) {
         let client = RigctldClient(host: rigctldHost, port: rigctldPort)
         self.rigctld = client
@@ -58,6 +62,8 @@ final class HubService: ObservableObject {
         self.rigctldPort = rigctldPort
         self.pollInterval = pollInterval
         self.reconnectDelay = reconnectDelay
+        self.startupRetryInterval = startupRetryInterval
+        self.startupGracePeriod = startupGracePeriod
 
         rigctldProcess.onStateChange = { [weak self] state in
             self?.rigctldProcessState = state
@@ -91,10 +97,13 @@ final class HubService: ObservableObject {
 
     /// What the on/off switch calls: launches rigctld (clearing out any
     /// stale rigctld left over from a previous run first — see
-    /// `RigctldProcessController`), then starts the polling loop. The
-    /// loop's existing retry-every-`reconnectDelay` behavior already
-    /// tolerates rigctld taking a moment to bind its port after being
-    /// spawned, so no extra readiness check is needed here.
+    /// `RigctldProcessController`), then starts the polling loop. rigctld
+    /// still takes a moment after spawning to open the serial device and
+    /// bind its TCP listener, so the very first connection attempt races
+    /// it and reliably fails — `connectRigctld(isFreshStart:)` suppresses
+    /// surfacing that as a `.failed` connectionState for a short grace
+    /// window, retrying quickly instead, so the UI doesn't flash an error
+    /// on every normal startup.
     func startRigctld() {
         let config = RigctldProcessController.Configuration(
             binaryPath: RigctldSettings.binaryPath,
@@ -107,7 +116,7 @@ final class HubService: ObservableObject {
         )
         Task { [weak self, rigctldProcess] in
             await rigctldProcess.start(with: config)
-            self?.connectRigctld()
+            self?.connectRigctld(isFreshStart: true)
         }
     }
 
@@ -188,9 +197,9 @@ final class HubService: ObservableObject {
         try? await rigctld.getMenuItem(p1: p1, p2: p2, p3: p3)
     }
 
-    private func connectRigctld() {
+    private func connectRigctld(isFreshStart: Bool = false) {
         guard runLoopTask == nil else { return }
-        runLoopTask = Task { await runConnectionLoop() }
+        runLoopTask = Task { await runConnectionLoop(isFreshStart: isFreshStart) }
     }
 
     private func disconnectRigctld() {
@@ -200,7 +209,19 @@ final class HubService: ObservableObject {
         Task { await rigctld.disconnect() }
     }
 
-    private func runConnectionLoop() async {
+    /// `isFreshStart` covers just-spawned rigctld's real startup race
+    /// (opening the serial device + binding its TCP listener takes longer
+    /// than the instant `Process.run()` returns in) — while it's true and
+    /// still within `startupGracePeriod`, a failed attempt retries quickly
+    /// via `startupRetryInterval` without ever setting `connectionState` to
+    /// `.failed`, so a normal startup never visibly flashes an error. Once
+    /// the grace period elapses (or this is a later reconnect, e.g. the rig
+    /// was unplugged or rigctld crashed after connecting fine once), a
+    /// failure surfaces immediately and retries revert to the slower
+    /// `reconnectDelay`, exactly as before this fix.
+    private func runConnectionLoop(isFreshStart: Bool) async {
+        var isFreshStart = isFreshStart
+        let startupDeadline = ContinuousClock.now + startupGracePeriod
         while !Task.isCancelled {
             connectionState = .connecting
             do {
@@ -213,11 +234,18 @@ final class HubService: ObservableObject {
                 // handler in RigctldClient.connect() — don't let its error
                 // clobber the .disconnected state disconnectRigctld() already set.
                 if !Task.isCancelled {
-                    connectionState = .failed(error.localizedDescription)
+                    if isFreshStart && ContinuousClock.now < startupDeadline {
+                        // Still within the post-spawn grace window — treat
+                        // this as rigctld not being ready yet, not a real
+                        // failure worth surfacing.
+                    } else {
+                        isFreshStart = false
+                        connectionState = .failed(error.localizedDescription)
+                    }
                 }
             }
             guard !Task.isCancelled else { return }
-            try? await Task.sleep(for: reconnectDelay)
+            try? await Task.sleep(for: isFreshStart ? startupRetryInterval : reconnectDelay)
         }
     }
 
