@@ -128,6 +128,21 @@ public enum RigCommand: Sendable, Equatable {
     /// with 5/6 too (AUTO-MID/AUTO-SLOW, sub-states of AUTO) — see
     /// `RigctldClient`'s "GT0" read and `RigState.agcMode`'s doc comment.
     case setAGC(mode: Int)
+    /// Parametric Microphone Equalizer on/off — see `RigState.micEQEnabled`.
+    /// Maps to the FTX-1's raw "PR" (SPEECH PROCESSOR) CAT command, P1 fixed
+    /// to "1" (Parametric Microphone Equalizer, as opposed to P1=0, the
+    /// separate Speech Processor master on/off this app doesn't expose).
+    /// Unlike every other boolean here, "PR"'s own P2 is 1/2 rather than
+    /// 0/1 — and the manual's documented mapping (1: OFF, 2: ON) is
+    /// confirmed backwards against real hardware (P2=1 is actually ON).
+    /// Encoding/decoding this (using the hardware-confirmed mapping) is
+    /// `CommandQueue`'s/`HubService`'s job, not this case's.
+    case setMicEQ(Bool)
+    /// Speech processor (compressor) level, 0-100 — see `RigState.
+    /// procLevel`. 0 reads/sets as "OFF" per the manual, same convention as
+    /// `RigState.moniLevel`. Maps to the FTX-1's raw "PL" (SPEECH PROCESSOR
+    /// LEVEL) CAT command.
+    case setProcLevel(Int)
     /// Writes one item of the FTX-1's deep SET-mode settings (Radio/CW/
     /// Operation/Display/Extension/APRS Setting — see
     /// `DeepSettingsCatalog`), addressed by `p1`/`p2`/`p3` (category/tab/
@@ -186,6 +201,8 @@ public enum RigCommand: Sendable, Equatable {
         case setVoxDelay = "set_vox_delay"
         case setDNF = "set_dnf"
         case setAGC = "set_agc"
+        case setMicEQ = "set_mic_eq"
+        case setProcLevel = "set_proc_level"
         case setMenuItem = "set_menu_item"
     }
 }
@@ -261,6 +278,10 @@ extension RigCommand: Codable {
             self = .setDNF(try container.decode(Bool.self, forKey: .value))
         case .setAGC:
             self = .setAGC(mode: try container.decode(Int.self, forKey: .value))
+        case .setMicEQ:
+            self = .setMicEQ(try container.decode(Bool.self, forKey: .value))
+        case .setProcLevel:
+            self = .setProcLevel(try container.decode(Int.self, forKey: .value))
         case .setMenuItem:
             let payload = try container.decode(MenuItemPayload.self, forKey: .value)
             self = .setMenuItem(p1: payload.p1, p2: payload.p2, p3: payload.p3, rawValue: payload.rawValue)
@@ -367,6 +388,12 @@ extension RigCommand: Codable {
         case .setAGC(let mode):
             try container.encode(CommandName.setAGC, forKey: .cmd)
             try container.encode(mode, forKey: .value)
+        case .setMicEQ(let on):
+            try container.encode(CommandName.setMicEQ, forKey: .cmd)
+            try container.encode(on, forKey: .value)
+        case .setProcLevel(let level):
+            try container.encode(CommandName.setProcLevel, forKey: .cmd)
+            try container.encode(level, forKey: .value)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try container.encode(CommandName.setMenuItem, forKey: .cmd)
             try container.encode(MenuItemPayload(p1: p1, p2: p2, p3: p3, rawValue: rawValue), forKey: .value)

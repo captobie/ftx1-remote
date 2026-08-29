@@ -81,6 +81,7 @@ public struct MenuPageView<Controller: RigController>: View {
     @State private var showingAMCLevelPopover = false
     @State private var showingVoxGainPopover = false
     @State private var showingVoxDelayPopover = false
+    @State private var showingProcLevelPopover = false
     @State private var activeDeepSettings: ActiveDeepSettings?
 
     /// Identifies which Deep Settings screen (see `DeepSettingsView`) is
@@ -155,7 +156,15 @@ public struct MenuPageView<Controller: RigController>: View {
     /// SLOW/AUTO), but its Read side's Answer can report P3 up to 6
     /// (AUTO-MID/AUTO-SLOW, sub-states AGC settles into while in AUTO), so
     /// the displayed label and the tap-to-cycle logic both collapse 4-6 to
-    /// plain "AUTO" — see `agcLabel(_:)`/`agcCollapsedMode(_:)`). Button 15
+    /// plain "AUTO" — see `agcLabel(_:)`/`agcCollapsedMode(_:)`). Button 13
+    /// is MIC EQ (`RigCommand.setMicEQ`, single-tap toggle like MOX/ATT,
+    /// raw "PR" command with fixed P1=1 for the Parametric Microphone
+    /// Equalizer — its own P2 is 1/2 for OFF/ON rather than the usual 0/1,
+    /// decoded/encoded in `HubService`/`CommandQueue`, not exposed as a
+    /// quirk to this view), button 14 is PROC LEVEL (`RigCommand.
+    /// setProcLevel`, popover `Stepper` like MIC GAIN, 0-100, raw "PL"
+    /// command — 0 reads "OFF" per the manual, same convention as MONI
+    /// LEVEL, see `procLevelLabel(_:)`). Button 15
     /// is antenna tuning (`RigCommand.triggerAntennaTune`,
     /// single-tap momentary action like CW page's ZIN), button 16 is the
     /// antenna tuner on/off (`RigCommand.setTuner`, single-tap toggle like
@@ -256,6 +265,14 @@ public struct MenuPageView<Controller: RigController>: View {
             } label: {
                 twoLineLabel(top: "AGC", bottom: Self.agcLabel(hub.rigState.agcMode))
             }
+        } else if selectedPage == .ssb, item == 13 {
+            menuButtonShell {
+                hub.send(.setMicEQ(!(hub.rigState.micEQEnabled ?? false)))
+            } label: {
+                twoLineLabel(top: "MIC EQ", bottom: (hub.rigState.micEQEnabled ?? false) ? "ON" : "OFF")
+            }
+        } else if selectedPage == .ssb, item == 14 {
+            procLevelButton
         } else if selectedPage == .ssb, item == 15 {
             menuButtonShell {
                 hub.send(.triggerAntennaTune)
@@ -646,6 +663,36 @@ public struct MenuPageView<Controller: RigController>: View {
             .padding()
             .frame(width: 180)
         }
+    }
+
+    /// SSB button 14, PROC LEVEL — numeric like MIC GAIN/AMC LEVEL, same
+    /// popover `Stepper` treatment, mapping to the FTX-1's raw "PL" CAT
+    /// command (0-100, 3 digits). 0 reads as "OFF" per the manual — same
+    /// convention as `moniLevelButton`'s MONI LEVEL — via `procLevelLabel(_:)`.
+    private var procLevelButton: some View {
+        menuButtonShell {
+            showingProcLevelPopover = true
+        } label: {
+            twoLineLabel(top: "PROC LEVEL", bottom: Self.procLevelLabel(hub.rigState.procLevel))
+        }
+        .popover(isPresented: $showingProcLevelPopover) {
+            Stepper(
+                Self.procLevelLabel(hub.rigState.procLevel ?? 50),
+                value: Binding(
+                    get: { hub.rigState.procLevel ?? 50 },
+                    set: { hub.send(.setProcLevel($0)) }
+                ),
+                in: 0...100
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    /// 0 reads as "OFF" (see `procLevelButton`); `nil` (no poll yet) as "—".
+    private static func procLevelLabel(_ level: Int?) -> String {
+        guard let level else { return "—" }
+        return level == 0 ? "OFF" : "\(level)"
     }
 
     /// SSB button 25, VOX — on/off like MOX/ATT/BK-IN/KEYER, so a single tap
