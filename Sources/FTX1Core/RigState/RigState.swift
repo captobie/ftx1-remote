@@ -117,6 +117,19 @@ public struct RigState: Codable, Equatable, Sendable {
     /// `MenuPageView.agcCollapsedMode(_:)`), same asymmetric P1/P3
     /// treatment as `RigctldClient.getTunerEnabled()`'s "AC" command.
     public var agcMode: Int?
+    /// Parametric Microphone Equalizer on/off (the FTX-1's raw "PR" CAT
+    /// command, P1 fixed to "1" — see `RigCommand.setMicEQ`). "PR"'s own P2
+    /// field is 1/2, not the usual 0/1 — and the manual's stated mapping
+    /// (1: OFF, 2: ON) is **confirmed backwards against real hardware**:
+    /// P2=1 is actually ON, P2=2 is actually OFF. This property itself is a
+    /// normal `Bool`; the raw-value encoding/decoding (using the
+    /// hardware-confirmed mapping, not the manual's) lives in
+    /// `CommandQueue`/`HubService.refreshState`.
+    public var micEQEnabled: Bool?
+    /// Speech processor (compressor) level, 0-100 (the FTX-1's raw "PL"
+    /// CAT command). 0 means "OFF" per the manual, same convention as
+    /// `moniLevel`.
+    public var procLevel: Int?
 
     public init(
         frequencyHz: Int = 0,
@@ -153,7 +166,9 @@ public struct RigState: Codable, Equatable, Sendable {
         voxDelayMs: Int? = nil,
         smeterDb: Double? = nil,
         dnfEnabled: Bool? = nil,
-        agcMode: Int? = nil
+        agcMode: Int? = nil,
+        micEQEnabled: Bool? = nil,
+        procLevel: Int? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -190,6 +205,8 @@ public struct RigState: Codable, Equatable, Sendable {
         self.smeterDb = smeterDb
         self.dnfEnabled = dnfEnabled
         self.agcMode = agcMode
+        self.micEQEnabled = micEQEnabled
+        self.procLevel = procLevel
     }
 }
 

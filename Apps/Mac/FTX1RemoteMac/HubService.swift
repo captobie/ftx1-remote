@@ -194,6 +194,8 @@ final class HubService: ObservableObject {
         case .setVoxDelay(let ms): rigState.voxDelayMs = ms
         case .setDNF(let on): rigState.dnfEnabled = on
         case .setAGC(let mode): rigState.agcMode = mode
+        case .setMicEQ(let on): rigState.micEQEnabled = on
+        case .setProcLevel(let level): rigState.procLevel = level
         // Momentary triggers, and CW MESSAGE record/select/play (whose
         // `cwMessageStatus` doesn't map 1:1 from any single command — see
         // RigState.cwMessageStatus) have no direct optimistic value; left
@@ -361,6 +363,13 @@ final class HubService: ObservableObject {
         // Set side (0-4 only), the Answer's value digit can come back 0-6;
         // see RigState.agcMode for why that's still fine to store as-is.
         let agcMode = try? await rigctld.getRawInt("GT0")
+        // "PR1" reads MIC EQ with its fixed P1=1 (Parametric Microphone
+        // Equalizer) baked in — its P2 comes back 1/2, decoded by hand
+        // below (see CommandQueue's .setMicEQ case for why 1 means ON, not
+        // OFF as the manual claims — confirmed backwards against real
+        // hardware) rather than via getRawBool.
+        let micEQRaw = try? await rigctld.getRawInt("PR1")
+        let procLevel = try? await rigctld.getRawInt("PL")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -404,7 +413,9 @@ final class HubService: ObservableObject {
             voxDelayMs: (voxDelayCode.flatMap(RigDelayCode.milliseconds(forCode:))) ?? rigState.voxDelayMs,
             smeterDb: smeterDb ?? nil,
             dnfEnabled: dnfEnabled ?? rigState.dnfEnabled,
-            agcMode: agcMode ?? rigState.agcMode
+            agcMode: agcMode ?? rigState.agcMode,
+            micEQEnabled: (micEQRaw.map { $0 == 1 }) ?? rigState.micEQEnabled,
+            procLevel: procLevel ?? rigState.procLevel
         )
         await server.broadcast(rigState)
     }
