@@ -11,9 +11,6 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Text("FTX-1 Remote")
-                .font(.title)
-
             if viewModel.connectionState != .connected {
                 TextField("Mac hostname (Tailscale)", text: $host)
                     .textFieldStyle(.roundedBorder)
@@ -21,19 +18,9 @@ struct ContentView: View {
                     .textInputAutocapitalization(.never)
                     #endif
                     .autocorrectionDisabled()
-                Button("Connect") {
-                    viewModel.connect(toHost: host)
-                }
-                .disabled(host.isEmpty)
             }
 
-            Text(connectionLabel)
-                .foregroundStyle(connectionColor)
-                .onTapGesture {
-                    if viewModel.connectionState == .connected {
-                        viewModel.disconnect()
-                    }
-                }
+            connectButton
 
             if viewModel.connectionState == .connected {
                 FrequencyDisplay(
@@ -103,22 +90,27 @@ struct ContentView: View {
             )
     }
 
-    private var connectionLabel: String {
-        switch viewModel.connectionState {
-        case .disconnected: "Disconnected"
-        case .connecting: "Connecting…"
-        case .connected: "Connected"
-        case .failed(let message): "Failed: \(message)"
+    /// Replaces the old "Connect" button + separate tap-to-disconnect
+    /// status text with a single button whose label and color reflect
+    /// `connectionState`, same pattern as Mac/iPad's `ContentView`.
+    private var connectButton: some View {
+        Button {
+            if viewModel.connectionState == .connected {
+                viewModel.disconnect()
+            } else {
+                viewModel.connect(toHost: host)
+            }
+        } label: {
+            Text(viewModel.connectionState == .connected ? "Disconnect" : "Connect")
+                .font(.headline)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(viewModel.connectionState == .connected ? Color.green : Color.red)
+                .foregroundStyle(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
         }
-    }
-
-    private var connectionColor: Color {
-        switch viewModel.connectionState {
-        case .connected: .green
-        case .connecting: .yellow
-        case .disconnected: .secondary
-        case .failed: .red
-        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.connectionState != .connected && host.isEmpty)
     }
 }
 
