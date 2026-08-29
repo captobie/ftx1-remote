@@ -31,6 +31,9 @@ final class HubService: ObservableObject {
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published private(set) var rigctldProcessState: RigctldProcessController.State = .stopped
     @Published private(set) var waterfallImage: CGImage?
+    @Published private(set) var oscilloscopeImage: CGImage?
+    @Published private(set) var waterfallZoom: Float = 1
+    @Published private(set) var oscilloscopeZoom: Float = 1
 
     private let rigctld: RigctldClient
     private let commandQueue: CommandQueue
@@ -71,8 +74,9 @@ final class HubService: ObservableObject {
         rigctldProcess.onStateChange = { [weak self] state in
             self?.rigctldProcessState = state
         }
-        audioCapture.onNewFrame = { [weak self] image in
-            self?.waterfallImage = image
+        audioCapture.onNewFrame = { [weak self] frame in
+            self?.waterfallImage = frame.waterfall
+            self?.oscilloscopeImage = frame.oscilloscope
         }
     }
 
@@ -208,6 +212,30 @@ final class HubService: ObservableObject {
         try? await rigctld.getMenuItem(p1: p1, p2: p2, p3: p3)
     }
 
+    private static let zoomRange: ClosedRange<Float> = 0.25...4
+    private static let zoomStepFactor: Float = 1.25
+
+    /// Drives the up/down arrows next to the waterfall/oscilloscope
+    /// display — `@Published` here so `ContentView` can show the current
+    /// level, and mirrored into `audioCapture` (which can't read
+    /// `@Published` state directly — see `AudioCaptureEngine`'s
+    /// `waterfallZoom` doc comment) so `process()` picks it up on the next
+    /// buffer.
+    func stepWaterfallZoom(up: Bool) {
+        waterfallZoom = Self.steppedZoom(waterfallZoom, up: up)
+        audioCapture.setWaterfallZoom(waterfallZoom)
+    }
+
+    func stepOscilloscopeZoom(up: Bool) {
+        oscilloscopeZoom = Self.steppedZoom(oscilloscopeZoom, up: up)
+        audioCapture.setOscilloscopeZoom(oscilloscopeZoom)
+    }
+
+    private static func steppedZoom(_ current: Float, up: Bool) -> Float {
+        let factor = up ? zoomStepFactor : 1 / zoomStepFactor
+        return min(zoomRange.upperBound, max(zoomRange.lowerBound, current * factor))
+    }
+
     private func connectRigctld(isFreshStart: Bool = false) {
         guard runLoopTask == nil else { return }
         runLoopTask = Task { await runConnectionLoop(isFreshStart: isFreshStart) }
@@ -219,6 +247,7 @@ final class HubService: ObservableObject {
         connectionState = .disconnected
         audioCapture.stop()
         waterfallImage = nil
+        oscilloscopeImage = nil
         Task { await rigctld.disconnect() }
     }
 
@@ -256,6 +285,7 @@ final class HubService: ObservableObject {
                         isFreshStart = false
                         audioCapture.stop()
                         waterfallImage = nil
+                        oscilloscopeImage = nil
                         connectionState = .failed(error.localizedDescription)
                     }
                 }
