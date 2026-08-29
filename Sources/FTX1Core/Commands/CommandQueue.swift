@@ -202,16 +202,17 @@ public actor CommandQueue {
             try await rigctld.setRawInt("GT0", mode, digits: 1)
         case .setMicEQ(let on):
             // "PR"'s P1 is fixed to "1" (Parametric Microphone Equalizer,
-            // not the separate Speech Processor master on/off at P1=0).
-            // The manual documents its own P2 as 1: OFF, 2: ON — confirmed
-            // against real hardware to be backwards: P2=1 actually turns
-            // MIC EQ ON, P2=2 actually turns it OFF. Same category of
-            // manual error as the "AC"/tuner P1 caveat and the "VD" step-
-            // size typo — don't "fix" this back to the manual's printed
-            // 1/2 mapping without retesting. Reuses setRawInt (which just
-            // zero-pads whatever value it's given) rather than setRawBool,
-            // which is hardcoded to write 0/1.
-            try await rigctld.setRawInt("PR1", on ? 1 : 2, digits: 1)
+            // not the separate Speech Processor master on/off at P1=0). The
+            // manual documents its own P2 as 1: OFF, 2: ON — confirmed
+            // against real hardware to be flat wrong, not just backwards: a
+            // live nc probe read the real rig's current P2 back as "0", a
+            // value the manual doesn't even list as valid, and toggling
+            // between "PR10;"/"PR11;" (confirmed against the rig's own
+            // display after each write) showed plain 0/1 is the real
+            // encoding — same boolean shape as "BI"/"KR"/"CS"/"MX" etc.
+            // Plain setRawBool now, not the special-cased setRawInt this
+            // used briefly while chasing the wrong "backwards 1/2" theory.
+            try await rigctld.setRawBool("PR1", on)
         case .setProcLevel(let level):
             try await rigctld.setRawInt("PL", level, digits: 3)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):

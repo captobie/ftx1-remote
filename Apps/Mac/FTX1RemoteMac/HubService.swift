@@ -364,11 +364,10 @@ final class HubService: ObservableObject {
         // see RigState.agcMode for why that's still fine to store as-is.
         let agcMode = try? await rigctld.getRawInt("GT0")
         // "PR1" reads MIC EQ with its fixed P1=1 (Parametric Microphone
-        // Equalizer) baked in — its P2 comes back 1/2, decoded by hand
-        // below (see CommandQueue's .setMicEQ case for why 1 means ON, not
-        // OFF as the manual claims — confirmed backwards against real
-        // hardware) rather than via getRawBool.
-        let micEQRaw = try? await rigctld.getRawInt("PR1")
+        // Equalizer) baked in — plain getRawBool now that its P2 is
+        // confirmed to be an ordinary 0/1, not the manual's claimed 1/2
+        // (see CommandQueue's .setMicEQ case for how that was confirmed).
+        let micEQEnabled = try? await rigctld.getRawBool("PR1")
         let procLevel = try? await rigctld.getRawInt("PL")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
@@ -414,7 +413,7 @@ final class HubService: ObservableObject {
             smeterDb: smeterDb ?? nil,
             dnfEnabled: dnfEnabled ?? rigState.dnfEnabled,
             agcMode: agcMode ?? rigState.agcMode,
-            micEQEnabled: (micEQRaw.map { $0 == 1 }) ?? rigState.micEQEnabled,
+            micEQEnabled: micEQEnabled ?? rigState.micEQEnabled,
             procLevel: procLevel ?? rigState.procLevel
         )
         await server.broadcast(rigState)
