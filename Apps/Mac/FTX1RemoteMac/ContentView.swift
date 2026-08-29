@@ -9,19 +9,13 @@ struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("FTX-1 Remote")
-                .font(.title)
-
             HStack {
-                Toggle("rigctld", isOn: rigctldToggleBinding)
+                connectButton
                 Text(rigctldProcessLabel)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button("Settings…") { showingSettings = true }
             }
-
-            Text(connectionLabel)
-                .foregroundStyle(connectionColor)
 
             HStack(spacing: 12) {
                 VFODisplayBox(label: "VFO A", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName)
@@ -119,17 +113,31 @@ struct ContentView: View {
         )
     }
 
-    private var rigctldToggleBinding: Binding<Bool> {
-        Binding(
-            get: { hub.rigctldProcessState == .running || hub.rigctldProcessState == .starting },
-            set: { isOn in
-                if isOn {
-                    hub.startRigctld()
-                } else {
-                    hub.stopRigctld()
-                }
+    /// Replaces the old rigctld on/off `Toggle` with a button whose label
+    /// and color reflect `connectionState` (what the user actually cares
+    /// about — is the app talking to the rig), while its tap action still
+    /// starts/stops the rigctld process itself, same as the toggle did.
+    private var connectButton: some View {
+        Button {
+            if isRigctldActive {
+                hub.stopRigctld()
+            } else {
+                hub.startRigctld()
             }
-        )
+        } label: {
+            Text(hub.connectionState == .connected ? "Disconnect" : "Connect")
+                .font(.headline)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(hub.connectionState == .connected ? Color.green : Color.red)
+                .foregroundStyle(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var isRigctldActive: Bool {
+        hub.rigctldProcessState == .running || hub.rigctldProcessState == .starting
     }
 
     private var rigctldProcessLabel: String {
@@ -141,23 +149,6 @@ struct ContentView: View {
         }
     }
 
-    private var connectionLabel: String {
-        switch hub.connectionState {
-        case .disconnected: "Disconnected"
-        case .connecting: "Connecting to rigctld…"
-        case .connected: "Connected to rigctld"
-        case .failed(let message): "Failed: \(message)"
-        }
-    }
-
-    private var connectionColor: Color {
-        switch hub.connectionState {
-        case .connected: .green
-        case .connecting: .yellow
-        case .disconnected: .secondary
-        case .failed: .red
-        }
-    }
 }
 
 #Preview {
