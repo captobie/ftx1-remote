@@ -191,6 +191,15 @@ public actor CommandQueue {
             // step-size note between the two commands.
             guard let code = RigDelayCode.code(forMilliseconds: ms) else { return }
             try await rigctld.setRawInt("VD", code, digits: 2)
+        case .setDNF(let on):
+            // "BC"'s P1 is fixed to "0" (MAIN-side), baked into the
+            // mnemonic like "RA0"/"ML1"/"PA0" above.
+            try await rigctld.setRawBool("BC0", on)
+        case .setAGC(let mode):
+            // "GT"'s P1 is fixed to "0" (MAIN-side); P2 is the 0-4
+            // OFF/FAST/MID/SLOW/AUTO selector, not a boolean, so this uses
+            // setRawInt like .setPreamp.
+            try await rigctld.setRawInt("GT0", mode, digits: 1)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try await rigctld.setMenuItem(p1: p1, p2: p2, p3: p3, rawValue: rawValue)
         }

@@ -148,7 +148,15 @@ public struct MenuPageView<Controller: RigController>: View {
     /// SSB button 8 is MOX (`RigCommand.setMox`), button 9 is the RF
     /// attenuator (`RigCommand.setAtt`), button 10 is the HF/50 preamp/IPO
     /// selector (`RigCommand.setPreamp`, cycling IPO/AMP1/AMP2 per tap),
-    /// button 15 is antenna tuning (`RigCommand.triggerAntennaTune`,
+    /// button 11 is auto notch/DNF (`RigCommand.setDNF`, single-tap toggle
+    /// like MOX/ATT, raw "BC" command with fixed MAIN-side P1), button 12
+    /// is AGC (`RigCommand.setAGC`, single-tap-cycles-to-next like IPO/AMP,
+    /// raw "GT" command — its Set side only accepts P2 0-4 (OFF/FAST/MID/
+    /// SLOW/AUTO), but its Read side's Answer can report P3 up to 6
+    /// (AUTO-MID/AUTO-SLOW, sub-states AGC settles into while in AUTO), so
+    /// the displayed label and the tap-to-cycle logic both collapse 4-6 to
+    /// plain "AUTO" — see `agcLabel(_:)`/`agcCollapsedMode(_:)`). Button 15
+    /// is antenna tuning (`RigCommand.triggerAntennaTune`,
     /// single-tap momentary action like CW page's ZIN), button 16 is the
     /// antenna tuner on/off (`RigCommand.setTuner`, single-tap toggle like
     /// MOX/ATT). Button 17 has no rig function on this page — confirmed
@@ -235,6 +243,18 @@ public struct MenuPageView<Controller: RigController>: View {
                 hub.send(.setPreamp(mode: ((hub.rigState.preampMode ?? 0) + 1) % 3))
             } label: {
                 twoLineLabel(top: "IPO/AMP", bottom: Self.preampLabel(hub.rigState.preampMode))
+            }
+        } else if selectedPage == .ssb, item == 11 {
+            menuButtonShell {
+                hub.send(.setDNF(!(hub.rigState.dnfEnabled ?? false)))
+            } label: {
+                twoLineLabel(top: "DNF", bottom: (hub.rigState.dnfEnabled ?? false) ? "ON" : "OFF")
+            }
+        } else if selectedPage == .ssb, item == 12 {
+            menuButtonShell {
+                hub.send(.setAGC(mode: (Self.agcCollapsedMode(hub.rigState.agcMode) + 1) % 5))
+            } label: {
+                twoLineLabel(top: "AGC", bottom: Self.agcLabel(hub.rigState.agcMode))
             }
         } else if selectedPage == .ssb, item == 15 {
             menuButtonShell {
@@ -740,6 +760,34 @@ public struct MenuPageView<Controller: RigController>: View {
         case 1: "AMP1"
         case 2: "AMP2"
         default: "—"
+        }
+    }
+
+    /// SSB button 12, AGC — displays raw "GT0"'s reported mode (0-6, see
+    /// `RigState.agcMode`), collapsing the three AUTO sub-states (4-6) to
+    /// one "AUTO" label since the rig itself doesn't distinguish them as
+    /// separate user-facing settings.
+    private static func agcLabel(_ mode: Int?) -> String {
+        switch mode {
+        case 0: "OFF"
+        case 1: "FAST"
+        case 2: "MID"
+        case 3: "SLOW"
+        case 4, 5, 6: "AUTO"
+        default: "—"
+        }
+    }
+
+    /// Collapses `RigState.agcMode`'s 0-6 range down to the 0-4 range the
+    /// "GT" command's Set side actually accepts, so tapping AGC while it's
+    /// reading back an AUTO sub-state (5/6) still cycles OFF -> FAST -> MID
+    /// -> SLOW -> AUTO -> OFF like every other value, rather than wrapping
+    /// at the wrong point.
+    private static func agcCollapsedMode(_ mode: Int?) -> Int {
+        switch mode {
+        case 5, 6: 4
+        case let m? where (0...4).contains(m): m
+        default: 0
         }
     }
 
