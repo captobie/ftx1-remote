@@ -8,6 +8,7 @@ import SwiftUI
 enum ScopeDisplayMode: String {
     case waterfall
     case oscilloscope
+    case off
 }
 
 /// Dense multi-pane control UI (see repo root CLAUDE.md) — still growing.
@@ -127,6 +128,7 @@ struct ContentView: View {
         switch scopeDisplayMode {
         case .waterfall: hub.waterfallImage
         case .oscilloscope: hub.oscilloscopeImage
+        case .off: nil
         }
     }
 
@@ -134,6 +136,7 @@ struct ContentView: View {
         VStack(spacing: 4) {
             scopeDisplayModeButton("Waterfall", mode: .waterfall)
             scopeDisplayModeButton("Oscilloscope", mode: .oscilloscope)
+            scopeDisplayModeButton("Off", mode: .off)
         }
     }
 
@@ -157,17 +160,21 @@ struct ContentView: View {
     /// waterfall's color-zoom and the oscilloscope's vertical scale are
     /// independent settings (`HubService.waterfallZoom`/`oscilloscopeZoom`),
     /// this just routes the same pair of arrows to whichever one is active
-    /// rather than showing four buttons at once.
+    /// rather than showing four buttons at once. Dimmed and inert while
+    /// `.off` — nothing to zoom, but keeps the same width reserved so the
+    /// row doesn't jump when switching modes.
     private var zoomControls: some View {
         VStack(spacing: 4) {
             zoomButton(systemImage: "chevron.up") { stepZoom(up: true) }
-            Text(String(format: "%.1fx", currentZoom))
+            Text(zoomLabel)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
             zoomButton(systemImage: "chevron.down") { stepZoom(up: false) }
         }
         .frame(width: 28)
+        .opacity(scopeDisplayMode == .off ? 0.3 : 1)
+        .disabled(scopeDisplayMode == .off)
     }
 
     private func zoomButton(systemImage: String, action: @escaping () -> Void) -> some View {
@@ -186,13 +193,15 @@ struct ContentView: View {
         switch scopeDisplayMode {
         case .waterfall: hub.stepWaterfallZoom(up: up)
         case .oscilloscope: hub.stepOscilloscopeZoom(up: up)
+        case .off: break
         }
     }
 
-    private var currentZoom: Float {
+    private var zoomLabel: String {
         switch scopeDisplayMode {
-        case .waterfall: hub.waterfallZoom
-        case .oscilloscope: hub.oscilloscopeZoom
+        case .waterfall: String(format: "%.1fx", hub.waterfallZoom)
+        case .oscilloscope: String(format: "%.1fx", hub.oscilloscopeZoom)
+        case .off: "—"
         }
     }
 
