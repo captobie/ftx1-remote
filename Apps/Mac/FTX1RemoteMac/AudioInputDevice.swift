@@ -11,6 +11,15 @@ struct AudioInputDevice: Identifiable, Hashable {
 }
 
 enum AudioInputDeviceLister {
+    /// Resolves a persisted `AudioInputSettings.deviceUID` back to a live
+    /// `AudioDeviceID` for `AudioCaptureEngine` to open. `nil` (empty UID,
+    /// or a UID that no longer matches a connected device) means "use the
+    /// system default input" — the caller decides what that means, this
+    /// just does the lookup.
+    static func deviceID(forUID uid: String) -> AudioDeviceID? {
+        availableInputDevices().first { $0.uid == uid }?.id
+    }
+
     /// Queries Core Audio's device registry directly (`AudioObjectGetPropertyData`)
     /// rather than `AVCaptureDevice`, so listing devices doesn't trigger a
     /// microphone-permission prompt — that's only needed once actual

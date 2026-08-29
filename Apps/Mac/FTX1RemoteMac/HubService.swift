@@ -1,4 +1,5 @@
 import Combine
+import CoreGraphics
 import FTX1Core
 import Foundation
 
@@ -29,11 +30,13 @@ final class HubService: ObservableObject {
     @Published private(set) var rigState = RigState()
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published private(set) var rigctldProcessState: RigctldProcessController.State = .stopped
+    @Published private(set) var waterfallImage: CGImage?
 
     private let rigctld: RigctldClient
     private let commandQueue: CommandQueue
     private let server: RigWebSocketServer
     private let rigctldProcess = RigctldProcessController()
+    private let audioCapture = AudioCaptureEngine()
     private let webSocketPort: UInt16
     private let rigctldHost: String
     private let rigctldPort: UInt16
@@ -67,6 +70,9 @@ final class HubService: ObservableObject {
 
         rigctldProcess.onStateChange = { [weak self] state in
             self?.rigctldProcessState = state
+        }
+        audioCapture.onNewFrame = { [weak self] image in
+            self?.waterfallImage = image
         }
     }
 
@@ -211,6 +217,8 @@ final class HubService: ObservableObject {
         runLoopTask?.cancel()
         runLoopTask = nil
         connectionState = .disconnected
+        audioCapture.stop()
+        waterfallImage = nil
         Task { await rigctld.disconnect() }
     }
 
@@ -232,6 +240,7 @@ final class HubService: ObservableObject {
             do {
                 try await rigctld.connect()
                 connectionState = .connected
+                audioCapture.start(deviceUID: AudioInputSettings.deviceUID)
                 try await pollLoop()
             } catch {
                 // A cancelled attempt (e.g. the user switched rigctld off
@@ -245,6 +254,8 @@ final class HubService: ObservableObject {
                         // failure worth surfacing.
                     } else {
                         isFreshStart = false
+                        audioCapture.stop()
+                        waterfallImage = nil
                         connectionState = .failed(error.localizedDescription)
                     }
                 }
