@@ -470,6 +470,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "FTX1 Remote needs to accept connections from your iPhone/iPad to control the radio remotely.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FTX1 Remote uses audio from the selected input device to draw a waterfall display of receive audio.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -503,6 +504,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "FTX1 Remote needs to accept connections from your iPhone/iPad to control the radio remotely.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FTX1 Remote uses audio from the selected input device to draw a waterfall display of receive audio.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

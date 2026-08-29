@@ -7,6 +7,12 @@ struct ContentView: View {
     @State private var showingSettings = false
     @State private var isPTTPressed = false
 
+    /// Matches `SMeterView`'s rendered height (locked to its 280:120
+    /// `MeterFace.designSize` aspect ratio at width 280) so the waterfall
+    /// lines up with it — there's no exported constant to reference
+    /// directly since that geometry is private to `SMeterView.swift`.
+    private let meterHeight: CGFloat = 120
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -28,6 +34,9 @@ struct ContentView: View {
                 Text(swrLabel)
                     .font(.system(.body, design: .monospaced))
                     .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
+                WaterfallView(image: hub.waterfallImage, isActive: hub.connectionState == .connected)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: meterHeight)
             }
 
             pttButton
