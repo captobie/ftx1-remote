@@ -215,6 +215,26 @@ public actor CommandQueue {
             try await rigctld.setRawBool("PR1", on)
         case .setProcLevel(let level):
             try await rigctld.setRawInt("PL", level, digits: 3)
+        case .setNBLevel(let level):
+            // "NL"'s P1 is fixed to "0" (MAIN-side), same shape as "RA0"/
+            // "BC0" above.
+            try await rigctld.setRawInt("NL0", level, digits: 3)
+        case .setDNRLevel(let level):
+            // "RL"'s P1 is fixed to "0" (MAIN-side), same shape as "NL0"
+            // above but a 2-digit field rather than 3.
+            try await rigctld.setRawInt("RL0", level, digits: 2)
+        case .setAntSelect(let mode):
+            // No dedicated mnemonic for this one — it's Table 3's "HF ANT
+            // SELECT" (OPERATION SETTING / OPTION / p3=4), a single digit
+            // (0/1) with no zero-padding needed. Reuses the generic "EX"
+            // passthrough `.setMenuItem` uses under the hood, just for this
+            // one fixed address rather than an arbitrary Deep Settings item.
+            try await rigctld.setMenuItem(p1: 3, p2: 7, p3: 4, rawValue: "\(mode)")
+        case .setTXW(let on):
+            // "TS" has no MAIN/SUB P1 selector at all — a bare boolean like
+            // "MX"/"VX", not baked into a fixed-P1 mnemonic like most of the
+            // toggles above.
+            try await rigctld.setRawBool("TS", on)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try await rigctld.setMenuItem(p1: p1, p2: p2, p3: p3, rawValue: rawValue)
         }

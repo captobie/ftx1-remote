@@ -196,6 +196,10 @@ final class HubService: ObservableObject {
         case .setAGC(let mode): rigState.agcMode = mode
         case .setMicEQ(let on): rigState.micEQEnabled = on
         case .setProcLevel(let level): rigState.procLevel = level
+        case .setNBLevel(let level): rigState.nbLevel = level
+        case .setDNRLevel(let level): rigState.dnrLevel = level
+        case .setAntSelect(let mode): rigState.antSelect = mode
+        case .setTXW(let on): rigState.txwEnabled = on
         // Momentary triggers, and CW MESSAGE record/select/play (whose
         // `cwMessageStatus` doesn't map 1:1 from any single command — see
         // RigState.cwMessageStatus) have no direct optimistic value; left
@@ -369,6 +373,17 @@ final class HubService: ObservableObject {
         // (see CommandQueue's .setMicEQ case for how that was confirmed).
         let micEQEnabled = try? await rigctld.getRawBool("PR1")
         let procLevel = try? await rigctld.getRawInt("PL")
+        // "NL0"/"RL0" read NOISE BLANKER LEVEL/NOISE REDUCTION LEVEL (DNR)
+        // with their fixed MAIN-side P1 baked in, same shape as "PA0"/"GT0"
+        // above.
+        let nbLevel = try? await rigctld.getRawInt("NL0")
+        let dnrLevel = try? await rigctld.getRawInt("RL0")
+        // No dedicated mnemonic for HF ANT SELECT — reads through the same
+        // generic "EX" passthrough Deep Settings uses, just at this one
+        // fixed address (see RigState.antSelect/RigCommand.setAntSelect).
+        let antSelectRaw = try? await rigctld.getMenuItem(p1: 3, p2: 7, p3: 4)
+        let antSelect = antSelectRaw.flatMap(Int.init)
+        let txwEnabled = try? await rigctld.getRawBool("TS")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
 
@@ -414,7 +429,11 @@ final class HubService: ObservableObject {
             dnfEnabled: dnfEnabled ?? rigState.dnfEnabled,
             agcMode: agcMode ?? rigState.agcMode,
             micEQEnabled: micEQEnabled ?? rigState.micEQEnabled,
-            procLevel: procLevel ?? rigState.procLevel
+            procLevel: procLevel ?? rigState.procLevel,
+            nbLevel: nbLevel ?? rigState.nbLevel,
+            dnrLevel: dnrLevel ?? rigState.dnrLevel,
+            antSelect: antSelect ?? rigState.antSelect,
+            txwEnabled: txwEnabled ?? rigState.txwEnabled
         )
         await server.broadcast(rigState)
     }
