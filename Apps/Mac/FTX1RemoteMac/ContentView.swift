@@ -1,11 +1,21 @@
+import CoreGraphics
 import FTX1Core
 import SwiftUI
+
+/// Which `AudioCaptureEngine` frame `ScopeDisplayView` shows — both are
+/// always being produced (see `AudioCaptureFrame`), so switching is just a
+/// selection change, no capture restart.
+enum ScopeDisplayMode: String {
+    case waterfall
+    case oscilloscope
+}
 
 /// Dense multi-pane control UI (see repo root CLAUDE.md) — still growing.
 struct ContentView: View {
     @EnvironmentObject private var hub: HubService
     @State private var showingSettings = false
     @State private var isPTTPressed = false
+    @AppStorage("ui.scopeDisplayMode") private var scopeDisplayMode: ScopeDisplayMode = .waterfall
 
     /// Matches `SMeterView`'s rendered height (locked to its 280:120
     /// `MeterFace.designSize` aspect ratio at width 280) so the waterfall
@@ -31,10 +41,17 @@ struct ContentView: View {
             HStack(alignment: .bottom, spacing: 12) {
                 SMeterView(smeterDb: hub.rigState.smeterDb, swr: hub.rigState.swr, ptt: hub.rigState.ptt)
                     .frame(width: 280)
-                Text(swrLabel)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
-                WaterfallView(image: hub.waterfallImage, isActive: hub.connectionState == .connected)
+                VStack(alignment: .leading, spacing: 8) {
+                    scopeDisplayModeButtons
+                    Spacer(minLength: 0)
+                    Text(swrLabel)
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
+                }
+                .frame(width: 90, height: meterHeight)
+                zoomControls
+                    .frame(height: meterHeight)
+                ScopeDisplayView(image: scopeImage, isActive: hub.connectionState == .connected)
                     .frame(maxWidth: .infinity)
                     .frame(height: meterHeight)
             }
@@ -104,6 +121,79 @@ struct ContentView: View {
     private var swrLabel: String {
         guard let swr = hub.rigState.swr else { return "SWR --" }
         return String(format: "SWR %.2f", swr)
+    }
+
+    private var scopeImage: CGImage? {
+        switch scopeDisplayMode {
+        case .waterfall: hub.waterfallImage
+        case .oscilloscope: hub.oscilloscopeImage
+        }
+    }
+
+    private var scopeDisplayModeButtons: some View {
+        VStack(spacing: 4) {
+            scopeDisplayModeButton("Waterfall", mode: .waterfall)
+            scopeDisplayModeButton("Oscilloscope", mode: .oscilloscope)
+        }
+    }
+
+    private func scopeDisplayModeButton(_ title: String, mode: ScopeDisplayMode) -> some View {
+        let isSelected = scopeDisplayMode == mode
+        return Button {
+            scopeDisplayMode = mode
+        } label: {
+            Text(title)
+                .font(.caption)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+                .background(isSelected ? Color.accentColor : Color.gray.opacity(0.2))
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Adjusts whichever display `scopeDisplayMode` currently shows — the
+    /// waterfall's color-zoom and the oscilloscope's vertical scale are
+    /// independent settings (`HubService.waterfallZoom`/`oscilloscopeZoom`),
+    /// this just routes the same pair of arrows to whichever one is active
+    /// rather than showing four buttons at once.
+    private var zoomControls: some View {
+        VStack(spacing: 4) {
+            zoomButton(systemImage: "chevron.up") { stepZoom(up: true) }
+            Text(String(format: "%.1fx", currentZoom))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+            zoomButton(systemImage: "chevron.down") { stepZoom(up: false) }
+        }
+        .frame(width: 28)
+    }
+
+    private func zoomButton(systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.caption)
+                .frame(width: 24, height: 20)
+                .background(Color.gray.opacity(0.2))
+                .foregroundStyle(Color.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func stepZoom(up: Bool) {
+        switch scopeDisplayMode {
+        case .waterfall: hub.stepWaterfallZoom(up: up)
+        case .oscilloscope: hub.stepOscilloscopeZoom(up: up)
+        }
+    }
+
+    private var currentZoom: Float {
+        switch scopeDisplayMode {
+        case .waterfall: hub.waterfallZoom
+        case .oscilloscope: hub.oscilloscopeZoom
+        }
     }
 
     /// Falls back to the first band in the plan if the active frequency

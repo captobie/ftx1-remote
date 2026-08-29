@@ -3,13 +3,23 @@ import AudioToolbox
 import AVFoundation
 import CoreAudio
 import CoreGraphics
+import Foundation
+
+/// One tap callback's worth of rendered display frames — always produced
+/// together (both are cheap relative to the FFT itself), so the UI can
+/// switch between waterfall/oscilloscope instantly with no capture restart.
+struct AudioCaptureFrame {
+    let waterfall: CGImage
+    let oscilloscope: CGImage
+}
 
 /// Captures audio from the configured input device (see
-/// `AudioInputSettings`), runs a real FFT on it, and turns each frame into
-/// a scrolling color-mapped waterfall bitmap — newest row at the top. Owns
-/// all the AVFoundation/Accelerate/CoreAudio/CoreGraphics code so nothing
-/// DSP-related leaks into `HubService` or `WaterfallView`; it just hands
-/// finished `CGImage` frames out via `onNewFrame`.
+/// `AudioInputSettings`), runs a real FFT on it, and turns each buffer into
+/// a scrolling color-mapped waterfall bitmap (newest row at top) plus a
+/// time-domain oscilloscope trace from the same raw samples. Owns all the
+/// AVFoundation/Accelerate/CoreAudio/CoreGraphics code so nothing
+/// DSP-related leaks into `HubService` or `ScopeDisplayView`; it just
+/// hands finished `CGImage` frames out via `onNewFrame`.
 ///
 /// Mac-only — mirrors `RigctldProcessController`'s shape (owned by
 /// `HubService`, independently started/stopped, reports out via a
@@ -18,19 +28,44 @@ final class AudioCaptureEngine {
     /// Always invoked on the main actor — `HubService` assigns straight
     /// into `@Published` state from inside it, same contract as
     /// `RigctldProcessController.onStateChange`.
-    var onNewFrame: ((CGImage) -> Void)?
+    var onNewFrame: ((AudioCaptureFrame) -> Void)?
 
     private let fftSize = 2048
     private let binCount = 256
     private let historyRows = 150
-    /// dB range mapped to the 0...1 intensity used for the color lookup.
-    private let floorDb: Float = -80
-    private let ceilingDb: Float = 0
+
+    // Auto-gain: both displays track a slowly-decaying peak of the
+    // incoming signal and scale themselves to it each frame, rather than
+    // assuming a fixed absolute level. A hardcoded dB/amplitude range
+    // guessed at compile time (what this had originally) only looks right
+    // for whatever input level happens to match the guess — anything
+    // quieter reads as flat/empty, anything louder clips. Peak-hold-and-
+    // decay (jump up instantly, relax back down gradually) keeps both
+    // displays using their full visual range without flickering frame to
+    // frame on ordinary level variation.
+    private let waterfallDynamicRangeDb: Float = 45
+    private let waterfallHeadroomDb: Float = 3
+    private let waterfallPeakDecayPerFrameDb: Float = 0.5
+    private let waterfallMinimumPeakDb: Float = -70
+    private let oscilloscopeMinimumPeakAmplitude: Float = 0.02
+    private let oscilloscopePeakDecayPerFrame: Float = 0.002
 
     private let engine = AVAudioEngine()
     private let fftSetup: FFTSetup
     private let log2n: vDSP_Length
     private var isRunning = false
+
+    // User-adjustable zoom, on top of the auto-gain baseline above — the
+    // up/down arrows in ContentView drive these through HubService, which
+    // owns the clamped step arithmetic (see `HubService.stepWaterfallZoom`/
+    // `stepOscilloscopeZoom`). Lock-protected because it's set from the
+    // main actor (button taps) and read every buffer from the audio
+    // thread — unlike `WaterfallBitmap`/`AutoGainState`, which are
+    // recreated per `start()` and only ever touched by the audio thread,
+    // these live for the engine's whole lifetime so zoom survives a
+    // disconnect/reconnect.
+    private let waterfallZoom = LockedFloat(1.0)
+    private let oscilloscopeZoom = LockedFloat(1.0)
 
     init() {
         log2n = vDSP_Length(log2(Double(fftSize)))
@@ -65,14 +100,15 @@ final class AudioCaptureEngine {
         }
 
         // Created fresh per start() and captured directly by the tap
-        // closure below (not stored on self) — process(buffer:bitmap:)
+        // closure below (not stored on self) — process(buffer:bitmap:gain:)
         // runs on the tap's real-time audio thread, while start()/stop()
         // run on the main actor, so there's no property shared across
         // both that would need its own synchronization.
         let bitmap = WaterfallBitmap(binCount: binCount, historyRows: historyRows)
+        let gain = AutoGainState(minimumPeakDb: waterfallMinimumPeakDb, minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
 
         inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(fftSize), format: nil) { [weak self] buffer, _ in
-            self?.process(buffer: buffer, bitmap: bitmap)
+            self?.process(buffer: buffer, bitmap: bitmap, gain: gain)
         }
 
         do {
@@ -81,6 +117,17 @@ final class AudioCaptureEngine {
         } catch {
             inputNode.removeTap(onBus: 0)
         }
+    }
+
+    /// Both take an already-clamped multiplier — `HubService` owns the
+    /// clamp range and per-click step size, this just stores the result
+    /// for `process()` to pick up on the next buffer.
+    func setWaterfallZoom(_ value: Float) {
+        waterfallZoom.set(value)
+    }
+
+    func setOscilloscopeZoom(_ value: Float) {
+        oscilloscopeZoom.set(value)
     }
 
     /// Idempotent — safe to call when not running (e.g. `HubService`
@@ -96,7 +143,7 @@ final class AudioCaptureEngine {
     /// row of 0...1 intensities, then hands it to `bitmap` and publishes
     /// the resulting frame. Runs entirely on the Core Audio real-time
     /// thread except the final `onNewFrame` hop.
-    private func process(buffer: AVAudioPCMBuffer, bitmap: WaterfallBitmap) {
+    private func process(buffer: AVAudioPCMBuffer, bitmap: WaterfallBitmap, gain: AutoGainState) {
         guard let channelData = buffer.floatChannelData?[0] else { return }
         let frameCount = Int(buffer.frameLength)
         guard frameCount > 0 else { return }
@@ -136,6 +183,17 @@ final class AudioCaptureEngine {
         var db = [Float](repeating: 0, count: halfSize)
         vDSP_vdbcon(magnitudes, 1, &reference, &db, 1, vDSP_Length(halfSize), 1)
 
+        // Auto-gain: jump the tracked peak up to this frame's loudest bin
+        // immediately, or let it decay down by one step — never below the
+        // configured minimum, so near-silence doesn't drag the ceiling down
+        // to the noise floor and light up the whole palette.
+        let frameMaxDb = db.max() ?? waterfallMinimumPeakDb
+        gain.peakDb = max(waterfallMinimumPeakDb, max(frameMaxDb, gain.peakDb - waterfallPeakDecayPerFrameDb))
+        let ceilingDb = gain.peakDb + waterfallHeadroomDb
+        // Manual zoom narrows (zoom in) or widens (zoom out) the dB span
+        // mapped to the color gradient, on top of the auto-gain ceiling.
+        let floorDb = ceilingDb - waterfallDynamicRangeDb / waterfallZoom.get()
+
         // Bucket the raw FFT bins down to binCount display columns, taking
         // each bucket's peak so brief narrow-band signals don't disappear
         // into an average.
@@ -151,10 +209,61 @@ final class AudioCaptureEngine {
             row[i] = (clamped - floorDb) / (ceilingDb - floorDb)
         }
 
-        guard let image = bitmap.appendRow(row) else { return }
+        var maxAbsSample: Float = 0
+        for sample in samples { maxAbsSample = max(maxAbsSample, abs(sample)) }
+        gain.peakAmplitude = max(oscilloscopeMinimumPeakAmplitude, max(maxAbsSample, gain.peakAmplitude - oscilloscopePeakDecayPerFrame))
+
+        guard let waterfallImage = bitmap.appendRow(row),
+              let oscilloscopeImage = OscilloscopeRenderer.makeImage(
+                  samples: samples, width: binCount, height: historyRows,
+                  peakAmplitude: gain.peakAmplitude, zoom: oscilloscopeZoom.get()
+              )
+        else { return }
+        let frame = AudioCaptureFrame(waterfall: waterfallImage, oscilloscope: oscilloscopeImage)
         Task { @MainActor [weak self] in
-            self?.onNewFrame?(image)
+            self?.onNewFrame?(frame)
         }
+    }
+}
+
+/// Peak-hold-and-decay auto-gain state, one instance per `start()` call,
+/// captured directly by the tap closure alongside `WaterfallBitmap` — same
+/// thread-ownership reasoning (mutated only on the audio thread, never
+/// touched by `start()`/`stop()` after creation).
+private final class AutoGainState {
+    var peakDb: Float
+    var peakAmplitude: Float
+
+    init(minimumPeakDb: Float, minimumPeakAmplitude: Float) {
+        peakDb = minimumPeakDb
+        peakAmplitude = minimumPeakAmplitude
+    }
+}
+
+/// Thread-safe holder for a value the main actor (`HubService`, on behalf
+/// of the zoom arrow buttons) writes while `process()` reads it every
+/// buffer on the audio thread — see `AudioCaptureEngine`'s `waterfallZoom`/
+/// `oscilloscopeZoom` doc comment for why this needs locking where
+/// `WaterfallBitmap`/`AutoGainState` don't. Updates are rare (button
+/// taps) and reads are ~21Hz, so an uncontended lock is plenty.
+private final class LockedFloat {
+    private let lock = NSLock()
+    private var value: Float
+
+    init(_ value: Float) {
+        self.value = value
+    }
+
+    func get() -> Float {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+
+    func set(_ newValue: Float) {
+        lock.lock()
+        defer { lock.unlock() }
+        value = newValue
     }
 }
 
@@ -242,5 +351,58 @@ private enum WaterfallPalette {
             UInt8(Float(a) + (Float(b) - Float(a)) * t)
         }
         return (lerp(lower.r, upper.r), lerp(lower.g, upper.g), lerp(lower.b, upper.b))
+    }
+}
+
+/// Renders one time-domain trace directly from a buffer's raw (unwindowed)
+/// samples — classic green-on-black scope look, downsampled to `width`
+/// columns by nearest-neighbor (no min/max peak detection — fine at this
+/// buffer size/frame rate, and simpler). Stateless, unlike `WaterfallBitmap`
+/// — an oscilloscope has no history to accumulate, each frame stands alone.
+/// `peakAmplitude` (from `AutoGainState`) rescales the trace to use the
+/// full vertical range regardless of the input's actual level, rather than
+/// assuming it reaches full-scale ±1.0; `zoom` (from the up/down arrows,
+/// via `HubService`) is a further user multiplier on top of that.
+private enum OscilloscopeRenderer {
+    private static let colorSpace = CGColorSpaceCreateDeviceRGB()
+    private static let traceColor = CGColor(red: 0.2, green: 1.0, blue: 0.4, alpha: 1)
+
+    static func makeImage(samples: [Float], width: Int, height: Int, peakAmplitude: Float, zoom: Float) -> CGImage? {
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+
+        context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        guard samples.count > 1, width > 1 else { return context.makeImage() }
+
+        context.setStrokeColor(traceColor)
+        context.setLineWidth(1.5)
+        context.beginPath()
+
+        let midY = CGFloat(height) / 2
+        let scale = CGFloat(zoom) / CGFloat(peakAmplitude)
+        let step = Double(samples.count - 1) / Double(width - 1)
+        for x in 0..<width {
+            let sampleIndex = Int(Double(x) * step)
+            let rawSample = CGFloat(samples[min(sampleIndex, samples.count - 1)])
+            // Clamped rather than left to run off the box — the peak
+            // estimate lags a sudden transient by up to one frame.
+            let sample = max(-1, min(1, rawSample * scale))
+            let point = CGPoint(x: CGFloat(x), y: midY - sample * midY)
+            if x == 0 {
+                context.move(to: point)
+            } else {
+                context.addLine(to: point)
+            }
+        }
+        context.strokePath()
+        return context.makeImage()
     }
 }
