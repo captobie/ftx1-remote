@@ -42,7 +42,7 @@ struct ContentView: View {
                 pttButton
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Power: \(Int(displayedPowerLevel * 100))%")
+                    Text("Power: \(Int(displayedPowerLevel * 100))W")
                     Slider(
                         value: Binding(
                             get: { displayedPowerLevel },
@@ -120,7 +120,7 @@ struct ContentView: View {
                 viewModel.connect(toHost: host)
             }
         } label: {
-            Text(viewModel.connectionState == .connected ? "Disconnect" : "Connect")
+            Text(viewModel.connectionState == .connected ? "Connected" : "Disconnected")
                 .font(.headline)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)

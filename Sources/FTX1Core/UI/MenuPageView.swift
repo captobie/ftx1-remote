@@ -875,7 +875,7 @@ public struct MenuPageView<Controller: RigController>: View {
 
     private static func rfPowerLabel(_ level: Double?) -> String {
         guard let level else { return "—" }
-        return "\(Int((level * 100).rounded()))%"
+        return "\(Int((level * 100).rounded()))W"
     }
 
     private static func displayLevelLabel(_ dB: Double?) -> String {

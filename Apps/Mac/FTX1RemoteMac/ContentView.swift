@@ -224,7 +224,7 @@ struct ContentView: View {
                 hub.startRigctld()
             }
         } label: {
-            Text(hub.connectionState == .connected ? "Disconnect" : "Connect")
+            Text(hub.connectionState == .connected ? "Connected" : "Disconnected")
                 .font(.headline)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
