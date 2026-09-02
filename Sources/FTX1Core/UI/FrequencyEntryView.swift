@@ -9,11 +9,24 @@ public struct FrequencyEntryView: View {
     let onSetFrequency: (Int) -> Void
 
     @State private var text: String
+    @AppStorage("ui.frequencyStepSize") private var stepSize: StepSize = .oneKHz
     @Environment(\.dismiss) private var dismiss
 
-    /// Up/down step size — fixed, no picker (see repo root CLAUDE.md
-    /// working-conventions note on keeping this UI simple for v1).
-    private static let stepHz = 1_000
+    /// Up/down step size choices — persisted per device via `stepSize` so
+    /// the last one picked carries over to the next time the popover opens.
+    private enum StepSize: Int, CaseIterable {
+        case oneHundredHz = 100
+        case oneKHz = 1_000
+        case tenKHz = 10_000
+
+        var label: String {
+            switch self {
+            case .oneHundredHz: "100 Hz"
+            case .oneKHz: "1 kHz"
+            case .tenKHz: "10 kHz"
+            }
+        }
+    }
 
     public init(currentHz: Int, onSetFrequency: @escaping (Int) -> Void) {
         self.currentHz = currentHz
@@ -34,15 +47,23 @@ public struct FrequencyEntryView: View {
                 Button("Set", action: commitText)
             }
 
+            Picker("Step", selection: $stepSize) {
+                ForEach(StepSize.allCases, id: \.self) { size in
+                    Text(size.label).tag(size)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 220)
+
             HStack(spacing: 20) {
                 Button {
-                    step(by: -Self.stepHz)
+                    step(by: -stepSize.rawValue)
                 } label: {
                     Image(systemName: "chevron.down")
                         .frame(width: 32, height: 32)
                 }
                 Button {
-                    step(by: Self.stepHz)
+                    step(by: stepSize.rawValue)
                 } label: {
                     Image(systemName: "chevron.up")
                         .frame(width: 32, height: 32)
