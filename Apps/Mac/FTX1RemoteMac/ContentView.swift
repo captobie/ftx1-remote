@@ -35,7 +35,7 @@ struct ContentView: View {
             }
 
             HStack(spacing: 12) {
-                VFODisplayBox(label: "VFO A", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName)
+                VFODisplayBox(label: "VFO A", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, onSetFrequency: { hub.send(.setFrequency(hz: $0)) })
                 VFODisplayBox(label: "VFO B", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: false, mode: hub.rigState.secondaryMode?.displayName ?? "—")
             }
 

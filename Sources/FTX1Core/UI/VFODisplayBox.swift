@@ -9,12 +9,19 @@ public struct VFODisplayBox: View {
     let frequencyHz: Int?
     let isActive: Bool
     let mode: String
+    /// Tap-to-edit callback for this VFO's frequency. `nil` (the default)
+    /// leaves the display read-only — used for VFO B, which has no
+    /// corresponding `RigCommand` to write back through today.
+    let onSetFrequency: ((Int) -> Void)?
 
-    public init(label: String, frequencyHz: Int?, isActive: Bool, mode: String) {
+    @State private var isEditing = false
+
+    public init(label: String, frequencyHz: Int?, isActive: Bool, mode: String, onSetFrequency: ((Int) -> Void)? = nil) {
         self.label = label
         self.frequencyHz = frequencyHz
         self.isActive = isActive
         self.mode = mode
+        self.onSetFrequency = onSetFrequency
     }
 
     public var body: some View {
@@ -27,6 +34,16 @@ public struct VFODisplayBox: View {
                 .foregroundStyle(digitColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard onSetFrequency != nil else { return }
+                    isEditing = true
+                }
+                .popover(isPresented: $isEditing) {
+                    if let onSetFrequency {
+                        FrequencyEntryView(currentHz: frequencyHz ?? 0, onSetFrequency: onSetFrequency)
+                    }
+                }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.horizontal, 14)
@@ -64,7 +81,7 @@ public struct VFODisplayBox: View {
 
 #Preview {
     HStack(spacing: 12) {
-        VFODisplayBox(label: "VFO A", frequencyHz: 147_380_000, isActive: true, mode: "FM")
+        VFODisplayBox(label: "VFO A", frequencyHz: 147_380_000, isActive: true, mode: "FM", onSetFrequency: { _ in })
         VFODisplayBox(label: "VFO B", frequencyHz: 431_075_000, isActive: false, mode: "FM")
     }
     .padding()

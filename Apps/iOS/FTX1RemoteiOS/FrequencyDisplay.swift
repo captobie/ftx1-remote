@@ -1,3 +1,4 @@
+import FTX1Core
 import SwiftUI
 
 /// Large digital-readout frequency display for iOS's focused single-rig
@@ -7,6 +8,9 @@ import SwiftUI
 struct FrequencyDisplay: View {
     let frequencyHz: Int
     let mode: String
+    let onSetFrequency: (Int) -> Void
+
+    @State private var isEditing = false
 
     var body: some View {
         VStack(alignment: .center, spacing: 4) {
@@ -15,6 +19,11 @@ struct FrequencyDisplay: View {
                 .foregroundStyle(Color.green)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
+                .contentShape(Rectangle())
+                .onTapGesture { isEditing = true }
+                .popover(isPresented: $isEditing) {
+                    FrequencyEntryView(currentHz: frequencyHz, onSetFrequency: onSetFrequency)
+                }
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 20)
@@ -46,6 +55,6 @@ struct FrequencyDisplay: View {
 }
 
 #Preview {
-    FrequencyDisplay(frequencyHz: 147_380_000, mode: "FM")
+    FrequencyDisplay(frequencyHz: 147_380_000, mode: "FM", onSetFrequency: { _ in })
         .padding()
 }

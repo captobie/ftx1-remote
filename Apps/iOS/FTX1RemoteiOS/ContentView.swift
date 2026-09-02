@@ -25,7 +25,8 @@ struct ContentView: View {
             if viewModel.connectionState == .connected {
                 FrequencyDisplay(
                     frequencyHz: viewModel.rigState.frequencyHz,
-                    mode: viewModel.rigState.mode.displayName
+                    mode: viewModel.rigState.mode.displayName,
+                    onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }
                 )
                 if let swr = viewModel.rigState.swr {
                     Text("SWR \(swr, specifier: "%.2f")")
