@@ -31,6 +31,15 @@ Shared Swift package for the FTX-1 remote control app (Mac hub + iOS/iPadOS clie
   not part of this broadcast.
 - **Commands are serialized** through `CommandQueue` on the Mac side, since
   rigctld handles one request/response cycle at a time.
+- **The Mac also launches rigctld itself** (`RigctldProcessController`)
+  rather than requiring it pre-started — adopting an already-running,
+  responsive instance instead of killing it on launch, since another client
+  (e.g. WSJT-X) may be mid-session with it.
+- **The waterfall/oscilloscope display is audio-derived, not CAT-derived**
+  (`AudioCaptureEngine`, Mac-only): it captures from a user-selected sound
+  card input device and runs an FFT, entirely separate from the rig-control
+  data path above — no rigctld or wire-protocol involvement, and not
+  broadcast to mobile clients.
 - **Two menu systems, both driven by raw CAT passthrough** (most FTX-1 menu
   items have no hamlib func/level equivalent, per the CAT Operation
   Reference Manual):
@@ -63,6 +72,8 @@ Shared Swift package for the FTX-1 remote control app (Mac hub + iOS/iPadOS clie
 ```
 Sources/FTX1Core/
 ├── RigState/       RigState, RigMode, BandPlan — shared state model + band table
+├── Appearance/      AppTheme, ButtonValueColor, AppearanceSettings — shared
+│                    app-appearance settings (theme, MENU grid button color)
 ├── Networking/      WireMessage (JSON protocol: RigCommand/RigStatePush),
 │                    RigctldClient (Mac-only, TCP to rigctld, incl. raw CAT
 │                    passthrough), RigWebSocketClient (WS client, used by
@@ -76,8 +87,15 @@ Sources/FTX1Core/
                      both conform to), MenuPageView (numbered MENU grid,
                      generic over RigController, shared by Mac + iPad),
                      VFODisplayBox (dense VFO A/B readout, shared by Mac +
-                     iPad)
+                     iPad), SMeterView (analog S/SWR meter face, shared by
+                     Mac + iPad)
 ```
+
+Mac-only, not part of the shared package: `AudioCaptureEngine` (captures a
+selected sound card input, runs an FFT) and `ScopeDisplayView` (renders the
+resulting waterfall/oscilloscope frames) — see Architecture above. Neither
+is wired into the wire protocol or `RigController`, so they aren't shared
+with mobile targets the way the rest of this layout is.
 
 ## Not yet built / open
 
@@ -89,10 +107,14 @@ Sources/FTX1Core/
 - iOS UI for the numbered MENU grid (iPad has it; iOS doesn't yet).
 - PTT port's `-P RIG` keying-type assumption not stress-tested against a
   real separate PTT interface.
-- Most of the numbered MENU grid's ~84 buttons are still unwired
+- The numbered MENU grid is still growing — SSB page 1 items 2-27 are wired
+  (or deliberately disabled placeholders, e.g. TXW/CW MESSAGE pending
+  hardware issues), the rest of the grid's buttons are still unwired
   placeholders (wired one at a time as needed — see `MenuPageView.swift`
-  for the current count). Deep Settings, a separate/larger system, is
+  for the current state). Deep Settings, a separate/larger system, is
   fully populated — see above.
+- Waterfall/oscilloscope display is Mac-only; not exposed to mobile clients
+  and not part of the wire protocol (see Architecture above).
 - Deep Settings: RADIO SETTING's WIRES-X tab (no CAT manual source yet —
   postdates the manual's firmware revision), KEY/DIAL's MIC UP/MIC DOWN
   (unknown shape, deliberately deferred), and the manual's P1=09 "PRESET"
