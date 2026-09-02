@@ -16,7 +16,13 @@ over Tailscale, without needing to be physically near the rig.
 - **rigctld (hamlib)** runs on the Mac at `localhost:4532` and is the single
   source of truth for hardware communication — same as the existing
   `rigctld_control.py` setup it replaces. Do not suggest bridging libhamlib
-  directly into iOS/iPadOS; mobile clients are network clients only.
+  directly into iOS/iPadOS; mobile clients are network clients only. The Mac
+  app also owns launching rigctld itself (`RigctldProcessController`, see
+  `Apps/Mac/` below) rather than requiring it pre-started — on launch it
+  probes the configured port and adopts an already-running, responsive
+  rigctld instead of killing it (another client, e.g. WSJT-X, may be
+  mid-session with it); only an unresponsive/stale one gets killed and
+  replaced.
 - **Mac app exposes a WebSocket server** that iOS/iPadOS clients connect to.
   Mobile apps never talk to rigctld directly.
 - **Mac's own local UI calls `HubService` directly** (`hub.send(...)`,
@@ -59,6 +65,15 @@ over Tailscale, without needing to be physically near the rig.
   documented in the CAT Operation Reference Manual, not through rigctld's
   generic get/set verbs. See `Structure` below for where the two menu
   systems live.
+- **Waterfall/oscilloscope display is audio-derived, not CAT-derived.**
+  `AudioCaptureEngine` (Mac-only) captures from a user-selected sound card
+  input device (Settings → Audio tab; the rig's own audio out into the Mac,
+  in practice — not a rigctld/CAT feature) and runs an FFT to produce both a
+  scrolling waterfall and an oscilloscope trace from the same buffer, with
+  auto-gain (peak-hold-and-decay) rather than a fixed dB/amplitude range.
+  This is entirely separate from the rig-control data path — no rigctld or
+  wire-protocol involvement — and Mac-only today; it isn't broadcast to
+  mobile clients.
 
 ## Structure
 
@@ -66,6 +81,10 @@ over Tailscale, without needing to be physically near the rig.
   repo root `Package.swift`): platform-agnostic.
   - `RigState/` — `RigState`/`RigMode` (shared state model), `BandPlan`
     (band table + frequency lookup).
+  - `Appearance/` — `AppTheme` (Light/Dark/Auto), `ButtonValueColor` (MENU
+    grid button value color), `AppearanceSettings` (the `@AppStorage` keys
+    both are read/written through) — shared so any future app target reads
+    the same settings the Mac's Settings sheet writes.
   - `Networking/` — `WireMessage` (`RigCommand`/`RigStatePush`, the JSON wire
     protocol), `RigctldClient` (Mac-only, TCP to rigctld, incl. raw CAT
     passthrough), `RigWebSocketClient` (WS client, used by mobile and — for
@@ -83,20 +102,25 @@ over Tailscale, without needing to be physically near the rig.
     conform to — see Architecture above), `MenuPageView` (the numbered 7×4
     MENU grid, generic over `RigController`, one hand-written button per
     item), `VFODisplayBox` (the dense side-by-side VFO A/B readout used by
-    Mac and iPad). Only put a view here once it's actually needed on more
-    than one target — `FrequencyDisplay` (iOS's single-VFO readout) stays
-    in the iOS app target since nothing else uses it.
+    Mac and iPad), `SMeterView` (the analog S/SWR meter face, used by Mac
+    and iPad). Only put a view here once it's actually needed on more than
+    one target — `FrequencyDisplay` (iOS's single-VFO readout) stays in the
+    iOS app target since nothing else uses it.
 - `Apps/Mac/FTX1RemoteMac/` — Mac app target source (canonical location;
   the Xcode project at `FTX1RemoteMac/FTX1RemoteMac.xcodeproj` points at
   this directory via a synchronized group, not a separate copy). Owns the
   rigctld connection and WebSocket server (`HubService`, `RigWebSocketServer`,
   `RigctldProcessController`), plus `HubService`'s `RigController`
   conformance (`HubService+RigController.swift` — the only conformer that
-  builds a real `DeepSettingsView` destination). Dense multi-pane UI
-  (`ContentView`: VFO, meters, band/mode selectors all visible at once)
-  plus two menu systems: `MenuPageView` (shared, see `Sources/FTX1Core/UI/`
-  above) and `DeepSettingsView` (Mac-only — the page-3 category screens,
-  rendered generically from `DeepSettingsCatalog`).
+  builds a real `DeepSettingsView` destination). Also owns the audio-derived
+  waterfall/oscilloscope display (`AudioCaptureEngine`, `ScopeDisplayView`,
+  `AudioInputDevice`/`AudioInputSettings`) — Mac-only, see Architecture
+  above. Dense multi-pane UI (`ContentView`: VFO, meters, scope display,
+  band/mode selectors all visible at once), `SettingsView` (tabbed sheet:
+  rigctld connection config, Audio input device, Appearance), plus two menu
+  systems: `MenuPageView` (shared, see `Sources/FTX1Core/UI/` above) and
+  `DeepSettingsView` (Mac-only — the page-3 category screens, rendered
+  generically from `DeepSettingsCatalog`).
 - `Apps/iOS/FTX1RemoteiOS/` — iPhone app target. WebSocket client only
   (`RigClientViewModel`/`RigWebSocketClient`), never touches `RigctldClient`
   directly. Focused single-rig-control view (frequency, SWR, PTT, mode grid)
