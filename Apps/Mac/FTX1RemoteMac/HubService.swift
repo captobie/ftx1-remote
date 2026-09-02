@@ -167,6 +167,7 @@ final class HubService: ObservableObject {
     private func applyOptimistically(_ command: RigCommand) {
         switch command {
         case .setFrequency(let hz): rigState.frequencyHz = hz
+        case .setSecondaryFrequency(let hz): rigState.secondaryFrequencyHz = hz
         case .setMode(let mode): rigState.mode = mode
         case .setPTT(let on): rigState.ptt = on
         case .setBand: break // resolved into .setFrequency before reaching CommandQueue — see send(_:)

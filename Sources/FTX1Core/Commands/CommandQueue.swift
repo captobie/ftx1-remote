@@ -57,6 +57,8 @@ public actor CommandQueue {
         switch command {
         case .setFrequency(let hz):
             _ = try await rigctld.send("F \(Self.currentVFOArg) \(hz)")
+        case .setSecondaryFrequency(let hz):
+            try await rigctld.setSecondaryFrequency(hz)
         case .setMode(let mode):
             _ = try await rigctld.send("M \(Self.currentVFOArg) \(mode.rawValue) 0")
         case .setPTT(let on):
