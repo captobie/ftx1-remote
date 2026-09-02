@@ -8,6 +8,11 @@ import Foundation
 /// so it stays simple to read on the wire and easy to extend later.
 public enum RigCommand: Sendable, Equatable {
     case setFrequency(hz: Int)
+    /// Writes VFO B's frequency — whichever of Main/Sub isn't currently
+    /// active (see `RigState.secondaryFrequencyHz`). Maps to
+    /// `RigctldClient.setSecondaryFrequency(_:)`, the set-side counterpart
+    /// of `getSecondaryFrequency()`.
+    case setSecondaryFrequency(hz: Int)
     case setMode(RigMode)
     case setPTT(Bool)
     case setBand(String)
@@ -186,6 +191,7 @@ public enum RigCommand: Sendable, Equatable {
 
     private enum CommandName: String, Codable {
         case setFreq = "set_freq"
+        case setSecondaryFreq = "set_secondary_freq"
         case setMode = "set_mode"
         case ptt
         case setBand = "set_band"
@@ -235,6 +241,8 @@ extension RigCommand: Codable {
         switch name {
         case .setFreq:
             self = .setFrequency(hz: try container.decode(Int.self, forKey: .value))
+        case .setSecondaryFreq:
+            self = .setSecondaryFrequency(hz: try container.decode(Int.self, forKey: .value))
         case .setMode:
             self = .setMode(try container.decode(RigMode.self, forKey: .value))
         case .ptt:
@@ -322,6 +330,9 @@ extension RigCommand: Codable {
         switch self {
         case .setFrequency(let hz):
             try container.encode(CommandName.setFreq, forKey: .cmd)
+            try container.encode(hz, forKey: .value)
+        case .setSecondaryFrequency(let hz):
+            try container.encode(CommandName.setSecondaryFreq, forKey: .cmd)
             try container.encode(hz, forKey: .value)
         case .setMode(let mode):
             try container.encode(CommandName.setMode, forKey: .cmd)

@@ -556,6 +556,28 @@ public actor RigctldClient {
         return lines[0]
     }
 
+    /// Writes the frequency of whichever VFO isn't currently active — the
+    /// set-side counterpart to `getSecondaryFrequency()`, same "ask `v` for
+    /// the active VFO, target the other one explicitly" shape.
+    ///
+    /// Unlike the get side, it's *not confirmed against real hardware*
+    /// whether the short-form set command (`F <VFO> <hz>`) targets the named
+    /// VFO cleanly the way `f <VFO>` does on read, or whether writing a
+    /// non-active VFO requires rigctld/hamlib to switch to it internally
+    /// first. To not depend on that assumption either way, this checks the
+    /// active VFO again after the write and switches back if it moved —
+    /// so VFO A stays put and stays active from the app's perspective
+    /// regardless of what happened underneath.
+    public func setSecondaryFrequency(_ hz: Int) async throws {
+        let currentVFO = try await send("v")
+        let otherVFO = currentVFO == "Sub" ? "Main" : "Sub"
+        _ = try await send("F \(otherVFO) \(hz)")
+        let vfoAfterSet = try await send("v")
+        if vfoAfterSet != currentVFO {
+            _ = try await send("V \(currentVFO)")
+        }
+    }
+
     private func write(_ command: String) async throws {
         guard let connection else {
             throw RigctldError.notConnected
