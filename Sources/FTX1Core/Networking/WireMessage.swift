@@ -13,6 +13,10 @@ public enum RigCommand: Sendable, Equatable {
     /// `RigctldClient.setSecondaryFrequency(_:)`, the set-side counterpart
     /// of `getSecondaryFrequency()`.
     case setSecondaryFrequency(hz: Int)
+    /// Switches which of Main/Sub is the active VFO — momentary, like
+    /// `.triggerZeroIn`, no associated value. Maps to
+    /// `RigctldClient.swapActiveVFO()`.
+    case swapActiveVFO
     case setMode(RigMode)
     case setPTT(Bool)
     case setBand(String)
@@ -192,6 +196,7 @@ public enum RigCommand: Sendable, Equatable {
     private enum CommandName: String, Codable {
         case setFreq = "set_freq"
         case setSecondaryFreq = "set_secondary_freq"
+        case swapActiveVFO = "swap_active_vfo"
         case setMode = "set_mode"
         case ptt
         case setBand = "set_band"
@@ -243,6 +248,8 @@ extension RigCommand: Codable {
             self = .setFrequency(hz: try container.decode(Int.self, forKey: .value))
         case .setSecondaryFreq:
             self = .setSecondaryFrequency(hz: try container.decode(Int.self, forKey: .value))
+        case .swapActiveVFO:
+            self = .swapActiveVFO
         case .setMode:
             self = .setMode(try container.decode(RigMode.self, forKey: .value))
         case .ptt:
@@ -334,6 +341,8 @@ extension RigCommand: Codable {
         case .setSecondaryFrequency(let hz):
             try container.encode(CommandName.setSecondaryFreq, forKey: .cmd)
             try container.encode(hz, forKey: .value)
+        case .swapActiveVFO:
+            try container.encode(CommandName.swapActiveVFO, forKey: .cmd)
         case .setMode(let mode):
             try container.encode(CommandName.setMode, forKey: .cmd)
             try container.encode(mode, forKey: .value)

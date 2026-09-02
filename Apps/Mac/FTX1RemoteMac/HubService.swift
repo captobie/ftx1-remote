@@ -168,6 +168,14 @@ final class HubService: ObservableObject {
         switch command {
         case .setFrequency(let hz): rigState.frequencyHz = hz
         case .setSecondaryFrequency(let hz): rigState.secondaryFrequencyHz = hz
+        case .swapActiveVFO:
+            let freq = rigState.frequencyHz
+            rigState.frequencyHz = rigState.secondaryFrequencyHz ?? freq
+            rigState.secondaryFrequencyHz = freq
+            if let newMode = rigState.secondaryMode {
+                rigState.secondaryMode = rigState.mode
+                rigState.mode = newMode
+            }
         case .setMode(let mode): rigState.mode = mode
         case .setPTT(let on): rigState.ptt = on
         case .setBand: break // resolved into .setFrequency before reaching CommandQueue — see send(_:)

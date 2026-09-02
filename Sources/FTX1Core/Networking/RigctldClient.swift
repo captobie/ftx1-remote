@@ -578,6 +578,18 @@ public actor RigctldClient {
         }
     }
 
+    /// Switches which of Main/Sub is the active VFO — the rigctld
+    /// counterpart of the rig's own physical A/B swap button. Unlike the
+    /// VFO switching `getSecondaryFrequency()`'s doc comment says to avoid,
+    /// this is a deliberate user action (not something a background poll
+    /// loop does silently), so the relay click that comes with it is
+    /// expected, same as pressing the physical button.
+    public func swapActiveVFO() async throws {
+        let currentVFO = try await send("v")
+        let otherVFO = currentVFO == "Sub" ? "Main" : "Sub"
+        _ = try await send("V \(otherVFO)")
+    }
+
     private func write(_ command: String) async throws {
         guard let connection else {
             throw RigctldError.notConnected
