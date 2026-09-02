@@ -28,6 +28,7 @@ struct ContentView: View {
 
                 HStack(spacing: 12) {
                     VFODisplayBox(label: "VFO A", frequencyHz: viewModel.rigState.frequencyHz, isActive: true, mode: viewModel.rigState.mode.displayName, onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) })
+                    vfoSwapButton
                     VFODisplayBox(label: "VFO B", frequencyHz: viewModel.rigState.secondaryFrequencyHz, isActive: false, mode: viewModel.rigState.secondaryMode?.displayName ?? "—", onSetFrequency: { viewModel.send(.setSecondaryFrequency(hz: $0)) })
                 }
 
@@ -82,6 +83,18 @@ struct ContentView: View {
             }
             .padding(32)
         }
+    }
+
+    /// Swaps which of Main/Sub is the active VFO — the rig's own physical
+    /// A/B button, over CAT. See Mac `ContentView`'s identical button for
+    /// why no other display logic is needed.
+    private var vfoSwapButton: some View {
+        Button {
+            viewModel.send(.swapActiveVFO)
+        } label: {
+            Image(systemName: "arrow.left.arrow.right")
+        }
+        .buttonStyle(.bordered)
     }
 
     /// Momentary press-and-hold, not a toggle — same `DragGesture` pattern

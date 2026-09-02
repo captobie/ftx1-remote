@@ -36,6 +36,7 @@ struct ContentView: View {
 
             HStack(spacing: 12) {
                 VFODisplayBox(label: "VFO A", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, onSetFrequency: { hub.send(.setFrequency(hz: $0)) })
+                vfoSwapButton
                 VFODisplayBox(label: "VFO B", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: false, mode: hub.rigState.secondaryMode?.displayName ?? "—", onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) })
             }
 
@@ -92,6 +93,20 @@ struct ContentView: View {
     /// `onEnded` on release; works the same for a mouse click as it does
     /// for touch). `isPTTPressed` guards against sending `.setPTT(true)`
     /// repeatedly while `onChanged` keeps firing during the hold.
+    /// Swaps which of Main/Sub is the active VFO — the rig's own physical
+    /// A/B button, over CAT. `VFODisplayBox`'s existing live-state bindings
+    /// (`rigState.frequencyHz`/`.secondaryFrequencyHz`) already relabel
+    /// which box shows which frequency once the active VFO changes, so this
+    /// button is the entire feature — no other display logic needed.
+    private var vfoSwapButton: some View {
+        Button {
+            hub.send(.swapActiveVFO)
+        } label: {
+            Image(systemName: "arrow.left.arrow.right")
+        }
+        .buttonStyle(.bordered)
+    }
+
     private var pttButton: some View {
         Text(hub.rigState.ptt ? "TRANSMITTING" : "PTT")
             .font(.headline)
