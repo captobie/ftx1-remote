@@ -44,6 +44,7 @@ final class HubService: ObservableObject {
     private let rigctldHost: String
     private let rigctldPort: UInt16
     private var runLoopTask: Task<Void, Never>?
+    private var webSocketServerTask: Task<Void, Never>?
 
     private let pollInterval: Duration
     private let reconnectDelay: Duration
@@ -89,11 +90,32 @@ final class HubService: ObservableObject {
                 Task { @MainActor in self?.applyOptimistically(command) }
             }
         }
+        startWebSocketServer()
+    }
 
+    /// Retries the bind indefinitely (reusing `reconnectDelay` as the
+    /// interval — no need for a second, separately-tuned constant here)
+    /// whenever `RigWebSocketServer.isListening()` reports false — covers
+    /// both the initial bind failing (e.g. the port still held by a
+    /// just-killed previous instance) and a later failure it clears itself
+    /// (see that type's `stateUpdateHandler`). Without this, a one-time
+    /// bind failure would silently and permanently disable the WebSocket
+    /// server for the rest of the app's life: the Mac's own local UI calls
+    /// `HubService` directly and never touches this server, so nothing
+    /// else would ever notice or recover it.
+    private func startWebSocketServer() {
+        guard webSocketServerTask == nil else { return }
         let port = webSocketPort
-        Task { [weak self, server] in
-            try? await server.start(port: port) { command in
-                Task { @MainActor in self?.send(command) }
+        webSocketServerTask = Task { [weak self, server, reconnectDelay] in
+            while !Task.isCancelled {
+                if await server.isListening() {
+                    try? await Task.sleep(for: reconnectDelay)
+                    continue
+                }
+                try? await server.start(port: port) { command in
+                    Task { @MainActor in self?.send(command) }
+                }
+                try? await Task.sleep(for: reconnectDelay)
             }
         }
     }
@@ -102,6 +124,8 @@ final class HubService: ObservableObject {
     /// rigctld isn't left running as an orphaned child process.
     func stop() {
         stopRigctld()
+        webSocketServerTask?.cancel()
+        webSocketServerTask = nil
         Task { [server] in await server.stop() }
     }
 

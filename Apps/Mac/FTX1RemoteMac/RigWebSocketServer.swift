@@ -11,6 +11,15 @@ import Network
 /// `RigWebSocketClient`) is client-only — see repo README/CLAUDE.md.
 actor RigWebSocketServer {
     private var listener: NWListener?
+    /// Set once `listener` actually reports `.ready`, cleared on
+    /// `.failed`/`.waiting`/`.cancelled` — see `isListening()`. A bind
+    /// conflict (e.g. the port still held by a just-killed previous
+    /// instance) was confirmed by testing to report as `.waiting`, not
+    /// `.failed` — `listener != nil` alone isn't a reliable "is this
+    /// actually accepting connections" signal, since `listener` gets
+    /// assigned as soon as `NWListener.start(queue:)` is called, well
+    /// before the OS confirms the bind actually succeeded.
+    private var isReady = false
     private var connections: [ObjectIdentifier: Connection] = [:]
     private var latestState: RigState?
     private var onCommandReceived: (@Sendable (RigCommand) -> Void)?
@@ -65,13 +74,63 @@ actor RigWebSocketServer {
         listener.newConnectionHandler = { [weak self] connection in
             Task { await self?.accept(connection) }
         }
+        // A listener that fails to bind (e.g. the port still held by a
+        // just-killed previous instance) reports that asynchronously via
+        // this handler — confirmed by testing against a real port
+        // conflict to be `.waiting`, not `.failed` — not by throwing from
+        // `start(queue:)` below. Without watching for it, `self.listener`
+        // stays set to a listener that's never actually accepting
+        // connections forever, and `start(port:)`'s `guard listener ==
+        // nil` then silently no-ops on every future call, permanently
+        // disabling the WebSocket server for the rest of this process's
+        // life with no visible error anywhere (the Mac's own local UI
+        // never touches this server — see this type's doc comment — so
+        // nothing else would ever notice either). Clearing `self.listener`
+        // on `.failed`/`.waiting` is what lets `HubService`'s retry loop
+        // actually rebind once the port frees up, rather than trusting
+        // NWListener's own internal `.waiting` recovery, which testing
+        // showed does not reliably happen on its own within a reasonable
+        // time. `[weak listener]` guards against a late callback from an
+        // already-replaced listener (a fast stop()+start()) clobbering the
+        // new one.
+        listener.stateUpdateHandler = { [weak self, weak listener] state in
+            switch state {
+            case .ready:
+                Task { await self?.handleListenerReady(listener) }
+            case .failed, .waiting:
+                Task { await self?.handleListenerNotReady(listener) }
+            default:
+                break
+            }
+        }
         listener.start(queue: .global(qos: .userInitiated))
         self.listener = listener
+    }
+
+    private func handleListenerReady(_ readyListener: NWListener?) {
+        guard readyListener === listener else { return }
+        isReady = true
+    }
+
+    private func handleListenerNotReady(_ notReadyListener: NWListener?) {
+        guard notReadyListener === listener else { return }
+        listener?.cancel()
+        listener = nil
+        isReady = false
+    }
+
+    /// Whether the listener has actually reached `.ready` — see `isReady`'s
+    /// doc comment for why `listener != nil` alone isn't sufficient. Polled
+    /// by `HubService`'s retry loop rather than making `start` itself await
+    /// a bind confirmation, since nothing here needs to block on that.
+    func isListening() -> Bool {
+        isReady
     }
 
     func stop() {
         listener?.cancel()
         listener = nil
+        isReady = false
         for connection in connections.values {
             connection.close()
         }
