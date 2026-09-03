@@ -46,6 +46,12 @@ final class HubService: ObservableObject {
     private var runLoopTask: Task<Void, Never>?
     private var webSocketServerTask: Task<Void, Never>?
 
+    /// Bumped by `applyOptimistically` every time a command lands. `refreshState`
+    /// checks this before and after its ~30 sequential reads to detect whether a
+    /// command was optimistically applied mid-cycle — see its use below for why
+    /// that matters.
+    private var commandGeneration = 0
+
     private let pollInterval: Duration
     private let reconnectDelay: Duration
     private let startupRetryInterval: Duration
@@ -189,6 +195,7 @@ final class HubService: ObservableObject {
     /// out-of-range value) self-corrects at the next poll tick, same as any
     /// other externally-driven change (e.g. the front panel).
     private func applyOptimistically(_ command: RigCommand) {
+        commandGeneration += 1
         switch command {
         case .setFrequency(let hz): rigState.frequencyHz = hz
         case .setSecondaryFrequency(let hz): rigState.secondaryFrequencyHz = hz
@@ -344,6 +351,11 @@ final class HubService: ObservableObject {
     }
 
     private func refreshState() async throws {
+        // This cycle's reads are captured one at a time across ~30 sequential
+        // round trips (below), so a command can land via `applyOptimistically`
+        // partway through — see the `commandGeneration` guard right before this
+        // cycle's values are published, below.
+        let generationAtStart = commandGeneration
         let frequencyHz = try await rigctld.getFrequency()
         let (modeName, _) = try await rigctld.getMode()
         let ptt = try await rigctld.getPTT()
@@ -419,6 +431,18 @@ final class HubService: ObservableObject {
         let txwEnabled = try? await rigctld.getRawBool("TS")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
+
+        // Almost every field above has an optimistic-set counterpart in
+        // applyOptimistically (frequency, mode, PTT, power level, and all the
+        // menu toggles/levels). If a command landed while this cycle's ~30
+        // sequential reads were still in flight, every value captured after
+        // that point is racing the optimistic update, and even the raw-CAT
+        // fields' `?? rigState.field` fallback only guards a *failed* read —
+        // not a *stale-but-successful* one — so it wouldn't catch this. Bail
+        // out of the whole cycle rather than publish a partially-stale
+        // snapshot; the next poll cycle starts only after the command has
+        // already landed, so it reads the true value without racing.
+        guard commandGeneration == generationAtStart else { return }
 
         let band = BandPlan.band(containing: frequencyHz)
         if let band {
