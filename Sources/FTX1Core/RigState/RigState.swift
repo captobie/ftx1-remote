@@ -307,16 +307,31 @@ public enum RigMode: String, Codable, Sendable, CaseIterable, Hashable {
     /// `displayName` shows "DATA-U", the name the CAT manual and operators
     /// actually use for it.
     case dataUSB = "PKTUSB"
-    /// Yaesu's C4FM digital voice mode — this rig's hamlib backend reports
-    /// it as "FM-D" (see `\dump_caps`'s mode list), not a dedicated "C4FM"
-    /// string, so the raw value has to stay "FM-D" for `RigMode(rawValue:)`
-    /// to recognize it; `displayName` shows the name operators actually use.
-    case c4fm = "FM-D"
+    /// Confirmed via real hardware and the CAT manual's OPERATING MODE
+    /// (`MD`) table that hamlib's "FM-D" mode string is actually Yaesu's
+    /// separate DATA-FM mode (raw code "A"), not C4FM — a prior mix-up
+    /// (see git history) treated "FM-D" as this rig's hamlib name for
+    /// C4FM and wired the C4FM UI button to set it, which put the radio
+    /// in DATA-FM instead. `displayName` shows the CAT manual's own name
+    /// for it.
+    case dataFM = "FM-D"
+    /// Yaesu's real C4FM digital voice mode (raw codes "H"/"I", C4FM-DN/
+    /// C4FM-VW, per the CAT manual's `MD` table) — hamlib's generic set-
+    /// mode verb has no bit for either variant on this rig's backend, so
+    /// this raw value is never sent to or parsed from hamlib directly; it
+    /// only identifies the mode within this app (Codable wire protocol,
+    /// `RigMode(rawValue:)`). `CommandQueue` special-cases `.setMode` for
+    /// this value to go through `RigctldClient.setActiveModeC4FM()`'s raw
+    /// CAT passthrough instead of hamlib's "M" verb; reads go through the
+    /// existing `isActiveModeC4FM()`/`isSecondaryModeC4FM()` fallback for
+    /// the same reason.
+    case c4fm = "C4FM"
     case unknown = "UNKNOWN"
 
     public var displayName: String {
         switch self {
         case .dataUSB: "DATA-U"
+        case .dataFM: "DATA-FM"
         case .c4fm: "C4FM"
         default: rawValue
         }
