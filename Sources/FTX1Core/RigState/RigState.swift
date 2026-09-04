@@ -161,6 +161,16 @@ public struct RigState: Codable, Equatable, Sendable {
     /// whenever WPSD lookup is disabled, no hotspot is configured, or no
     /// caller is currently active.
     public var c4fmCallsign: String?
+    /// Name of the YSF reflector the WPSD hotspot is currently linked to, if
+    /// any. Like `c4fmCallsign`, this has no CAT source — it's scraped from
+    /// the same WPSD hotspot (see `WPSDCallsignMonitor`), but from a
+    /// different page (`repeaterinfo.php`'s standing "YSF Status" link,
+    /// rather than `caller_details_table.php`'s per-transmission caller
+    /// row) since the linked reflector persists whether or not anyone is
+    /// currently transmitting. Only meaningful while `mode == .c4fm`; nil
+    /// whenever WPSD lookup is disabled, no hotspot is configured, or the
+    /// hotspot isn't currently linked to a reflector.
+    public var c4fmReflector: String?
 
     public init(
         frequencyHz: Int = 0,
@@ -204,7 +214,8 @@ public struct RigState: Codable, Equatable, Sendable {
         dnrLevel: Int? = nil,
         antSelect: Int? = nil,
         txwEnabled: Bool? = nil,
-        c4fmCallsign: String? = nil
+        c4fmCallsign: String? = nil,
+        c4fmReflector: String? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -248,6 +259,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.antSelect = antSelect
         self.txwEnabled = txwEnabled
         self.c4fmCallsign = c4fmCallsign
+        self.c4fmReflector = c4fmReflector
     }
 }
 

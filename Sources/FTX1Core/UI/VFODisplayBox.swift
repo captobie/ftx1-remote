@@ -14,6 +14,11 @@ public struct VFODisplayBox: View {
     /// callers are expected to only pass a value while this VFO is actually
     /// in C4FM mode.
     let callsign: String?
+    /// Name of the YSF reflector the WPSD hotspot is currently linked to, if
+    /// known — see `RigState.c4fmReflector`. `nil` (the default) shows
+    /// nothing extra; same "only while this VFO is in C4FM mode" contract
+    /// as `callsign`.
+    let reflector: String?
     /// Tap-to-edit callback for this VFO's frequency. `nil` (the default)
     /// leaves the display read-only — used for VFO B, which has no
     /// corresponding `RigCommand` to write back through today.
@@ -21,12 +26,13 @@ public struct VFODisplayBox: View {
 
     @State private var isEditing = false
 
-    public init(label: String, frequencyHz: Int?, isActive: Bool, mode: String, callsign: String? = nil, onSetFrequency: ((Int) -> Void)? = nil) {
+    public init(label: String, frequencyHz: Int?, isActive: Bool, mode: String, callsign: String? = nil, reflector: String? = nil, onSetFrequency: ((Int) -> Void)? = nil) {
         self.label = label
         self.frequencyHz = frequencyHz
         self.isActive = isActive
         self.mode = mode
         self.callsign = callsign
+        self.reflector = reflector
         self.onSetFrequency = onSetFrequency
     }
 
@@ -60,11 +66,18 @@ public struct VFODisplayBox: View {
                 .strokeBorder(isActive ? Color.green.opacity(0.7) : Color.gray.opacity(0.4), lineWidth: 1.5)
         )
         .overlay(alignment: .topLeading) {
-            Text(mode)
-                .font(.caption2)
-                .foregroundStyle(digitColor)
-                .padding(.leading, 10)
-                .padding(.top, 6)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(mode)
+                    .font(.caption2)
+                    .foregroundStyle(digitColor)
+                if let reflector {
+                    Text(reflector)
+                        .font(.caption2)
+                        .foregroundStyle(digitColor)
+                }
+            }
+            .padding(.leading, 10)
+            .padding(.top, 6)
         }
         .overlay(alignment: .bottomLeading) {
             if let callsign {

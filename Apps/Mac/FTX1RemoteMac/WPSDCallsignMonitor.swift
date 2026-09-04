@@ -1,28 +1,39 @@
 import Foundation
 
-/// Polls a WPSD (Pi-Star-family hotspot dashboard) instance for the
-/// callsign of whoever is currently transmitting C4FM/YSF traffic through
-/// it, on the assumption the hotspot is relaying that same traffic to the
-/// rig over local RF (see `RigState.c4fmCallsign`).
+/// Polls a WPSD (Pi-Star-family hotspot dashboard) instance for two things
+/// related to C4FM/YSF traffic passing through it, on the assumption the
+/// hotspot is relaying that same traffic to the rig over local RF: the
+/// callsign of whoever is currently transmitting (see `RigState.c4fmCallsign`)
+/// and the name of the YSF reflector the hotspot is currently linked to (see
+/// `RigState.c4fmReflector`).
 ///
-/// There's no CAT command for received C4FM digital data — this reaches the
-/// callsign a completely different way, by scraping the same HTML fragment
-/// WPSD's own dashboard page polls (`/mmdvmhost/caller_details_table.php`),
-/// undocumented and unauthenticated. Mirrors `AudioCaptureEngine`'s shape
-/// (owned + lifecycle-driven by `HubService`, reports out via a closure)
-/// but for this network side-channel rather than the audio-hardware one.
+/// There's no CAT command for either of these — this reaches them a
+/// completely different way, by scraping the same HTML fragments WPSD's own
+/// dashboard page polls, undocumented and unauthenticated. Mirrors
+/// `AudioCaptureEngine`'s shape (owned + lifecycle-driven by `HubService`,
+/// reports out via a closure) but for this network side-channel rather than
+/// the audio-hardware one.
 final class WPSDCallsignMonitor {
     /// Always invoked on the main actor — same contract as
     /// `AudioCaptureEngine.onNewFrame`.
     var onCallsignUpdate: ((String?) -> Void)?
+    /// Same contract as `onCallsignUpdate`.
+    var onReflectorUpdate: ((String?) -> Void)?
 
     /// Slightly slower than the dashboard page's own ~1s polling cadence —
     /// this hotspot's PHP backend visibly strains (roughly half of 1s-cadence
     /// requests time out) when polled that fast by two clients (the WPSD
     /// dashboard page itself, if left open, plus this app) at once.
     private let pollInterval: Duration = .seconds(2)
+    /// The linked reflector changes far less often than the live caller, so
+    /// this polls on its own, slower loop rather than riding along with
+    /// `pollInterval` — matches the WPSD dashboard's own cadence for this
+    /// endpoint (`reloadRepeaterInfo` polls every 5s) and keeps this app
+    /// from adding to the backend strain noted above.
+    private let reflectorPollInterval: Duration = .seconds(5)
     private let session: URLSession
     private var pollTask: Task<Void, Never>?
+    private var reflectorPollTask: Task<Void, Never>?
     private var currentHost: String?
 
     init() {
@@ -42,11 +53,19 @@ final class WPSDCallsignMonitor {
                 try? await Task.sleep(for: self?.pollInterval ?? .seconds(1))
             }
         }
+        reflectorPollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.pollReflector(host: host)
+                try? await Task.sleep(for: self?.reflectorPollInterval ?? .seconds(5))
+            }
+        }
     }
 
     func stop() {
         pollTask?.cancel()
         pollTask = nil
+        reflectorPollTask?.cancel()
+        reflectorPollTask = nil
         currentHost = nil
     }
 
@@ -71,6 +90,27 @@ final class WPSDCallsignMonitor {
     private func report(_ callsign: String?) {
         Task { @MainActor [weak self] in
             self?.onCallsignUpdate?(callsign)
+        }
+    }
+
+    /// No `report(_:)`-style "leave the display alone on a failed fetch"
+    /// caveat needed here — this endpoint isn't shared with the dashboard's
+    /// own faster-polled panel, so it isn't subject to the same backend
+    /// strain (see `reflectorPollInterval`); a failed fetch still just skips
+    /// the update rather than reporting `nil`, for consistency.
+    private func pollReflector(host: String) async {
+        guard let url = URL(string: "http://\(host)/mmdvmhost/repeaterinfo.php") else { return }
+        guard let (data, response) = try? await session.data(from: url),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let html = String(data: data, encoding: .utf8) else {
+            return
+        }
+        reportReflector(Self.linkedReflector(inRepeaterInfoHTML: html))
+    }
+
+    private func reportReflector(_ reflector: String?) {
+        Task { @MainActor [weak self] in
+            self?.onReflectorUpdate?(reflector)
         }
     }
 
@@ -108,5 +148,41 @@ final class WPSDCallsignMonitor {
             return nil
         }
         return String(html[callsignRange])
+    }
+
+    /// Parses WPSD's `repeaterinfo.php` sidebar fragment for the "YSF Status
+    /// [In Room]" section's "Link" pill — the reflector the hotspot is
+    /// currently linked to, independent of whether anyone is transmitting
+    /// right now (unlike `liveCallsign`, which needs a live transmission).
+    ///
+    /// Confirmed against a live sample: when linked, the section reads
+    /// `<span>Link</span><div class='pill-data'><span class='pill-value'>US-KCWide</span>…`.
+    /// There's no confirmed live sample of the unlinked case, but every
+    /// other mode's "Network"/"Link" pill on the same page (e.g. D-Star
+    /// Network) renders unlinked as a bare
+    /// `<span class='pill-value'>Not Linked</span>` with no surrounding
+    /// `pill-data`/link-icon markup, using the same templated component —
+    /// so this treats that value (case-insensitively) as "no reflector"
+    /// too, on top of an outright missing/empty match.
+    static func linkedReflector(inRepeaterInfoHTML html: String) -> String? {
+        guard let sectionStart = html.range(of: "YSF Status") else { return nil }
+        var section = html[sectionStart.upperBound...]
+        if let nextSection = section.range(of: "sidebar-section-title") {
+            section = section[..<nextSection.lowerBound]
+        }
+        guard let regex = try? NSRegularExpression(pattern: #"class=['"]pill-value['"]>([^<]*)<"#) else {
+            return nil
+        }
+        let sectionString = String(section)
+        let fullRange = NSRange(sectionString.startIndex..., in: sectionString)
+        guard let match = regex.firstMatch(in: sectionString, range: fullRange),
+              let valueRange = Range(match.range(at: 1), in: sectionString) else {
+            return nil
+        }
+        let value = sectionString[valueRange].trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, value.caseInsensitiveCompare("Not Linked") != .orderedSame else {
+            return nil
+        }
+        return value
     }
 }
