@@ -357,16 +357,37 @@ final class HubService: ObservableObject {
         // cycle's values are published, below.
         let generationAtStart = commandGeneration
         let frequencyHz = try await rigctld.getFrequency()
-        let (modeName, _) = try await rigctld.getMode()
-        let ptt = try await rigctld.getPTT()
-        let swr = try await rigctld.getLevel("SWR")
+        // Best-effort like the secondary-VFO mode read below: this rig's
+        // hamlib backend returns a protocol error (RPRT -8) for "get mode"
+        // while the active VFO is in C4FM, rather than a parseable string.
+        // A hard `try` here would abort this whole ~30-read cycle before it
+        // ever reaches PTT, the secondary VFO, or any raw-CAT field below —
+        // and propagate up into a connection-failure/reconnect loop — every
+        // time the active VFO sits in C4FM.
+        let modeName = try? await rigctld.getMode().mode
+        // hamlib's mode read has no mapping for this rig's two raw C4FM
+        // codes (see RigctldClient.isActiveModeC4FM) and fails outright
+        // rather than returning a string — only worth checking when the
+        // normal read above already came back empty, since it costs an
+        // extra two round trips.
+        let isC4FM = modeName == nil ? (try? await rigctld.isActiveModeC4FM()) ?? false : false
+        // Best-effort, same reasoning as the mode read above: a single
+        // dropped byte on the USB-serial link (real, occasional occurrence
+        // on actual RF hardware, and rigctld is tuned with retry=0 to fail
+        // such a hiccup fast rather than retry it — see
+        // RigctldProcessController) shouldn't tear down the whole
+        // connection and force a reconnect any more than a raw-CAT field
+        // hiccuping should. Falls back to the last known state, like
+        // breakIn/keyerEnabled below.
+        let ptt = try? await rigctld.getPTT()
         // Best-effort like the raw CAT reads below, but deliberately NOT
         // carried forward from the previous poll on failure: a live meter
         // should fall to rest, not freeze on a stale reading (e.g. during
         // TX, when the rig has no RX strength to report).
+        let swr = try? await rigctld.getLevel("SWR")
         let smeterDb = try? await rigctld.getLevel("STRENGTH")
-        let powerWatts = try await rigctld.getLevel("RFPOWER_METER_WATTS")
-        let powerLevel = try await rigctld.getLevel("RFPOWER")
+        let powerWatts = try? await rigctld.getLevel("RFPOWER_METER_WATTS")
+        let powerLevel = try? await rigctld.getLevel("RFPOWER")
         // Best-effort: these go through rigctld's raw CAT passthrough (see
         // RigctldClient.sendRawCommand), not hamlib's own func/level
         // abstraction, so a hiccup (e.g. hamlib's internal serial read
@@ -431,6 +452,8 @@ final class HubService: ObservableObject {
         let txwEnabled = try? await rigctld.getRawBool("TS")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
+        // Same C4FM gap as the primary mode read above — see `isC4FM`.
+        let isSecondaryC4FM = secondaryModeName == nil ? (try? await rigctld.isSecondaryModeC4FM()) ?? false : false
 
         // Almost every field above has an optimistic-set counterpart in
         // applyOptimistically (frequency, mode, PTT, power level, and all the
@@ -451,14 +474,14 @@ final class HubService: ObservableObject {
 
         rigState = RigState(
             frequencyHz: frequencyHz,
-            mode: RigMode(rawValue: modeName) ?? .unknown,
+            mode: modeName.flatMap(RigMode.init(rawValue:)) ?? (isC4FM ? .c4fm : rigState.mode),
             band: band?.name,
             powerWatts: powerWatts,
             swr: swr,
-            ptt: ptt,
+            ptt: ptt ?? rigState.ptt,
             lastUpdated: Date(),
             secondaryFrequencyHz: secondaryFrequencyHz ?? rigState.secondaryFrequencyHz,
-            secondaryMode: secondaryModeName.flatMap(RigMode.init(rawValue:)) ?? rigState.secondaryMode,
+            secondaryMode: secondaryModeName.flatMap(RigMode.init(rawValue:)) ?? (isSecondaryC4FM ? .c4fm : rigState.secondaryMode),
             powerLevel: powerLevel,
             breakIn: breakIn ?? rigState.breakIn,
             keyerEnabled: keyerEnabled ?? rigState.keyerEnabled,
