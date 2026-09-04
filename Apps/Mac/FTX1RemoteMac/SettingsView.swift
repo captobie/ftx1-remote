@@ -214,9 +214,6 @@ private struct C4FMSettingsTab: View {
         Form {
             Toggle("Show received callsign (via WPSD)", isOn: $enabled)
             TextField("Hotspot address", text: $host, prompt: Text("e.g. 100.75.175.9"))
-            Text("Polls your WPSD hotspot's dashboard for the current C4FM caller's callsign while the rig is in C4FM mode. The FTX-1's own CAT interface has no way to report this directly.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .padding(.top, 8)
     }
