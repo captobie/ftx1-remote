@@ -41,6 +41,8 @@ struct SettingsView: View {
                     .tabItem { Text("rigctld") }
                 AudioSettingsTab()
                     .tabItem { Text("Audio") }
+                C4FMSettingsTab()
+                    .tabItem { Text("C4FM") }
                 AppearanceSettingsTab()
                     .tabItem { Text("Appearance") }
             }
@@ -195,6 +197,28 @@ private struct AudioSettingsTab: View {
             devices.append(AudioInputDevice(id: 0, uid: deviceUID, name: "\(deviceUID) (not connected)"))
         }
         availableDevices = devices
+    }
+}
+
+/// WPSD hotspot callsign lookup — see `WPSDCallsignMonitor`. Applies
+/// instantly via `@AppStorage`, same reasoning as `AudioSettingsTab`: an
+/// invalid/incomplete host just causes harmless failed fetches (no
+/// callsign shown), not a broken process launch like the rigctld tab's
+/// binary path, so there's no accidental-edit risk worth a Cancel/Done
+/// escape hatch here.
+private struct C4FMSettingsTab: View {
+    @AppStorage(WPSDSettings.enabledKey) private var enabled = false
+    @AppStorage(WPSDSettings.hostKey) private var host = ""
+
+    var body: some View {
+        Form {
+            Toggle("Show received callsign (via WPSD)", isOn: $enabled)
+            TextField("Hotspot address", text: $host, prompt: Text("e.g. 100.75.175.9"))
+            Text("Polls your WPSD hotspot's dashboard for the current C4FM caller's callsign while the rig is in C4FM mode. The FTX-1's own CAT interface has no way to report this directly.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.top, 8)
     }
 }
 

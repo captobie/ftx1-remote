@@ -17,6 +17,7 @@
 		17BAC857300290B900096320 /* FTX1RemoteiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FTX1RemoteiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		17E1082A30029E6900B5CC40 /* FTX1RemoteiOS-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "FTX1RemoteiOS-Info.plist"; sourceTree = "<group>"; };
 		A0A54F5E7FAA6A595412584B /* FTX1RemoteiPad-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "FTX1RemoteiPad-Info.plist"; sourceTree = "<group>"; };
+		B4C1E2A030029E6900B5CC41 /* FTX1RemoteMac-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "FTX1RemoteMac-Info.plist"; sourceTree = "<group>"; };
 		C71D270EF71B146CA854B371 /* FTX1RemoteiPad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FTX1RemoteiPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -71,6 +72,7 @@
 			children = (
 				17E1082A30029E6900B5CC40 /* FTX1RemoteiOS-Info.plist */,
 				A0A54F5E7FAA6A595412584B /* FTX1RemoteiPad-Info.plist */,
+				B4C1E2A030029E6900B5CC41 /* FTX1RemoteMac-Info.plist */,
 				17BAC8473002901F00096320 /* ../Apps/Mac/FTX1RemoteMac */,
 				17BAC858300290B900096320 /* ../Apps/iOS/FTX1RemoteiOS */,
 				44A65C5A18FBBF3DCB465FF0 /* ../Apps/iPad/FTX1RemoteiPad */,
@@ -468,6 +470,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "FTX1RemoteMac-Info.plist";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "FTX1 Remote needs to accept connections from your iPhone/iPad to control the radio remotely.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FTX1 Remote uses audio from the selected input device to draw a waterfall display of receive audio.";
@@ -502,6 +505,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "FTX1RemoteMac-Info.plist";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "FTX1 Remote needs to accept connections from your iPhone/iPad to control the radio remotely.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FTX1 Remote uses audio from the selected input device to draw a waterfall display of receive audio.";

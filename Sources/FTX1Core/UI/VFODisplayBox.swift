@@ -9,6 +9,11 @@ public struct VFODisplayBox: View {
     let frequencyHz: Int?
     let isActive: Bool
     let mode: String
+    /// Callsign of the station currently being received in C4FM, if known —
+    /// see `RigState.c4fmCallsign`. `nil` (the default) shows nothing extra;
+    /// callers are expected to only pass a value while this VFO is actually
+    /// in C4FM mode.
+    let callsign: String?
     /// Tap-to-edit callback for this VFO's frequency. `nil` (the default)
     /// leaves the display read-only — used for VFO B, which has no
     /// corresponding `RigCommand` to write back through today.
@@ -16,11 +21,12 @@ public struct VFODisplayBox: View {
 
     @State private var isEditing = false
 
-    public init(label: String, frequencyHz: Int?, isActive: Bool, mode: String, onSetFrequency: ((Int) -> Void)? = nil) {
+    public init(label: String, frequencyHz: Int?, isActive: Bool, mode: String, callsign: String? = nil, onSetFrequency: ((Int) -> Void)? = nil) {
         self.label = label
         self.frequencyHz = frequencyHz
         self.isActive = isActive
         self.mode = mode
+        self.callsign = callsign
         self.onSetFrequency = onSetFrequency
     }
 
@@ -59,6 +65,15 @@ public struct VFODisplayBox: View {
                 .foregroundStyle(digitColor)
                 .padding(.leading, 10)
                 .padding(.top, 6)
+        }
+        .overlay(alignment: .bottomLeading) {
+            if let callsign {
+                Text(callsign)
+                    .font(.system(size: 19, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(digitColor)
+                    .padding(.leading, 10)
+                    .padding(.bottom, 6)
+            }
         }
     }
 
