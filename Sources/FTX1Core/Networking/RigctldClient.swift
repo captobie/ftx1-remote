@@ -175,12 +175,52 @@ public actor RigctldClient {
         return hz
     }
 
+    // `query()` unconditionally reads 2 lines, but a failure reply is only
+    // ever 1 line ("RPRT -N") — this rig's hamlib backend returns exactly
+    // that for "get mode" while the active VFO is in C4FM. `query()`'s
+    // second `readLine()` would then block forever waiting for a line that
+    // rigctld will never send, wedging this actor's round-trip lock (see
+    // `roundTripBusy` above) and hanging every subsequent call on this
+    // client. `queryOrError` (below) exists for exactly this failure shape.
     public func getMode() async throws -> (mode: String, passband: Int) {
-        let lines = try await query("m \(Self.currentVFOArg)", lines: 2)
+        let lines = try await queryOrError("m \(Self.currentVFOArg)", lines: 2)
         guard lines.count == 2, let passband = Int(lines[1]) else {
             throw RigctldError.badResponse
         }
         return (lines[0], passband)
+    }
+
+    /// Fallback for `getMode()`'s known gap, not a replacement for it:
+    /// this rig's hamlib backend has no mapping for the raw "MD" mode
+    /// codes "H"/"I" (C4FM-DN / C4FM-VW per the CAT manual's OPERATING
+    /// MODE table) and returns a protocol error instead of any mode
+    /// string — confirmed against real hardware (`W MD0; ;` while the
+    /// active VFO is in C4FM answers "MD0H;", which `getMode()` can't
+    /// parse into anything). Reads the raw CAT mode directly via
+    /// passthrough and reports whether it's one of those two codes;
+    /// every other code returns nil rather than guessing, since ordinary
+    /// modes already come back fine through `getMode()` — this exists
+    /// purely to fill the C4FM gap, not to duplicate that path. `v`
+    /// determines whether the currently-active VFO is Main or Sub, same
+    /// technique as `getSecondaryFrequency()`/`getSecondaryMode()` above.
+    public func isActiveModeC4FM() async throws -> Bool {
+        let currentVFO = try await send("v")
+        return try await isC4FM(p1: currentVFO == "Sub" ? "1" : "0")
+    }
+
+    /// Same gap as `isActiveModeC4FM()`, for whichever VFO isn't currently
+    /// active — the fallback counterpart to `getSecondaryMode()`.
+    public func isSecondaryModeC4FM() async throws -> Bool {
+        let currentVFO = try await send("v")
+        return try await isC4FM(p1: currentVFO == "Sub" ? "0" : "1")
+    }
+
+    private func isC4FM(p1: String) async throws -> Bool {
+        let reply = try await sendRawCommand("MD\(p1)")
+        let prefix = "MD\(p1)"
+        guard reply.hasPrefix(prefix) else { return false }
+        let modeChar = reply.dropFirst(prefix.count).first
+        return modeChar == "H" || modeChar == "I"
     }
 
     public func getPTT() async throws -> Bool {
@@ -271,7 +311,28 @@ public actor RigctldClient {
                 // the losing readLine() — group.cancelAll() alone only
                 // marks it cancelled, it doesn't force a continuation
                 // waiting on an NWConnection callback to resume.
+                //
+                // A single unanswered raw command isn't always the rare
+                // "genuinely wedged" case this was written for — confirmed
+                // against real hardware that "GT0" (AGC), which this rig
+                // answers fine in SSB/CW, gets no reply at all while the
+                // active VFO is in C4FM (AGC doesn't apply to digital
+                // voice). That makes it a routine, every-poll-cycle
+                // occurrence in C4FM, not a one-off: disconnecting and
+                // leaving this actor connectionless made every cycle force
+                // a full reconnect (visible disconnect + audio-engine
+                // restart) roughly every 5s. Reconnecting immediately here
+                // — instead of just disconnecting and letting a later,
+                // unrelated call discover `notConnected` — keeps that
+                // routine failure confined to this one best-effort field;
+                // its caller already treats a thrown error here as
+                // optional (see e.g. `getRawInt`/`getRawBool`'s `try?`
+                // callers). If the rig is genuinely gone rather than just
+                // not answering this one command, this reconnect attempt
+                // fails too and the next hard read (e.g. `getFrequency()`)
+                // surfaces that normally.
                 disconnect()
+                try? await connect()
                 group.cancelAll()
                 throw error
             }
