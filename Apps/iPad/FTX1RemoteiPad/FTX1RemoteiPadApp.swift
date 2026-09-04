@@ -9,6 +9,7 @@ struct FTX1RemoteiPadApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(viewModel)
+                .preferredColorScheme(.dark)
         }
     }
 }
