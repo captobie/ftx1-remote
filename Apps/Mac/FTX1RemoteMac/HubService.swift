@@ -40,6 +40,7 @@ final class HubService: ObservableObject {
     private let server: RigWebSocketServer
     private let rigctldProcess = RigctldProcessController()
     private let audioCapture = AudioCaptureEngine()
+    private let wpsdMonitor = WPSDCallsignMonitor()
     private let webSocketPort: UInt16
     private let rigctldHost: String
     private let rigctldPort: UInt16
@@ -84,6 +85,9 @@ final class HubService: ObservableObject {
         audioCapture.onNewFrame = { [weak self] frame in
             self?.waterfallImage = frame.waterfall
             self?.oscilloscopeImage = frame.oscilloscope
+        }
+        wpsdMonitor.onCallsignUpdate = { [weak self] callsign in
+            self?.rigState.c4fmCallsign = callsign
         }
     }
 
@@ -296,6 +300,8 @@ final class HubService: ObservableObject {
         audioCapture.stop()
         waterfallImage = nil
         oscilloscopeImage = nil
+        wpsdMonitor.stop()
+        rigState.c4fmCallsign = nil
         Task { await rigctld.disconnect() }
     }
 
@@ -513,8 +519,24 @@ final class HubService: ObservableObject {
             nbLevel: nbLevel ?? rigState.nbLevel,
             dnrLevel: dnrLevel ?? rigState.dnrLevel,
             antSelect: antSelect ?? rigState.antSelect,
-            txwEnabled: txwEnabled ?? rigState.txwEnabled
+            txwEnabled: txwEnabled ?? rigState.txwEnabled,
+            c4fmCallsign: rigState.c4fmCallsign
         )
+        updateWPSDMonitorState()
         await server.broadcast(rigState)
+    }
+
+    /// Starts/stops `wpsdMonitor` to match current settings + rig mode —
+    /// checked every poll tick (~500ms) rather than only on
+    /// connect/disconnect, so toggling the C4FM Settings tab or changing
+    /// mode takes effect quickly with no reconnect needed. `start(host:)`/
+    /// `stop()` are both no-ops when already in the target state.
+    private func updateWPSDMonitorState() {
+        guard WPSDSettings.enabled, !WPSDSettings.host.isEmpty, rigState.mode == .c4fm else {
+            wpsdMonitor.stop()
+            rigState.c4fmCallsign = nil
+            return
+        }
+        wpsdMonitor.start(host: WPSDSettings.host)
     }
 }

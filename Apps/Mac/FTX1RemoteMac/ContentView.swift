@@ -35,7 +35,7 @@ struct ContentView: View {
             }
 
             HStack(spacing: 12) {
-                VFODisplayBox(label: "VFO A", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, onSetFrequency: { hub.send(.setFrequency(hz: $0)) })
+                VFODisplayBox(label: "VFO A", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : nil, onSetFrequency: { hub.send(.setFrequency(hz: $0)) })
                 vfoSwapButton
                 VFODisplayBox(label: "VFO B", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: false, mode: hub.rigState.secondaryMode?.displayName ?? "—", onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) })
             }

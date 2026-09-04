@@ -151,6 +151,16 @@ public struct RigState: Codable, Equatable, Sendable {
     /// TXW on/off (the FTX-1's raw "TS" CAT command) — unlike most booleans
     /// here, "TS" has no MAIN/SUB P1 selector at all, just a bare 0/1.
     public var txwEnabled: Bool?
+    /// Callsign of the station currently being received in C4FM, if any.
+    /// Unlike every other field above, this has no CAT source at all — the
+    /// FTX-1's CAT command set has no mnemonic for received C4FM digital
+    /// data. Instead this is scraped from a WPSD (Pi-Star-family) hotspot's
+    /// dashboard over the network (see `WPSDCallsignMonitor`), on the
+    /// assumption the hotspot is relaying the same network traffic the rig
+    /// is hearing over local RF. Only meaningful while `mode == .c4fm`; nil
+    /// whenever WPSD lookup is disabled, no hotspot is configured, or no
+    /// caller is currently active.
+    public var c4fmCallsign: String?
 
     public init(
         frequencyHz: Int = 0,
@@ -193,7 +203,8 @@ public struct RigState: Codable, Equatable, Sendable {
         nbLevel: Int? = nil,
         dnrLevel: Int? = nil,
         antSelect: Int? = nil,
-        txwEnabled: Bool? = nil
+        txwEnabled: Bool? = nil,
+        c4fmCallsign: String? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -236,6 +247,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.dnrLevel = dnrLevel
         self.antSelect = antSelect
         self.txwEnabled = txwEnabled
+        self.c4fmCallsign = c4fmCallsign
     }
 }
 
