@@ -89,6 +89,9 @@ final class HubService: ObservableObject {
         wpsdMonitor.onCallsignUpdate = { [weak self] callsign in
             self?.rigState.c4fmCallsign = callsign
         }
+        wpsdMonitor.onReflectorUpdate = { [weak self] reflector in
+            self?.rigState.c4fmReflector = reflector
+        }
     }
 
     /// App-launch lifecycle: starts the WebSocket server. Independent of
@@ -302,6 +305,7 @@ final class HubService: ObservableObject {
         oscilloscopeImage = nil
         wpsdMonitor.stop()
         rigState.c4fmCallsign = nil
+        rigState.c4fmReflector = nil
         Task { await rigctld.disconnect() }
     }
 
@@ -520,7 +524,8 @@ final class HubService: ObservableObject {
             dnrLevel: dnrLevel ?? rigState.dnrLevel,
             antSelect: antSelect ?? rigState.antSelect,
             txwEnabled: txwEnabled ?? rigState.txwEnabled,
-            c4fmCallsign: rigState.c4fmCallsign
+            c4fmCallsign: rigState.c4fmCallsign,
+            c4fmReflector: rigState.c4fmReflector
         )
         updateWPSDMonitorState()
         await server.broadcast(rigState)
@@ -535,6 +540,7 @@ final class HubService: ObservableObject {
         guard WPSDSettings.enabled, !WPSDSettings.host.isEmpty, rigState.mode == .c4fm else {
             wpsdMonitor.stop()
             rigState.c4fmCallsign = nil
+            rigState.c4fmReflector = nil
             return
         }
         wpsdMonitor.start(host: WPSDSettings.host)
