@@ -223,6 +223,25 @@ public actor RigctldClient {
         return modeChar == "H" || modeChar == "I"
     }
 
+    /// Sets the active VFO's mode to real C4FM via direct CAT passthrough
+    /// — same gap as `isActiveModeC4FM()`, but for the set side: hamlib's
+    /// generic "M" set-mode verb has no bit for either raw C4FM code on
+    /// this rig's backend, and its "FM-D" mode string actually programs
+    /// the unrelated raw "A" (DATA-FM) code instead (confirmed against
+    /// real hardware — see `RigMode.dataFM`/`RigMode.c4fm`). Sends the raw
+    /// "MD" mnemonic directly instead.
+    ///
+    /// Defaults to "H" (C4FM-DN) rather than "I" (C4FM-VW) — the CAT
+    /// manual documents both codes but not what distinguishes them
+    /// operationally, so this is a best guess (DN reads as the plain/
+    /// default digital-voice variant) pending hardware confirmation, not
+    /// a confirmed mapping like the rest of this file's raw commands.
+    public func setActiveModeC4FM() async throws {
+        let currentVFO = try await send("v")
+        let p1 = currentVFO == "Sub" ? "1" : "0"
+        try await sendRawFireAndForget("MD\(p1)H")
+    }
+
     public func getPTT() async throws -> Bool {
         let line = try await send("t \(Self.currentVFOArg)")
         return line == "1"

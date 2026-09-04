@@ -62,7 +62,14 @@ public actor CommandQueue {
         case .swapActiveVFO:
             try await rigctld.swapActiveVFO()
         case .setMode(let mode):
-            _ = try await rigctld.send("M \(Self.currentVFOArg) \(mode.rawValue) 0")
+            // Real C4FM has no hamlib-vocabulary raw value to send through
+            // the generic "M" verb here — see RigMode.c4fm/RigMode.dataFM
+            // and RigctldClient.setActiveModeC4FM() for why.
+            if mode == .c4fm {
+                try await rigctld.setActiveModeC4FM()
+            } else {
+                _ = try await rigctld.send("M \(Self.currentVFOArg) \(mode.rawValue) 0")
+            }
         case .setPTT(let on):
             _ = try await rigctld.send("T \(Self.currentVFOArg) \(on ? 1 : 0)")
         case .setBand(let band):
