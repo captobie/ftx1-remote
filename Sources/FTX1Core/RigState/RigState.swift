@@ -289,6 +289,11 @@ public enum RigMode: String, Codable, Sendable, CaseIterable, Hashable {
     case fm = "FM"
     case am = "AM"
     case rtty = "RTTY"
+    /// hamlib's own name for this mode is "PKTUSB" — the raw value has to
+    /// stay that for `RigMode(rawValue:)` to recognize it and for
+    /// `CommandQueue`'s set-mode command to speak hamlib's vocabulary;
+    /// `displayName` shows "DATA-U", the name the CAT manual and operators
+    /// actually use for it.
     case dataUSB = "PKTUSB"
     /// Yaesu's C4FM digital voice mode — this rig's hamlib backend reports
     /// it as "FM-D" (see `\dump_caps`'s mode list), not a dedicated "C4FM"
@@ -299,6 +304,7 @@ public enum RigMode: String, Codable, Sendable, CaseIterable, Hashable {
 
     public var displayName: String {
         switch self {
+        case .dataUSB: "DATA-U"
         case .c4fm: "C4FM"
         default: rawValue
         }

@@ -71,7 +71,7 @@ struct ContentView: View {
 
                 Picker("Mode", selection: modeBinding) {
                     ForEach(RigMode.allCases.filter { $0 != .unknown }, id: \.self) { mode in
-                        Text(mode.rawValue).tag(mode)
+                        Text(mode.displayName).tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)
