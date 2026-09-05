@@ -247,6 +247,9 @@ final class HubService: ObservableObject {
         case .setDNRLevel(let level): rigState.dnrLevel = level
         case .setAntSelect(let mode): rigState.antSelect = mode
         case .setTXW(let on): rigState.txwEnabled = on
+        case .setSquelchType(let mode): rigState.squelchType = mode
+        case .setToneFreq(let index): rigState.ctcssToneIndex = index
+        case .setDCSCode(let index): rigState.dcsCodeIndex = index
         // Momentary triggers, and CW MESSAGE record/select/play (whose
         // `cwMessageStatus` doesn't map 1:1 from any single command — see
         // RigState.cwMessageStatus) have no direct optimistic value; left
@@ -460,6 +463,15 @@ final class HubService: ObservableObject {
         let antSelectRaw = try? await rigctld.getMenuItem(p1: 3, p2: 7, p3: 4)
         let antSelect = antSelectRaw.flatMap(Int.init)
         let txwEnabled = try? await rigctld.getRawBool("TS")
+        // "CT0" reads SQL TYPE with its fixed MAIN-side P1 baked in, same
+        // shape as "GT0"/"BC0" above.
+        let squelchType = try? await rigctld.getRawDigit("CT0")
+        // "CN00"/"CN01" read the current CTCSS tone index / DCS code index
+        // with their fixed MAIN-side P1 and CTCSS-vs-DCS P2 baked in — these
+        // are indices into RigCTCSSTone/RigDCSCode's fixed tables, not Hz/
+        // codes directly, same non-linear-code reasoning as "SD"/"VD" above.
+        let ctcssToneIndex = try? await rigctld.getRawInt("CN00")
+        let dcsCodeIndex = try? await rigctld.getRawInt("CN01")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
         // Same C4FM gap as the primary mode read above — see `isC4FM`.
@@ -524,6 +536,9 @@ final class HubService: ObservableObject {
             dnrLevel: dnrLevel ?? rigState.dnrLevel,
             antSelect: antSelect ?? rigState.antSelect,
             txwEnabled: txwEnabled ?? rigState.txwEnabled,
+            squelchType: squelchType ?? rigState.squelchType,
+            ctcssToneIndex: ctcssToneIndex ?? rigState.ctcssToneIndex,
+            dcsCodeIndex: dcsCodeIndex ?? rigState.dcsCodeIndex,
             c4fmCallsign: rigState.c4fmCallsign,
             c4fmReflector: rigState.c4fmReflector
         )

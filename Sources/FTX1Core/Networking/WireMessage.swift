@@ -169,6 +169,18 @@ public enum RigCommand: Sendable, Equatable {
     /// TXW on/off — see `RigState.txwEnabled`. Maps to the FTX-1's raw "TS"
     /// CAT command, a bare boolean with no MAIN/SUB P1 selector.
     case setTXW(Bool)
+    /// Squelch type, 0-5 (OFF/ENC/TSQ/DCS/PR FREQ/REV TONE) — see
+    /// `RigState.squelchType`. Maps to the FTX-1's raw "CT" CAT command, P1
+    /// fixed to "0" (MAIN-side).
+    case setSquelchType(Int)
+    /// Index into `RigCTCSSTone.allValuesHz` (0-49) — see
+    /// `RigState.ctcssToneIndex`. Maps to the FTX-1's raw "CN" CAT command's
+    /// P2=0 (CTCSS) sub-function, P1 fixed to "0" (MAIN-side).
+    case setToneFreq(index: Int)
+    /// Index into `RigDCSCode.allValues` (0-103) — see
+    /// `RigState.dcsCodeIndex`. Maps to the FTX-1's raw "CN" CAT command's
+    /// P2=1 (DCS) sub-function, same shape as `setToneFreq`.
+    case setDCSCode(index: Int)
     /// Writes one item of the FTX-1's deep SET-mode settings (Radio/CW/
     /// Operation/Display/Extension/APRS Setting — see
     /// `DeepSettingsCatalog`), addressed by `p1`/`p2`/`p3` (category/tab/
@@ -235,6 +247,9 @@ public enum RigCommand: Sendable, Equatable {
         case setDNRLevel = "set_dnr_level"
         case setAntSelect = "set_ant_select"
         case setTXW = "set_txw"
+        case setSquelchType = "set_squelch_type"
+        case setToneFreq = "set_tone_freq"
+        case setDCSCode = "set_dcs_code"
         case setMenuItem = "set_menu_item"
     }
 }
@@ -326,6 +341,12 @@ extension RigCommand: Codable {
             self = .setAntSelect(try container.decode(Int.self, forKey: .value))
         case .setTXW:
             self = .setTXW(try container.decode(Bool.self, forKey: .value))
+        case .setSquelchType:
+            self = .setSquelchType(try container.decode(Int.self, forKey: .value))
+        case .setToneFreq:
+            self = .setToneFreq(index: try container.decode(Int.self, forKey: .value))
+        case .setDCSCode:
+            self = .setDCSCode(index: try container.decode(Int.self, forKey: .value))
         case .setMenuItem:
             let payload = try container.decode(MenuItemPayload.self, forKey: .value)
             self = .setMenuItem(p1: payload.p1, p2: payload.p2, p3: payload.p3, rawValue: payload.rawValue)
@@ -455,6 +476,15 @@ extension RigCommand: Codable {
         case .setTXW(let on):
             try container.encode(CommandName.setTXW, forKey: .cmd)
             try container.encode(on, forKey: .value)
+        case .setSquelchType(let mode):
+            try container.encode(CommandName.setSquelchType, forKey: .cmd)
+            try container.encode(mode, forKey: .value)
+        case .setToneFreq(let index):
+            try container.encode(CommandName.setToneFreq, forKey: .cmd)
+            try container.encode(index, forKey: .value)
+        case .setDCSCode(let index):
+            try container.encode(CommandName.setDCSCode, forKey: .cmd)
+            try container.encode(index, forKey: .value)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try container.encode(CommandName.setMenuItem, forKey: .cmd)
             try container.encode(MenuItemPayload(p1: p1, p2: p2, p3: p3, rawValue: rawValue), forKey: .value)
