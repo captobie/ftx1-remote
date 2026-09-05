@@ -9,6 +9,8 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var viewModel: RigClientViewModel
     @AppStorage("hubHost") private var host: String = ""
+    @AppStorage(AudioPlaybackSettings.volumeKey) private var audioVolume: Double = 0.8
+    @AppStorage(AudioPlaybackSettings.squelchThresholdKey) private var audioSquelchThreshold: Double = 0.02
     @State private var isDraggingPower = false
     @State private var localPowerLevel: Double = 0
     @State private var isPTTPressed = false
@@ -38,6 +40,8 @@ struct ContentView: View {
                     Text(swrLabel)
                         .font(.system(.body, design: .monospaced))
                         .foregroundStyle(viewModel.rigState.swr == nil ? .secondary : .primary)
+                    audioControls
+                        .frame(maxWidth: .infinity)
                 }
 
                 pttButton
@@ -82,6 +86,34 @@ struct ContentView: View {
                 MenuPageView<RigClientViewModel>()
             }
             .padding(32)
+        }
+    }
+
+    /// Volume + "virtual" squelch (a client-side noise gate on the relayed
+    /// audio — see `AudioPlaybackEngine`/`SquelchGate` — independent of the
+    /// rig's own hardware squelch) for the Mac's relayed radio audio.
+    /// Occupies the free trailing space in the SMeterView row, the iPad's
+    /// analog of where the Mac's `ScopeDisplayView` sits in its own
+    /// `ContentView`. Bound to `AudioPlaybackSettings` directly — these
+    /// never touch `RigCommand`/the rig, so unlike the power slider they
+    /// don't need a drag-commit-on-release pattern; local audio settings
+    /// can update live.
+    private var audioControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Volume")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Slider(value: $audioVolume, in: 0...1)
+                .onChange(of: audioVolume) { _, newValue in
+                    viewModel.audioEngine.volume = Float(newValue)
+                }
+            Text("Squelch")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Slider(value: $audioSquelchThreshold, in: 0...0.2)
+                .onChange(of: audioSquelchThreshold) { _, newValue in
+                    viewModel.audioEngine.squelchThreshold = Float(newValue)
+                }
         }
     }
 

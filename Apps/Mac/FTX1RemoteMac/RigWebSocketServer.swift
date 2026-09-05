@@ -150,6 +150,19 @@ actor RigWebSocketServer {
         }
     }
 
+    /// Relays one chunk of the Mac's captured radio audio (see
+    /// `AudioStreamEncoder`) to every connected client, tagged so
+    /// `RigWebSocketClient` can tell it apart from `RigStatePush` JSON
+    /// before decoding. No-ops when nobody's connected — the caller doesn't
+    /// need to check that itself before encoding.
+    func broadcastAudio(_ pcm: Data) {
+        guard !connections.isEmpty else { return }
+        let framed = AudioStreamFormat.frame(pcm)
+        for connection in connections.values {
+            connection.send(framed)
+        }
+    }
+
     private func accept(_ connection: NWConnection) {
         let connectionID = ObjectIdentifier(connection)
         let client = Connection(

@@ -36,6 +36,13 @@ public actor RigWebSocketClient {
     /// `markFailed` on its own.
     public var onStateChange: (@Sendable (ConnectionState) -> Void)?
 
+    /// Called with the raw PCM payload of every audio frame received from
+    /// the hub (tag byte already stripped) — see `AudioStreamFormat`. Never
+    /// fires for a client that never sees an audio frame (Mac-only servers
+    /// or an older hub build); delivered on whatever executor the caller
+    /// sets up, same as `onStateUpdate`.
+    public var onAudioData: (@Sendable (Data) -> Void)?
+
     public init(hubURL: URL) {
         self.url = hubURL
         self.session = URLSession(configuration: .default, delegate: openSignal, delegateQueue: nil)
@@ -47,6 +54,10 @@ public actor RigWebSocketClient {
 
     public func setOnStateChange(_ handler: @escaping @Sendable (ConnectionState) -> Void) {
         onStateChange = handler
+    }
+
+    public func setOnAudioData(_ handler: @escaping @Sendable (Data) -> Void) {
+        onAudioData = handler
     }
 
     /// Waits for the server to actually accept the WebSocket handshake
@@ -126,8 +137,15 @@ public actor RigWebSocketClient {
         case .string(let s): data = s.data(using: .utf8)
         @unknown default: data = nil
         }
-        guard let data,
-              let push = try? JSONDecoder().decode(RigStatePush.self, from: data) else { return }
+        guard let data else { return }
+
+        if AudioStreamFormat.isAudioFrame(data) {
+            lastActivity = Date()
+            onAudioData?(AudioStreamFormat.payload(of: data))
+            return
+        }
+
+        guard let push = try? JSONDecoder().decode(RigStatePush.self, from: data) else { return }
         lastActivity = Date()
         onStateUpdate?(push.state)
     }

@@ -19,6 +19,11 @@ public final class RigClientViewModel: ObservableObject, RigController {
     @Published public private(set) var rigState = RigState()
     @Published public private(set) var connectionState: ConnectionState = .disconnected
 
+    /// Plays back the Mac's relayed radio audio — see `AudioPlaybackEngine`.
+    /// Started/stopped alongside the connection itself (`apply(_:)`/
+    /// `disconnect()`), not tied to any particular view being on screen.
+    public let audioEngine = AudioPlaybackEngine()
+
     private var client: RigWebSocketClient?
     private let port: UInt16
 
@@ -48,6 +53,9 @@ public final class RigClientViewModel: ObservableObject, RigController {
             await client.setOnStateChange { [weak self] state in
                 Task { @MainActor in self?.apply(state) }
             }
+            await client.setOnAudioData { [weak self] data in
+                Task { @MainActor in self?.audioEngine.push(pcm: data) }
+            }
             await client.connect()
             await self.refreshConnectionState()
         }
@@ -58,6 +66,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
         Task { await client.disconnect() }
         self.client = nil
         connectionState = .disconnected
+        audioEngine.stop()
     }
 
     public func send(_ command: RigCommand) {
@@ -72,10 +81,17 @@ public final class RigClientViewModel: ObservableObject, RigController {
 
     private func apply(_ state: RigWebSocketClient.ConnectionState) {
         switch state {
-        case .disconnected: connectionState = .disconnected
-        case .connecting: connectionState = .connecting
-        case .connected: connectionState = .connected
-        case .failed(let message): connectionState = .failed(message)
+        case .disconnected:
+            connectionState = .disconnected
+            audioEngine.stop()
+        case .connecting:
+            connectionState = .connecting
+        case .connected:
+            connectionState = .connected
+            audioEngine.start()
+        case .failed(let message):
+            connectionState = .failed(message)
+            audioEngine.stop()
         }
     }
 }
