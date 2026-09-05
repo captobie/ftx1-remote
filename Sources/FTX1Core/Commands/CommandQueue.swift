@@ -266,6 +266,12 @@ public actor CommandQueue {
             // Simplex/Plus/Minus/ARS selector, so this uses setRawInt like
             // .setSquelchType.
             try await rigctld.setRawInt("OS0", mode, digits: 1)
+        case .setAPRSBeaconType(let mode):
+            // No dedicated mnemonic — it's Table 3's "BEACON TYPE" (APRS
+            // BEACON / BEACON SET. / p3=1), a single digit (0-2) with no
+            // zero-padding needed. Reuses the generic "EX" passthrough
+            // `.setMenuItem` uses under the hood, same as `.setAntSelect`.
+            try await rigctld.setMenuItem(p1: 7, p2: 1, p3: 1, rawValue: "\(mode)")
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try await rigctld.setMenuItem(p1: p1, p2: p2, p3: p3, rawValue: rawValue)
         }

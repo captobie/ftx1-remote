@@ -185,6 +185,11 @@ public enum RigCommand: Sendable, Equatable {
     /// see `RigState.repeaterShiftMode`. Maps to the FTX-1's raw "OS"
     /// (OFFSET/REPEATER SHIFT) CAT command, P1 fixed to "0" (MAIN-side).
     case setRepeaterShift(mode: Int)
+    /// APRS beacon type, 0-2 (OFF/AUTO/SMART) — see `RigState.aprsBeaconType`.
+    /// No dedicated mnemonic; goes through the same "EX" (MENU) passthrough
+    /// as `.setAntSelect`, addressed at Table 3's fixed p1=7/p2=1/p3=1
+    /// ("BEACON TYPE").
+    case setAPRSBeaconType(Int)
     /// Writes one item of the FTX-1's deep SET-mode settings (Radio/CW/
     /// Operation/Display/Extension/APRS Setting — see
     /// `DeepSettingsCatalog`), addressed by `p1`/`p2`/`p3` (category/tab/
@@ -255,6 +260,7 @@ public enum RigCommand: Sendable, Equatable {
         case setToneFreq = "set_tone_freq"
         case setDCSCode = "set_dcs_code"
         case setRepeaterShift = "set_repeater_shift"
+        case setAPRSBeaconType = "set_aprs_beacon_type"
         case setMenuItem = "set_menu_item"
     }
 }
@@ -354,6 +360,8 @@ extension RigCommand: Codable {
             self = .setDCSCode(index: try container.decode(Int.self, forKey: .value))
         case .setRepeaterShift:
             self = .setRepeaterShift(mode: try container.decode(Int.self, forKey: .value))
+        case .setAPRSBeaconType:
+            self = .setAPRSBeaconType(try container.decode(Int.self, forKey: .value))
         case .setMenuItem:
             let payload = try container.decode(MenuItemPayload.self, forKey: .value)
             self = .setMenuItem(p1: payload.p1, p2: payload.p2, p3: payload.p3, rawValue: payload.rawValue)
@@ -494,6 +502,9 @@ extension RigCommand: Codable {
             try container.encode(index, forKey: .value)
         case .setRepeaterShift(let mode):
             try container.encode(CommandName.setRepeaterShift, forKey: .cmd)
+            try container.encode(mode, forKey: .value)
+        case .setAPRSBeaconType(let mode):
+            try container.encode(CommandName.setAPRSBeaconType, forKey: .cmd)
             try container.encode(mode, forKey: .value)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try container.encode(CommandName.setMenuItem, forKey: .cmd)
