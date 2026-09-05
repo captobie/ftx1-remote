@@ -247,7 +247,20 @@ public struct MenuPageView<Controller: RigController>: View {
     /// P1). Button 7, REV (repeater reverse), is visible-but-disabled like
     /// DG-ID TX/RX/HRI MODE above — same "nothing documented anywhere"
     /// result: no mnemonic in the alphabetical command list, no Table 3
-    /// entry, no hamlib token. Button 13 is BEACON (`RigCommand.
+    /// entry, no hamlib token. Buttons 11/12, APRS S.LIST/M.LIST, are
+    /// visible-but-disabled (`disabledPlaceholderButtonEqualSize`, since
+    /// "APRS"/"S.LIST"-"M.LIST" is a two-word label pair like the Deep
+    /// Settings buttons, not a name/value pair) — these are pure on-rig UI
+    /// screens for browsing received APRS station/message packets, and
+    /// unlike every other button on this page there's no CAT command in
+    /// principle that could back them: the CAT command set has no mnemonic
+    /// for received APRS packet *content* at all (the same gap
+    /// `RigState.c4fmCallsign`'s doc comment describes for received C4FM
+    /// digital voice data), and there's no CAT mechanism to remotely select
+    /// which screen the rig's own display shows either — confirmed by
+    /// checking the full alphabetical command list and Table 3 for any
+    /// "select display page" style command, finding none. Button 13 is
+    /// BEACON (`RigCommand.
     /// setAPRSBeaconType`, single-tap-cycles-to-next like RPT SHIFT/SQL TYPE
     /// over 3 values, no dedicated mnemonic — routed through the generic
     /// "EX" passthrough at Table 3's fixed p1=7/p2=1/p3=1 like
@@ -436,6 +449,10 @@ public struct MenuPageView<Controller: RigController>: View {
             }
         } else if selectedPage == .fm, item == 7 {
             disabledPlaceholderButton(top: "REV")
+        } else if selectedPage == .fm, item == 11 {
+            disabledPlaceholderButtonEqualSize(top: "APRS", bottom: "S.LIST")
+        } else if selectedPage == .fm, item == 12 {
+            disabledPlaceholderButtonEqualSize(top: "APRS", bottom: "M.LIST")
         } else if selectedPage == .fm, item == 13 {
             menuButtonShell {
                 hub.send(.setAPRSBeaconType(((hub.rigState.aprsBeaconType ?? 0) + 1) % 3))
@@ -1179,6 +1196,21 @@ public struct MenuPageView<Controller: RigController>: View {
             // Deliberately a no-op — see callers' doc comments above.
         } label: {
             twoLineLabel(top: top, bottom: "—", colorizeValue: false)
+                .foregroundStyle(.secondary)
+        }
+        .disabled(true)
+    }
+
+    /// Like `disabledPlaceholderButton`, but for a button whose two rig-label
+    /// lines are both short label words rather than a name/value pair — same
+    /// reasoning as `twoLineLabelEqualSize` vs `twoLineLabel` — e.g. FM/C4FM's
+    /// APRS S.LIST/M.LIST, which have no CAT-visible content behind them at
+    /// all (see `menuButton(for:)`'s doc comment).
+    private func disabledPlaceholderButtonEqualSize(top: String, bottom: String) -> some View {
+        menuButtonShell {
+            // Deliberately a no-op — see callers' doc comments above.
+        } label: {
+            twoLineLabelEqualSize(top: top, bottom: bottom)
                 .foregroundStyle(.secondary)
         }
         .disabled(true)
