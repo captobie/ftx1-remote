@@ -251,6 +251,7 @@ final class HubService: ObservableObject {
         case .setToneFreq(let index): rigState.ctcssToneIndex = index
         case .setDCSCode(let index): rigState.dcsCodeIndex = index
         case .setRepeaterShift(let mode): rigState.repeaterShiftMode = mode
+        case .setAPRSBeaconType(let mode): rigState.aprsBeaconType = mode
         // Momentary triggers, and CW MESSAGE record/select/play (whose
         // `cwMessageStatus` doesn't map 1:1 from any single command — see
         // RigState.cwMessageStatus) have no direct optimistic value; left
@@ -477,6 +478,12 @@ final class HubService: ObservableObject {
         // baked in, same shape as "CT0" above. The manual notes "OS" only
         // activates in an FM mode — best-effort like every other raw field.
         let repeaterShiftMode = try? await rigctld.getRawDigit("OS0")
+        // No dedicated mnemonic for BEACON TYPE — reads through the same
+        // generic "EX" passthrough Deep Settings uses, just at this one
+        // fixed address (see RigState.aprsBeaconType/RigCommand.
+        // setAPRSBeaconType).
+        let aprsBeaconTypeRaw = try? await rigctld.getMenuItem(p1: 7, p2: 1, p3: 1)
+        let aprsBeaconType = aprsBeaconTypeRaw.flatMap(Int.init)
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
         // Same C4FM gap as the primary mode read above — see `isC4FM`.
@@ -545,6 +552,7 @@ final class HubService: ObservableObject {
             ctcssToneIndex: ctcssToneIndex ?? rigState.ctcssToneIndex,
             dcsCodeIndex: dcsCodeIndex ?? rigState.dcsCodeIndex,
             repeaterShiftMode: repeaterShiftMode ?? rigState.repeaterShiftMode,
+            aprsBeaconType: aprsBeaconType ?? rigState.aprsBeaconType,
             c4fmCallsign: rigState.c4fmCallsign,
             c4fmReflector: rigState.c4fmReflector
         )

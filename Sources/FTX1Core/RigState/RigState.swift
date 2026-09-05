@@ -170,6 +170,14 @@ public struct RigState: Codable, Equatable, Sendable {
     /// "0" (MAIN-side). The manual notes this command "can be activated only
     /// with an FM mode."
     public var repeaterShiftMode: Int?
+    /// APRS beacon type, 0-2 (OFF/AUTO/SMART) — like `antSelect`, this has no
+    /// dedicated 2-letter CAT mnemonic; it's Table 3's "BEACON TYPE" item
+    /// (`DeepSettingsCatalog`'s APRS BEACON / BEACON SET. / p3=1), read/
+    /// written through the same generic "EX" passthrough
+    /// (`RigctldClient.getMenuItem`/`RigCommand.setMenuItem`) Deep Settings
+    /// uses, reused here just for this one item's get/set shape (see
+    /// `RigCommand.setAPRSBeaconType`).
+    public var aprsBeaconType: Int?
     /// Callsign of the station currently being received in C4FM, if any.
     /// Unlike every other field above, this has no CAT source at all — the
     /// FTX-1's CAT command set has no mnemonic for received C4FM digital
@@ -237,6 +245,7 @@ public struct RigState: Codable, Equatable, Sendable {
         ctcssToneIndex: Int? = nil,
         dcsCodeIndex: Int? = nil,
         repeaterShiftMode: Int? = nil,
+        aprsBeaconType: Int? = nil,
         c4fmCallsign: String? = nil,
         c4fmReflector: String? = nil
     ) {
@@ -285,6 +294,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.ctcssToneIndex = ctcssToneIndex
         self.dcsCodeIndex = dcsCodeIndex
         self.repeaterShiftMode = repeaterShiftMode
+        self.aprsBeaconType = aprsBeaconType
         self.c4fmCallsign = c4fmCallsign
         self.c4fmReflector = c4fmReflector
     }

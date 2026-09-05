@@ -247,7 +247,14 @@ public struct MenuPageView<Controller: RigController>: View {
     /// P1). Button 7, REV (repeater reverse), is visible-but-disabled like
     /// DG-ID TX/RX/HRI MODE above — same "nothing documented anywhere"
     /// result: no mnemonic in the alphabetical command list, no Table 3
-    /// entry, no hamlib token. Button 18 is SQL
+    /// entry, no hamlib token. Button 13 is BEACON (`RigCommand.
+    /// setAPRSBeaconType`, single-tap-cycles-to-next like RPT SHIFT/SQL TYPE
+    /// over 3 values, no dedicated mnemonic — routed through the generic
+    /// "EX" passthrough at Table 3's fixed p1=7/p2=1/p3=1 like
+    /// `.setAntSelect`); button 14, BCN-TX, is visible-but-disabled — no CAT
+    /// path exists for a momentary action with no Table 3 entry and no
+    /// mnemonic (see `aprsBeaconTypeLabel`'s doc comment for why this one
+    /// couldn't even be live-probed). Button 18 is SQL
     /// TYPE (`RigCommand.setSquelchType`, single-tap-cycles-to-next like
     /// IPO/AMP/AGC over 6 values, raw "CT" CAT command with fixed MAIN-side
     /// P1), button 19 is TONE FREQ (`RigCommand.setToneFreq`, popover
@@ -429,6 +436,14 @@ public struct MenuPageView<Controller: RigController>: View {
             }
         } else if selectedPage == .fm, item == 7 {
             disabledPlaceholderButton(top: "REV")
+        } else if selectedPage == .fm, item == 13 {
+            menuButtonShell {
+                hub.send(.setAPRSBeaconType(((hub.rigState.aprsBeaconType ?? 0) + 1) % 3))
+            } label: {
+                twoLineLabel(top: "BEACON", bottom: Self.aprsBeaconTypeLabel(hub.rigState.aprsBeaconType))
+            }
+        } else if selectedPage == .fm, item == 14 {
+            disabledPlaceholderButton(top: "BCN-TX")
         } else if selectedPage == .fm, item == 18 {
             menuButtonShell {
                 hub.send(.setSquelchType(((hub.rigState.squelchType ?? 0) + 1) % 6))
@@ -869,6 +884,29 @@ public struct MenuPageView<Controller: RigController>: View {
         case 1: "+"
         case 2: "-"
         case 3: "ARS"
+        default: "—"
+        }
+    }
+
+    /// FM/C4FM button 13, BEACON (auto beacon TX on/off, per the user) —
+    /// small fixed choice set (3 values), same single-tap-cycles-to-next
+    /// treatment as `repeaterShiftLabel`/`sqlTypeLabel`. Like ANT SELECT, no
+    /// dedicated mnemonic exists for this — it's Table 3's "BEACON TYPE"
+    /// item (APRS BEACON / BEACON SET. / p3=1), reached through the generic
+    /// "EX" passthrough (see `RigCommand.setAPRSBeaconType`). Button 14,
+    /// BCN-TX (a momentary "send beacon now" action, per the user), is
+    /// visible-but-disabled — momentary actions never appear in Table 3 at
+    /// all, there's no dedicated mnemonic either, and unlike a normal
+    /// setting there's no way to observe a physical button's effect over
+    /// CAT to reverse-engineer it (pressing a button on the rig's own head
+    /// unit doesn't emit any outbound CAT traffic) — live-probing this would
+    /// mean blind-guessing raw commands against a real transmitter with zero
+    /// documented starting point, which wasn't worth the risk.
+    private static func aprsBeaconTypeLabel(_ mode: Int?) -> String {
+        switch mode {
+        case 0: "OFF"
+        case 1: "AUTO"
+        case 2: "SMART"
         default: "—"
         }
     }
