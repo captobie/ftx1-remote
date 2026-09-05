@@ -43,6 +43,8 @@ struct SettingsView: View {
                     .tabItem { Text("Audio") }
                 C4FMSettingsTab()
                     .tabItem { Text("C4FM") }
+                APRSSettingsTab()
+                    .tabItem { Text("APRS") }
                 HomeFrequencySettingsTab()
                     .tabItem { Text("Home Freq") }
                 AppearanceSettingsTab()
@@ -236,6 +238,42 @@ private struct HomeFrequencySettingsTab: View {
             }
         }
         .padding(.top, 8)
+    }
+}
+
+/// APRS decode (S.LIST/M.LIST) — see `APRSSettings`/`APRSDecoder`. Applies
+/// instantly via `@AppStorage`, same reasoning as every other tab above
+/// except rigctld: an out-of-range frequency/tolerance just means decoding
+/// never activates, not a broken process launch worth a Cancel/Done escape
+/// hatch.
+private struct APRSSettingsTab: View {
+    @EnvironmentObject private var hub: HubService
+    @AppStorage(APRSSettings.enabledKey) private var enabled = false
+    @AppStorage(APRSSettings.frequencyHzKey) private var frequencyHz = APRSSettings.defaultFrequencyHz
+    @AppStorage(APRSSettings.toleranceHzKey) private var toleranceHz = APRSSettings.defaultToleranceHz
+    @State private var showingClearConfirmation = false
+
+    private var megahertz: Binding<Double> {
+        Binding(
+            get: { Double(frequencyHz) / 1_000_000 },
+            set: { frequencyHz = Int(($0 * 1_000_000).rounded()) }
+        )
+    }
+
+    var body: some View {
+        Form {
+            Toggle("Decode APRS", isOn: $enabled)
+            TextField("Frequency (MHz)", value: megahertz, format: .number.precision(.fractionLength(0...6)))
+            TextField("Tolerance (Hz)", value: $toleranceHz, format: .number)
+            Text("Decoding is only active while tuned within the tolerance of the configured frequency — the default (144.390 MHz) is the US APRS calling frequency; other regions (e.g. 144.800 MHz in Europe) should change this.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Button("Clear History…") { showingClearConfirmation = true }
+        }
+        .padding(.top, 8)
+        .confirmationDialog("Clear all decoded APRS stations and messages?", isPresented: $showingClearConfirmation, titleVisibility: .visible) {
+            Button("Clear History", role: .destructive) { hub.aprsStore.clearHistory() }
+        }
     }
 }
 

@@ -11,4 +11,8 @@ extension HubService: RigController {
     func deepSettingsDestination(title: String, p1s: [Int]) -> AnyView? {
         AnyView(DeepSettingsView(title: title, p1s: p1s).environmentObject(self))
     }
+
+    /// Only the Mac has an audio input to decode APRS from at all — see
+    /// `RigController.supportsAPRSDecoding`'s doc comment.
+    var supportsAPRSDecoding: Bool { true }
 }

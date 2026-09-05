@@ -2,6 +2,7 @@ import Combine
 import CoreGraphics
 import FTX1Core
 import Foundation
+import os
 
 /// The Mac hub: owns the `RigctldClient` connection and the `CommandQueue`
 /// that serializes commands into it, and polls rigctld for state changes
@@ -41,11 +42,21 @@ final class HubService: ObservableObject {
     private let rigctldProcess = RigctldProcessController()
     private let audioCapture = AudioCaptureEngine()
     private let wpsdMonitor = WPSDCallsignMonitor()
+    private let aprsDecoder = APRSDecoder()
+    let aprsStore = APRSStore()
     private let webSocketPort: UInt16
     private let rigctldHost: String
     private let rigctldPort: UInt16
     private var runLoopTask: Task<Void, Never>?
     private var webSocketServerTask: Task<Void, Never>?
+    /// Holds off App Nap for as long as `audioCapture` is running — see
+    /// `beginBackgroundActivity()`'s doc comment.
+    private var backgroundActivityToken: NSObjectProtocol?
+    /// Diagnostic-only — logs only on a state transition, not per-buffer.
+    /// See `APRSDecoder`'s heartbeat logging for the matching "is audio
+    /// still reaching the decoder" question on the other side of the gate.
+    private var aprsGateWasActive = false
+    private static let aprsGateLogger = Logger(subsystem: "com.ftx1remote.mac", category: "aprs-gate")
 
     /// Bumped by `applyOptimistically` every time a command lands. `refreshState`
     /// checks this before and after its ~30 sequential reads to detect whether a
@@ -85,6 +96,22 @@ final class HubService: ObservableObject {
         audioCapture.onNewFrame = { [weak self] frame in
             self?.waterfallImage = frame.waterfall
             self?.oscilloscopeImage = frame.oscilloscope
+        }
+        audioCapture.onAudioSamples = { [weak self] samples, sampleRate in
+            guard let self else { return }
+            let isActive = APRSSettings.isActive(atFrequencyHz: self.rigState.frequencyHz)
+            if isActive != self.aprsGateWasActive {
+                self.aprsGateWasActive = isActive
+                Self.aprsGateLogger.debug("APRS gate \(isActive ? "opened" : "closed", privacy: .public) at \(self.rigState.frequencyHz) Hz")
+            }
+            guard isActive else { return }
+            self.aprsDecoder.process(samples: samples, sampleRate: sampleRate)
+        }
+        aprsDecoder.onStation = { [weak self] callsign, latitude, longitude, symbolTable, symbolCode, comment in
+            self?.aprsStore.recordStation(callsign: callsign, latitude: latitude, longitude: longitude, symbolTable: symbolTable, symbolCode: symbolCode, comment: comment, heardAt: Date())
+        }
+        aprsDecoder.onMessage = { [weak self] from, to, text, messageID in
+            self?.aprsStore.recordMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: Date())
         }
         wpsdMonitor.onCallsignUpdate = { [weak self] callsign in
             self?.rigState.c4fmCallsign = callsign
@@ -297,6 +324,34 @@ final class HubService: ObservableObject {
         return min(zoomRange.upperBound, max(zoomRange.lowerBound, current * factor))
     }
 
+    /// macOS App Nap throttles background GCD/dispatch scheduling for a
+    /// process with no visible, non-occluded window — which the APRS
+    /// pipeline leans on at every stage (`AudioCaptureEngine`'s per-buffer
+    /// main-actor hop, `APRSDecoder`'s own serial queue, the final hop
+    /// back to `APRSStore`). Under App Nap, none of that stops outright,
+    /// but it can be delayed long enough to look like decoding "isn't
+    /// running" — and opening a new window (e.g. S.LIST) is exactly the
+    /// kind of thing that pulls a process out of App Nap, which would
+    /// explain decoding appearing to depend on a window being open.
+    /// `ProcessInfo.beginActivity` opts out for as long as the token is
+    /// held, matching `audioCapture`'s own start/stop lifecycle — this
+    /// isn't APRS-specific (the waterfall/scope hop the same way), but
+    /// APRS is the first feature in this app where a multi-second delay
+    /// is actually noticeable rather than just a dropped animation frame.
+    private func beginBackgroundActivity() {
+        guard backgroundActivityToken == nil else { return }
+        backgroundActivityToken = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiated, .idleSystemSleepDisabled],
+            reason: "Live rig audio capture and APRS decoding"
+        )
+    }
+
+    private func endBackgroundActivity() {
+        guard let token = backgroundActivityToken else { return }
+        ProcessInfo.processInfo.endActivity(token)
+        backgroundActivityToken = nil
+    }
+
     private func connectRigctld(isFreshStart: Bool = false) {
         guard runLoopTask == nil else { return }
         runLoopTask = Task { await runConnectionLoop(isFreshStart: isFreshStart) }
@@ -307,6 +362,7 @@ final class HubService: ObservableObject {
         runLoopTask = nil
         connectionState = .disconnected
         audioCapture.stop()
+        endBackgroundActivity()
         waterfallImage = nil
         oscilloscopeImage = nil
         wpsdMonitor.stop()
@@ -334,6 +390,7 @@ final class HubService: ObservableObject {
                 try await rigctld.connect()
                 connectionState = .connected
                 audioCapture.start(deviceUID: AudioInputSettings.deviceUID)
+                beginBackgroundActivity()
                 try await pollLoop()
             } catch {
                 // A cancelled attempt (e.g. the user switched rigctld off
@@ -348,6 +405,7 @@ final class HubService: ObservableObject {
                     } else {
                         isFreshStart = false
                         audioCapture.stop()
+                        endBackgroundActivity()
                         waterfallImage = nil
                         oscilloscopeImage = nil
                         connectionState = .failed(error.localizedDescription)
