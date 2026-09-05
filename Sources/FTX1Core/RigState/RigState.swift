@@ -204,6 +204,23 @@ public struct RigState: Codable, Equatable, Sendable {
     /// whenever WPSD lookup is disabled, no hotspot is configured, or the
     /// hotspot isn't currently linked to a reflector.
     public var c4fmReflector: String?
+    /// Whether the active VFO is currently parked on the configured APRS
+    /// frequency — `APRSSettings.isActive(atFrequencyHz:)` evaluated against
+    /// `frequencyHz`, mirroring the same gate `HubService` uses to decide
+    /// whether to actually run audio through the APRS decoder. Like
+    /// `c4fmCallsign`/`c4fmReflector`, this has no CAT source; unlike them
+    /// it isn't mode-restricted (APRS's audio gate is frequency-only, same
+    /// as the decoder itself), so it can in principle be true outside FM,
+    /// though that's not a real-world scenario.
+    public var aprsActive: Bool
+    /// Callsign of the most recently APRS-decoded station, if one was heard
+    /// within the last 5 seconds — `HubService` clears this back to `nil`
+    /// once 5 seconds have elapsed since the last decode (see its
+    /// `aprsLastCallsignHeard` doc comment), rather than this field ever
+    /// being cleared by a timer of its own. Only meaningful while
+    /// `aprsActive`; nil whenever APRS decoding is disabled, off-frequency,
+    /// or nothing's been decoded in the last 5 seconds.
+    public var aprsLastCallsign: String?
 
     public init(
         frequencyHz: Int = 0,
@@ -254,7 +271,9 @@ public struct RigState: Codable, Equatable, Sendable {
         aprsBeaconType: Int? = nil,
         fmChannelStep: Int? = nil,
         c4fmCallsign: String? = nil,
-        c4fmReflector: String? = nil
+        c4fmReflector: String? = nil,
+        aprsActive: Bool = false,
+        aprsLastCallsign: String? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -305,6 +324,8 @@ public struct RigState: Codable, Equatable, Sendable {
         self.fmChannelStep = fmChannelStep
         self.c4fmCallsign = c4fmCallsign
         self.c4fmReflector = c4fmReflector
+        self.aprsActive = aprsActive
+        self.aprsLastCallsign = aprsLastCallsign
     }
 }
 

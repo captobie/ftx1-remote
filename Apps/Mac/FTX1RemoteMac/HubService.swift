@@ -57,6 +57,12 @@ final class HubService: ObservableObject {
     /// still reaching the decoder" question on the other side of the gate.
     private var aprsGateWasActive = false
     private static let aprsGateLogger = Logger(subsystem: "com.ftx1remote.mac", category: "aprs-gate")
+    /// Most recently APRS-decoded station + when it was heard. `refreshState`
+    /// (the ~500ms poll/broadcast cycle) surfaces this as `RigState.
+    /// aprsLastCallsign` for up to 5 seconds past `at`, then lets it read
+    /// back as `nil` — no separate expiry `Timer` needed since that cycle
+    /// runs often enough on its own to notice the 5-second mark passing.
+    private var aprsLastCallsignHeard: (callsign: String, at: Date)?
 
     /// Bumped by `applyOptimistically` every time a command lands. `refreshState`
     /// checks this before and after its ~30 sequential reads to detect whether a
@@ -108,6 +114,7 @@ final class HubService: ObservableObject {
             self.aprsDecoder.process(samples: samples, sampleRate: sampleRate)
         }
         aprsDecoder.onStation = { [weak self] callsign, latitude, longitude, symbolTable, symbolCode, comment in
+            self?.aprsLastCallsignHeard = (callsign, Date())
             self?.aprsStore.recordStation(callsign: callsign, latitude: latitude, longitude: longitude, symbolTable: symbolTable, symbolCode: symbolCode, comment: comment, heardAt: Date())
         }
         aprsDecoder.onMessage = { [weak self] from, to, text, messageID in
@@ -569,6 +576,14 @@ final class HubService: ObservableObject {
             BandMemory.recordFrequencyHz(frequencyHz, forBand: band.name)
         }
 
+        let aprsActive = APRSSettings.isActive(atFrequencyHz: frequencyHz)
+        // Read back as `nil` once 5 seconds have passed since the last
+        // decode — see `aprsLastCallsignHeard`'s doc comment for why this
+        // doesn't need its own expiry `Timer`.
+        let aprsLastCallsign: String? = aprsLastCallsignHeard.flatMap { heard in
+            Date().timeIntervalSince(heard.at) < 5 ? heard.callsign : nil
+        }
+
         rigState = RigState(
             frequencyHz: frequencyHz,
             mode: modeName.flatMap(RigMode.init(rawValue:)) ?? (isC4FM ? .c4fm : rigState.mode),
@@ -618,7 +633,9 @@ final class HubService: ObservableObject {
             aprsBeaconType: aprsBeaconType ?? rigState.aprsBeaconType,
             fmChannelStep: fmChannelStep ?? rigState.fmChannelStep,
             c4fmCallsign: rigState.c4fmCallsign,
-            c4fmReflector: rigState.c4fmReflector
+            c4fmReflector: rigState.c4fmReflector,
+            aprsActive: aprsActive,
+            aprsLastCallsign: aprsLastCallsign
         )
         updateWPSDMonitorState()
         await server.broadcast(rigState)

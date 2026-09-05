@@ -9,16 +9,25 @@ public struct VFODisplayBox: View {
     let frequencyHz: Int?
     let isActive: Bool
     let mode: String
-    /// Callsign of the station currently being received in C4FM, if known —
-    /// see `RigState.c4fmCallsign`. `nil` (the default) shows nothing extra;
-    /// callers are expected to only pass a value while this VFO is actually
-    /// in C4FM mode.
+    /// Callsign most recently associated with whichever digital mode is
+    /// active on this VFO: the station currently being received in C4FM
+    /// (see `RigState.c4fmCallsign`), or — while `aprsActive` — the most
+    /// recently APRS-decoded station's callsign (see
+    /// `RigState.aprsLastCallsign`, already expired back to `nil` after 5
+    /// seconds by the time it reaches here). `nil` (the default) shows
+    /// nothing extra; callers are expected to only pass a value under the
+    /// matching condition.
     let callsign: String?
     /// Name of the YSF reflector the WPSD hotspot is currently linked to, if
     /// known — see `RigState.c4fmReflector`. `nil` (the default) shows
     /// nothing extra; same "only while this VFO is in C4FM mode" contract
     /// as `callsign`.
     let reflector: String?
+    /// Whether this VFO is currently parked on the configured APRS
+    /// frequency — see `RigState.aprsActive`. Shows a static "APRS"
+    /// indicator under `mode`, the same slot `reflector` occupies for
+    /// C4FM (the two are mutually exclusive in practice).
+    let aprsActive: Bool
     /// Tap-to-edit callback for this VFO's frequency. `nil` (the default)
     /// leaves the display read-only — used for VFO B, which has no
     /// corresponding `RigCommand` to write back through today.
@@ -26,13 +35,14 @@ public struct VFODisplayBox: View {
 
     @State private var isEditing = false
 
-    public init(label: String, frequencyHz: Int?, isActive: Bool, mode: String, callsign: String? = nil, reflector: String? = nil, onSetFrequency: ((Int) -> Void)? = nil) {
+    public init(label: String, frequencyHz: Int?, isActive: Bool, mode: String, callsign: String? = nil, reflector: String? = nil, aprsActive: Bool = false, onSetFrequency: ((Int) -> Void)? = nil) {
         self.label = label
         self.frequencyHz = frequencyHz
         self.isActive = isActive
         self.mode = mode
         self.callsign = callsign
         self.reflector = reflector
+        self.aprsActive = aprsActive
         self.onSetFrequency = onSetFrequency
     }
 
@@ -72,6 +82,11 @@ public struct VFODisplayBox: View {
                     .foregroundStyle(digitColor)
                 if let reflector {
                     Text(reflector)
+                        .font(.caption2)
+                        .foregroundStyle(digitColor)
+                }
+                if aprsActive {
+                    Text("APRS")
                         .font(.caption2)
                         .foregroundStyle(digitColor)
                 }
