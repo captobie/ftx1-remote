@@ -20,6 +20,10 @@ final class APRSStore: ObservableObject {
         let loaded = APRSPersistence.load()
         stations = loaded.stations
         messages = loaded.messages
+        // Trim on load too, not just on record — covers a limit lowered
+        // in Settings since the history file was last written.
+        trimStations()
+        trimMessages()
     }
 
     /// Upserts by callsign (including SSID) — a station heard again
@@ -54,11 +58,13 @@ final class APRSStore: ObservableObject {
                 lastHeardAt: heardAt
             ))
         }
+        trimStations()
         persist()
     }
 
     func recordMessage(from: String, to: String, text: String, messageID: String?, receivedAt: Date) {
         messages.append(APRSMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: receivedAt))
+        trimMessages()
         persist()
     }
 
@@ -66,6 +72,27 @@ final class APRSStore: ObservableObject {
         stations = []
         messages = []
         APRSPersistence.clear()
+    }
+
+    /// Evicts the least-recently-heard stations once over
+    /// `APRSSettings.maxStations` — a station is only ever added here when
+    /// it's genuinely new (an already-known callsign updates in place), so
+    /// this is the only place the array can grow past the limit.
+    private func trimStations() {
+        let limit = APRSSettings.maxStations
+        guard stations.count > limit else { return }
+        stations.sort { $0.lastHeardAt > $1.lastHeardAt }
+        stations.removeLast(stations.count - limit)
+    }
+
+    /// Evicts the oldest messages once over `APRSSettings.maxMessages` —
+    /// unlike stations, every received message is appended (never
+    /// deduped/updated in place), so this is the only bound on growth.
+    private func trimMessages() {
+        let limit = APRSSettings.maxMessages
+        guard messages.count > limit else { return }
+        messages.sort { $0.receivedAt > $1.receivedAt }
+        messages.removeLast(messages.count - limit)
     }
 
     private func persist() {
