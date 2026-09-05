@@ -272,6 +272,11 @@ public actor CommandQueue {
             // zero-padding needed. Reuses the generic "EX" passthrough
             // `.setMenuItem` uses under the hood, same as `.setAntSelect`.
             try await rigctld.setMenuItem(p1: 7, p2: 1, p3: 1, rawValue: "\(mode)")
+        case .setFMChannelStep(let step):
+            // No dedicated mnemonic — it's Table 3's "FM CH STEP" (OPERATION
+            // SETTING / KEY/DIAL / p3=6), same generic "EX" passthrough
+            // reasoning as `.setAPRSBeaconType`.
+            try await rigctld.setMenuItem(p1: 3, p2: 6, p3: 6, rawValue: "\(step)")
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try await rigctld.setMenuItem(p1: p1, p2: p2, p3: p3, rawValue: rawValue)
         }

@@ -178,6 +178,12 @@ public struct RigState: Codable, Equatable, Sendable {
     /// uses, reused here just for this one item's get/set shape (see
     /// `RigCommand.setAPRSBeaconType`).
     public var aprsBeaconType: Int?
+    /// FM channel step, 0-5 (5/6.25/10/12.5/20/25 kHz) — same shape as
+    /// `aprsBeaconType`: no dedicated mnemonic, it's Table 3's "FM CH STEP"
+    /// item (`DeepSettingsCatalog`'s OPERATION SETTING / KEY/DIAL / p3=6),
+    /// reused here through the generic "EX" passthrough (see
+    /// `RigCommand.setFMChannelStep`).
+    public var fmChannelStep: Int?
     /// Callsign of the station currently being received in C4FM, if any.
     /// Unlike every other field above, this has no CAT source at all — the
     /// FTX-1's CAT command set has no mnemonic for received C4FM digital
@@ -246,6 +252,7 @@ public struct RigState: Codable, Equatable, Sendable {
         dcsCodeIndex: Int? = nil,
         repeaterShiftMode: Int? = nil,
         aprsBeaconType: Int? = nil,
+        fmChannelStep: Int? = nil,
         c4fmCallsign: String? = nil,
         c4fmReflector: String? = nil
     ) {
@@ -295,6 +302,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.dcsCodeIndex = dcsCodeIndex
         self.repeaterShiftMode = repeaterShiftMode
         self.aprsBeaconType = aprsBeaconType
+        self.fmChannelStep = fmChannelStep
         self.c4fmCallsign = c4fmCallsign
         self.c4fmReflector = c4fmReflector
     }

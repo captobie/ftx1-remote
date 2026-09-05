@@ -252,6 +252,7 @@ final class HubService: ObservableObject {
         case .setDCSCode(let index): rigState.dcsCodeIndex = index
         case .setRepeaterShift(let mode): rigState.repeaterShiftMode = mode
         case .setAPRSBeaconType(let mode): rigState.aprsBeaconType = mode
+        case .setFMChannelStep(let step): rigState.fmChannelStep = step
         // Momentary triggers, and CW MESSAGE record/select/play (whose
         // `cwMessageStatus` doesn't map 1:1 from any single command — see
         // RigState.cwMessageStatus) have no direct optimistic value; left
@@ -484,6 +485,10 @@ final class HubService: ObservableObject {
         // setAPRSBeaconType).
         let aprsBeaconTypeRaw = try? await rigctld.getMenuItem(p1: 7, p2: 1, p3: 1)
         let aprsBeaconType = aprsBeaconTypeRaw.flatMap(Int.init)
+        // No dedicated mnemonic for FM CH STEP either — same generic "EX"
+        // passthrough reasoning as aprsBeaconType above.
+        let fmChannelStepRaw = try? await rigctld.getMenuItem(p1: 3, p2: 6, p3: 6)
+        let fmChannelStep = fmChannelStepRaw.flatMap(Int.init)
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
         // Same C4FM gap as the primary mode read above — see `isC4FM`.
@@ -553,6 +558,7 @@ final class HubService: ObservableObject {
             dcsCodeIndex: dcsCodeIndex ?? rigState.dcsCodeIndex,
             repeaterShiftMode: repeaterShiftMode ?? rigState.repeaterShiftMode,
             aprsBeaconType: aprsBeaconType ?? rigState.aprsBeaconType,
+            fmChannelStep: fmChannelStep ?? rigState.fmChannelStep,
             c4fmCallsign: rigState.c4fmCallsign,
             c4fmReflector: rigState.c4fmReflector
         )
