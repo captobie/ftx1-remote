@@ -43,6 +43,8 @@ struct SettingsView: View {
                     .tabItem { Text("Audio") }
                 C4FMSettingsTab()
                     .tabItem { Text("C4FM") }
+                HomeFrequencySettingsTab()
+                    .tabItem { Text("Home Freq") }
                 AppearanceSettingsTab()
                     .tabItem { Text("Appearance") }
             }
@@ -216,6 +218,50 @@ private struct C4FMSettingsTab: View {
             TextField("Hotspot address", text: $host, prompt: Text("e.g. 100.75.175.9"))
         }
         .padding(.top, 8)
+    }
+}
+
+/// Per-band HOME channel frequencies (see `HomeBand`/`HomeFrequencySettings`)
+/// — the FM/C4FM menu page's HOME button jumps to whichever of these matches
+/// the current frequency's band group, since the rig itself has no CAT way
+/// to read/recall its own HOME channels. Applies instantly via `@AppStorage`,
+/// same reasoning as `AudioSettingsTab`/`C4FMSettingsTab` — any value here is
+/// a valid frequency, no invalid-input failure mode worth a Cancel/Done
+/// escape hatch.
+private struct HomeFrequencySettingsTab: View {
+    var body: some View {
+        Form {
+            ForEach(HomeBand.allCases, id: \.self) { band in
+                HomeFrequencyField(band: band)
+            }
+        }
+        .padding(.top, 8)
+    }
+}
+
+/// One band's HOME frequency field, shown/edited in MHz rather than raw Hz
+/// for readability — `@AppStorage`'s key is per-instance (one per band), so
+/// it's assigned in `init` via the underscore-prefixed backing-storage
+/// pattern rather than a static key literal like every other `@AppStorage`
+/// use in this file.
+private struct HomeFrequencyField: View {
+    let band: HomeBand
+    @AppStorage private var frequencyHz: Int
+
+    init(band: HomeBand) {
+        self.band = band
+        _frequencyHz = AppStorage(wrappedValue: band.defaultFrequencyHz, HomeFrequencySettings.key(for: band))
+    }
+
+    private var megahertz: Binding<Double> {
+        Binding(
+            get: { Double(frequencyHz) / 1_000_000 },
+            set: { frequencyHz = Int(($0 * 1_000_000).rounded()) }
+        )
+    }
+
+    var body: some View {
+        TextField("\(band.displayName) (MHz)", value: megahertz, format: .number.precision(.fractionLength(0...6)))
     }
 }
 

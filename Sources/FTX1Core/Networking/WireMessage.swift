@@ -190,6 +190,11 @@ public enum RigCommand: Sendable, Equatable {
     /// as `.setAntSelect`, addressed at Table 3's fixed p1=7/p2=1/p3=1
     /// ("BEACON TYPE").
     case setAPRSBeaconType(Int)
+    /// FM channel step, 0-5 (5/6.25/10/12.5/20/25 kHz) — see
+    /// `RigState.fmChannelStep`. No dedicated mnemonic; goes through the
+    /// same "EX" (MENU) passthrough as `.setAPRSBeaconType`, addressed at
+    /// Table 3's fixed p1=3/p2=6/p3=6 ("FM CH STEP").
+    case setFMChannelStep(Int)
     /// Writes one item of the FTX-1's deep SET-mode settings (Radio/CW/
     /// Operation/Display/Extension/APRS Setting — see
     /// `DeepSettingsCatalog`), addressed by `p1`/`p2`/`p3` (category/tab/
@@ -261,6 +266,7 @@ public enum RigCommand: Sendable, Equatable {
         case setDCSCode = "set_dcs_code"
         case setRepeaterShift = "set_repeater_shift"
         case setAPRSBeaconType = "set_aprs_beacon_type"
+        case setFMChannelStep = "set_fm_channel_step"
         case setMenuItem = "set_menu_item"
     }
 }
@@ -362,6 +368,8 @@ extension RigCommand: Codable {
             self = .setRepeaterShift(mode: try container.decode(Int.self, forKey: .value))
         case .setAPRSBeaconType:
             self = .setAPRSBeaconType(try container.decode(Int.self, forKey: .value))
+        case .setFMChannelStep:
+            self = .setFMChannelStep(try container.decode(Int.self, forKey: .value))
         case .setMenuItem:
             let payload = try container.decode(MenuItemPayload.self, forKey: .value)
             self = .setMenuItem(p1: payload.p1, p2: payload.p2, p3: payload.p3, rawValue: payload.rawValue)
@@ -506,6 +514,9 @@ extension RigCommand: Codable {
         case .setAPRSBeaconType(let mode):
             try container.encode(CommandName.setAPRSBeaconType, forKey: .cmd)
             try container.encode(mode, forKey: .value)
+        case .setFMChannelStep(let step):
+            try container.encode(CommandName.setFMChannelStep, forKey: .cmd)
+            try container.encode(step, forKey: .value)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try container.encode(CommandName.setMenuItem, forKey: .cmd)
             try container.encode(MenuItemPayload(p1: p1, p2: p2, p3: p3, rawValue: rawValue), forKey: .value)

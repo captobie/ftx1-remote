@@ -241,7 +241,17 @@ public struct MenuPageView<Controller: RigController>: View {
     /// WIRES-X-adjacent settings, not just unread by this app yet. FM/C4FM
     /// items 4, 5, 16, and 17 have no rig function at all on this page,
     /// confirmed against the real MENU display — `menuPageHiddenFMItems`,
-    /// same treatment as `menuPageHiddenCWItems`. FM/C4FM button 6 is RPT
+    /// same treatment as `menuPageHiddenCWItems`. FM/C4FM button 2 is DTMF
+    /// (`dtmfButton`) — a placeholder like S.LIST/M.LIST/BCN-TX (opens an
+    /// on-rig entry screen this app can't drive over CAT, and would be
+    /// TX-triggering to guess at), but styled as a single centered word via
+    /// `singleWordButton` rather than `disabledPlaceholderButtonEqualSize`'s
+    /// two-word pair, since the real button only shows one word. Button 3 is
+    /// T-CALL (1750Hz tone-burst repeater access, per the user) — a normal
+    /// `disabledPlaceholderButton` (name+"—" pair) since it's a real on/off
+    /// toggle on the rig's own display, just with no CAT command anywhere
+    /// for it (checked the alphabetical list, Table 3, and hamlib source).
+    /// FM/C4FM button 6 is RPT
     /// SHIFT (`RigCommand.setRepeaterShift`, single-tap-cycles-to-next like
     /// IPO/AMP/AGC over 4 values, raw "OS" CAT command with fixed MAIN-side
     /// P1). Button 7, REV (repeater reverse), is visible-but-disabled like
@@ -267,7 +277,20 @@ public struct MenuPageView<Controller: RigController>: View {
     /// `.setAntSelect`); button 14, BCN-TX, is visible-but-disabled — no CAT
     /// path exists for a momentary action with no Table 3 entry and no
     /// mnemonic (see `aprsBeaconTypeLabel`'s doc comment for why this one
-    /// couldn't even be live-probed). Button 18 is SQL
+    /// couldn't even be live-probed). Button 15 is CH STEP (`RigCommand.
+    /// setFMChannelStep`, single-tap-cycles-to-next like BEACON over 6
+    /// values, no dedicated mnemonic — routed through the generic "EX"
+    /// passthrough at Table 3's fixed p1=3/p2=6/p3=6 ("FM CH STEP") like
+    /// `.setAPRSBeaconType`); button 21 is HOME (`homeButton`) — unlike
+    /// every other undocumented button on this page, this one has a real
+    /// client-side implementation despite having no CAT command at all: the
+    /// FTX-1's rig-internal HOME channels (Advance Manual p.27, one
+    /// frequency per band group — see `HomeBand`) aren't readable/settable
+    /// over CAT in any way, so this app keeps its own copy
+    /// (`HomeFrequencySettings`, editable in the Mac Settings sheet's "Home
+    /// Freq" tab) and just sends a plain `RigCommand.setFrequency` for
+    /// whichever band group the current frequency falls in — no new wire
+    /// protocol needed. Button 18 is SQL
     /// TYPE (`RigCommand.setSquelchType`, single-tap-cycles-to-next like
     /// IPO/AMP/AGC over 6 values, raw "CT" CAT command with fixed MAIN-side
     /// P1), button 19 is TONE FREQ (`RigCommand.setToneFreq`, popover
@@ -441,6 +464,10 @@ public struct MenuPageView<Controller: RigController>: View {
             disabledPlaceholderButton(top: "DG-ID RX")
         } else if selectedPage == .fm, item == 10 {
             disabledPlaceholderButton(top: "HRI MODE")
+        } else if selectedPage == .fm, item == 2 {
+            dtmfButton
+        } else if selectedPage == .fm, item == 3 {
+            disabledPlaceholderButton(top: "T-CALL")
         } else if selectedPage == .fm, item == 6 {
             menuButtonShell {
                 hub.send(.setRepeaterShift(mode: ((hub.rigState.repeaterShiftMode ?? 0) + 1) % 4))
@@ -461,6 +488,14 @@ public struct MenuPageView<Controller: RigController>: View {
             }
         } else if selectedPage == .fm, item == 14 {
             disabledPlaceholderButton(top: "BCN-TX")
+        } else if selectedPage == .fm, item == 15 {
+            menuButtonShell {
+                hub.send(.setFMChannelStep(((hub.rigState.fmChannelStep ?? 0) + 1) % 6))
+            } label: {
+                twoLineLabel(top: "CH STEP", bottom: Self.fmChannelStepLabel(hub.rigState.fmChannelStep))
+            }
+        } else if selectedPage == .fm, item == 21 {
+            homeButton
         } else if selectedPage == .fm, item == 18 {
             menuButtonShell {
                 hub.send(.setSquelchType(((hub.rigState.squelchType ?? 0) + 1) % 6))
@@ -925,6 +960,81 @@ public struct MenuPageView<Controller: RigController>: View {
         case 1: "AUTO"
         case 2: "SMART"
         default: "—"
+        }
+    }
+
+    /// FM/C4FM button 15, CH STEP — small fixed choice set (6 values), same
+    /// single-tap-cycles-to-next treatment as `aprsBeaconTypeLabel`. Like
+    /// BEACON/ANT SELECT, no dedicated mnemonic exists — it's Table 3's "FM
+    /// CH STEP" item (OPERATION SETTING / KEY/DIAL / p3=6), reached through
+    /// the generic "EX" passthrough (see `RigCommand.setFMChannelStep`).
+    /// Button 21, HOME, has no mnemonic/Table 3 entry either, but unlike
+    /// REV/DG-ID/HRI MODE this one gets a real (client-side) implementation
+    /// — see `homeButton`'s doc comment.
+    private static func fmChannelStepLabel(_ step: Int?) -> String {
+        switch step {
+        case 0: "5 kHz"
+        case 1: "6.25 kHz"
+        case 2: "10 kHz"
+        case 3: "12.5 kHz"
+        case 4: "20 kHz"
+        case 5: "25 kHz"
+        default: "—"
+        }
+    }
+
+    /// FM/C4FM button 21, HOME — momentary action like `ZIN`/`ANT TUNE`, but
+    /// entirely client-side: the rig has no CAT command to read or recall its
+    /// own HOME channels at all (see `HomeBand`'s doc comment), so tapping
+    /// this looks up which of the five band groups the *current* frequency
+    /// falls in and jumps straight to that group's configured
+    /// `HomeFrequencySettings` value via a plain `RigCommand.setFrequency` —
+    /// no rig-side HOME feature is actually being invoked, this just
+    /// reproduces its effect locally. A no-op if the current frequency isn't
+    /// in any of the five groups (e.g. 30-50MHz, between HF and 50MHz).
+    private var homeButton: some View {
+        singleWordButton("HOME") {
+            if let band = HomeBand.band(containing: hub.rigState.frequencyHz) {
+                hub.send(.setFrequency(hz: HomeFrequencySettings.frequencyHz(for: band)))
+            }
+        }
+    }
+
+    /// FM/C4FM button 2, DTMF — on the real rig this opens a DTMF code entry/
+    /// memory-selection screen (see the Advance Manual's "DTMF Operation"
+    /// section), not a settable value; the app has no way to drive that
+    /// screen remotely (same "no CAT path to a rig-side UI screen" reasoning
+    /// as APRS S.LIST/M.LIST), and transmitting a DTMF code is TX-triggering
+    /// like BCN-TX, so it isn't worth blind-probing either. Per the user,
+    /// this button shows only "DTMF" on the real rig (no separate value), so
+    /// it gets `singleWordButton`'s treatment like HOME rather than
+    /// `disabledPlaceholderButton`'s name+"—" pair — a placeholder, but one
+    /// that still matches the single-word buttons' look since that's what
+    /// the physical button actually looks like.
+    private var dtmfButton: some View {
+        singleWordButton("DTMF")
+    }
+
+    /// A single centered word at the same size as every other button's
+    /// bottom (value) line, in plain white — for buttons whose real label is
+    /// just one word with no separate name/value pair (`HOME`, `DTMF`),
+    /// unlike `twoLineLabel`'s name-on-top/value-on-bottom buttons or
+    /// `twoLineLabelEqualSize`'s two-word pairs. `action` defaults to a
+    /// no-op for placeholder uses like `dtmfButton`. A hidden real
+    /// `twoLineLabel` underneath reserves this button's exact size (so it
+    /// still matches every neighboring two-line button's) with the visible
+    /// word overlaid and centered via `ZStack`'s default centering — a plain
+    /// `VStack` with just a blank hidden top line matches the height but
+    /// leaves the word sitting low rather than centered (confirmed while
+    /// sizing the HOME button).
+    private func singleWordButton(_ word: String, action: @escaping () -> Void = {}) -> some View {
+        menuButtonShell(action: action) {
+            ZStack {
+                twoLineLabel(top: " ", bottom: " ").hidden()
+                Text(word)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundStyle(.white)
+            }
         }
     }
 
