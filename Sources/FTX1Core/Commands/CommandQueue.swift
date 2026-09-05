@@ -261,6 +261,11 @@ public actor CommandQueue {
             // sub-function) instead of "0"; P3 is the 3-digit index into
             // RigDCSCode.allValues.
             try await rigctld.setRawInt("CN01", index, digits: 3)
+        case .setRepeaterShift(let mode):
+            // "OS"'s P1 is fixed to "0" (MAIN-side); P2 is the 0-3
+            // Simplex/Plus/Minus/ARS selector, so this uses setRawInt like
+            // .setSquelchType.
+            try await rigctld.setRawInt("OS0", mode, digits: 1)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try await rigctld.setMenuItem(p1: p1, p2: p2, p3: p3, rawValue: rawValue)
         }
