@@ -49,6 +49,10 @@ private let menuPageColumns = 7
 /// for still-pending work, while keeping the grid's row alignment intact.
 private let menuPageHiddenCWItems: Set<Int> = [3, 4, 5, 6, 7, 15, 16, 17, 18, 23, 24, 25, 26, 27]
 
+/// FM/C4FM page item numbers with no corresponding rig function — confirmed
+/// against the real MENU display, same reasoning as `menuPageHiddenCWItems`.
+private let menuPageHiddenFMItems: Set<Int> = [4, 5, 16, 17]
+
 /// Grid of buttons mirroring one of the FTX-1's three menu pages. Layout
 /// only for now — each button is a numbered placeholder; actual per-item
 /// functions (which menu number maps to which CAT command) land once the
@@ -221,8 +225,22 @@ public struct MenuPageView<Controller: RigController>: View {
     /// MESSAGE memory) are visible-but-disabled — see
     /// `disabledCWMessageButton`. `hiddenCWItems` (3-7, 15-18, 23-27) have
     /// no rig function at all on this page and render invisibly — see
-    /// `hiddenButtonPlaceholder`. Everything else is still a numbered
-    /// placeholder pending real per-item functions.
+    /// `hiddenButtonPlaceholder`. FM/C4FM buttons 8-10 (DG-ID TX, DG-ID RX,
+    /// HRI MODE) are visible-but-disabled like SSB's D-COLOR/TXW — unlike
+    /// every other menu item wired so far, these have **no CAT command
+    /// documented anywhere**: not the alphabetical command list, not
+    /// Table 3's MENU chart (RADIO SETTING's DIGITAL tab only has DIGITAL
+    /// POPUP/LOCATION SERVICE/STANDBY BEEP/DP-ID LIST/RADIO ID), not even
+    /// Yaesu's separate FTX-1 WIRES-X Edition manual (which describes these
+    /// as touchscreen/FUNC-knob-only settings), and hamlib's own Yaesu
+    /// backend source has no DGID/HRI token either. Same "manual can be
+    /// missing whole features" gap already confirmed for RADIO SETTING's
+    /// WIRES-X tab (see `DeepSettingsCatalog.swift`) — DG-ID/HRI MODE are
+    /// WIRES-X-adjacent settings, not just unread by this app yet. FM/C4FM
+    /// items 4, 5, 16, and 17 have no rig function at all on this page,
+    /// confirmed against the real MENU display — `menuPageHiddenFMItems`,
+    /// same treatment as `menuPageHiddenCWItems`. Everything else is still a
+    /// numbered placeholder pending real per-item functions.
     @ViewBuilder
     private func menuButton(for item: Int) -> some View {
         if item == 1 {
@@ -375,6 +393,14 @@ public struct MenuPageView<Controller: RigController>: View {
             disabledCWMessageButton(top: "RECORD")
         } else if selectedPage == .cw, menuPageHiddenCWItems.contains(item) {
             hiddenButtonPlaceholder(for: item)
+        } else if selectedPage == .fm, menuPageHiddenFMItems.contains(item) {
+            hiddenButtonPlaceholder(for: item)
+        } else if selectedPage == .fm, item == 8 {
+            disabledPlaceholderButton(top: "DG-ID TX")
+        } else if selectedPage == .fm, item == 9 {
+            disabledPlaceholderButton(top: "DG-ID RX")
+        } else if selectedPage == .fm, item == 10 {
+            disabledPlaceholderButton(top: "HRI MODE")
         } else if selectedPage == .fm, item == 23 {
             deepSettingsButton(top: "RADIO", bottom: "SETTING", title: "RADIO SETTING", p1s: [1])
         } else if selectedPage == .fm, item == 24 {
