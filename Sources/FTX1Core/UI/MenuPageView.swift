@@ -241,7 +241,13 @@ public struct MenuPageView<Controller: RigController>: View {
     /// WIRES-X-adjacent settings, not just unread by this app yet. FM/C4FM
     /// items 4, 5, 16, and 17 have no rig function at all on this page,
     /// confirmed against the real MENU display — `menuPageHiddenFMItems`,
-    /// same treatment as `menuPageHiddenCWItems`. FM/C4FM button 18 is SQL
+    /// same treatment as `menuPageHiddenCWItems`. FM/C4FM button 6 is RPT
+    /// SHIFT (`RigCommand.setRepeaterShift`, single-tap-cycles-to-next like
+    /// IPO/AMP/AGC over 4 values, raw "OS" CAT command with fixed MAIN-side
+    /// P1). Button 7, REV (repeater reverse), is visible-but-disabled like
+    /// DG-ID TX/RX/HRI MODE above — same "nothing documented anywhere"
+    /// result: no mnemonic in the alphabetical command list, no Table 3
+    /// entry, no hamlib token. Button 18 is SQL
     /// TYPE (`RigCommand.setSquelchType`, single-tap-cycles-to-next like
     /// IPO/AMP/AGC over 6 values, raw "CT" CAT command with fixed MAIN-side
     /// P1), button 19 is TONE FREQ (`RigCommand.setToneFreq`, popover
@@ -415,6 +421,14 @@ public struct MenuPageView<Controller: RigController>: View {
             disabledPlaceholderButton(top: "DG-ID RX")
         } else if selectedPage == .fm, item == 10 {
             disabledPlaceholderButton(top: "HRI MODE")
+        } else if selectedPage == .fm, item == 6 {
+            menuButtonShell {
+                hub.send(.setRepeaterShift(mode: ((hub.rigState.repeaterShiftMode ?? 0) + 1) % 4))
+            } label: {
+                twoLineLabel(top: "RPT SHIFT", bottom: Self.repeaterShiftLabel(hub.rigState.repeaterShiftMode))
+            }
+        } else if selectedPage == .fm, item == 7 {
+            disabledPlaceholderButton(top: "REV")
         } else if selectedPage == .fm, item == 18 {
             menuButtonShell {
                 hub.send(.setSquelchType(((hub.rigState.squelchType ?? 0) + 1) % 6))
@@ -839,6 +853,24 @@ public struct MenuPageView<Controller: RigController>: View {
     private static func dnrLevelLabel(_ level: Int?) -> String {
         guard let level else { return "—" }
         return level == 0 ? "OFF" : "\(level)"
+    }
+
+    /// FM/C4FM button 6, RPT SHIFT — small fixed choice set (4 values), same
+    /// single-tap-cycles-to-next treatment as `sqlTypeLabel` below. Maps to
+    /// the FTX-1's raw "OS" (OFFSET/REPEATER SHIFT) CAT command, P1 fixed to
+    /// "0" (MAIN-side). The manual documents its own P2 order as 0:Simplex/
+    /// 1:Plus Shift/2:Minus Shift/3:ARS — used as-is here rather than Table
+    /// 3's differently-worded "0: - 1: SIMPLEX 2: + 3: ARS" cell for the same
+    /// setting, since "OS"'s own dedicated command page is the clearer,
+    /// more authoritative source for its own P2 encoding.
+    private static func repeaterShiftLabel(_ mode: Int?) -> String {
+        switch mode {
+        case 0: "SIMPLEX"
+        case 1: "+"
+        case 2: "-"
+        case 3: "ARS"
+        default: "—"
+        }
     }
 
     /// FM/C4FM button 18, SQL TYPE — small fixed choice set (6 values), so

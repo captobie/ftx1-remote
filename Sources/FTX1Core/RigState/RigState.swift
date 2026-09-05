@@ -165,6 +165,11 @@ public struct RigState: Codable, Equatable, Sendable {
     /// Index into `RigDCSCode.allValues` (0-103) — the FTX-1's raw "CN" CAT
     /// command's P2=1 (DCS) sub-function, same shape as `ctcssToneIndex`.
     public var dcsCodeIndex: Int?
+    /// Repeater shift direction, 0-3 (Simplex/Plus Shift/Minus Shift/ARS) —
+    /// the FTX-1's raw "OS" (OFFSET/REPEATER SHIFT) CAT command, P1 fixed to
+    /// "0" (MAIN-side). The manual notes this command "can be activated only
+    /// with an FM mode."
+    public var repeaterShiftMode: Int?
     /// Callsign of the station currently being received in C4FM, if any.
     /// Unlike every other field above, this has no CAT source at all — the
     /// FTX-1's CAT command set has no mnemonic for received C4FM digital
@@ -231,6 +236,7 @@ public struct RigState: Codable, Equatable, Sendable {
         squelchType: Int? = nil,
         ctcssToneIndex: Int? = nil,
         dcsCodeIndex: Int? = nil,
+        repeaterShiftMode: Int? = nil,
         c4fmCallsign: String? = nil,
         c4fmReflector: String? = nil
     ) {
@@ -278,6 +284,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.squelchType = squelchType
         self.ctcssToneIndex = ctcssToneIndex
         self.dcsCodeIndex = dcsCodeIndex
+        self.repeaterShiftMode = repeaterShiftMode
         self.c4fmCallsign = c4fmCallsign
         self.c4fmReflector = c4fmReflector
     }
