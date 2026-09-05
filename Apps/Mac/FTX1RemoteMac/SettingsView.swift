@@ -184,9 +184,6 @@ private struct AudioSettingsTab: View {
                     Text(device.name).tag(device.uid)
                 }
             }
-            Text("Used by future audio features, such as a waterfall display, not by the rig connection itself.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .padding(.top, 8)
         .onAppear { refreshAvailableDevices() }
@@ -267,14 +264,8 @@ private struct APRSSettingsTab: View {
             Toggle("Decode APRS", isOn: $enabled)
             TextField("Frequency (MHz)", value: megahertz, format: .number.precision(.fractionLength(0...6)))
             TextField("Tolerance (Hz)", value: $toleranceHz, format: .number)
-            Text("Decoding is only active while tuned within the tolerance of the configured frequency — the default (144.390 MHz) is the US APRS calling frequency; other regions (e.g. 144.800 MHz in Europe) should change this.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
             TextField("Stations to retain", value: $maxStations, format: .number.grouping(.never))
             TextField("Messages to retain", value: $maxMessages, format: .number.grouping(.never))
-            Text("S.LIST/M.LIST keep at most this many entries, evicting the oldest first.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
             Button("Clear History…") { showingClearConfirmation = true }
         }
         .padding(.top, 8)
