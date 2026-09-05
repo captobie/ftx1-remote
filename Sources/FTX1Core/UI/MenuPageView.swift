@@ -88,6 +88,8 @@ public struct MenuPageView<Controller: RigController>: View {
     @State private var showingProcLevelPopover = false
     @State private var showingNBLevelPopover = false
     @State private var showingDNRLevelPopover = false
+    @State private var showingToneFreqPopover = false
+    @State private var showingDCSPopover = false
     @State private var activeDeepSettings: ActiveDeepSettings?
 
     /// Identifies which Deep Settings screen (see `DeepSettingsView`) is
@@ -239,8 +241,20 @@ public struct MenuPageView<Controller: RigController>: View {
     /// WIRES-X-adjacent settings, not just unread by this app yet. FM/C4FM
     /// items 4, 5, 16, and 17 have no rig function at all on this page,
     /// confirmed against the real MENU display — `menuPageHiddenFMItems`,
-    /// same treatment as `menuPageHiddenCWItems`. Everything else is still a
-    /// numbered placeholder pending real per-item functions.
+    /// same treatment as `menuPageHiddenCWItems`. FM/C4FM button 18 is SQL
+    /// TYPE (`RigCommand.setSquelchType`, single-tap-cycles-to-next like
+    /// IPO/AMP/AGC over 6 values, raw "CT" CAT command with fixed MAIN-side
+    /// P1), button 19 is TONE FREQ (`RigCommand.setToneFreq`, popover
+    /// `Stepper` over `RigCTCSSTone`'s 50-tone table, raw "CN" command's
+    /// P2=0/CTCSS sub-function), button 20 is DCS (`RigCommand.setDCSCode`,
+    /// same popover-`Stepper`-over-a-lookup-table treatment as TONE FREQ,
+    /// raw "CN" command's P2=1/DCS sub-function over `RigDCSCode`'s 104-code
+    /// table) — these three are the same settings as Deep Settings' RADIO
+    /// SETTING → MODE FM tab's SQL TYPE/TONE FREQ/DCS CODE items, reached
+    /// here via their own dedicated mnemonics rather than the generic "EX"
+    /// passthrough, per this project's "check for a dedicated mnemonic
+    /// first" convention. Everything else is still a numbered placeholder
+    /// pending real per-item functions.
     @ViewBuilder
     private func menuButton(for item: Int) -> some View {
         if item == 1 {
@@ -401,6 +415,16 @@ public struct MenuPageView<Controller: RigController>: View {
             disabledPlaceholderButton(top: "DG-ID RX")
         } else if selectedPage == .fm, item == 10 {
             disabledPlaceholderButton(top: "HRI MODE")
+        } else if selectedPage == .fm, item == 18 {
+            menuButtonShell {
+                hub.send(.setSquelchType(((hub.rigState.squelchType ?? 0) + 1) % 6))
+            } label: {
+                twoLineLabel(top: "SQL TYPE", bottom: Self.sqlTypeLabel(hub.rigState.squelchType))
+            }
+        } else if selectedPage == .fm, item == 19 {
+            toneFreqButton
+        } else if selectedPage == .fm, item == 20 {
+            dcsCodeButton
         } else if selectedPage == .fm, item == 23 {
             deepSettingsButton(top: "RADIO", bottom: "SETTING", title: "RADIO SETTING", p1s: [1])
         } else if selectedPage == .fm, item == 24 {
@@ -815,6 +839,82 @@ public struct MenuPageView<Controller: RigController>: View {
     private static func dnrLevelLabel(_ level: Int?) -> String {
         guard let level else { return "—" }
         return level == 0 ? "OFF" : "\(level)"
+    }
+
+    /// FM/C4FM button 18, SQL TYPE — small fixed choice set (6 values), so
+    /// single-tap-cycles-to-next like IPO/AMP/AGC rather than a popover
+    /// `Stepper`. Maps to the FTX-1's raw "CT" CAT command, P1 fixed to "0"
+    /// (MAIN-side).
+    private static func sqlTypeLabel(_ mode: Int?) -> String {
+        switch mode {
+        case 0: "OFF"
+        case 1: "ENC"
+        case 2: "TSQ"
+        case 3: "DCS"
+        case 4: "PR FREQ"
+        case 5: "REV TONE"
+        default: "—"
+        }
+    }
+
+    /// FM/C4FM button 19, TONE FREQ — steps through `RigCTCSSTone.
+    /// allValuesHz`'s 50-tone table by index (the FTX-1's raw "CN" CAT
+    /// command's P2=0/CTCSS sub-function stores an index, not Hz directly),
+    /// same index-binding-displays-real-value pattern as `bkDelayButton`/
+    /// `voxDelayButton`'s `RigDelayCode`. Defaults to index 12 (100.0 Hz, a
+    /// common repeater tone) while unread.
+    private var toneFreqButton: some View {
+        menuButtonShell {
+            showingToneFreqPopover = true
+        } label: {
+            twoLineLabel(top: "TONE FREQ", bottom: Self.toneFreqLabel(hub.rigState.ctcssToneIndex))
+        }
+        .popover(isPresented: $showingToneFreqPopover) {
+            Stepper(
+                Self.toneFreqLabel(hub.rigState.ctcssToneIndex ?? 12),
+                value: Binding(
+                    get: { hub.rigState.ctcssToneIndex ?? 12 },
+                    set: { hub.send(.setToneFreq(index: $0)) }
+                ),
+                in: 0...(RigCTCSSTone.allValuesHz.count - 1)
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    private static func toneFreqLabel(_ index: Int?) -> String {
+        guard let index, let hz = RigCTCSSTone.hertz(forIndex: index) else { return "—" }
+        return "\(hz) Hz"
+    }
+
+    /// FM/C4FM button 20, DCS — same index-stepping treatment as
+    /// `toneFreqButton`, over `RigDCSCode.allValues`'s 104-code table (the
+    /// FTX-1's raw "CN" command's P2=1/DCS sub-function). Defaults to index 0
+    /// (code 023) while unread.
+    private var dcsCodeButton: some View {
+        menuButtonShell {
+            showingDCSPopover = true
+        } label: {
+            twoLineLabel(top: "DCS", bottom: Self.dcsCodeLabel(hub.rigState.dcsCodeIndex))
+        }
+        .popover(isPresented: $showingDCSPopover) {
+            Stepper(
+                Self.dcsCodeLabel(hub.rigState.dcsCodeIndex ?? 0),
+                value: Binding(
+                    get: { hub.rigState.dcsCodeIndex ?? 0 },
+                    set: { hub.send(.setDCSCode(index: $0)) }
+                ),
+                in: 0...(RigDCSCode.allValues.count - 1)
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    private static func dcsCodeLabel(_ index: Int?) -> String {
+        guard let index, let code = RigDCSCode.code(forIndex: index) else { return "—" }
+        return code
     }
 
     /// SSB button 20, ANT — cycles ANT1/ANT2 on each tap like IPO/AMP,

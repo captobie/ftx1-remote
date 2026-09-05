@@ -151,6 +151,20 @@ public struct RigState: Codable, Equatable, Sendable {
     /// TXW on/off (the FTX-1's raw "TS" CAT command) — unlike most booleans
     /// here, "TS" has no MAIN/SUB P1 selector at all, just a bare 0/1.
     public var txwEnabled: Bool?
+    /// Squelch type, 0-5 (OFF/ENC/TSQ/DCS/PR FREQ/REV TONE) — the FTX-1's raw
+    /// "CT" CAT command, P1 fixed to "0" (MAIN-side). Same setting as Deep
+    /// Settings' RADIO SETTING → MODE FM → SQL TYPE item, but reached here
+    /// through its own dedicated mnemonic rather than the generic "EX"
+    /// passthrough, same reasoning as `agcMode`/`dnfEnabled` above.
+    public var squelchType: Int?
+    /// Index into `RigCTCSSTone.allValuesHz` (0-49) — the FTX-1's raw "CN"
+    /// CAT command's P2=0 (CTCSS) sub-function, P1 fixed to "0" (MAIN-side).
+    /// Independent of `squelchType`: this is which tone is currently dialed
+    /// in, not whether CTCSS is the active squelch type.
+    public var ctcssToneIndex: Int?
+    /// Index into `RigDCSCode.allValues` (0-103) — the FTX-1's raw "CN" CAT
+    /// command's P2=1 (DCS) sub-function, same shape as `ctcssToneIndex`.
+    public var dcsCodeIndex: Int?
     /// Callsign of the station currently being received in C4FM, if any.
     /// Unlike every other field above, this has no CAT source at all — the
     /// FTX-1's CAT command set has no mnemonic for received C4FM digital
@@ -214,6 +228,9 @@ public struct RigState: Codable, Equatable, Sendable {
         dnrLevel: Int? = nil,
         antSelect: Int? = nil,
         txwEnabled: Bool? = nil,
+        squelchType: Int? = nil,
+        ctcssToneIndex: Int? = nil,
+        dcsCodeIndex: Int? = nil,
         c4fmCallsign: String? = nil,
         c4fmReflector: String? = nil
     ) {
@@ -258,6 +275,9 @@ public struct RigState: Codable, Equatable, Sendable {
         self.dnrLevel = dnrLevel
         self.antSelect = antSelect
         self.txwEnabled = txwEnabled
+        self.squelchType = squelchType
+        self.ctcssToneIndex = ctcssToneIndex
+        self.dcsCodeIndex = dcsCodeIndex
         self.c4fmCallsign = c4fmCallsign
         self.c4fmReflector = c4fmReflector
     }
@@ -304,6 +324,49 @@ public enum RigDelayCode {
 
     /// All valid values in order, for driving a UI stepper/picker.
     public static let allValuesMs: [Int] = (0...33).compactMap(milliseconds(forCode:))
+}
+
+/// FTX-1's raw "CN" (CTCSS TONE FREQUENCY / DCS CODE) command's P2=0 sub-
+/// function indexes into a fixed 50-tone table (the CAT manual's Table 1)
+/// rather than encoding Hz directly — same non-linear-code shape as
+/// `RigDelayCode`. Standard/industry-wide CTCSS tones, not specific to this
+/// rig (see `RigState.ctcssToneIndex`).
+public enum RigCTCSSTone {
+    public static let allValuesHz: [Double] = [
+        67.0, 69.3, 71.9, 74.4, 77.0, 79.7, 82.5, 85.4, 88.5, 91.5,
+        94.8, 97.4, 100.0, 103.5, 107.2, 110.9, 114.8, 118.8, 123.0, 127.3,
+        131.8, 136.5, 141.3, 146.2, 151.4, 156.7, 159.8, 162.2, 165.5, 167.9,
+        171.3, 173.8, 177.3, 179.9, 183.5, 186.2, 189.9, 192.8, 196.6, 199.5,
+        203.5, 206.5, 210.7, 218.1, 225.7, 229.1, 233.6, 241.8, 250.3, 254.1,
+    ]
+
+    public static func hertz(forIndex index: Int) -> Double? {
+        allValuesHz.indices.contains(index) ? allValuesHz[index] : nil
+    }
+}
+
+/// Same shape as `RigCTCSSTone`, for "CN"'s P2=1 (DCS) sub-function's fixed
+/// 104-code table (the CAT manual's Table 2). Codes are stored as their
+/// printed 3-digit strings, not parsed as numbers — they're opaque labels,
+/// not arithmetic quantities (see `RigState.dcsCodeIndex`).
+public enum RigDCSCode {
+    public static let allValues: [String] = [
+        "023", "025", "026", "031", "032", "036", "043", "047", "051", "053",
+        "054", "065", "071", "072", "073", "074", "114", "115", "116", "122",
+        "125", "131", "132", "134", "143", "145", "152", "155", "156", "162",
+        "165", "172", "174", "205", "212", "223", "225", "226", "243", "244",
+        "245", "246", "251", "252", "255", "261", "263", "265", "266", "271",
+        "274", "306", "311", "315", "325", "331", "332", "343", "346", "351",
+        "356", "364", "365", "371", "411", "412", "413", "423", "431", "432",
+        "445", "446", "452", "454", "455", "462", "464", "465", "466", "503",
+        "506", "516", "523", "526", "532", "546", "565", "606", "612", "624",
+        "627", "631", "632", "654", "662", "664", "703", "712", "723", "731",
+        "732", "734", "743", "754",
+    ]
+
+    public static func code(forIndex index: Int) -> String? {
+        allValues.indices.contains(index) ? allValues[index] : nil
+    }
 }
 
 public enum RigMode: String, Codable, Sendable, CaseIterable, Hashable {

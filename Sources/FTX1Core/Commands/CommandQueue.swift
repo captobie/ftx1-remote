@@ -246,6 +246,21 @@ public actor CommandQueue {
             // "MX"/"VX", not baked into a fixed-P1 mnemonic like most of the
             // toggles above.
             try await rigctld.setRawBool("TS", on)
+        case .setSquelchType(let mode):
+            // "CT"'s P1 is fixed to "0" (MAIN-side); P2 is the 0-5
+            // OFF/ENC/TSQ/DCS/PR FREQ/REV TONE selector, so this uses
+            // setRawInt like .setAGC.
+            try await rigctld.setRawInt("CT0", mode, digits: 1)
+        case .setToneFreq(let index):
+            // "CN"'s P1 is fixed to "0" (MAIN-side), P2 fixed to "0"
+            // (CTCSS sub-function); P3 is the 3-digit index into
+            // RigCTCSSTone.allValuesHz, not the Hz value itself.
+            try await rigctld.setRawInt("CN00", index, digits: 3)
+        case .setDCSCode(let index):
+            // Same "CN" command as .setToneFreq, P2 fixed to "1" (DCS
+            // sub-function) instead of "0"; P3 is the 3-digit index into
+            // RigDCSCode.allValues.
+            try await rigctld.setRawInt("CN01", index, digits: 3)
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try await rigctld.setMenuItem(p1: p1, p2: p2, p3: p3, rawValue: rawValue)
         }
