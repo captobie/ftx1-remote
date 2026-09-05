@@ -24,9 +24,19 @@ public protocol RigController: ObservableObject {
     /// shared package can't import — only `HubService`'s conformance
     /// builds a real one.
     func deepSettingsDestination(title: String, p1s: [Int]) -> AnyView?
+
+    /// Whether this controller can decode APRS traffic (S.LIST/M.LIST on
+    /// the FM menu page). Requires the Mac's audio-derived decode pipeline
+    /// (`AudioCaptureEngine` + `APRSDecoder`) — mobile clients have no
+    /// audio input to decode and never will via the WebSocket wire
+    /// protocol (same reasoning as `supportsDeepSettings`: this is an
+    /// intrinsically Mac-only capability, not a missing wire-protocol
+    /// message). Defaults to `false`.
+    var supportsAPRSDecoding: Bool { get }
 }
 
 public extension RigController {
     var supportsDeepSettings: Bool { false }
     func deepSettingsDestination(title: String, p1s: [Int]) -> AnyView? { nil }
+    var supportsAPRSDecoding: Bool { false }
 }

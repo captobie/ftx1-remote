@@ -30,6 +30,23 @@ final class AudioCaptureEngine {
     /// `RigctldProcessController.onStateChange`.
     var onNewFrame: ((AudioCaptureFrame) -> Void)?
 
+    /// The same raw samples `process(buffer:bitmap:gain:)` FFTs for
+    /// display, handed out unmodified for `HubService`'s APRS decode path
+    /// (`APRSDecoder` does real DSP work of its own — a bandpass/tone
+    /// detector and bit-clock recovery, nothing like an FFT — so it needs
+    /// the original samples, not anything derived from the waterfall
+    /// pipeline). Always invoked on the main actor, same contract as
+    /// `onNewFrame` — `HubService`'s conformance reads `rigState.
+    /// frequencyHz` (main-actor-isolated) to decide whether to forward to
+    /// `APRSDecoder` at all, so this can't be called directly from the
+    /// real-time thread the way the doc comment on `process(buffer:
+    /// bitmap:gain:)` describes for everything else in this class. The
+    /// actual DSP work still stays off the main actor — `APRSDecoder.
+    /// process(samples:sampleRate:)` just enqueues onto its own serial
+    /// queue and returns immediately, so this hop only ever does a cheap
+    /// frequency comparison, not real work.
+    var onAudioSamples: ((_ samples: [Float], _ sampleRate: Double) -> Void)?
+
     private let fftSize = 2048
     private let binCount = 256
     private let historyRows = 150
@@ -211,6 +228,17 @@ final class AudioCaptureEngine {
         guard let channelData = buffer.floatChannelData?[0] else { return }
         let frameCount = Int(buffer.frameLength)
         guard frameCount > 0 else { return }
+
+        if onAudioSamples != nil {
+            var rawSamples = [Float](repeating: 0, count: frameCount)
+            rawSamples.withUnsafeMutableBufferPointer { dest in
+                dest.baseAddress!.update(from: channelData, count: frameCount)
+            }
+            let sampleRate = buffer.format.sampleRate
+            Task { @MainActor [weak self] in
+                self?.onAudioSamples?(rawSamples, sampleRate)
+            }
+        }
 
         var samples = [Float](repeating: 0, count: fftSize)
         let copyCount = min(frameCount, fftSize)

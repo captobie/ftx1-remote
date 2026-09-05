@@ -64,6 +64,13 @@ private let menuPageHiddenFMItems: Set<Int> = [4, 5, 16, 17]
 /// file — see `RigController`.
 public struct MenuPageView<Controller: RigController>: View {
     @EnvironmentObject private var hub: Controller
+    /// Opens the `aprs-stations`/`aprs-messages` `Window` scenes S.LIST/
+    /// M.LIST use (see `aprsListButton`) — a standard cross-platform
+    /// SwiftUI environment action. Only the Mac app declares those window
+    /// IDs; calling it on mobile would be a no-op anyway, but that never
+    /// happens in practice since `hub.supportsAPRSDecoding` gates the
+    /// button itself first.
+    @Environment(\.openWindow) private var openWindow
     @State private var selectedPage: MenuPage = .ssb
     /// Read via `@AppStorage`, not `AppearanceSettings.buttonValueColor`
     /// directly — a plain `UserDefaults` read gives SwiftUI nothing to
@@ -257,19 +264,25 @@ public struct MenuPageView<Controller: RigController>: View {
     /// P1). Button 7, REV (repeater reverse), is visible-but-disabled like
     /// DG-ID TX/RX/HRI MODE above — same "nothing documented anywhere"
     /// result: no mnemonic in the alphabetical command list, no Table 3
-    /// entry, no hamlib token. Buttons 11/12, APRS S.LIST/M.LIST, are
-    /// visible-but-disabled (`disabledPlaceholderButtonEqualSize`, since
-    /// "APRS"/"S.LIST"-"M.LIST" is a two-word label pair like the Deep
-    /// Settings buttons, not a name/value pair) — these are pure on-rig UI
-    /// screens for browsing received APRS station/message packets, and
-    /// unlike every other button on this page there's no CAT command in
-    /// principle that could back them: the CAT command set has no mnemonic
+    /// entry, no hamlib token. Buttons 11/12, APRS S.LIST/M.LIST
+    /// (`aprsListButton`, since "APRS"/"S.LIST"-"M.LIST" is a two-word
+    /// label pair like the Deep Settings buttons, not a name/value pair) —
+    /// on-rig, these are pure on-screen UI with no CAT command in principle
+    /// that could back them remotely: the CAT command set has no mnemonic
     /// for received APRS packet *content* at all (the same gap
     /// `RigState.c4fmCallsign`'s doc comment describes for received C4FM
     /// digital voice data), and there's no CAT mechanism to remotely select
     /// which screen the rig's own display shows either — confirmed by
     /// checking the full alphabetical command list and Table 3 for any
-    /// "select display page" style command, finding none. Button 13 is
+    /// "select display page" style command, finding none. Rather than stay
+    /// permanently disabled like BCN-TX below, this app works around the
+    /// gap the same way it does for `c4fmCallsign` — decoding APRS off
+    /// audio directly instead of depending on CAT — so these buttons are
+    /// live wherever `hub.supportsAPRSDecoding` is true (currently just the
+    /// Mac, since decoding needs `AudioCaptureEngine`'s audio input) and
+    /// open a dedicated window (`aprsListButton`'s `openWindow` call, see
+    /// its doc comment) rather than a sheet, so a station/message list can
+    /// be left open alongside the main window while operating. Button 13 is
     /// BEACON (`RigCommand.
     /// setAPRSBeaconType`, single-tap-cycles-to-next like RPT SHIFT/SQL TYPE
     /// over 3 values, no dedicated mnemonic — routed through the generic
@@ -477,9 +490,9 @@ public struct MenuPageView<Controller: RigController>: View {
         } else if selectedPage == .fm, item == 7 {
             disabledPlaceholderButton(top: "REV")
         } else if selectedPage == .fm, item == 11 {
-            disabledPlaceholderButtonEqualSize(top: "APRS", bottom: "S.LIST")
+            aprsListButton(bottom: "S.LIST", windowID: "aprs-stations")
         } else if selectedPage == .fm, item == 12 {
-            disabledPlaceholderButtonEqualSize(top: "APRS", bottom: "M.LIST")
+            aprsListButton(bottom: "M.LIST", windowID: "aprs-messages")
         } else if selectedPage == .fm, item == 13 {
             menuButtonShell {
                 hub.send(.setAPRSBeaconType(((hub.rigState.aprsBeaconType ?? 0) + 1) % 3))
@@ -1311,11 +1324,30 @@ public struct MenuPageView<Controller: RigController>: View {
         .disabled(true)
     }
 
+    /// FM/C4FM's APRS S.LIST/M.LIST (see `menuButton(for:)`'s doc comment
+    /// for why these have no CAT path at all). Live wherever
+    /// `hub.supportsAPRSDecoding` is true — opens a dedicated `Window`
+    /// scene (`windowID`, declared only in the Mac app target) rather than
+    /// a sheet, since a station/message list is meant to stay open
+    /// alongside the main window while operating, not block it. Falls back
+    /// to the same disabled placeholder every other CAT-less button on
+    /// this page uses when unsupported (mobile clients today).
+    @ViewBuilder
+    private func aprsListButton(bottom: String, windowID: String) -> some View {
+        if hub.supportsAPRSDecoding {
+            menuButtonShell {
+                openWindow(id: windowID)
+            } label: {
+                twoLineLabelEqualSize(top: "APRS", bottom: bottom)
+            }
+        } else {
+            disabledPlaceholderButtonEqualSize(top: "APRS", bottom: bottom)
+        }
+    }
+
     /// Like `disabledPlaceholderButton`, but for a button whose two rig-label
     /// lines are both short label words rather than a name/value pair — same
-    /// reasoning as `twoLineLabelEqualSize` vs `twoLineLabel` — e.g. FM/C4FM's
-    /// APRS S.LIST/M.LIST, which have no CAT-visible content behind them at
-    /// all (see `menuButton(for:)`'s doc comment).
+    /// reasoning as `twoLineLabelEqualSize` vs `twoLineLabel`.
     private func disabledPlaceholderButtonEqualSize(top: String, bottom: String) -> some View {
         menuButtonShell {
             // Deliberately a no-op — see callers' doc comments above.
