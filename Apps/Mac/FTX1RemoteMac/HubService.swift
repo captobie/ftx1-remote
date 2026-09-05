@@ -41,6 +41,7 @@ final class HubService: ObservableObject {
     private let server: RigWebSocketServer
     private let rigctldProcess = RigctldProcessController()
     private let audioCapture = AudioCaptureEngine()
+    private let audioStreamEncoder = AudioStreamEncoder()
     private let wpsdMonitor = WPSDCallsignMonitor()
     private let aprsDecoder = APRSDecoder()
     let aprsStore = APRSStore()
@@ -105,6 +106,17 @@ final class HubService: ObservableObject {
         }
         audioCapture.onAudioSamples = { [weak self] samples, sampleRate in
             guard let self else { return }
+
+            // Relay to mobile clients for the iPad's audio-playback panel
+            // (see AudioStreamEncoder/RigWebSocketServer.broadcastAudio) —
+            // unconditional, unlike the APRS gate below: this isn't tied to
+            // frequency, and `broadcastAudio` itself is a cheap no-op when
+            // no client is connected, so there's no need to check that here
+            // before paying the (also cheap) conversion cost.
+            if let pcm = self.audioStreamEncoder.encode(samples: samples, sampleRate: sampleRate) {
+                Task { await self.server.broadcastAudio(pcm) }
+            }
+
             let isActive = APRSSettings.isActive(atFrequencyHz: self.rigState.frequencyHz)
             if isActive != self.aprsGateWasActive {
                 self.aprsGateWasActive = isActive
