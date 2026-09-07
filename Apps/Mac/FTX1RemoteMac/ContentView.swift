@@ -56,6 +56,8 @@ struct ContentView: View {
                         .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
                 }
                 .frame(width: 90, height: meterHeight)
+                audioLevelControls
+                    .frame(width: 70, height: meterHeight)
                 zoomControls
                     .frame(height: meterHeight)
                 ScopeDisplayView(image: scopeImage, isActive: hub.connectionState == .connected)
@@ -157,6 +159,12 @@ struct ContentView: View {
             scopeDisplayModeButton("Waterfall", mode: .waterfall)
             scopeDisplayModeButton("Oscilloscope", mode: .oscilloscope)
             scopeDisplayModeButton("Off", mode: .off)
+            // Independent of scopeDisplayMode — this mutes the Mac's own
+            // audio playback (see HubService.toggleAudioMuted()), not the
+            // waterfall/oscilloscope display, so it isn't part of that
+            // mutually-exclusive button group above; grouped visually with
+            // it since both live in this same side column.
+            muteButton
         }
     }
 
@@ -174,6 +182,62 @@ struct ContentView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
+    }
+
+    private var muteButton: some View {
+        Button {
+            hub.toggleAudioMuted()
+        } label: {
+            Text(hub.isAudioMuted ? "Muted" : "Mute")
+                .font(.caption)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+                .background(hub.isAudioMuted ? Color.red : Color.gray.opacity(0.2))
+                .foregroundStyle(hub.isAudioMuted ? Color.white : Color.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// The Mac's own audio playback level controls (see
+    /// `HubService.audioVolume`/`.squelchThreshold`) — added once the
+    /// squelch default (0.02) turned out to gate quiet-but-real audio out
+    /// entirely with no way to adjust it from the Mac (only iPad had a
+    /// slider, on a value that isn't shared between devices). Independent
+    /// of the waterfall/oscilloscope/mute column, just grouped next to it.
+    private var audioLevelControls: some View {
+        HStack(spacing: 8) {
+            verticalSlider(value: squelchBinding, label: "SQL")
+            verticalSlider(value: volumeBinding, label: "VOL")
+        }
+    }
+
+    private var squelchBinding: Binding<Float> {
+        Binding(get: { hub.squelchThreshold }, set: { hub.squelchThreshold = $0 })
+    }
+
+    private var volumeBinding: Binding<Float> {
+        Binding(get: { hub.audioVolume }, set: { hub.audioVolume = $0 })
+    }
+
+    /// SwiftUI's `Slider` has no vertical orientation of its own — the
+    /// standard way to get one is laying it out horizontally at the target
+    /// length, then rotating the whole thing 90°. `GeometryReader` supplies
+    /// that target length from whatever space this view is actually given
+    /// (here, `audioLevelControls`' `.frame(width: 70, height: meterHeight)`
+    /// in the caller) rather than a hardcoded constant.
+    private func verticalSlider(value: Binding<Float>, label: String) -> some View {
+        VStack(spacing: 4) {
+            GeometryReader { geometry in
+                Slider(value: value, in: 0...1)
+                    .frame(width: geometry.size.height)
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+            }
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
     }
 
     /// Adjusts whichever display `scopeDisplayMode` currently shows — the

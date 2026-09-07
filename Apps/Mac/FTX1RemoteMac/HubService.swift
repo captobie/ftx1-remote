@@ -42,6 +42,33 @@ final class HubService: ObservableObject {
     @Published private(set) var oscilloscopeImage: CGImage?
     @Published private(set) var waterfallZoom: Float = 1
     @Published private(set) var oscilloscopeZoom: Float = 1
+    /// Whether the Mac itself plays the captured radio audio out loud —
+    /// independent of the waterfall/oscilloscope display and of the
+    /// Mac→iPad relay, both of which keep running regardless. Persisted via
+    /// `AudioPlaybackSettings.isMuted` (shared with iPad, though iPad has no
+    /// UI for it yet) so the choice survives a relaunch.
+    @Published private(set) var isAudioMuted = AudioPlaybackSettings.isMuted
+    /// Both bound directly by the Mac's squelch/volume sliders (`ContentView`)
+    /// — plain read-write `@Published`, not `private(set)`, since SwiftUI
+    /// needs a two-way `Binding` to a slider's value. `didSet` pushes the
+    /// live change straight into `audioPlayback` and persists it via
+    /// `AudioPlaybackSettings` (shared with iPad, same as `isAudioMuted`)
+    /// in one place rather than needing a separate setter method per
+    /// property. Initial squelch default (0.02) is what left audio gated
+    /// silent on the Mac before this UI existed to raise or lower it —
+    /// see the "Audio-over-Pi" section of repo root CLAUDE.md.
+    @Published var audioVolume: Float = Float(AudioPlaybackSettings.volume) {
+        didSet {
+            audioPlayback.volume = audioVolume
+            AudioPlaybackSettings.volume = Double(audioVolume)
+        }
+    }
+    @Published var squelchThreshold: Float = Float(AudioPlaybackSettings.squelchThreshold) {
+        didSet {
+            audioPlayback.squelchThreshold = squelchThreshold
+            AudioPlaybackSettings.squelchThreshold = Double(squelchThreshold)
+        }
+    }
 
     private let rigctld: RigctldClient
     private let commandQueue: CommandQueue
@@ -49,6 +76,13 @@ final class HubService: ObservableObject {
     private let rigctldProcess = RigctldProcessController()
     private let audioCapture = AudioCaptureEngine()
     private let audioStreamEncoder = AudioStreamEncoder()
+    /// Plays the same captured audio locally on the Mac that
+    /// `audioStreamEncoder` sends to iPad clients — reuses `AudioPlaybackEngine`
+    /// as-is (already cross-platform, see its own doc comment) rather than a
+    /// second implementation. Started/stopped alongside `audioCapture`, fed
+    /// the exact same encoded PCM chunk `broadcastAudio` sends, in
+    /// `onAudioSamples` below.
+    private let audioPlayback = AudioPlaybackEngine()
     private let wpsdMonitor = WPSDCallsignMonitor()
     private let aprsDecoder = APRSDecoder()
     let aprsStore = APRSStore()
@@ -130,6 +164,9 @@ final class HubService: ObservableObject {
             // before paying the (also cheap) conversion cost.
             if let pcm = self.audioStreamEncoder.encode(samples: samples, sampleRate: sampleRate) {
                 Task { await self.server.broadcastAudio(pcm) }
+                if !self.isAudioMuted {
+                    self.audioPlayback.push(pcm: pcm)
+                }
             }
 
             let isActive = APRSSettings.isActive(atFrequencyHz: self.rigState.frequencyHz)
@@ -373,6 +410,15 @@ final class HubService: ObservableObject {
         return min(zoomRange.upperBound, max(zoomRange.lowerBound, current * factor))
     }
 
+    /// Doesn't stop/start `audioPlayback` itself — muting just gates
+    /// whether `onAudioSamples` feeds it (see above), so un-muting resumes
+    /// instantly with whatever's currently playing rather than needing the
+    /// engine to spin back up.
+    func toggleAudioMuted() {
+        isAudioMuted.toggle()
+        AudioPlaybackSettings.isMuted = isAudioMuted
+    }
+
     /// macOS App Nap throttles background GCD/dispatch scheduling for a
     /// process with no visible, non-occluded window — which the APRS
     /// pipeline leans on at every stage (`AudioCaptureEngine`'s per-buffer
@@ -411,6 +457,7 @@ final class HubService: ObservableObject {
         runLoopTask = nil
         connectionState = .disconnected
         audioCapture.stop()
+        audioPlayback.stop()
         endBackgroundActivity()
         waterfallImage = nil
         oscilloscopeImage = nil
@@ -439,6 +486,7 @@ final class HubService: ObservableObject {
                 try await rigctld.connect()
                 connectionState = .connected
                 audioCapture.start(deviceUID: AudioInputSettings.deviceUID)
+                audioPlayback.start()
                 beginBackgroundActivity()
                 try await pollLoop()
             } catch {
@@ -454,6 +502,7 @@ final class HubService: ObservableObject {
                     } else {
                         isFreshStart = false
                         audioCapture.stop()
+                        audioPlayback.stop()
                         endBackgroundActivity()
                         waterfallImage = nil
                         oscilloscopeImage = nil

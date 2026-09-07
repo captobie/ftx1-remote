@@ -66,14 +66,22 @@ over Tailscale, without needing to be physically near the rig.
   generic get/set verbs. See `Structure` below for where the two menu
   systems live.
 - **Waterfall/oscilloscope display is audio-derived, not CAT-derived.**
-  `AudioCaptureEngine` (Mac-only) captures from a user-selected sound card
-  input device (Settings → Audio tab; the rig's own audio out into the Mac,
-  in practice — not a rigctld/CAT feature) and runs an FFT to produce both a
-  scrolling waterfall and an oscilloscope trace from the same buffer, with
-  auto-gain (peak-hold-and-decay) rather than a fixed dB/amplitude range.
-  This is entirely separate from the rig-control data path — no rigctld or
-  wire-protocol involvement — and Mac-only today; it isn't broadcast to
-  mobile clients.
+  `AudioCaptureEngine` (Mac-only) captures audio, runs an FFT to produce
+  both a scrolling waterfall and an oscilloscope trace from the same
+  buffer, with auto-gain (peak-hold-and-decay) rather than a fixed
+  dB/amplitude range, and separately hands the same raw samples out for
+  `HubService`'s APRS decode gate and the Mac→iPad audio relay
+  (`AudioStreamEncoder`/`RigWebSocketServer.broadcastAudio`) — entirely
+  separate from the rig-control data path, no rigctld or wire-protocol
+  involvement. Where the audio actually comes from depends on
+  `RigctldSettings.connectionMode`, same toggle as rig control: `.local`
+  taps a user-selected Mac sound card input (Settings → Audio tab; the
+  rig's own audio out into the Mac, in practice); `.remote` connects to
+  `Pi/ftx1-audiostream.py` over the network via `RemoteAudioStreamClient`
+  instead (see "Audio-over-Pi" below) — both feed the exact same
+  downstream FFT/relay code, which can't tell them apart. The
+  waterfall/oscilloscope display itself is Mac-only either way (not
+  broadcast to mobile clients); only the raw audio is.
 
 ## Remote rigctld (Option A) — in progress
 
@@ -150,17 +158,84 @@ re-architecture.
   Pi/Tailscale-unreachable UI distinction above, and the rest of the
   validation-plan checklist (WSJT-X coexistence, soak testing, timeout
   re-tuning under sustained real-network conditions).
-- **Scope note**: this phase covers rig control (CAT/rigctld) only.
-  Audio — today captured Mac-locally by `AudioCaptureEngine` from a
-  user-selected sound card input (the rig's audio-out cable plugged into the
-  Mac; see Architecture above) — also needs to move to the Pi in `.remote`
-  mode, since the physical audio cable moves with the USB/serial connection.
-  That's a deliberately separate, later phase: the Pi will need to capture
-  audio itself and stream it to the Mac, which then feeds the existing
-  waterfall/oscilloscope FFT, APRS decoding, and the Mac→iPad audio relay
-  (`AudioStreamEncoder`/`RigWebSocketServer.broadcastAudio`) the same way
-  Mac-local capture does today. Not designed yet — do not assume audio is
-  covered by the rig-control plan above.
+- **Audio-over-Pi (2026-09-07)**: implemented and hardware-confirmed
+  working — waterfall/oscilloscope, iPad relay, and Mac-local playback all
+  functioning against the real Pi. In `.remote` mode, `AudioCaptureEngine`
+  no longer taps a Mac-local sound card — it connects to
+  `Pi/ftx1-audiostream.py` (a small Python + `pyalsaaudio` script, run as
+  its own systemd service on the Pi alongside `rigctld.service`/`direwolf.
+  service`, listening on port 8532) via the new `RemoteAudioStreamClient`
+  (Mac-only, `Apps/Mac/FTX1RemoteMac/`). This piggybacks on the same
+  `RigctldSettings.connectionMode`/`.remoteHost` the rig-control work
+  already added — deliberately no separate audio setting, since the rig's
+  audio-out cable physically moves with wherever the USB/serial connection
+  is. Python, not Swift, on the Pi side: the Pi is a 32-bit ARMv7 2B, which
+  the official Swift toolchain doesn't support. Raw TCP, not the
+  WebSocket/JSON protocol `RigWebSocketClient` uses — this is a dedicated,
+  audio-only connection separate from the rigctld link, so there's no need
+  for `AudioStreamFormat`'s tag-byte framing (that exists only to
+  disambiguate audio from JSON `RigStatePush` frames on the *shared*
+  Mac→iPad connection). `AudioCaptureEngine.process(buffer:bitmap:gain:)`'s
+  FFT/oscilloscope core was refactored into a shared `process(samples:
+  sampleRate:bitmap:gain:)` entry point so both the local `AVAudioEngine`
+  tap and the new remote network path feed the exact same downstream code
+  — waterfall, oscilloscope, APRS decode gating, and the Mac→iPad relay are
+  all unchanged and can't tell the two sources apart.
+  - **Capture rate: 44100Hz, not 8kHz.** Started at 8kHz (matching
+    `AudioStreamFormat.sampleRate`, the Mac→iPad relay's own separate wire
+    format) as a deliberate low-bandwidth choice, but that left
+    `AFSKDemodulator` too little timing resolution to reliably decode APRS
+    (~6.7 samples/bit at 8kHz vs ~37 at 44100Hz for 1200-baud Bell 202 —
+    confirmed via real APRS heartbeat logs showing `decoded:0` throughout
+    a session with flags detected but never successfully framed). Raised to
+    44100Hz on 2026-09-07 to match Direwolf's own AFSK demodulation rate on
+    this same hardware, already proven to decode real traffic. This is
+    intentionally decoupled from `AudioStreamFormat.sampleRate` (which
+    stays 8kHz, governing only the separate Mac→iPad hop) —
+    `RemoteAudioStreamClient`'s `sampleRate` parameter has its own default
+    now, not inherited from that constant. Raises Pi→Mac bandwidth from
+    ~16KB/s to ~86KB/s, trivial for any real network link. The
+    `Pi/ftx1-audiostream.py` doc comment has the full reasoning.
+  - **Mac-local playback + squelch/volume UI, added 2026-09-07**:
+    `HubService` now owns an `AudioPlaybackEngine` (reused as-is from the
+    existing iPad code — already cross-platform), started/stopped alongside
+    `audioCapture`, fed the same PCM chunks already sent to iPad. New
+    `HubService.audioVolume`/`.squelchThreshold` (persisted via
+    `AudioPlaybackSettings`, shared with iPad though iPad has no UI for
+    them) are bound to two vertical sliders in `ContentView`, positioned
+    right of the Waterfall/Oscilloscope/Off/Mute button column (the
+    waterfall narrows automatically since it already fills remaining
+    space). Added specifically because the default squelch threshold (0.02)
+    left real, quiet-but-legitimate audio gated silent with no way to
+    adjust it on the Mac before this existed.
+  - **Device-sharing with Direwolf, two real conflicts hit and fixed**: (1)
+    `Device or resource busy` — Direwolf holds the raw capture device open
+    continuously; fixed via `Pi/asound-ftx1.conf`'s `dsnoop`+`plug` chain
+    (`ftx1_shared`), letting both processes read the same hardware capture
+    at once, each at their own rate. Direwolf's `ADEVICE` needed its
+    two-argument form (`ftx1_shared plughw:1,0`) since `dsnoop` only
+    supports capture, not its playback/TX side. (2) `Permission denied
+    [ftx1_shared]` — `direwolf` and `ftx1audio` are different Unix accounts,
+    and dsnoop's IPC semaphore/shared-memory objects default to permissions
+    that only let the *creating* user attach; fixed via `ipc_perm 0666` in
+    the dsnoop config, plus a Pi reboot to clear stale IPC objects created
+    before that fix existed. Both documented in detail in `Pi/README.md`.
+  - **Concurrency note**: this target builds with `-default-isolation=
+    MainActor`. `process()` and everything it touches (`AutoGainState`,
+    `WaterfallBitmap`, `LockedFloat`, `OscilloscopeRenderer`,
+    `WaterfallPalette`) are explicitly `nonisolated`/`nonisolated(unsafe)`
+    now — they always ran off the main actor in practice (the class's own
+    doc comments already said so), but this was previously unchecked only
+    because `AVAudioEngine`'s tap closure isn't a Sendable-audited API.
+    `RemoteAudioStreamClient`'s use of `actor`/`@Sendable`/`NWConnection`
+    (all properly audited) is what surfaced this gap — worth keeping in
+    mind for any future code added to this file, since the class's default
+    isolation does NOT match what most of it actually needs.
+  - APRS decode confirmed working at the new 44100Hz rate against real
+    traffic (2026-09-07) — the sample-rate fix resolved it.
+  - **Still open**: the "Pi/Tailscale unreachable" UI distinction (same
+    open item as rig control's, not yet extended to cover the audio link
+    too).
 
 ## Structure
 
@@ -201,8 +276,9 @@ re-architecture.
   conformance (`HubService+RigController.swift` — the only conformer that
   builds a real `DeepSettingsView` destination). Also owns the audio-derived
   waterfall/oscilloscope display (`AudioCaptureEngine`, `ScopeDisplayView`,
-  `AudioInputDevice`/`AudioInputSettings`) — Mac-only, see Architecture
-  above. Dense multi-pane UI (`ContentView`: VFO, meters, scope display,
+  `AudioInputDevice`/`AudioInputSettings`, and — `.remote`-mode only —
+  `RemoteAudioStreamClient`) — Mac-only, see Architecture above. Dense
+  multi-pane UI (`ContentView`: VFO, meters, scope display,
   band/mode selectors all visible at once), `SettingsView` (tabbed sheet:
   rigctld connection config, Audio input device, Appearance), plus two menu
   systems: `MenuPageView` (shared, see `Sources/FTX1Core/UI/` above) and
@@ -224,6 +300,12 @@ re-architecture.
   opening `DeepSettingsView` — see the `RigController`/Deep Settings note
   above for why, and don't wire them up without first adding the wire-
   protocol read/response mechanism that unblocks it.
+- `Pi/` — deployable Pi-side pieces, not part of any Xcode target
+  (`ftx1-audiostream.py` + its systemd unit + install/verify instructions —
+  see "Audio-over-Pi" above). Nothing here is built by `xcodebuild`/`swift
+  build`; deploy by copying it to the Pi per `Pi/README.md`. `rigctld.
+  service`/`direwolf.service` (the Pi's other two systemd units) aren't
+  tracked here — they were set up directly on the Pi outside this repo.
 
 ## Working conventions
 
