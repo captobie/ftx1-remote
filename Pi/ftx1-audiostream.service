@@ -1,0 +1,13 @@
+[Unit]
+Description=FTX1Remote audio stream (Pi -> Mac, .remote mode)
+After=network.target sound.target
+
+[Service]
+Type=simple
+User=ftx1audio
+ExecStart=/usr/bin/python3 /opt/ftx1remote/ftx1-audiostream.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

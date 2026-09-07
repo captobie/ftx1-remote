@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import os
 
 /// Plays the Mac's relayed radio audio (see `AudioStreamFormat`/
 /// `RigWebSocketClient.onAudioData`) with a user-adjustable volume and a
@@ -25,6 +26,9 @@ public final class AudioPlaybackEngine {
     private var converter: AVAudioConverter?
     private var playbackFormat: AVAudioFormat?
     private var isRunning = false
+    /// Throttles the "push while not running" diagnostic below to once per
+    /// not-running streak, rather than once per ~50ms audio chunk.
+    private var hasLoggedPushWhileNotRunning = false
 
     /// Chunks accumulated before the very first `scheduleBuffer` call —
     /// absorbs ordinary network jitter so a real first-packet timing hiccup
@@ -102,11 +106,19 @@ public final class AudioPlaybackEngine {
             try engine.start()
             player.play()
             isRunning = true
+            Self.logger.notice("started, playbackFormat sampleRate=\(format.sampleRate, privacy: .public)")
         } catch {
+            // This used to fail completely silently — no log, no error
+            // surfaced to the caller — which made "isRunning stays false,
+            // every later push(pcm:) silently no-ops" indistinguishable
+            // from "actually playing, just squelched" from the outside.
+            Self.logger.error("engine.start() failed: \(String(describing: error), privacy: .public)")
             engine.disconnectNodeInput(player)
             engine.disconnectNodeInput(gateMixer)
         }
     }
+
+    private static let logger = Logger(subsystem: "com.ftx1remote", category: "audio-playback")
 
     /// Fully tears the engine down rather than just pausing the player —
     /// leaving it running across a disconnect risks double-scheduling
@@ -135,12 +147,32 @@ public final class AudioPlaybackEngine {
     /// squelch gate from this chunk's RMS level, and schedules it — after a
     /// small warm-up window is buffered on the very first chunks.
     public func push(pcm: Data) {
-        guard isRunning, let converter, let playbackFormat else { return }
-        guard let buffer = convert(pcm: pcm, converter: converter, format: playbackFormat) else { return }
+        guard isRunning, let converter, let playbackFormat else {
+            if !hasLoggedPushWhileNotRunning {
+                hasLoggedPushWhileNotRunning = true
+                Self.logger.error("push(pcm:) called while not running (isRunning=\(self.isRunning, privacy: .public)) — every push silently no-ops until start() succeeds")
+            }
+            return
+        }
+        hasLoggedPushWhileNotRunning = false
+        guard let buffer = convert(pcm: pcm, converter: converter, format: playbackFormat) else {
+            Self.logger.error("convert(pcm:) failed for a \(pcm.count, privacy: .public)-byte chunk")
+            return
+        }
 
         let rms = SquelchGate.rms(ofInt16Bytes: pcm)
         let isOpen = squelchGate.update(rms: rms)
         gateMixer.outputVolume = isOpen ? 1 : 0
+
+        pushLogCounter += 1
+        if pushLogCounter % 40 == 0 {
+            // Roughly every ~2s at typical chunk sizes — confirms buffers
+            // are actually being scheduled, and whether the squelch gate
+            // (which can silence output even while everything else is
+            // working correctly) is open or closed, without logging every
+            // single chunk.
+            Self.logger.notice("push: rms=\(rms, privacy: .public) threshold=\(self.squelchGate.threshold, privacy: .public) gateOpen=\(isOpen, privacy: .public) volume=\(self.player.volume, privacy: .public) engineRunning=\(self.engine.isRunning, privacy: .public)")
+        }
 
         guard hasPrimed else {
             prebuffer.append(buffer)
@@ -156,6 +188,8 @@ public final class AudioPlaybackEngine {
 
         player.scheduleBuffer(buffer)
     }
+
+    private var pushLogCounter = 0
 
     private func convert(pcm: Data, converter: AVAudioConverter, format: AVAudioFormat) -> AVAudioPCMBuffer? {
         let frameCount = pcm.count / MemoryLayout<Int16>.size

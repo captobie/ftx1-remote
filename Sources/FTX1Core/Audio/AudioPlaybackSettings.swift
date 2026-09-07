@@ -7,6 +7,7 @@ import Foundation
 public enum AudioPlaybackSettings {
     public static let volumeKey = "audio.playback.volume"
     public static let squelchThresholdKey = "audio.playback.squelchThreshold"
+    public static let isMutedKey = "audio.playback.isMuted"
 
     public static var volume: Double {
         get {
@@ -24,5 +25,10 @@ public enum AudioPlaybackSettings {
         set {
             UserDefaults.standard.set(newValue, forKey: squelchThresholdKey)
         }
+    }
+
+    public static var isMuted: Bool {
+        get { UserDefaults.standard.bool(forKey: isMutedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: isMutedKey) }
     }
 }

@@ -4,6 +4,7 @@ import AVFoundation
 import CoreAudio
 import CoreGraphics
 import Foundation
+import os
 
 /// One tap callback's worth of rendered display frames — always produced
 /// together (both are cheap relative to the FFT itself), so the UI can
@@ -25,10 +26,22 @@ struct AudioCaptureFrame {
 /// `HubService`, independently started/stopped, reports out via a
 /// closure) but for the audio-hardware side rather than the rig link.
 final class AudioCaptureEngine {
+    /// `nonisolated(unsafe)` on both closures below: this target builds
+    /// with default MainActor isolation, but each is set exactly once by
+    /// `HubService` at wiring time and never reassigned afterward — the
+    /// same "write-once from the main actor, read from an audio-processing
+    /// context thereafter" shape `waterfallZoom`/`oscilloscopeZoom` below
+    /// use `LockedFloat` for for genuinely *mutable* state. A plain
+    /// optional closure reference has no shared mutable state of its own
+    /// to race on once set, so a lock would be pure overhead here — the
+    /// actual dispatch into each closure's body still always hops via
+    /// `Task { @MainActor in ... }` at the call site, honoring each one's
+    /// documented "always invoked on the main actor" contract.
+    ///
     /// Always invoked on the main actor — `HubService` assigns straight
     /// into `@Published` state from inside it, same contract as
     /// `RigctldProcessController.onStateChange`.
-    var onNewFrame: ((AudioCaptureFrame) -> Void)?
+    nonisolated(unsafe) var onNewFrame: ((AudioCaptureFrame) -> Void)?
 
     /// The same raw samples `process(buffer:bitmap:gain:)` FFTs for
     /// display, handed out unmodified for `HubService`'s APRS decode path
@@ -45,7 +58,7 @@ final class AudioCaptureEngine {
     /// process(samples:sampleRate:)` just enqueues onto its own serial
     /// queue and returns immediately, so this hop only ever does a cheap
     /// frequency comparison, not real work.
-    var onAudioSamples: ((_ samples: [Float], _ sampleRate: Double) -> Void)?
+    nonisolated(unsafe) var onAudioSamples: ((_ samples: [Float], _ sampleRate: Double) -> Void)?
 
     private let fftSize = 2048
     private let binCount = 256
@@ -68,7 +81,13 @@ final class AudioCaptureEngine {
     private let oscilloscopePeakDecayPerFrame: Float = 0.002
 
     private let engine = AVAudioEngine()
-    private let fftSetup: FFTSetup
+    /// `nonisolated(unsafe)` — read only from `process(buffer:bitmap:gain:)`
+    /// / `process(samples:sampleRate:bitmap:gain:)`, which are themselves
+    /// `nonisolated` (see their doc comments), never touched anywhere else
+    /// after `init`. Safe without a lock: it's immutable once set, and
+    /// `process()` never runs concurrently with itself (`.local`/`.remote`
+    /// are mutually exclusive per launch — see `start(deviceUID:)`).
+    nonisolated(unsafe) private let fftSetup: FFTSetup
     private let log2n: vDSP_Length
     private var isRunning = false
     /// The caller's most recent intent, set synchronously in `start()`/
@@ -103,7 +122,8 @@ final class AudioCaptureEngine {
     /// `deviceUID` is `AudioInputSettings.deviceUID` — empty means "system
     /// default input", otherwise it's resolved back to a live
     /// `AudioDeviceID` via `AudioInputDeviceLister`. Safe to call again
-    /// while already running (no-ops).
+    /// while already running (no-ops). Only used in `.local` mode — see
+    /// below.
     ///
     /// Explicitly resolves the microphone permission prompt first, via
     /// `AVCaptureDevice.requestAccess` — the very first connect after
@@ -113,16 +133,43 @@ final class AudioCaptureEngine {
     /// used to mean the display never activated on a first connect, only
     /// on a second one (by which point the user had already answered the
     /// prompt from the first attempt).
+    ///
+    /// In `RigctldSettings.ConnectionMode.remote`, there's no local
+    /// hardware to ask permission for — the rig's audio-out is on the Pi's
+    /// USB sound card instead (see `Pi/ftx1-audiostream.py`), reached over
+    /// the network via `RemoteAudioStreamClient`. Both paths feed the same
+    /// `process(samples:sampleRate:bitmap:gain:)`, so everything
+    /// downstream (waterfall/oscilloscope, `onAudioSamples`) can't tell
+    /// which one is active.
     func start(deviceUID: String) {
         guard !shouldBeRunning else { return }
         shouldBeRunning = true
 
-        AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
-            Task { @MainActor in
-                guard let self, self.shouldBeRunning, granted else { return }
-                self.beginCapture(deviceUID: deviceUID)
+        switch RigctldSettings.connectionMode {
+        case .local:
+            AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                Task { @MainActor in
+                    guard let self, self.shouldBeRunning, granted else { return }
+                    self.beginCapture(deviceUID: deviceUID)
+                }
             }
+        case .remote:
+            beginRemoteCapture()
         }
+    }
+
+    private var remoteClient: RemoteAudioStreamClient?
+    private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "audio-capture")
+
+    private func beginRemoteCapture() {
+        Self.logger.notice("beginRemoteCapture() — host=\(RigctldSettings.remoteHost, privacy: .public)")
+        let bitmap = WaterfallBitmap(binCount: binCount, historyRows: historyRows)
+        let gain = AutoGainState(minimumPeakDb: waterfallMinimumPeakDb, minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
+        let client = RemoteAudioStreamClient(host: RigctldSettings.remoteHost) { [weak self] samples, sampleRate in
+            self?.process(samples: samples, sampleRate: sampleRate, bitmap: bitmap, gain: gain)
+        }
+        remoteClient = client
+        Task { await client.start() }
     }
 
     /// True once `engine` — a single instance reused for the app's whole
@@ -211,9 +258,15 @@ final class AudioCaptureEngine {
     /// calls this defensively on every path out of `.connected`), and
     /// safe to call while a permission decision is still pending from
     /// `start()` (clears `shouldBeRunning` so that callback becomes a
-    /// no-op instead of starting capture after the fact).
+    /// no-op instead of starting capture after the fact). Tears down
+    /// whichever of the local tap / remote client is actually active —
+    /// harmless to do both unconditionally since only one is ever set.
     func stop() {
         shouldBeRunning = false
+        if let remoteClient {
+            self.remoteClient = nil
+            Task { await remoteClient.stop() }
+        }
         guard isRunning else { return }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
@@ -224,26 +277,40 @@ final class AudioCaptureEngine {
     /// row of 0...1 intensities, then hands it to `bitmap` and publishes
     /// the resulting frame. Runs entirely on the Core Audio real-time
     /// thread except the final `onNewFrame` hop.
-    private func process(buffer: AVAudioPCMBuffer, bitmap: WaterfallBitmap, gain: AutoGainState) {
+    nonisolated private func process(buffer: AVAudioPCMBuffer, bitmap: WaterfallBitmap, gain: AutoGainState) {
         guard let channelData = buffer.floatChannelData?[0] else { return }
         let frameCount = Int(buffer.frameLength)
         guard frameCount > 0 else { return }
 
+        var rawSamples = [Float](repeating: 0, count: frameCount)
+        rawSamples.withUnsafeMutableBufferPointer { dest in
+            dest.baseAddress!.update(from: channelData, count: frameCount)
+        }
+        process(samples: rawSamples, sampleRate: buffer.format.sampleRate, bitmap: bitmap, gain: gain)
+    }
+
+    /// The shared core both the local `AVAudioEngine` tap (via `process
+    /// (buffer:bitmap:gain:)` above) and `RemoteAudioStreamClient`'s
+    /// network-delivered chunks feed into — everything from here down has
+    /// no idea whether `rawSamples` came from local hardware or the Pi.
+    /// Runs off the main actor in both cases (the local tap's Core Audio
+    /// real-time thread, or `RemoteAudioStreamClient`'s own actor), except
+    /// the final `onNewFrame`/`onAudioSamples` hops.
+    nonisolated private func process(samples rawSamples: [Float], sampleRate: Double, bitmap: WaterfallBitmap, gain: AutoGainState) {
+        guard !rawSamples.isEmpty else { return }
+
         if onAudioSamples != nil {
-            var rawSamples = [Float](repeating: 0, count: frameCount)
-            rawSamples.withUnsafeMutableBufferPointer { dest in
-                dest.baseAddress!.update(from: channelData, count: frameCount)
-            }
-            let sampleRate = buffer.format.sampleRate
             Task { @MainActor [weak self] in
                 self?.onAudioSamples?(rawSamples, sampleRate)
             }
         }
 
         var samples = [Float](repeating: 0, count: fftSize)
-        let copyCount = min(frameCount, fftSize)
+        let copyCount = min(rawSamples.count, fftSize)
         samples.withUnsafeMutableBufferPointer { dest in
-            dest.baseAddress!.update(from: channelData, count: copyCount)
+            rawSamples.withUnsafeBufferPointer { src in
+                dest.baseAddress!.update(from: src.baseAddress!, count: copyCount)
+            }
         }
 
         var window = [Float](repeating: 0, count: fftSize)
@@ -321,12 +388,16 @@ final class AudioCaptureEngine {
 /// Peak-hold-and-decay auto-gain state, one instance per `start()` call,
 /// captured directly by the tap closure alongside `WaterfallBitmap` — same
 /// thread-ownership reasoning (mutated only on the audio thread, never
-/// touched by `start()`/`stop()` after creation).
+/// touched by `start()`/`stop()` after creation). `nonisolated` throughout
+/// to match `process()`'s own isolation (see its doc comment) — this type
+/// exists purely to be read/written from that off-main-actor context, so
+/// letting it default to the target's MainActor isolation would be
+/// actively wrong, not just unnecessary.
 private final class AutoGainState {
-    var peakDb: Float
-    var peakAmplitude: Float
+    nonisolated(unsafe) var peakDb: Float
+    nonisolated(unsafe) var peakAmplitude: Float
 
-    init(minimumPeakDb: Float, minimumPeakAmplitude: Float) {
+    nonisolated init(minimumPeakDb: Float, minimumPeakAmplitude: Float) {
         peakDb = minimumPeakDb
         peakAmplitude = minimumPeakAmplitude
     }
@@ -338,21 +409,24 @@ private final class AutoGainState {
 /// `oscilloscopeZoom` doc comment for why this needs locking where
 /// `WaterfallBitmap`/`AutoGainState` don't. Updates are rare (button
 /// taps) and reads are ~21Hz, so an uncontended lock is plenty.
-private final class LockedFloat {
+/// `nonisolated` + `@unchecked Sendable`: the whole point of this type is
+/// safe access from any isolation domain via its own lock, not the
+/// target's default MainActor isolation.
+private final class LockedFloat: @unchecked Sendable {
     private let lock = NSLock()
-    private var value: Float
+    nonisolated(unsafe) private var value: Float
 
-    init(_ value: Float) {
+    nonisolated init(_ value: Float) {
         self.value = value
     }
 
-    func get() -> Float {
+    nonisolated func get() -> Float {
         lock.lock()
         defer { lock.unlock() }
         return value
     }
 
-    func set(_ newValue: Float) {
+    nonisolated func set(_ newValue: Float) {
         lock.lock()
         defer { lock.unlock() }
         value = newValue
@@ -368,16 +442,17 @@ private final class WaterfallBitmap {
     private let binCount: Int
     private let historyRows: Int
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
-    private var rows: [[Float]] = []
+    nonisolated(unsafe) private var rows: [[Float]] = []
 
-    init(binCount: Int, historyRows: Int) {
+    nonisolated init(binCount: Int, historyRows: Int) {
         self.binCount = binCount
         self.historyRows = historyRows
     }
 
     /// `row` is `binCount` intensity values, 0...1. Prepends as the newest
-    /// row (top of the image), dropping the oldest once full.
-    func appendRow(_ row: [Float]) -> CGImage? {
+    /// row (top of the image), dropping the oldest once full. `nonisolated`
+    /// to match `process()` — see `AutoGainState`'s doc comment for why.
+    nonisolated func appendRow(_ row: [Float]) -> CGImage? {
         rows.insert(row, at: 0)
         if rows.count > historyRows {
             rows.removeLast(rows.count - historyRows)
@@ -419,7 +494,7 @@ private final class WaterfallBitmap {
 /// `SMeterView`'s convention of hardcoded colors rather than asset-catalog
 /// or semantic ones.
 private enum WaterfallPalette {
-    private static let stops: [(threshold: Float, r: UInt8, g: UInt8, b: UInt8)] = [
+    nonisolated(unsafe) private static let stops: [(threshold: Float, r: UInt8, g: UInt8, b: UInt8)] = [
         (0.00, 0, 0, 0),
         (0.25, 0, 0, 180),
         (0.50, 0, 180, 180),
@@ -428,7 +503,7 @@ private enum WaterfallPalette {
         (1.00, 255, 40, 0),
     ]
 
-    static func color(forIntensity value: Float) -> (r: UInt8, g: UInt8, b: UInt8) {
+    nonisolated static func color(forIntensity value: Float) -> (r: UInt8, g: UInt8, b: UInt8) {
         let clamped = max(0, min(1, value))
         var lower = stops[0]
         var upper = stops[stops.count - 1]
@@ -456,10 +531,10 @@ private enum WaterfallPalette {
 /// assuming it reaches full-scale ±1.0; `zoom` (from the up/down arrows,
 /// via `HubService`) is a further user multiplier on top of that.
 private enum OscilloscopeRenderer {
-    private static let colorSpace = CGColorSpaceCreateDeviceRGB()
-    private static let traceColor = CGColor(red: 0.2, green: 1.0, blue: 0.4, alpha: 1)
+    nonisolated(unsafe) private static let colorSpace = CGColorSpaceCreateDeviceRGB()
+    nonisolated(unsafe) private static let traceColor = CGColor(red: 0.2, green: 1.0, blue: 0.4, alpha: 1)
 
-    static func makeImage(samples: [Float], width: Int, height: Int, peakAmplitude: Float, zoom: Float) -> CGImage? {
+    nonisolated static func makeImage(samples: [Float], width: Int, height: Int, peakAmplitude: Float, zoom: Float) -> CGImage? {
         guard let context = CGContext(
             data: nil,
             width: width,
