@@ -684,14 +684,34 @@ public actor RigctldClient {
         // misread as part of this new exchange.
         readBuffer.removeAll()
         let data = (command + "\n").data(using: .utf8)!
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            connection.send(content: data, completion: .contentProcessed { error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume()
-                }
-            })
+        do {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                connection.send(content: data, completion: .contentProcessed { error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume()
+                    }
+                })
+            }
+        } catch {
+            // A send failure (e.g. the OS reporting "Socket is not
+            // connected" after the peer RST'd the connection) means this
+            // NWConnection is dead at the transport level, not just slow to
+            // answer — leaving `connection` set would otherwise let every
+            // subsequent command in this poll cycle (and every cycle after
+            // it) keep trying to write to the same dead socket forever,
+            // which is what actually happened: hundreds of failed writes a
+            // second with no reconnect, confirmed via a real Pi network
+            // drop. Tearing it down here makes every other in-flight/queued
+            // call on this actor fail fast via `.notConnected` instead of
+            // re-attempting the network, and `.connectionLost` (distinct
+            // from `.badResponse`/`.rawCommandTimedOut`) is what lets
+            // `HubService.refreshState()` tell "the rig gave one bad CAT
+            // reply" apart from "the connection itself is gone" — see that
+            // function's doc comments.
+            disconnect()
+            throw RigctldError.connectionLost
         }
     }
 
@@ -716,16 +736,28 @@ public actor RigctldClient {
             guard let connection else {
                 throw RigctldError.notConnected
             }
-            let chunk = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
-                connection.receive(minimumIncompleteLength: 1, maximumLength: 1024) { data, _, _, error in
-                    if let error {
-                        continuation.resume(throwing: error)
-                    } else if let data {
-                        continuation.resume(returning: data)
-                    } else {
-                        continuation.resume(throwing: RigctldError.badResponse)
+            let chunk: Data
+            do {
+                chunk = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
+                    connection.receive(minimumIncompleteLength: 1, maximumLength: 1024) { data, _, _, error in
+                        if let error {
+                            continuation.resume(throwing: error)
+                        } else if let data {
+                            continuation.resume(returning: data)
+                        } else {
+                            continuation.resume(throwing: RigctldError.badResponse)
+                        }
                     }
                 }
+            } catch let error as RigctldError {
+                throw error
+            } catch {
+                // Same transport-level-failure reasoning as write()'s catch
+                // above: an OS-level receive error (not RigctldClient's own
+                // `.badResponse`, which means "read fine, just an empty
+                // frame") means this connection is gone, not just slow.
+                disconnect()
+                throw RigctldError.connectionLost
             }
             readBuffer.append(chunk)
         }
@@ -754,9 +786,16 @@ private final class ContinuationGuard: @unchecked Sendable {
     }
 }
 
-public enum RigctldError: Error {
+public enum RigctldError: Error, Equatable {
     case notConnected
     case badResponse
     case connectTimedOut
     case rawCommandTimedOut
+    /// The underlying transport failed (e.g. the peer reset the TCP
+    /// connection) — distinct from `.badResponse`/`.rawCommandTimedOut`,
+    /// which mean the connection is fine but the rig gave a bad or slow
+    /// CAT reply. Callers that otherwise treat a field read as best-effort
+    /// (see `HubService.refreshState()`) should treat this one specifically
+    /// as fatal, since no amount of retrying a dead connection will help.
+    case connectionLost
 }

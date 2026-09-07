@@ -529,18 +529,44 @@ final class HubService: ObservableObject {
         // partway through — see the `commandGeneration` guard right before this
         // cycle's values are published, below.
         let generationAtStart = commandGeneration
-        // Best-effort, same reasoning as every other field below: an
-        // occasional bad/empty CAT reply shouldn't tear down and reconnect
-        // the whole session — it should just fall back to the last known
-        // frequency and let the next poll cycle (500ms later) try again.
-        // This one used to be a hard `try`, the only one in this whole
-        // function — rare enough on the Mac's dedicated local USB link to
-        // never surface, but a `badResponse` here now and then over a real
-        // network hop was enough to repeatedly tear down and reconnect the
-        // entire session, which is what was actually causing the
-        // connect/disconnect cycling (confirmed via the `connectionLogger`
-        // output in `runConnectionLoop`, not guessed).
-        let frequencyHz = (try? await rigctld.getFrequency()) ?? rigState.frequencyHz
+        // Best-effort for an ordinary bad/empty CAT reply (`.badResponse`)
+        // — that shouldn't tear down and reconnect the whole session, just
+        // fall back to the last known frequency and let the next poll cycle
+        // (500ms later) try again. This used to be a hard `try`, which over
+        // a real network hop meant an occasional `.badResponse` was
+        // repeatedly tearing down and reconnecting the entire session (the
+        // connect/disconnect cycling seen during initial Pi validation).
+        //
+        // `.connectionLost` is deliberately NOT swallowed the same way: it
+        // means `RigctldClient` itself already determined the transport is
+        // dead (e.g. the Pi TCP-reset the connection), not that the rig
+        // gave one bad reply. Catching it here too silently — as every
+        // field in this function used to, until this fix — meant a real
+        // disconnect was never detected: every read below would also fail
+        // the same way, `refreshState()` would never throw, and
+        // `runConnectionLoop()` never got the chance to reconnect. The
+        // symptom was hundreds of failed writes a second forever with no
+        // reconnect, confirmed via a real Pi network drop. Rethrowing here
+        // propagates through `pollLoop()` into `runConnectionLoop()`'s
+        // catch block, which does the normal disconnect/backoff/reconnect
+        // dance.
+        let frequencyHz: Int
+        do {
+            frequencyHz = try await rigctld.getFrequency()
+        } catch let error as RigctldError where error == .connectionLost || error == .notConnected {
+            // `.notConnected` reaches here on the poll cycle *after* the one
+            // that actually detected the drop and tore the connection down
+            // (see RigctldClient.write()/readLine()) — that cycle's own
+            // failure could have been on any of the ~30 fields below, not
+            // necessarily this one, so this is the first chance this
+            // specific read gets to notice. Treating it the same as
+            // `.connectionLost` (rather than falling through to the
+            // best-effort fallback) is what actually breaks the "never
+            // reconnects" loop, not just the initial detection.
+            throw error
+        } catch {
+            frequencyHz = rigState.frequencyHz
+        }
         // Best-effort like the secondary-VFO mode read below: this rig's
         // hamlib backend returns a protocol error (RPRT -8) for "get mode"
         // while the active VFO is in C4FM, rather than a parseable string.
