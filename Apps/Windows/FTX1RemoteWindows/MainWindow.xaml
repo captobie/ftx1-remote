@@ -1,0 +1,87 @@
+<Window
+    x:Class="FTX1RemoteWindows.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Padding="16" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Connection bar -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Grid.Row="0">
+            <TextBlock Text="Pi host:" VerticalAlignment="Center" />
+            <TextBox x:Name="PiHostBox" Width="220" PlaceholderText="ftx1-pi (Tailscale MagicDNS name)" />
+            <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click" />
+            <TextBlock x:Name="ConnectionStateText" Text="Disconnected" VerticalAlignment="Center" Foreground="Gray" />
+        </StackPanel>
+
+        <!-- VFO A/B -->
+        <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12">
+            <Grid ColumnSpacing="24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="VFO A (active)" FontWeight="SemiBold" />
+                    <TextBlock x:Name="FrequencyAText" Text="—" FontSize="28" FontFamily="Consolas" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBox x:Name="FrequencyEntryBox" Width="140" PlaceholderText="Hz" />
+                        <Button x:Name="SetFrequencyButton" Content="Set" Click="SetFrequencyButton_Click" />
+                    </StackPanel>
+                </StackPanel>
+
+                <Button Grid.Column="1" x:Name="SwapVfoButton" Content="⇄" VerticalAlignment="Center"
+                        Click="SwapVfoButton_Click" ToolTipService.ToolTip="Swap active VFO" />
+
+                <StackPanel Grid.Column="2" Spacing="4">
+                    <TextBlock Text="VFO B" FontWeight="SemiBold" />
+                    <TextBlock x:Name="FrequencyBText" Text="—" FontSize="28" FontFamily="Consolas" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Mode / PTT / power / SWR / band -->
+        <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12">
+            <StackPanel Orientation="Horizontal" Spacing="24">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Mode" FontWeight="SemiBold" />
+                    <ComboBox x:Name="ModeComboBox" Width="120" SelectionChanged="ModeComboBox_SelectionChanged" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Band" FontWeight="SemiBold" />
+                    <ComboBox x:Name="BandComboBox" Width="100" SelectionChanged="BandComboBox_SelectionChanged" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="PTT" FontWeight="SemiBold" />
+                    <ToggleButton x:Name="PttToggle" Content="TX" Click="PttToggle_Click" />
+                </StackPanel>
+
+                <StackPanel Spacing="4" Width="160">
+                    <TextBlock Text="Power level" FontWeight="SemiBold" />
+                    <Slider x:Name="PowerSlider" Minimum="0" Maximum="100" ValueChanged="PowerSlider_ValueChanged" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Power out" FontWeight="SemiBold" />
+                    <TextBlock x:Name="PowerWattsText" Text="—" FontFamily="Consolas" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="SWR" FontWeight="SemiBold" />
+                    <TextBlock x:Name="SwrText" Text="—" FontFamily="Consolas" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <TextBlock Grid.Row="3" x:Name="StatusText" Text="" Foreground="Firebrick" TextWrapping="Wrap" VerticalAlignment="Bottom" />
+    </Grid>
+</Window>

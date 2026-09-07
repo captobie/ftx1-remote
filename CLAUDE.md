@@ -237,6 +237,27 @@ re-architecture.
     open item as rig control's, not yet extended to cover the audio link
     too).
 
+## Windows app (v1 skeleton scaffolded, 2026-09-07)
+
+A Windows app with the same kind of functionality as the Mac app, but
+remote-only: talks directly to the Pi (rigctld + `ftx1-audiostream.py`),
+never to a locally-attached radio, and never through the Mac's WebSocket
+hub — the Mac is not required to be running. Architecturally closest to the
+Mac permanently in `.remote` mode, minus `RigctldProcessController`
+(nothing to spawn — the Pi's `rigctld.service` is always-on) and minus the
+WebSocket *server* (this app is a leaf client only). C# + WinUI 3,
+MSIX-packaged, lives in this repo at `Apps/Windows/FTX1RemoteWindows/`
+despite sharing no code with the Swift targets (Swift/SwiftUI isn't viable
+on Windows). v1 scope is core rig control only (VFO A/B, mode, PTT, power,
+SWR, band) — MENU grid, Deep Settings, waterfall/audio, and APRS decode are
+deferred but not architecturally blocked (direct-to-Pi means this app,
+unlike iPad, actually has the live per-item-read capability Deep Settings
+needs). Full plan, protocol/model porting notes, and open items:
+`Apps/Windows/README.md`. `Apps/Windows/FTX1RemoteWindows/` has a
+build-verified (`dotnet build -r win-x64 --self-contained`, not yet
+run against real hardware) unpackaged WinUI 3 skeleton covering the full
+v1 checklist.
+
 ## Structure
 
 - `Sources/FTX1Core/` — Swift Package Manager package (target `FTX1Core`,
@@ -300,6 +321,12 @@ re-architecture.
   opening `DeepSettingsView` — see the `RigController`/Deep Settings note
   above for why, and don't wire them up without first adding the wire-
   protocol read/response mechanism that unblocks it.
+- `Apps/Windows/` — Windows app (C# + WinUI 3, remote-only, direct to the
+  Pi). `FTX1RemoteWindows/` has a build-verified v1 skeleton (core rig
+  control only) — see `Apps/Windows/README.md` for the full plan, porting
+  notes, and the "Windows app" section above. Not built via `xcodebuild`/
+  `swift build` like the other `Apps/*` targets — use `dotnet build`
+  from within `Apps/Windows/FTX1RemoteWindows/` instead.
 - `Pi/` — deployable Pi-side pieces, not part of any Xcode target
   (`ftx1-audiostream.py` + its systemd unit + install/verify instructions —
   see "Audio-over-Pi" above). Nothing here is built by `xcodebuild`/`swift
@@ -338,3 +365,7 @@ re-architecture.
 - Run the Mac app: `open` the built `.app` under
   `~/Library/Developer/Xcode/DerivedData/FTX1RemoteMac-*/Build/Products/Debug/`,
   or Cmd+R in Xcode.
+- Build the Windows app: from `Apps/Windows/FTX1RemoteWindows/`, `dotnet
+  build -r win-x64 --self-contained` (or open the `.csproj` in Visual
+  Studio). Not part of `Package.swift`/`xcodebuild` at all — separate
+  toolchain, see `Apps/Windows/README.md`.

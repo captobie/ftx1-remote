@@ -64,3 +64,9 @@ fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
 .DS_Store
+
+# .NET / Visual Studio (Apps/Windows/FTX1RemoteWindows)
+bin/
+obj/
+.vs/
+*.user
