@@ -6,7 +6,8 @@ import Foundation
 /// unit-testable without any real audio hardware.
 struct SquelchGate {
     /// RMS level (0...1) above which the gate should open — user-adjustable
-    /// via the iPad's squelch slider.
+    /// via the squelch slider, or continuously recomputed by
+    /// `updateAutoThreshold` while `isAutoEnabled`.
     var threshold: Float
 
     /// How long the level must stay below `threshold` before the gate
@@ -14,6 +15,31 @@ struct SquelchGate {
     /// edge, same "squelch tail" behavior real hardware squelch has.
     var releaseDuration: TimeInterval = 0.3
 
+    /// When true, `threshold` is no longer user-set — every `update(rms:)`
+    /// call derives it from `noiseFloor` instead. Toggling this on reseeds
+    /// `noiseFloor` so a stale reading from a previous session (or from
+    /// before the radio was retuned) doesn't linger.
+    var isAutoEnabled = false {
+        didSet {
+            if isAutoEnabled && !oldValue {
+                noiseFloor = nil
+            }
+        }
+    }
+
+    /// Added on top of the tracked noise floor — enough headroom that
+    /// ordinary static/hiss fluctuation doesn't chatter the gate open, but
+    /// small enough not to meaningfully delay opening on a real signal.
+    private let autoMargin: Float = 0.01
+
+    /// How fast the tracked floor is allowed to creep upward per update —
+    /// deliberately tiny, so a single long, loud transmission can't drag it
+    /// up toward the signal itself (see `updateAutoThreshold`). A drop to a
+    /// quieter level is applied immediately instead, so the tracker still
+    /// settles on the true background noise quickly.
+    private let noiseFloorRisePerUpdate: Float = 0.000005
+
+    private var noiseFloor: Float?
     private(set) var isOpen = false
     private var lastAboveThreshold: Date?
 
@@ -25,6 +51,9 @@ struct SquelchGate {
     /// update (also available via `isOpen`).
     @discardableResult
     mutating func update(rms: Float, now: Date = Date()) -> Bool {
+        if isAutoEnabled {
+            updateAutoThreshold(rms: rms)
+        }
         if rms >= threshold {
             lastAboveThreshold = now
             isOpen = true
@@ -34,6 +63,26 @@ struct SquelchGate {
             isOpen = false
         }
         return isOpen
+    }
+
+    /// Fast-attack (jumps straight down to a quieter reading), slow-release
+    /// (only creeps up gradually otherwise) — mirrors `AudioCaptureEngine`'s
+    /// peak-hold-and-decay auto-gain, but tracking the *minimum* incoming
+    /// level instead of the maximum. That asymmetry is what makes this
+    /// "find the lowest squelch setting that still mutes the static": on
+    /// activation (or after the noise floor genuinely drops) it converges
+    /// on the true background level within one update, while a sustained
+    /// strong signal — which is loud, not quiet — can't pull it upward
+    /// fast enough to threaten closing the gate mid-transmission.
+    private mutating func updateAutoThreshold(rms: Float) {
+        let floor: Float
+        if let previous = noiseFloor {
+            floor = rms < previous ? rms : previous + noiseFloorRisePerUpdate
+        } else {
+            floor = rms
+        }
+        noiseFloor = floor
+        threshold = floor + autoMargin
     }
 
     static func rms(of samples: [Float]) -> Float {

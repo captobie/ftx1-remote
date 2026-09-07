@@ -226,7 +226,14 @@ struct ContentView: View {
     /// of the waterfall/oscilloscope/mute column, just grouped next to it.
     private var audioLevelControls: some View {
         HStack(spacing: 8) {
-            verticalSlider(value: squelchBinding, label: "SQL")
+            // Squelch's range must match the RMS scale `SquelchGate`/iPad's
+            // own slider use (0...0.2) — reusing the 0...1 volume range here
+            // meant a tiny nudge set a threshold no real signal's RMS could
+            // ever cross, so the gate looked permanently closed.
+            verticalSlider(
+                value: squelchBinding, label: "SQL", range: 0...0.2,
+                onLabelTap: { hub.isAutoSquelch.toggle() }, isLabelActive: hub.isAutoSquelch
+            )
             verticalSlider(value: volumeBinding, label: "VOL")
         }
     }
@@ -245,17 +252,33 @@ struct ContentView: View {
     /// that target length from whatever space this view is actually given
     /// (here, `audioLevelControls`' `.frame(width: 70, height: meterHeight)`
     /// in the caller) rather than a hardcoded constant.
-    private func verticalSlider(value: Binding<Float>, label: String) -> some View {
+    private func verticalSlider(
+        value: Binding<Float>, label: String, range: ClosedRange<Float> = 0...1,
+        onLabelTap: (() -> Void)? = nil, isLabelActive: Bool = false
+    ) -> some View {
         VStack(spacing: 4) {
             GeometryReader { geometry in
-                Slider(value: value, in: 0...1)
+                Slider(value: value, in: range)
                     .frame(width: geometry.size.height)
                     .rotationEffect(.degrees(-90))
                     .frame(width: geometry.size.width, height: geometry.size.height)
             }
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            if let onLabelTap {
+                // The tappable auto-squelch toggle — only "SQL" opts in via
+                // `onLabelTap`; "VOL" falls through to the plain `Text`
+                // below unchanged.
+                Button(action: onLabelTap) {
+                    Text(label)
+                        .font(.caption2)
+                        .foregroundStyle(isLabelActive ? Color.green : Color.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Auto squelch: find the lowest setting that mutes static")
+            } else {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
