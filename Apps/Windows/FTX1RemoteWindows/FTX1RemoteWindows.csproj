@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>FTX1RemoteWindows</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <!--
+      WindowsAppSDKSelfContained's build target hard requires a concrete
+      RuntimeIdentifier (win-x64/win-arm64/win-x86) and fails with
+      "requires a supported Windows architecture" if none is set, which is
+      exactly what happens on a bare "dotnet run"/"dotnet build" with no r
+      flag, since those don't set one on their own. Default to the SDK's
+      own resolved RID (win-arm64 on this Parallels-on-Apple-Silicon dev
+      machine, win-x64 on a typical Intel/AMD one) so plain "dotnet run"
+      works without remembering to pass r every time; an explicit "-r
+      <rid> self-contained" flag still overrides this, e.g. when cross
+      building win-x64 output from this arm64 machine.
+    -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
+    <UseWinUI>true</UseWinUI>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!--
+      Unpackaged for now so `dotnet build`/`dotnet run` work stand-alone
+      while the app is scaffolding. Apps/Windows/README.md's plan is
+      MSIX-packaged — flip this to Packaged (and add Package.appxmanifest +
+      real icon assets + a signing certificate, which Visual Studio
+      generates automatically on first packaged build) once there's an
+      actual app icon to ship; see the README's "Open items" for why that
+      step is deliberately not done blind from the CLI.
+    -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
+  </ItemGroup>
+
+
+</Project>
