@@ -4,8 +4,19 @@
 sound card, the same `plughw:1,0` device Direwolf already uses) and streams
 it as raw 44100Hz mono 16-bit PCM to whichever Mac client connects — see
 `Apps/Mac/FTX1RemoteMac/RemoteAudioStreamClient.swift` for the consumer.
-Runs alongside `rigctld.service` and `direwolf.service` as its own systemd
-unit, same pattern.
+On the Mac side this feeds the exact same downstream pipeline as local
+sound-card capture does in `.local` mode: waterfall/oscilloscope display,
+APRS decode, the Mac→iPad audio relay, and Mac-local playback (with the
+volume/squelch sliders in `ContentView`) — the Mac can't tell a Pi-sourced
+stream from a local one once it's in that pipeline. Runs alongside
+`rigctld.service` and `direwolf.service` as its own systemd unit, same
+pattern. (Note: `rigctld.service` and `direwolf.service` themselves are set
+up directly on the Pi and aren't tracked in this repo — only
+`ftx1-audiostream.py` and its supporting config live here.)
+
+See also: the repo root [`README.md`](../README.md) and `CLAUDE.md` for how
+this fits into the app's overall architecture (Local vs. Remote
+`connectionMode`, what's still open).
 
 Raised from an original 8kHz to 44100Hz on 2026-09-07 — 8kHz left the Mac's
 APRS demodulator too little timing resolution to reliably decode packets

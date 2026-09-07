@@ -22,8 +22,10 @@ regardless.
 A Windows app with the same *kind* of functionality as the Mac app
 (`Apps/Mac/FTX1RemoteMac/`), but remote-only: it talks to the Raspberry Pi
 directly (rigctld for control, `ftx1-audiostream.py` for audio — see repo
-root `CLAUDE.md`'s "Remote rigctld (Option A)" section), never to a
-locally-attached radio, and never through the Mac.
+root `CLAUDE.md`'s "Remote rigctld (Option A)" section and `Pi/README.md`
+for the Pi side), never to a locally-attached radio, and never through the
+Mac. The repo root [`README.md`](../../README.md) also summarizes this app
+in its Architecture section — this file is the detailed plan/status.
 
 ## Why direct-to-Pi, not through the Mac hub
 
