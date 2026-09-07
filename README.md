@@ -1,14 +1,26 @@
 # FTX1Core
 
-Shared Swift package for the FTX-1 remote control app (Mac hub + iOS/iPadOS clients).
+Shared Swift package for the FTX-1 remote control app (Mac hub + iOS/iPadOS
+clients), plus a separate direct-to-Pi Windows client (see "Windows app"
+below).
 
 ## Architecture
 
 - **Mac app is the hub.** It owns the `RigctldClient` connection to rigctld
-  (hamlib) on `localhost:4532`, holds live rig state, and runs
-  `RigWebSocketServer` (Mac-only, in the app target — via `Network.framework`
-  `NWListener`/`NWProtocolWebSocket`, since `URLSessionWebSocketTask` is
-  client-only) that broadcasts state and accepts commands.
+  (hamlib), holds live rig state, and runs `RigWebSocketServer` (Mac-only, in
+  the app target — via `Network.framework` `NWListener`/`NWProtocolWebSocket`,
+  since `URLSessionWebSocketTask` is client-only) that broadcasts state and
+  accepts commands.
+- **rigctld can run locally on the Mac or remotely on a Raspberry Pi**
+  (`RigctldSettings.connectionMode`, `.local`/`.remote`) — the radio's
+  USB/serial cable may be plugged into either machine. `.local` is the
+  original setup: the Mac spawns/adopts rigctld itself
+  (`RigctldProcessController`) against `localhost:4532`. `.remote` connects
+  to rigctld already running on a Pi (`<remoteHost>:4532`, a Tailscale
+  MagicDNS hostname) and skips process management entirely — everything else
+  (WebSocket server, `CommandQueue`, state push) is unchanged. Switching
+  modes requires an app relaunch. See the repo root `CLAUDE.md` for the full
+  design/status and `Pi/README.md` for the Pi-side setup.
 - **Mobile apps never talk to rigctld directly.** iOS/iPadOS use
   `RigWebSocketClient` (via the shared `RigClientViewModel`) to connect to
   `<mac-tailscale-hostname>:PORT`. The iPhone app (`Apps/iOS/FTX1RemoteiOS`)
@@ -36,10 +48,22 @@ Shared Swift package for the FTX-1 remote control app (Mac hub + iOS/iPadOS clie
   responsive instance instead of killing it on launch, since another client
   (e.g. WSJT-X) may be mid-session with it.
 - **The waterfall/oscilloscope display is audio-derived, not CAT-derived**
-  (`AudioCaptureEngine`, Mac-only): it captures from a user-selected sound
-  card input device and runs an FFT, entirely separate from the rig-control
-  data path above — no rigctld or wire-protocol involvement, and not
-  broadcast to mobile clients.
+  (`AudioCaptureEngine`, Mac-only): it runs an FFT over raw audio samples,
+  entirely separate from the rig-control data path above — no rigctld or
+  wire-protocol involvement, and the display itself is not broadcast to
+  mobile clients (only the raw audio is relayed to iPad). Where the audio
+  comes from follows the same `connectionMode` as rig control: `.local`
+  taps a user-selected Mac sound card input; `.remote` streams audio from
+  the Pi (`Pi/ftx1-audiostream.py`, raw TCP, 44100Hz) via
+  `RemoteAudioStreamClient`. Both feed the same downstream FFT/relay code,
+  which also gates APRS decoding and (on the Mac) local playback with
+  volume/squelch controls.
+- **Windows app is a separate, remote-only client** (`Apps/Windows/`, C# +
+  WinUI 3) that talks directly to the Pi's rigctld and
+  `ftx1-audiostream.py` — it never goes through the Mac hub, and the Mac
+  doesn't need to be running. v1 scope is core rig control only (VFO A/B,
+  mode, PTT, power, SWR, band); MENU grid, Deep Settings, waterfall/audio,
+  and APRS are deferred. See `Apps/Windows/README.md`.
 - **Two menu systems, both driven by raw CAT passthrough** (most FTX-1 menu
   items have no hamlib func/level equivalent, per the CAT Operation
   Reference Manual):
@@ -91,11 +115,17 @@ Sources/FTX1Core/
                      Mac + iPad)
 ```
 
-Mac-only, not part of the shared package: `AudioCaptureEngine` (captures a
-selected sound card input, runs an FFT) and `ScopeDisplayView` (renders the
-resulting waterfall/oscilloscope frames) — see Architecture above. Neither
-is wired into the wire protocol or `RigController`, so they aren't shared
-with mobile targets the way the rest of this layout is.
+Mac-only, not part of the shared package: `AudioCaptureEngine` (runs an FFT
+over local- or Pi-sourced audio), `ScopeDisplayView` (renders the resulting
+waterfall/oscilloscope frames), and `RemoteAudioStreamClient` (the `.remote`
+audio path to the Pi) — see Architecture above. None of these are wired into
+the wire protocol or `RigController`, so they aren't shared with mobile
+targets the way the rest of this layout is.
+
+`Apps/Windows/FTX1RemoteWindows/` (C# + WinUI 3) shares no code with
+`FTX1Core` — Swift/SwiftUI isn't viable on Windows — but is architecturally
+closest to the Mac permanently in `.remote` mode, minus process management
+and the WebSocket server. See `Apps/Windows/README.md`.
 
 ## Not yet built / open
 
@@ -115,6 +145,17 @@ with mobile targets the way the rest of this layout is.
   fully populated — see above.
 - Waterfall/oscilloscope display is Mac-only; not exposed to mobile clients
   and not part of the wire protocol (see Architecture above).
+- "Pi/Tailscale unreachable" vs. "rigctld/radio down but the Pi is fine" is
+  not yet distinguished in `.remote` mode's connection-state UI — both
+  currently surface as one generic failed state.
+- Windows app v1 is a build-verified skeleton (not yet run against real
+  hardware) and covers core rig control only — MENU grid, Deep Settings,
+  waterfall/audio, and APRS decode are deferred (not architecturally
+  blocked, since direct-to-Pi gives it the live per-item read Deep Settings
+  needs — unlike iPad). See `Apps/Windows/README.md`.
+- WSJT-X's "Hamlib NET rigctl" setup must be pointed manually at whichever
+  host is active (localhost in `.local`, the Pi in `.remote`) — not managed
+  by this app.
 - Deep Settings: RADIO SETTING's WIRES-X tab (no CAT manual source yet —
   postdates the manual's firmware revision), KEY/DIAL's MIC UP/MIC DOWN
   (unknown shape, deliberately deferred), and the manual's P1=09 "PRESET"
