@@ -226,20 +226,28 @@ struct ContentView: View {
     /// of the waterfall/oscilloscope/mute column, just grouped next to it.
     private var audioLevelControls: some View {
         HStack(spacing: 8) {
-            // Squelch's range must match the RMS scale `SquelchGate`/iPad's
-            // own slider use (0...0.2) — reusing the 0...1 volume range here
-            // meant a tiny nudge set a threshold no real signal's RMS could
-            // ever cross, so the gate looked permanently closed.
-            verticalSlider(
-                value: squelchBinding, label: "SQL", range: 0...0.2,
-                onLabelTap: { hub.isAutoSquelch.toggle() }, isLabelActive: hub.isAutoSquelch
-            )
+            verticalSlider(value: squelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
             verticalSlider(value: volumeBinding, label: "VOL")
         }
     }
 
+    /// Upper bound of the squelch slider's *displayed* range — chosen to
+    /// give useful resolution around real quieting-dip/static-floor values
+    /// (~0.001-0.08 in the 2026-09-08 hardware capture `SquelchGate`'s
+    /// design is based on), not the old 0...0.2 loudness-threshold range.
+    private static let squelchDisplayRange: Float = 0.05
+
+    /// `SquelchGate.threshold` is now "how close to true silence counts as
+    /// quieting" — *smaller* is stricter (see its doc comment). That reads
+    /// backwards on a slider, where raising it should tighten the squelch
+    /// like a normal radio's knob, so this inverts the displayed position:
+    /// dragging up lowers the stored threshold (stricter), dragging down
+    /// raises it (more lenient).
     private var squelchBinding: Binding<Float> {
-        Binding(get: { hub.squelchThreshold }, set: { hub.squelchThreshold = $0 })
+        Binding(
+            get: { Self.squelchDisplayRange - hub.squelchThreshold },
+            set: { hub.squelchThreshold = Self.squelchDisplayRange - $0 }
+        )
     }
 
     private var volumeBinding: Binding<Float> {
@@ -252,10 +260,7 @@ struct ContentView: View {
     /// that target length from whatever space this view is actually given
     /// (here, `audioLevelControls`' `.frame(width: 70, height: meterHeight)`
     /// in the caller) rather than a hardcoded constant.
-    private func verticalSlider(
-        value: Binding<Float>, label: String, range: ClosedRange<Float> = 0...1,
-        onLabelTap: (() -> Void)? = nil, isLabelActive: Bool = false
-    ) -> some View {
+    private func verticalSlider(value: Binding<Float>, label: String, range: ClosedRange<Float> = 0...1) -> some View {
         VStack(spacing: 4) {
             GeometryReader { geometry in
                 Slider(value: value, in: range)
@@ -263,22 +268,9 @@ struct ContentView: View {
                     .rotationEffect(.degrees(-90))
                     .frame(width: geometry.size.width, height: geometry.size.height)
             }
-            if let onLabelTap {
-                // The tappable auto-squelch toggle — only "SQL" opts in via
-                // `onLabelTap`; "VOL" falls through to the plain `Text`
-                // below unchanged.
-                Button(action: onLabelTap) {
-                    Text(label)
-                        .font(.caption2)
-                        .foregroundStyle(isLabelActive ? Color.green : Color.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Auto squelch: find the lowest setting that mutes static")
-            } else {
-                Text(label)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 
