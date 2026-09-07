@@ -10,10 +10,14 @@ struct ContentView: View {
     @EnvironmentObject private var viewModel: RigClientViewModel
     @AppStorage("hubHost") private var host: String = ""
     @AppStorage(AudioPlaybackSettings.volumeKey) private var audioVolume: Double = 0.8
-    @AppStorage(AudioPlaybackSettings.squelchThresholdKey) private var audioSquelchThreshold: Double = 0.02
+    @AppStorage(AudioPlaybackSettings.squelchThresholdKey) private var audioSquelchThreshold: Double = 0.015
     @State private var isDraggingPower = false
     @State private var localPowerLevel: Double = 0
     @State private var isPTTPressed = false
+
+    /// Upper bound of the squelch slider's *displayed* range — see the
+    /// Mac's identical constant/doc comment in its own `ContentView`.
+    private static let squelchDisplayRange: Double = 0.05
 
     var body: some View {
         ScrollView {
@@ -110,10 +114,21 @@ struct ContentView: View {
             Text("Squelch")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Slider(value: $audioSquelchThreshold, in: 0...0.2)
-                .onChange(of: audioSquelchThreshold) { _, newValue in
-                    viewModel.audioEngine.squelchThreshold = Float(newValue)
-                }
+            // `SquelchGate.threshold` is now "how close to true silence
+            // counts as quieting" — smaller is stricter (see its doc
+            // comment). Inverted here so dragging up still tightens the
+            // squelch, matching a normal radio's knob and the Mac's own
+            // slider — see its `squelchBinding` doc comment.
+            Slider(
+                value: Binding(
+                    get: { Self.squelchDisplayRange - audioSquelchThreshold },
+                    set: { audioSquelchThreshold = Self.squelchDisplayRange - $0 }
+                ),
+                in: 0...Self.squelchDisplayRange
+            )
+            .onChange(of: audioSquelchThreshold) { _, newValue in
+                viewModel.audioEngine.squelchThreshold = Float(newValue)
+            }
         }
     }
 

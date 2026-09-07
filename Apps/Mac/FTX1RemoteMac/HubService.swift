@@ -63,28 +63,15 @@ final class HubService: ObservableObject {
             AudioPlaybackSettings.volume = Double(audioVolume)
         }
     }
+    /// See `SquelchGate`'s doc comment — this is now a "how close to true
+    /// silence counts as quieting" cutoff, not a loudness gate. `ContentView`
+    /// inverts the slider's displayed direction so raising it still reads as
+    /// "tighter," matching a normal squelch knob, even though a *smaller*
+    /// stored value is what's actually stricter here.
     @Published var squelchThreshold: Float = Float(AudioPlaybackSettings.squelchThreshold) {
         didSet {
-            guard !isApplyingAutoSquelchUpdate else { return }
-            if isAutoSquelch { isAutoSquelch = false }
             audioPlayback.squelchThreshold = squelchThreshold
             AudioPlaybackSettings.squelchThreshold = Double(squelchThreshold)
-        }
-    }
-    /// Set only while forwarding the engine's own auto-squelch
-    /// recomputation into `squelchThreshold` below — suppresses that
-    /// property's usual "this is a manual edit" handling (turning auto back
-    /// off, re-persisting, re-forwarding to the engine) for a change that
-    /// came from the engine in the first place.
-    private var isApplyingAutoSquelchUpdate = false
-    /// Auto-squelch: continuously finds the lowest `squelchThreshold` that
-    /// still mutes the static (see `SquelchGate.updateAutoThreshold`).
-    /// Bound to the "SQL" label tap in `ContentView`; dragging the slider
-    /// manually (above) turns this back off since the two are mutually
-    /// exclusive ways of driving the same `squelchThreshold`.
-    @Published var isAutoSquelch = false {
-        didSet {
-            audioPlayback.isAutoSquelch = isAutoSquelch
         }
     }
 
@@ -166,12 +153,6 @@ final class HubService: ObservableObject {
 
         rigctldProcess.onStateChange = { [weak self] state in
             self?.rigctldProcessState = state
-        }
-        audioPlayback.onAutoSquelchThresholdChange = { [weak self] value in
-            guard let self else { return }
-            self.isApplyingAutoSquelchUpdate = true
-            self.squelchThreshold = value
-            self.isApplyingAutoSquelchUpdate = false
         }
         audioCapture.onNewFrame = { [weak self] frame in
             self?.waterfallImage = frame.waterfall

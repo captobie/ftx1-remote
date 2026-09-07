@@ -2,37 +2,62 @@ import XCTest
 @testable import FTX1Core
 
 final class SquelchGateTests: XCTestCase {
-    func testGateOpensAboveThreshold() {
-        var gate = SquelchGate(threshold: 0.1)
+    func testGateOpensOnAQuietingDip() {
+        var gate = SquelchGate(threshold: 0.01)
         XCTAssertFalse(gate.isOpen)
-        XCTAssertTrue(gate.update(rms: 0.5))
+        XCTAssertTrue(gate.update(rms: 0.005))
         XCTAssertTrue(gate.isOpen)
     }
 
-    func testGateStaysClosedBelowThreshold() {
-        var gate = SquelchGate(threshold: 0.1)
-        XCTAssertFalse(gate.update(rms: 0.01))
+    func testGateStaysClosedOnLoudStatic() {
+        // Static never dips near-silent (see SquelchGate's doc comment for
+        // the hardware capture this is based on) — a loud, non-quiet
+        // reading alone should never open the gate.
+        var gate = SquelchGate(threshold: 0.01)
+        XCTAssertFalse(gate.update(rms: 0.07))
         XCTAssertFalse(gate.isOpen)
     }
 
-    func testGateHoldsOpenThroughReleaseWindow() {
-        var gate = SquelchGate(threshold: 0.1)
-        gate.releaseDuration = 0.3
+    func testGateHoldsOpenThroughReleaseWindowAfterQuietingDip() {
+        var gate = SquelchGate(threshold: 0.01)
+        gate.releaseDuration = 4.0
         let start = Date()
 
-        XCTAssertTrue(gate.update(rms: 0.5, now: start))
-        // Level drops, but still within the release window — should still
-        // read open (avoids chattering right at the threshold edge).
-        XCTAssertTrue(gate.update(rms: 0.0, now: start.addingTimeInterval(0.1)))
+        XCTAssertTrue(gate.update(rms: 0.005, now: start)) // the quieting dip
+        // A loud reading right after — indistinguishable from static on its
+        // own — should still read open, bridging through real speech.
+        XCTAssertTrue(gate.update(rms: 0.07, now: start.addingTimeInterval(1)))
     }
 
-    func testGateClosesAfterReleaseWindowElapses() {
-        var gate = SquelchGate(threshold: 0.1)
-        gate.releaseDuration = 0.3
+    func testGateClosesAfterReleaseWindowElapsesWithNoFurtherQuieting() {
+        var gate = SquelchGate(threshold: 0.01)
+        gate.releaseDuration = 4.0
         let start = Date()
 
-        XCTAssertTrue(gate.update(rms: 0.5, now: start))
-        XCTAssertFalse(gate.update(rms: 0.0, now: start.addingTimeInterval(0.5)))
+        XCTAssertTrue(gate.update(rms: 0.005, now: start))
+        XCTAssertFalse(gate.update(rms: 0.07, now: start.addingTimeInterval(5)))
+    }
+
+    func testRepeatedQuietingDipsExtendTheHangover() {
+        var gate = SquelchGate(threshold: 0.01)
+        gate.releaseDuration = 4.0
+        let start = Date()
+
+        XCTAssertTrue(gate.update(rms: 0.005, now: start))
+        XCTAssertTrue(gate.update(rms: 0.07, now: start.addingTimeInterval(3)))
+        // A second dip (e.g. the next pause between phrases) refreshes the
+        // hangover instead of letting it expire on the first one's clock.
+        XCTAssertTrue(gate.update(rms: 0.005, now: start.addingTimeInterval(3.5)))
+        XCTAssertTrue(gate.update(rms: 0.07, now: start.addingTimeInterval(6.5)))
+    }
+
+    func testSustainedLoudStaticNeverOpensTheGate() {
+        // The core case this design exists for: static that never quiets
+        // should stay closed indefinitely, no matter how long it runs.
+        var gate = SquelchGate(threshold: 0.01)
+        for _ in 0..<200 {
+            XCTAssertFalse(gate.update(rms: 0.07))
+        }
     }
 
     func testRMSOfSilenceIsZero() {
@@ -47,65 +72,5 @@ final class SquelchGateTests: XCTestCase {
         let samples: [Int16] = [Int16.max, Int16.min, Int16.max, Int16.min]
         let data = samples.withUnsafeBufferPointer { Data(buffer: $0) }
         XCTAssertEqual(SquelchGate.rms(ofInt16Bytes: data), 1, accuracy: 0.01)
-    }
-
-    func testAutoSquelchSeedsThresholdJustAboveFirstReading() {
-        var gate = SquelchGate(threshold: 0.5)
-        gate.isAutoEnabled = true
-        _ = gate.update(rms: 0.03)
-        XCTAssertEqual(gate.threshold, 0.04, accuracy: 0.0001)
-    }
-
-    func testAutoSquelchTracksNoiseFloorDownImmediately() {
-        var gate = SquelchGate(threshold: 0.5)
-        gate.isAutoEnabled = true
-        _ = gate.update(rms: 0.05)
-        // A quieter reading (the noise floor genuinely dropped) should pull
-        // the threshold straight down, not ease into it.
-        _ = gate.update(rms: 0.02)
-        XCTAssertEqual(gate.threshold, 0.03, accuracy: 0.0001)
-    }
-
-    func testAutoSquelchDoesNotChaseALoudSustainedSignalUpward() {
-        var gate = SquelchGate(threshold: 0.5)
-        gate.isAutoEnabled = true
-        _ = gate.update(rms: 0.02)
-        let calibratedThreshold = gate.threshold
-        // ~5 seconds' worth of loud updates at a realistic chunk rate
-        // shouldn't drag the tracked floor — and therefore the threshold —
-        // meaningfully toward the signal.
-        for _ in 0..<100 {
-            _ = gate.update(rms: 0.5)
-        }
-        XCTAssertEqual(gate.threshold, calibratedThreshold, accuracy: 0.001)
-        XCTAssertLessThan(gate.threshold, 0.1) // nowhere near the 0.5 signal
-        // ...and the gate should still be open throughout, since the
-        // threshold never chased the signal up past it.
-        XCTAssertTrue(gate.isOpen)
-    }
-
-    func testAutoSquelchStillOpensForARealSignal() {
-        var gate = SquelchGate(threshold: 0.5)
-        gate.isAutoEnabled = true
-        _ = gate.update(rms: 0.02) // calibrate against static
-        XCTAssertTrue(gate.update(rms: 0.3)) // a real signal opens it
-    }
-
-    func testReenablingAutoSquelchReseedsFromCurrentNoise() {
-        var gate = SquelchGate(threshold: 0.5)
-        gate.isAutoEnabled = true
-        _ = gate.update(rms: 0.05)
-        gate.isAutoEnabled = false
-        gate.isAutoEnabled = true
-        // Re-activation should seed from this reading directly, not carry
-        // over the stale floor from before it was toggled off.
-        _ = gate.update(rms: 0.01)
-        XCTAssertEqual(gate.threshold, 0.02, accuracy: 0.0001)
-    }
-
-    func testManualThresholdIsUnaffectedWhenAutoDisabled() {
-        var gate = SquelchGate(threshold: 0.1)
-        _ = gate.update(rms: 0.05)
-        XCTAssertEqual(gate.threshold, 0.1)
     }
 }
