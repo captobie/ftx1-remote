@@ -279,6 +279,42 @@ public actor CommandQueue {
             try await rigctld.setMenuItem(p1: 3, p2: 6, p3: 6, rawValue: "\(step)")
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try await rigctld.setMenuItem(p1: p1, p2: p2, p3: p3, rawValue: rawValue)
+        case .setVFOMemoryMode(let memory):
+            // "VM"'s P1 is fixed to "0" (MAIN-side), baked into the mnemonic
+            // like "RA0"/"GT0" above; P2 is 00=VFO or 11=Memory (see
+            // RigState.VFOMemoryMode) — a plain fixed-width int, so this
+            // reuses setRawInt directly rather than a bespoke method.
+            //
+            // Confirmed via live `nc` probing against real hardware (not
+            // documented anywhere in the manual): switching to Memory mode
+            // via a bare "VM011" silently fails unless a memory channel is
+            // already "selected" — "MC0" (which channel the rig is
+            // currently tracking) is readable at any time, even while in
+            // VFO mode, but the mode switch only takes effect if "MC0" is
+            // (re-)written immediately beforehand, even back to the exact
+            // value it already held. Switching to VFO mode has no such
+            // precondition. Re-assert whatever channel is currently
+            // tracked (defaulting to channel 1 if none has ever been
+            // selected) right before the mode switch to satisfy this.
+            if memory {
+                let currentChannel = (try? await rigctld.getRawInt("MC0")) ?? 1
+                try await rigctld.setRawInt("MC0", currentChannel, digits: 5)
+            }
+            try await rigctld.setRawInt("VM0", memory ? 11 : 0, digits: 2)
+        case .setMemoryChannel(let channel):
+            // "MC"'s P1 is fixed to "0" (MAIN-side); P2 is the 5-digit
+            // channel number.
+            try await rigctld.setRawInt("MC0", channel, digits: 5)
+        case .stepMemoryChannel(let up):
+            // "CH" (CHANNEL UP/DOWN) documents no MAIN/SUB P1 selector at
+            // all, unlike every other raw command here — unverified against
+            // real hardware which side this actually affects (see
+            // RigCommand.stepMemoryChannel's doc comment). Momentary, like
+            // .triggerZeroIn/.triggerAntennaTune above, so fire-and-forget.
+            // If hardware testing shows this targets the wrong side, replace
+            // this with a read-modify-write via "MC0" instead (read the
+            // current channel, clamp ±1, setRawInt("MC0", ..., digits: 5)).
+            try await rigctld.sendRawFireAndForget(up ? "CH0" : "CH1")
         }
     }
 }

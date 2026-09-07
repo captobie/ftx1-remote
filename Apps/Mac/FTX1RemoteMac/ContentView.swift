@@ -40,7 +40,8 @@ struct ContentView: View {
             }
 
             HStack(spacing: 12) {
-                VFODisplayBox(label: "VFO A", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) })
+                VFODisplayBox(label: "VFO A", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.vfoMemoryMode, memoryChannel: hub.rigState.memoryChannel, memoryChannelTag: hub.rigState.memoryChannelTag, onSetMemoryChannel: { hub.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepMemoryChannel(up: $0)) })
+                vmToggleButton
                 vfoSwapButton
                 VFODisplayBox(label: "VFO B", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: false, mode: hub.rigState.secondaryMode?.displayName ?? "—", onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) })
             }
@@ -110,6 +111,24 @@ struct ContentView: View {
             hub.send(.swapActiveVFO)
         } label: {
             Image(systemName: "arrow.left.arrow.right")
+        }
+        .buttonStyle(.bordered)
+    }
+
+    /// Toggles VFO A between VFO and Memory-channel mode — the rig's own
+    /// V/M concept, over CAT (see `RigState.vfoMemoryMode`, the FTX-1's raw
+    /// "VM" command). Explicit-set rather than a blind toggle command:
+    /// reads the current mode from `rigState` and sends the opposite as an
+    /// explicit target, per this project's established preference for
+    /// determining intent explicitly rather than trusting a symmetric
+    /// toggle (see git history on the "PR"/MIC EQ "backwards toggle" bug).
+    private var vmToggleButton: some View {
+        Button {
+            hub.send(.setVFOMemoryMode(memory: hub.rigState.vfoMemoryMode != .memory))
+        } label: {
+            Text("V/M")
+                .font(.caption)
+                .fontWeight(hub.rigState.vfoMemoryMode == .memory ? .bold : .regular)
         }
         .buttonStyle(.bordered)
     }

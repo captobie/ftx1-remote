@@ -204,6 +204,22 @@ public enum RigCommand: Sendable, Equatable {
     /// covering every item in the catalog with a single `RigCommand` case
     /// rather than one per item (there are ~300).
     case setMenuItem(p1: Int, p2: Int, p3: Int, rawValue: String)
+    /// Sets VFO A's VFO-vs-memory mode explicitly (not a toggle — see
+    /// `RigState.vfoMemoryMode`'s doc comment for why an explicit target
+    /// state is preferred over a blind toggle command). Maps to the FTX-1's
+    /// raw "VM" CAT command, P1 fixed to MAIN-side.
+    case setVFOMemoryMode(memory: Bool)
+    /// Directly selects a MAIN-side memory channel (1-99) — see
+    /// `RigState.memoryChannel`. Maps to the FTX-1's raw "MC" CAT command,
+    /// P1 fixed to MAIN-side.
+    case setMemoryChannel(Int)
+    /// Steps the MAIN-side memory channel up/down by one — see
+    /// `RigctldClient.stepMemoryChannel(up:)` for why this stays a distinct
+    /// command rather than the client resolving it to `setMemoryChannel`
+    /// itself (the true current channel and wrap behavior are server-side
+    /// concerns, not something the client should assume). Maps to the
+    /// FTX-1's raw "CH" CAT command.
+    case stepMemoryChannel(up: Bool)
 
     /// Wire payload for `.setMenuItem`, the one case here with more than a
     /// single associated value.
@@ -268,6 +284,9 @@ public enum RigCommand: Sendable, Equatable {
         case setAPRSBeaconType = "set_aprs_beacon_type"
         case setFMChannelStep = "set_fm_channel_step"
         case setMenuItem = "set_menu_item"
+        case setVFOMemoryMode = "set_vfo_memory_mode"
+        case setMemoryChannel = "set_memory_channel"
+        case stepMemoryChannel = "step_memory_channel"
     }
 }
 
@@ -373,6 +392,12 @@ extension RigCommand: Codable {
         case .setMenuItem:
             let payload = try container.decode(MenuItemPayload.self, forKey: .value)
             self = .setMenuItem(p1: payload.p1, p2: payload.p2, p3: payload.p3, rawValue: payload.rawValue)
+        case .setVFOMemoryMode:
+            self = .setVFOMemoryMode(memory: try container.decode(Bool.self, forKey: .value))
+        case .setMemoryChannel:
+            self = .setMemoryChannel(try container.decode(Int.self, forKey: .value))
+        case .stepMemoryChannel:
+            self = .stepMemoryChannel(up: try container.decode(Bool.self, forKey: .value))
         }
     }
 
@@ -520,6 +545,15 @@ extension RigCommand: Codable {
         case .setMenuItem(let p1, let p2, let p3, let rawValue):
             try container.encode(CommandName.setMenuItem, forKey: .cmd)
             try container.encode(MenuItemPayload(p1: p1, p2: p2, p3: p3, rawValue: rawValue), forKey: .value)
+        case .setVFOMemoryMode(let memory):
+            try container.encode(CommandName.setVFOMemoryMode, forKey: .cmd)
+            try container.encode(memory, forKey: .value)
+        case .setMemoryChannel(let channel):
+            try container.encode(CommandName.setMemoryChannel, forKey: .cmd)
+            try container.encode(channel, forKey: .value)
+        case .stepMemoryChannel(let up):
+            try container.encode(CommandName.stepMemoryChannel, forKey: .cmd)
+            try container.encode(up, forKey: .value)
         }
     }
 }

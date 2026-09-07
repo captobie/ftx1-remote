@@ -221,6 +221,21 @@ public struct RigState: Codable, Equatable, Sendable {
     /// `aprsActive`; nil whenever APRS decoding is disabled, off-frequency,
     /// or nothing's been decoded in the last 5 seconds.
     public var aprsLastCallsign: String?
+    /// MAIN-side (VFO A) VFO-vs-memory mode, from the FTX-1's raw "VM" (VFO /
+    /// MEMORY CHANNEL) CAT command's P2 field, P1 fixed to MAIN-side. See
+    /// `VFOMemoryMode`.
+    public var vfoMemoryMode: VFOMemoryMode?
+    /// Currently-selected MAIN-side memory channel, 1-99 — the FTX-1's raw
+    /// "MC" (MEMORY CHANNEL) CAT command's P2 field, P1 fixed to MAIN-side.
+    /// Only meaningful while `vfoMemoryMode == .memory`; nil otherwise
+    /// (including while in VFO mode, rather than holding onto a stale
+    /// channel number from the last time memory mode was active).
+    public var memoryChannel: Int?
+    /// `memoryChannel`'s user-assigned TAG (name), if it has one — the
+    /// FTX-1's raw "MT" CAT command. Same "nil rather than stale" contract
+    /// as `memoryChannel`: only meaningful alongside a non-nil
+    /// `memoryChannel`, and nil (not held over) once that's nil too.
+    public var memoryChannelTag: String?
 
     public init(
         frequencyHz: Int = 0,
@@ -273,7 +288,10 @@ public struct RigState: Codable, Equatable, Sendable {
         c4fmCallsign: String? = nil,
         c4fmReflector: String? = nil,
         aprsActive: Bool = false,
-        aprsLastCallsign: String? = nil
+        aprsLastCallsign: String? = nil,
+        vfoMemoryMode: VFOMemoryMode? = nil,
+        memoryChannel: Int? = nil,
+        memoryChannelTag: String? = nil
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -326,6 +344,41 @@ public struct RigState: Codable, Equatable, Sendable {
         self.c4fmReflector = c4fmReflector
         self.aprsActive = aprsActive
         self.aprsLastCallsign = aprsLastCallsign
+        self.vfoMemoryMode = vfoMemoryMode
+        self.memoryChannel = memoryChannel
+        self.memoryChannelTag = memoryChannelTag
+    }
+}
+
+/// MAIN-side VFO-vs-memory mode, per the FTX-1's raw "VM" (VFO / MEMORY
+/// CHANNEL) CAT command's P2 field — see `RigState.vfoMemoryMode`. The
+/// manual documents 6 P2 values (00 VFO, 10 MT, 11 Memory, 20 PMS, 21
+/// P-01L-P-50U, 51 5MHz Band Memory, 91 EMG); this app's UI only
+/// distinguishes plain VFO vs. plain Memory, so every other value collapses
+/// into `.other(rawP2:)` rather than being modeled as its own case.
+///
+/// Not to be confused with the CAT manual's *other*, unrelated "VM" table
+/// entry ("MAIN-SIDE TO MEMORY CHANNEL", no parameters) — this type is
+/// backed by the P1/P2-parameterized "VFO / MEMORY CHANNEL" entry only, read
+/// via a plain `RigctldClient.getRawInt("VM0")` and set via `setRawInt("VM0",
+/// ..., digits: 2)` (see `HubService.refreshState()` and `CommandQueue`'s
+/// `.setVFOMemoryMode` case) — P1 is fixed to MAIN-side and baked into the
+/// "VM0" prefix, same fixed-sub-selector shape as "RA0"/"GT0"/"CT0", so no
+/// bespoke method was needed.
+public enum VFOMemoryMode: Equatable, Codable, Sendable {
+    case vfo
+    case memory
+    case other(rawP2: Int)
+
+    /// Maps the raw "VM" P2 value read from the rig to this type — same
+    /// "raw CAT layer stays dumb, the app layer does the mapping" split as
+    /// `CWMessageStatus.init(rawValue:)` (see `HubService.refreshState()`).
+    public init(rawP2: Int) {
+        switch rawP2 {
+        case 0: self = .vfo
+        case 11: self = .memory
+        default: self = .other(rawP2: rawP2)
+        }
     }
 }
 
