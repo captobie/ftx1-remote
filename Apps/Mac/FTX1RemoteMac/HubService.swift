@@ -31,6 +31,13 @@ final class HubService: ObservableObject {
     @Published private(set) var rigState = RigState()
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published private(set) var rigctldProcessState: RigctldProcessController.State = .stopped
+    /// Whether the on/off toggle has been switched on — true from
+    /// `startRigctld()` until `stopRigctld()`. A mode-independent stand-in
+    /// for `rigctldProcessState == .running/.starting`: that reflects
+    /// `RigctldProcessController`'s local-process lifecycle, which has
+    /// nothing to report in `RigctldSettings.ConnectionMode.remote` (see
+    /// `startRigctld()` below) since nothing is ever spawned there.
+    @Published private(set) var isActive = false
     @Published private(set) var waterfallImage: CGImage?
     @Published private(set) var oscilloscopeImage: CGImage?
     @Published private(set) var waterfallZoom: Float = 1
@@ -58,6 +65,14 @@ final class HubService: ObservableObject {
     /// still reaching the decoder" question on the other side of the gate.
     private var aprsGateWasActive = false
     private static let aprsGateLogger = Logger(subsystem: "com.ftx1remote.mac", category: "aprs-gate")
+    /// Diagnostic-only — surfaces exactly what `runConnectionLoop` caught,
+    /// since `connectionState`'s `.failed(String)` case (backed by
+    /// `error.localizedDescription`) is not shown anywhere in the UI today,
+    /// and a plain `RigctldError`/`NWError` case with no `LocalizedError`
+    /// conformance produces an unhelpful generic string there anyway.
+    /// Check via Console.app (subsystem "com.ftx1remote.mac", category
+    /// "connection") regardless of how the app was launched.
+    private static let connectionLogger = Logger(subsystem: "com.ftx1remote.mac", category: "connection")
     /// Most recently APRS-decoded station + when it was heard. `refreshState`
     /// (the ~500ms poll/broadcast cycle) surfaces this as `RigState.
     /// aprsLastCallsign` for up to 5 seconds past `at`, then lets it read
@@ -198,6 +213,19 @@ final class HubService: ObservableObject {
     /// window, retrying quickly instead, so the UI doesn't flash an error
     /// on every normal startup.
     func startRigctld() {
+        isActive = true
+        guard RigctldSettings.connectionMode == .local else {
+            // Remote mode: rigctld already runs on the configured host (e.g.
+            // a Raspberry Pi over Tailscale) — this Mac only ever connects
+            // to it as a network client, never spawns or owns the process.
+            // `isFreshStart: false` is deliberate too: that grace period
+            // exists for a rigctld this app just spawned and is still
+            // opening its serial device/binding its port, which doesn't
+            // apply to one that was already running before this app
+            // launched.
+            connectRigctld(isFreshStart: false)
+            return
+        }
         let config = RigctldProcessController.Configuration(
             binaryPath: RigctldSettings.binaryPath,
             modelNumber: RigctldSettings.modelNumber,
@@ -214,7 +242,9 @@ final class HubService: ObservableObject {
     }
 
     func stopRigctld() {
+        isActive = false
         disconnectRigctld()
+        guard RigctldSettings.connectionMode == .local else { return }
         rigctldProcess.stop()
     }
 
@@ -427,6 +457,7 @@ final class HubService: ObservableObject {
                         endBackgroundActivity()
                         waterfallImage = nil
                         oscilloscopeImage = nil
+                        Self.connectionLogger.error("rigctld connection loop failed: \(String(describing: error), privacy: .public)")
                         connectionState = .failed(error.localizedDescription)
                     }
                 }
@@ -449,7 +480,18 @@ final class HubService: ObservableObject {
         // partway through — see the `commandGeneration` guard right before this
         // cycle's values are published, below.
         let generationAtStart = commandGeneration
-        let frequencyHz = try await rigctld.getFrequency()
+        // Best-effort, same reasoning as every other field below: an
+        // occasional bad/empty CAT reply shouldn't tear down and reconnect
+        // the whole session — it should just fall back to the last known
+        // frequency and let the next poll cycle (500ms later) try again.
+        // This one used to be a hard `try`, the only one in this whole
+        // function — rare enough on the Mac's dedicated local USB link to
+        // never surface, but a `badResponse` here now and then over a real
+        // network hop was enough to repeatedly tear down and reconnect the
+        // entire session, which is what was actually causing the
+        // connect/disconnect cycling (confirmed via the `connectionLogger`
+        // output in `runConnectionLoop`, not guessed).
+        let frequencyHz = (try? await rigctld.getFrequency()) ?? rigState.frequencyHz
         // Best-effort like the secondary-VFO mode read below: this rig's
         // hamlib backend returns a protocol error (RPRT -8) for "get mode"
         // while the active VFO is in C4FM, rather than a parseable string.

@@ -15,6 +15,8 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
+    @State private var connectionMode = RigctldSettings.connectionMode
+    @State private var remoteHost = RigctldSettings.remoteHost
     @State private var binaryPath = RigctldSettings.binaryPath
     @State private var modelNumber = RigctldSettings.modelNumber
     @State private var devicePath = RigctldSettings.devicePath
@@ -69,36 +71,52 @@ struct SettingsView: View {
 
     private var rigctldTab: some View {
         Form {
-            HStack {
-                Picker("Binary path", selection: $binaryPath) {
-                    ForEach(availableBinaryPaths, id: \.self) { path in
-                        Text(path).tag(path)
+            Picker("Connection", selection: $connectionMode) {
+                Text("Local (USB)").tag(RigctldSettings.ConnectionMode.local)
+                Text("Remote (Pi)").tag(RigctldSettings.ConnectionMode.remote)
+            }
+            .pickerStyle(.segmented)
+            Text("Changing this requires restarting FTX1Remote to take effect.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            switch connectionMode {
+            case .local:
+                HStack {
+                    Picker("Binary path", selection: $binaryPath) {
+                        ForEach(availableBinaryPaths, id: \.self) { path in
+                            Text(path).tag(path)
+                        }
+                    }
+                    Button("Choose…") { chooseBinaryPath() }
+                }
+                TextField("Model number", value: $modelNumber, format: .number.grouping(.never))
+                Picker("Serial device", selection: $devicePath) {
+                    ForEach(availableDevices, id: \.self) { device in
+                        Text((device as NSString).lastPathComponent).tag(device)
                     }
                 }
-                Button("Choose…") { chooseBinaryPath() }
-            }
-            TextField("Model number", value: $modelNumber, format: .number.grouping(.never))
-            Picker("Serial device", selection: $devicePath) {
-                ForEach(availableDevices, id: \.self) { device in
-                    Text((device as NSString).lastPathComponent).tag(device)
+                Picker("Baud rate", selection: $baudRate) {
+                    ForEach(baudRateOptionsIncludingCurrent, id: \.self) { rate in
+                        Text("\(rate)").tag(rate)
+                    }
                 }
-            }
-            Picker("Baud rate", selection: $baudRate) {
-                ForEach(baudRateOptionsIncludingCurrent, id: \.self) { rate in
-                    Text("\(rate)").tag(rate)
+                Picker("PTT port", selection: $pttPort) {
+                    Text("None (use CAT on main port)").tag("")
+                    ForEach(availableDevices, id: \.self) { device in
+                        Text((device as NSString).lastPathComponent).tag(device)
+                    }
                 }
-            }
-            Picker("PTT port", selection: $pttPort) {
-                Text("None (use CAT on main port)").tag("")
-                ForEach(availableDevices, id: \.self) { device in
-                    Text((device as NSString).lastPathComponent).tag(device)
-                }
+            case .remote:
+                TextField("Pi hostname", text: $remoteHost, prompt: Text("e.g. raspberrypi.tailnet-name.ts.net"))
             }
         }
         .padding(.top, 8)
     }
 
     private func save() {
+        RigctldSettings.connectionMode = connectionMode
+        RigctldSettings.remoteHost = remoteHost
         RigctldSettings.binaryPath = binaryPath
         RigctldSettings.modelNumber = modelNumber
         RigctldSettings.devicePath = devicePath

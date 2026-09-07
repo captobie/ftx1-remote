@@ -75,6 +75,93 @@ over Tailscale, without needing to be physically near the rig.
   wire-protocol involvement — and Mac-only today; it isn't broadcast to
   mobile clients.
 
+## Remote rigctld (Option A) — in progress
+
+Moving the FTX-1's USB/serial connection off the Mac and onto a headless
+Raspberry Pi 2B on the same Tailscale tailnet, so the Mac doesn't need to be
+physically near the rig. rigctld runs directly on the Pi against the CP210x
+ports; everything else (WebSocket server, `CommandQueue`, state-push to
+iOS/iPad clients) stays on the Mac unchanged. Deliberately minimal — not a
+re-architecture.
+
+- **Both Local (direct USB) and Remote (Pi) stay supported** — implemented —
+  not a one-way migration: the radio's USB cable may be plugged into the Mac
+  or the Pi depending on where/how the operator is using it. Selected by
+  `RigctldSettings.connectionMode` (`.local`/`.remote`). `.remote` adds
+  `RigctldSettings.remoteHost` (a Tailscale MagicDNS hostname; port stays
+  fixed at 4532, not user-configurable). `SettingsView`'s rigctld tab has a
+  mode picker, with the Local fields (binary path, device path, baud rate,
+  PTT port) and the Remote host field shown/hidden based on the selection.
+- **Changing the mode requires an app relaunch to take effect** — implemented
+  — no runtime teardown/rebuild of `RigctldClient`/`CommandQueue` (both are
+  fixed for `HubService`'s lifetime, resolved once in `AppDelegate.init`
+  from `RigctldSettings.connectionMode`/`.remoteHost`). Settings shows a
+  "restart to apply" caption under the mode picker.
+- **`RigctldProcessController` stays, but only runs in `.local` mode** —
+  implemented. `HubService.startRigctld()`/`stopRigctld()` branch on
+  `connectionMode`: in `.remote`, they skip `RigctldProcessController`
+  entirely and just connect/disconnect `RigctldClient` against
+  `remoteHost:4532` (the host `AppDelegate` resolved at launch) — the Mac
+  never spawns, adopts, or kills anything in that mode. `.remote` also skips
+  `connectRigctld`'s `isFreshStart` grace period (nothing was "just
+  spawned"). Since `rigctldProcessState` has nothing to report in `.remote`
+  (nothing was ever started), `HubService.isActive` is a new
+  mode-independent flag (true from `startRigctld()` to `stopRigctld()`)
+  driving the connect/disconnect button instead, and `ContentView` hides the
+  process-state label entirely in `.remote` mode.
+- **Timeouts**: plan is a single shared constant (not per-mode) sized for the
+  Tailscale-hop case, since slack time costs nothing in `.local`.
+  `HubService`'s `isFreshStart`/startup-grace-period reconnect logic no
+  longer applies in `.remote` (implemented — see above, there's no "just
+  spawned, still binding its port" case for a rigctld the Mac never
+  started). Still flagged for re-validation on real hardware rather than
+  assumed unchanged: `RigctldClient.sendRawCommand`'s 1s raw-command
+  timeout, and general reconnect-delay tuning over an actual Tailscale hop.
+- **Planned UI distinction** (not yet designed in detail): "Pi/Tailscale
+  unreachable" vs. "rigctld/radio down but the Pi itself is fine" as two
+  different `.failed` states in `.remote` mode, since they point to
+  different fixes. Needs `RigctldError`/the connect catch site to carry
+  enough information to tell TCP-level unreachability apart from a bad or
+  absent reply.
+- **WSJT-X's "Hamlib NET rigctl" setup has to be pointed at whichever host
+  this app is currently using** (localhost in `.local`, the Pi in
+  `.remote`). This app does not manage that — repoint it manually whenever
+  the mode changes (and the app relaunches).
+- **Status as of 2026-09-07**: mode picker, `HubService`'s local/remote
+  branching, and real-hardware validation against the Pi all working and
+  confirmed by the user — stable connection (no more connect/disconnect
+  cycling) and both VFO A/B reading correctly. Two bugs found and fixed
+  during that validation:
+  `HubService.refreshState()`'s `getFrequency()` read was the one call in
+  the whole poll cycle not wrapped in `try?`, so an occasional bad CAT reply
+  (rare enough over the Mac's old dedicated local link to never surface) was
+  tearing down and reconnecting the whole session instead of just falling
+  back to the last known value like every other field — now fixed the same
+  way as everything else. Also added a `connectionLogger` (`os.Logger`,
+  category "connection") since `connectionState`'s `.failed(String)` wasn't
+  surfaced anywhere before — check Console.app when debugging future
+  connection-loop issues. (The Pi's own `rigctld.service` missing `-o`,
+  causing wrong secondary-VFO reads, was a Pi-config fix, not an app bug —
+  fixed by adding `-o` to the systemd unit's `ExecStart`. The original "no
+  CAT response at all" outage that blocked this validation for most of a day
+  turned out to be a stale hamlib 4.6 pulled in as a Direwolf dependency on
+  the Pi, shadowing the working 4.7 install — also not an app bug.) Still
+  open: the
+  Pi/Tailscale-unreachable UI distinction above, and the rest of the
+  validation-plan checklist (WSJT-X coexistence, soak testing, timeout
+  re-tuning under sustained real-network conditions).
+- **Scope note**: this phase covers rig control (CAT/rigctld) only.
+  Audio — today captured Mac-locally by `AudioCaptureEngine` from a
+  user-selected sound card input (the rig's audio-out cable plugged into the
+  Mac; see Architecture above) — also needs to move to the Pi in `.remote`
+  mode, since the physical audio cable moves with the USB/serial connection.
+  That's a deliberately separate, later phase: the Pi will need to capture
+  audio itself and stream it to the Mac, which then feeds the existing
+  waterfall/oscilloscope FFT, APRS decoding, and the Mac→iPad audio relay
+  (`AudioStreamEncoder`/`RigWebSocketServer.broadcastAudio`) the same way
+  Mac-local capture does today. Not designed yet — do not assume audio is
+  covered by the rig-control plan above.
+
 ## Structure
 
 - `Sources/FTX1Core/` — Swift Package Manager package (target `FTX1Core`,

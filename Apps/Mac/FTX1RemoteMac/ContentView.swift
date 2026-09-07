@@ -28,8 +28,13 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 connectButton
-                Text(rigctldProcessLabel)
-                    .foregroundStyle(.secondary)
+                // rigctldProcessState has nothing to report in .remote mode
+                // (see HubService.startRigctld()) — nothing is ever spawned
+                // there, so there's no process-lifecycle label worth showing.
+                if RigctldSettings.connectionMode == .local {
+                    Text(rigctldProcessLabel)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button("Settings…") { showingSettings = true }
             }
@@ -260,7 +265,7 @@ struct ContentView: View {
     }
 
     private var isRigctldActive: Bool {
-        hub.rigctldProcessState == .running || hub.rigctldProcessState == .starting
+        hub.isActive
     }
 
     private var rigctldProcessLabel: String {

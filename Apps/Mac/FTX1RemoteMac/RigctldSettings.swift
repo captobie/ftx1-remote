@@ -5,11 +5,40 @@ import Foundation
 /// SwiftUI `View`) needs to read these too, and both it and `SettingsView`
 /// read/write the same keys so they stay in sync.
 enum RigctldSettings {
+    /// Whether this Mac talks to rigctld running locally (spawned by
+    /// `RigctldProcessController` against a USB-attached rig, today's only
+    /// setup) or to one already running remotely (e.g. on a Raspberry Pi
+    /// over Tailscale, when the rig's USB cable is plugged in there
+    /// instead) — see repo root CLAUDE.md's "Remote rigctld (Option A)".
+    /// Both are meant to stay available long-term, selected per session
+    /// depending on where the rig is physically connected, not a one-way
+    /// migration from one to the other.
+    enum ConnectionMode: String, CaseIterable {
+        case local
+        case remote
+    }
+
+    static let connectionModeKey = "rigctld.connectionMode"
+    static let remoteHostKey = "rigctld.remoteHost"
     static let binaryPathKey = "rigctld.binaryPath"
     static let modelNumberKey = "rigctld.modelNumber"
     static let devicePathKey = "rigctld.devicePath"
     static let baudRateKey = "rigctld.baudRate"
     static let pttPortKey = "rigctld.pttPort"
+
+    static var connectionMode: ConnectionMode {
+        get { UserDefaults.standard.string(forKey: connectionModeKey).flatMap(ConnectionMode.init(rawValue:)) ?? .local }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: connectionModeKey) }
+    }
+
+    /// Tailscale MagicDNS hostname (or IP) of the remote rigctld host, used
+    /// only when `connectionMode == .remote`. Port isn't configurable
+    /// separately — rigctld's default 4532 is assumed on the remote host
+    /// too.
+    static var remoteHost: String {
+        get { UserDefaults.standard.string(forKey: remoteHostKey) ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: remoteHostKey) }
+    }
 
     static var binaryPath: String {
         get { UserDefaults.standard.string(forKey: binaryPathKey) ?? "/opt/homebrew/bin/rigctld" }
