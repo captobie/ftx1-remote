@@ -48,4 +48,64 @@ final class SquelchGateTests: XCTestCase {
         let data = samples.withUnsafeBufferPointer { Data(buffer: $0) }
         XCTAssertEqual(SquelchGate.rms(ofInt16Bytes: data), 1, accuracy: 0.01)
     }
+
+    func testAutoSquelchSeedsThresholdJustAboveFirstReading() {
+        var gate = SquelchGate(threshold: 0.5)
+        gate.isAutoEnabled = true
+        _ = gate.update(rms: 0.03)
+        XCTAssertEqual(gate.threshold, 0.04, accuracy: 0.0001)
+    }
+
+    func testAutoSquelchTracksNoiseFloorDownImmediately() {
+        var gate = SquelchGate(threshold: 0.5)
+        gate.isAutoEnabled = true
+        _ = gate.update(rms: 0.05)
+        // A quieter reading (the noise floor genuinely dropped) should pull
+        // the threshold straight down, not ease into it.
+        _ = gate.update(rms: 0.02)
+        XCTAssertEqual(gate.threshold, 0.03, accuracy: 0.0001)
+    }
+
+    func testAutoSquelchDoesNotChaseALoudSustainedSignalUpward() {
+        var gate = SquelchGate(threshold: 0.5)
+        gate.isAutoEnabled = true
+        _ = gate.update(rms: 0.02)
+        let calibratedThreshold = gate.threshold
+        // ~5 seconds' worth of loud updates at a realistic chunk rate
+        // shouldn't drag the tracked floor — and therefore the threshold —
+        // meaningfully toward the signal.
+        for _ in 0..<100 {
+            _ = gate.update(rms: 0.5)
+        }
+        XCTAssertEqual(gate.threshold, calibratedThreshold, accuracy: 0.001)
+        XCTAssertLessThan(gate.threshold, 0.1) // nowhere near the 0.5 signal
+        // ...and the gate should still be open throughout, since the
+        // threshold never chased the signal up past it.
+        XCTAssertTrue(gate.isOpen)
+    }
+
+    func testAutoSquelchStillOpensForARealSignal() {
+        var gate = SquelchGate(threshold: 0.5)
+        gate.isAutoEnabled = true
+        _ = gate.update(rms: 0.02) // calibrate against static
+        XCTAssertTrue(gate.update(rms: 0.3)) // a real signal opens it
+    }
+
+    func testReenablingAutoSquelchReseedsFromCurrentNoise() {
+        var gate = SquelchGate(threshold: 0.5)
+        gate.isAutoEnabled = true
+        _ = gate.update(rms: 0.05)
+        gate.isAutoEnabled = false
+        gate.isAutoEnabled = true
+        // Re-activation should seed from this reading directly, not carry
+        // over the stale floor from before it was toggled off.
+        _ = gate.update(rms: 0.01)
+        XCTAssertEqual(gate.threshold, 0.02, accuracy: 0.0001)
+    }
+
+    func testManualThresholdIsUnaffectedWhenAutoDisabled() {
+        var gate = SquelchGate(threshold: 0.1)
+        _ = gate.update(rms: 0.05)
+        XCTAssertEqual(gate.threshold, 0.1)
+    }
 }

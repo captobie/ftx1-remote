@@ -49,6 +49,24 @@ public final class AudioPlaybackEngine {
         set { squelchGate.threshold = newValue }
     }
 
+    /// When true, `squelchThreshold` is no longer settable from outside —
+    /// `push(pcm:)` recomputes it every chunk from the live noise floor
+    /// (see `SquelchGate.updateAutoThreshold`) and reports each change via
+    /// `onAutoSquelchThresholdChange` instead.
+    public var isAutoSquelch: Bool {
+        get { squelchGate.isAutoEnabled }
+        set { squelchGate.isAutoEnabled = newValue }
+    }
+
+    /// Fires with the newly-computed threshold on every `push(pcm:)` call
+    /// while `isAutoSquelch` is on, so the UI slider can track it live.
+    /// Invoked inline from `push(pcm:)` — never hops threads itself, so it
+    /// lands on whatever the caller's own context is (both current callers
+    /// already run `push(pcm:)` on the main actor, see their doc comments).
+    /// Never fires for a manually-set threshold; that flows the other way
+    /// (UI sets `squelchThreshold` directly).
+    public var onAutoSquelchThresholdChange: ((Float) -> Void)?
+
     public init() {
         squelchGate = SquelchGate(threshold: Float(AudioPlaybackSettings.squelchThreshold))
         player.volume = Float(AudioPlaybackSettings.volume)
@@ -163,6 +181,9 @@ public final class AudioPlaybackEngine {
         let rms = SquelchGate.rms(ofInt16Bytes: pcm)
         let isOpen = squelchGate.update(rms: rms)
         gateMixer.outputVolume = isOpen ? 1 : 0
+        if squelchGate.isAutoEnabled {
+            onAutoSquelchThresholdChange?(squelchGate.threshold)
+        }
 
         pushLogCounter += 1
         if pushLogCounter % 40 == 0 {
