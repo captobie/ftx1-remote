@@ -366,6 +366,24 @@ final class HubService: ObservableObject {
         case .setRepeaterShift(let mode): rigState.repeaterShiftMode = mode
         case .setAPRSBeaconType(let mode): rigState.aprsBeaconType = mode
         case .setFMChannelStep(let step): rigState.fmChannelStep = step
+        case .setVFOMemoryMode(let memory): rigState.vfoMemoryMode = memory ? .memory : .vfo
+        case .setMemoryChannel(let channel):
+            rigState.memoryChannel = channel
+            // Cleared rather than left stale — the new channel's tag isn't
+            // known until the next poll's getMemoryChannelTag(channel:)
+            // read, and showing the *previous* channel's tag against the
+            // new number would be actively misleading.
+            rigState.memoryChannelTag = nil
+        case .stepMemoryChannel(let up):
+            // Optimistic ±1, clamped defensively since the real rig's wrap
+            // behavior at the ends of the populated range isn't hardware-
+            // confirmed yet (see RigCommand.stepMemoryChannel) — a genuine
+            // mismatch self-corrects at the next poll, same as any other
+            // optimistic value here.
+            if rigState.vfoMemoryMode == .memory, let current = rigState.memoryChannel {
+                rigState.memoryChannel = max(1, min(99, current + (up ? 1 : -1)))
+                rigState.memoryChannelTag = nil
+            }
         // Momentary triggers, and CW MESSAGE record/select/play (whose
         // `cwMessageStatus` doesn't map 1:1 from any single command — see
         // RigState.cwMessageStatus) have no direct optimistic value; left
@@ -683,6 +701,21 @@ final class HubService: ObservableObject {
         // passthrough reasoning as aprsBeaconType above.
         let fmChannelStepRaw = try? await rigctld.getMenuItem(p1: 3, p2: 6, p3: 6)
         let fmChannelStep = fmChannelStepRaw.flatMap(Int.init)
+        // "VM0" reads VFO-vs-memory mode with its fixed MAIN-side P1 baked
+        // in, same shape as "GT0"/"CT0" above — see RigState.vfoMemoryMode.
+        // Only bother reading the memory channel itself while actually in
+        // Memory mode, to avoid a wasted extra round trip on every poll tick
+        // otherwise.
+        let vfoMemoryModeRaw = try? await rigctld.getRawInt("VM0")
+        let memoryChannel = (vfoMemoryModeRaw == 11) ? (try? await rigctld.getRawInt("MC0")) : nil
+        // "MT" is addressed by the channel number itself, not a fixed
+        // prefix, so this can only run once memoryChannel's own read above
+        // has resolved — one more round trip, same "only while relevant"
+        // reasoning as memoryChannel itself.
+        var memoryChannelTag: String?
+        if let memoryChannel {
+            memoryChannelTag = try? await rigctld.getMemoryChannelTag(channel: memoryChannel)
+        }
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
         // Same C4FM gap as the primary mode read above — see `isC4FM`.
@@ -764,7 +797,13 @@ final class HubService: ObservableObject {
             c4fmCallsign: rigState.c4fmCallsign,
             c4fmReflector: rigState.c4fmReflector,
             aprsActive: aprsActive,
-            aprsLastCallsign: aprsLastCallsign
+            aprsLastCallsign: aprsLastCallsign,
+            vfoMemoryMode: vfoMemoryModeRaw.map(VFOMemoryMode.init(rawP2:)) ?? rigState.vfoMemoryMode,
+            // No `?? rigState.memoryChannel` fallback: this should go back
+            // to nil when out of Memory mode, not hold onto a stale channel
+            // number from the last time it was active.
+            memoryChannel: memoryChannel,
+            memoryChannelTag: memoryChannelTag
         )
         updateWPSDMonitorState()
         await server.broadcast(rigState)

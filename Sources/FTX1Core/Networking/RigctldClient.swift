@@ -559,6 +559,26 @@ public actor RigctldClient {
         try await sendRawFireAndForget(prefix + rawValue)
     }
 
+    /// Reads a memory channel's TAG (its user-assigned name, up to 12 ASCII
+    /// characters) via the FTX-1's raw "MT" (MEMORY CHANNEL TAG WRITE)
+    /// command's Read side — despite the "WRITE" name, it documents Read/
+    /// Answer too, addressed by the 5-digit channel number itself (like
+    /// "MC"/"MR") rather than a fixed sub-selector prefix like "VM0"/"MC0"
+    /// above, so `getRawInt`/`getMenuItem`'s fixed-prefix shape doesn't fit
+    /// — same "raw CAT layer stays dumb" split as `getMenuItem`. The rig
+    /// pads the field with trailing spaces up to its 12-character width;
+    /// trimmed here since an empty/whitespace-only tag isn't meaningful to
+    /// show. See `RigState.memoryChannelTag`.
+    public func getMemoryChannelTag(channel: Int) async throws -> String? {
+        let prefix = "MT" + String(format: "%05d", channel)
+        let reply = try await sendRawCommand(prefix)
+        guard reply.hasPrefix(prefix) else { return nil }
+        var value = String(reply.dropFirst(prefix.count))
+        if value.hasSuffix(";") { value.removeLast() }
+        let trimmed = value.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     /// Like `sendRawCommand`, but doesn't wait for or read any reply at
     /// all — for Set-style commands, which this rig (confirmed both by
     /// the CAT manual, which documents an Answer only for Read commands,
