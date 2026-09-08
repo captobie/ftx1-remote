@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import os
 
 /// Talks to rigctld over its plain-text TCP protocol on localhost:4532.
 ///
@@ -8,6 +9,13 @@ import Network
 /// (it lives here rather than in a Mac-only target so the Mac app doesn't
 /// need a second local package just for this one file).
 public actor RigctldClient {
+    /// Debug-level, off by default in Console.app — enable "Include Debug
+    /// Messages" and filter category "rawcat" to see every raw CAT command
+    /// sent and its reply. Added while chasing a VM0/MC0 mode-switch bug
+    /// where nothing in the app's own state logic explained the symptom;
+    /// kept since this class of real-hardware CAT quirk (see CLAUDE.md) is
+    /// exactly what this project keeps needing wire-level visibility into.
+    private static let catLogger = Logger(subsystem: "com.ftx1remote.mac", category: "rawcat")
     private var connection: NWConnection?
     private var readBuffer = Data()
     private let host: NWEndpoint.Host
@@ -121,8 +129,11 @@ public actor RigctldClient {
     public func send(_ command: String) async throws -> String {
         await acquireRoundTrip()
         defer { releaseRoundTrip() }
+        Self.catLogger.debug("-> \(command, privacy: .public)")
         try await write(command)
-        return try await readLine()
+        let result = try await readLine()
+        Self.catLogger.debug("<- \(command, privacy: .public) : \(result, privacy: .public)")
+        return result
     }
 
     /// Sends a command that returns a known fixed number of lines back
@@ -131,11 +142,13 @@ public actor RigctldClient {
     public func query(_ command: String, lines: Int) async throws -> [String] {
         await acquireRoundTrip()
         defer { releaseRoundTrip() }
+        Self.catLogger.debug("-> \(command, privacy: .public)")
         try await write(command)
         var result: [String] = []
         for _ in 0..<lines {
             result.append(try await readLine())
         }
+        Self.catLogger.debug("<- \(command, privacy: .public) : \(result.joined(separator: "|"), privacy: .public)")
         return result
     }
 
@@ -149,15 +162,18 @@ public actor RigctldClient {
     private func queryOrError(_ command: String, lines: Int) async throws -> [String] {
         await acquireRoundTrip()
         defer { releaseRoundTrip() }
+        Self.catLogger.debug("-> \(command, privacy: .public)")
         try await write(command)
         var result: [String] = []
         for _ in 0..<lines {
             let line = try await readLine()
             if line.hasPrefix("RPRT") {
+                Self.catLogger.debug("<- \(command, privacy: .public) : \(line, privacy: .public) (error)")
                 throw RigctldError.badResponse
             }
             result.append(line)
         }
+        Self.catLogger.debug("<- \(command, privacy: .public) : \(result.joined(separator: "|"), privacy: .public)")
         return result
     }
 
@@ -169,9 +185,23 @@ public actor RigctldClient {
     /// keeps these calls' behavior the same as before -o was added.
     private static let currentVFOArg = "currVFO"
 
+    /// Deliberately raw CAT ("FA;") rather than hamlib's native "f currVFO" —
+    /// confirmed via direct `nc`-based probing (2026-09-07) that hamlib's own
+    /// frequency answer goes stale after a `VM0`/`MC0` transition even though
+    /// a bare "FA;" read at the exact same moment already reports the correct,
+    /// restored value. hamlib's *core* (not the FTX-1 backend itself, which
+    /// has no cache of its own) caches the last successful get_freq result
+    /// and only invalidates it on a hamlib-native set_freq/set_vfo call —
+    /// this app's `VM0`/`MC0` writes go through raw passthrough exclusively,
+    /// completely invisible to that cache, so the cached value just keeps
+    /// being served regardless of what the radio has actually done since.
+    /// "FA" always addresses the Main-side register directly regardless of
+    /// `RIG_VFO_CURR` resolution (confirmed by reading the FTX-1 hamlib
+    /// backend source: `RIG_VFO_A`/`.MAIN`/`.CURR` all map to the same "FA"
+    /// command), so this is a like-for-like replacement, not a behavior
+    /// change in what's being read — only in bypassing the stale cache.
     public func getFrequency() async throws -> Int {
-        let line = try await send("f \(Self.currentVFOArg)")
-        guard let hz = Int(line) else { throw RigctldError.badResponse }
+        guard let hz = try await getRawInt("FA") else { throw RigctldError.badResponse }
         return hz
     }
 
@@ -312,6 +342,7 @@ public actor RigctldClient {
     public func sendRawCommand(_ cmd: String, timeout: Duration = .seconds(1)) async throws -> String {
         await acquireRoundTrip()
         defer { releaseRoundTrip() }
+        Self.catLogger.debug("-> \(cmd, privacy: .public)")
         try await write("W \(cmd); ;")
 
         return try await withThrowingTaskGroup(of: String.self) { group in
@@ -323,6 +354,7 @@ public actor RigctldClient {
             do {
                 let result = try await group.next()!
                 group.cancelAll()
+                Self.catLogger.debug("<- \(cmd, privacy: .public) : \(result, privacy: .public)")
                 return result
             } catch {
                 // See connect()'s identical comment above: cancelling here,
@@ -350,6 +382,7 @@ public actor RigctldClient {
                 // not answering this one command, this reconnect attempt
                 // fails too and the next hard read (e.g. `getFrequency()`)
                 // surfaces that normally.
+                Self.catLogger.debug("<- \(cmd, privacy: .public) : (no reply, \(String(describing: error), privacy: .public))")
                 disconnect()
                 try? await connect()
                 group.cancelAll()
@@ -611,6 +644,7 @@ public actor RigctldClient {
     private func sendRawCommandFireAndForget(_ cmd: String) async throws {
         await acquireRoundTrip()
         defer { releaseRoundTrip() }
+        Self.catLogger.debug("-> \(cmd, privacy: .public) (fire-and-forget)")
         try await write("W \(cmd); ;")
     }
 

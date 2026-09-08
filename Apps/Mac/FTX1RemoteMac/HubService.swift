@@ -125,6 +125,28 @@ final class HubService: ObservableObject {
     /// that matters.
     private var commandGeneration = 0
 
+    /// The Main-side frequency/mode most recently polled while the rig was
+    /// in VFO (not Memory) mode — refreshed every poll tick in VFO mode,
+    /// frozen the moment Memory mode is entered, so it always holds "what
+    /// the VFO was showing right before the memory channel took over".
+    /// `send(_:)` replays it after `.setVFOMemoryMode(memory: false)`.
+    ///
+    /// Why: driven over CAT from this app, "VM000" flips the rig's VFO/
+    /// Memory flag but leaves the Main-side frequency/mode parked on the
+    /// memory channel's values; the front-panel V/M button restores the
+    /// VFO correctly, so the rig does keep a parked VFO — it just doesn't
+    /// expose it: `MR00000;` (the manual's "read VFO" channel) answers
+    /// with the *active memory channel's* contents while in Memory mode,
+    /// confirmed on real hardware 2026-09-08. Three attempts at giving the
+    /// CAT link quiet time around the exit write (poll-snapshot discard,
+    /// poll-loop pause, lock-held pause) all failed on hardware — see git
+    /// log — so rather than keep hunting for a way to make the rig restore
+    /// the VFO itself, the hub remembers the VFO and puts it back
+    /// explicitly. `nil` until the first VFO-mode poll completes (e.g. the
+    /// app launched with the rig already in Memory mode), in which case
+    /// the exit falls back to a bare "VM000".
+    private var lastVFOState: (hz: Int, mode: RigMode)?
+
     private let pollInterval: Duration
     private let reconnectDelay: Duration
     private let startupRetryInterval: Duration
@@ -304,6 +326,21 @@ final class HubService: ObservableObject {
             Task { await commandQueue.enqueue(.setFrequency(hz: targetHz)) }
             return
         }
+        // Same "app-level knowledge lives here, not in the serializer"
+        // reasoning as `.setBand`: restoring the VFO after leaving Memory
+        // mode needs `lastVFOState`, which only the hub tracks. Order
+        // matters — the rig rejects an "FA" set with "?;" while still in
+        // Memory mode (per hamlib's FTX-1 backend source), so the mode
+        // flip must go out first; `CommandQueue` is FIFO, so enqueueing in
+        // sequence guarantees that.
+        if case .setVFOMemoryMode(memory: false) = command, let last = lastVFOState {
+            Task {
+                await commandQueue.enqueue(command)
+                await commandQueue.enqueue(.setFrequency(hz: last.hz))
+                await commandQueue.enqueue(.setMode(last.mode))
+            }
+            return
+        }
         Task { await commandQueue.enqueue(command) }
     }
 
@@ -371,7 +408,9 @@ final class HubService: ObservableObject {
         case .setRepeaterShift(let mode): rigState.repeaterShiftMode = mode
         case .setAPRSBeaconType(let mode): rigState.aprsBeaconType = mode
         case .setFMChannelStep(let step): rigState.fmChannelStep = step
-        case .setVFOMemoryMode(let memory): rigState.vfoMemoryMode = memory ? .memory : .vfo
+        case .setVFOMemoryMode(let memory):
+            rigState.vfoMemoryMode = memory ? .memory : .vfo
+            if memory { Task { await refreshAfterEnteringMemory() } }
         case .setMemoryChannel(let channel):
             rigState.memoryChannel = channel
             // Cleared rather than left stale — the new channel's tag isn't
@@ -396,6 +435,46 @@ final class HubService: ObservableObject {
         case .triggerZeroIn, .triggerAntennaTune, .selectCWMessageChannel,
              .setCWMessageRecording, .playCWMessage, .setMenuItem:
             break
+        }
+    }
+
+    /// Fast path for the one transition the hub can't predict optimistically:
+    /// entering Memory mode recalls a channel whose contents the app doesn't
+    /// know until it reads them. Leaving that to the regular poll took ~10s
+    /// on real hardware (2026-09-08): the cycle in flight when the command
+    /// lands is discarded whole (`commandGeneration` guard), the next one
+    /// only publishes at the end of its ~30 reads, and in C4FM every cycle
+    /// also eats `GT0`/`PR1`'s 1s timeouts. Leaving Memory mode has no such
+    /// lag because `send(_:)` replays `lastVFOState` optimistically.
+    ///
+    /// Reads just the fields the recall changes, retrying briefly until the
+    /// rig has actually switched (frequency differs from the parked VFO's —
+    /// the recall isn't instant), then publishes them directly. Bumps
+    /// `commandGeneration` so a poll cycle that captured its frequency
+    /// before the recall can't overwrite these with stale values at its end.
+    private func refreshAfterEnteringMemory() async {
+        let parkedHz = lastVFOState?.hz
+        let maxAttempts = 10
+        for attempt in 0..<maxAttempts {
+            if attempt > 0 { try? await Task.sleep(for: .milliseconds(300)) }
+            guard rigState.vfoMemoryMode == .memory else { return }
+            guard let hz = try? await rigctld.getFrequency() else { continue }
+            // A channel programmed to the parked frequency is legitimate —
+            // accept it on the last attempt rather than spinning forever.
+            if hz == parkedHz && attempt < maxAttempts - 1 { continue }
+            let modeName = try? await rigctld.getMode().mode
+            let isC4FM = modeName == nil ? (try? await rigctld.isActiveModeC4FM()) ?? false : false
+            let channel = try? await rigctld.getRawInt("MC0")
+            var tag: String?
+            if let channel { tag = try? await rigctld.getMemoryChannelTag(channel: channel) }
+            guard rigState.vfoMemoryMode == .memory else { return }
+            commandGeneration += 1
+            rigState.frequencyHz = hz
+            rigState.mode = modeName.flatMap(RigMode.init(rawValue:)) ?? (isC4FM ? .c4fm : rigState.mode)
+            rigState.memoryChannel = channel
+            rigState.memoryChannelTag = tag
+            await server.broadcast(rigState)
+            return
         }
     }
 
@@ -810,6 +889,11 @@ final class HubService: ObservableObject {
             memoryChannel: memoryChannel,
             memoryChannelTag: memoryChannelTag
         )
+        // Only while genuinely in VFO mode — never from a Memory-mode
+        // snapshot, whose frequency/mode are the channel's, not the VFO's.
+        if rigState.vfoMemoryMode == .vfo {
+            lastVFOState = (rigState.frequencyHz, rigState.mode)
+        }
         updateWPSDMonitorState()
         await server.broadcast(rigState)
     }
