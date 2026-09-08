@@ -296,6 +296,14 @@ public actor CommandQueue {
             // precondition. Re-assert whatever channel is currently
             // tracked (defaulting to channel 1 if none has ever been
             // selected) right before the mode switch to satisfy this.
+            //
+            // Switching back to VFO has its own wrinkle, handled one layer
+            // up in `HubService.send(_:)` rather than here: "VM000" alone
+            // flips the mode flag but — driven from this app, though not
+            // from the front panel — leaves the Main-side frequency/mode
+            // parked on the memory channel's values. The hub follows this
+            // command with explicit `.setFrequency`/`.setMode` of the last
+            // VFO state it saw; see `HubService.lastVFOState`.
             if memory {
                 let currentChannel = (try? await rigctld.getRawInt("MC0")) ?? 1
                 try await rigctld.setRawInt("MC0", currentChannel, digits: 5)
