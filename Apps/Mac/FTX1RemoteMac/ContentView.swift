@@ -141,10 +141,11 @@ struct ContentView: View {
             .background(hub.rigState.ptt ? Color.red : Color.gray.opacity(0.25))
             .foregroundStyle(hub.rigState.ptt ? Color.white : Color.primary)
             .clipShape(RoundedRectangle(cornerRadius: 8))
+            .opacity(hub.rigState.transmitEnabled ? 1 : 0.4)
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in
-                        guard !isPTTPressed else { return }
+                        guard !isPTTPressed, hub.rigState.transmitEnabled else { return }
                         isPTTPressed = true
                         hub.send(.setPTT(true))
                     }

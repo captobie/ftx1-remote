@@ -25,6 +25,7 @@ enum RigctldSettings {
     static let devicePathKey = "rigctld.devicePath"
     static let baudRateKey = "rigctld.baudRate"
     static let pttPortKey = "rigctld.pttPort"
+    static let transmitEnabledKey = "rigctld.transmitEnabled"
 
     static var connectionMode: ConnectionMode {
         get { UserDefaults.standard.string(forKey: connectionModeKey).flatMap(ConnectionMode.init(rawValue:)) ?? .local }
@@ -73,5 +74,21 @@ enum RigctldSettings {
     static var pttPort: String {
         get { UserDefaults.standard.string(forKey: pttPortKey) ?? "" }
         set { UserDefaults.standard.set(newValue, forKey: pttPortKey) }
+    }
+
+    /// Safety cutoff: when `false`, `HubService` refuses PTT/MOX/antenna-
+    /// tune/CW-message-playback from every source (local UI and remote
+    /// WebSocket clients alike — see `HubService.send(_:)`). Defaults to
+    /// `true` (unset reads as enabled) so this doesn't silently break
+    /// existing setups on upgrade — `UserDefaults.bool(forKey:)` itself
+    /// defaults missing keys to `false`, so the default has to be handled
+    /// explicitly here rather than relied on.
+    static var transmitEnabled: Bool {
+        get {
+            UserDefaults.standard.object(forKey: transmitEnabledKey) == nil
+                ? true
+                : UserDefaults.standard.bool(forKey: transmitEnabledKey)
+        }
+        set { UserDefaults.standard.set(newValue, forKey: transmitEnabledKey) }
     }
 }

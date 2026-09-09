@@ -236,6 +236,13 @@ public struct RigState: Codable, Equatable, Sendable {
     /// as `memoryChannel`: only meaningful alongside a non-nil
     /// `memoryChannel`, and nil (not held over) once that's nil too.
     public var memoryChannelTag: String?
+    /// Local app-level safety policy, not CAT-sourced — mirrors the Mac's
+    /// `RigctldSettings.transmitEnabled` and is pushed to clients like every
+    /// other field so a remote PTT/MOX/ANT TUNE control can reflect it. When
+    /// `false`, `HubService.send(_:)` refuses every transmit-capable
+    /// command (see its `isTransmitCapable(_:)`) regardless of which client
+    /// or UI control sent it.
+    public var transmitEnabled: Bool
 
     public init(
         frequencyHz: Int = 0,
@@ -291,7 +298,8 @@ public struct RigState: Codable, Equatable, Sendable {
         aprsLastCallsign: String? = nil,
         vfoMemoryMode: VFOMemoryMode? = nil,
         memoryChannel: Int? = nil,
-        memoryChannelTag: String? = nil
+        memoryChannelTag: String? = nil,
+        transmitEnabled: Bool = true
     ) {
         self.frequencyHz = frequencyHz
         self.mode = mode
@@ -347,6 +355,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.vfoMemoryMode = vfoMemoryMode
         self.memoryChannel = memoryChannel
         self.memoryChannelTag = memoryChannelTag
+        self.transmitEnabled = transmitEnabled
     }
 }
 

@@ -356,7 +356,7 @@ public struct MenuPageView<Controller: RigController>: View {
         } else if selectedPage == .ssb, item == 7 {
             displayDimmerButton
         } else if selectedPage == .ssb, item == 8 {
-            menuButtonShell {
+            menuButtonShell(disabled: !hub.rigState.transmitEnabled) {
                 hub.send(.setMox(!(hub.rigState.moxEnabled ?? false)))
             } label: {
                 twoLineLabel(top: "MOX", bottom: (hub.rigState.moxEnabled ?? false) ? "ON" : "OFF")
@@ -394,7 +394,7 @@ public struct MenuPageView<Controller: RigController>: View {
         } else if selectedPage == .ssb, item == 14 {
             procLevelButton
         } else if selectedPage == .ssb, item == 15 {
-            menuButtonShell {
+            menuButtonShell(disabled: !hub.rigState.transmitEnabled) {
                 hub.send(.triggerAntennaTune)
             } label: {
                 twoLineLabel(top: "ANT TUNE", bottom: "PUSH")
@@ -1374,13 +1374,15 @@ public struct MenuPageView<Controller: RigController>: View {
         .allowsHitTesting(false)
     }
 
-    private func menuButtonShell(action: @escaping () -> Void, @ViewBuilder label: () -> some View) -> some View {
+    private func menuButtonShell(disabled: Bool = false, action: @escaping () -> Void, @ViewBuilder label: () -> some View) -> some View {
         Button(action: action) {
             label()
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
         }
         .buttonStyle(.bordered)
+        .disabled(disabled)
+        .opacity(disabled ? 0.4 : 1)
     }
 
     /// The bottom line is the button's current *setting* — colorized via
