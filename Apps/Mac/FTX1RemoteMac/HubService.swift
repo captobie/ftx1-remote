@@ -38,8 +38,17 @@ final class HubService: ObservableObject {
     /// nothing to report in `RigctldSettings.ConnectionMode.remote` (see
     /// `startRigctld()` below) since nothing is ever spawned there.
     @Published private(set) var isActive = false
-    @Published private(set) var waterfallImage: CGImage?
-    @Published private(set) var oscilloscopeImage: CGImage?
+    /// The live waterfall/oscilloscope frames — deliberately NOT
+    /// `@Published` on this object. `AudioCaptureEngine` delivers a new
+    /// frame ~21 times a second (44100 Hz / 2048-sample chunks), and when
+    /// these were `@Published` here, every frame invalidated everything
+    /// observing `HubService` — i.e. all of `ContentView`, including the
+    /// 28-button `MenuPageView` grid and two `.segmented` pickers, whose
+    /// `NSSegmentedControl` relayout was measured (2026-09-09, `sample` on
+    /// a Release build) at ~50% of a core, continuously, with the rest of
+    /// the app near idle. A separate store lets only `ScopeDisplayView`
+    /// subscribe, so the 21 Hz churn stops at that one leaf view.
+    let scopeFrames = ScopeFrameStore()
     @Published private(set) var waterfallZoom: Float = 1
     @Published private(set) var oscilloscopeZoom: Float = 1
     /// Whether the Mac itself plays the captured radio audio out loud —
@@ -197,8 +206,7 @@ final class HubService: ObservableObject {
             self?.rigctldProcessState = state
         }
         audioCapture.onNewFrame = { [weak self] frame in
-            self?.waterfallImage = frame.waterfall
-            self?.oscilloscopeImage = frame.oscilloscope
+            self?.scopeFrames.update(frame)
         }
         audioCapture.onAudioSamples = { [weak self] samples, sampleRate in
             guard let self else { return }
@@ -611,8 +619,7 @@ final class HubService: ObservableObject {
         audioCapture.stop()
         audioPlayback.stop()
         endBackgroundActivity()
-        waterfallImage = nil
-        oscilloscopeImage = nil
+        scopeFrames.clear()
         wpsdMonitor.stop()
         rigState.c4fmCallsign = nil
         rigState.c4fmReflector = nil
@@ -656,8 +663,7 @@ final class HubService: ObservableObject {
                         audioCapture.stop()
                         audioPlayback.stop()
                         endBackgroundActivity()
-                        waterfallImage = nil
-                        oscilloscopeImage = nil
+                        scopeFrames.clear()
                         Self.connectionLogger.error("rigctld connection loop failed: \(String(describing: error), privacy: .public)")
                         connectionState = .failed(error.localizedDescription)
                     }
