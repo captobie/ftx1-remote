@@ -369,7 +369,7 @@ final class AudioCaptureEngine {
         }
 
         var maxAbsSample: Float = 0
-        for sample in samples { maxAbsSample = max(maxAbsSample, abs(sample)) }
+        vDSP_maxmgv(samples, 1, &maxAbsSample, vDSP_Length(fftSize))
         gain.peakAmplitude = max(oscilloscopeMinimumPeakAmplitude, max(maxAbsSample, gain.peakAmplitude - oscilloscopePeakDecayPerFrame))
 
         guard let waterfallImage = bitmap.appendRow(row),
@@ -433,45 +433,51 @@ private final class LockedFloat: @unchecked Sendable {
     }
 }
 
-/// Keeps the last `historyRows` intensity rows and rebuilds a `CGImage`
-/// from them on each new row — simpler and safer to get right without a
-/// live hardware test than incrementally scrolling a persistent bitmap
-/// context, at a cost (rebuilding ~binCount*historyRows pixels per frame)
-/// that's trivial at this size and frame rate.
+/// Keeps a persistent `binCount`×`historyRows` RGBA pixel buffer, newest
+/// row at the top, and scrolls it down by one row per frame before writing
+/// the new row in. This used to keep the last `historyRows` intensity rows
+/// and re-color every pixel from scratch each frame — ~38,400 gradient
+/// lookups per frame, ~825k/s at 21 fps — which was fine in a Release build
+/// but measured (2026-09-09, `sample`) at ~0.75 of a core in a Debug build,
+/// where each lookup's `zip`/`dropFirst` iteration went through unspecialized
+/// generic iterators with a malloc/free per pixel. Now each frame is one
+/// `memmove` plus `binCount` table lookups (see `WaterfallPalette.lut`).
 private final class WaterfallBitmap {
     private let binCount: Int
     private let historyRows: Int
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
-    nonisolated(unsafe) private var rows: [[Float]] = []
+    /// Packed RGBA8888, one `UInt32` per pixel, R in the lowest byte — the
+    /// same byte order in memory (`r, g, b, a`) as `premultipliedLast`
+    /// expects on this little-endian platform. Only ever touched from
+    /// `appendRow` — see `AutoGainState`'s doc comment for the isolation
+    /// reasoning.
+    nonisolated(unsafe) private var pixels: [UInt32]
 
     nonisolated init(binCount: Int, historyRows: Int) {
         self.binCount = binCount
         self.historyRows = historyRows
+        pixels = [UInt32](repeating: WaterfallPalette.lut[0], count: binCount * historyRows)
     }
 
     /// `row` is `binCount` intensity values, 0...1. Prepends as the newest
     /// row (top of the image), dropping the oldest once full. `nonisolated`
     /// to match `process()` — see `AutoGainState`'s doc comment for why.
     nonisolated func appendRow(_ row: [Float]) -> CGImage? {
-        rows.insert(row, at: 0)
-        if rows.count > historyRows {
-            rows.removeLast(rows.count - historyRows)
-        }
-
-        var pixels = [UInt8](repeating: 0, count: binCount * historyRows * 4)
-        for (rowIndex, intensities) in rows.enumerated() {
-            let rowOffset = rowIndex * binCount * 4
-            for col in 0..<binCount {
-                let color = WaterfallPalette.color(forIntensity: intensities[col])
-                let offset = rowOffset + col * 4
-                pixels[offset] = color.r
-                pixels[offset + 1] = color.g
-                pixels[offset + 2] = color.b
-                pixels[offset + 3] = 255
+        let rowPixels = binCount
+        let shiftedPixels = rowPixels * (historyRows - 1)
+        pixels.withUnsafeMutableBufferPointer { buffer in
+            guard let base = buffer.baseAddress else { return }
+            // Overlapping move (row N -> row N+1 for every row) — memmove,
+            // not memcpy, semantics are required here.
+            memmove(base + rowPixels, base, shiftedPixels * MemoryLayout<UInt32>.size)
+            for col in 0..<rowPixels {
+                base[col] = WaterfallPalette.lut[WaterfallPalette.index(forIntensity: row[col])]
             }
         }
 
-        let data = Data(pixels) as CFData
+        // Copied, not wrapped — `pixels` is mutated again next frame, while
+        // the CGImage handed out may still be on screen.
+        let data = pixels.withUnsafeBufferPointer { Data(buffer: $0) } as CFData
         guard let provider = CGDataProvider(data: data) else { return nil }
         return CGImage(
             width: binCount,
@@ -492,8 +498,25 @@ private final class WaterfallBitmap {
 /// Fixed intensity -> color gradient (black, low signal, through blue/
 /// cyan/green/yellow to red, strong signal) — literal RGB stops, matching
 /// `SMeterView`'s convention of hardcoded colors rather than asset-catalog
-/// or semantic ones.
+/// or semantic ones. Consumers go through `lut`/`index(forIntensity:)`, a
+/// 256-step quantization of the gradient built once; `color(forIntensity:)`
+/// is the exact definition that table is built from (see `WaterfallBitmap`
+/// for why the per-pixel path no longer calls it directly).
 private enum WaterfallPalette {
+    /// 256 packed RGBA8888 pixels (R in the lowest byte, alpha 255), entry
+    /// `i` being the gradient color at intensity `i / 255`.
+    nonisolated(unsafe) static let lut: [UInt32] = (0..<256).map { step in
+        let color = color(forIntensity: Float(step) / 255)
+        return UInt32(color.r) | UInt32(color.g) << 8 | UInt32(color.b) << 16 | 0xFF00_0000
+    }
+
+    /// Clamps to 0...1 (so a NaN or out-of-range intensity can't index out
+    /// of bounds) and rounds to the nearest of `lut`'s 256 steps.
+    nonisolated static func index(forIntensity value: Float) -> Int {
+        let clamped = max(0, min(1, value))
+        return Int(clamped * 255 + 0.5)
+    }
+
     nonisolated(unsafe) private static let stops: [(threshold: Float, r: UInt8, g: UInt8, b: UInt8)] = [
         (0.00, 0, 0, 0),
         (0.25, 0, 0, 180),
