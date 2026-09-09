@@ -14,6 +14,7 @@ import SwiftUI
 /// the rigctld tab.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var hub: HubService
 
     @State private var connectionMode = RigctldSettings.connectionMode
     @State private var remoteHost = RigctldSettings.remoteHost
@@ -71,6 +72,18 @@ struct SettingsView: View {
 
     private var rigctldTab: some View {
         Form {
+            // Applies immediately via a live binding into `hub`, unlike
+            // every other control on this tab (which waits for "Done") —
+            // it's a safety cutoff, not a connection parameter, so
+            // "Cancel" must never be able to silently leave it un-applied.
+            // See `HubService.transmitEnabled`'s doc comment for what it
+            // gates and the force-unkey behavior when switched off
+            // mid-transmission.
+            Toggle("Enable Transmit", isOn: $hub.transmitEnabled)
+            Text("When off, PTT, MOX, antenna tuning, and CW MESSAGE playback are disabled for every connected client. Applies immediately.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             Picker("Connection", selection: $connectionMode) {
                 Text("Local (USB)").tag(RigctldSettings.ConnectionMode.local)
                 Text("Remote (Pi)").tag(RigctldSettings.ConnectionMode.remote)
@@ -362,4 +375,5 @@ private struct AppearanceSettingsTab: View {
 
 #Preview {
     SettingsView()
+        .environmentObject(HubService())
 }

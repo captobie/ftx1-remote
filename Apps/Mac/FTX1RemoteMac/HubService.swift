@@ -28,7 +28,7 @@ final class HubService: ObservableObject {
         case failed(String)
     }
 
-    @Published private(set) var rigState = RigState()
+    @Published private(set) var rigState = RigState(transmitEnabled: RigctldSettings.transmitEnabled)
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published private(set) var rigctldProcessState: RigctldProcessController.State = .stopped
     /// Whether the on/off toggle has been switched on — true from
@@ -72,6 +72,26 @@ final class HubService: ObservableObject {
         didSet {
             audioPlayback.squelchThreshold = squelchThreshold
             AudioPlaybackSettings.squelchThreshold = Double(squelchThreshold)
+        }
+    }
+    /// Bound live by `SettingsView`'s "Enable Transmit" toggle — unlike the
+    /// rest of the rigctld tab, this applies immediately rather than
+    /// waiting for "Done", since it's a safety cutoff, not a connection
+    /// parameter. `didSet` persists it, mirrors it into `rigState` (so
+    /// remote clients see the same disabled state — see `MenuPageView`'s
+    /// MOX/ANT TUNE buttons and each app target's PTT button), broadcasts
+    /// the change, and — if switched off mid-transmission — force-unkeys
+    /// the rig immediately rather than just blocking future attempts.
+    @Published var transmitEnabled: Bool = RigctldSettings.transmitEnabled {
+        didSet {
+            RigctldSettings.transmitEnabled = transmitEnabled
+            rigState.transmitEnabled = transmitEnabled
+            if !transmitEnabled {
+                if rigState.ptt { send(.setPTT(false)) }
+                if rigState.moxEnabled == true { send(.setMox(false)) }
+            }
+            let state = rigState
+            Task { await server.broadcast(state) }
         }
     }
 
@@ -320,6 +340,10 @@ final class HubService: ObservableObject {
     /// own. This is the only path commands take (local UI and WebSocket-
     /// forwarded mobile commands both call this), so it covers both.
     func send(_ command: RigCommand) {
+        if !transmitEnabled, Self.isTransmitCapable(command) {
+            Self.connectionLogger.notice("Blocked transmit-capable command (transmit disabled): \(String(describing: command), privacy: .public)")
+            return
+        }
         if case .setBand(let name) = command {
             guard let band = BandPlan.band(named: name) else { return }
             let targetHz = BandMemory.lastFrequencyHz(forBand: band.name) ?? band.defaultFrequencyHz
@@ -342,6 +366,32 @@ final class HubService: ObservableObject {
             return
         }
         Task { await commandQueue.enqueue(command) }
+    }
+
+    /// Whether a command actually keys the transmitter (or, for
+    /// `.setPTT`/`.setMox`, keys it *on* — the "off" direction is always
+    /// safe and must never be blocked, including the force-unkey in
+    /// `transmitEnabled`'s `didSet` above). Deliberately an exhaustive
+    /// switch with no `default:`, same convention as `applyOptimistically`/
+    /// `CommandQueue.apply`'s `RigCommand` switches — so a future new
+    /// transmit-capable command forces a compile error here rather than
+    /// silently slipping past the `transmitEnabled` gate in `send(_:)`.
+    private static func isTransmitCapable(_ command: RigCommand) -> Bool {
+        switch command {
+        case .setPTT(let on): return on
+        case .setMox(let on): return on
+        case .playCWMessage, .triggerAntennaTune: return true
+        case .setFrequency, .setSecondaryFrequency, .swapActiveVFO, .setMode, .setBand,
+             .setPowerLevel, .setBreakIn, .setKeyer, .setCWSpeed, .setCWPitch, .setBreakInDelay,
+             .setCWSpot, .triggerZeroIn, .setMoniLevel, .selectCWMessageChannel,
+             .setCWMessageRecording, .setAtt, .setPreamp, .setTuner, .setDisplayContrast,
+             .setDisplayDimmer, .setDisplayLevel, .setDisplayPeak, .setDisplayMarker, .setMicGain,
+             .setAMCLevel, .setVox, .setVoxGain, .setVoxDelay, .setDNF, .setAGC, .setMicEQ,
+             .setProcLevel, .setNBLevel, .setDNRLevel, .setAntSelect, .setTXW, .setSquelchType,
+             .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
+             .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel:
+            return false
+        }
     }
 
     /// Mirrors a just-applied `RigCommand` straight into `rigState`, called
@@ -887,7 +937,14 @@ final class HubService: ObservableObject {
             // to nil when out of Memory mode, not hold onto a stale channel
             // number from the last time it was active.
             memoryChannel: memoryChannel,
-            memoryChannelTag: memoryChannelTag
+            memoryChannelTag: memoryChannelTag,
+            // No CAT source — this is a local app-level policy flag, not
+            // something rigctld reports. Without passing it through
+            // explicitly here, this full reconstruction would silently
+            // reset it back to the `RigState` default (`true`) every ~500ms
+            // poll cycle, defeating the toggle within a fraction of a
+            // second of it being turned off.
+            transmitEnabled: rigState.transmitEnabled
         )
         // Only while genuinely in VFO mode — never from a Memory-mode
         // snapshot, whose frequency/mode are the channel's, not the VFO's.
