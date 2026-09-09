@@ -82,6 +82,33 @@ over Tailscale, without needing to be physically near the rig.
   downstream FFT/relay code, which can't tell them apart. The
   waterfall/oscilloscope display itself is Mac-only either way (not
   broadcast to mobile clients); only the raw audio is.
+- **Scope frames deliberately bypass `HubService`'s `@Published` state.**
+  `AudioCaptureEngine` hands `HubService` a frame ~21 times a second
+  (44100 Hz / 2048-sample chunks); `HubService` stores it in a separate
+  `ScopeFrameStore` (`ObservableObject`, a plain `let` on the hub) that
+  only `ScopeDisplayView` observes. Until 2026-09-09 the frames were
+  `@Published` on `HubService` itself, and since `ObservableObject`
+  invalidation is per object, every frame re-evaluated all of
+  `ContentView` — the 28-button `MenuPageView` grid and two `.segmented`
+  pickers included, whose `NSSegmentedControl` relayout alone pinned the
+  main thread at ~50% of a core in a Release build (~120-200% total in the
+  Debug build Xcode runs, once the Debug-only palette cost below stacked on
+  top). Diagnosed with `sample` on the live process, not by reading code;
+  the same measurement recipe (launch the built app, connect, `top -pid`,
+  `ps -M -p`, `sample <pid> 5`) is the way to check any future "app is hot"
+  report. Three related fixes landed together (commits `a277504`, `e9cc1bb`,
+  `f5401ee`): the store above; `WaterfallBitmap` now keeps one persistent
+  pixel buffer scrolled by a single `memmove` per frame and colors the new
+  row through a precomputed 256-entry `WaterfallPalette.lut` (the old
+  per-pixel `zip(stops, stops.dropFirst())` search allocated per pixel in
+  `-Onone` and cost ~0.75 of a core in Debug, ~nothing in Release); and the
+  scope column's "Off" now really is off — `AudioCaptureEngine.
+  displayEnabled` skips FFT/bitmap/oscilloscope/frame publish entirely
+  while still delivering raw samples to APRS, playback, and the iPad relay
+  (before, "Off" only drew nil and saved no CPU). Measured after all three:
+  Debug ~26% total with the scope on / ~10% off, Release ~22% / ~8%; what's
+  left with the scope on is the genuine live redraw of the scope `Canvas`
+  plus the FFT.
 
 ## Remote rigctld (Option A) — in progress
 
@@ -236,6 +263,12 @@ re-architecture.
   - **Still open**: the "Pi/Tailscale unreachable" UI distinction (same
     open item as rig control's, not yet extended to cover the audio link
     too).
+  - **`RemoteAudioStreamClient`'s "received N bytes so far" heartbeat is
+    scaled to `sampleRate`** (one line per ~30s of audio, commit `fb2221e`)
+    — it was a fixed 32,000-byte threshold left over from 8kHz, which at
+    44.1kHz fired every ~0.37s and buried the rest of this subsystem's
+    Console output. Any future per-chunk diagnostic here should be sized
+    the same way, not with a byte constant.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
@@ -343,6 +376,16 @@ v1 checklist.
   window is open.
 - When in doubt about wire protocol shape or RigState fields, check
   `Sources/FTX1Core` for the actual Codable types rather than assuming.
+- Don't add high-rate state (anything updated many times a second —
+  audio frames, meter samples) as `@Published` on `HubService`. It's the
+  one object nearly every Mac view observes, so each publish re-renders
+  the whole window; give such state its own small `ObservableObject`
+  observed by exactly the leaf view that draws it (`ScopeFrameStore` is
+  the precedent — see Architecture). Likewise, when adding a per-buffer
+  audio path, remember Xcode runs the Debug build: a loop that's free
+  under `-O` can cost a full core under `-Onone` (the palette lookup did),
+  so prefer table lookups / vDSP over per-sample generic Swift in anything
+  that runs 21+ times a second.
 - When wiring a raw CAT command (numbered MENU button or Deep Settings
   catalog entry), don't guess mnemonics/addressing from other Yaesu rigs'
   conventions or trust the CAT manual's printed values at face value —
