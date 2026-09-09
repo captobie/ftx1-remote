@@ -61,7 +61,11 @@ struct ContentView: View {
                     .frame(width: 70, height: meterHeight)
                 zoomControls
                     .frame(height: meterHeight)
-                ScopeDisplayView(image: scopeImage, isActive: hub.connectionState == .connected)
+                // `hub.scopeFrames` is a plain `let` on HubService, not
+                // `@Published` state, so reading it here adds no dependency —
+                // only ScopeDisplayView observes the store's per-frame
+                // updates (see ScopeFrameStore).
+                ScopeDisplayView(frames: hub.scopeFrames, mode: scopeDisplayMode, isActive: hub.connectionState == .connected)
                     .frame(maxWidth: .infinity)
                     .frame(height: meterHeight)
             }
@@ -164,14 +168,6 @@ struct ContentView: View {
     private var swrLabel: String {
         guard let swr = hub.rigState.swr else { return "SWR --" }
         return String(format: "SWR %.2f", swr)
-    }
-
-    private var scopeImage: CGImage? {
-        switch scopeDisplayMode {
-        case .waterfall: hub.waterfallImage
-        case .oscilloscope: hub.oscilloscopeImage
-        case .off: nil
-        }
     }
 
     private var scopeDisplayModeButtons: some View {
