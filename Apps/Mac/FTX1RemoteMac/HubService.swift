@@ -208,6 +208,7 @@ final class HubService: ObservableObject {
         audioCapture.onNewFrame = { [weak self] frame in
             self?.scopeFrames.update(frame)
         }
+        audioCapture.setDisplayEnabled(ScopeDisplayMode.persisted != .off)
         audioCapture.onAudioSamples = { [weak self] samples, sampleRate in
             guard let self else { return }
 
@@ -568,6 +569,14 @@ final class HubService: ObservableObject {
     private static func steppedZoom(_ current: Float, up: Bool) -> Float {
         let factor = up ? zoomStepFactor : 1 / zoomStepFactor
         return min(zoomRange.upperBound, max(zoomRange.lowerBound, current * factor))
+    }
+
+    /// Called by `ContentView` whenever the Waterfall/Oscilloscope/Off
+    /// selection changes: "Off" tells `AudioCaptureEngine` to skip FFT and
+    /// frame rendering entirely (see its `displayEnabled`), not merely to
+    /// hide the result. Raw audio keeps flowing to APRS/playback/relay.
+    func setScopeDisplayMode(_ mode: ScopeDisplayMode) {
+        audioCapture.setDisplayEnabled(mode != .off)
     }
 
     /// Doesn't stop/start `audioPlayback` itself — muting just gates

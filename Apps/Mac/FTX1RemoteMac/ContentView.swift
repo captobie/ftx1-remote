@@ -9,6 +9,18 @@ enum ScopeDisplayMode: String {
     case waterfall
     case oscilloscope
     case off
+
+    /// The `@AppStorage` key `ContentView` persists the selection under.
+    static let storageKey = "ui.scopeDisplayMode"
+
+    /// The persisted selection as of right now — what `ContentView`'s
+    /// `@AppStorage` would read. `HubService` uses this at init so
+    /// `AudioCaptureEngine` starts out matching the saved setting even
+    /// before (or without) a window ever appearing; live changes are
+    /// forwarded by `ContentView` via `HubService.setScopeDisplayMode`.
+    static var persisted: ScopeDisplayMode {
+        UserDefaults.standard.string(forKey: storageKey).flatMap(ScopeDisplayMode.init(rawValue:)) ?? .waterfall
+    }
 }
 
 /// Dense multi-pane control UI (see repo root CLAUDE.md) — still growing.
@@ -16,7 +28,7 @@ struct ContentView: View {
     @EnvironmentObject private var hub: HubService
     @State private var showingSettings = false
     @State private var isPTTPressed = false
-    @AppStorage("ui.scopeDisplayMode") private var scopeDisplayMode: ScopeDisplayMode = .waterfall
+    @AppStorage(ScopeDisplayMode.storageKey) private var scopeDisplayMode: ScopeDisplayMode = .waterfall
 
     /// Matches `SMeterView`'s rendered height (locked to its 280:120
     /// `MeterFace.designSize` aspect ratio at width 280) so the waterfall
@@ -95,6 +107,12 @@ struct ContentView: View {
         .frame(minWidth: 560, minHeight: 360)
         .sheet(isPresented: $showingSettings) {
             SettingsView()
+        }
+        // Forwarded rather than read by HubService directly: @AppStorage is
+        // what makes this view track the setting, and the engine needs to
+        // hear about changes too (see HubService.setScopeDisplayMode).
+        .onChange(of: scopeDisplayMode) {
+            hub.setScopeDisplayMode(scopeDisplayMode)
         }
     }
 
