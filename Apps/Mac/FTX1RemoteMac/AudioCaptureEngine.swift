@@ -31,7 +31,7 @@ final class AudioCaptureEngine {
     /// `HubService` at wiring time and never reassigned afterward — the
     /// same "write-once from the main actor, read from an audio-processing
     /// context thereafter" shape `waterfallZoom`/`oscilloscopeZoom` below
-    /// use `LockedFloat` for for genuinely *mutable* state. A plain
+    /// use `Locked` for genuinely *mutable* state. A plain
     /// optional closure reference has no shared mutable state of its own
     /// to race on once set, so a lock would be pure overhead here — the
     /// actual dispatch into each closure's body still always hops via
@@ -107,8 +107,17 @@ final class AudioCaptureEngine {
     // recreated per `start()` and only ever touched by the audio thread,
     // these live for the engine's whole lifetime so zoom survives a
     // disconnect/reconnect.
-    private let waterfallZoom = LockedFloat(1.0)
-    private let oscilloscopeZoom = LockedFloat(1.0)
+    private let waterfallZoom = Locked<Float>(1.0)
+    private let oscilloscopeZoom = Locked<Float>(1.0)
+    /// Whether `process()` renders waterfall/oscilloscope frames at all —
+    /// false while `ContentView`'s scope column is set to "Off". Before
+    /// this existed, "Off" only made the view draw nothing; the FFT, the
+    /// bitmap scroll, the oscilloscope stroke, and the ~21 Hz frame publish
+    /// all kept running, so the setting saved no CPU (measured 2026-09-09).
+    /// `onAudioSamples` is deliberately NOT gated by this — APRS decoding,
+    /// Mac playback, and the iPad relay must keep flowing with the display
+    /// off. Same lock/lifetime reasoning as the zooms above.
+    private let displayEnabled = Locked<Bool>(true)
 
     init() {
         log2n = vDSP_Length(log2(Double(fftSize)))
@@ -254,6 +263,11 @@ final class AudioCaptureEngine {
         oscilloscopeZoom.set(value)
     }
 
+    /// See `displayEnabled`. Takes effect on the next buffer.
+    func setDisplayEnabled(_ enabled: Bool) {
+        displayEnabled.set(enabled)
+    }
+
     /// Idempotent — safe to call when not running (e.g. `HubService`
     /// calls this defensively on every path out of `.connected`), and
     /// safe to call while a permission decision is still pending from
@@ -304,6 +318,10 @@ final class AudioCaptureEngine {
                 self?.onAudioSamples?(rawSamples, sampleRate)
             }
         }
+
+        // Everything below exists only to produce display frames — skip the
+        // lot while the scope is "Off" (see `displayEnabled`).
+        guard displayEnabled.get() else { return }
 
         var samples = [Float](repeating: 0, count: fftSize)
         let copyCount = min(rawSamples.count, fftSize)
@@ -404,29 +422,29 @@ private final class AutoGainState {
 }
 
 /// Thread-safe holder for a value the main actor (`HubService`, on behalf
-/// of the zoom arrow buttons) writes while `process()` reads it every
-/// buffer on the audio thread — see `AudioCaptureEngine`'s `waterfallZoom`/
-/// `oscilloscopeZoom` doc comment for why this needs locking where
-/// `WaterfallBitmap`/`AutoGainState` don't. Updates are rare (button
-/// taps) and reads are ~21Hz, so an uncontended lock is plenty.
-/// `nonisolated` + `@unchecked Sendable`: the whole point of this type is
-/// safe access from any isolation domain via its own lock, not the
-/// target's default MainActor isolation.
-private final class LockedFloat: @unchecked Sendable {
+/// of the zoom arrow buttons / the scope Off switch) writes while
+/// `process()` reads it every buffer on the audio thread — see
+/// `AudioCaptureEngine`'s `waterfallZoom`/`oscilloscopeZoom` doc comment for
+/// why this needs locking where `WaterfallBitmap`/`AutoGainState` don't.
+/// Updates are rare (button taps) and reads are ~21Hz, so an uncontended
+/// lock is plenty. `nonisolated` + `@unchecked Sendable`: the whole point
+/// of this type is safe access from any isolation domain via its own lock,
+/// not the target's default MainActor isolation.
+private final class Locked<Value: Sendable>: @unchecked Sendable {
     private let lock = NSLock()
-    nonisolated(unsafe) private var value: Float
+    nonisolated(unsafe) private var value: Value
 
-    nonisolated init(_ value: Float) {
+    nonisolated init(_ value: Value) {
         self.value = value
     }
 
-    nonisolated func get() -> Float {
+    nonisolated func get() -> Value {
         lock.lock()
         defer { lock.unlock() }
         return value
     }
 
-    nonisolated func set(_ newValue: Float) {
+    nonisolated func set(_ newValue: Value) {
         lock.lock()
         defer { lock.unlock() }
         value = newValue
