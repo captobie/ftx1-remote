@@ -131,13 +131,18 @@ actor RemoteAudioStreamClient {
         accumulator.reserveCapacity(samplesPerChunk)
         var totalBytesReceived = 0
         var lastLoggedAtByteCount = 0
+        // Heartbeat every ~30s of audio, derived from the configured rate
+        // (16-bit mono, so 2 bytes per sample) — confirms data is actually
+        // flowing without logging every ~4KB read. This was a fixed 32,000
+        // bytes, chosen when the stream was 8kHz ("every ~2s"); after the
+        // 2026-09-07 raise to 44.1kHz that same constant fired every ~0.37s,
+        // nearly three lines a second, for as long as the app was connected.
+        let bytesPerHeartbeat = Int(sampleRate * 2 * 30)
 
         while running, !Task.isCancelled {
             let chunk = try await receive(on: conn)
             totalBytesReceived += chunk.count
-            if totalBytesReceived - lastLoggedAtByteCount >= 32_000 {
-                // Roughly every 2s of audio at 8kHz/16-bit mono — confirms
-                // data is actually flowing, without logging every ~4KB read.
+            if totalBytesReceived - lastLoggedAtByteCount >= bytesPerHeartbeat {
                 lastLoggedAtByteCount = totalBytesReceived
                 Self.logger.notice("received \(totalBytesReceived) bytes so far")
             }
