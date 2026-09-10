@@ -2,6 +2,11 @@ import AVFoundation
 import Foundation
 import os
 
+#if os(macOS)
+import AudioToolbox
+import CoreAudio
+#endif
+
 /// Plays the Mac's relayed radio audio (see `AudioStreamFormat`/
 /// `RigWebSocketClient.onAudioData`) with a user-adjustable volume and a
 /// client-side "virtual" noise-gate squelch (`SquelchGate`) — entirely
@@ -39,6 +44,18 @@ public final class AudioPlaybackEngine {
     private var hasPrimed = false
     private let prebufferTargetSeconds: Double = 0.12
 
+    #if os(macOS)
+    /// Resolved to a live `AudioDeviceID` by the caller (`HubService`, via
+    /// `AudioOutputDeviceLister`) and applied in `start()` — Mac-only, since
+    /// picking among named Core Audio output devices isn't a concept on iOS.
+    /// Must be set before `start()` to take effect: like
+    /// `AudioCaptureEngine.startEngine(deviceUID:)`'s input-side selection,
+    /// `kAudioOutputUnitProperty_CurrentDevice` needs to land before the
+    /// underlying audio unit is initialized, or it's silently ignored and
+    /// playback stays on the system default device.
+    private var outputDeviceID: AudioDeviceID?
+    #endif
+
     public var volume: Float {
         get { player.volume }
         set { player.volume = newValue }
@@ -53,6 +70,15 @@ public final class AudioPlaybackEngine {
         squelchGate = SquelchGate(threshold: Float(AudioPlaybackSettings.squelchThreshold))
         player.volume = Float(AudioPlaybackSettings.volume)
     }
+
+    #if os(macOS)
+    /// `nil` means "system default output device". Call before `start()` —
+    /// see `outputDeviceID`'s doc comment for why a call after `start()`
+    /// doesn't reliably take effect.
+    public func setOutputDevice(_ deviceID: AudioDeviceID?) {
+        outputDeviceID = deviceID
+    }
+    #endif
 
     /// Idempotent — safe to call when already running. Builds the node
     /// graph against whatever format the engine's output actually wants
@@ -101,6 +127,23 @@ public final class AudioPlaybackEngine {
         prebuffer.removeAll()
         hasPrimed = false
         gateMixer.outputVolume = 0
+
+        #if os(macOS)
+        if let outputDeviceID, let audioUnit = engine.outputNode.audioUnit {
+            var mutableDeviceID = outputDeviceID
+            let status = AudioUnitSetProperty(
+                audioUnit,
+                kAudioOutputUnitProperty_CurrentDevice,
+                kAudioUnitScope_Global,
+                0,
+                &mutableDeviceID,
+                UInt32(MemoryLayout<AudioDeviceID>.size)
+            )
+            if status != noErr {
+                Self.logger.error("setOutputDevice failed: OSStatus \(status, privacy: .public)")
+            }
+        }
+        #endif
 
         do {
             try engine.start()
