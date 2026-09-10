@@ -654,6 +654,7 @@ final class HubService: ObservableObject {
                 try await rigctld.connect()
                 connectionState = .connected
                 audioCapture.start(deviceUID: AudioInputSettings.deviceUID)
+                audioPlayback.setOutputDevice(AudioOutputDeviceLister.deviceID(forUID: AudioOutputSettings.deviceUID))
                 audioPlayback.start()
                 beginBackgroundActivity()
                 try await pollLoop()

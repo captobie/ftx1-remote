@@ -204,31 +204,54 @@ struct SettingsView: View {
 /// list has no invalid-input failure mode, unlike the rigctld tab's free-
 /// text fields.
 private struct AudioSettingsTab: View {
-    @AppStorage(AudioInputSettings.deviceUIDKey) private var deviceUID = ""
-    @State private var availableDevices: [AudioInputDevice] = []
+    @AppStorage(AudioInputSettings.deviceUIDKey) private var inputDeviceUID = ""
+    @AppStorage(AudioOutputSettings.deviceUIDKey) private var outputDeviceUID = ""
+    @State private var availableInputDevices: [AudioInputDevice] = []
+    @State private var availableOutputDevices: [AudioOutputDevice] = []
 
     var body: some View {
         Form {
-            Picker("Input device", selection: $deviceUID) {
+            Picker("Input device", selection: $inputDeviceUID) {
                 Text("System Default").tag("")
-                ForEach(availableDevices) { device in
+                ForEach(availableInputDevices) { device in
                     Text(device.name).tag(device.uid)
                 }
             }
+            Picker("Output device", selection: $outputDeviceUID) {
+                Text("System Default").tag("")
+                ForEach(availableOutputDevices) { device in
+                    Text(device.name).tag(device.uid)
+                }
+            }
+            Text("Changing this requires reconnecting (or restarting FTX1Remote) to take effect.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding(.top, 8)
-        .onAppear { refreshAvailableDevices() }
+        .onAppear {
+            refreshAvailableInputDevices()
+            refreshAvailableOutputDevices()
+        }
     }
 
     /// Keeps the currently configured device in the list even if it's not
     /// currently plugged in, so an offline sound card doesn't lose its
     /// setting — same reasoning as `SettingsView.refreshAvailableDevices`.
-    private func refreshAvailableDevices() {
+    private func refreshAvailableInputDevices() {
         var devices = AudioInputDeviceLister.availableInputDevices()
-        if !deviceUID.isEmpty, !devices.contains(where: { $0.uid == deviceUID }) {
-            devices.append(AudioInputDevice(id: 0, uid: deviceUID, name: "\(deviceUID) (not connected)"))
+        if !inputDeviceUID.isEmpty, !devices.contains(where: { $0.uid == inputDeviceUID }) {
+            devices.append(AudioInputDevice(id: 0, uid: inputDeviceUID, name: "\(inputDeviceUID) (not connected)"))
         }
-        availableDevices = devices
+        availableInputDevices = devices
+    }
+
+    /// Same reasoning as `refreshAvailableInputDevices`.
+    private func refreshAvailableOutputDevices() {
+        var devices = AudioOutputDeviceLister.availableOutputDevices()
+        if !outputDeviceUID.isEmpty, !devices.contains(where: { $0.uid == outputDeviceUID }) {
+            devices.append(AudioOutputDevice(id: 0, uid: outputDeviceUID, name: "\(outputDeviceUID) (not connected)"))
+        }
+        availableOutputDevices = devices
     }
 }
 
