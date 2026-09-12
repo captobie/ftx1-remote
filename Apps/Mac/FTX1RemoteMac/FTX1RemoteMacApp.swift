@@ -15,8 +15,17 @@ struct FTX1RemoteMacApp: App {
         }
         .commands {
             CommandGroup(after: .toolbar) {
-                Button("APRS Map") {
-                    openWindow(id: "aprs-map")
+                Menu("APRS") {
+                    Button("Station List") {
+                        openWindow(id: "aprs-stations")
+                    }
+                    Button("Message List") {
+                        openWindow(id: "aprs-messages")
+                    }
+                    Divider()
+                    Button("Map") {
+                        openWindow(id: "aprs-map")
+                    }
                 }
             }
         }
