@@ -2,7 +2,8 @@ import AppKit
 import FTX1Core
 import SwiftUI
 
-/// App settings, presented as a tabbed sheet from `ContentView`.
+/// App settings, presented via the standard macOS `Settings` scene (app
+/// menu → Settings…, ⌘,) rather than a sheet from `ContentView`.
 ///
 /// The "rigctld" tab's edits are held in local `@State`, not written back
 /// to `RigctldSettings` until "Done" — so "Cancel" can discard them (e.g.
@@ -122,6 +123,7 @@ struct SettingsView: View {
                 }
             case .remote:
                 TextField("Pi hostname", text: $remoteHost, prompt: Text("e.g. raspberrypi.tailnet-name.ts.net"))
+                    .frame(maxWidth: 280)
             }
         }
         .padding(.top, 8)

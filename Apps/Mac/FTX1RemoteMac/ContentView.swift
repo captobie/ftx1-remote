@@ -26,7 +26,6 @@ enum ScopeDisplayMode: String {
 /// Dense multi-pane control UI (see repo root CLAUDE.md) — still growing.
 struct ContentView: View {
     @EnvironmentObject private var hub: HubService
-    @State private var showingSettings = false
     @State private var isPTTPressed = false
     @AppStorage(ScopeDisplayMode.storageKey) private var scopeDisplayMode: ScopeDisplayMode = .waterfall
 
@@ -48,7 +47,6 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Settings…") { showingSettings = true }
             }
 
             HStack(spacing: 12) {
@@ -105,9 +103,6 @@ struct ContentView: View {
         }
         .padding(40)
         .frame(minWidth: 560, minHeight: 360)
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-        }
         // Forwarded rather than read by HubService directly: @AppStorage is
         // what makes this view track the setting, and the engine needs to
         // hear about changes too (see HubService.setScopeDisplayMode).

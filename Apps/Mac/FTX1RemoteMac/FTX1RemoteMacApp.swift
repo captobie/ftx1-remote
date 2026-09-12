@@ -42,5 +42,14 @@ struct FTX1RemoteMacApp: App {
                 .environmentObject(appDelegate.hub.aprsStore)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
+
+        // Replaces the old "Settings…" button in ContentView's toolbar row —
+        // this scene type is what puts it in the app menu (⌘,) instead,
+        // matching standard Mac app conventions.
+        Settings {
+            SettingsView()
+                .environmentObject(appDelegate.hub)
+                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+        }
     }
 }
