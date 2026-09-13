@@ -298,14 +298,18 @@ v1 checklist.
   - `RigState/` — `RigState`/`RigMode` (shared state model), `BandPlan`
     (band table + frequency lookup), `FilterWidthTable` (CAT manual Table
     5: the raw "SH" WIDTH index → Hz mapping, keyed by `RigMode` since the
-    same index means a different bandwidth per mode).
+    same index means a different bandwidth per mode), `IFShift` (the raw
+    "IS" IF SHIFT value space, ±1200 Hz in 20 Hz steps: clamp/snap +
+    label).
   - `Appearance/` — `AppTheme` (Light/Dark/Auto), `ButtonValueColor` (MENU
     grid button value color), `AppearanceSettings` (the `@AppStorage` keys
     both are read/written through) — shared so any future app target reads
     the same settings the Mac's Settings sheet writes.
   - `Networking/` — `WireMessage` (`RigCommand`/`RigStatePush`, the JSON wire
     protocol), `RigctldClient` (Mac-only, TCP to rigctld, incl. raw CAT
-    passthrough), `RigWebSocketClient` (WS client, used by mobile and — for
+    passthrough — note `getRawInt` is digit-only, so signed CAT values like
+    "IS" get their own dedicated get/set pair, `getIFShiftHz`/
+    `setIFShiftHz`, following the `getSpectrumScopeLevel` precedent), `RigWebSocketClient` (WS client, used by mobile and — for
     now — nothing on the Mac side, see above), `RigClientViewModel`
     (`ObservableObject` wrapping `RigWebSocketClient` for SwiftUI — shared by
     the iOS and iPad app targets so their connection logic can't drift
@@ -322,9 +326,14 @@ v1 checklist.
     item), `VFODisplayBox` (the dense side-by-side VFO A/B readout used by
     Mac and iPad), `SMeterView` (the analog S/SWR meter face, used by Mac
     and iPad), `FilterWidthControl` (IF WIDTH picker + narrower/wider
-    steppers in the Band/Mode picker row, generic over `RigController` like
-    `MenuPageView` — placed only in the Mac `ContentView` so far, deliberately
-    built shared because the iPad is the planned next placement). Only put
+    steppers) and `IFShiftControl` (IF SHIFT slider + center button,
+    command sent on drag release, not per tick) — both generic over
+    `RigController` like `MenuPageView`, both living in the Mac
+    `ContentView`'s "Filter" row under the Band/Mode pickers (the rig
+    keeps these on the MAIN-knob function menu, not the MENU grid, so
+    they're not `MenuPageView` buttons), placed only on the Mac so far but
+    deliberately built shared because the iPad is the planned next
+    placement. Only put
     a view here once it's actually needed on more than one target — `FrequencyDisplay` (iOS's single-VFO readout) stays in the
     iOS app target since nothing else uses it.
 - `Apps/Mac/FTX1RemoteMac/` — Mac app target source (canonical location;

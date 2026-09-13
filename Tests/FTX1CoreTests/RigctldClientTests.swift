@@ -96,6 +96,37 @@ final class RigctldClientTests: XCTestCase {
         await client.disconnect()
     }
 
+    /// "IS" (IF SHIFT) is the first raw command whose value carries a sign
+    /// character; getRawInt's digit-only scan would stop at it and return
+    /// the fixed P2 "0" instead. Covers the dedicated signed pair's
+    /// prefix handling ("IS0" sent, "IS00" expected back) and both signs.
+    func testIFShiftSignedRoundTrip() async throws {
+        let server = try FakeRigctldServer.start()
+        defer { server.stop() }
+
+        let client = RigctldClient(host: "127.0.0.1", port: server.port)
+        try await client.connect()
+
+        server.respondRaw(to: "W IS0; ;", bytes: Array("IS00-0240;\0".utf8))
+        let negative = try await client.getIFShiftHz()
+        XCTAssertEqual(negative, -240)
+
+        server.respondRaw(to: "W IS0; ;", bytes: Array("IS00+0000;\0".utf8))
+        let centered = try await client.getIFShiftHz()
+        XCTAssertEqual(centered, 0)
+
+        server.respondRaw(to: "W IS0; ;", bytes: Array("IS00+1200;\0".utf8))
+        let positive = try await client.getIFShiftHz()
+        XCTAssertEqual(positive, 1200)
+
+        server.respondRaw(to: "W IS00+0240; ;", bytes: [])
+        try await client.setIFShiftHz(240)
+        server.respondRaw(to: "W IS00-0020; ;", bytes: [])
+        try await client.setIFShiftHz(-20)
+
+        await client.disconnect()
+    }
+
     /// Regression test for the actual reported bug: the real rig sometimes
     /// never replies to a raw Set command at all (the manual doesn't
     /// promise an Answer for those), and `sendRawCommand` had no timeout —

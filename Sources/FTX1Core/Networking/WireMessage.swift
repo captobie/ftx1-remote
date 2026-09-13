@@ -165,6 +165,12 @@ public enum RigCommand: Sendable, Equatable {
     /// Maps to the FTX-1's raw "SH" (WIDTH) CAT command, P1 fixed to "0"
     /// (MAIN-side), P2 fixed to "0".
     case setFilterWidth(Int)
+    /// IF SHIFT in Hz, -1200...1200 in 20 Hz steps — see
+    /// `RigState.ifShiftHz`/`IFShift`. Maps to the FTX-1's raw "IS" CAT
+    /// command via `RigctldClient.setIFShiftHz` (P1 fixed to "0"
+    /// MAIN-side, P2 fixed to "0", signed 4-digit value). `CommandQueue`
+    /// snaps the value with `IFShift.snapped` before sending.
+    case setIFShift(hz: Int)
     /// HF antenna connector selector: 0 = ANT1, 1 = ANT2 — see
     /// `RigState.antSelect`. No dedicated mnemonic; goes through the same
     /// "EX" (MENU) passthrough as `.setMenuItem` below, addressed at Table
@@ -280,6 +286,7 @@ public enum RigCommand: Sendable, Equatable {
         case setNBLevel = "set_nb_level"
         case setDNRLevel = "set_dnr_level"
         case setFilterWidth = "set_filter_width"
+        case setIFShift = "set_if_shift"
         case setAntSelect = "set_ant_select"
         case setTXW = "set_txw"
         case setSquelchType = "set_squelch_type"
@@ -380,6 +387,8 @@ extension RigCommand: Codable {
             self = .setDNRLevel(try container.decode(Int.self, forKey: .value))
         case .setFilterWidth:
             self = .setFilterWidth(try container.decode(Int.self, forKey: .value))
+        case .setIFShift:
+            self = .setIFShift(hz: try container.decode(Int.self, forKey: .value))
         case .setAntSelect:
             self = .setAntSelect(try container.decode(Int.self, forKey: .value))
         case .setTXW:
@@ -528,6 +537,9 @@ extension RigCommand: Codable {
         case .setFilterWidth(let index):
             try container.encode(CommandName.setFilterWidth, forKey: .cmd)
             try container.encode(index, forKey: .value)
+        case .setIFShift(let hz):
+            try container.encode(CommandName.setIFShift, forKey: .cmd)
+            try container.encode(hz, forKey: .value)
         case .setAntSelect(let mode):
             try container.encode(CommandName.setAntSelect, forKey: .cmd)
             try container.encode(mode, forKey: .value)

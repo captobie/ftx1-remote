@@ -502,7 +502,7 @@ final class HubService: ObservableObject {
              .setCWMessageRecording, .setAtt, .setPreamp, .setTuner, .setDisplayContrast,
              .setDisplayDimmer, .setDisplayLevel, .setDisplayPeak, .setDisplayMarker, .setMicGain,
              .setAMCLevel, .setVox, .setVoxGain, .setVoxDelay, .setDNF, .setAGC, .setMicEQ,
-             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setAntSelect, .setTXW, .setSquelchType,
+             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setAntSelect, .setTXW, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel:
             return false
@@ -570,6 +570,7 @@ final class HubService: ObservableObject {
         case .setNBLevel(let level): rigState.nbLevel = level
         case .setDNRLevel(let level): rigState.dnrLevel = level
         case .setFilterWidth(let index): rigState.filterWidthIndex = index
+        case .setIFShift(let hz): rigState.ifShiftHz = IFShift.snapped(hz)
         case .setAntSelect(let mode): rigState.antSelect = mode
         case .setTXW(let on): rigState.txwEnabled = on
         case .setSquelchType(let mode): rigState.squelchType = mode
@@ -1072,6 +1073,9 @@ final class HubService: ObservableObject {
         // 0-23, `Int(...)` parsing that combined 3-digit string discards
         // the leading zero for free — see RigState.filterWidthIndex.
         let filterWidthIndex = try? await rigctld.getRawInt("SH0")
+        // "IS" answers with a signed value ("IS00-0240;"), which getRawInt
+        // can't parse — dedicated helper, see RigctldClient.getIFShiftHz().
+        let ifShiftHz = try? await rigctld.getIFShiftHz()
         // No dedicated mnemonic for HF ANT SELECT — reads through the same
         // generic "EX" passthrough Deep Settings uses, just at this one
         // fixed address (see RigState.antSelect/RigCommand.setAntSelect).
@@ -1146,6 +1150,7 @@ final class HubService: ObservableObject {
         rigState.nbLevel = nbLevel ?? rigState.nbLevel
         rigState.dnrLevel = dnrLevel ?? rigState.dnrLevel
         rigState.filterWidthIndex = filterWidthIndex ?? rigState.filterWidthIndex
+        rigState.ifShiftHz = ifShiftHz ?? rigState.ifShiftHz
         rigState.antSelect = antSelect ?? rigState.antSelect
         rigState.txwEnabled = txwEnabled ?? rigState.txwEnabled
         rigState.squelchType = squelchType ?? rigState.squelchType

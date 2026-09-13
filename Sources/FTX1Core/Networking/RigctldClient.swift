@@ -494,6 +494,34 @@ public actor RigctldClient {
         try await sendRawCommandFireAndForget("SS04\(sign)\(formatted)")
     }
 
+    /// Reads the FTX-1's raw "IS" (IF-SHIFT) command for the MAIN side:
+    /// the Read is "IS0;" (P1 only) but the Answer is "IS0" + P2 (fixed
+    /// "0") + P3 (sign) + P4 (4-digit Hz) + ";", e.g. "IS00-0240;". The
+    /// generic `getRawInt` can't be used here — its digit-only prefix
+    /// scan stops at the sign and would return the fixed P2 "0" as the
+    /// value every time — so this checks for the "IS00" prefix (P1 and
+    /// the fixed P2 together, same trick as "SH0"'s baked-in P2) and
+    /// parses the signed run after it; `Int("+0240")` handles the
+    /// explicit "+" fine. Same leading-run parse as
+    /// `getSpectrumScopeLevel()` to keep the trailing ";" out of `Int.init`.
+    public func getIFShiftHz() async throws -> Int? {
+        let reply = try await sendRawCommand("IS0")
+        guard reply.hasPrefix("IS00") else { return nil }
+        let value = reply.dropFirst(4).prefix { $0.isNumber || $0 == "+" || $0 == "-" }
+        return Int(value)
+    }
+
+    /// Sets "IS" for the MAIN side — see `getIFShiftHz()`. Always writes an
+    /// explicit sign (the manual's P3 is "+ / -", never absent) and a
+    /// zero-padded 4-digit magnitude: "IS00+0240;", "IS00-1200;",
+    /// "IS00+0000;". Callers should pass a value already on the 20 Hz grid
+    /// within ±1200 (`IFShift.snapped`); nothing is validated here.
+    public func setIFShiftHz(_ hz: Int) async throws {
+        let sign = hz < 0 ? "-" : "+"
+        let magnitude = String(format: "%04d", abs(hz))
+        try await sendRawCommandFireAndForget("IS00\(sign)\(magnitude)")
+    }
+
     /// Reads P3 of the FTX-1's raw "RI" (RADIO INFORMATION) status command —
     /// 0 = stopped, 1 = recording, 2 = playing (CW MESSAGE record/playback
     /// state — see `RigState.cwMessageStatus`). RI's answer packs 8

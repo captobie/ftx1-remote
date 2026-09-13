@@ -153,6 +153,12 @@ public struct RigState: Codable, Equatable, Sendable {
     /// rig on whatever raw width index FM last used, which reads as a
     /// different, wrong Hz value once the original mode is restored.
     public var filterWidthIndex: Int?
+    /// IF SHIFT in Hz, -1200...1200 in 20 Hz steps (the FTX-1's raw "IS"
+    /// CAT command, P1 fixed to MAIN-side, P2 fixed to "0", then a sign
+    /// character and a 4-digit magnitude — see `IFShift` for the value
+    /// space and `RigctldClient.getIFShiftHz()` for why the generic
+    /// `getRawInt` can't parse it). Positive slides the passband up.
+    public var ifShiftHz: Int?
     /// HF antenna connector selector: 0 = ANT1, 1 = ANT2. Unlike every other
     /// field here, this has no dedicated 2-letter CAT mnemonic — it's Table
     /// 3's "HF ANT SELECT" item (`DeepSettingsCatalog`'s OPERATION SETTING /
@@ -299,6 +305,7 @@ public struct RigState: Codable, Equatable, Sendable {
         nbLevel: Int? = nil,
         dnrLevel: Int? = nil,
         filterWidthIndex: Int? = nil,
+        ifShiftHz: Int? = nil,
         antSelect: Int? = nil,
         txwEnabled: Bool? = nil,
         squelchType: Int? = nil,
@@ -356,6 +363,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.nbLevel = nbLevel
         self.dnrLevel = dnrLevel
         self.filterWidthIndex = filterWidthIndex
+        self.ifShiftHz = ifShiftHz
         self.antSelect = antSelect
         self.txwEnabled = txwEnabled
         self.squelchType = squelchType

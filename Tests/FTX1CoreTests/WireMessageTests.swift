@@ -20,6 +20,19 @@ final class WireMessageTests: XCTestCase {
         XCTAssertEqual(decoded, command)
     }
 
+    /// Negative values must survive the wire — IF SHIFT is the first
+    /// signed command in the protocol.
+    func testSetIFShiftRoundTripKeepsSign() throws {
+        let command = RigCommand.setIFShift(hz: -240)
+        let data = try JSONEncoder().encode(command)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        XCTAssertEqual(json?["cmd"] as? String, "set_if_shift")
+        XCTAssertEqual(json?["value"] as? Int, -240)
+
+        let decoded = try JSONDecoder().decode(RigCommand.self, from: data)
+        XCTAssertEqual(decoded, command)
+    }
+
     func testStatePushEncoding() throws {
         let state = RigState(frequencyHz: 14_250_000, mode: .usb, powerWatts: 50, swr: 1.2, ptt: false)
         let push = RigStatePush(state: state)

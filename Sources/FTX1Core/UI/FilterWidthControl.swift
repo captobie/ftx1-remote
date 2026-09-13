@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// IF WIDTH (the FTX-1's DSP passband bandwidth) picker plus narrower/wider
-/// step buttons, meant to sit in the Band/Mode picker row. Generic over
+/// step buttons, meant to sit in the Filter row under the Band/Mode
+/// pickers alongside `IFShiftControl`. Generic over
 /// `RigController` like `MenuPageView`, so the same view drives the Mac
 /// (`HubService`) today and can drop into the iPad's `ContentView`
 /// (`RigClientViewModel`) later — the state field (`RigState.

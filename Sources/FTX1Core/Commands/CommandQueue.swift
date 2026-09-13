@@ -68,7 +68,7 @@ public actor CommandQueue {
             if mode == .c4fm {
                 try await rigctld.setActiveModeC4FM()
             } else {
-                _ = try await rigctld.send("M \(Self.currentVFOArg) \(mode.rawValue) 0")
+_ = try await rigctld.send("M \(Self.currentVFOArg) \(mode.rawValue) 0")
             }
         case .setPTT(let on):
             _ = try await rigctld.send("T \(Self.currentVFOArg) \(on ? 1 : 0)")
@@ -243,6 +243,13 @@ public actor CommandQueue {
             // digit for free, same trick `getRawInt`'s prefix-stripping
             // parse relies on for the read side below.
             try await rigctld.setRawInt("SH0", index, digits: 3)
+        case .setIFShift(let hz):
+            // "IS" carries a sign character before its 4-digit magnitude,
+            // which setRawInt's plain zero-padding can't produce — a
+            // dedicated helper handles the "IS00±dddd" shape. Snapped here
+            // (not just in the UI) so a remote client can't send a value
+            // off the 20 Hz grid or outside ±1200.
+            try await rigctld.setIFShiftHz(IFShift.snapped(hz))
         case .setAntSelect(let mode):
             // No dedicated mnemonic for this one — it's Table 3's "HF ANT
             // SELECT" (OPERATION SETTING / OPTION / p3=4), a single digit
