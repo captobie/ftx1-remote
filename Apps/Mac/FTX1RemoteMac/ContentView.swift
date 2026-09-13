@@ -109,6 +109,8 @@ struct ContentView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+
+                FilterWidthControl<HubService>()
             }
 
             MenuPageView<HubService>()

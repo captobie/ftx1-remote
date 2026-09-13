@@ -296,7 +296,9 @@ v1 checklist.
 - `Sources/FTX1Core/` — Swift Package Manager package (target `FTX1Core`,
   repo root `Package.swift`): platform-agnostic.
   - `RigState/` — `RigState`/`RigMode` (shared state model), `BandPlan`
-    (band table + frequency lookup).
+    (band table + frequency lookup), `FilterWidthTable` (CAT manual Table
+    5: the raw "SH" WIDTH index → Hz mapping, keyed by `RigMode` since the
+    same index means a different bandwidth per mode).
   - `Appearance/` — `AppTheme` (Light/Dark/Auto), `ButtonValueColor` (MENU
     grid button value color), `AppearanceSettings` (the `@AppStorage` keys
     both are read/written through) — shared so any future app target reads
@@ -319,8 +321,11 @@ v1 checklist.
     MENU grid, generic over `RigController`, one hand-written button per
     item), `VFODisplayBox` (the dense side-by-side VFO A/B readout used by
     Mac and iPad), `SMeterView` (the analog S/SWR meter face, used by Mac
-    and iPad). Only put a view here once it's actually needed on more than
-    one target — `FrequencyDisplay` (iOS's single-VFO readout) stays in the
+    and iPad), `FilterWidthControl` (IF WIDTH picker + narrower/wider
+    steppers in the Band/Mode picker row, generic over `RigController` like
+    `MenuPageView` — placed only in the Mac `ContentView` so far, deliberately
+    built shared because the iPad is the planned next placement). Only put
+    a view here once it's actually needed on more than one target — `FrequencyDisplay` (iOS's single-VFO readout) stays in the
     iOS app target since nothing else uses it.
 - `Apps/Mac/FTX1RemoteMac/` — Mac app target source (canonical location;
   the Xcode project at `FTX1RemoteMac/FTX1RemoteMac.xcodeproj` points at
