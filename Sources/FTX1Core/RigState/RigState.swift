@@ -370,7 +370,7 @@ public struct RigState: Codable, Equatable, Sendable {
 /// entry ("MAIN-SIDE TO MEMORY CHANNEL", no parameters) — this type is
 /// backed by the P1/P2-parameterized "VFO / MEMORY CHANNEL" entry only, read
 /// via a plain `RigctldClient.getRawInt("VM0")` and set via `setRawInt("VM0",
-/// ..., digits: 2)` (see `HubService.refreshState()` and `CommandQueue`'s
+/// ..., digits: 2)` (see `HubService.refreshFastTier()` and `CommandQueue`'s
 /// `.setVFOMemoryMode` case) — P1 is fixed to MAIN-side and baked into the
 /// "VM0" prefix, same fixed-sub-selector shape as "RA0"/"GT0"/"CT0", so no
 /// bespoke method was needed.
@@ -381,7 +381,7 @@ public enum VFOMemoryMode: Equatable, Codable, Sendable {
 
     /// Maps the raw "VM" P2 value read from the rig to this type — same
     /// "raw CAT layer stays dumb, the app layer does the mapping" split as
-    /// `CWMessageStatus.init(rawValue:)` (see `HubService.refreshState()`).
+    /// `CWMessageStatus.init(rawValue:)` (see `HubService.refreshFastTier()`).
     public init(rawP2: Int) {
         switch rawP2 {
         case 0: self = .vfo

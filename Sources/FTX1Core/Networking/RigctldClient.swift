@@ -761,7 +761,7 @@ public actor RigctldClient {
             // call on this actor fail fast via `.notConnected` instead of
             // re-attempting the network, and `.connectionLost` (distinct
             // from `.badResponse`/`.rawCommandTimedOut`) is what lets
-            // `HubService.refreshState()` tell "the rig gave one bad CAT
+            // `HubService.refreshFastTier()` tell "the rig gave one bad CAT
             // reply" apart from "the connection itself is gone" — see that
             // function's doc comments.
             disconnect()
@@ -849,7 +849,8 @@ public enum RigctldError: Error, Equatable {
     /// connection) — distinct from `.badResponse`/`.rawCommandTimedOut`,
     /// which mean the connection is fine but the rig gave a bad or slow
     /// CAT reply. Callers that otherwise treat a field read as best-effort
-    /// (see `HubService.refreshState()`) should treat this one specifically
-    /// as fatal, since no amount of retrying a dead connection will help.
+    /// (see `HubService.refreshFastTier()`/`refreshSlowTier()`) should treat
+    /// this one specifically as fatal, since no amount of retrying a dead
+    /// connection will help.
     case connectionLost
 }
