@@ -502,7 +502,7 @@ final class HubService: ObservableObject {
              .setCWMessageRecording, .setAtt, .setPreamp, .setTuner, .setDisplayContrast,
              .setDisplayDimmer, .setDisplayLevel, .setDisplayPeak, .setDisplayMarker, .setMicGain,
              .setAMCLevel, .setVox, .setVoxGain, .setVoxDelay, .setDNF, .setAGC, .setMicEQ,
-             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setAntSelect, .setTXW, .setSquelchType,
+             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setAntSelect, .setTXW, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel:
             return false
@@ -573,6 +573,10 @@ final class HubService: ObservableObject {
         case .setIFShift(let hz): rigState.ifShiftHz = IFShift.snapped(hz)
         case .setNotch(let on): rigState.notchEnabled = on
         case .setNotchFrequency(let hz): rigState.notchHz = IFNotch.snappedHz(hz)
+        case .setContour(let on): rigState.contourEnabled = on
+        case .setContourFrequency(let hz): rigState.contourHz = IFContour.snappedContourHz(hz)
+        case .setAPF(let on): rigState.apfEnabled = on
+        case .setAPFOffset(let hz): rigState.apfHz = IFContour.snappedAPFHz(hz)
         case .setAntSelect(let mode): rigState.antSelect = mode
         case .setTXW(let on): rigState.txwEnabled = on
         case .setSquelchType(let mode): rigState.squelchType = mode
@@ -1096,6 +1100,14 @@ final class HubService: ObservableObject {
         // report the notch off every time — see IFNotch.
         let notchRaw = try? await rigctld.getRawInt("BP00")
         let notchCode = try? await rigctld.getRawInt("BP01")
+        // "CO00".."CO03" read CONTOUR on/off + frequency and APF on/off +
+        // offset — all 4-digit fields, so the on/off ones go through
+        // getRawInt (!= 0) for the same reason as "BP00" above; see
+        // IFContour for the APF offset's 0000-0050 code.
+        let contourRaw = try? await rigctld.getRawInt("CO00")
+        let contourHzRaw = try? await rigctld.getRawInt("CO01")
+        let apfRaw = try? await rigctld.getRawInt("CO02")
+        let apfCode = try? await rigctld.getRawInt("CO03")
         // No dedicated mnemonic for HF ANT SELECT — reads through the same
         // generic "EX" passthrough Deep Settings uses, just at this one
         // fixed address (see RigState.antSelect/RigCommand.setAntSelect).
@@ -1173,6 +1185,10 @@ final class HubService: ObservableObject {
         rigState.ifShiftHz = ifShiftHz ?? rigState.ifShiftHz
         rigState.notchEnabled = notchRaw.map { $0 != 0 } ?? rigState.notchEnabled
         rigState.notchHz = notchCode.flatMap(IFNotch.hz(forCode:)) ?? rigState.notchHz
+        rigState.contourEnabled = contourRaw.map { $0 != 0 } ?? rigState.contourEnabled
+        rigState.contourHz = contourHzRaw.flatMap { IFContour.contourRangeHz.contains($0) ? $0 : nil } ?? rigState.contourHz
+        rigState.apfEnabled = apfRaw.map { $0 != 0 } ?? rigState.apfEnabled
+        rigState.apfHz = apfCode.flatMap(IFContour.apfHz(forCode:)) ?? rigState.apfHz
         rigState.antSelect = antSelect ?? rigState.antSelect
         rigState.txwEnabled = txwEnabled ?? rigState.txwEnabled
         rigState.squelchType = squelchType ?? rigState.squelchType

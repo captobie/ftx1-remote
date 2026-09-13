@@ -169,6 +169,19 @@ public struct RigState: Codable, Equatable, Sendable {
     /// P2=1 sub-function, carried on the wire as a 3-digit code of 10 Hz
     /// units — `IFNotch.code(forHz:)`/`hz(forCode:)`).
     public var notchHz: Int?
+    /// CONTOUR on/off (the FTX-1's raw "CO" CAT command, P2=0). Every "CO"
+    /// field is 4 digits, on/off included (0000/0001), so all four go
+    /// through `getRawInt`/`setRawInt(digits: 4)` — see `IFContour`.
+    public var contourEnabled: Bool?
+    /// CONTOUR frequency in Hz, 10-3200 in 10 Hz steps ("CO" P2=1, carried
+    /// as 4-digit Hz directly).
+    public var contourHz: Int?
+    /// APF (audio peak filter, CW only) on/off ("CO" P2=2).
+    public var apfEnabled: Bool?
+    /// APF offset from the CW pitch in Hz, −250…+250 in 10 Hz steps ("CO"
+    /// P2=3, carried as a 4-digit code 0000-0050 — `IFContour.apfCode(
+    /// forHz:)`/`apfHz(forCode:)`).
+    public var apfHz: Int?
     /// HF antenna connector selector: 0 = ANT1, 1 = ANT2. Unlike every other
     /// field here, this has no dedicated 2-letter CAT mnemonic — it's Table
     /// 3's "HF ANT SELECT" item (`DeepSettingsCatalog`'s OPERATION SETTING /
@@ -318,6 +331,10 @@ public struct RigState: Codable, Equatable, Sendable {
         ifShiftHz: Int? = nil,
         notchEnabled: Bool? = nil,
         notchHz: Int? = nil,
+        contourEnabled: Bool? = nil,
+        contourHz: Int? = nil,
+        apfEnabled: Bool? = nil,
+        apfHz: Int? = nil,
         antSelect: Int? = nil,
         txwEnabled: Bool? = nil,
         squelchType: Int? = nil,
@@ -378,6 +395,10 @@ public struct RigState: Codable, Equatable, Sendable {
         self.ifShiftHz = ifShiftHz
         self.notchEnabled = notchEnabled
         self.notchHz = notchHz
+        self.contourEnabled = contourEnabled
+        self.contourHz = contourHz
+        self.apfEnabled = apfEnabled
+        self.apfHz = apfHz
         self.antSelect = antSelect
         self.txwEnabled = txwEnabled
         self.squelchType = squelchType

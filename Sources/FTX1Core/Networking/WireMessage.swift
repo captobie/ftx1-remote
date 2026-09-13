@@ -180,6 +180,19 @@ public enum RigCommand: Sendable, Equatable {
     /// ("BP01" prefix); `CommandQueue` snaps the value and converts it to
     /// the 3-digit 10 Hz-unit code the wire carries.
     case setNotchFrequency(hz: Int)
+    /// CONTOUR on/off — see `RigState.contourEnabled`. Raw "CO" command,
+    /// P2=0 sub-function ("CO00" prefix), 4-digit 0000/0001 field.
+    case setContour(Bool)
+    /// CONTOUR frequency in Hz, 10-3200 in 10 Hz steps — see
+    /// `RigState.contourHz`/`IFContour`. "CO" P2=1 ("CO01"), 4-digit Hz.
+    case setContourFrequency(hz: Int)
+    /// APF (audio peak filter, CW only) on/off — see `RigState.apfEnabled`.
+    /// "CO" P2=2 ("CO02"), 4-digit 0000/0001 field.
+    case setAPF(Bool)
+    /// APF offset from the CW pitch in Hz, −250…+250 in 10 Hz steps — see
+    /// `RigState.apfHz`/`IFContour`. "CO" P2=3 ("CO03"); `CommandQueue`
+    /// snaps the value and converts it to the 4-digit 0000-0050 code.
+    case setAPFOffset(hz: Int)
     /// HF antenna connector selector: 0 = ANT1, 1 = ANT2 — see
     /// `RigState.antSelect`. No dedicated mnemonic; goes through the same
     /// "EX" (MENU) passthrough as `.setMenuItem` below, addressed at Table
@@ -298,6 +311,10 @@ public enum RigCommand: Sendable, Equatable {
         case setIFShift = "set_if_shift"
         case setNotch = "set_notch"
         case setNotchFrequency = "set_notch_freq"
+        case setContour = "set_contour"
+        case setContourFrequency = "set_contour_freq"
+        case setAPF = "set_apf"
+        case setAPFOffset = "set_apf_offset"
         case setAntSelect = "set_ant_select"
         case setTXW = "set_txw"
         case setSquelchType = "set_squelch_type"
@@ -404,6 +421,14 @@ extension RigCommand: Codable {
             self = .setNotch(try container.decode(Bool.self, forKey: .value))
         case .setNotchFrequency:
             self = .setNotchFrequency(hz: try container.decode(Int.self, forKey: .value))
+        case .setContour:
+            self = .setContour(try container.decode(Bool.self, forKey: .value))
+        case .setContourFrequency:
+            self = .setContourFrequency(hz: try container.decode(Int.self, forKey: .value))
+        case .setAPF:
+            self = .setAPF(try container.decode(Bool.self, forKey: .value))
+        case .setAPFOffset:
+            self = .setAPFOffset(hz: try container.decode(Int.self, forKey: .value))
         case .setAntSelect:
             self = .setAntSelect(try container.decode(Int.self, forKey: .value))
         case .setTXW:
@@ -560,6 +585,18 @@ extension RigCommand: Codable {
             try container.encode(on, forKey: .value)
         case .setNotchFrequency(let hz):
             try container.encode(CommandName.setNotchFrequency, forKey: .cmd)
+            try container.encode(hz, forKey: .value)
+        case .setContour(let on):
+            try container.encode(CommandName.setContour, forKey: .cmd)
+            try container.encode(on, forKey: .value)
+        case .setContourFrequency(let hz):
+            try container.encode(CommandName.setContourFrequency, forKey: .cmd)
+            try container.encode(hz, forKey: .value)
+        case .setAPF(let on):
+            try container.encode(CommandName.setAPF, forKey: .cmd)
+            try container.encode(on, forKey: .value)
+        case .setAPFOffset(let hz):
+            try container.encode(CommandName.setAPFOffset, forKey: .cmd)
             try container.encode(hz, forKey: .value)
         case .setAntSelect(let mode):
             try container.encode(CommandName.setAntSelect, forKey: .cmd)

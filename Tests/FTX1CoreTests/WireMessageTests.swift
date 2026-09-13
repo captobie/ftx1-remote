@@ -49,6 +49,26 @@ final class WireMessageTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(RigCommand.self, from: freqData), freq)
     }
 
+    func testContourAndAPFCommandsRoundTrip() throws {
+        let cases: [(RigCommand, String, Any)] = [
+            (.setContour(true), "set_contour", true),
+            (.setContourFrequency(hz: 1240), "set_contour_freq", 1240),
+            (.setAPF(false), "set_apf", false),
+            (.setAPFOffset(hz: -120), "set_apf_offset", -120),
+        ]
+        for (command, name, value) in cases {
+            let data = try JSONEncoder().encode(command)
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            XCTAssertEqual(json?["cmd"] as? String, name)
+            if let bool = value as? Bool {
+                XCTAssertEqual(json?["value"] as? Bool, bool)
+            } else {
+                XCTAssertEqual(json?["value"] as? Int, value as? Int)
+            }
+            XCTAssertEqual(try JSONDecoder().decode(RigCommand.self, from: data), command)
+        }
+    }
+
     func testStatePushEncoding() throws {
         let state = RigState(frequencyHz: 14_250_000, mode: .usb, powerWatts: 50, swr: 1.2, ptt: false)
         let push = RigStatePush(state: state)

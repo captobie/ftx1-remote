@@ -163,6 +163,41 @@ final class RigctldClientTests: XCTestCase {
         await client.disconnect()
     }
 
+    /// "CO" (CONTOUR/APF) is the 4-digit flavor of the "BP" trap above:
+    /// on/off answers "CO000001;", so getRawInt (!= 0), never getRawBool.
+    /// Also covers the frequency (Hz) and APF-offset (code) fields and the
+    /// 4-digit zero-padded writes.
+    func testContourFourDigitFieldsReadViaRawInt() async throws {
+        let server = try FakeRigctldServer.start()
+        defer { server.stop() }
+
+        let client = RigctldClient(host: "127.0.0.1", port: server.port)
+        try await client.connect()
+
+        server.respondRaw(to: "W CO00; ;", bytes: Array("CO000001;\0".utf8))
+        let onViaInt = try await client.getRawInt("CO00")
+        XCTAssertEqual(onViaInt, 1)
+        server.respondRaw(to: "W CO00; ;", bytes: Array("CO000001;\0".utf8))
+        let onViaBool = try await client.getRawBool("CO00")
+        XCTAssertEqual(onViaBool, false, "the documented trap, 4-digit flavor")
+
+        server.respondRaw(to: "W CO01; ;", bytes: Array("CO011240;\0".utf8))
+        let contourHz = try await client.getRawInt("CO01")
+        XCTAssertEqual(contourHz, 1240)
+        server.respondRaw(to: "W CO03; ;", bytes: Array("CO030037;\0".utf8))
+        let apfCode = try await client.getRawInt("CO03")
+        XCTAssertEqual(apfCode, 37)
+
+        server.respondRaw(to: "W CO011240; ;", bytes: [])
+        try await client.setRawInt("CO01", 1240, digits: 4)
+        server.respondRaw(to: "W CO030037; ;", bytes: [])
+        try await client.setRawInt("CO03", 37, digits: 4)
+        server.respondRaw(to: "W CO020001; ;", bytes: [])
+        try await client.setRawInt("CO02", 1, digits: 4)
+
+        await client.disconnect()
+    }
+
     /// Regression test for the actual reported bug: the real rig sometimes
     /// never replies to a raw Set command at all (the manual doesn't
     /// promise an Answer for those), and `sendRawCommand` had no timeout —

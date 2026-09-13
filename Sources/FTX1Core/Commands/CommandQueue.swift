@@ -274,6 +274,20 @@ public actor CommandQueue {
             // 10 Hz units (001-320), not Hz. Snapped here too so a remote
             // client can't send an off-grid or out-of-range value.
             try await rigctld.setRawInt("BP01", IFNotch.code(forHz: hz), digits: 3)
+        case .setContour(let on):
+            // "CO"'s four sub-functions (P2 baked into the "CO0x" prefix)
+            // are all 4-digit fields, on/off included (0000/0001) — same
+            // multi-digit-boolean shape as "BP" above, so setRawInt with
+            // the field width rather than setRawBool.
+            try await rigctld.setRawInt("CO00", on ? 1 : 0, digits: 4)
+        case .setContourFrequency(let hz):
+            // "CO01" carries Hz directly as 4 digits (0010-3200).
+            try await rigctld.setRawInt("CO01", IFContour.snappedContourHz(hz), digits: 4)
+        case .setAPF(let on):
+            try await rigctld.setRawInt("CO02", on ? 1 : 0, digits: 4)
+        case .setAPFOffset(let hz):
+            // "CO03" is a 4-digit code 0000-0050 for −250…+250 Hz, not Hz.
+            try await rigctld.setRawInt("CO03", IFContour.apfCode(forHz: hz), digits: 4)
         case .setAntSelect(let mode):
             // No dedicated mnemonic for this one — it's Table 3's "HF ANT
             // SELECT" (OPERATION SETTING / OPTION / p3=4), a single digit

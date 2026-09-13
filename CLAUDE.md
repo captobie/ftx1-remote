@@ -306,7 +306,11 @@ v1 checklist.
     same index means a different bandwidth per mode), `IFShift` (the raw
     "IS" IF SHIFT value space, ±1200 Hz in 20 Hz steps: clamp/snap +
     label), `IFNotch` (the raw "BP" manual-notch value space, 10-3200 Hz
-    in 10 Hz steps, wire-code ↔ Hz conversion).
+    in 10 Hz steps, wire-code ↔ Hz conversion), `IFContour` (the raw "CO"
+    CONTOUR + APF value spaces — CONTOUR 10-3200 Hz, APF −250…+250 Hz as a
+    0000-0050 code — plus `face(for:)`, which picks CONTOUR or APF for a
+    mode since the manual says they're mutually exclusive: APF CW-only,
+    CONTOUR not in CW).
   - `Appearance/` — `AppTheme` (Light/Dark/Auto), `ButtonValueColor` (MENU
     grid button value color), `AppearanceSettings` (the `@AppStorage` keys
     both are read/written through) — shared so any future app target reads
@@ -335,9 +339,11 @@ v1 checklist.
     steppers), `IFShiftControl` (IF SHIFT slider + center button,
     command sent on drag release, not per tick) and `IFNotchControl`
     (manual-notch on/off button + frequency slider; dragging while off
-    also turns it on) — all generic over `RigController` like
-    `MenuPageView`, all living in the Mac
-    `ContentView`'s "Filter" row under the Band/Mode pickers (the rig
+    also turns it on) and `ContourAPFControl` (one slot that shows CONTOUR
+    or APF depending on mode, same toggle + slider shape) — all generic
+    over `RigController` like `MenuPageView`, all living in the Mac
+    `ContentView`'s two "Filter" rows under the Band/Mode pickers
+    (WIDTH/SHIFT/NOTCH on the first, CONTOUR-or-APF on the second) (the rig
     keeps these on the MAIN-knob function menu, not the MENU grid, so
     they're not `MenuPageView` buttons), placed only on the Mac so far but
     deliberately built shared because the iPad is the planned next
