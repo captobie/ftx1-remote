@@ -797,6 +797,17 @@ final class HubService: ObservableObject {
     }
 
     private func pollLoop() async throws {
+        // Prime the slow tier so it runs right after the first fast tick of
+        // every (re)connection instead of waiting out a full interval.
+        // Measured on real hardware 2026-09-13 (rawcat log): fast ticks land
+        // ~1.5s apart (roughly a dozen reads plus `pollInterval`), so the
+        // first slow tier otherwise started ~8s after connect and finished
+        // ~10s in — every menu/settings field (filter width, NB, DNR, AGC,
+        // VOX...) sat at "—" for those 10s, which read as the app not
+        // reading them at all. Priming costs one ~2s slow tier up front
+        // and brings that to ~3s. Also right on a reconnect: anything
+        // could have changed while the link was down.
+        slowTierTickCounter = Self.slowTierInterval
         while !Task.isCancelled {
             try await refreshFastTier()
             slowTierTickCounter += 1
