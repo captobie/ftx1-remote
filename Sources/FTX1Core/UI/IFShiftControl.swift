@@ -61,10 +61,13 @@ public struct IFShiftControl<Controller: RigController>: View {
 
     /// Mid-drag the local value wins; otherwise the rig's last-known one
     /// (nil, before the first poll, sits at center rather than jumping the
-    /// knob to one end).
+    /// knob to one end). Snapped for display either way: in AM the real
+    /// rig answers "IS00-0001;" — an off-grid −1 Hz on a mode where shift
+    /// is inert (hardware-observed 2026-09-13) — which would otherwise
+    /// read as "−1 Hz" next to a disabled slider.
     private var displayedHz: Int? {
         if let dragValue { return IFShift.snapped(Int(dragValue)) }
-        return hub.rigState.ifShiftHz
+        return hub.rigState.ifShiftHz.map(IFShift.snapped)
     }
 
     private var sliderValue: Binding<Double> {
