@@ -111,22 +111,27 @@ struct ContentView: View {
                 .pickerStyle(.segmented)
             }
 
-            // Filter rows: the rig's MAIN-knob function-menu controls,
-            // kept off the Band/Mode row above since that one is full at
-            // the default window width. Row 1 (WIDTH, SHIFT, NOTCH) is
-            // full too; row 2 holds CONTOUR-or-APF (one slot, face picked
-            // by mode) and N/W (narrow). Both left-aligned so later controls
-            // append.
-            HStack(spacing: 16) {
-                FilterWidthControl<HubService>()
-                IFShiftControl<HubService>()
-                IFNotchControl<HubService>()
-                Spacer()
-            }
-            HStack(spacing: 16) {
-                ContourAPFControl<HubService>()
-                NarrowControl<HubService>()
-                Spacer()
+            // Filter block: the rig's MAIN-knob function-menu controls in
+            // two rows (kept off the Band/Mode row above since that one is
+            // full at the default window width) with the Filter Function
+            // Display on the right spanning both. Row 1: WIDTH, SHIFT.
+            // Row 2: CONTOUR-or-APF (one slot, face picked by mode), N/W
+            // (narrow), NOTCH. Rows left-aligned so later controls append.
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 16) {
+                        FilterWidthControl<HubService>()
+                        IFShiftControl<HubService>()
+                        Spacer()
+                    }
+                    HStack(spacing: 16) {
+                        ContourAPFControl<HubService>()
+                        NarrowControl<HubService>()
+                        IFNotchControl<HubService>()
+                        Spacer()
+                    }
+                }
+                FilterDisplayHost(frames: hub.scopeFrames, scopeMode: scopeDisplayMode)
             }
 
             MenuPageView<HubService>()

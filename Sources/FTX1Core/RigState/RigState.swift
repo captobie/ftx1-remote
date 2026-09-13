@@ -190,6 +190,13 @@ public struct RigState: Codable, Equatable, Sendable {
     /// it; `HubService` re-reads "SH0" right after a NAR write so the
     /// Width readout follows without waiting for the slow tier.
     public var narrowEnabled: Bool?
+    /// The current mode's NAR WIDTH menu preset in Hz — the bandwidth the
+    /// rig uses while `narrowEnabled` in SSB/CW/RTTY/DATA, where the raw
+    /// "SH" index keeps reporting the wide setting (see
+    /// `NarrowWidthPreset`). Read through the "EX" passthrough in the slow
+    /// tier; nil in modes without a preset (AM/FM/C4FM) or before the
+    /// first read. Only the Filter Function Display uses it today.
+    public var narrowWidthHz: Int?
     /// HF antenna connector selector: 0 = ANT1, 1 = ANT2. Unlike every other
     /// field here, this has no dedicated 2-letter CAT mnemonic — it's Table
     /// 3's "HF ANT SELECT" item (`DeepSettingsCatalog`'s OPERATION SETTING /
@@ -344,6 +351,7 @@ public struct RigState: Codable, Equatable, Sendable {
         apfEnabled: Bool? = nil,
         apfHz: Int? = nil,
         narrowEnabled: Bool? = nil,
+        narrowWidthHz: Int? = nil,
         antSelect: Int? = nil,
         txwEnabled: Bool? = nil,
         squelchType: Int? = nil,
@@ -409,6 +417,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.apfEnabled = apfEnabled
         self.apfHz = apfHz
         self.narrowEnabled = narrowEnabled
+        self.narrowWidthHz = narrowWidthHz
         self.antSelect = antSelect
         self.txwEnabled = txwEnabled
         self.squelchType = squelchType

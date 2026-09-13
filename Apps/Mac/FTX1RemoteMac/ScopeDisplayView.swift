@@ -14,15 +14,20 @@ import SwiftUI
 final class ScopeFrameStore: ObservableObject {
     @Published private(set) var waterfall: CGImage?
     @Published private(set) var oscilloscope: CGImage?
+    /// 0…4 kHz spectrum for the Filter Function Display — see
+    /// `AudioCaptureFrame.spectrum`; observed only by `FilterDisplayHost`.
+    @Published private(set) var spectrum: [Float] = []
 
     func update(_ frame: AudioCaptureFrame) {
         waterfall = frame.waterfall
         oscilloscope = frame.oscilloscope
+        spectrum = frame.spectrum
     }
 
     func clear() {
         waterfall = nil
         oscilloscope = nil
+        spectrum = []
     }
 }
 

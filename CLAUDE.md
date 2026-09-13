@@ -86,7 +86,12 @@ over Tailscale, without needing to be physically near the rig.
   instead (see "Audio-over-Pi" below) — both feed the exact same
   downstream FFT/relay code, which can't tell them apart. The
   waterfall/oscilloscope display itself is Mac-only either way (not
-  broadcast to mobile clients); only the raw audio is.
+  broadcast to mobile clients); only the raw audio is. Since 2026-09-13
+  the same FFT also yields `AudioCaptureFrame.spectrum` (0–4 kHz bins,
+  normalized through the waterfall's auto-gain window), published through
+  `ScopeFrameStore` to the Mac-only `FilterDisplayHost`, which feeds the
+  shared `FilterDisplayView` (the app's Filter Function Display) — same
+  leaf-only observation rule as the scope.
 - **Scope frames deliberately bypass `HubService`'s `@Published` state.**
   `AudioCaptureEngine` hands `HubService` a frame ~21 times a second
   (44100 Hz / 2048-sample chunks); `HubService` stores it in a separate
@@ -306,7 +311,10 @@ v1 checklist.
     same index means a different bandwidth per mode), `IFShift` (the raw
     "IS" IF SHIFT value space, ±1200 Hz in 20 Hz steps: clamp/snap +
     label), `IFNotch` (the raw "BP" manual-notch value space, 10-3200 Hz
-    in 10 Hz steps, wire-code ↔ Hz conversion), `IFContour` (the raw "CO"
+    in 10 Hz steps, wire-code ↔ Hz conversion), `FilterPassbandModel` (the
+    Filter Function Display's geometry: passband/notch/contour/APF on a
+    fixed 0–4 kHz span from `RigState`, with per-mode center conventions
+    documented as an illustration, not a CAT readback), `IFContour` (the raw "CO"
     CONTOUR + APF value spaces — CONTOUR 10-3200 Hz, APF −250…+250 Hz as a
     0000-0050 code — plus `face(for:)`, which picks CONTOUR or APF for a
     mode since the manual says they're mutually exclusive: APF CW-only,
@@ -343,10 +351,19 @@ v1 checklist.
     or APF depending on mode, same toggle + slider shape) and
     `NarrowControl` (the N/W narrow on/off button; the only width control that
     works in AM/FM, and `HubService` re-reads "SH0" right after a NAR
-    write so the Width readout follows within ~0.5 s) — all generic
+    write so the Width readout follows within ~2 s — note that in SSB/CW/
+    RTTY/DATA the rig's "SH" index does *not* change with NARROW, the real
+    bandwidth is the mode's NAR WIDTH menu preset, which the slow tier reads
+    via `NarrowWidthPreset` into `RigState.narrowWidthHz` for the display),
+    and `FilterDisplayView`
+    (the Filter Function Display: `Canvas` drawing of `FilterPassbandModel`
+    over an optional normalized spectrum, `[]` on targets without audio) —
+    all generic
     over `RigController` like `MenuPageView`, all living in the Mac
     `ContentView`'s two "Filter" rows under the Band/Mode pickers
-    (WIDTH/SHIFT/NOTCH on the first, CONTOUR-or-APF and N/W on the second) (the rig
+    (WIDTH/SHIFT on the first, CONTOUR-or-APF, N/W and NOTCH on the
+    second, with `FilterDisplayHost` — Mac-only, `Apps/Mac/` — on the right
+    spanning both rows) (the rig
     keeps these on the MAIN-knob function menu, not the MENU grid, so
     they're not `MenuPageView` buttons), placed only on the Mac so far but
     deliberately built shared because the iPad is the planned next

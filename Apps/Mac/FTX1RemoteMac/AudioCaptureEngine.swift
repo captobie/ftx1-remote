@@ -12,6 +12,12 @@ import os
 struct AudioCaptureFrame {
     let waterfall: CGImage
     let oscilloscope: CGImage
+    /// The FFT's dB bins covering 0…4000 Hz, normalized 0…1 through the
+    /// same auto-gain floor/ceiling window the waterfall row uses, for
+    /// the Filter Function Display's spectrum overlay (`FilterDisplayHost`
+    /// → `FilterDisplayView`). Same scale as the waterfall by design so the
+    /// two agree on what's loud.
+    let spectrum: [Float]
 }
 
 /// Captures audio from the configured input device (see
@@ -371,6 +377,20 @@ final class AudioCaptureEngine {
         // mapped to the color gradient, on top of the auto-gain ceiling.
         let floorDb = ceilingDb - waterfallDynamicRangeDb / waterfallZoom.get()
 
+        // Filter-display spectrum: the raw bins up to 4 kHz (the display's
+        // fixed span — ~186 bins at 44.1 kHz), clipped to the same
+        // floor/ceiling window and normalized 0…1, all in vDSP so the
+        // Debug build pays nothing per bin (see CLAUDE.md on -Onone).
+        let spectrumBins = min(halfSize, Int(4000 / (sampleRate / Double(fftSize))))
+        var spectrum = [Float](repeating: 0, count: spectrumBins)
+        var floorClip = floorDb
+        var ceilingClip = ceilingDb
+        vDSP_vclip(db, 1, &floorClip, &ceilingClip, &spectrum, 1, vDSP_Length(spectrumBins))
+        var negFloor = -floorDb
+        vDSP_vsadd(spectrum, 1, &negFloor, &spectrum, 1, vDSP_Length(spectrumBins))
+        var invRange = 1 / max(ceilingDb - floorDb, 1e-6)
+        vDSP_vsmul(spectrum, 1, &invRange, &spectrum, 1, vDSP_Length(spectrumBins))
+
         // Bucket the raw FFT bins down to binCount display columns, taking
         // each bucket's peak so brief narrow-band signals don't disappear
         // into an average.
@@ -396,7 +416,7 @@ final class AudioCaptureEngine {
                   peakAmplitude: gain.peakAmplitude, zoom: oscilloscopeZoom.get()
               )
         else { return }
-        let frame = AudioCaptureFrame(waterfall: waterfallImage, oscilloscope: oscilloscopeImage)
+        let frame = AudioCaptureFrame(waterfall: waterfallImage, oscilloscope: oscilloscopeImage, spectrum: spectrum)
         Task { @MainActor [weak self] in
             self?.onNewFrame?(frame)
         }

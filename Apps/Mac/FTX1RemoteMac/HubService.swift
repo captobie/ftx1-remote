@@ -681,8 +681,18 @@ final class HubService: ObservableObject {
             guard let width = try? await rigctld.getRawInt("SH0") else {
                 if attempt == 0 { continue } else { return }
             }
+            // In SSB/CW/RTTY/DATA "SH0" doesn't move with NARROW — the
+            // narrowed bandwidth is the mode's NAR WIDTH preset — so refresh
+            // that too, for the Filter Function Display (see
+            // NarrowWidthPreset / RigState.narrowWidthHz).
+            var presetHz: Int?
+            if let item = NarrowWidthPreset.item(for: rigState.mode),
+               let raw = try? await rigctld.getMenuItem(p1: item.p1, p2: item.p2, p3: item.p3) {
+                presetHz = NarrowWidthPreset.hz(forRawValue: raw, mode: rigState.mode)
+            }
             commandGeneration += 1
             rigState.filterWidthIndex = width
+            if let presetHz { rigState.narrowWidthHz = presetHz }
             await server.broadcast(rigState)
             return
         }
@@ -1144,6 +1154,15 @@ final class HubService: ObservableObject {
         // "NA0" reads NARROW with its fixed MAIN-side P1 baked in — a plain
         // single-digit boolean like "BC0", so getRawBool is right here.
         let narrowEnabled = try? await rigctld.getRawBool("NA0")
+        // The current mode's NAR WIDTH preset (Deep Settings item, generic
+        // "EX" passthrough like HF ANT SELECT below) — what the rig really
+        // filters at while NARROW is on in SSB/CW/RTTY/DATA, since "SH0"
+        // keeps reporting the wide setting there. See NarrowWidthPreset.
+        var narrowWidthHz: Int?
+        if let presetItem = NarrowWidthPreset.item(for: rigState.mode),
+           let raw = try? await rigctld.getMenuItem(p1: presetItem.p1, p2: presetItem.p2, p3: presetItem.p3) {
+            narrowWidthHz = NarrowWidthPreset.hz(forRawValue: raw, mode: rigState.mode)
+        }
         // No dedicated mnemonic for HF ANT SELECT — reads through the same
         // generic "EX" passthrough Deep Settings uses, just at this one
         // fixed address (see RigState.antSelect/RigCommand.setAntSelect).
@@ -1226,6 +1245,10 @@ final class HubService: ObservableObject {
         rigState.apfEnabled = apfRaw.map { $0 != 0 } ?? rigState.apfEnabled
         rigState.apfHz = apfCode.flatMap(IFContour.apfHz(forCode:)) ?? rigState.apfHz
         rigState.narrowEnabled = narrowEnabled ?? rigState.narrowEnabled
+        // Cleared (not held over) when the mode has no preset, so AM/FM
+        // never inherit an SSB value; otherwise the usual failed-read
+        // fallback.
+        rigState.narrowWidthHz = NarrowWidthPreset.item(for: rigState.mode) == nil ? nil : (narrowWidthHz ?? rigState.narrowWidthHz)
         rigState.antSelect = antSelect ?? rigState.antSelect
         rigState.txwEnabled = txwEnabled ?? rigState.txwEnabled
         rigState.squelchType = squelchType ?? rigState.squelchType
