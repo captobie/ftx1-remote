@@ -68,7 +68,18 @@ public actor CommandQueue {
             if mode == .c4fm {
                 try await rigctld.setActiveModeC4FM()
             } else {
-_ = try await rigctld.send("M \(Self.currentVFOArg) \(mode.rawValue) 0")
+                // Passband "-1" is hamlib's RIG_PASSBAND_NOCHANGE: newcat's
+                // set_mode sends "MD" and returns without touching the
+                // width. The previous "0" (RIG_PASSBAND_NORMAL) made hamlib
+                // follow the mode change with an explicit width set to its
+                // own idea of "normal" for that mode — the first entry in
+                // the backend's filter list, which for CW/RTTY/DATA modes
+                // is 500 Hz. Hardware-observed 2026-09-13: FM → DATA-U came
+                // back at 500 Hz instead of the 2400 Hz the operator had
+                // been using, because hamlib overwrote the rig's own
+                // per-mode last-used width. With -1 the rig restores its
+                // own remembered width, matching the front panel.
+                _ = try await rigctld.send("M \(Self.currentVFOArg) \(mode.rawValue) -1")
             }
         case .setPTT(let on):
             _ = try await rigctld.send("T \(Self.currentVFOArg) \(on ? 1 : 0)")
