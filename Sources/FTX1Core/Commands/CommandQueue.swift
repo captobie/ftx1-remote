@@ -261,6 +261,19 @@ public actor CommandQueue {
             // (not just in the UI) so a remote client can't send a value
             // off the 20 Hz grid or outside ±1200.
             try await rigctld.setIFShiftHz(IFShift.snapped(hz))
+        case .setNotch(let on):
+            // "BP"'s on/off sub-function (P2=0, baked into the "BP00"
+            // prefix with the MAIN-side P1) is a 3-digit 000/001 field per
+            // the manual, not the single-digit boolean setRawBool writes
+            // ("BP001" wouldn't match the documented width) — so it goes
+            // through setRawInt with the field width, same as its
+            // frequency sibling below.
+            try await rigctld.setRawInt("BP00", on ? 1 : 0, digits: 3)
+        case .setNotchFrequency(let hz):
+            // "BP"'s frequency sub-function (P2=1) takes a 3-digit code of
+            // 10 Hz units (001-320), not Hz. Snapped here too so a remote
+            // client can't send an off-grid or out-of-range value.
+            try await rigctld.setRawInt("BP01", IFNotch.code(forHz: hz), digits: 3)
         case .setAntSelect(let mode):
             // No dedicated mnemonic for this one — it's Table 3's "HF ANT
             // SELECT" (OPERATION SETTING / OPTION / p3=4), a single digit

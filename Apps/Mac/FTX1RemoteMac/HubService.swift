@@ -502,7 +502,7 @@ final class HubService: ObservableObject {
              .setCWMessageRecording, .setAtt, .setPreamp, .setTuner, .setDisplayContrast,
              .setDisplayDimmer, .setDisplayLevel, .setDisplayPeak, .setDisplayMarker, .setMicGain,
              .setAMCLevel, .setVox, .setVoxGain, .setVoxDelay, .setDNF, .setAGC, .setMicEQ,
-             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setAntSelect, .setTXW, .setSquelchType,
+             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setAntSelect, .setTXW, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel:
             return false
@@ -571,6 +571,8 @@ final class HubService: ObservableObject {
         case .setDNRLevel(let level): rigState.dnrLevel = level
         case .setFilterWidth(let index): rigState.filterWidthIndex = index
         case .setIFShift(let hz): rigState.ifShiftHz = IFShift.snapped(hz)
+        case .setNotch(let on): rigState.notchEnabled = on
+        case .setNotchFrequency(let hz): rigState.notchHz = IFNotch.snappedHz(hz)
         case .setAntSelect(let mode): rigState.antSelect = mode
         case .setTXW(let on): rigState.txwEnabled = on
         case .setSquelchType(let mode): rigState.squelchType = mode
@@ -1087,6 +1089,13 @@ final class HubService: ObservableObject {
         // "IS" answers with a signed value ("IS00-0240;"), which getRawInt
         // can't parse — dedicated helper, see RigctldClient.getIFShiftHz().
         let ifShiftHz = try? await rigctld.getIFShiftHz()
+        // "BP00"/"BP01" read the manual notch's on/off and frequency
+        // sub-functions. Both answer with a 3-digit field ("BP00001;",
+        // "BP01124;"), so on/off goes through getRawInt (!= 0) rather than
+        // getRawBool, which would see only the leading "0" of "001" and
+        // report the notch off every time — see IFNotch.
+        let notchRaw = try? await rigctld.getRawInt("BP00")
+        let notchCode = try? await rigctld.getRawInt("BP01")
         // No dedicated mnemonic for HF ANT SELECT — reads through the same
         // generic "EX" passthrough Deep Settings uses, just at this one
         // fixed address (see RigState.antSelect/RigCommand.setAntSelect).
@@ -1162,6 +1171,8 @@ final class HubService: ObservableObject {
         rigState.dnrLevel = dnrLevel ?? rigState.dnrLevel
         rigState.filterWidthIndex = filterWidthIndex ?? rigState.filterWidthIndex
         rigState.ifShiftHz = ifShiftHz ?? rigState.ifShiftHz
+        rigState.notchEnabled = notchRaw.map { $0 != 0 } ?? rigState.notchEnabled
+        rigState.notchHz = notchCode.flatMap(IFNotch.hz(forCode:)) ?? rigState.notchHz
         rigState.antSelect = antSelect ?? rigState.antSelect
         rigState.txwEnabled = txwEnabled ?? rigState.txwEnabled
         rigState.squelchType = squelchType ?? rigState.squelchType

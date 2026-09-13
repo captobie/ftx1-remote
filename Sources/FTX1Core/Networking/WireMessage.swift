@@ -171,6 +171,15 @@ public enum RigCommand: Sendable, Equatable {
     /// MAIN-side, P2 fixed to "0", signed 4-digit value). `CommandQueue`
     /// snaps the value with `IFShift.snapped` before sending.
     case setIFShift(hz: Int)
+    /// Manual IF NOTCH on/off — see `RigState.notchEnabled`. Maps to the
+    /// FTX-1's raw "BP" CAT command's P2=0 sub-function ("BP00" prefix,
+    /// MAIN-side), whose value is a 3-digit 000/001 field.
+    case setNotch(Bool)
+    /// Manual IF NOTCH frequency in Hz, 10-3200 in 10 Hz steps — see
+    /// `RigState.notchHz`/`IFNotch`. Maps to "BP"'s P2=1 sub-function
+    /// ("BP01" prefix); `CommandQueue` snaps the value and converts it to
+    /// the 3-digit 10 Hz-unit code the wire carries.
+    case setNotchFrequency(hz: Int)
     /// HF antenna connector selector: 0 = ANT1, 1 = ANT2 — see
     /// `RigState.antSelect`. No dedicated mnemonic; goes through the same
     /// "EX" (MENU) passthrough as `.setMenuItem` below, addressed at Table
@@ -287,6 +296,8 @@ public enum RigCommand: Sendable, Equatable {
         case setDNRLevel = "set_dnr_level"
         case setFilterWidth = "set_filter_width"
         case setIFShift = "set_if_shift"
+        case setNotch = "set_notch"
+        case setNotchFrequency = "set_notch_freq"
         case setAntSelect = "set_ant_select"
         case setTXW = "set_txw"
         case setSquelchType = "set_squelch_type"
@@ -389,6 +400,10 @@ extension RigCommand: Codable {
             self = .setFilterWidth(try container.decode(Int.self, forKey: .value))
         case .setIFShift:
             self = .setIFShift(hz: try container.decode(Int.self, forKey: .value))
+        case .setNotch:
+            self = .setNotch(try container.decode(Bool.self, forKey: .value))
+        case .setNotchFrequency:
+            self = .setNotchFrequency(hz: try container.decode(Int.self, forKey: .value))
         case .setAntSelect:
             self = .setAntSelect(try container.decode(Int.self, forKey: .value))
         case .setTXW:
@@ -539,6 +554,12 @@ extension RigCommand: Codable {
             try container.encode(index, forKey: .value)
         case .setIFShift(let hz):
             try container.encode(CommandName.setIFShift, forKey: .cmd)
+            try container.encode(hz, forKey: .value)
+        case .setNotch(let on):
+            try container.encode(CommandName.setNotch, forKey: .cmd)
+            try container.encode(on, forKey: .value)
+        case .setNotchFrequency(let hz):
+            try container.encode(CommandName.setNotchFrequency, forKey: .cmd)
             try container.encode(hz, forKey: .value)
         case .setAntSelect(let mode):
             try container.encode(CommandName.setAntSelect, forKey: .cmd)

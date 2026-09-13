@@ -112,12 +112,13 @@ struct ContentView: View {
             }
 
             // Filter row: the rig's MAIN-knob function-menu controls
-            // (WIDTH, SHIFT; NOTCH/CONTOUR to follow), kept off the
+            // (WIDTH, SHIFT, NOTCH; CONTOUR to follow), kept off the
             // Band/Mode row above since that one is full at the default
             // window width. Left-aligned so later controls append.
             HStack(spacing: 16) {
                 FilterWidthControl<HubService>()
                 IFShiftControl<HubService>()
+                IFNotchControl<HubService>()
                 Spacer()
             }
 

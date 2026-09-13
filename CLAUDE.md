@@ -64,7 +64,12 @@ over Tailscale, without needing to be physically near the rig.
   raw CAT passthrough (`sendRawCommand`/`getRawBool`/`setRawInt`/etc.),
   documented in the CAT Operation Reference Manual, not through rigctld's
   generic get/set verbs. See `Structure` below for where the two menu
-  systems live.
+  systems live. One trap: some commands carry an on/off state as a
+  multi-digit field ("BP"'s manual-notch on/off is 000/001, "CO"'s
+  CONTOUR/APF on/off is 0000/0001) — `getRawBool` looks only at the first
+  character after the prefix and would read those as always-off, so such
+  fields go through `getRawInt` (`!= 0`) / `setRawInt(digits:)` with the
+  documented width (see `IFNotch`).
 - **Waterfall/oscilloscope display is audio-derived, not CAT-derived.**
   `AudioCaptureEngine` (Mac-only) captures audio, runs an FFT to produce
   both a scrolling waterfall and an oscilloscope trace from the same
@@ -300,7 +305,8 @@ v1 checklist.
     5: the raw "SH" WIDTH index → Hz mapping, keyed by `RigMode` since the
     same index means a different bandwidth per mode), `IFShift` (the raw
     "IS" IF SHIFT value space, ±1200 Hz in 20 Hz steps: clamp/snap +
-    label).
+    label), `IFNotch` (the raw "BP" manual-notch value space, 10-3200 Hz
+    in 10 Hz steps, wire-code ↔ Hz conversion).
   - `Appearance/` — `AppTheme` (Light/Dark/Auto), `ButtonValueColor` (MENU
     grid button value color), `AppearanceSettings` (the `@AppStorage` keys
     both are read/written through) — shared so any future app target reads
@@ -326,9 +332,11 @@ v1 checklist.
     item), `VFODisplayBox` (the dense side-by-side VFO A/B readout used by
     Mac and iPad), `SMeterView` (the analog S/SWR meter face, used by Mac
     and iPad), `FilterWidthControl` (IF WIDTH picker + narrower/wider
-    steppers) and `IFShiftControl` (IF SHIFT slider + center button,
-    command sent on drag release, not per tick) — both generic over
-    `RigController` like `MenuPageView`, both living in the Mac
+    steppers), `IFShiftControl` (IF SHIFT slider + center button,
+    command sent on drag release, not per tick) and `IFNotchControl`
+    (manual-notch on/off button + frequency slider; dragging while off
+    also turns it on) — all generic over `RigController` like
+    `MenuPageView`, all living in the Mac
     `ContentView`'s "Filter" row under the Band/Mode pickers (the rig
     keeps these on the MAIN-knob function menu, not the MENU grid, so
     they're not `MenuPageView` buttons), placed only on the Mac so far but

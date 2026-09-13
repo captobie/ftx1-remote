@@ -33,6 +33,22 @@ final class WireMessageTests: XCTestCase {
         XCTAssertEqual(decoded, command)
     }
 
+    func testNotchCommandsRoundTrip() throws {
+        let on = RigCommand.setNotch(true)
+        let onData = try JSONEncoder().encode(on)
+        let onJSON = try JSONSerialization.jsonObject(with: onData) as? [String: Any]
+        XCTAssertEqual(onJSON?["cmd"] as? String, "set_notch")
+        XCTAssertEqual(onJSON?["value"] as? Bool, true)
+        XCTAssertEqual(try JSONDecoder().decode(RigCommand.self, from: onData), on)
+
+        let freq = RigCommand.setNotchFrequency(hz: 1240)
+        let freqData = try JSONEncoder().encode(freq)
+        let freqJSON = try JSONSerialization.jsonObject(with: freqData) as? [String: Any]
+        XCTAssertEqual(freqJSON?["cmd"] as? String, "set_notch_freq")
+        XCTAssertEqual(freqJSON?["value"] as? Int, 1240)
+        XCTAssertEqual(try JSONDecoder().decode(RigCommand.self, from: freqData), freq)
+    }
+
     func testStatePushEncoding() throws {
         let state = RigState(frequencyHz: 14_250_000, mode: .usb, powerWatts: 50, swr: 1.2, ptt: false)
         let push = RigStatePush(state: state)

@@ -127,6 +127,42 @@ final class RigctldClientTests: XCTestCase {
         await client.disconnect()
     }
 
+    /// "BP" (manual notch) answers both its sub-functions with a 3-digit
+    /// field, including the on/off one ("BP00001;" = on). Pins down why
+    /// that state is read with getRawInt (!= 0) and never getRawBool: the
+    /// latter looks only at the first character after the prefix, which is
+    /// the leading zero of "001", and would report the notch off forever.
+    func testNotchThreeDigitBooleanReadsViaRawInt() async throws {
+        let server = try FakeRigctldServer.start()
+        defer { server.stop() }
+
+        let client = RigctldClient(host: "127.0.0.1", port: server.port)
+        try await client.connect()
+
+        server.respondRaw(to: "W BP00; ;", bytes: Array("BP00001;\0".utf8))
+        let onViaInt = try await client.getRawInt("BP00")
+        XCTAssertEqual(onViaInt, 1)
+
+        server.respondRaw(to: "W BP00; ;", bytes: Array("BP00001;\0".utf8))
+        let onViaBool = try await client.getRawBool("BP00")
+        XCTAssertEqual(onViaBool, false, "the documented trap: getRawBool misreads a 3-digit 001 as off")
+
+        server.respondRaw(to: "W BP00; ;", bytes: Array("BP00000;\0".utf8))
+        let offViaInt = try await client.getRawInt("BP00")
+        XCTAssertEqual(offViaInt, 0)
+
+        server.respondRaw(to: "W BP01; ;", bytes: Array("BP01124;\0".utf8))
+        let code = try await client.getRawInt("BP01")
+        XCTAssertEqual(code, 124)
+
+        server.respondRaw(to: "W BP01124; ;", bytes: [])
+        try await client.setRawInt("BP01", 124, digits: 3)
+        server.respondRaw(to: "W BP00001; ;", bytes: [])
+        try await client.setRawInt("BP00", 1, digits: 3)
+
+        await client.disconnect()
+    }
+
     /// Regression test for the actual reported bug: the real rig sometimes
     /// never replies to a raw Set command at all (the manual doesn't
     /// promise an Answer for those), and `sendRawCommand` had no timeout —

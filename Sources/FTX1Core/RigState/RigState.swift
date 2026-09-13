@@ -159,6 +159,16 @@ public struct RigState: Codable, Equatable, Sendable {
     /// space and `RigctldClient.getIFShiftHz()` for why the generic
     /// `getRawInt` can't parse it). Positive slides the passband up.
     public var ifShiftHz: Int?
+    /// Manual IF NOTCH on/off (the FTX-1's raw "BP" CAT command, P1 fixed
+    /// to MAIN-side, P2=0 sub-function). Distinct from the auto notch/DNF
+    /// (`dnfEnabled`, raw "BC"). The wire field is 3 digits (000/001), so
+    /// it's read/written through `getRawInt`/`setRawInt(digits: 3)`, not
+    /// `getRawBool` — see `IFNotch`.
+    public var notchEnabled: Bool?
+    /// Manual IF NOTCH frequency in Hz, 10-3200 in 10 Hz steps ("BP"'s
+    /// P2=1 sub-function, carried on the wire as a 3-digit code of 10 Hz
+    /// units — `IFNotch.code(forHz:)`/`hz(forCode:)`).
+    public var notchHz: Int?
     /// HF antenna connector selector: 0 = ANT1, 1 = ANT2. Unlike every other
     /// field here, this has no dedicated 2-letter CAT mnemonic — it's Table
     /// 3's "HF ANT SELECT" item (`DeepSettingsCatalog`'s OPERATION SETTING /
@@ -306,6 +316,8 @@ public struct RigState: Codable, Equatable, Sendable {
         dnrLevel: Int? = nil,
         filterWidthIndex: Int? = nil,
         ifShiftHz: Int? = nil,
+        notchEnabled: Bool? = nil,
+        notchHz: Int? = nil,
         antSelect: Int? = nil,
         txwEnabled: Bool? = nil,
         squelchType: Int? = nil,
@@ -364,6 +376,8 @@ public struct RigState: Codable, Equatable, Sendable {
         self.dnrLevel = dnrLevel
         self.filterWidthIndex = filterWidthIndex
         self.ifShiftHz = ifShiftHz
+        self.notchEnabled = notchEnabled
+        self.notchHz = notchHz
         self.antSelect = antSelect
         self.txwEnabled = txwEnabled
         self.squelchType = squelchType
