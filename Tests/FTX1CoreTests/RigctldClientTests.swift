@@ -60,6 +60,15 @@ final class RigctldClientTests: XCTestCase {
         let breakIn = try await client.getRawBool("BI")
         XCTAssertEqual(breakIn, true)
 
+        // Fixed-P1 prefix flavor ("NA0" = NARROW, MAIN-side): the single
+        // digit after the baked-in P1 is the boolean. Placed before the
+        // "KR" set below, whose scripted reply (something the real rig
+        // never sends for a Set) would otherwise sit in the read buffer
+        // and be consumed as this read's answer.
+        server.respondRaw(to: "W NA0; ;", bytes: Array("NA01;\0".utf8))
+        let narrow = try await client.getRawBool("NA0")
+        XCTAssertEqual(narrow, true)
+
         server.respondRaw(to: "W KR0; ;", bytes: Array("KR0;\0".utf8))
         try await client.setRawBool("KR", false)
 

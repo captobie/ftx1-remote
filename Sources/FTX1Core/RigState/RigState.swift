@@ -182,6 +182,14 @@ public struct RigState: Codable, Equatable, Sendable {
     /// P2=3, carried as a 4-digit code 0000-0050 — `IFContour.apfCode(
     /// forHz:)`/`apfHz(forCode:)`).
     public var apfHz: Int?
+    /// NARROW ("N/W") on/off (the FTX-1's raw "NA" CAT command, P1 fixed
+    /// to MAIN-side, plain single-digit boolean like "BC0"). Snaps the
+    /// passband to the mode's preset narrow width — Deep Settings' NAR
+    /// WIDTH for SSB/DATA/RTTY/CW, the fixed second row of
+    /// `FilterWidthTable` for AM/FM — so `filterWidthIndex` changes with
+    /// it; `HubService` re-reads "SH0" right after a NAR write so the
+    /// Width readout follows without waiting for the slow tier.
+    public var narrowEnabled: Bool?
     /// HF antenna connector selector: 0 = ANT1, 1 = ANT2. Unlike every other
     /// field here, this has no dedicated 2-letter CAT mnemonic — it's Table
     /// 3's "HF ANT SELECT" item (`DeepSettingsCatalog`'s OPERATION SETTING /
@@ -335,6 +343,7 @@ public struct RigState: Codable, Equatable, Sendable {
         contourHz: Int? = nil,
         apfEnabled: Bool? = nil,
         apfHz: Int? = nil,
+        narrowEnabled: Bool? = nil,
         antSelect: Int? = nil,
         txwEnabled: Bool? = nil,
         squelchType: Int? = nil,
@@ -399,6 +408,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.contourHz = contourHz
         self.apfEnabled = apfEnabled
         self.apfHz = apfHz
+        self.narrowEnabled = narrowEnabled
         self.antSelect = antSelect
         self.txwEnabled = txwEnabled
         self.squelchType = squelchType

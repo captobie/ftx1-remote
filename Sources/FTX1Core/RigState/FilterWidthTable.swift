@@ -34,9 +34,10 @@ public enum FilterWidthTable {
     private static let cwDataEntries = cwDataHz.enumerated().map { Entry(index: $0.offset + 1, hz: $0.element) }
 
     /// AM has two fixed widths, one per NARROW state: index 01 is AM-N's
-    /// 6000 Hz, index 02 the plain AM 9000 Hz. Not user-adjustable here —
-    /// the rig switches between them with its NARROW function, which this
-    /// app doesn't wire yet — but readable so the current one can be shown.
+    /// 6000 Hz, index 02 the plain AM 9000 Hz. Not adjustable through the
+    /// width picker — the rig switches between them with its NARROW
+    /// function (`RigCommand.setNarrow`/`NarrowControl`) — but readable so
+    /// the current one can be shown.
     private static let amEntries = [Entry(index: 1, hz: 6000), Entry(index: 2, hz: 9000)]
 
     /// FM / DATA-FM likewise: index 02 is FM-N/DATA-FM-N's 9000 Hz, index

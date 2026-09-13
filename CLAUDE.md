@@ -339,11 +339,14 @@ v1 checklist.
     steppers), `IFShiftControl` (IF SHIFT slider + center button,
     command sent on drag release, not per tick) and `IFNotchControl`
     (manual-notch on/off button + frequency slider; dragging while off
-    also turns it on) and `ContourAPFControl` (one slot that shows CONTOUR
-    or APF depending on mode, same toggle + slider shape) — all generic
+    also turns it on), `ContourAPFControl` (one slot that shows CONTOUR
+    or APF depending on mode, same toggle + slider shape) and
+    `NarrowControl` (the N/W narrow on/off button; the only width control that
+    works in AM/FM, and `HubService` re-reads "SH0" right after a NAR
+    write so the Width readout follows within ~0.5 s) — all generic
     over `RigController` like `MenuPageView`, all living in the Mac
     `ContentView`'s two "Filter" rows under the Band/Mode pickers
-    (WIDTH/SHIFT/NOTCH on the first, CONTOUR-or-APF on the second) (the rig
+    (WIDTH/SHIFT/NOTCH on the first, CONTOUR-or-APF and N/W on the second) (the rig
     keeps these on the MAIN-knob function menu, not the MENU grid, so
     they're not `MenuPageView` buttons), placed only on the Mac so far but
     deliberately built shared because the iPad is the planned next

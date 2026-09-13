@@ -69,6 +69,15 @@ final class WireMessageTests: XCTestCase {
         }
     }
 
+    func testSetNarrowRoundTrip() throws {
+        let command = RigCommand.setNarrow(true)
+        let data = try JSONEncoder().encode(command)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        XCTAssertEqual(json?["cmd"] as? String, "set_narrow")
+        XCTAssertEqual(json?["value"] as? Bool, true)
+        XCTAssertEqual(try JSONDecoder().decode(RigCommand.self, from: data), command)
+    }
+
     func testStatePushEncoding() throws {
         let state = RigState(frequencyHz: 14_250_000, mode: .usb, powerWatts: 50, swr: 1.2, ptt: false)
         let push = RigStatePush(state: state)

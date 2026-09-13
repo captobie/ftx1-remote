@@ -451,6 +451,18 @@ final class HubService: ObservableObject {
             }
             return
         }
+        if case .setNarrow = command {
+            // NAR moves the passband to the mode's narrow preset, so the
+            // width the slow tier last read is stale the moment this
+            // lands — re-read it right behind the write rather than
+            // leaving the Width readout wrong for up to a slow-tier
+            // interval (~10s).
+            Task {
+                await commandQueue.enqueue(command)
+                await refreshWidthAfterNarrow()
+            }
+            return
+        }
         Task { await commandQueue.enqueue(command) }
     }
 
@@ -502,7 +514,7 @@ final class HubService: ObservableObject {
              .setCWMessageRecording, .setAtt, .setPreamp, .setTuner, .setDisplayContrast,
              .setDisplayDimmer, .setDisplayLevel, .setDisplayPeak, .setDisplayMarker, .setMicGain,
              .setAMCLevel, .setVox, .setVoxGain, .setVoxDelay, .setDNF, .setAGC, .setMicEQ,
-             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setAntSelect, .setTXW, .setSquelchType,
+             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow, .setAntSelect, .setTXW, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel:
             return false
@@ -577,6 +589,7 @@ final class HubService: ObservableObject {
         case .setContourFrequency(let hz): rigState.contourHz = IFContour.snappedContourHz(hz)
         case .setAPF(let on): rigState.apfEnabled = on
         case .setAPFOffset(let hz): rigState.apfHz = IFContour.snappedAPFHz(hz)
+        case .setNarrow(let on): rigState.narrowEnabled = on
         case .setAntSelect(let mode): rigState.antSelect = mode
         case .setTXW(let on): rigState.txwEnabled = on
         case .setSquelchType(let mode): rigState.squelchType = mode
@@ -650,6 +663,26 @@ final class HubService: ObservableObject {
             rigState.mode = modeName.flatMap(RigMode.init(rawValue:)) ?? (isC4FM ? .c4fm : rigState.mode)
             rigState.memoryChannel = channel
             rigState.memoryChannelTag = tag
+            await server.broadcast(rigState)
+            return
+        }
+    }
+
+    /// Fast path after a NARROW write: the rig re-filters to the mode's
+    /// preset narrow width (or back), changing "SH0"'s answer, and the
+    /// Width readout would otherwise sit on the old value until the slow
+    /// tier's next pass (~10s). Same shape as `refreshAfterEnteringMemory`:
+    /// give the rig a moment, read just the field that changed, bump
+    /// `commandGeneration` so a poll cycle that captured the pre-NAR width
+    /// is discarded rather than overwriting this at its end, publish.
+    private func refreshWidthAfterNarrow() async {
+        for attempt in 0..<2 {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard let width = try? await rigctld.getRawInt("SH0") else {
+                if attempt == 0 { continue } else { return }
+            }
+            commandGeneration += 1
+            rigState.filterWidthIndex = width
             await server.broadcast(rigState)
             return
         }
@@ -1108,6 +1141,9 @@ final class HubService: ObservableObject {
         let contourHzRaw = try? await rigctld.getRawInt("CO01")
         let apfRaw = try? await rigctld.getRawInt("CO02")
         let apfCode = try? await rigctld.getRawInt("CO03")
+        // "NA0" reads NARROW with its fixed MAIN-side P1 baked in — a plain
+        // single-digit boolean like "BC0", so getRawBool is right here.
+        let narrowEnabled = try? await rigctld.getRawBool("NA0")
         // No dedicated mnemonic for HF ANT SELECT — reads through the same
         // generic "EX" passthrough Deep Settings uses, just at this one
         // fixed address (see RigState.antSelect/RigCommand.setAntSelect).
@@ -1189,6 +1225,7 @@ final class HubService: ObservableObject {
         rigState.contourHz = contourHzRaw.flatMap { IFContour.contourRangeHz.contains($0) ? $0 : nil } ?? rigState.contourHz
         rigState.apfEnabled = apfRaw.map { $0 != 0 } ?? rigState.apfEnabled
         rigState.apfHz = apfCode.flatMap(IFContour.apfHz(forCode:)) ?? rigState.apfHz
+        rigState.narrowEnabled = narrowEnabled ?? rigState.narrowEnabled
         rigState.antSelect = antSelect ?? rigState.antSelect
         rigState.txwEnabled = txwEnabled ?? rigState.txwEnabled
         rigState.squelchType = squelchType ?? rigState.squelchType

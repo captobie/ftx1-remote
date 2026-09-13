@@ -288,6 +288,11 @@ public actor CommandQueue {
         case .setAPFOffset(let hz):
             // "CO03" is a 4-digit code 0000-0050 for −250…+250 Hz, not Hz.
             try await rigctld.setRawInt("CO03", IFContour.apfCode(forHz: hz), digits: 4)
+        case .setNarrow(let on):
+            // "NA"'s P1 is fixed to "0" (MAIN-side); P2 is a plain
+            // single-digit boolean, same shape as "BC0" — no multi-digit
+            // field here, unlike "BP"/"CO" above.
+            try await rigctld.setRawBool("NA0", on)
         case .setAntSelect(let mode):
             // No dedicated mnemonic for this one — it's Table 3's "HF ANT
             // SELECT" (OPERATION SETTING / OPTION / p3=4), a single digit

@@ -15,9 +15,9 @@ import SwiftUI
 /// The choices offered are the current mode's column of the CAT manual's
 /// Table 5 (`FilterWidthTable`): the raw "SH" index means a different Hz
 /// per mode, so the list is rebuilt whenever `rigState.mode` changes. AM/FM
-/// show their fixed width disabled (the NARROW function that switches
-/// between the two fixed values isn't wired yet); C4FM/unknown, which have
-/// no width at all, render nothing.
+/// show their fixed width disabled — the NARROW function (`NarrowControl`
+/// on the second Filter row) is what switches between the two fixed values
+/// there; C4FM/unknown, which have no width at all, render nothing.
 public struct FilterWidthControl<Controller: RigController>: View {
     @EnvironmentObject private var hub: Controller
 

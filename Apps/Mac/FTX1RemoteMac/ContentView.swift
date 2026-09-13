@@ -115,8 +115,8 @@ struct ContentView: View {
             // kept off the Band/Mode row above since that one is full at
             // the default window width. Row 1 (WIDTH, SHIFT, NOTCH) is
             // full too; row 2 holds CONTOUR-or-APF (one slot, face picked
-            // by mode) with room for NARROW later. Both left-aligned so
-            // later controls append.
+            // by mode) and N/W (narrow). Both left-aligned so later controls
+            // append.
             HStack(spacing: 16) {
                 FilterWidthControl<HubService>()
                 IFShiftControl<HubService>()
@@ -125,6 +125,7 @@ struct ContentView: View {
             }
             HStack(spacing: 16) {
                 ContourAPFControl<HubService>()
+                NarrowControl<HubService>()
                 Spacer()
             }
 
