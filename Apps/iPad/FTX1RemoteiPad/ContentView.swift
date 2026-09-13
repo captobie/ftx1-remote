@@ -72,12 +72,24 @@ struct ContentView: View {
 
                 HStack(spacing: 16) {
                     Picker("Band", selection: bandBinding) {
-                        ForEach(BandPlan.all, id: \.name) { band in
-                            Text(band.name).tag(band.name)
+                        Section("Amateur") {
+                            ForEach(BandPlan.all, id: \.name) { band in
+                                Text(band.name).tag(band.name)
+                            }
+                        }
+                        Section("Broadcast") {
+                            ForEach(GeneralCoverageSegments.all.filter { $0.category == .broadcast }, id: \.name) { segment in
+                                Text(segment.name).tag(segment.name)
+                            }
+                        }
+                        Section("Utility") {
+                            ForEach(GeneralCoverageSegments.all.filter { $0.category == .utility }, id: \.name) { segment in
+                                Text(segment.name).tag(segment.name)
+                            }
                         }
                     }
                     .pickerStyle(.menu)
-                    .frame(width: 100)
+                    .frame(width: 130)
 
                     Picker("Mode", selection: modeBinding) {
                         ForEach(RigMode.allCases.filter { $0 != .unknown }, id: \.self) { mode in
@@ -144,6 +156,15 @@ struct ContentView: View {
         .buttonStyle(.bordered)
     }
 
+    /// Mirrors `HubService.send(_:)`'s TX gate (transmit-enabled toggle AND
+    /// inside an amateur allocation) so the button visibly reflects why a
+    /// press won't do anything — the real enforcement happens on the Mac
+    /// hub regardless, since every command here goes out over the
+    /// WebSocket, but a silent no-op with no visual cue would be confusing.
+    private var canTransmit: Bool {
+        viewModel.rigState.transmitEnabled && BandPlan.band(containing: viewModel.rigState.frequencyHz) != nil
+    }
+
     /// Momentary press-and-hold, not a toggle — same `DragGesture` pattern
     /// as Mac/iOS (see their `ContentView`s): keys on touch-down, unkeys on
     /// release, matching how PTT actually works.
@@ -155,11 +176,16 @@ struct ContentView: View {
             .background(viewModel.rigState.ptt ? Color.red : Color.gray.opacity(0.25))
             .foregroundStyle(viewModel.rigState.ptt ? Color.white : Color.primary)
             .clipShape(RoundedRectangle(cornerRadius: 10))
-            .opacity(viewModel.rigState.transmitEnabled ? 1 : 0.4)
+            .opacity(canTransmit ? 1 : 0.4)
+            .help(
+                viewModel.rigState.transmitEnabled
+                    ? (canTransmit ? "" : "Transmit disabled: outside an amateur band")
+                    : "Transmit disabled"
+            )
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in
-                        guard !isPTTPressed, viewModel.rigState.transmitEnabled else { return }
+                        guard !isPTTPressed, canTransmit else { return }
                         isPTTPressed = true
                         viewModel.send(.setPTT(true))
                     }

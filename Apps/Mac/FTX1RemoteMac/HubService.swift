@@ -353,10 +353,39 @@ final class HubService: ObservableObject {
             Self.connectionLogger.notice("Blocked transmit-capable command (transmit disabled): \(String(describing: command), privacy: .public)")
             return
         }
+        if Self.isTransmitCapable(command), BandPlan.band(containing: rigState.frequencyHz) == nil {
+            Self.connectionLogger.notice("Blocked transmit-capable command (outside amateur band): \(String(describing: command), privacy: .public)")
+            return
+        }
         if case .setBand(let name) = command {
-            guard let band = BandPlan.band(named: name) else { return }
-            let targetHz = BandMemory.lastFrequencyHz(forBand: band.name) ?? band.defaultFrequencyHz
-            Task { await commandQueue.enqueue(.setFrequency(hz: targetHz)) }
+            if let band = BandPlan.band(named: name) {
+                let targetHz = BandMemory.lastFrequencyHz(forBand: band.name) ?? band.defaultFrequencyHz
+                Task { await commandQueue.enqueue(.setFrequency(hz: targetHz)) }
+            } else if let segment = GeneralCoverageSegments.segment(named: name) {
+                let targetHz = BandMemory.lastFrequencyHz(forBand: segment.name) ?? segment.defaultFrequencyHz
+                Task {
+                    await commandQueue.enqueue(.setFrequency(hz: targetHz))
+                    await commandQueue.enqueue(.setMode(segment.defaultMode))
+                }
+            }
+            return
+        }
+        // General-coverage segments (SW broadcast, aircraft, etc.) get a
+        // conventional receive mode auto-selected the moment the primary
+        // VFO crosses into them — edge-triggered against the *previous*
+        // frequency's segment so stepping around inside one segment (the
+        // ±100Hz/1kHz/10kHz steppers in `FrequencyEntryView`) doesn't
+        // resend the same mode change on every step. `generalCoverageSegment`
+        // treats an overlapping amateur allocation as taking precedence
+        // (see its doc comment), so normal ham-band tuning never matches
+        // here at all.
+        if case .setFrequency(let hz) = command,
+           let newSegment = generalCoverageSegment(at: hz),
+           newSegment != generalCoverageSegment(at: rigState.frequencyHz) {
+            Task {
+                await commandQueue.enqueue(command)
+                await commandQueue.enqueue(.setMode(newSegment.defaultMode))
+            }
             return
         }
         // Same "app-level knowledge lives here, not in the serializer"
@@ -375,6 +404,16 @@ final class HubService: ObservableObject {
             return
         }
         Task { await commandQueue.enqueue(command) }
+    }
+
+    /// The general-coverage segment (SW broadcast, aircraft, marine, etc.)
+    /// a frequency falls in, if any — `nil` whenever the frequency is
+    /// inside an amateur allocation, even one that geometrically overlaps a
+    /// segment (e.g. SW 41m vs. ham 40m), so normal ham-band operation
+    /// never gets reinterpreted as tuning into a broadcast segment.
+    private func generalCoverageSegment(at hz: Int) -> GeneralCoverageSegment? {
+        guard BandPlan.band(containing: hz) == nil else { return nil }
+        return GeneralCoverageSegments.segment(containing: hz)
     }
 
     /// Whether a command actually keys the transmitter (or, for
@@ -883,9 +922,18 @@ final class HubService: ObservableObject {
         // already landed, so it reads the true value without racing.
         guard commandGeneration == generationAtStart else { return }
 
+        // Amateur allocation wins on overlap (see `generalCoverageSegment`) —
+        // `bandOrSegmentName` is what the Band picker's selection binds to,
+        // so it needs to reflect a general-coverage segment too, not just a
+        // ham band, or picking e.g. "FM BCB" would leave the picker showing
+        // whatever ham band was last selected.
         let band = BandPlan.band(containing: frequencyHz)
+        let segment = band == nil ? GeneralCoverageSegments.segment(containing: frequencyHz) : nil
+        let bandOrSegmentName = band?.name ?? segment?.name
         if let band {
             BandMemory.recordFrequencyHz(frequencyHz, forBand: band.name)
+        } else if let segment {
+            BandMemory.recordFrequencyHz(frequencyHz, forBand: segment.name)
         }
 
         let aprsActive = APRSSettings.isActive(atFrequencyHz: frequencyHz)
@@ -899,7 +947,7 @@ final class HubService: ObservableObject {
         rigState = RigState(
             frequencyHz: frequencyHz,
             mode: modeName.flatMap(RigMode.init(rawValue:)) ?? (isC4FM ? .c4fm : rigState.mode),
-            band: band?.name,
+            band: bandOrSegmentName,
             powerWatts: powerWatts,
             swr: swr,
             ptt: ptt ?? rigState.ptt,

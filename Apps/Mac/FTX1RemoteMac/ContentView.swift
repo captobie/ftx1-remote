@@ -84,12 +84,24 @@ struct ContentView: View {
 
             HStack(spacing: 16) {
                 Picker("Band", selection: bandBinding) {
-                    ForEach(BandPlan.all, id: \.name) { band in
-                        Text(band.name).tag(band.name)
+                    Section("Amateur") {
+                        ForEach(BandPlan.all, id: \.name) { band in
+                            Text(band.name).tag(band.name)
+                        }
+                    }
+                    Section("Broadcast") {
+                        ForEach(GeneralCoverageSegments.all.filter { $0.category == .broadcast }, id: \.name) { segment in
+                            Text(segment.name).tag(segment.name)
+                        }
+                    }
+                    Section("Utility") {
+                        ForEach(GeneralCoverageSegments.all.filter { $0.category == .utility }, id: \.name) { segment in
+                            Text(segment.name).tag(segment.name)
+                        }
                     }
                 }
                 .pickerStyle(.menu)
-                .frame(width: 100)
+                .frame(width: 130)
 
                 Picker("Mode", selection: modeBinding) {
                     ForEach(RigMode.allCases.filter { $0 != .unknown }, id: \.self) { mode in
@@ -150,6 +162,13 @@ struct ContentView: View {
         .buttonStyle(.bordered)
     }
 
+    /// Mirrors `HubService.send(_:)`'s TX gate (transmit-enabled toggle
+    /// AND inside an amateur allocation) so the button visibly reflects
+    /// why a press won't do anything, rather than silently no-opping.
+    private var canTransmit: Bool {
+        hub.rigState.transmitEnabled && BandPlan.band(containing: hub.rigState.frequencyHz) != nil
+    }
+
     private var pttButton: some View {
         Text(hub.rigState.ptt ? "TRANSMITTING" : "PTT")
             .font(.headline)
@@ -158,11 +177,16 @@ struct ContentView: View {
             .background(hub.rigState.ptt ? Color.red : Color.gray.opacity(0.25))
             .foregroundStyle(hub.rigState.ptt ? Color.white : Color.primary)
             .clipShape(RoundedRectangle(cornerRadius: 8))
-            .opacity(hub.rigState.transmitEnabled ? 1 : 0.4)
+            .opacity(canTransmit ? 1 : 0.4)
+            .help(
+                hub.rigState.transmitEnabled
+                    ? (canTransmit ? "" : "Transmit disabled: outside an amateur band")
+                    : "Transmit disabled"
+            )
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in
-                        guard !isPTTPressed, hub.rigState.transmitEnabled else { return }
+                        guard !isPTTPressed, canTransmit else { return }
                         isPTTPressed = true
                         hub.send(.setPTT(true))
                     }
