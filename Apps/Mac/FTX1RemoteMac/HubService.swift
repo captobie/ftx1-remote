@@ -269,7 +269,18 @@ final class HubService: ObservableObject {
     func start() {
         Task { [weak self, commandQueue] in
             await commandQueue.setOnCommandApplied { command in
-                Task { @MainActor in self?.applyOptimistically(command) }
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.applyOptimistically(command)
+                    // Broadcasts the same optimistic value the Mac's own
+                    // `rigState` binding already shows instantly — without
+                    // this, a remote (iPad) client only saw an app-triggered
+                    // change once the next poll tick republished it (up to
+                    // ~3s later for a slow-tier field). See
+                    // `applyOptimistically`'s doc comment for why predicting
+                    // the outcome here is safe.
+                    await self.server.broadcast(self.rigState)
+                }
             }
         }
         startWebSocketServer()
@@ -459,16 +470,20 @@ final class HubService: ObservableObject {
 
     /// Mirrors a just-applied `RigCommand` straight into `rigState`, called
     /// once `CommandQueue` confirms the write reached rigctld (see
-    /// `start()`'s `onCommandApplied` wiring). Without this, the UI has no
-    /// way to reflect a change until the next `refreshFastTier()`/
-    /// `refreshSlowTier()` poll picks it up — and for a slow-tier field
-    /// (most of the menu toggles/levels below), that poll only runs every
-    /// `slowTierInterval`th tick, during which a control bound straight to
-    /// `rigState` would visibly snap back to the pre-change value before
-    /// "catching up". This only predicts the outcome of a command that's
-    /// already succeeded on the rig — a genuine mismatch (e.g. the rig
-    /// clamping an out-of-range value) self-corrects at the next poll tick,
-    /// same as any other externally-driven change (e.g. the front panel).
+    /// `start()`'s `onCommandApplied` wiring, which also broadcasts the
+    /// result to WebSocket clients right after this returns — added
+    /// 2026-09-13, since until then only the regular poll tiers and
+    /// `refreshAfterEnteringMemory()` ever called `server.broadcast`, so an
+    /// iPad/remote client saw an app-triggered change only once the next
+    /// poll tick republished it, up to `slowTierInterval` ticks later for a
+    /// slow-tier field). Without this function at all, the UI has no way to
+    /// reflect a change until that poll pickup — during which a control
+    /// bound straight to `rigState` would visibly snap back to the
+    /// pre-change value before "catching up". This only predicts the
+    /// outcome of a command that's already succeeded on the rig — a genuine
+    /// mismatch (e.g. the rig clamping an out-of-range value) self-corrects
+    /// at the next poll tick, same as any other externally-driven change
+    /// (e.g. the front panel).
     private func applyOptimistically(_ command: RigCommand) {
         commandGeneration += 1
         switch command {
