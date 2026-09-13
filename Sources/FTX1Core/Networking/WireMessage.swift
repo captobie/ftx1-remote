@@ -161,6 +161,10 @@ public enum RigCommand: Sendable, Equatable {
     /// Maps to the FTX-1's raw "RL" (NOISE REDUCTION LEVEL) CAT command, P1
     /// fixed to "0" (MAIN-side), same shape as `setNBLevel`.
     case setDNRLevel(Int)
+    /// Filter width, as a raw 0-23 index — see `RigState.filterWidthIndex`.
+    /// Maps to the FTX-1's raw "SH" (WIDTH) CAT command, P1 fixed to "0"
+    /// (MAIN-side), P2 fixed to "0".
+    case setFilterWidth(Int)
     /// HF antenna connector selector: 0 = ANT1, 1 = ANT2 — see
     /// `RigState.antSelect`. No dedicated mnemonic; goes through the same
     /// "EX" (MENU) passthrough as `.setMenuItem` below, addressed at Table
@@ -275,6 +279,7 @@ public enum RigCommand: Sendable, Equatable {
         case setProcLevel = "set_proc_level"
         case setNBLevel = "set_nb_level"
         case setDNRLevel = "set_dnr_level"
+        case setFilterWidth = "set_filter_width"
         case setAntSelect = "set_ant_select"
         case setTXW = "set_txw"
         case setSquelchType = "set_squelch_type"
@@ -373,6 +378,8 @@ extension RigCommand: Codable {
             self = .setNBLevel(try container.decode(Int.self, forKey: .value))
         case .setDNRLevel:
             self = .setDNRLevel(try container.decode(Int.self, forKey: .value))
+        case .setFilterWidth:
+            self = .setFilterWidth(try container.decode(Int.self, forKey: .value))
         case .setAntSelect:
             self = .setAntSelect(try container.decode(Int.self, forKey: .value))
         case .setTXW:
@@ -518,6 +525,9 @@ extension RigCommand: Codable {
         case .setDNRLevel(let level):
             try container.encode(CommandName.setDNRLevel, forKey: .cmd)
             try container.encode(level, forKey: .value)
+        case .setFilterWidth(let index):
+            try container.encode(CommandName.setFilterWidth, forKey: .cmd)
+            try container.encode(index, forKey: .value)
         case .setAntSelect(let mode):
             try container.encode(CommandName.setAntSelect, forKey: .cmd)
             try container.encode(mode, forKey: .value)

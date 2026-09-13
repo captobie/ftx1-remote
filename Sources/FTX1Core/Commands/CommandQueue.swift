@@ -234,6 +234,15 @@ public actor CommandQueue {
             // "RL"'s P1 is fixed to "0" (MAIN-side), same shape as "NL0"
             // above but a 2-digit field rather than 3.
             try await rigctld.setRawInt("RL0", level, digits: 2)
+        case .setFilterWidth(let index):
+            // "SH"'s P1 is fixed to "0" (MAIN-side); P2 is fixed to "0" too,
+            // baked into the "SH0" prefix alongside P1 rather than sent
+            // separately — since P3 (the value we're actually setting) is
+            // always 0-23, zero-padding it to the combined P2+P3 field
+            // width (3 digits) always reproduces P2="0" as the leading
+            // digit for free, same trick `getRawInt`'s prefix-stripping
+            // parse relies on for the read side below.
+            try await rigctld.setRawInt("SH0", index, digits: 3)
         case .setAntSelect(let mode):
             // No dedicated mnemonic for this one — it's Table 3's "HF ANT
             // SELECT" (OPERATION SETTING / OPTION / p3=4), a single digit

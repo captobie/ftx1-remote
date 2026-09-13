@@ -384,12 +384,34 @@ final class HubService: ObservableObject {
             return
         }
         if case .setBand(let name) = command {
+            // Captured synchronously, before the Task below does anything
+            // async, so it reflects the band being left at the moment this
+            // command was issued — not whatever `rigState.frequencyHz`/
+            // `.band` have drifted to once the Task actually runs.
+            let departingBand = BandPlan.band(containing: rigState.frequencyHz)
             if let band = BandPlan.band(named: name) {
                 let targetHz = BandMemory.lastFrequencyHz(forBand: band.name) ?? band.defaultFrequencyHz
-                Task { await commandQueue.enqueue(.setFrequency(hz: targetHz)) }
+                let targetMode = BandMemory.lastMode(forBand: band.name)
+                let targetFilterWidth = BandMemory.lastFilterWidthIndex(forBand: band.name)
+                Task {
+                    await Self.captureFilterWidth(leaving: departingBand, rigctld: self.rigctld)
+                    await commandQueue.enqueue(.setFrequency(hz: targetHz))
+                    if let targetMode {
+                        await commandQueue.enqueue(.setMode(targetMode))
+                    }
+                    // Width must go out after mode, not before — "SH"'s P3
+                    // index is interpreted against the *current* mode (see
+                    // RigState.filterWidthIndex), so applying it before the
+                    // mode restore above would apply the saved index against
+                    // whatever mode a mode-forcing segment left the rig in.
+                    if let targetFilterWidth {
+                        await commandQueue.enqueue(.setFilterWidth(targetFilterWidth))
+                    }
+                }
             } else if let segment = GeneralCoverageSegments.segment(named: name) {
                 let targetHz = BandMemory.lastFrequencyHz(forBand: segment.name) ?? segment.defaultFrequencyHz
                 Task {
+                    await Self.captureFilterWidth(leaving: departingBand, rigctld: self.rigctld)
                     await commandQueue.enqueue(.setFrequency(hz: targetHz))
                     await commandQueue.enqueue(.setMode(segment.defaultMode))
                 }
@@ -432,6 +454,25 @@ final class HubService: ObservableObject {
         Task { await commandQueue.enqueue(command) }
     }
 
+    /// Freshly reads the current "SH" WIDTH index directly (bypassing the
+    /// poll cycle entirely) and records it for `band`, if leaving one.
+    ///
+    /// This exists because relying on `refreshSlowTier()`'s periodic read to
+    /// have already captured the right value — the way frequency/mode are
+    /// captured on every fast-tier tick (~500ms) — doesn't work for width:
+    /// the slow tier only runs every `slowTierInterval`th tick (~3s), so a
+    /// band switch that follows a manual width change within that window
+    /// left `BandMemory` holding nothing (or a stale value) for the band
+    /// being left, and `.setBand`'s restore had no correct width to replay.
+    /// A one-off direct read at the exact moment of departure has no such
+    /// gap — confirmed against real hardware that a live "w SH0;"/"w
+    /// SH00XX;" round trip correctly reads/sets the width, so the bug was
+    /// this timing gap, not the raw CAT encoding itself.
+    private static func captureFilterWidth(leaving band: Band?, rigctld: RigctldClient) async {
+        guard let band, let width = try? await rigctld.getRawInt("SH0") else { return }
+        BandMemory.recordFilterWidthIndex(width, forBand: band.name)
+    }
+
     /// The general-coverage segment (SW broadcast, aircraft, marine, etc.)
     /// a frequency falls in, if any — `nil` whenever the frequency is
     /// inside an amateur allocation, even one that geometrically overlaps a
@@ -461,7 +502,7 @@ final class HubService: ObservableObject {
              .setCWMessageRecording, .setAtt, .setPreamp, .setTuner, .setDisplayContrast,
              .setDisplayDimmer, .setDisplayLevel, .setDisplayPeak, .setDisplayMarker, .setMicGain,
              .setAMCLevel, .setVox, .setVoxGain, .setVoxDelay, .setDNF, .setAGC, .setMicEQ,
-             .setProcLevel, .setNBLevel, .setDNRLevel, .setAntSelect, .setTXW, .setSquelchType,
+             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setAntSelect, .setTXW, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel:
             return false
@@ -528,6 +569,7 @@ final class HubService: ObservableObject {
         case .setProcLevel(let level): rigState.procLevel = level
         case .setNBLevel(let level): rigState.nbLevel = level
         case .setDNRLevel(let level): rigState.dnrLevel = level
+        case .setFilterWidth(let index): rigState.filterWidthIndex = index
         case .setAntSelect(let mode): rigState.antSelect = mode
         case .setTXW(let on): rigState.txwEnabled = on
         case .setSquelchType(let mode): rigState.squelchType = mode
@@ -895,6 +937,13 @@ final class HubService: ObservableObject {
         let bandOrSegmentName = band?.name ?? segment?.name
         if let band {
             BandMemory.recordFrequencyHz(frequencyHz, forBand: band.name)
+            // Segments (NOAA WX, SW broadcast, etc.) always force their own
+            // `defaultMode` on selection by design (see `.setBand` above),
+            // so there's no "last mode" worth remembering there — only ham
+            // bands, where the operator's mode choice should persist.
+            if let mode = modeName.flatMap(RigMode.init(rawValue:)) {
+                BandMemory.recordMode(mode, forBand: band.name)
+            }
         } else if let segment {
             BandMemory.recordFrequencyHz(frequencyHz, forBand: segment.name)
         }
@@ -1017,6 +1066,12 @@ final class HubService: ObservableObject {
         // above.
         let nbLevel = try? await rigctld.getRawInt("NL0")
         let dnrLevel = try? await rigctld.getRawInt("RL0")
+        // "SH0" reads WIDTH with its fixed MAIN-side P1 baked in, same shape
+        // as "NL0"/"RL0" above. The reply's P2 (always "0") lands as this
+        // value's leading digit, but since the real P3 value is always
+        // 0-23, `Int(...)` parsing that combined 3-digit string discards
+        // the leading zero for free — see RigState.filterWidthIndex.
+        let filterWidthIndex = try? await rigctld.getRawInt("SH0")
         // No dedicated mnemonic for HF ANT SELECT — reads through the same
         // generic "EX" passthrough Deep Settings uses, just at this one
         // fixed address (see RigState.antSelect/RigCommand.setAntSelect).
@@ -1090,6 +1145,7 @@ final class HubService: ObservableObject {
         rigState.procLevel = procLevel ?? rigState.procLevel
         rigState.nbLevel = nbLevel ?? rigState.nbLevel
         rigState.dnrLevel = dnrLevel ?? rigState.dnrLevel
+        rigState.filterWidthIndex = filterWidthIndex ?? rigState.filterWidthIndex
         rigState.antSelect = antSelect ?? rigState.antSelect
         rigState.txwEnabled = txwEnabled ?? rigState.txwEnabled
         rigState.squelchType = squelchType ?? rigState.squelchType

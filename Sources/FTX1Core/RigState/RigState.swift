@@ -139,6 +139,20 @@ public struct RigState: Codable, Equatable, Sendable {
     /// NOISE REDUCTION LEVEL CAT command, P1 fixed to MAIN-side). 0 means
     /// "OFF" per the manual, same convention as `nbLevel`.
     public var dnrLevel: Int?
+    /// Filter width, encoded as a raw 0-23 index (the FTX-1's raw "SH"
+    /// WIDTH CAT command, P1 fixed to MAIN-side, P2 fixed to "0") — **not**
+    /// Hz directly. Per the CAT manual's Table 5 (Bandwidth Chart), the
+    /// same index maps to a *different* Hz value depending on the current
+    /// mode (e.g. index 17 is 2400 Hz for DATA-U/CW/RTTY-family modes but
+    /// only some indices are valid at all for AM-N/FM, which mostly show
+    /// "-"). This app doesn't decode the index to Hz for display — it's
+    /// tracked only so `BandMemory` can remember/restore it per band, the
+    /// same way it already does for `mode` (see `HubService.send(_:)`'s
+    /// `.setBand` handling): switching to a mode-forcing general-coverage
+    /// segment (e.g. NOAA WX's forced FM) and back was observed leaving the
+    /// rig on whatever raw width index FM last used, which reads as a
+    /// different, wrong Hz value once the original mode is restored.
+    public var filterWidthIndex: Int?
     /// HF antenna connector selector: 0 = ANT1, 1 = ANT2. Unlike every other
     /// field here, this has no dedicated 2-letter CAT mnemonic — it's Table
     /// 3's "HF ANT SELECT" item (`DeepSettingsCatalog`'s OPERATION SETTING /
@@ -284,6 +298,7 @@ public struct RigState: Codable, Equatable, Sendable {
         procLevel: Int? = nil,
         nbLevel: Int? = nil,
         dnrLevel: Int? = nil,
+        filterWidthIndex: Int? = nil,
         antSelect: Int? = nil,
         txwEnabled: Bool? = nil,
         squelchType: Int? = nil,
@@ -340,6 +355,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.procLevel = procLevel
         self.nbLevel = nbLevel
         self.dnrLevel = dnrLevel
+        self.filterWidthIndex = filterWidthIndex
         self.antSelect = antSelect
         self.txwEnabled = txwEnabled
         self.squelchType = squelchType
