@@ -230,9 +230,18 @@ public struct MenuPageView<Controller: RigController>: View {
     /// (`RigCommand.setCWPitch`), button 12 is break-in delay
     /// (`RigCommand.setBreakInDelay`), button 13 is zero-in
     /// (`RigCommand.triggerZeroIn`), button 14 is CW spot
-    /// (`RigCommand.setCWSpot`). Buttons 19-21 (MESSAGE/PLAY/RECORD, the CW
-    /// MESSAGE memory) are visible-but-disabled — see
-    /// `disabledCWMessageButton`. `hiddenCWItems` (3-7, 15-18, 23-27) have
+    /// (`RigCommand.setCWSpot`). Button 19 (MESSAGE, the CW MESSAGE memory)
+    /// is still visible-but-disabled — see `disabledCWMessageButton`.
+    /// Buttons 20/21 (PLAY/RECORD) were the same CW MESSAGE memory
+    /// originally but are repurposed entirely: rather than the rig's own
+    /// CW keyer memory (deprioritized, see `disabledCWMessageButton`'s doc
+    /// comment), RECORD (`recordButton`) starts/stops recording the app's
+    /// own captured audio to disk via `AudioRecorder`, and PLAY
+    /// (`playRecordingsButton`) opens a dedicated window
+    /// (`RecordingsListView`) to browse and play those recordings back —
+    /// both gated on `hub.supportsAudioRecording` (Mac-only, same "no
+    /// local audio pipeline on mobile" reasoning as `supportsAPRSDecoding`).
+    /// `hiddenCWItems` (3-7, 15-18, 23-27) have
     /// no rig function at all on this page and render invisibly — see
     /// `hiddenButtonPlaceholder`. FM/C4FM buttons 8-10 (DG-ID TX, DG-ID RX,
     /// HRI MODE) are visible-but-disabled like SSB's D-COLOR/TXW — unlike
@@ -464,9 +473,9 @@ public struct MenuPageView<Controller: RigController>: View {
         } else if selectedPage == .cw, item == 19 {
             disabledCWMessageButton(top: "MESSAGE")
         } else if selectedPage == .cw, item == 20 {
-            disabledCWMessageButton(top: "PLAY")
+            playRecordingsButton
         } else if selectedPage == .cw, item == 21 {
-            disabledCWMessageButton(top: "RECORD")
+            recordButton
         } else if selectedPage == .cw, menuPageHiddenCWItems.contains(item) {
             hiddenButtonPlaceholder(for: item)
         } else if selectedPage == .fm, menuPageHiddenFMItems.contains(item) {
@@ -1283,17 +1292,54 @@ public struct MenuPageView<Controller: RigController>: View {
         }
     }
 
-    /// MESSAGE/PLAY/RECORD (CW MESSAGE memory, buttons 19-21) are wired to
-    /// real CAT commands — `RigCommand.selectCWMessageChannel`/
-    /// `.playCWMessage`/`.setCWMessageRecording`, still implemented in
+    /// MESSAGE (CW MESSAGE memory, button 19 — PLAY/RECORD, buttons 20/21,
+    /// used to share this same treatment but are repurposed, see
+    /// `recordButton`/`playRecordingsButton` below) is wired to a real CAT
+    /// command — `RigCommand.selectCWMessageChannel`, still implemented in
     /// `CommandQueue` — but behaved unreliably against the real rig and
-    /// this is low-priority, so they're deprioritized rather than debugged
+    /// this is low-priority, so it's deprioritized rather than debugged
     /// further right now. Left visible-but-disabled (rather than removed
-    /// or reverted to a plain numbered placeholder) so the commands and
+    /// or reverted to a plain numbered placeholder) so the command and
     /// `RigState.cwMessageStatus` plumbing are ready to reconnect once
     /// this gets revisited.
     private func disabledCWMessageButton(top: String) -> some View {
         disabledPlaceholderButton(top: top)
+    }
+
+    /// CW page button 21 — starts/stops recording the app's own captured
+    /// audio (`AudioCaptureEngine`'s tap, same audio behind the waterfall
+    /// and the Mac→iPad relay) to a WAV file via `AudioRecorder`, entirely
+    /// independent of the rig's own CW MESSAGE memory `disabledCWMessage
+    /// Button` above describes. Gated on `hub.supportsAudioRecording`
+    /// (Mac-only — mobile clients have no local audio pipeline to record
+    /// from) the same way `aprsListButton` gates on `supportsAPRSDecoding`.
+    @ViewBuilder
+    private var recordButton: some View {
+        if hub.supportsAudioRecording {
+            menuButtonShell {
+                hub.toggleAudioRecording()
+            } label: {
+                twoLineLabel(top: "RECORD", bottom: hub.isAudioRecording ? "ON" : "OFF")
+            }
+        } else {
+            disabledPlaceholderButton(top: "RECORD")
+        }
+    }
+
+    /// CW page button 20 — opens a dedicated `Window` scene
+    /// (`RecordingsListView`, id "recordings") to browse and play back what
+    /// `recordButton` has written, same "own window rather than a sheet"
+    /// treatment as `aprsListButton` so it can stay open alongside the main
+    /// window. Gated the same way `recordButton` is.
+    @ViewBuilder
+    private var playRecordingsButton: some View {
+        if hub.supportsAudioRecording {
+            singleWordButton("PLAY") {
+                openWindow(id: "recordings")
+            }
+        } else {
+            disabledPlaceholderButton(top: "PLAY")
+        }
     }
 
     /// SSB button 21, TXW. Wired end-to-end (`RigCommand.setTXW`, raw "TS"

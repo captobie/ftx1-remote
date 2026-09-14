@@ -72,6 +72,14 @@ struct FTX1RemoteMacApp: App {
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
 
+        // CW page's PLAY button (`MenuPageView.playRecordingsButton`) opens
+        // this by id, same "own window, not a sheet" treatment as the APRS
+        // windows — a plain file browser, unrelated to `hub`/`RigController`.
+        Window("Recordings", id: "recordings") {
+            RecordingsListView()
+                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+        }
+
         // Replaces the old "Settings…" button in ContentView's toolbar row —
         // this scene type is what puts it in the app menu (⌘,) instead,
         // matching standard Mac app conventions.

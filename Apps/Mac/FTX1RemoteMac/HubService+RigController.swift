@@ -15,4 +15,14 @@ extension HubService: RigController {
     /// Only the Mac has an audio input to decode APRS from at all — see
     /// `RigController.supportsAPRSDecoding`'s doc comment.
     var supportsAPRSDecoding: Bool { true }
+
+    /// Only the Mac has `AudioRecorder`'s audio tap — see
+    /// `RigController.supportsAudioRecording`'s doc comment.
+    var supportsAudioRecording: Bool { true }
+
+    var isAudioRecording: Bool { isRecordingAudio }
+
+    func toggleAudioRecording() {
+        audioRecorder.toggle()
+    }
 }

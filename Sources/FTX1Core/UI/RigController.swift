@@ -33,10 +33,28 @@ public protocol RigController: ObservableObject {
     /// intrinsically Mac-only capability, not a missing wire-protocol
     /// message). Defaults to `false`.
     var supportsAPRSDecoding: Bool { get }
+
+    /// Whether this controller can record/play back its own audio output
+    /// (CW page's RECORD/PLAY buttons). Requires the Mac's `AudioRecorder`,
+    /// fed from the same `AudioCaptureEngine` tap as APRS/FT8 — mobile
+    /// clients have no local audio pipeline to record from, same reasoning
+    /// as `supportsAPRSDecoding`. Defaults to `false`.
+    var supportsAudioRecording: Bool { get }
+
+    /// Whether a recording is currently in progress. Meaningless (always
+    /// `false`) when `supportsAudioRecording` is `false`.
+    var isAudioRecording: Bool { get }
+
+    /// Starts a new recording, or closes out the one in progress. No-op
+    /// where `supportsAudioRecording` is `false`.
+    func toggleAudioRecording()
 }
 
 public extension RigController {
     var supportsDeepSettings: Bool { false }
     func deepSettingsDestination(title: String, p1s: [Int]) -> AnyView? { nil }
     var supportsAPRSDecoding: Bool { false }
+    var supportsAudioRecording: Bool { false }
+    var isAudioRecording: Bool { false }
+    func toggleAudioRecording() {}
 }

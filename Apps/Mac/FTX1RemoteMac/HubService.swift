@@ -38,6 +38,13 @@ final class HubService: ObservableObject {
     /// nothing to report in `RigctldSettings.ConnectionMode.remote` (see
     /// `startRigctld()` below) since nothing is ever spawned there.
     @Published private(set) var isActive = false
+    /// Mirrors `audioRecorder.isRecording`, same "reflect a subsystem's own
+    /// state into a `@Published` property" shape as `rigctldProcessState`
+    /// mirroring `RigctldProcessController` — lets `MenuPageView`'s RECORD
+    /// button (observing `HubService` via the `RigController` protocol)
+    /// react to a toggle without `AudioRecorder` itself being an
+    /// `ObservableObject` every view would need to import separately.
+    @Published private(set) var isRecordingAudio = false
     /// The live waterfall/oscilloscope frames — deliberately NOT
     /// `@Published` on this object. `AudioCaptureEngine` delivers a new
     /// frame ~21 times a second (44100 Hz / 2048-sample chunks), and when
@@ -110,6 +117,13 @@ final class HubService: ObservableObject {
     private let rigctldProcess = RigctldProcessController()
     private let audioCapture = AudioCaptureEngine()
     private let audioStreamEncoder = AudioStreamEncoder()
+    /// Backs the CW page's RECORD/PLAY buttons (`MenuPageView`) — see
+    /// `AudioRecorder`'s doc comment. Fed unconditionally from the same
+    /// `audioCapture.onAudioSamples` tap as `ft8Coordinator`/`aprsDecoder`
+    /// below; it's a no-op internally whenever not recording. Not
+    /// `private` — `HubService+RigController.swift`'s `toggleAudioRecording()`
+    /// calls into it directly, same visibility as `aprsStore`/`ft8Store`.
+    let audioRecorder = AudioRecorder()
     /// Plays the same captured audio locally on the Mac that
     /// `audioStreamEncoder` sends to iPad clients — reuses `AudioPlaybackEngine`
     /// as-is (already cross-platform, see its own doc comment) rather than a
@@ -229,6 +243,9 @@ final class HubService: ObservableObject {
         rigctldProcess.onStateChange = { [weak self] state in
             self?.rigctldProcessState = state
         }
+        audioRecorder.onRecordingStateChanged = { [weak self] isRecording in
+            self?.isRecordingAudio = isRecording
+        }
         audioCapture.onNewFrame = { [weak self] frame in
             self?.scopeFrames.update(frame)
         }
@@ -256,6 +273,11 @@ final class HubService: ObservableObject {
             // on the APRS calling frequency specifically and would
             // otherwise silently starve FT8 of audio on every other band.
             self.ft8Coordinator.ingest(samples: samples, sampleRate: sampleRate)
+
+            // Same reasoning as ft8Coordinator above — recording isn't tied
+            // to any calling frequency either, and `audioRecorder` itself
+            // drops this when not recording.
+            self.audioRecorder.ingest(samples: samples, sampleRate: sampleRate)
 
             let isActive = APRSSettings.isActive(atFrequencyHz: self.rigState.frequencyHz)
             if isActive != self.aprsGateWasActive {
