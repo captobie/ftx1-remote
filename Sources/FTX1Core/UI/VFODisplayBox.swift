@@ -113,11 +113,13 @@ public struct VFODisplayBox: View {
                 if let txRxLabel {
                     Text(txRxLabel)
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(txRxFillColor == nil ? Color.secondary : Color.white)
+                        .tagBoxed(fill: txRxFillColor)
                 }
                 Text(label)
                     .font(.caption)
                     .foregroundStyle(isActive ? .primary : .secondary)
+                    .tagBoxed()
             }
             Text(formattedFrequency)
                 .font(.system(size: 38, weight: .medium, design: .monospaced))
@@ -154,6 +156,7 @@ public struct VFODisplayBox: View {
                 Text(topLineText)
                     .font(.caption2)
                     .foregroundStyle(digitColor)
+                    .tagBoxed()
                 if let reflector {
                     Text(reflector)
                         .font(.caption2)
@@ -179,6 +182,18 @@ public struct VFODisplayBox: View {
         }
     }
 
+    /// Fill color for the TXRX/RX box, matching the rig's own display:
+    /// red while transmitting is possible on this VFO, green while
+    /// receive-only (split RX). `nil` for any other/future value of
+    /// `txRxLabel`, which keeps the plain bordered style.
+    private var txRxFillColor: Color? {
+        switch txRxLabel {
+        case "TXRX", "TX": return .red
+        case "RX": return .green
+        default: return nil
+        }
+    }
+
     private var digitColor: Color {
         isActive ? .green : .green.opacity(0.45)
     }
@@ -193,6 +208,25 @@ public struct VFODisplayBox: View {
         formatter.groupingSize = 3
         formatter.usesGroupingSeparator = true
         return formatter.string(from: NSNumber(value: frequencyHz)) ?? "\(frequencyHz)"
+    }
+}
+
+private extension View {
+    /// Small boxed tag around a label (MAIN/SUB, TXRX/RX, mode) so it reads
+    /// as a distinct element rather than blending into the surrounding
+    /// text. With `fill` set (TXRX/RX, matching the rig's own red/green),
+    /// the box is a solid color instead of just bordered.
+    func tagBoxed(fill: Color? = nil) -> some View {
+        padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .background(
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(fill ?? .clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .strokeBorder(fill == nil ? Color.secondary.opacity(0.5) : Color.clear, lineWidth: 1)
+            )
     }
 }
 
