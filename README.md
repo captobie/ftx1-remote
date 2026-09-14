@@ -238,6 +238,16 @@ as well as from mobile — the Mac isn't monitor-only.
 - Memory→VFO mode toggle has a hub-side workaround for a stuck-frequency
   bug (replays FA/MD after switching); root cause still unknown.
 
+## Third-party code
+
+`Sources/CFT8Lib/` vendors the decode-only subset of
+[kgoba/ft8_lib](https://github.com/kgoba/ft8_lib) (MIT license, Kārlis Goba —
+see `Sources/CFT8Lib/LICENSE-ft8lib.txt`), used by `FT8Kit` for FT8 decoding.
+Its `fft/` subdirectory is [kissfft](https://github.com/mborgerding/kissfft)
+(BSD-3-Clause, Mark Borgerding — see `Sources/CFT8Lib/fft/LICENSE-kissfft.txt`).
+`Tests/FT8KitTests/Resources/` vendors a few of ft8_lib's own reference WAV
+captures + truth-decode files for the reference-vector test.
+
 ## Commands
 
 - Build/test the shared package: `swift build`, `swift test` (from repo

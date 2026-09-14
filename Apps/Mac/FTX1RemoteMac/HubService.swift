@@ -120,6 +120,15 @@ final class HubService: ObservableObject {
     private let wpsdMonitor = WPSDCallsignMonitor()
     private let aprsDecoder = APRSDecoder()
     let aprsStore = APRSStore()
+    /// Unlike `aprsDecoder`, not wired into `audioCapture.onAudioSamples`
+    /// unconditionally — `ingest(samples:sampleRate:)` drops audio on its
+    /// own whenever `isRunning` is false, and `isRunning` only becomes true
+    /// between `startFT8Decoding()`/`stopFT8Decoding()`, called from the
+    /// Digital/FT8 window's lifecycle, not from `start()`/`init` here. See
+    /// `FT8DecodeCoordinator`'s doc comment for why FT8 can't reuse APRS's
+    /// always-on frequency-gate pattern.
+    private let ft8Coordinator = FT8DecodeCoordinator()
+    let ft8Store = FT8Store()
     private let webSocketPort: UInt16
     private let rigctldHost: String
     private let rigctldPort: UInt16
@@ -240,6 +249,14 @@ final class HubService: ObservableObject {
                 }
             }
 
+            // Unconditional (no frequency gate) — deliberately BEFORE the
+            // APRS gate below returns early. ft8Coordinator drops this
+            // itself when not running (see its doc comment); it must not be
+            // downstream of `guard isActive else { return }`, which gates
+            // on the APRS calling frequency specifically and would
+            // otherwise silently starve FT8 of audio on every other band.
+            self.ft8Coordinator.ingest(samples: samples, sampleRate: sampleRate)
+
             let isActive = APRSSettings.isActive(atFrequencyHz: self.rigState.frequencyHz)
             if isActive != self.aprsGateWasActive {
                 self.aprsGateWasActive = isActive
@@ -254,6 +271,17 @@ final class HubService: ObservableObject {
         }
         aprsDecoder.onMessage = { [weak self] from, to, text, messageID in
             self?.aprsStore.recordMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: Date())
+        }
+        ft8Coordinator.dialFrequencyProvider = { [weak self] in
+            self?.rigState.frequencyHz ?? 0
+        }
+        ft8Coordinator.onSpotsDecoded = { [weak self] coordinatorSpots in
+            guard let self else { return }
+            let spots = coordinatorSpots.map { FT8Spot(coordinatorSpot: $0) }
+            self.ft8Store.record(spots)
+        }
+        ft8Coordinator.onCycleStatusChanged = { [weak self] status in
+            self?.ft8Store.updateCycleStatus(status)
         }
         wpsdMonitor.onCallsignUpdate = { [weak self] callsign in
             self?.rigState.c4fmCallsign = callsign
@@ -317,9 +345,23 @@ final class HubService: ObservableObject {
     /// rigctld isn't left running as an orphaned child process.
     func stop() {
         stopRigctld()
+        stopFT8Decoding()
         webSocketServerTask?.cancel()
         webSocketServerTask = nil
         Task { [server] in await server.stop() }
+    }
+
+    /// Called from the Digital/FT8 window's `.onAppear` — decoding runs
+    /// only while that window is open (see `FT8DecodeCoordinator`'s doc
+    /// comment for why FT8 can't reuse APRS's always-on gate).
+    func startFT8Decoding() {
+        ft8Coordinator.start()
+    }
+
+    /// Called from the Digital/FT8 window's `.onDisappear`, and as a safety
+    /// net from `stop()` in case the app quits with that window still open.
+    func stopFT8Decoding() {
+        ft8Coordinator.stop()
     }
 
     /// What the on/off switch calls: launches rigctld (clearing out any

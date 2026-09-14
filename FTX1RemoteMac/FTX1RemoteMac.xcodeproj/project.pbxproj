@@ -10,6 +10,7 @@
 		17BAC8813002926B00096320 /* FTX1Core in Frameworks */ = {isa = PBXBuildFile; productRef = 17BAC8803002926B00096320 /* FTX1Core */; };
 		17BAC8833002927800096320 /* FTX1Core in Frameworks */ = {isa = PBXBuildFile; productRef = 17BAC8823002927800096320 /* FTX1Core */; };
 		392190C1DE2BA02639B8A586 /* FTX1Core in Frameworks */ = {isa = PBXBuildFile; productRef = 3102B10EC9D493C0A039A314 /* FTX1Core */; };
+		EFD383E8E3E34549ADEF876D /* FT8Kit in Frameworks */ = {isa = PBXBuildFile; productRef = C28A82548BE9440A9A9565E9 /* FT8Kit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +46,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				17BAC8813002926B00096320 /* FTX1Core in Frameworks */,
+				EFD383E8E3E34549ADEF876D /* FT8Kit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +121,7 @@
 			name = FTX1RemoteMac;
 			packageProductDependencies = (
 				17BAC8803002926B00096320 /* FTX1Core */,
+				C28A82548BE9440A9A9565E9 /* FT8Kit */,
 			);
 			productName = FTX1RemoteMac;
 			productReference = 17BAC8453002901F00096320 /* FTX1RemoteMac.app */;
@@ -663,6 +666,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 17BAC87E3002922C00096320 /* XCLocalSwiftPackageReference "../../ftx1-remote" */;
 			productName = FTX1Core;
+		};
+		C28A82548BE9440A9A9565E9 /* FT8Kit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 17BAC87E3002922C00096320 /* XCLocalSwiftPackageReference "../../ftx1-remote" */;
+			productName = FT8Kit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

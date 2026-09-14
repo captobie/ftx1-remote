@@ -49,6 +49,8 @@ struct SettingsView: View {
                     .tabItem { Text("C4FM") }
                 APRSSettingsTab()
                     .tabItem { Text("APRS") }
+                StationSettingsTab()
+                    .tabItem { Text("Station") }
                 HomeFrequencySettingsTab()
                     .tabItem { Text("Home Freq") }
                 AppearanceSettingsTab()
@@ -289,6 +291,25 @@ private struct HomeFrequencySettingsTab: View {
             ForEach(HomeBand.allCases, id: \.self) { band in
                 HomeFrequencyField(band: band)
             }
+        }
+        .padding(.top, 8)
+    }
+}
+
+/// The operator's own callsign/grid — see `StationSettings`. Currently only
+/// consumed by `FT8Spot` (stamped onto each decoded spot for a future PSK
+/// Reporter upload, not built yet). Applies instantly via `@AppStorage`,
+/// same reasoning as the other non-rigctld tabs: an empty or malformed
+/// value just means a blank/garbage reporter field later, not a broken
+/// process launch.
+private struct StationSettingsTab: View {
+    @AppStorage(StationSettings.callsignKey) private var callsign = ""
+    @AppStorage(StationSettings.gridSquareKey) private var gridSquare = ""
+
+    var body: some View {
+        Form {
+            TextField("Callsign", text: $callsign, prompt: Text("e.g. W1AW"))
+            TextField("Grid square", text: $gridSquare, prompt: Text("e.g. FN31pr"))
         }
         .padding(.top, 8)
     }

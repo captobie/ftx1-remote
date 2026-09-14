@@ -301,6 +301,113 @@ build-verified (`dotnet build -r win-x64 --self-contained`, not yet
 run against real hardware) unpackaged WinUI 3 skeleton covering the full
 v1 checklist.
 
+## Digital modes — FT8 (2026-09-14)
+
+First digital mode, built with more (FT4 most likely next) explicitly in
+mind. Mac-only, like the waterfall — audio-derived, and the iOS/iPadOS
+targets don't need the extra C dependency this pulls in. Opened via a new
+top-level **Digital** menu bar item (`CommandMenu`, a genuine sibling of
+File/Edit/View — not nested under an existing menu the way the APRS
+submenu is) → **FT8**, which opens its own `Window(id: "ft8")`, same
+pattern as the APRS windows.
+
+- **Decode engine: vendored `kgoba/ft8_lib` (MIT) + kissfft (BSD-3-Clause)
+  as a C target**, not a from-scratch Swift LDPC/Costas implementation —
+  deliberate: LDPC(174,91) belief-propagation decode and Costas-array sync
+  are the same class of problem WSJT-X spent years maturing, not something
+  worth re-deriving. `Sources/CFT8Lib/` mirrors upstream's `ft8/`/`common/`/
+  `fft/` tree exactly (decode-only subset — no `encode.c`, no
+  PortAudio/WAV demo I/O); `Sources/FT8Kit/` is the Swift wrapper
+  (`FT8Decoder`, `FT8Mode`, `FT8Message`, `FT8CallsignHashStub`), a new SPM
+  product alongside `FTX1Core` in the same `Package.swift`, kept as a
+  *separate* target/product specifically so the iOS/iPadOS builds (which
+  also depend on `FTX1Core`) don't carry it. Licenses preserved at
+  `Sources/CFT8Lib/LICENSE-ft8lib.txt` and
+  `Sources/CFT8Lib/fft/LICENSE-kissfft.txt`; see the repo README's
+  "Third-party code" section.
+  - `CFT8Lib`'s `publicHeadersPath` had to be set to `"."` explicitly —
+    SwiftPM's default C-target convention expects a separate `include/`
+    dir, which upstream's tree doesn't have (headers sit next to their
+    `.c` files, and `common/monitor.c` includes `<ft8/decode.h>`
+    root-relative while `ft8/decode.c` includes `"constants.h"`
+    same-directory — both need the whole target dir on the header path).
+  - `common/monitor.c` hardcodes `#define LOG_LEVEL LOG_INFO` before
+    including its own `debug.h`, so upstream always logs "Block size = …"
+    etc. to stderr on every `monitor_init` (harmless for ft8_lib's own CLI
+    demo, not for a decoder running every 15s here). Silenced via a build
+    flag (`-DLOG_PRINTF(...)=` in `CFT8Lib`'s `cSettings`), not by editing
+    the vendored source.
+  - **12000 Hz mono is the sample rate ft8_lib actually expects**
+    (confirmed by hex-dumping a real reference WAV header, not assumed) —
+    this app captures at 44100 Hz (see Audio-over-Pi above), so
+    `Apps/Mac/FTX1RemoteMac/FT8Resampler.swift` wraps one long-lived
+    `AVAudioConverter`, reused across chunks so its internal filter state
+    doesn't discontinuity at chunk boundaries — validated in
+    `Tests/FT8KitTests/FT8ResampleFidelityTests.swift` by streaming a
+    44100 Hz-upsampled reference vector back through the same
+    resample-in-2048-sample-chunks approach and confirming it still
+    decodes.
+  - `monitor_process()` requires exactly `sample_rate × FT8_SYMBOL_PERIOD`
+    (1920 at 12000 Hz) samples per call — `FT8DecodeCoordinator` buffers
+    resampled audio and slices off exact blocks, remainder carried to the
+    next `ingest` call.
+- **Decode trigger: tied to the Digital/FT8 window's lifecycle, not
+  always-on.** Unlike `APRSDecoder` (always running, gated by VFO
+  frequency matching one configured APRS frequency), FT8 has no single
+  fixed frequency to gate on — `FT8DecodeCoordinator.start()`/`stop()` are
+  called from `FT8ListView`'s `.onAppear`/`.onDisappear`
+  (`HubService.startFT8Decoding()`/`stopFT8Decoding()`), not from
+  `HubService.start()`/`init` the way `aprsDecoder` is wired.
+  `HubService.stop()` also calls `stopFT8Decoding()` as a safety net if
+  the app quits with the window open. `FT8DecodeCoordinator.ingest(...)` is
+  always called from `HubService`'s audio tap (no frequency gate), but
+  it's a cheap no-op whenever not running.
+- **UTC 15-second slot scheduling** — a `DispatchSourceTimer` ticking
+  every ~0.5s detects crossing a `:00/:15/:30/:45` boundary
+  (`Date().timeIntervalSince1970.truncatingRemainder(dividingBy: 15)`
+  wrapping back down), finalizes the just-completed slot's decode, and
+  starts a fresh `FT8Decoder` for the next slot. Assumes the Mac's clock
+  is NTP-synced (same assumption WSJT-X itself makes) — not verified by
+  the app; flagged for the real-hardware validation pass below.
+- **`FT8Spot`** (`Apps/Mac/FTX1RemoteMac/FT8Spot.swift`) carries the
+  frequency (dial-at-slot-start + audio offset), SNR (explicitly
+  doc-commented as ft8_lib's own `score × 0.5` approximation, not a
+  calibrated noise-floor SNR — its own upstream source marks this exact
+  computation `// TODO: compute better approximation of SNR`), and
+  parsed callsign/grid/report fields, plus `reporterCallsign`/
+  `reporterGrid` from the new `StationSettings` (`Sources/FTX1Core/Station/`
+  — the operator's own callsign/grid, which nothing in the app stored
+  before this) — carried specifically for a **future PSK Reporter
+  uploader, not built yet**. `FT8Store` (session-only, no disk
+  persistence unlike `APRSStore`) is a separate `ObservableObject`
+  exposed as a plain `let` on `HubService`, same "don't `@Published` it
+  on `HubService` itself" isolation as `ScopeFrameStore`/`APRSStore` —
+  spots arrive in bursts of up to a few dozen per ~15s cycle.
+- **Extensibility for FT4/future modes deliberately minimal, not
+  speculative**: upstream already shares the same LDPC(174,91) code and
+  `ftx_protocol_t`/slot-timing constants between FT4 and FT8
+  (`FT8Kit.Mode` wraps both), so adding FT4 later is parameterizing
+  `FT8DecodeCoordinator`/widening `FT8Store` and adding a sibling
+  `Window(id: "ft4")` + `CommandMenu` button — not a redesign. Names stay
+  FT8-specific today rather than a premature `DigitalMode`/`DigitalStore`
+  abstraction for a single mode.
+- **Verification status**: `Tests/FT8KitTests/FT8ReferenceVectorTests.swift`
+  passes real off-air FT8 captures (vendored from ft8_lib's own
+  `test/wav/`) through the real wrapper and checks against what ft8_lib's
+  own reference `decode_ft8` demo (built standalone from the same upstream
+  checkout, to get real ground truth) decodes from the same files — not
+  against the vendored `.txt` truth files verbatim, since those include a
+  couple of weak-signal messages this library's default candidate search
+  doesn't reach either (a library sensitivity limit, not a wrapper bug;
+  see that test file's doc comment). `FT8ResampleFidelityTests.swift`
+  covers the 44100→12000 streaming resample path. The full Mac app target
+  builds clean via `xcodebuild` with `FT8Kit` linked (iOS target
+  unaffected, confirmed by also building it). **Not yet done**: real FT8
+  sub-band hardware validation against live traffic (compare against
+  WSJT-X on the same audio, soak test, confirm NTP-clock assumption,
+  check `.remote`/Pi audio timing specifically) — same shape as every
+  other CAT/audio feature's hardware-validation step in this project.
+
 ## Structure
 
 - `Sources/FTX1Core/` — Swift Package Manager package (target `FTX1Core`,
@@ -323,6 +430,11 @@ v1 checklist.
     grid button value color), `AppearanceSettings` (the `@AppStorage` keys
     both are read/written through) — shared so any future app target reads
     the same settings the Mac's Settings sheet writes.
+  - `Station/` — `StationSettings`: the operator's own callsign/grid
+    square, `UserDefaults`-backed same as `AppearanceSettings`. Added for
+    FT8 (`FT8Spot`'s `reporterCallsign`/`reporterGrid`, for a future PSK
+    Reporter uploader), lives here rather than the Mac app target on the
+    same "future app target will want it too" reasoning as `Appearance/`.
   - `Networking/` — `WireMessage` (`RigCommand`/`RigStatePush`, the JSON wire
     protocol), `RigctldClient` (Mac-only, TCP to rigctld, incl. raw CAT
     passthrough — note `getRawInt` is digit-only, so signed CAT values like
@@ -370,6 +482,22 @@ v1 checklist.
     placement. Only put
     a view here once it's actually needed on more than one target — `FrequencyDisplay` (iOS's single-VFO readout) stays in the
     iOS app target since nothing else uses it.
+- `Sources/CFT8Lib/` — vendored decode-only subset of `kgoba/ft8_lib` (MIT)
+  + kissfft (BSD-3-Clause), a separate SPM C target (own `Package.swift`
+  entry, `publicHeadersPath: "."`) — see "Digital modes — FT8" above.
+  Mirrors upstream's `ft8/`/`common/`/`fft/` tree exactly; not hand-edited
+  (build-flag workarounds instead, e.g. the `LOG_PRINTF` no-op — see
+  above) so future re-vendoring from upstream stays a straight file copy.
+- `Sources/FT8Kit/` — Swift wrapper around `CFT8Lib` (`FT8Decoder`,
+  `FT8Mode`, `FT8Message`, `FT8CallsignHashStub`), a separate SPM product
+  from `FTX1Core` specifically so iOS/iPadOS builds don't carry it.
+  `Tests/FT8KitTests/` (reference-vector + resample-fidelity tests, plus
+  vendored WAV fixtures in `Resources/`) is the only automated coverage
+  for the FT8 feature — everything downstream of this (the Mac app's
+  `FT8DecodeCoordinator`/`FT8Resampler`/`FT8Store`/`FT8Spot`/`FT8ListView`)
+  lives in the Xcode-project Mac target, which — like the rest of this
+  project — has no unit test target; verify that layer via hardware
+  validation, same as every other CAT/audio feature.
 - `Apps/Mac/FTX1RemoteMac/` — Mac app target source (canonical location;
   the Xcode project at `FTX1RemoteMac/FTX1RemoteMac.xcodeproj` points at
   this directory via a synchronized group, not a separate copy). Owns the
@@ -379,13 +507,15 @@ v1 checklist.
   builds a real `DeepSettingsView` destination). Also owns the audio-derived
   waterfall/oscilloscope display (`AudioCaptureEngine`, `ScopeDisplayView`,
   `AudioInputDevice`/`AudioInputSettings`, and — `.remote`-mode only —
-  `RemoteAudioStreamClient`) — Mac-only, see Architecture above. Dense
+  `RemoteAudioStreamClient`) — Mac-only, see Architecture above. Also owns
+  FT8 decoding (`FT8DecodeCoordinator`, `FT8Resampler`, `FT8Store`,
+  `FT8Spot`, `FT8ListView`) — see "Digital modes — FT8" above. Dense
   multi-pane UI (`ContentView`: VFO, meters, scope display,
   band/mode selectors all visible at once), `SettingsView` (tabbed sheet:
-  rigctld connection config, Audio input device, Appearance), plus two menu
-  systems: `MenuPageView` (shared, see `Sources/FTX1Core/UI/` above) and
-  `DeepSettingsView` (Mac-only — the page-3 category screens, rendered
-  generically from `DeepSettingsCatalog`).
+  rigctld connection config, Audio input device, Station, Appearance),
+  plus two menu systems: `MenuPageView` (shared, see `Sources/FTX1Core/UI/`
+  above) and `DeepSettingsView` (Mac-only — the page-3 category screens,
+  rendered generically from `DeepSettingsCatalog`).
 - `Apps/iOS/FTX1RemoteiOS/` — iPhone app target. WebSocket client only
   (`RigClientViewModel`/`RigWebSocketClient`), never touches `RigctldClient`
   directly. Focused single-rig-control view (frequency, SWR, PTT, mode grid)

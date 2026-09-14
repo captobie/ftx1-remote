@@ -28,6 +28,15 @@ struct FTX1RemoteMacApp: App {
                     }
                 }
             }
+            // A top-level menu (CommandMenu), not nested under an existing
+            // one (CommandGroup) like APRS above — first of what's meant to
+            // grow into more than one digital mode (FT4, etc.), each its
+            // own sibling Button/Window here.
+            CommandMenu("Digital") {
+                Button("FT8") {
+                    openWindow(id: "ft8")
+                }
+            }
         }
 
         // APRS S.LIST/M.LIST (`MenuPageView.aprsListButton`) open these by
@@ -49,6 +58,17 @@ struct FTX1RemoteMacApp: App {
         Window("APRS Map", id: "aprs-map") {
             APRSMapView()
                 .environmentObject(appDelegate.hub.aprsStore)
+                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+        }
+
+        // Digital → FT8 (Digital menu above). Injects `hub` itself, not just
+        // `hub.ft8Store` (unlike the APRS windows, which only need the
+        // store) — `FT8ListView` calls `hub.startFT8Decoding()`/
+        // `stopFT8Decoding()` from its own onAppear/onDisappear.
+        Window("FT8", id: "ft8") {
+            FT8ListView()
+                .environmentObject(appDelegate.hub)
+                .environmentObject(appDelegate.hub.ft8Store)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
 
