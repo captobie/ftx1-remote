@@ -117,4 +117,37 @@ final class AudioRecorder {
     static func delete(_ recording: Recording) {
         try? FileManager.default.removeItem(at: recording.url)
     }
+
+    /// Used by `RecordingsListView`'s "Delete All" toolbar button — clears
+    /// `recordingsDirectory` entirely rather than looping `delete(_:)` over
+    /// a previously-fetched `[Recording]`, so it can't miss a file written
+    /// after that list was last loaded.
+    static func deleteAll() {
+        guard let urls = try? FileManager.default.contentsOfDirectory(at: recordingsDirectory, includingPropertiesForKeys: nil) else { return }
+        for url in urls where url.pathExtension.lowercased() == "wav" {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
+    /// Renames a recording's file on disk to `newName` (any existing
+    /// ".wav" the caller typed is stripped first so it isn't doubled) and
+    /// returns the updated `Recording`, or `nil` if `newName` is blank or
+    /// the move fails (e.g. another recording already has that name).
+    static func rename(_ recording: Recording, to newName: String) -> Recording? {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        var sanitized = trimmed.replacingOccurrences(of: "/", with: "-")
+        if sanitized.lowercased().hasSuffix(".wav") {
+            sanitized = String(sanitized.dropLast(4))
+        }
+        let newURL = recordingsDirectory.appendingPathComponent(sanitized).appendingPathExtension("wav")
+        guard newURL.path != recording.url.path else { return recording }
+        do {
+            try FileManager.default.moveItem(at: recording.url, to: newURL)
+            return Recording(url: newURL, date: recording.date, duration: recording.duration)
+        } catch {
+            Self.logger.error("rename failed: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
 }

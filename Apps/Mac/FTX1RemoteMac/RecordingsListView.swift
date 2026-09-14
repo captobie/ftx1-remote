@@ -44,6 +44,12 @@ extension RecordingPlayer: AVAudioPlayerDelegate {
 struct RecordingsListView: View {
     @State private var recordings: [AudioRecorder.Recording] = []
     @StateObject private var player = RecordingPlayer()
+    /// Non-nil while the rename alert is up — the recording it targets.
+    /// `newName` is seeded from its current filename (minus extension)
+    /// when the pencil button sets this.
+    @State private var renamingRecording: AudioRecorder.Recording?
+    @State private var newName = ""
+    @State private var showingDeleteAllConfirmation = false
 
     var body: some View {
         List {
@@ -55,6 +61,12 @@ struct RecordingsListView: View {
         .frame(minWidth: 360, minHeight: 320)
         .toolbar {
             ToolbarItem {
+                Button("Delete All", systemImage: "trash", role: .destructive) {
+                    showingDeleteAllConfirmation = true
+                }
+                .disabled(recordings.isEmpty)
+            }
+            ToolbarItem {
                 Button("Refresh", systemImage: "arrow.clockwise") { reload() }
             }
         }
@@ -65,6 +77,33 @@ struct RecordingsListView: View {
                     systemImage: "waveform",
                     description: Text("Recordings made from the CW page's RECORD button will appear here.")
                 )
+            }
+        }
+        .confirmationDialog(
+            "Delete all \(recordings.count) recordings? This can't be undone.",
+            isPresented: $showingDeleteAllConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete All", role: .destructive) {
+                player.stop()
+                AudioRecorder.deleteAll()
+                reload()
+            }
+        }
+        .alert(
+            "Rename Recording",
+            isPresented: Binding(
+                get: { renamingRecording != nil },
+                set: { isPresented in if !isPresented { renamingRecording = nil } }
+            ),
+            presenting: renamingRecording
+        ) { recording in
+            TextField("Name", text: $newName)
+            Button("Cancel", role: .cancel) {}
+            Button("Rename") {
+                if AudioRecorder.rename(recording, to: newName) != nil {
+                    reload()
+                }
             }
         }
         .onAppear { reload() }
@@ -82,13 +121,22 @@ struct RecordingsListView: View {
             .buttonStyle(.borderless)
 
             VStack(alignment: .leading) {
-                Text(recording.date, format: .dateTime)
-                Text(Self.durationLabel(recording.duration))
+                Text(recording.url.deletingPathExtension().lastPathComponent)
+                Text("\(recording.date.formatted(date: .abbreviated, time: .shortened)) · \(Self.durationLabel(recording.duration))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
+
+            Button {
+                if isPlaying { player.stop() }
+                newName = recording.url.deletingPathExtension().lastPathComponent
+                renamingRecording = recording
+            } label: {
+                Image(systemName: "pencil")
+            }
+            .buttonStyle(.borderless)
 
             Button(role: .destructive) {
                 if isPlaying { player.stop() }
