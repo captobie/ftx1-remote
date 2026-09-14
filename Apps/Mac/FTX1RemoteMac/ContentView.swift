@@ -133,6 +133,11 @@ struct ContentView: View {
                 }
                 FilterDisplayHost(frames: hub.scopeFrames, scopeMode: scopeDisplayMode)
             }
+            .padding(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1)
+            )
 
             MenuPageView<HubService>()
         }
