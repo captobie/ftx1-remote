@@ -1169,6 +1169,9 @@ final class HubService: ObservableObject {
         let antSelectRaw = try? await rigctld.getMenuItem(p1: 3, p2: 7, p3: 4)
         let antSelect = antSelectRaw.flatMap(Int.init)
         let txwEnabled = try? await rigctld.getRawBool("TS")
+        // "ST" reads SPLIT with no P1 selector at all, same bare-boolean
+        // shape as "TS" above — see RigState.splitEnabled.
+        let splitEnabled = try? await rigctld.getRawBool("ST")
         // "CT0" reads SQL TYPE with its fixed MAIN-side P1 baked in, same
         // shape as "GT0"/"BC0" above.
         let squelchType = try? await rigctld.getRawDigit("CT0")
@@ -1251,6 +1254,7 @@ final class HubService: ObservableObject {
         rigState.narrowWidthHz = NarrowWidthPreset.item(for: rigState.mode) == nil ? nil : (narrowWidthHz ?? rigState.narrowWidthHz)
         rigState.antSelect = antSelect ?? rigState.antSelect
         rigState.txwEnabled = txwEnabled ?? rigState.txwEnabled
+        rigState.splitEnabled = splitEnabled ?? rigState.splitEnabled
         rigState.squelchType = squelchType ?? rigState.squelchType
         rigState.ctcssToneIndex = ctcssToneIndex ?? rigState.ctcssToneIndex
         rigState.dcsCodeIndex = dcsCodeIndex ?? rigState.dcsCodeIndex

@@ -9,6 +9,11 @@ public struct VFODisplayBox: View {
     let frequencyHz: Int?
     let isActive: Bool
     let mode: String
+    /// "TXRX"/"RX"/"TX" indicator shown next to `label`, matching the
+    /// rig's own display — see `RigState.splitEnabled`: `nil` (the
+    /// default, also used before the first successful read) shows nothing,
+    /// same as every other not-yet-read field in this view.
+    let txRxLabel: String?
     /// Callsign most recently associated with whichever digital mode is
     /// active on this VFO: the station currently being received in C4FM
     /// (see `RigState.c4fmCallsign`), or — while `aprsActive` — the most
@@ -59,6 +64,7 @@ public struct VFODisplayBox: View {
         frequencyHz: Int?,
         isActive: Bool,
         mode: String,
+        txRxLabel: String? = nil,
         callsign: String? = nil,
         reflector: String? = nil,
         aprsActive: Bool = false,
@@ -73,6 +79,7 @@ public struct VFODisplayBox: View {
         self.frequencyHz = frequencyHz
         self.isActive = isActive
         self.mode = mode
+        self.txRxLabel = txRxLabel
         self.callsign = callsign
         self.reflector = reflector
         self.aprsActive = aprsActive
@@ -102,9 +109,16 @@ public struct VFODisplayBox: View {
 
     public var body: some View {
         VStack(alignment: .trailing, spacing: 6) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(isActive ? .primary : .secondary)
+            HStack(spacing: 4) {
+                if let txRxLabel {
+                    Text(txRxLabel)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(isActive ? .primary : .secondary)
+            }
             Text(formattedFrequency)
                 .font(.system(size: 38, weight: .medium, design: .monospaced))
                 .foregroundStyle(digitColor)

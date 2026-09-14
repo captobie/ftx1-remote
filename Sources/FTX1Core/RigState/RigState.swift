@@ -209,6 +209,18 @@ public struct RigState: Codable, Equatable, Sendable {
     /// TXW on/off (the FTX-1's raw "TS" CAT command) — unlike most booleans
     /// here, "TS" has no MAIN/SUB P1 selector at all, just a bare 0/1.
     public var txwEnabled: Bool?
+    /// SPLIT on/off (the FTX-1's raw "ST" CAT command) — like "TS" above, a
+    /// bare 0/1 with no MAIN/SUB P1 selector. Drives the TXRX/RX label
+    /// `VFODisplayBox` shows next to MAIN, matching the rig's own display:
+    /// `false` (or not yet read) shows "TXRX", `true` shows "RX" —
+    /// confirmed against real hardware. SUB shows a static "RX" regardless
+    /// of this field (see `VFODisplayBox`'s call sites) — confirmed split
+    /// OFF; the exact real-hardware label(s) while split is ON are still
+    /// being confirmed (the rig appears to show a TX/RX pair somewhere in
+    /// that state, not yet pinned down whether that's MAIN-internal or
+    /// spans MAIN/SUB — don't assume the current MAIN ternary above is
+    /// final for the split-ON case).
+    public var splitEnabled: Bool?
     /// Squelch type, 0-5 (OFF/ENC/TSQ/DCS/PR FREQ/REV TONE) — the FTX-1's raw
     /// "CT" CAT command, P1 fixed to "0" (MAIN-side). Same setting as Deep
     /// Settings' RADIO SETTING → MODE FM → SQL TYPE item, but reached here
@@ -354,6 +366,7 @@ public struct RigState: Codable, Equatable, Sendable {
         narrowWidthHz: Int? = nil,
         antSelect: Int? = nil,
         txwEnabled: Bool? = nil,
+        splitEnabled: Bool? = nil,
         squelchType: Int? = nil,
         ctcssToneIndex: Int? = nil,
         dcsCodeIndex: Int? = nil,
@@ -420,6 +433,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.narrowWidthHz = narrowWidthHz
         self.antSelect = antSelect
         self.txwEnabled = txwEnabled
+        self.splitEnabled = splitEnabled
         self.squelchType = squelchType
         self.ctcssToneIndex = ctcssToneIndex
         self.dcsCodeIndex = dcsCodeIndex
