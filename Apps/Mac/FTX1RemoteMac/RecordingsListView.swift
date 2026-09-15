@@ -71,28 +71,36 @@ struct RecordingsListView: View {
             }
         }
         .navigationTitle("Recordings")
-        .frame(minWidth: 420, minHeight: 320)
+        .frame(minWidth: 560, minHeight: 320)
         .toolbar {
-            ToolbarItem {
-                Button("Export Selected", systemImage: "square.and.arrow.up") {
-                    exportSelected()
+            // Only shown once something's actually selected, rather than
+            // always-present-but-disabled — at rest there's exactly one
+            // trash icon (Delete All) in the toolbar, not two
+            // near-identical ones sitting side by side.
+            if !selection.isEmpty {
+                ToolbarItem {
+                    Button("Export Selected (\(selection.count))", systemImage: "square.and.arrow.up") {
+                        exportSelected()
+                    }
+                    .labelStyle(.titleAndIcon)
                 }
-                .disabled(selection.isEmpty)
+                ToolbarItem {
+                    Button("Delete Selected (\(selection.count))", systemImage: "minus.circle", role: .destructive) {
+                        showingDeleteSelectedConfirmation = true
+                    }
+                    .labelStyle(.titleAndIcon)
+                }
             }
             ToolbarItem {
-                Button("Delete Selected", systemImage: "trash", role: .destructive) {
-                    showingDeleteSelectedConfirmation = true
-                }
-                .disabled(selection.isEmpty)
-            }
-            ToolbarItem {
-                Button("Delete All", systemImage: "trash.fill", role: .destructive) {
+                Button("Delete All", systemImage: "trash", role: .destructive) {
                     showingDeleteAllConfirmation = true
                 }
                 .disabled(recordings.isEmpty)
+                .labelStyle(.titleAndIcon)
             }
             ToolbarItem {
                 Button("Refresh", systemImage: "arrow.clockwise") { reload() }
+                    .labelStyle(.titleAndIcon)
             }
         }
         .overlay {
