@@ -150,4 +150,33 @@ final class AudioRecorder {
             return nil
         }
     }
+
+    /// Copies each of `recordings` into `directory` (chosen via
+    /// `NSOpenPanel` by `RecordingsListView`'s "Export Selected" button) —
+    /// the app's own copy in `recordingsDirectory` is untouched, this is a
+    /// plain export. A name collision at the destination (the folder
+    /// already has a file with that name) is resolved with a Finder-style
+    /// " 2"/" 3" suffix rather than overwriting or failing outright.
+    /// Returns the number that copied successfully.
+    @discardableResult
+    static func export(_ recordings: [Recording], to directory: URL) -> Int {
+        let fm = FileManager.default
+        var succeeded = 0
+        for recording in recordings {
+            let base = recording.url.deletingPathExtension().lastPathComponent
+            var destination = directory.appendingPathComponent(base).appendingPathExtension("wav")
+            var suffix = 2
+            while fm.fileExists(atPath: destination.path) {
+                destination = directory.appendingPathComponent("\(base) \(suffix)").appendingPathExtension("wav")
+                suffix += 1
+            }
+            do {
+                try fm.copyItem(at: recording.url, to: destination)
+                succeeded += 1
+            } catch {
+                Self.logger.error("export failed for \(recording.url.lastPathComponent, privacy: .public): \(String(describing: error), privacy: .public)")
+            }
+        }
+        return succeeded
+    }
 }

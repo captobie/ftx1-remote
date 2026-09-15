@@ -1,3 +1,4 @@
+import AppKit
 import AVFoundation
 import Combine
 import SwiftUI
@@ -50,6 +51,18 @@ struct RecordingsListView: View {
     @State private var renamingRecording: AudioRecorder.Recording?
     @State private var newName = ""
     @State private var showingDeleteAllConfirmation = false
+    /// URLs of the currently checked rows, toggled by each row's leading
+    /// circle button — tracked by URL rather than holding onto `Recording`
+    /// values directly, so a rename (which produces a new `Recording` with
+    /// a new URL on reload) doesn't silently drop that row out of the set;
+    /// `reload()` intersects this against what's still on disk.
+    @State private var selection: Set<URL> = []
+    @State private var showingDeleteSelectedConfirmation = false
+    @State private var exportResultMessage: String?
+
+    private var selectedRecordings: [AudioRecorder.Recording] {
+        recordings.filter { selection.contains($0.url) }
+    }
 
     var body: some View {
         List {
@@ -58,10 +71,22 @@ struct RecordingsListView: View {
             }
         }
         .navigationTitle("Recordings")
-        .frame(minWidth: 360, minHeight: 320)
+        .frame(minWidth: 420, minHeight: 320)
         .toolbar {
             ToolbarItem {
-                Button("Delete All", systemImage: "trash", role: .destructive) {
+                Button("Export Selected", systemImage: "square.and.arrow.up") {
+                    exportSelected()
+                }
+                .disabled(selection.isEmpty)
+            }
+            ToolbarItem {
+                Button("Delete Selected", systemImage: "trash", role: .destructive) {
+                    showingDeleteSelectedConfirmation = true
+                }
+                .disabled(selection.isEmpty)
+            }
+            ToolbarItem {
+                Button("Delete All", systemImage: "trash.fill", role: .destructive) {
                     showingDeleteAllConfirmation = true
                 }
                 .disabled(recordings.isEmpty)
@@ -87,7 +112,17 @@ struct RecordingsListView: View {
             Button("Delete All", role: .destructive) {
                 player.stop()
                 AudioRecorder.deleteAll()
+                selection.removeAll()
                 reload()
+            }
+        }
+        .confirmationDialog(
+            "Delete \(selection.count) selected recording\(selection.count == 1 ? "" : "s")? This can't be undone.",
+            isPresented: $showingDeleteSelectedConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Selected", role: .destructive) {
+                deleteSelected()
             }
         }
         .alert(
@@ -106,13 +141,38 @@ struct RecordingsListView: View {
                 }
             }
         }
+        .alert(
+            "Export Complete",
+            isPresented: Binding(
+                get: { exportResultMessage != nil },
+                set: { isPresented in if !isPresented { exportResultMessage = nil } }
+            ),
+            presenting: exportResultMessage
+        ) { _ in
+            Button("OK") {}
+        } message: { message in
+            Text(message)
+        }
         .onAppear { reload() }
         .onDisappear { player.stop() }
     }
 
     private func row(for recording: AudioRecorder.Recording) -> some View {
         let isPlaying = player.playingURL == recording.url
+        let isSelected = selection.contains(recording.url)
         return HStack {
+            Button {
+                if isSelected {
+                    selection.remove(recording.url)
+                } else {
+                    selection.insert(recording.url)
+                }
+            } label: {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+            }
+            .buttonStyle(.borderless)
+
             Button {
                 isPlaying ? player.stop() : player.play(recording)
             } label: {
@@ -141,6 +201,7 @@ struct RecordingsListView: View {
             Button(role: .destructive) {
                 if isPlaying { player.stop() }
                 AudioRecorder.delete(recording)
+                selection.remove(recording.url)
                 reload()
             } label: {
                 Image(systemName: "trash")
@@ -149,8 +210,45 @@ struct RecordingsListView: View {
         }
     }
 
+    private func deleteSelected() {
+        if let playingURL = player.playingURL, selection.contains(playingURL) {
+            player.stop()
+        }
+        for recording in selectedRecordings {
+            AudioRecorder.delete(recording)
+        }
+        selection.removeAll()
+        reload()
+    }
+
+    /// Opens a directory-choosing `NSOpenPanel`, same pattern as
+    /// `SettingsView.chooseBinaryPath()`'s file panel, and copies the
+    /// selected recordings there via `AudioRecorder.export(_:to:)`.
+    private func exportSelected() {
+        let toExport = selectedRecordings
+        guard !toExport.isEmpty else { return }
+
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Export"
+        panel.message = "Choose a folder to export \(toExport.count) recording\(toExport.count == 1 ? "" : "s") to."
+
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        let succeeded = AudioRecorder.export(toExport, to: destination)
+        exportResultMessage = "Exported \(succeeded) of \(toExport.count) recording\(toExport.count == 1 ? "" : "s") to \(destination.lastPathComponent)."
+    }
+
+    /// Reloads from disk and drops any selected URL that no longer exists
+    /// (deleted, or renamed to a different URL) — a plain `selection =
+    /// AudioRecorder.listRecordings()`-independent reassignment would
+    /// otherwise leave stale URLs selected forever, since nothing else
+    /// prunes this set.
     private func reload() {
-        recordings = AudioRecorder.listRecordings()
+        let updated = AudioRecorder.listRecordings()
+        recordings = updated
+        selection.formIntersection(Set(updated.map(\.url)))
     }
 
     private static func durationLabel(_ duration: TimeInterval) -> String {
