@@ -29,6 +29,12 @@ final class AudioRecorder {
     private(set) var isRecording = false
     private let queue = DispatchQueue(label: "com.ftx1remote.audio-recorder")
     private var audioFile: AVAudioFile?
+    /// Frequency/mode label for the file about to be created (e.g.
+    /// "147.380.000 FM") — set by `toggle()` when starting, read by
+    /// `writeOnQueue`'s `makeFile` call. Both only ever run on `queue`, in
+    /// the order `toggle()` submitted them, so this is never read before
+    /// it's set for a given recording.
+    private var pendingLabel = ""
 
     private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "audio-recorder")
 
@@ -41,13 +47,22 @@ final class AudioRecorder {
     }()
 
     /// Called from the RECORD button's tap — starts a new file, or closes
-    /// out the one currently being written. The file itself is created
-    /// lazily on the next `ingest(samples:sampleRate:)` call rather than
-    /// here, since only the audio tap knows the actual sample rate.
-    func toggle() {
-        isRecording.toggle()
-        if !isRecording {
-            queue.async { [weak self] in self?.audioFile = nil }
+    /// out the one currently being written. `label` (e.g. "147.380.000
+    /// FM", the frequency/mode at the moment recording starts — see
+    /// `HubService.toggleAudioRecording()`) is folded into the new file's
+    /// name; ignored when stopping. The file itself is created lazily on
+    /// the next `ingest(samples:sampleRate:)` call rather than here, since
+    /// only the audio tap knows the actual sample rate.
+    func toggle(label: String) {
+        let willRecord = !isRecording
+        isRecording = willRecord
+        queue.async { [weak self] in
+            guard let self else { return }
+            if willRecord {
+                self.pendingLabel = label
+            } else {
+                self.audioFile = nil
+            }
         }
         onRecordingStateChanged?(isRecording)
     }
@@ -65,7 +80,7 @@ final class AudioRecorder {
 
     private func writeOnQueue(samples: [Float], sampleRate: Double) {
         if audioFile == nil {
-            audioFile = Self.makeFile(sampleRate: sampleRate)
+            audioFile = Self.makeFile(sampleRate: sampleRate, label: pendingLabel)
         }
         guard let audioFile,
               let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: 1, interleaved: false),
@@ -82,10 +97,18 @@ final class AudioRecorder {
         }
     }
 
-    private static func makeFile(sampleRate: Double) -> AVAudioFile? {
+    /// `label` (frequency/mode, e.g. "147.380.000 FM") is sanitized the
+    /// same way `rename(_:to:)` sanitizes a user-typed name — it ultimately
+    /// comes from `RigMode.displayName`, which won't contain a "/", but
+    /// there's no reason to trust that at the file-naming boundary either.
+    private static func makeFile(sampleRate: Double, label: String) -> AVAudioFile? {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
-        let url = recordingsDirectory.appendingPathComponent("Recording \(formatter.string(from: Date())).wav")
+        let sanitizedLabel = label.replacingOccurrences(of: "/", with: "-")
+        let base = sanitizedLabel.isEmpty
+            ? "Recording \(formatter.string(from: Date()))"
+            : "Recording \(formatter.string(from: Date())) \(sanitizedLabel)"
+        let url = recordingsDirectory.appendingPathComponent(base).appendingPathExtension("wav")
         guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: 1, interleaved: false) else { return nil }
         do {
             return try AVAudioFile(forWriting: url, settings: format.settings)
