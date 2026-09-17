@@ -717,14 +717,17 @@ final class HubService: ObservableObject {
             // accept it on the last attempt rather than spinning forever.
             if hz == parkedHz && attempt < maxAttempts - 1 { continue }
             let modeName = try? await rigctld.getMode().mode
-            let isC4FM = modeName == nil ? (try? await rigctld.isActiveModeC4FM()) ?? false : false
+            // Always checked, not just when `modeName` came back nil — see
+            // `refreshFastTier()`'s `isC4FM` doc comment for why a
+            // successful hamlib mode string can't be trusted on its own.
+            let isC4FM = (try? await rigctld.isActiveModeC4FM()) ?? false
             let channel = try? await rigctld.getRawInt("MC0")
             var tag: String?
             if let channel { tag = try? await rigctld.getMemoryChannelTag(channel: channel) }
             guard rigState.vfoMemoryMode == .memory else { return }
             commandGeneration += 1
             rigState.frequencyHz = hz
-            rigState.mode = modeName.flatMap(RigMode.init(rawValue:)) ?? (isC4FM ? .c4fm : rigState.mode)
+            rigState.mode = isC4FM ? .c4fm : (modeName.flatMap(RigMode.init(rawValue:)) ?? rigState.mode)
             rigState.memoryChannel = channel
             rigState.memoryChannelTag = tag
             await server.broadcast(rigState)
@@ -1001,10 +1004,21 @@ final class HubService: ObservableObject {
         let modeName = try? await rigctld.getMode().mode
         // hamlib's mode read has no mapping for this rig's two raw C4FM
         // codes (see RigctldClient.isActiveModeC4FM) and fails outright
-        // rather than returning a string — only worth checking when the
-        // normal read above already came back empty, since it costs an
-        // extra two round trips.
-        let isC4FM = modeName == nil ? (try? await rigctld.isActiveModeC4FM()) ?? false : false
+        // rather than returning a string while genuinely in C4FM — but
+        // "genuinely" is the catch: `.swapActiveVFO`'s physical Main/Sub
+        // content exchange isn't a hamlib-native set call, so it's
+        // invisible to hamlib's own response cache, the exact same gap
+        // `getFrequency()` was fixed for (see that doc comment). Confirmed
+        // on real hardware 2026-09-17: after swapping C4FM onto a VFO
+        // that had hamlib-cached a plain-mode success from before the
+        // swap, "m currVFO"/"m <VFO>" kept returning that stale non-error
+        // string instead of erroring RPRT-8, so gating this check on
+        // `modeName == nil` never ran it and the mode stuck on the wrong
+        // value. Always checking (not just on failure) and letting a
+        // genuine raw C4FM hit override a stale hamlib string fixes it —
+        // costs two extra round trips every tick instead of only on
+        // error, but correctness here matters more than that.
+        let isC4FM = (try? await rigctld.isActiveModeC4FM()) ?? false
         // Best-effort, same reasoning as the mode read above: a single
         // dropped byte on the USB-serial link (real, occasional occurrence
         // on actual RF hardware, and rigctld is tuned with retry=0 to fail
@@ -1025,8 +1039,9 @@ final class HubService: ObservableObject {
         let powerLevel = try? await rigctld.getLevel("RFPOWER")
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
-        // Same C4FM gap as the primary mode read above — see `isC4FM`.
-        let isSecondaryC4FM = secondaryModeName == nil ? (try? await rigctld.isSecondaryModeC4FM()) ?? false : false
+        // Same staleness gap as the primary mode read above — see `isC4FM`
+        // — always checked, not just on failure.
+        let isSecondaryC4FM = (try? await rigctld.isSecondaryModeC4FM()) ?? false
         // "VM0" reads VFO-vs-memory mode with its fixed MAIN-side P1 baked
         // in — see RigState.vfoMemoryMode. Only bother reading the memory
         // channel itself while actually in Memory mode, to avoid a wasted
@@ -1082,14 +1097,14 @@ final class HubService: ObservableObject {
         }
 
         rigState.frequencyHz = frequencyHz
-        rigState.mode = modeName.flatMap(RigMode.init(rawValue:)) ?? (isC4FM ? .c4fm : rigState.mode)
+        rigState.mode = isC4FM ? .c4fm : (modeName.flatMap(RigMode.init(rawValue:)) ?? rigState.mode)
         rigState.band = bandOrSegmentName
         rigState.powerWatts = powerWatts
         rigState.swr = swr
         rigState.ptt = ptt ?? rigState.ptt
         rigState.lastUpdated = Date()
         rigState.secondaryFrequencyHz = secondaryFrequencyHz ?? rigState.secondaryFrequencyHz
-        rigState.secondaryMode = secondaryModeName.flatMap(RigMode.init(rawValue:)) ?? (isSecondaryC4FM ? .c4fm : rigState.secondaryMode)
+        rigState.secondaryMode = isSecondaryC4FM ? .c4fm : (secondaryModeName.flatMap(RigMode.init(rawValue:)) ?? rigState.secondaryMode)
         rigState.powerLevel = powerLevel
         rigState.smeterDb = smeterDb
         rigState.aprsActive = aprsActive

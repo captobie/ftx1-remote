@@ -740,16 +740,25 @@ public actor RigctldClient {
         }
     }
 
-    /// Switches which of Main/Sub is the active VFO — the rigctld
-    /// counterpart of the rig's own physical A/B swap button. Unlike the
-    /// VFO switching `getSecondaryFrequency()`'s doc comment says to avoid,
-    /// this is a deliberate user action (not something a background poll
-    /// loop does silently), so the relay click that comes with it is
-    /// expected, same as pressing the physical button.
+    /// Swaps the MAIN-side and SUB-side VFO contents — the rigctld
+    /// counterpart of the rig's own physical A/B swap button.
+    ///
+    /// Was built on hamlib's generic "v"/"V <VFO>" (rig_get_vfo/set_vfo),
+    /// on the assumption that "which VFO is active" and "swap the two
+    /// VFOs' contents" were the same operation on this rig. Confirmed
+    /// wrong on real hardware 2026-09-17: pressing the physical front-
+    /// panel swap button exchanges Main/Sub frequency+mode but leaves
+    /// RX/TXRX (which side is active) untouched, while "V <other>" — this
+    /// rig's hamlib backend maps it to the CAT manual's "VS" (VFO
+    /// SELECT) — both changes which VFO is active *and* was the source of
+    /// two separate races/staleness bugs on the "v"/"V" read-then-write
+    /// dance (see git history). The CAT manual has a dedicated, unrelated
+    /// command for the real thing: "SV" (SWAP VFO), Set-only with no
+    /// parameters ("SV;"), documented simply as "Changes the MAIN-side
+    /// and SUB-side" — a raw CAT passthrough, not a hamlib verb, so no
+    /// "v" read is involved at all and none of the previous races apply.
     public func swapActiveVFO() async throws {
-        let currentVFO = try await send("v")
-        let otherVFO = currentVFO == "Sub" ? "Main" : "Sub"
-        _ = try await send("V \(otherVFO)")
+        try await sendRawFireAndForget("SV")
     }
 
     private func write(_ command: String) async throws {
