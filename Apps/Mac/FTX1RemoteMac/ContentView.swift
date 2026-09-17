@@ -181,11 +181,18 @@ struct ContentView: View {
     /// toggle (see git history on the "PR"/MIC EQ "backwards toggle" bug).
     private var vmToggleButton: some View {
         Button {
-            hub.send(.setVFOMemoryMode(memory: hub.rigState.vfoMemoryMode != .memory))
+            // Compare against `.vfo`, not `.memory`: the rig has several
+            // non-plain-Memory VM sub-modes (PMS, P-01L~P-50U, 5MHz Band,
+            // EMG — see `VFOMemoryMode`), all reported as `.other(rawP2:)`.
+            // Comparing against `.memory` left any of those states reading
+            // as "not memory" and this button would re-send "enter Memory"
+            // forever instead of ever exiting to VFO — confirmed on real
+            // hardware 2026-09-17 landing in the 5MHz Band Memory sub-mode.
+            hub.send(.setVFOMemoryMode(memory: hub.rigState.vfoMemoryMode == .vfo))
         } label: {
             Text("V/M")
                 .font(.caption)
-                .fontWeight(hub.rigState.vfoMemoryMode == .memory ? .bold : .regular)
+                .fontWeight(hub.rigState.vfoMemoryMode == .vfo ? .regular : .bold)
         }
         .buttonStyle(.bordered)
     }
