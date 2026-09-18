@@ -34,6 +34,18 @@ either drift from `CLAUDE.md`'s own "still open" notes.
    against a real separate PTT interface — only validated with the setup
    on hand.
    — [#5](https://github.com/captobie/ftx1-remote/issues/5)
+5. **VFO box briefly resizes when a callsign appears/clears** — when a
+   callsign shows up (C4FM's `c4fmCallsign`, or APRS's `aprsLastCallsign`
+   while `aprsActive`), the VFO display box gets slightly larger to
+   accommodate it, then shrinks back down once the callsign expires back to
+   `nil` (APRS callsigns auto-expire after 5s). The callsign is rendered via
+   `.overlay(alignment: .bottomLeading)`, which shouldn't normally affect
+   the base view's reported size — worth digging into during the fix rather
+   than assuming the cause. Cosmetic today (the surrounding layout visibly
+   jumps), but we'll want these VFO boxes to hold a fixed size regardless of
+   whether a callsign/reflector line is present.
+   (`Sources/FTX1Core/UI/VFODisplayBox.swift`)
+   — [#28](https://github.com/captobie/ftx1-remote/issues/28)
 
 ## Rig limitations (no CAT command exists — not fixable in-app)
 
