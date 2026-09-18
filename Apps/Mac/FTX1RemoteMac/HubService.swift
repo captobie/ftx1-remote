@@ -162,13 +162,20 @@ final class HubService: ObservableObject {
     /// Sub-channel counterparts to `mainAudioStreamEncoder`/
     /// `mainAudioPlayback` — `.remote` mode only (see
     /// `AudioCaptureEngine.onSubChannelSamples`). Not relayed to iPad and
-    /// not fed to FT8/APRS/`audioRecorder` — those stay Main-only for now
-    /// (see repo CLAUDE.md, "Dual Main/Sub audio channels"), so this is
-    /// just capture → encode → local playback, nothing else.
+    /// not fed to FT8/`audioRecorder` — those stay Main-only (see repo
+    /// CLAUDE.md, "Dual Main/Sub audio channels"). APRS *is* decoded from
+    /// this channel too, via the separate `aprsDecoderSub` below.
     private let subAudioStreamEncoder = AudioStreamEncoder()
     private let subAudioPlayback = AudioPlaybackEngine()
     private let wpsdMonitor = WPSDCallsignMonitor()
     private let aprsDecoder = APRSDecoder()
+    /// Independent decoder instance for the Sub channel — `.remote` mode
+    /// only, fed from `onSubChannelSamples` below, gated on
+    /// `rigState.secondaryFrequencyHz` rather than the Main gate's
+    /// `rigState.frequencyHz`. Safe to run alongside `aprsDecoder`: both
+    /// wrap value-type `AFSKDemodulator`/`AX25FrameDecoder` state on their
+    /// own private serial queue, with nothing shared between instances.
+    private let aprsDecoderSub = APRSDecoder()
     let aprsStore = APRSStore()
     /// Unlike `aprsDecoder`, not wired into `audioCapture.onAudioSamples`
     /// unconditionally — `ingest(samples:sampleRate:)` drops audio on its
@@ -191,6 +198,9 @@ final class HubService: ObservableObject {
     /// See `APRSDecoder`'s heartbeat logging for the matching "is audio
     /// still reaching the decoder" question on the other side of the gate.
     private var aprsGateWasActive = false
+    /// Same edge-logging as `aprsGateWasActive`, for the independent Sub
+    /// channel gate (`rigState.secondaryFrequencyHz`-based) below.
+    private var aprsGateWasActiveSub = false
     private static let aprsGateLogger = Logger(subsystem: "com.ftx1remote.mac", category: "aprs-gate")
     /// Diagnostic-only — surfaces exactly what `runConnectionLoop` caught,
     /// since `connectionState`'s `.failed(String)` case (backed by
@@ -200,13 +210,16 @@ final class HubService: ObservableObject {
     /// Check via Console.app (subsystem "com.ftx1remote.mac", category
     /// "connection") regardless of how the app was launched.
     private static let connectionLogger = Logger(subsystem: "com.ftx1remote.mac", category: "connection")
-    /// Most recently APRS-decoded station + when it was heard.
+    /// Most recently APRS-decoded station + when it was heard, on Main.
     /// `refreshFastTier` (the ~500ms poll/broadcast cycle) surfaces this as
     /// `RigState.aprsLastCallsign` for up to 5 seconds past `at`, then lets
     /// it read back as `nil` — no separate expiry `Timer` needed since that
     /// cycle runs often enough on its own to notice the 5-second mark
     /// passing.
     private var aprsLastCallsignHeard: (callsign: String, at: Date)?
+    /// Sub-channel counterpart to `aprsLastCallsignHeard`, surfaced the
+    /// same way as `RigState.aprsSubLastCallsign`.
+    private var aprsLastCallsignHeardSub: (callsign: String, at: Date)?
 
     /// Bumped by `applyOptimistically` every time a command lands.
     /// `refreshFastTier`/`refreshSlowTier` (the two halves the poll cycle is
@@ -325,21 +338,41 @@ final class HubService: ObservableObject {
         }
         // Sub channel — `.remote` mode only, never fires in `.local` (see
         // `AudioCaptureEngine.onSubChannelSamples`). Deliberately minimal
-        // compared to the Main tap above: just capture → encode → local
-        // playback. No iPad relay, no FT8/APRS/recorder — those stay
-        // Main-only for now.
+        // compared to the Main tap above: capture → encode → local
+        // playback, plus an independent APRS gate/decode. No iPad relay,
+        // no FT8/recorder — those stay Main-only.
         audioCapture.onSubChannelSamples = { [weak self] samples, sampleRate in
             guard let self else { return }
-            guard let pcm = self.subAudioStreamEncoder.encode(samples: samples, sampleRate: sampleRate) else { return }
-            guard !self.isSubAudioMuted else { return }
-            self.subAudioPlayback.push(pcm: pcm)
+            if let pcm = self.subAudioStreamEncoder.encode(samples: samples, sampleRate: sampleRate) {
+                if !self.isSubAudioMuted {
+                    self.subAudioPlayback.push(pcm: pcm)
+                }
+            }
+
+            // Same shape as the Main gate above, but against the Sub
+            // VFO's frequency (`secondaryFrequencyHz`, `nil`-safe — treated
+            // as inactive whenever it hasn't been read yet).
+            let subIsActive = self.rigState.secondaryFrequencyHz.map { APRSSettings.isActive(atFrequencyHz: $0) } ?? false
+            if subIsActive != self.aprsGateWasActiveSub {
+                self.aprsGateWasActiveSub = subIsActive
+                Self.aprsGateLogger.debug("APRS Sub gate \(subIsActive ? "opened" : "closed", privacy: .public) at \(self.rigState.secondaryFrequencyHz.map(String.init) ?? "unknown", privacy: .public) Hz")
+            }
+            guard subIsActive else { return }
+            self.aprsDecoderSub.process(samples: samples, sampleRate: sampleRate)
         }
         aprsDecoder.onStation = { [weak self] callsign, latitude, longitude, symbolTable, symbolCode, comment in
             self?.aprsLastCallsignHeard = (callsign, Date())
-            self?.aprsStore.recordStation(callsign: callsign, latitude: latitude, longitude: longitude, symbolTable: symbolTable, symbolCode: symbolCode, comment: comment, heardAt: Date())
+            self?.aprsStore.recordStation(callsign: callsign, latitude: latitude, longitude: longitude, symbolTable: symbolTable, symbolCode: symbolCode, comment: comment, heardAt: Date(), source: .main)
         }
         aprsDecoder.onMessage = { [weak self] from, to, text, messageID in
-            self?.aprsStore.recordMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: Date())
+            self?.aprsStore.recordMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: Date(), source: .main)
+        }
+        aprsDecoderSub.onStation = { [weak self] callsign, latitude, longitude, symbolTable, symbolCode, comment in
+            self?.aprsLastCallsignHeardSub = (callsign, Date())
+            self?.aprsStore.recordStation(callsign: callsign, latitude: latitude, longitude: longitude, symbolTable: symbolTable, symbolCode: symbolCode, comment: comment, heardAt: Date(), source: .sub)
+        }
+        aprsDecoderSub.onMessage = { [weak self] from, to, text, messageID in
+            self?.aprsStore.recordMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: Date(), source: .sub)
         }
         ft8Coordinator.dialFrequencyProvider = { [weak self] in
             self?.rigState.frequencyHz ?? 0
@@ -1160,6 +1193,13 @@ final class HubService: ObservableObject {
         let aprsLastCallsign: String? = aprsLastCallsignHeard.flatMap { heard in
             Date().timeIntervalSince(heard.at) < 5 ? heard.callsign : nil
         }
+        // Same shape, gated on the Sub VFO's frequency — the same value
+        // about to be written to `rigState.secondaryFrequencyHz` below.
+        let subFrequencyHz = secondaryFrequencyHz ?? rigState.secondaryFrequencyHz
+        let aprsSubActive = subFrequencyHz.map { APRSSettings.isActive(atFrequencyHz: $0) } ?? false
+        let aprsSubLastCallsign: String? = aprsLastCallsignHeardSub.flatMap { heard in
+            Date().timeIntervalSince(heard.at) < 5 ? heard.callsign : nil
+        }
 
         rigState.frequencyHz = frequencyHz
         rigState.mode = isC4FM ? .c4fm : (modeName.flatMap(RigMode.init(rawValue:)) ?? rigState.mode)
@@ -1174,6 +1214,8 @@ final class HubService: ObservableObject {
         rigState.smeterDb = smeterDb
         rigState.aprsActive = aprsActive
         rigState.aprsLastCallsign = aprsLastCallsign
+        rigState.aprsSubActive = aprsSubActive
+        rigState.aprsSubLastCallsign = aprsSubLastCallsign
         rigState.vfoMemoryMode = vfoMemoryModeRaw.map(VFOMemoryMode.init(rawP2:)) ?? rigState.vfoMemoryMode
         // No `?? rigState.memoryChannel`/`memoryChannelTag` fallback: these
         // should go back to nil when out of Memory mode, not hold onto a

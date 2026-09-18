@@ -291,6 +291,12 @@ public struct RigState: Codable, Equatable, Sendable {
     /// `aprsActive`; nil whenever APRS decoding is disabled, off-frequency,
     /// or nothing's been decoded in the last 5 seconds.
     public var aprsLastCallsign: String?
+    /// Sub-VFO counterparts to `aprsActive`/`aprsLastCallsign` — same
+    /// semantics, evaluated against `secondaryFrequencyHz` instead of
+    /// `frequencyHz`, backed by `HubService`'s independent `aprsDecoderSub`
+    /// gate (`.remote` mode only, same as Sub audio capture generally).
+    public var aprsSubActive: Bool
+    public var aprsSubLastCallsign: String?
     /// MAIN-side (VFO A) VFO-vs-memory mode, from the FTX-1's raw "VM" (VFO /
     /// MEMORY CHANNEL) CAT command's P2 field, P1 fixed to MAIN-side. See
     /// `VFOMemoryMode`.
@@ -377,6 +383,8 @@ public struct RigState: Codable, Equatable, Sendable {
         c4fmReflector: String? = nil,
         aprsActive: Bool = false,
         aprsLastCallsign: String? = nil,
+        aprsSubActive: Bool = false,
+        aprsSubLastCallsign: String? = nil,
         vfoMemoryMode: VFOMemoryMode? = nil,
         memoryChannel: Int? = nil,
         memoryChannelTag: String? = nil,
@@ -444,6 +452,8 @@ public struct RigState: Codable, Equatable, Sendable {
         self.c4fmReflector = c4fmReflector
         self.aprsActive = aprsActive
         self.aprsLastCallsign = aprsLastCallsign
+        self.aprsSubActive = aprsSubActive
+        self.aprsSubLastCallsign = aprsSubLastCallsign
         self.vfoMemoryMode = vfoMemoryMode
         self.memoryChannel = memoryChannel
         self.memoryChannelTag = memoryChannelTag

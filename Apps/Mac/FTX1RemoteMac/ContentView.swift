@@ -50,7 +50,7 @@ struct ContentView: View {
             }
 
             HStack(spacing: 12) {
-                VFODisplayBox(label: "SUB", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: false, mode: hub.rigState.secondaryMode?.displayName ?? "—", txRxLabel: "RX", onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) })
+                VFODisplayBox(label: "SUB", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: false, mode: hub.rigState.secondaryMode?.displayName ?? "—", txRxLabel: "RX", callsign: hub.rigState.aprsSubActive ? hub.rigState.aprsSubLastCallsign : nil, aprsActive: hub.rigState.aprsSubActive, onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) })
                 vmToggleButton
                 vfoSwapButton
                 VFODisplayBox(label: "MAIN", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, txRxLabel: hub.rigState.splitEnabled == true ? "RX" : "TXRX", callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.vfoMemoryMode, memoryChannel: hub.rigState.memoryChannel, memoryChannelTag: hub.rigState.memoryChannelTag, onSetMemoryChannel: { hub.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepMemoryChannel(up: $0)) })

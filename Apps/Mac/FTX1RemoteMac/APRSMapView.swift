@@ -20,6 +20,7 @@ struct APRSMapView: View {
             ForEach(plottedStations) { station in
                 Marker(station.callsign, coordinate: CLLocationCoordinate2D(latitude: station.latitude!, longitude: station.longitude!))
                     .tag(station.callsign)
+                    .tint(station.source == .main ? .blue : .orange)
             }
         }
         .mapControls {

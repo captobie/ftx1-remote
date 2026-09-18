@@ -28,7 +28,10 @@ final class APRSStore: ObservableObject {
 
     /// Upserts by callsign (including SSID) — a station heard again
     /// updates its existing entry (position, comment, last-heard time)
-    /// rather than duplicating.
+    /// rather than duplicating. `source` is likewise overwritten on every
+    /// update rather than being part of the upsert key — see
+    /// `APRSStation`'s doc comment: it reflects whichever channel most
+    /// recently heard the station, not a fixed identity.
     func recordStation(
         callsign: String,
         latitude: Double?,
@@ -36,7 +39,8 @@ final class APRSStore: ObservableObject {
         symbolTable: String?,
         symbolCode: String?,
         comment: String?,
-        heardAt: Date
+        heardAt: Date,
+        source: APRSSource
     ) {
         if let index = stations.firstIndex(where: { $0.callsign == callsign }) {
             var station = stations[index]
@@ -46,6 +50,7 @@ final class APRSStore: ObservableObject {
             if let symbolCode { station.symbolCode = symbolCode }
             if let comment { station.comment = comment }
             station.lastHeardAt = heardAt
+            station.source = source
             stations[index] = station
         } else {
             stations.append(APRSStation(
@@ -55,15 +60,16 @@ final class APRSStore: ObservableObject {
                 symbolTable: symbolTable,
                 symbolCode: symbolCode,
                 comment: comment,
-                lastHeardAt: heardAt
+                lastHeardAt: heardAt,
+                source: source
             ))
         }
         trimStations()
         persist()
     }
 
-    func recordMessage(from: String, to: String, text: String, messageID: String?, receivedAt: Date) {
-        messages.append(APRSMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: receivedAt))
+    func recordMessage(from: String, to: String, text: String, messageID: String?, receivedAt: Date, source: APRSSource) {
+        messages.append(APRSMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: receivedAt, source: source))
         trimMessages()
         persist()
     }

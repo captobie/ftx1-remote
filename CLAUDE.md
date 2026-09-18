@@ -350,8 +350,40 @@ re-architecture.
     waterfall/oscilloscope (still one shared `ScopeFrameStore`), no Sub
     audio in `.local` mode, no Mac→iPad wire-protocol stereo extension
     (`AudioStreamFormat` stays mono, so no Sub relay to iPad), no
-    `RigController` protocol changes, no APRS/FT8 decoding or
-    frequency-gating from the Sub channel.
+    `RigController` protocol changes, no FT8 decoding or frequency-gating
+    from the Sub channel.
+  - **Sub-channel APRS decoding (2026-09-18, hardware-confirmed)**: a
+    second, fully independent `APRSDecoder` instance
+    (`HubService.aprsDecoderSub`) is now fed from `onSubChannelSamples`,
+    gated on `rigState.secondaryFrequencyHz` against the same global
+    `APRSSettings` frequency/tolerance the Main gate uses (no separate
+    Sub frequency setting — real use is one calling frequency, parked on
+    whichever VFO). Safe to run alongside the Main decoder since
+    `AFSKDemodulator`/`AX25FrameDecoder` (`Sources/FTX1Core/APRS/`) are
+    value-type structs with no shared state. Decoded stations/messages
+    stay in the single shared `APRSStore` rather than forking into a
+    second store/window set — `APRSStation`/`APRSMessage` gained a
+    `source: APRSSource` (`.main`/`.sub`) field instead, upserted (not
+    part of the upsert key — a station heard on both channels is one row,
+    tagged with whichever channel heard it most recently) and surfaced as
+    a Source column + segmented filter in `APRSStationListView`/
+    `APRSMessageListView`, and as marker tint (blue/orange) in
+    `APRSMapView`. `APRSStation`/`APRSMessage` decode `source` via
+    `decodeIfPresent(...) ?? .main` specifically so pre-existing
+    `aprs-history.json` files (all genuinely Main-only) keep loading
+    rather than getting silently dropped by `APRSPersistence.load()`'s
+    `try?` on a newly-required field. `RigState` gained `aprsSubActive`/
+    `aprsSubLastCallsign` (mirroring the pre-existing Main-only
+    `aprsActive`/`aprsLastCallsign`), computed in `refreshFastTier` against
+    a second, independent `aprsLastCallsignHeardSub` tracker (same 5-second
+    expiry as Main's) and gated on `secondaryFrequencyHz` rather than
+    `frequencyHz`. `RigStatePush` needed no wire-format change since it
+    already serializes the whole `RigState`. The shared `VFODisplayBox`
+    (`Sources/FTX1Core/UI/`) already supported an `aprsActive`/`callsign`
+    indicator — added earlier for Main only, never wired to the SUB box —
+    so both Mac's and iPad's `ContentView` SUB `VFODisplayBox` call sites
+    just needed the same `aprsSubActive ? aprsSubLastCallsign : nil`
+    pattern Main's MAIN box already used.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 

@@ -33,7 +33,7 @@ struct ContentView: View {
                 }
 
                 HStack(spacing: 12) {
-                    VFODisplayBox(label: "SUB", frequencyHz: viewModel.rigState.secondaryFrequencyHz, isActive: false, mode: viewModel.rigState.secondaryMode?.displayName ?? "—", txRxLabel: "RX", onSetFrequency: { viewModel.send(.setSecondaryFrequency(hz: $0)) })
+                    VFODisplayBox(label: "SUB", frequencyHz: viewModel.rigState.secondaryFrequencyHz, isActive: false, mode: viewModel.rigState.secondaryMode?.displayName ?? "—", txRxLabel: "RX", callsign: viewModel.rigState.aprsSubActive ? viewModel.rigState.aprsSubLastCallsign : nil, aprsActive: viewModel.rigState.aprsSubActive, onSetFrequency: { viewModel.send(.setSecondaryFrequency(hz: $0)) })
                     vfoSwapButton
                     VFODisplayBox(label: "MAIN", frequencyHz: viewModel.rigState.frequencyHz, isActive: true, mode: viewModel.rigState.mode.displayName, txRxLabel: viewModel.rigState.splitEnabled == true ? "RX" : "TXRX", callsign: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsActive ? viewModel.rigState.aprsLastCallsign : nil), reflector: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsActive, onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) })
                 }

@@ -7,11 +7,15 @@ import SwiftUI
 /// operating.
 struct APRSStationListView: View {
     @EnvironmentObject private var store: APRSStore
+    @State private var sourceFilter: APRSSource?
 
     var body: some View {
-        Table(store.stations.sorted { $0.lastHeardAt > $1.lastHeardAt }) {
+        Table(filteredStations) {
             TableColumn("Callsign") { station in
                 Text(station.callsign).fontDesign(.monospaced)
+            }
+            TableColumn("Source") { station in
+                Text(station.source == .main ? "Main" : "Sub")
             }
             TableColumn("Position") { station in
                 Text(Self.positionString(station))
@@ -28,11 +32,27 @@ struct APRSStationListView: View {
         }
         .navigationTitle("APRS Stations")
         .frame(minWidth: 520, minHeight: 300)
+        .toolbar {
+            ToolbarItem {
+                Picker("Source", selection: $sourceFilter) {
+                    Text("All").tag(APRSSource?.none)
+                    Text("Main").tag(APRSSource?.some(.main))
+                    Text("Sub").tag(APRSSource?.some(.sub))
+                }
+                .pickerStyle(.segmented)
+            }
+        }
         .overlay {
             if store.stations.isEmpty {
                 ContentUnavailableView("No Stations Heard", systemImage: "antenna.radiowaves.left.and.right", description: Text("Decoded APRS stations will appear here while tuned to the configured APRS frequency."))
             }
         }
+    }
+
+    private var filteredStations: [APRSStation] {
+        store.stations
+            .filter { sourceFilter == nil || $0.source == sourceFilter }
+            .sorted { $0.lastHeardAt > $1.lastHeardAt }
     }
 
     private static func positionString(_ station: APRSStation) -> String {
