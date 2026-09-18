@@ -58,36 +58,63 @@ final class HubService: ObservableObject {
     let scopeFrames = ScopeFrameStore()
     @Published private(set) var waterfallZoom: Float = 1
     @Published private(set) var oscilloscopeZoom: Float = 1
-    /// Whether the Mac itself plays the captured radio audio out loud —
-    /// independent of the waterfall/oscilloscope display and of the
-    /// Mac→iPad relay, both of which keep running regardless. Persisted via
-    /// `AudioPlaybackSettings.isMuted` (shared with iPad, though iPad has no
-    /// UI for it yet) so the choice survives a relaunch.
-    @Published private(set) var isAudioMuted = AudioPlaybackSettings.isMuted
-    /// Both bound directly by the Mac's squelch/volume sliders (`ContentView`)
-    /// — plain read-write `@Published`, not `private(set)`, since SwiftUI
-    /// needs a two-way `Binding` to a slider's value. `didSet` pushes the
-    /// live change straight into `audioPlayback` and persists it via
-    /// `AudioPlaybackSettings` (shared with iPad, same as `isAudioMuted`)
-    /// in one place rather than needing a separate setter method per
-    /// property. Initial squelch default (0.02) is what left audio gated
-    /// silent on the Mac before this UI existed to raise or lower it —
-    /// see the "Audio-over-Pi" section of repo root CLAUDE.md.
-    @Published var audioVolume: Float = Float(AudioPlaybackSettings.volume) {
+    /// Whether the Mac itself plays the captured Main-channel radio audio
+    /// out loud — independent of the waterfall/oscilloscope display and of
+    /// the Mac→iPad relay, both of which keep running regardless. Persisted
+    /// via `AudioPlaybackSettings.isMuted` (shared with iPad, though iPad
+    /// has no UI for it yet) so the choice survives a relaunch. Renamed
+    /// from `isAudioMuted` (2026-09-18) when Sub got its own independent
+    /// mute — see `isSubAudioMuted` below and repo CLAUDE.md, "Dual
+    /// Main/Sub audio channels."
+    @Published private(set) var isMainAudioMuted = AudioPlaybackSettings.isMuted
+    /// Sub-channel counterpart to `isMainAudioMuted` — `.remote` mode only,
+    /// since `.local` mode has no Sub capture yet (`AudioCaptureEngine.
+    /// onSubChannelSamples` simply never fires there, so this has nothing
+    /// to gate). Not persisted-shared with iPad — iPad's audio relay is
+    /// still Main-only.
+    @Published private(set) var isSubAudioMuted = AudioPlaybackSettings.subIsMuted
+    /// Both bound directly by the Mac's Main squelch/volume sliders
+    /// (`ContentView`) — plain read-write `@Published`, not `private(set)`,
+    /// since SwiftUI needs a two-way `Binding` to a slider's value. `didSet`
+    /// pushes the live change straight into `mainAudioPlayback` and
+    /// persists it via `AudioPlaybackSettings` (shared with iPad, same as
+    /// `isMainAudioMuted`) in one place rather than needing a separate
+    /// setter method per property. Initial squelch default (0.02) is what
+    /// left audio gated silent on the Mac before this UI existed to raise
+    /// or lower it — see the "Audio-over-Pi" section of repo root
+    /// CLAUDE.md. Renamed from `audioVolume` (2026-09-18) — see
+    /// `subAudioVolume` below.
+    @Published var mainAudioVolume: Float = Float(AudioPlaybackSettings.volume) {
         didSet {
-            audioPlayback.volume = audioVolume
-            AudioPlaybackSettings.volume = Double(audioVolume)
+            mainAudioPlayback.volume = mainAudioVolume
+            AudioPlaybackSettings.volume = Double(mainAudioVolume)
         }
     }
     /// See `SquelchGate`'s doc comment — this is now a "how close to true
     /// silence counts as quieting" cutoff, not a loudness gate. `ContentView`
     /// inverts the slider's displayed direction so raising it still reads as
     /// "tighter," matching a normal squelch knob, even though a *smaller*
-    /// stored value is what's actually stricter here.
-    @Published var squelchThreshold: Float = Float(AudioPlaybackSettings.squelchThreshold) {
+    /// stored value is what's actually stricter here. Renamed from
+    /// `squelchThreshold` (2026-09-18) — see `subSquelchThreshold` below.
+    @Published var mainSquelchThreshold: Float = Float(AudioPlaybackSettings.squelchThreshold) {
         didSet {
-            audioPlayback.squelchThreshold = squelchThreshold
-            AudioPlaybackSettings.squelchThreshold = Double(squelchThreshold)
+            mainAudioPlayback.squelchThreshold = mainSquelchThreshold
+            AudioPlaybackSettings.squelchThreshold = Double(mainSquelchThreshold)
+        }
+    }
+    /// Sub-channel counterparts to `mainAudioVolume`/`mainSquelchThreshold`
+    /// — `.remote` mode only (see `isSubAudioMuted`). Not shared with iPad;
+    /// new, Sub-only `AudioPlaybackSettings` keys.
+    @Published var subAudioVolume: Float = Float(AudioPlaybackSettings.subVolume) {
+        didSet {
+            subAudioPlayback.volume = subAudioVolume
+            AudioPlaybackSettings.subVolume = Double(subAudioVolume)
+        }
+    }
+    @Published var subSquelchThreshold: Float = Float(AudioPlaybackSettings.subSquelchThreshold) {
+        didSet {
+            subAudioPlayback.squelchThreshold = subSquelchThreshold
+            AudioPlaybackSettings.subSquelchThreshold = Double(subSquelchThreshold)
         }
     }
     /// Bound live by `SettingsView`'s "Enable Transmit" toggle — unlike the
@@ -116,7 +143,7 @@ final class HubService: ObservableObject {
     private let server: RigWebSocketServer
     private let rigctldProcess = RigctldProcessController()
     private let audioCapture = AudioCaptureEngine()
-    private let audioStreamEncoder = AudioStreamEncoder()
+    private let mainAudioStreamEncoder = AudioStreamEncoder()
     /// Backs the CW page's RECORD/PLAY buttons (`MenuPageView`) — see
     /// `AudioRecorder`'s doc comment. Fed unconditionally from the same
     /// `audioCapture.onAudioSamples` tap as `ft8Coordinator`/`aprsDecoder`
@@ -124,13 +151,22 @@ final class HubService: ObservableObject {
     /// `private` — `HubService+RigController.swift`'s `toggleAudioRecording()`
     /// calls into it directly, same visibility as `aprsStore`/`ft8Store`.
     let audioRecorder = AudioRecorder()
-    /// Plays the same captured audio locally on the Mac that
-    /// `audioStreamEncoder` sends to iPad clients — reuses `AudioPlaybackEngine`
-    /// as-is (already cross-platform, see its own doc comment) rather than a
-    /// second implementation. Started/stopped alongside `audioCapture`, fed
-    /// the exact same encoded PCM chunk `broadcastAudio` sends, in
-    /// `onAudioSamples` below.
-    private let audioPlayback = AudioPlaybackEngine()
+    /// Plays the same captured Main-channel audio locally on the Mac that
+    /// `mainAudioStreamEncoder` sends to iPad clients — reuses
+    /// `AudioPlaybackEngine` as-is (already cross-platform, see its own doc
+    /// comment) rather than a second implementation. Started/stopped
+    /// alongside `audioCapture`, fed the exact same encoded PCM chunk
+    /// `broadcastAudio` sends, in `onAudioSamples` below. Renamed from
+    /// `audioPlayback` (2026-09-18) — see `subAudioPlayback` below.
+    private let mainAudioPlayback = AudioPlaybackEngine()
+    /// Sub-channel counterparts to `mainAudioStreamEncoder`/
+    /// `mainAudioPlayback` — `.remote` mode only (see
+    /// `AudioCaptureEngine.onSubChannelSamples`). Not relayed to iPad and
+    /// not fed to FT8/APRS/`audioRecorder` — those stay Main-only for now
+    /// (see repo CLAUDE.md, "Dual Main/Sub audio channels"), so this is
+    /// just capture → encode → local playback, nothing else.
+    private let subAudioStreamEncoder = AudioStreamEncoder()
+    private let subAudioPlayback = AudioPlaybackEngine()
     private let wpsdMonitor = WPSDCallsignMonitor()
     private let aprsDecoder = APRSDecoder()
     let aprsStore = APRSStore()
@@ -259,10 +295,10 @@ final class HubService: ObservableObject {
             // frequency, and `broadcastAudio` itself is a cheap no-op when
             // no client is connected, so there's no need to check that here
             // before paying the (also cheap) conversion cost.
-            if let pcm = self.audioStreamEncoder.encode(samples: samples, sampleRate: sampleRate) {
+            if let pcm = self.mainAudioStreamEncoder.encode(samples: samples, sampleRate: sampleRate) {
                 Task { await self.server.broadcastAudio(pcm) }
-                if !self.isAudioMuted {
-                    self.audioPlayback.push(pcm: pcm)
+                if !self.isMainAudioMuted {
+                    self.mainAudioPlayback.push(pcm: pcm)
                 }
             }
 
@@ -286,6 +322,17 @@ final class HubService: ObservableObject {
             }
             guard isActive else { return }
             self.aprsDecoder.process(samples: samples, sampleRate: sampleRate)
+        }
+        // Sub channel — `.remote` mode only, never fires in `.local` (see
+        // `AudioCaptureEngine.onSubChannelSamples`). Deliberately minimal
+        // compared to the Main tap above: just capture → encode → local
+        // playback. No iPad relay, no FT8/APRS/recorder — those stay
+        // Main-only for now.
+        audioCapture.onSubChannelSamples = { [weak self] samples, sampleRate in
+            guard let self else { return }
+            guard let pcm = self.subAudioStreamEncoder.encode(samples: samples, sampleRate: sampleRate) else { return }
+            guard !self.isSubAudioMuted else { return }
+            self.subAudioPlayback.push(pcm: pcm)
         }
         aprsDecoder.onStation = { [weak self] callsign, latitude, longitude, symbolTable, symbolCode, comment in
             self?.aprsLastCallsignHeard = (callsign, Date())
@@ -807,13 +854,21 @@ final class HubService: ObservableObject {
         audioCapture.setDisplayEnabled(mode != .off)
     }
 
-    /// Doesn't stop/start `audioPlayback` itself — muting just gates
+    /// Doesn't stop/start `mainAudioPlayback` itself — muting just gates
     /// whether `onAudioSamples` feeds it (see above), so un-muting resumes
     /// instantly with whatever's currently playing rather than needing the
-    /// engine to spin back up.
-    func toggleAudioMuted() {
-        isAudioMuted.toggle()
-        AudioPlaybackSettings.isMuted = isAudioMuted
+    /// engine to spin back up. Renamed from `toggleAudioMuted()`
+    /// (2026-09-18) — see `toggleSubAudioMuted()` below.
+    func toggleMainAudioMuted() {
+        isMainAudioMuted.toggle()
+        AudioPlaybackSettings.isMuted = isMainAudioMuted
+    }
+
+    /// Sub-channel counterpart — same "gate the feed, don't stop/start the
+    /// engine" shape as `toggleMainAudioMuted()`.
+    func toggleSubAudioMuted() {
+        isSubAudioMuted.toggle()
+        AudioPlaybackSettings.subIsMuted = isSubAudioMuted
     }
 
     /// macOS App Nap throttles background GCD/dispatch scheduling for a
@@ -854,7 +909,8 @@ final class HubService: ObservableObject {
         runLoopTask = nil
         connectionState = .disconnected
         audioCapture.stop()
-        audioPlayback.stop()
+        mainAudioPlayback.stop()
+        subAudioPlayback.stop()
         endBackgroundActivity()
         scopeFrames.clear()
         wpsdMonitor.stop()
@@ -882,8 +938,16 @@ final class HubService: ObservableObject {
                 try await rigctld.connect()
                 connectionState = .connected
                 audioCapture.start(deviceUID: AudioInputSettings.deviceUID)
-                audioPlayback.setOutputDevice(AudioOutputDeviceLister.deviceID(forUID: AudioOutputSettings.deviceUID))
-                audioPlayback.start()
+                let outputDeviceID = AudioOutputDeviceLister.deviceID(forUID: AudioOutputSettings.deviceUID)
+                mainAudioPlayback.setOutputDevice(outputDeviceID)
+                mainAudioPlayback.start()
+                // Sub only has anything to play in `.remote` mode (see
+                // `AudioCaptureEngine.onSubChannelSamples`) — no point
+                // running a second idle AVAudioEngine in `.local` mode.
+                if RigctldSettings.connectionMode == .remote {
+                    subAudioPlayback.setOutputDevice(outputDeviceID)
+                    subAudioPlayback.start()
+                }
                 beginBackgroundActivity()
                 try await pollLoop()
             } catch {
@@ -899,7 +963,8 @@ final class HubService: ObservableObject {
                     } else {
                         isFreshStart = false
                         audioCapture.stop()
-                        audioPlayback.stop()
+                        mainAudioPlayback.stop()
+                        subAudioPlayback.stop()
                         endBackgroundActivity()
                         scopeFrames.clear()
                         Self.connectionLogger.error("rigctld connection loop failed: \(String(describing: error), privacy: .public)")

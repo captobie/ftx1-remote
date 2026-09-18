@@ -2,16 +2,17 @@
 
 `ftx1-audiostream.py` captures the FTX-1's audio-out (via the Pi's USB
 sound card, the same `plughw:1,0` device Direwolf already uses) and streams
-it as raw 44100Hz mono 16-bit PCM to whichever Mac client connects — see
-`Apps/Mac/FTX1RemoteMac/RemoteAudioStreamClient.swift` for the consumer.
-On the Mac side this feeds the exact same downstream pipeline as local
-sound-card capture does in `.local` mode: waterfall/oscilloscope display,
-APRS decode, the Mac→iPad audio relay, and Mac-local playback (with the
-volume/squelch sliders in `ContentView`) — the Mac can't tell a Pi-sourced
-stream from a local one once it's in that pipeline. Runs alongside
-`rigctld.service` and `direwolf.service` as its own systemd unit, same
-pattern. (Note: `rigctld.service` and `direwolf.service` themselves are set
-up directly on the Pi and aren't tracked in this repo — only
+it as raw 44100Hz **interleaved-stereo** 16-bit PCM (Main=left, Sub=right)
+to whichever Mac client connects — see
+`Apps/Mac/FTX1RemoteMac/RemoteAudioStreamClient.swift` for the consumer,
+which de-interleaves it back into two parallel sample streams. Only the
+Main channel is consumed downstream today (waterfall/oscilloscope display,
+APRS decode, the Mac→iPad audio relay, Mac-local playback) — Sub is
+captured and verifiable (see below) but not yet wired into any of that; see
+the repo's CLAUDE.md, "Dual Main/Sub audio channels," for status. Runs
+alongside `rigctld.service` and `direwolf.service` as its own systemd unit,
+same pattern. (Note: `rigctld.service` and `direwolf.service` themselves are
+set up directly on the Pi and aren't tracked in this repo — only
 `ftx1-audiostream.py` and its supporting config live here.)
 
 See also: the repo root [`README.md`](../README.md) and `CLAUDE.md` for how
@@ -55,7 +56,42 @@ A quick manual test without the Mac app at all — from another machine (or
 the Pi itself), raw PCM should start flowing the moment you connect:
 
 ```bash
-nc ftx1pi 8532 | head -c 88200 > /tmp/test.pcm   # ~1s of audio at 44100Hz/16-bit mono
+nc ftx1pi 8532 | head -c 176400 > /tmp/test.pcm   # ~1s of audio at 44100Hz/16-bit stereo
+```
+
+## Updating to stereo (Main/Sub) capture
+
+**2026-09-18**: `CHANNELS` in `ftx1-audiostream.py` changed from `1` to
+`2`, and `asound-ftx1.conf`'s `ftx1_dsnoop` slave changed from `channels 1`
+to `channels 2` — see both files' doc comments for why (the old
+`channels 1` negotiation against genuinely 2-channel hardware turned out to
+*sum* Main+Sub rather than cleanly pick one channel). If your Pi already has
+an older deployment, redeploy both files together — they must agree on the
+wire format, same as `RemoteAudioStreamClient.swift` on the Mac side:
+
+```bash
+scp Pi/ftx1-audiostream.py Pi/asound-ftx1.conf captobie@ftx1pi:~/
+```
+
+On the Pi:
+
+```bash
+sudo cp ~/ftx1-audiostream.py /opt/ftx1remote/
+sudo tee /etc/asound.conf < ~/asound-ftx1.conf
+sudo systemctl restart direwolf
+sudo systemctl restart ftx1-audiostream
+```
+
+**Verify Direwolf specifically, not just that it's running** — this is the
+one part of this change with real risk to something else that already
+works. Direwolf's own APRS capture goes through the same `ftx1_shared`
+(`plug` over `ftx1_dsnoop`) device, and moving the dsnoop slave to a real
+2-channel source means `plug` now has to actually downmix/select down to
+whatever Direwolf asks for, instead of trivially passing through a
+1-channel source — untested ALSA behavior on this setup:
+
+```bash
+journalctl -u direwolf -f   # while known APRS traffic is present — confirm real decodes, not just "service active"
 ```
 
 ## Sharing the device with Direwolf

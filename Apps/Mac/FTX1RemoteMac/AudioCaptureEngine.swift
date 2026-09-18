@@ -66,6 +66,17 @@ final class AudioCaptureEngine {
     /// frequency comparison, not real work.
     nonisolated(unsafe) var onAudioSamples: ((_ samples: [Float], _ sampleRate: Double) -> Void)?
 
+    /// Sub (right channel) samples — `.remote` mode only (see
+    /// `beginRemoteCapture()`; `.local` mode has no Sub capture yet, so
+    /// this never fires there). Same "always invoked on the main actor"
+    /// contract as `onAudioSamples`, same reasoning for why a plain
+    /// optional closure needs no lock. Deliberately a separate closure
+    /// rather than widening `onAudioSamples` to carry both channels: every
+    /// existing `onAudioSamples` consumer (iPad relay, Mac playback, FT8,
+    /// APRS) is Main-only by design for now (see repo CLAUDE.md, "Dual
+    /// Main/Sub audio channels"), so this keeps that surface unchanged.
+    nonisolated(unsafe) var onSubChannelSamples: ((_ samples: [Float], _ sampleRate: Double) -> Void)?
+
     private let fftSize = 2048
     private let binCount = 256
     private let historyRows = 150
@@ -174,17 +185,68 @@ final class AudioCaptureEngine {
     }
 
     private var remoteClient: RemoteAudioStreamClient?
-    private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "audio-capture")
+    /// `nonisolated(unsafe)` — `Logger` is safe to use concurrently by
+    /// design (that's the whole point of os.Logger), and this is read from
+    /// both `beginRemoteCapture()` (main actor) and the `nonisolated`
+    /// `logRemoteChannelDiagnostics(main:sub:)` below.
+    nonisolated(unsafe) private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "audio-capture")
 
     private func beginRemoteCapture() {
         Self.logger.notice("beginRemoteCapture() — host=\(RigctldSettings.remoteHost, privacy: .public)")
         let bitmap = WaterfallBitmap(binCount: binCount, historyRows: historyRows)
         let gain = AutoGainState(minimumPeakDb: waterfallMinimumPeakDb, minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
-        let client = RemoteAudioStreamClient(host: RigctldSettings.remoteHost) { [weak self] samples, sampleRate in
-            self?.process(samples: samples, sampleRate: sampleRate, bitmap: bitmap, gain: gain)
+        // `RemoteAudioStreamClient` now delivers genuinely separate Main
+        // (left) and Sub (right) channels — see its own doc comment. `main`
+        // feeds the same process(samples:sampleRate:bitmap:gain:) entry
+        // point the local AVAudioEngine tap uses, so every existing
+        // downstream consumer (waterfall, APRS, FT8, Mac-local playback,
+        // iPad relay) keeps working unchanged. `sub` isn't consumed by any
+        // of that yet — see logRemoteChannelDiagnostics below — splitting
+        // it out into its own waterfall/squelch/volume pipeline is future
+        // work, not this milestone.
+        let client = RemoteAudioStreamClient(host: RigctldSettings.remoteHost) { [weak self] main, sub, sampleRate in
+            self?.process(samples: main, sampleRate: sampleRate, bitmap: bitmap, gain: gain)
+            self?.deliverSubChannelSamples(sub, sampleRate: sampleRate)
+            self?.logRemoteChannelDiagnostics(main: main, sub: sub)
         }
         remoteClient = client
         Task { await client.start() }
+    }
+
+    /// Mirrors the `onAudioSamples` hop inside `process(samples:...)` —
+    /// Sub doesn't run through that shared entry point (it never feeds the
+    /// waterfall/FFT), so it needs its own equivalent hand-off to the main
+    /// actor.
+    nonisolated private func deliverSubChannelSamples(_ samples: [Float], sampleRate: Double) {
+        guard onSubChannelSamples != nil else { return }
+        Task { @MainActor [weak self] in
+            self?.onSubChannelSamples?(samples, sampleRate)
+        }
+    }
+
+    private let remoteDiagnosticsCounter = Locked<Int>(0)
+
+    /// Confirms Main/Sub are genuinely independent, without any new UI —
+    /// throttled to roughly once per 2s (chunks arrive at ~21.5/s for
+    /// fftSize=2048 @ 44100Hz) so it doesn't flood Console. Check via
+    /// Console.app, subsystem "com.ftx1remote.mac", category
+    /// "audio-capture": during a dual-VFO test with different traffic on
+    /// each side, the two RMS values should move independently, and should
+    /// track a `swapActiveVFO` swap.
+    nonisolated private func logRemoteChannelDiagnostics(main: [Float], sub: [Float]) {
+        let count = remoteDiagnosticsCounter.get() + 1
+        remoteDiagnosticsCounter.set(count)
+        guard count % 43 == 0 else { return }
+        let mainRMS = Self.rms(main)
+        let subRMS = Self.rms(sub)
+        Self.logger.notice("stereo check — main RMS=\(mainRMS, format: .fixed(precision: 4)) sub RMS=\(subRMS, format: .fixed(precision: 4))")
+    }
+
+    nonisolated private static func rms(_ samples: [Float]) -> Float {
+        guard !samples.isEmpty else { return 0 }
+        var meanSquare: Float = 0
+        vDSP_measqv(samples, 1, &meanSquare, vDSP_Length(samples.count))
+        return sqrt(meanSquare)
     }
 
     /// True once `engine` — a single instance reused for the app's whole

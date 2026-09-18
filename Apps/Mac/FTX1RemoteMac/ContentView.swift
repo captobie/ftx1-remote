@@ -68,7 +68,7 @@ struct ContentView: View {
                 }
                 .frame(width: 90, height: meterHeight)
                 audioLevelControls
-                    .frame(width: 70, height: meterHeight)
+                    .frame(width: RigctldSettings.connectionMode == .remote ? 156 : 70, height: meterHeight)
                 zoomControls
                     .frame(height: meterHeight)
                 // `hub.scopeFrames` is a plain `let` on HubService, not
@@ -247,12 +247,27 @@ struct ContentView: View {
             scopeDisplayModeButton("Waterfall", mode: .waterfall)
             scopeDisplayModeButton("Oscilloscope", mode: .oscilloscope)
             scopeDisplayModeButton("Off", mode: .off)
-            // Independent of scopeDisplayMode — this mutes the Mac's own
-            // audio playback (see HubService.toggleAudioMuted()), not the
-            // waterfall/oscilloscope display, so it isn't part of that
-            // mutually-exclusive button group above; grouped visually with
-            // it since both live in this same side column.
-            muteButton
+            // Independent of scopeDisplayMode — these mute the Mac's own
+            // audio playback (see HubService.toggleMainAudioMuted()/
+            // toggleSubAudioMuted()), not the waterfall/oscilloscope
+            // display (there's still only one scope — dual waterfalls are
+            // future work, see repo CLAUDE.md), so they aren't part of
+            // that mutually-exclusive button group above; grouped visually
+            // with it since all live in this same side column. Sub has no
+            // audio to mute in `.local` mode (see `HubService.
+            // isSubAudioMuted`'s doc comment), so its button only appears
+            // in `.remote` — `.local` keeps the single "Mute" button this
+            // column always had.
+            if RigctldSettings.connectionMode == .remote {
+                // Sub-then-Main left-to-right, matching the VFODisplayBox
+                // row above (SUB box on the left, MAIN box on the right).
+                HStack(spacing: 4) {
+                    channelMuteButton(label: "Sub", isMuted: hub.isSubAudioMuted, action: hub.toggleSubAudioMuted)
+                    channelMuteButton(label: "Main", isMuted: hub.isMainAudioMuted, action: hub.toggleMainAudioMuted)
+                }
+            } else {
+                channelMuteButton(label: "Mute", isMuted: hub.isMainAudioMuted, action: hub.toggleMainAudioMuted)
+            }
         }
     }
 
@@ -272,31 +287,55 @@ struct ContentView: View {
         .buttonStyle(.plain)
     }
 
-    private var muteButton: some View {
-        Button {
-            hub.toggleAudioMuted()
-        } label: {
-            Text(hub.isAudioMuted ? "Muted" : "Mute")
-                .font(.caption)
+    /// Generic over which channel it mutes — `scopeDisplayModeButtons`
+    /// calls this once for Main-only (`.local`) and twice, side by side,
+    /// for Main+Sub (`.remote`).
+    private func channelMuteButton(label: String, isMuted: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.caption2)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
-                .background(hub.isAudioMuted ? Color.red : Color.gray.opacity(0.2))
-                .foregroundStyle(hub.isAudioMuted ? Color.white : Color.primary)
+                .background(isMuted ? Color.red : Color.gray.opacity(0.2))
+                .foregroundStyle(isMuted ? Color.white : Color.primary)
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
     }
 
     /// The Mac's own audio playback level controls (see
-    /// `HubService.audioVolume`/`.squelchThreshold`) — added once the
-    /// squelch default (0.02) turned out to gate quiet-but-real audio out
-    /// entirely with no way to adjust it from the Mac (only iPad had a
+    /// `HubService.mainAudioVolume`/`.mainSquelchThreshold`) — added once
+    /// the squelch default (0.02) turned out to gate quiet-but-real audio
+    /// out entirely with no way to adjust it from the Mac (only iPad had a
     /// slider, on a value that isn't shared between devices). Independent
     /// of the waterfall/oscilloscope/mute column, just grouped next to it.
+    /// Sub has its own pair, `.remote` mode only — same reasoning as the
+    /// Sub mute button above.
     private var audioLevelControls: some View {
-        HStack(spacing: 8) {
-            verticalSlider(value: squelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
-            verticalSlider(value: volumeBinding, label: "VOL")
+        // Sub-then-Main left-to-right, matching the VFODisplayBox row above
+        // (SUB box on the left, MAIN box on the right) — Sub's column is
+        // conditional (`.remote` only), Main's always renders, so Sub comes
+        // first here even though that's the reverse of the property/method
+        // declaration order elsewhere in this file.
+        HStack(spacing: 6) {
+            if RigctldSettings.connectionMode == .remote {
+                VStack(spacing: 2) {
+                    Text("SUB").font(.caption2).foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        verticalSlider(value: subSquelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
+                        verticalSlider(value: subVolumeBinding, label: "VOL")
+                    }
+                }
+            }
+            VStack(spacing: 2) {
+                if RigctldSettings.connectionMode == .remote {
+                    Text("MAIN").font(.caption2).foregroundStyle(.secondary)
+                }
+                HStack(spacing: 6) {
+                    verticalSlider(value: mainSquelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
+                    verticalSlider(value: mainVolumeBinding, label: "VOL")
+                }
+            }
         }
     }
 
@@ -304,6 +343,7 @@ struct ContentView: View {
     /// give useful resolution around real quieting-dip/static-floor values
     /// (~0.001-0.08 in the 2026-09-08 hardware capture `SquelchGate`'s
     /// design is based on), not the old 0...0.2 loudness-threshold range.
+    /// Shared by Main and Sub — no evidence yet Sub needs a different range.
     private static let squelchDisplayRange: Float = 0.05
 
     /// `SquelchGate.threshold` is now "how close to true silence counts as
@@ -312,15 +352,26 @@ struct ContentView: View {
     /// like a normal radio's knob, so this inverts the displayed position:
     /// dragging up lowers the stored threshold (stricter), dragging down
     /// raises it (more lenient).
-    private var squelchBinding: Binding<Float> {
+    private var mainSquelchBinding: Binding<Float> {
         Binding(
-            get: { Self.squelchDisplayRange - hub.squelchThreshold },
-            set: { hub.squelchThreshold = Self.squelchDisplayRange - $0 }
+            get: { Self.squelchDisplayRange - hub.mainSquelchThreshold },
+            set: { hub.mainSquelchThreshold = Self.squelchDisplayRange - $0 }
         )
     }
 
-    private var volumeBinding: Binding<Float> {
-        Binding(get: { hub.audioVolume }, set: { hub.audioVolume = $0 })
+    private var subSquelchBinding: Binding<Float> {
+        Binding(
+            get: { Self.squelchDisplayRange - hub.subSquelchThreshold },
+            set: { hub.subSquelchThreshold = Self.squelchDisplayRange - $0 }
+        )
+    }
+
+    private var mainVolumeBinding: Binding<Float> {
+        Binding(get: { hub.mainAudioVolume }, set: { hub.mainAudioVolume = $0 })
+    }
+
+    private var subVolumeBinding: Binding<Float> {
+        Binding(get: { hub.subAudioVolume }, set: { hub.subAudioVolume = $0 })
     }
 
     /// SwiftUI's `Slider` has no vertical orientation of its own — the

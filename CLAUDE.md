@@ -279,6 +279,79 @@ re-architecture.
     44.1kHz fired every ~0.37s and buried the rest of this subsystem's
     Console output. Any future per-chunk diagnostic here should be sized
     the same way, not with a byte constant.
+  - **Dual Main/Sub audio channels (in progress, started 2026-09-18)**: the
+    FTX-1's USB audio-out is genuinely stereo whenever dual-VFO display is
+    active — Main on the left channel, Sub on the right, confirmed both
+    locally (2026-09-07, Loopback + Audio MIDI Setup on the Mac's own audio
+    device) and directly against the Pi's raw hardware (2026-09-18,
+    `arecord -D hw:1,0 -c 2` plus a channel-swap test that showed the
+    separation tracks VFO reassignment, not a fixed/stuck channel). The
+    app's audio pipeline was mono everywhere, and in `.remote` mode
+    specifically that mono-ness wasn't even clean: `asound-ftx1.conf`'s
+    `ftx1_dsnoop` slave requested `channels 1` against the 2-channel
+    hardware, and that negotiation turned out to *sum* Main+Sub rather than
+    cleanly pick one channel (the user reported hearing two simultaneous
+    signals — NOAA weather radio + APRS bursts — in live "mono" remote
+    audio). **Milestone 1 (Remote mode capture only, complete pending
+    hardware validation)**: `asound-ftx1.conf`'s dsnoop slave now requests
+    `channels 2`; `Pi/ftx1-audiostream.py` sends interleaved-stereo Int16LE
+    (`CHANNELS = 2`); `RemoteAudioStreamClient.swift` de-interleaves it into
+    two parallel `[Float]` streams; `AudioCaptureEngine.beginRemoteCapture()`
+    feeds Main into the exact same `process(samples:sampleRate:bitmap:
+    gain:)` entry point as before (every existing consumer — waterfall,
+    APRS, FT8, Mac-local playback, iPad relay — is unchanged, now fed a
+    genuinely isolated Main channel instead of a possibly-summed one) and
+    logs a throttled Main/Sub RMS comparison via `os.Logger` (subsystem
+    "com.ftx1remote.mac", category "audio-capture") for hardware
+    verification, since nothing consumes Sub yet. Local mode
+    (`AVAudioEngine` tap reading `floatChannelData?[0]`) is untouched.
+    **Real risk flagged, not yet hardware-confirmed**: Direwolf's own APRS
+    capture shares `ftx1_shared` (the `plug` layer over `ftx1_dsnoop`) —
+    moving the dsnoop slave to a real 2-channel source means `plug` now has
+    to actually downmix/select down to whatever Direwolf asks for, instead
+    of trivially passing through a 1-channel source; this is untested ALSA
+    behavior on this setup and needs a real APRS-decode check after
+    deploying (`journalctl -u direwolf -f`), not just "service started." See
+    `Pi/README.md`'s "Updating to stereo (Main/Sub) capture" for the deploy/
+    verify steps. Hardware-confirmed the same day via the RMS log (Main
+    dropping to near-silence while Sub held steady, and both swapping when
+    `swapActiveVFO` was sent) and, separately, that Direwolf's APRS decode
+    survived the `channels 2` change.
+    **Milestone 2 (Sub playback, `.remote` mode only)**: Sub now has its
+    own independent local-playback path on the Mac, mirroring Main's exactly
+    but staying deliberately narrower in scope — capture → encode →
+    playback only, no iPad relay and no APRS/FT8/`AudioRecorder` (those
+    stay Main-only). `AudioCaptureEngine.onSubChannelSamples` is a new
+    closure (mirrors `onAudioSamples`, `.remote`-only, hops to the main
+    actor the same way) feeding a second, fully independent pair —
+    `HubService.subAudioStreamEncoder`/`subAudioPlayback` (own
+    `AudioStreamEncoder`/`AudioPlaybackEngine` instances, not shared with
+    Main's) — with their own persisted settings
+    (`AudioPlaybackSettings.subVolume`/`subSquelchThreshold`/`subIsMuted`,
+    new keys, not shared with iPad). Main's equivalents were renamed for
+    symmetry (`audioVolume`→`mainAudioVolume`, `squelchThreshold`→
+    `mainSquelchThreshold`, `isAudioMuted`→`isMainAudioMuted`,
+    `toggleAudioMuted()`→`toggleMainAudioMuted()`, `audioPlayback`→
+    `mainAudioPlayback`, `audioStreamEncoder`→`mainAudioStreamEncoder`) —
+    confined to `HubService.swift`/`ContentView.swift`, no ripple into
+    iPad (which reaches its own `AudioPlaybackEngine` directly, never
+    through `HubService`). Mute is per-channel as decided (two independent
+    toggles, `isMainAudioMuted`/`isSubAudioMuted`). `ContentView` shows Sub's
+    mute button and SQL/VOL sliders only in `.remote` mode — `.local` keeps
+    the exact single-mute/single-slider layout it always had, since Sub
+    audio doesn't exist there yet. Both playback engines write to the same
+    Mac output device (`AudioOutputSettings.deviceUID`); running two
+    independent `AVAudioEngine` instances against one device simultaneously
+    is ordinary macOS behavior, not new territory. Not yet hardware-tested
+    (build-verified only) — squelch/volume tuning for Sub may differ from
+    Main's once tried against real traffic.
+    **Deliberately not yet built** (future milestones, each independently
+    committable/testable like the six filter controls were): no second
+    waterfall/oscilloscope (still one shared `ScopeFrameStore`), no Sub
+    audio in `.local` mode, no Mac→iPad wire-protocol stereo extension
+    (`AudioStreamFormat` stays mono, so no Sub relay to iPad), no
+    `RigController` protocol changes, no APRS/FT8 decoding or
+    frequency-gating from the Sub channel.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 

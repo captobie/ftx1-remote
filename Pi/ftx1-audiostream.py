@@ -1,8 +1,21 @@
 #!/usr/bin/env python3
 """Captures the FTX-1's audio-out (via the Pi's USB sound card) and streams
-it as raw mono 16-bit little-endian PCM at 44100Hz to a single connected
-client — the Mac app, in .remote mode (see
+it as raw interleaved-stereo 16-bit little-endian PCM at 44100Hz to a single
+connected client — the Mac app, in .remote mode (see
 Apps/Mac/FTX1RemoteMac/RemoteAudioStreamClient.swift).
+
+Stereo, not mono (2026-09-18): the FTX-1's USB audio-out is genuinely
+stereo whenever dual-VFO display is active — Main on the left channel, Sub
+on the right, confirmed directly against this hardware (arecord -D hw:1,0
+-c 2, plus a channel-swap test — see the Main/Sub audio-isolation notes in
+the repo's CLAUDE.md). CHANNELS was 1 here previously, which forced
+asound-ftx1.conf's dsnoop slave to negotiate mono against genuinely
+2-channel hardware — that negotiation turned out to *sum* both channels
+together rather than cleanly picking one (confirmed by hearing two
+simultaneous signals in the app's old "mono" remote audio), so this wasn't
+just "losing Sub," it was actively wrong for Main too. Each PCM frame below
+is now 4 bytes: left (Main) sample, then right (Sub) sample, each 16-bit
+signed LE — RemoteAudioStreamClient.swift de-interleaves them.
 
 Deliberately dumb: no framing, no compression, no negotiation. This is a
 dedicated audio-only connection, so unlike the Mac->iPad relay (see
@@ -19,7 +32,9 @@ bitPhaseIncrement). 44100 specifically matches Direwolf's own AFSK
 demodulation rate on this exact hardware (see /etc/direwolf.conf), already
 proven to decode real APRS traffic — same physical audio, same demodulation
 task, high confidence the same rate works here too. Raises Pi->Mac bandwidth
-from ~16KB/s to ~86KB/s, trivial for any real network link.
+from ~16KB/s to ~86KB/s, trivial for any real network link. The 2026-09-18
+mono->stereo change above doubles that again, to ~172KB/s — still trivial
+for the same reason.
 
 Shares the physical capture device with Direwolf (which also captures it,
 for APRS decode) via the "ftx1_shared" ALSA device defined in
@@ -42,7 +57,7 @@ import socket
 
 DEVICE = "ftx1_shared"
 SAMPLE_RATE = 44100
-CHANNELS = 1
+CHANNELS = 2
 PERIOD_SIZE = 1024  # frames per ALSA read, ~23ms at 44100Hz
 PORT = 8532
 

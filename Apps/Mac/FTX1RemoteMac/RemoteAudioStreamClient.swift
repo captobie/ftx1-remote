@@ -3,10 +3,24 @@ import Network
 import os
 
 /// Connects to `ftx1-audiostream.service` running on the Pi (see
-/// `Pi/ftx1-audiostream.py`) and delivers the rig's audio as raw Float32
-/// samples, matching the shape `AudioCaptureEngine`'s local `AVAudioEngine`
-/// tap already produces — `AudioCaptureEngine.process(samples:sampleRate:
-/// bitmap:gain:)` can't tell the two sources apart.
+/// `Pi/ftx1-audiostream.py`) and delivers the rig's audio as two parallel
+/// Float32 sample streams — Main (left channel) and Sub (right channel).
+/// The FTX-1's USB audio-out is genuinely stereo whenever dual-VFO display
+/// is active (Main=L, Sub=R; confirmed directly against this hardware —
+/// see the Main/Sub audio-isolation notes in the repo's CLAUDE.md), and
+/// `ftx1-audiostream.py` now sends that interleaved, 4 bytes per stereo
+/// frame (2-byte Main sample, then 2-byte Sub sample, both 16-bit signed
+/// LE) — this type undoes the interleaving.
+///
+/// `main` is handed to `AudioCaptureEngine.process(samples:sampleRate:
+/// bitmap:gain:)`, the exact same entry point the local `AVAudioEngine` tap
+/// feeds, so every existing downstream consumer (waterfall, APRS, FT8,
+/// Mac-local playback, iPad relay) keeps working unchanged, fed a
+/// genuinely isolated Main channel instead of the old `channels 1`
+/// ALSA-negotiated one (which turned out to sum Main+Sub rather than
+/// cleanly pick one — see CLAUDE.md). `sub` isn't consumed by any of that
+/// yet — see `AudioCaptureEngine.logRemoteChannelDiagnostics` for the
+/// current (diagnostic-only) use.
 ///
 /// Deliberately a raw TCP byte stream, not the WebSocket/JSON protocol
 /// `RigWebSocketClient` uses: this is a dedicated, audio-only connection,
@@ -22,8 +36,8 @@ actor RemoteAudioStreamClient {
     private let host: String
     private let port: UInt16
     private let sampleRate: Double
-    /// How many samples to accumulate before handing a chunk to
-    /// `onSamples` — matches `AudioCaptureEngine.fftSize`, so a remote
+    /// How many samples (per channel) to accumulate before handing a chunk
+    /// to `onSamples` — matches `AudioCaptureEngine.fftSize`, so a remote
     /// chunk covers about the same span of audio as one local-tap callback
     /// does.
     private let samplesPerChunk: Int
@@ -33,7 +47,7 @@ actor RemoteAudioStreamClient {
     /// gain:)`: the FFT work it triggers should stay off the main thread.
     /// `AudioCaptureEngine` itself hops to the main actor only for its own
     /// `onNewFrame`/`onAudioSamples` output, same as the local-capture path.
-    private let onSamples: @Sendable ([Float], Double) -> Void
+    private let onSamples: @Sendable (_ main: [Float], _ sub: [Float], _ sampleRate: Double) -> Void
 
     private var running = false
     private var loopTask: Task<Void, Never>?
@@ -60,7 +74,7 @@ actor RemoteAudioStreamClient {
         sampleRate: Double = 44100,
         samplesPerChunk: Int = 2048,
         reconnectDelay: Duration = .seconds(3),
-        onSamples: @escaping @Sendable ([Float], Double) -> Void
+        onSamples: @escaping @Sendable (_ main: [Float], _ sub: [Float], _ sampleRate: Double) -> Void
     ) {
         self.host = host
         self.port = port
@@ -123,21 +137,27 @@ actor RemoteAudioStreamClient {
         }
         Self.logger.notice("connected")
 
-        // Carries a leftover odd byte across reads when a TCP chunk splits
-        // a 2-byte Int16 sample in half — raw byte-stream framing has no
-        // guarantee reads land on sample boundaries.
-        var pendingByte: UInt8?
-        var accumulator: [Float] = []
-        accumulator.reserveCapacity(samplesPerChunk)
+        // Carries 0-3 leftover bytes across reads when a TCP chunk splits a
+        // 4-byte stereo frame (2-byte Main sample + 2-byte Sub sample) —
+        // raw byte-stream framing has no guarantee reads land on frame
+        // boundaries.
+        let bytesPerFrame = 4
+        var pendingBytes: [UInt8] = []
+        var mainAccumulator: [Float] = []
+        var subAccumulator: [Float] = []
+        mainAccumulator.reserveCapacity(samplesPerChunk)
+        subAccumulator.reserveCapacity(samplesPerChunk)
         var totalBytesReceived = 0
         var lastLoggedAtByteCount = 0
         // Heartbeat every ~30s of audio, derived from the configured rate
-        // (16-bit mono, so 2 bytes per sample) — confirms data is actually
+        // (16-bit stereo, so 4 bytes per frame) — confirms data is actually
         // flowing without logging every ~4KB read. This was a fixed 32,000
-        // bytes, chosen when the stream was 8kHz ("every ~2s"); after the
-        // 2026-09-07 raise to 44.1kHz that same constant fired every ~0.37s,
-        // nearly three lines a second, for as long as the app was connected.
-        let bytesPerHeartbeat = Int(sampleRate * 2 * 30)
+        // bytes, chosen when the stream was 8kHz mono ("every ~2s"); after
+        // the 2026-09-07 raise to 44.1kHz that same constant fired every
+        // ~0.37s, nearly three lines a second, for as long as the app was
+        // connected — scale with both the rate and the per-frame byte count
+        // so this doesn't happen again the next time either changes.
+        let bytesPerHeartbeat = Int(sampleRate) * bytesPerFrame * 30
 
         while running, !Task.isCancelled {
             let chunk = try await receive(on: conn)
@@ -146,24 +166,26 @@ actor RemoteAudioStreamClient {
                 lastLoggedAtByteCount = totalBytesReceived
                 Self.logger.notice("received \(totalBytesReceived) bytes so far")
             }
-            var bytes = [UInt8](chunk)
-            if let pending = pendingByte {
-                bytes.insert(pending, at: 0)
-                pendingByte = nil
-            }
-            if bytes.count % 2 != 0 {
-                pendingByte = bytes.removeLast()
-            }
+            var bytes = pendingBytes
+            bytes.append(contentsOf: chunk)
+            let usableFrameCount = bytes.count / bytesPerFrame
+            let usableByteCount = usableFrameCount * bytesPerFrame
+            pendingBytes = Array(bytes.suffix(bytes.count - usableByteCount))
+
             var index = 0
-            while index + 1 < bytes.count {
-                let raw = Int16(bitPattern: UInt16(bytes[index]) | (UInt16(bytes[index + 1]) << 8))
-                accumulator.append(Float(raw) / 32768.0)
-                index += 2
+            while index < usableByteCount {
+                let left = Int16(bitPattern: UInt16(bytes[index]) | (UInt16(bytes[index + 1]) << 8))
+                let right = Int16(bitPattern: UInt16(bytes[index + 2]) | (UInt16(bytes[index + 3]) << 8))
+                mainAccumulator.append(Float(left) / 32768.0)
+                subAccumulator.append(Float(right) / 32768.0)
+                index += bytesPerFrame
             }
-            while accumulator.count >= samplesPerChunk {
-                let toDeliver = Array(accumulator.prefix(samplesPerChunk))
-                accumulator.removeFirst(samplesPerChunk)
-                onSamples(toDeliver, sampleRate)
+            while mainAccumulator.count >= samplesPerChunk {
+                let mainChunk = Array(mainAccumulator.prefix(samplesPerChunk))
+                let subChunk = Array(subAccumulator.prefix(samplesPerChunk))
+                mainAccumulator.removeFirst(samplesPerChunk)
+                subAccumulator.removeFirst(samplesPerChunk)
+                onSamples(mainChunk, subChunk, sampleRate)
             }
         }
     }
