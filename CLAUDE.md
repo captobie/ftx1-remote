@@ -344,11 +344,19 @@ re-architecture.
     `AVAudioEngine` instances against one device simultaneously is ordinary
     macOS behavior, not new territory.
     **Deliberately not yet built** (future milestones, each independently
-    committable/testable like the six filter controls were): no second
-    waterfall/oscilloscope (still one shared `ScopeFrameStore`), no Mac→
-    iPad wire-protocol stereo extension (`AudioStreamFormat` stays mono, so
-    no Sub relay to iPad), no `RigController` protocol changes, no FT8
+    committable/testable like the six filter controls were): no Mac→iPad
+    wire-protocol stereo extension (`AudioStreamFormat` stays mono, so no
+    Sub relay to iPad), no `RigController` protocol changes, no FT8
     decoding or frequency-gating from the Sub channel.
+    **Dual waterfall/oscilloscope — decided against for now (2026-09-18)**,
+    not just deferred: the FTX-1's own physical display only ever shows a
+    waterfall/scope for the Main VFO, even in dual-VFO mode — there's no
+    rig-side precedent for a Sub-channel one, so adding one here would be
+    inventing a display the actual hardware doesn't have, not achieving
+    parity with it (unlike everything else in this section, which mirrors
+    real rig behavior). Still one shared `ScopeFrameStore`, Main-only.
+    Noted as a possible future enhancement if ever wanted, but not planned
+    — don't pick this up without being asked again.
   - **Sub-channel APRS decoding (2026-09-18, hardware-confirmed)**: a
     second, fully independent `APRSDecoder` instance
     (`HubService.aprsDecoderSub`) is now fed from `onSubChannelSamples`,
@@ -424,8 +432,8 @@ re-architecture.
     it explicitly.
     **Not yet done**: FT8/AudioRecorder still
     Main-only in both modes (unchanged scope, not a Local-mode gap), and
-    the "not yet built" list above (dual waterfall, iPad Sub relay,
-    `RigController` protocol) applies equally to both modes now.
+    the "not yet built" list above (iPad Sub relay, `RigController`
+    protocol) applies equally to both modes now.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
