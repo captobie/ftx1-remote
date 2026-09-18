@@ -344,10 +344,11 @@ re-architecture.
     `AVAudioEngine` instances against one device simultaneously is ordinary
     macOS behavior, not new territory.
     **Deliberately not yet built** (future milestones, each independently
-    committable/testable like the six filter controls were): no Mac→iPad
-    wire-protocol stereo extension (`AudioStreamFormat` stays mono, so no
-    Sub relay to iPad), no `RigController` protocol changes, no FT8
-    decoding or frequency-gating from the Sub channel.
+    committable/testable like the six filter controls were): no
+    `RigController` protocol changes, no FT8 decoding or frequency-gating
+    from the Sub channel. (The Mac→iPad wire-protocol stereo extension
+    originally listed here is done — see "Mac→iPad Sub audio relay"
+    below.)
     **Dual waterfall/oscilloscope — decided against for now (2026-09-18)**,
     not just deferred: the FTX-1's own physical display only ever shows a
     waterfall/scope for the Main VFO, even in dual-VFO mode — there's no
@@ -432,8 +433,55 @@ re-architecture.
     it explicitly.
     **Not yet done**: FT8/AudioRecorder still
     Main-only in both modes (unchanged scope, not a Local-mode gap), and
-    the "not yet built" list above (iPad Sub relay, `RigController`
-    protocol) applies equally to both modes now.
+    the "not yet built" list above (`RigController` protocol) applies
+    equally to both modes now.
+  - **Mac→iPad Sub audio relay + mute buttons (2026-09-18, build-verified
+    on iPad Simulator, not yet hardware-tested against a real Mac↔iPad
+    link)**: extends the existing Main-only Mac→iPad audio relay to carry
+    Sub too, and adds mute buttons to iPad's audio controls for the first
+    time (there were none before this, Main included). `AudioStreamFormat`
+    (`Sources/FTX1Core/Audio/`) gained a second tag byte, `subAudioTag =
+    0x01`, alongside the existing `audioTag = 0x00` — two independently-
+    tagged mono 8kHz frame streams, not one interleaved-stereo stream like
+    the Pi's wire format, deliberately: reusing `AudioStreamEncoder`/
+    `AudioPlaybackEngine` twice (both already hardcoded mono) is far lower
+    risk than rewriting either to handle real stereo, and mirrors the
+    capture side's own "two fully parallel mono pipelines" shape. `RigWebSocketServer.broadcastSubAudio(_:)` (Mac) mirrors
+    `broadcastAudio(_:)`; `HubService`'s `onSubChannelSamples` now relays
+    unconditionally, same as the Main tap. `RigWebSocketClient` gained
+    `onSubAudioData`/`setOnSubAudioData` and an `isSubAudioFrame` check in
+    `handle(_:)`, both mirroring the Main equivalents exactly.
+    `RigClientViewModel` (shared by iOS/iPadOS) gained a second
+    `subAudioEngine: AudioPlaybackEngine` instance and
+    `isMainAudioMuted`/`isSubAudioMuted` (`@Published private(set)` +
+    `toggleMainAudioMuted()`/`toggleSubAudioMuted()`, same shape as
+    `HubService`'s Mac-side properties, persisted via the same
+    `AudioPlaybackSettings.isMuted`/`subIsMuted` keys `HubService` already
+    established — each device's `UserDefaults` is independent, per that
+    enum's own doc comment, so this is "same key names," not literal
+    cross-device sync) — mute gates whether `setOnAudioData`/
+    `setOnSubAudioData`'s closures push into the relevant engine, doesn't
+    stop/start it, same reasoning as the Mac-side toggle methods. No
+    `RigController` protocol changes needed: like the Mac's `HubService`
+    audio properties, these are reached directly via the concrete
+    `RigClientViewModel` type from iPad's `ContentView`, never through the
+    protocol.
+    iPad's `ContentView.swift` `audioControls` now renders two
+    `channelAudioControls(...)` columns, Sub-then-Main left-to-right
+    (matching the SUB/MAIN `VFODisplayBox` row above it, same convention as
+    the Mac's own audio-controls row), each with a mute button + volume/
+    squelch sliders; volume/squelch stay `@AppStorage`-bound (renamed
+    `audioVolume`/`audioSquelchThreshold` → `mainAudioVolume`/
+    `mainAudioSquelchThreshold` for symmetry with the new `subAudioVolume`/
+    `subAudioSquelchThreshold`), only mute reaches into `viewModel`.
+    Verified in the iOS Simulator (iPad Pro 11-inch, built via `xcodebuild
+    -scheme FTX1RemoteiPad`, driven via `mcp__Claude_Code_iOS_Simulator__
+    control`): layout renders correctly, both mute buttons toggle
+    independently. Not yet tested against a live Mac connection — that
+    needs a real device or a Mac-side rebuild plus a live WebSocket link,
+    neither available in that verification pass. All three app targets
+    (Mac, iPad, iOS) build clean against the shared `RigClientViewModel`/
+    `AudioStreamFormat` changes.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 

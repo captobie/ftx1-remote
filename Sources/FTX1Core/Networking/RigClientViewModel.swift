@@ -19,10 +19,31 @@ public final class RigClientViewModel: ObservableObject, RigController {
     @Published public private(set) var rigState = RigState()
     @Published public private(set) var connectionState: ConnectionState = .disconnected
 
-    /// Plays back the Mac's relayed radio audio — see `AudioPlaybackEngine`.
-    /// Started/stopped alongside the connection itself (`apply(_:)`/
-    /// `disconnect()`), not tied to any particular view being on screen.
+    /// Plays back the Mac's relayed Main-channel radio audio — see
+    /// `AudioPlaybackEngine`. Started/stopped alongside the connection
+    /// itself (`apply(_:)`/`disconnect()`), not tied to any particular view
+    /// being on screen.
     public let audioEngine = AudioPlaybackEngine()
+    /// Sub-channel counterpart to `audioEngine` (2026-09-18) — its own
+    /// independent `AudioPlaybackEngine` instance, fed from
+    /// `RigWebSocketClient.onSubAudioData`. Simply never receives any
+    /// pushes against a hub that isn't relaying Sub (see
+    /// `RigWebSocketClient.onSubAudioData`'s doc comment) — no separate
+    /// "is Sub available" flag needed here either, same reasoning as the
+    /// Mac side.
+    public let subAudioEngine = AudioPlaybackEngine()
+
+    /// Mirrors `HubService.isMainAudioMuted`/`isSubAudioMuted` on the Mac —
+    /// same shape (`private(set)` + an explicit toggle method, since this
+    /// is a discrete action rather than a continuously-adjustable value
+    /// like volume/squelch), same persisted `AudioPlaybackSettings` keys
+    /// (though each device's `UserDefaults` is its own — see that enum's
+    /// doc comment, "never synced between devices"). Doesn't stop/start
+    /// either engine itself — muting just gates whether the relevant
+    /// `onAudioData`/`onSubAudioData` closure below pushes into it, so
+    /// un-muting resumes instantly.
+    @Published public private(set) var isMainAudioMuted = AudioPlaybackSettings.isMuted
+    @Published public private(set) var isSubAudioMuted = AudioPlaybackSettings.subIsMuted
 
     private var client: RigWebSocketClient?
     private let port: UInt16
@@ -54,7 +75,16 @@ public final class RigClientViewModel: ObservableObject, RigController {
                 Task { @MainActor in self?.apply(state) }
             }
             await client.setOnAudioData { [weak self] data in
-                Task { @MainActor in self?.audioEngine.push(pcm: data) }
+                Task { @MainActor [weak self] in
+                    guard let self, !self.isMainAudioMuted else { return }
+                    self.audioEngine.push(pcm: data)
+                }
+            }
+            await client.setOnSubAudioData { [weak self] data in
+                Task { @MainActor [weak self] in
+                    guard let self, !self.isSubAudioMuted else { return }
+                    self.subAudioEngine.push(pcm: data)
+                }
             }
             await client.connect()
             await self.refreshConnectionState()
@@ -67,11 +97,24 @@ public final class RigClientViewModel: ObservableObject, RigController {
         self.client = nil
         connectionState = .disconnected
         audioEngine.stop()
+        subAudioEngine.stop()
     }
 
     public func send(_ command: RigCommand) {
         guard let client else { return }
         Task { try? await client.send(command) }
+    }
+
+    /// See `HubService.toggleMainAudioMuted()`'s doc comment — identical
+    /// shape.
+    public func toggleMainAudioMuted() {
+        isMainAudioMuted.toggle()
+        AudioPlaybackSettings.isMuted = isMainAudioMuted
+    }
+
+    public func toggleSubAudioMuted() {
+        isSubAudioMuted.toggle()
+        AudioPlaybackSettings.subIsMuted = isSubAudioMuted
     }
 
     private func refreshConnectionState() async {
@@ -84,14 +127,17 @@ public final class RigClientViewModel: ObservableObject, RigController {
         case .disconnected:
             connectionState = .disconnected
             audioEngine.stop()
+            subAudioEngine.stop()
         case .connecting:
             connectionState = .connecting
         case .connected:
             connectionState = .connected
             audioEngine.start()
+            subAudioEngine.start()
         case .failed(let message):
             connectionState = .failed(message)
             audioEngine.stop()
+            subAudioEngine.stop()
         }
     }
 }

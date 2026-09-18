@@ -9,8 +9,10 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var viewModel: RigClientViewModel
     @AppStorage("hubHost") private var host: String = ""
-    @AppStorage(AudioPlaybackSettings.volumeKey) private var audioVolume: Double = 0.8
-    @AppStorage(AudioPlaybackSettings.squelchThresholdKey) private var audioSquelchThreshold: Double = 0.015
+    @AppStorage(AudioPlaybackSettings.volumeKey) private var mainAudioVolume: Double = 0.8
+    @AppStorage(AudioPlaybackSettings.squelchThresholdKey) private var mainAudioSquelchThreshold: Double = 0.015
+    @AppStorage(AudioPlaybackSettings.subVolumeKey) private var subAudioVolume: Double = 0.8
+    @AppStorage(AudioPlaybackSettings.subSquelchThresholdKey) private var subAudioSquelchThreshold: Double = 0.015
     @State private var isDraggingPower = false
     @State private var localPowerLevel: Double = 0
     @State private var isPTTPressed = false
@@ -105,26 +107,81 @@ struct ContentView: View {
         }
     }
 
-    /// Volume + "virtual" squelch (a client-side noise gate on the relayed
-    /// audio — see `AudioPlaybackEngine`/`SquelchGate` — independent of the
-    /// rig's own hardware squelch) for the Mac's relayed radio audio.
-    /// Occupies the free trailing space in the SMeterView row, the iPad's
-    /// analog of where the Mac's `ScopeDisplayView` sits in its own
-    /// `ContentView`. Bound to `AudioPlaybackSettings` directly — these
-    /// never touch `RigCommand`/the rig, so unlike the power slider they
-    /// don't need a drag-commit-on-release pattern; local audio settings
-    /// can update live.
+    /// Volume + "virtual" squelch + mute (a client-side noise gate on the
+    /// relayed audio — see `AudioPlaybackEngine`/`SquelchGate` —
+    /// independent of the rig's own hardware squelch) for the Mac's
+    /// relayed radio audio, one column per channel. Occupies the free
+    /// trailing space in the SMeterView row, the iPad's analog of where the
+    /// Mac's `ScopeDisplayView` sits in its own `ContentView`. Volume/
+    /// squelch are bound to `AudioPlaybackSettings` directly via
+    /// `@AppStorage` — these never touch `RigCommand`/the rig, so unlike
+    /// the power slider they don't need a drag-commit-on-release pattern,
+    /// local audio settings can update live. Mute lives on
+    /// `viewModel` instead (see `RigClientViewModel.isMainAudioMuted`/
+    /// `isSubAudioMuted`) since it has to gate whether incoming relayed
+    /// audio gets pushed to the playback engine at all, not just adjust a
+    /// setting. Sub column added 2026-09-18, mirroring the Mac's — see repo
+    /// CLAUDE.md, "Dual Main/Sub audio channels".
     private var audioControls: some View {
+        HStack(alignment: .top, spacing: 16) {
+            channelAudioControls(
+                label: "SUB",
+                volume: $subAudioVolume,
+                squelchThreshold: $subAudioSquelchThreshold,
+                isMuted: viewModel.isSubAudioMuted,
+                engine: viewModel.subAudioEngine,
+                onToggleMute: viewModel.toggleSubAudioMuted
+            )
+            channelAudioControls(
+                label: "MAIN",
+                volume: $mainAudioVolume,
+                squelchThreshold: $mainAudioSquelchThreshold,
+                isMuted: viewModel.isMainAudioMuted,
+                engine: viewModel.audioEngine,
+                onToggleMute: viewModel.toggleMainAudioMuted
+            )
+        }
+    }
+
+    /// One channel's worth of `audioControls` — see its doc comment.
+    /// `engine` is written to directly on every slider change (not routed
+    /// back through `RigClientViewModel`) since `AudioPlaybackEngine` is a
+    /// reference type owned by the view model already, same pattern the
+    /// pre-Sub single-channel version used for `viewModel.audioEngine`.
+    private func channelAudioControls(
+        label: String,
+        volume: Binding<Double>,
+        squelchThreshold: Binding<Double>,
+        isMuted: Bool,
+        engine: AudioPlaybackEngine,
+        onToggleMute: @escaping () -> Void
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button(action: onToggleMute) {
+                    Text(isMuted ? "Muted" : "Mute")
+                        .font(.caption2)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(isMuted ? Color.red : Color.gray.opacity(0.2))
+                        .foregroundStyle(isMuted ? Color.white : Color.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                .buttonStyle(.plain)
+            }
             Text("Volume")
-                .font(.caption)
+                .font(.caption2)
                 .foregroundStyle(.secondary)
-            Slider(value: $audioVolume, in: 0...1)
-                .onChange(of: audioVolume) { _, newValue in
-                    viewModel.audioEngine.volume = Float(newValue)
+            Slider(value: volume, in: 0...1)
+                .onChange(of: volume.wrappedValue) { _, newValue in
+                    engine.volume = Float(newValue)
                 }
             Text("Squelch")
-                .font(.caption)
+                .font(.caption2)
                 .foregroundStyle(.secondary)
             // `SquelchGate.threshold` is now "how close to true silence
             // counts as quieting" — smaller is stricter (see its doc
@@ -133,13 +190,13 @@ struct ContentView: View {
             // slider — see its `squelchBinding` doc comment.
             Slider(
                 value: Binding(
-                    get: { Self.squelchDisplayRange - audioSquelchThreshold },
-                    set: { audioSquelchThreshold = Self.squelchDisplayRange - $0 }
+                    get: { Self.squelchDisplayRange - squelchThreshold.wrappedValue },
+                    set: { squelchThreshold.wrappedValue = Self.squelchDisplayRange - $0 }
                 ),
                 in: 0...Self.squelchDisplayRange
             )
-            .onChange(of: audioSquelchThreshold) { _, newValue in
-                viewModel.audioEngine.squelchThreshold = Float(newValue)
+            .onChange(of: squelchThreshold.wrappedValue) { _, newValue in
+                engine.squelchThreshold = Float(newValue)
             }
         }
     }

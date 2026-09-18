@@ -36,12 +36,19 @@ public actor RigWebSocketClient {
     /// `markFailed` on its own.
     public var onStateChange: (@Sendable (ConnectionState) -> Void)?
 
-    /// Called with the raw PCM payload of every audio frame received from
-    /// the hub (tag byte already stripped) — see `AudioStreamFormat`. Never
-    /// fires for a client that never sees an audio frame (Mac-only servers
-    /// or an older hub build); delivered on whatever executor the caller
-    /// sets up, same as `onStateUpdate`.
+    /// Called with the raw PCM payload of every Main-channel audio frame
+    /// received from the hub (tag byte already stripped) — see
+    /// `AudioStreamFormat`. Never fires for a client that never sees an
+    /// audio frame (Mac-only servers or an older hub build); delivered on
+    /// whatever executor the caller sets up, same as `onStateUpdate`.
     public var onAudioData: (@Sendable (Data) -> Void)?
+
+    /// Sub-channel counterpart to `onAudioData` — same delivery contract.
+    /// Never fires against a hub build that predates the Sub relay
+    /// (2026-09-18) or in `.local` mode against a mono input device (see
+    /// `AudioCaptureEngine.onSubChannelSamples`'s doc comment) — the hub
+    /// simply never sends a tagged Sub frame in either case.
+    public var onSubAudioData: (@Sendable (Data) -> Void)?
 
     public init(hubURL: URL) {
         self.url = hubURL
@@ -58,6 +65,10 @@ public actor RigWebSocketClient {
 
     public func setOnAudioData(_ handler: @escaping @Sendable (Data) -> Void) {
         onAudioData = handler
+    }
+
+    public func setOnSubAudioData(_ handler: @escaping @Sendable (Data) -> Void) {
+        onSubAudioData = handler
     }
 
     /// Waits for the server to actually accept the WebSocket handshake
@@ -142,6 +153,11 @@ public actor RigWebSocketClient {
         if AudioStreamFormat.isAudioFrame(data) {
             lastActivity = Date()
             onAudioData?(AudioStreamFormat.payload(of: data))
+            return
+        }
+        if AudioStreamFormat.isSubAudioFrame(data) {
+            lastActivity = Date()
+            onSubAudioData?(AudioStreamFormat.payload(of: data))
             return
         }
 

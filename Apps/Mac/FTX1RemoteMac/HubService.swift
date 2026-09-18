@@ -166,10 +166,11 @@ final class HubService: ObservableObject {
     /// `mainAudioPlayback` — fed from `AudioCaptureEngine.
     /// onSubChannelSamples`, which fires in both `.local` and `.remote` now
     /// (2026-09-18), whenever the active capture source is genuinely
-    /// stereo. Not relayed to iPad and not fed to FT8/`audioRecorder` —
-    /// those stay Main-only (see repo CLAUDE.md, "Dual Main/Sub audio
-    /// channels"). APRS *is* decoded from this channel too, via the
-    /// separate `aprsDecoderSub` below.
+    /// stereo. Relayed to iPad now too (`RigWebSocketServer.
+    /// broadcastSubAudio`), same as Main, but still not fed to FT8/
+    /// `audioRecorder` — those stay Main-only (see repo CLAUDE.md, "Dual
+    /// Main/Sub audio channels"). APRS *is* decoded from this channel too,
+    /// via the separate `aprsDecoderSub` below.
     private let subAudioStreamEncoder = AudioStreamEncoder()
     private let subAudioPlayback = AudioPlaybackEngine()
     private let wpsdMonitor = WPSDCallsignMonitor()
@@ -344,13 +345,15 @@ final class HubService: ObservableObject {
         // Sub channel — fires whenever the active capture source is
         // genuinely stereo, in both `.local` and `.remote` (see
         // `AudioCaptureEngine.onSubChannelSamples`; simply never fires
-        // against a mono input device). Deliberately minimal compared to
-        // the Main tap above: capture → encode → local playback, plus an
-        // independent APRS gate/decode. No iPad relay, no FT8/recorder —
-        // those stay Main-only.
+        // against a mono input device). Same shape as the Main tap above
+        // now (2026-09-18): relay to mobile clients unconditionally
+        // (`broadcastSubAudio` is a cheap no-op with no connections, same
+        // as `broadcastAudio`), local playback gated by mute. Still no
+        // FT8/recorder on Sub — those stay Main-only.
         audioCapture.onSubChannelSamples = { [weak self] samples, sampleRate in
             guard let self else { return }
             if let pcm = self.subAudioStreamEncoder.encode(samples: samples, sampleRate: sampleRate) {
+                Task { await self.server.broadcastSubAudio(pcm) }
                 if !self.isSubAudioMuted {
                     self.subAudioPlayback.push(pcm: pcm)
                 }

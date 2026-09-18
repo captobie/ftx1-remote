@@ -150,7 +150,7 @@ actor RigWebSocketServer {
         }
     }
 
-    /// Relays one chunk of the Mac's captured radio audio (see
+    /// Relays one chunk of the Mac's captured Main-channel radio audio (see
     /// `AudioStreamEncoder`) to every connected client, tagged so
     /// `RigWebSocketClient` can tell it apart from `RigStatePush` JSON
     /// before decoding. No-ops when nobody's connected — the caller doesn't
@@ -158,6 +158,16 @@ actor RigWebSocketServer {
     func broadcastAudio(_ pcm: Data) {
         guard !connections.isEmpty else { return }
         let framed = AudioStreamFormat.frame(pcm)
+        for connection in connections.values {
+            connection.send(framed)
+        }
+    }
+
+    /// Sub-channel counterpart to `broadcastAudio(_:)` — same shape, tagged
+    /// with `AudioStreamFormat.subAudioTag` instead.
+    func broadcastSubAudio(_ pcm: Data) {
+        guard !connections.isEmpty else { return }
+        let framed = AudioStreamFormat.subFrame(pcm)
         for connection in connections.values {
             connection.send(framed)
         }
