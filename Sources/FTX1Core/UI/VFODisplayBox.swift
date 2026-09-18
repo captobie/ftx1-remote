@@ -108,42 +108,79 @@ public struct VFODisplayBox: View {
     }
 
     public var body: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            HStack(spacing: 4) {
-                if let txRxLabel {
-                    Text(txRxLabel)
-                        .font(.caption2)
-                        .foregroundStyle(txRxFillColor == nil ? Color.secondary : Color.white)
-                        .tagBoxed(fill: txRxFillColor)
-                }
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(isActive ? .primary : .secondary)
-                    .tagBoxed()
-            }
-            Text(formattedFrequency)
-                .font(.system(size: 38, weight: .medium, design: .monospaced))
-                .foregroundStyle(digitColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    guard onSetFrequency != nil || isMemoryMode else { return }
-                    isEditing = true
-                }
-                .popover(isPresented: $isEditing) {
-                    if isMemoryMode, let onSetMemoryChannel, let onStepMemoryChannel {
-                        MemoryChannelEntryView(
-                            currentChannel: memoryChannel,
-                            onSetChannel: onSetMemoryChannel,
-                            onStep: onStepMemoryChannel
-                        )
-                    } else if let onSetFrequency {
-                        FrequencyEntryView(currentHz: frequencyHz ?? 0, onSetFrequency: onSetFrequency)
+        // Two flow-laid-out columns rather than absolutely-positioned
+        // overlays: MAIN/SUB + TXRX/RX and the decoded reflector/APRS/
+        // callsign info stack on the left, mode info and the frequency
+        // readout stack on the right. Using real layout (not fixed overlay
+        // offsets) means the box grows to fit whichever column is taller,
+        // so the two never overlap regardless of how many lines either one
+        // shows.
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Text(label)
+                        .font(.caption)
+                        .foregroundStyle(isActive ? .primary : .secondary)
+                        .tagBoxed()
+                    if let txRxLabel {
+                        Text(txRxLabel)
+                            .font(.caption2)
+                            .foregroundStyle(txRxFillColor == nil ? Color.secondary : Color.white)
+                            .tagBoxed(fill: txRxFillColor)
                     }
                 }
+                // Reflector/APRS indicator and the decoded callsign are
+                // grouped together — all three describe the same
+                // decoded-digital-traffic state for this VFO.
+                if reflector != nil || aprsActive || callsign != nil {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let reflector {
+                            Text(reflector)
+                                .font(.caption2)
+                                .foregroundStyle(digitColor)
+                        }
+                        if aprsActive {
+                            Text("APRS")
+                                .font(.caption2)
+                                .foregroundStyle(digitColor)
+                        }
+                        if let callsign {
+                            Text(callsign)
+                                .font(.system(size: 19, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(digitColor)
+                        }
+                    }
+                }
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(topLineText)
+                    .font(.caption2)
+                    .foregroundStyle(digitColor)
+                    .tagBoxed()
+                Text(formattedFrequency)
+                    .font(.system(size: 38, weight: .medium, design: .monospaced))
+                    .foregroundStyle(digitColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        guard onSetFrequency != nil || isMemoryMode else { return }
+                        isEditing = true
+                    }
+                    .popover(isPresented: $isEditing) {
+                        if isMemoryMode, let onSetMemoryChannel, let onStepMemoryChannel {
+                            MemoryChannelEntryView(
+                                currentChannel: memoryChannel,
+                                onSetChannel: onSetMemoryChannel,
+                                onStep: onStepMemoryChannel
+                            )
+                        } else if let onSetFrequency {
+                            FrequencyEntryView(currentHz: frequencyHz ?? 0, onSetFrequency: onSetFrequency)
+                        }
+                    }
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.black))
@@ -151,35 +188,6 @@ public struct VFODisplayBox: View {
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(isActive ? Color.green.opacity(0.7) : Color.gray.opacity(0.4), lineWidth: 1.5)
         )
-        .overlay(alignment: .topLeading) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(topLineText)
-                    .font(.caption2)
-                    .foregroundStyle(digitColor)
-                    .tagBoxed()
-                if let reflector {
-                    Text(reflector)
-                        .font(.caption2)
-                        .foregroundStyle(digitColor)
-                }
-                if aprsActive {
-                    Text("APRS")
-                        .font(.caption2)
-                        .foregroundStyle(digitColor)
-                }
-            }
-            .padding(.leading, 10)
-            .padding(.top, 6)
-        }
-        .overlay(alignment: .bottomLeading) {
-            if let callsign {
-                Text(callsign)
-                    .font(.system(size: 19, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(digitColor)
-                    .padding(.leading, 10)
-                    .padding(.bottom, 6)
-            }
-        }
     }
 
     /// Fill color for the TXRX/RX box, matching the rig's own display:
