@@ -1468,9 +1468,15 @@ final class HubService: ObservableObject {
     /// checked every poll tick (~500ms) rather than only on
     /// connect/disconnect, so toggling the C4FM Settings tab or changing
     /// mode takes effect quickly with no reconnect needed. `start(host:)`/
-    /// `stop()` are both no-ops when already in the target state.
+    /// `stop()` are both no-ops when already in the target state. Gated on
+    /// either VFO being in C4FM mode, not just Main — `ContentView`'s SUB
+    /// `VFODisplayBox` shows `c4fmCallsign`/`c4fmReflector` too now,
+    /// whenever `rigState.secondaryMode == .c4fm` (see its call site). There's
+    /// still only one `wpsdMonitor`/one configured host: it scrapes whichever
+    /// single physical hotspot the rig's C4FM audio is actually coming from,
+    /// regardless of which VFO that happens to be tuned on right now.
     private func updateWPSDMonitorState() {
-        guard WPSDSettings.enabled, !WPSDSettings.host.isEmpty, rigState.mode == .c4fm else {
+        guard WPSDSettings.enabled, !WPSDSettings.host.isEmpty, rigState.mode == .c4fm || rigState.secondaryMode == .c4fm else {
             wpsdMonitor.stop()
             rigState.c4fmCallsign = nil
             rigState.c4fmReflector = nil
