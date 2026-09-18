@@ -337,21 +337,18 @@ re-architecture.
     iPad (which reaches its own `AudioPlaybackEngine` directly, never
     through `HubService`). Mute is per-channel as decided (two independent
     toggles, `isMainAudioMuted`/`isSubAudioMuted`). `ContentView` shows Sub's
-    mute button and SQL/VOL sliders only in `.remote` mode — `.local` keeps
-    the exact single-mute/single-slider layout it always had, since Sub
-    audio doesn't exist there yet. Both playback engines write to the same
-    Mac output device (`AudioOutputSettings.deviceUID`); running two
-    independent `AVAudioEngine` instances against one device simultaneously
-    is ordinary macOS behavior, not new territory. Not yet hardware-tested
-    (build-verified only) — squelch/volume tuning for Sub may differ from
-    Main's once tried against real traffic.
+    mute button and SQL/VOL sliders — originally `.remote` mode only, since
+    extended to `.local` too (see "Local mode Main/Sub parity" below). Both
+    playback engines write to the same Mac output device
+    (`AudioOutputSettings.deviceUID`); running two independent
+    `AVAudioEngine` instances against one device simultaneously is ordinary
+    macOS behavior, not new territory.
     **Deliberately not yet built** (future milestones, each independently
     committable/testable like the six filter controls were): no second
-    waterfall/oscilloscope (still one shared `ScopeFrameStore`), no Sub
-    audio in `.local` mode, no Mac→iPad wire-protocol stereo extension
-    (`AudioStreamFormat` stays mono, so no Sub relay to iPad), no
-    `RigController` protocol changes, no FT8 decoding or frequency-gating
-    from the Sub channel.
+    waterfall/oscilloscope (still one shared `ScopeFrameStore`), no Mac→
+    iPad wire-protocol stereo extension (`AudioStreamFormat` stays mono, so
+    no Sub relay to iPad), no `RigController` protocol changes, no FT8
+    decoding or frequency-gating from the Sub channel.
   - **Sub-channel APRS decoding (2026-09-18, hardware-confirmed)**: a
     second, fully independent `APRSDecoder` instance
     (`HubService.aprsDecoderSub`) is now fed from `onSubChannelSamples`,
@@ -384,6 +381,51 @@ re-architecture.
     so both Mac's and iPad's `ContentView` SUB `VFODisplayBox` call sites
     just needed the same `aprsSubActive ? aprsSubLastCallsign : nil`
     pattern Main's MAIN box already used.
+  - **Local mode Main/Sub parity (2026-09-18, hardware-confirmed)**:
+    `.local` mode's `AVAudioEngine` tap now extracts a genuine Sub channel
+    too, same as `.remote` already did — `process(buffer:bitmap:gain:)`
+    reads `buffer.floatChannelData[1]` and calls `deliverSubChannelSamples`
+    whenever `buffer.format.channelCount >= 2`. A mono input device just
+    never triggers this — no separate "is Sub actually available" flag
+    anywhere, every downstream consumer (`subAudioPlayback`,
+    `aprsDecoderSub`) is already written to sit idle rather than assume Sub
+    exists. Because `HubService`'s entire Sub-channel wiring (playback,
+    squelch/volume/mute, independent APRS decode/gate) was already keyed
+    off `AudioCaptureEngine.onSubChannelSamples` firing at all — not off
+    `RigctldSettings.connectionMode` — none of that code needed to change;
+    only `AudioCaptureEngine`'s local-tap extraction and `ContentView`'s
+    `.remote`-only UI gates (removed — Sub's mute button and SQL/VOL
+    sliders now always show, same "harmless if inert" reasoning as the
+    playback engine) did.
+    **Real bug hit and fixed during hardware validation**: first pass
+    landed with `installTap(..., format: nil)` unchanged (as `.remote`'s
+    equivalent extraction pattern implied it should stay), and Sub came
+    back silent even with the correct 2-channel device ("FTX-1 Audio", a
+    Rogue Amoeba Loopback device) genuinely selected in Settings — traced
+    with two rounds of diagnostic `os.Logger` lines (device resolution +
+    `AudioUnitSetProperty` status, then `inputFormat(forBus:)` vs.
+    `outputFormat(forBus:)` channel counts) to a real `AVAudioEngine`
+    quirk: `inputNode.inputFormat(forBus: 0)` correctly tracked the
+    switched-to device (2 channels), but `outputFormat(forBus: 0)` — the
+    side `installTap`'s `format: nil` actually binds to — stayed pinned at
+    1 channel, apparently inherited from whatever the engine's graph was
+    originally built against (this Mac's system-default input, the mono
+    built-in mic) and never updated by the `kAudioOutputUnitProperty_
+    CurrentDevice` switch. Fixed by passing `inputNode.inputFormat(forBus:
+    0)` to `installTap` explicitly instead of relying on `nil` —
+    `AVAudioEngine` inserts its own conversion as needed, same as any other
+    explicit tap format. Confirmed fixed: Console showed `channels=2` after
+    the fix (vs. `channels=1` before, both with the identical device
+    selected and `AudioUnitSetProperty` reporting success both times), and
+    the user confirmed Sub audibly independent. Worth remembering for any
+    future `AVAudioEngine` input-device work in this app: `outputFormat
+    (forBus:)`/`format: nil` cannot be trusted to reflect a `CurrentDevice`
+    switch — always read `inputFormat(forBus:)` after `prepare()` and pass
+    it explicitly.
+    **Not yet done**: FT8/AudioRecorder still
+    Main-only in both modes (unchanged scope, not a Local-mode gap), and
+    the "not yet built" list above (dual waterfall, iPad Sub relay,
+    `RigController` protocol) applies equally to both modes now.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 

@@ -68,7 +68,7 @@ struct ContentView: View {
                 }
                 .frame(width: 90, height: meterHeight)
                 audioLevelControls
-                    .frame(width: RigctldSettings.connectionMode == .remote ? 156 : 70, height: meterHeight)
+                    .frame(width: 156, height: meterHeight)
                 zoomControls
                     .frame(height: meterHeight)
                 // `hub.scopeFrames` is a plain `let` on HubService, not
@@ -253,20 +253,16 @@ struct ContentView: View {
             // display (there's still only one scope — dual waterfalls are
             // future work, see repo CLAUDE.md), so they aren't part of
             // that mutually-exclusive button group above; grouped visually
-            // with it since all live in this same side column. Sub has no
-            // audio to mute in `.local` mode (see `HubService.
-            // isSubAudioMuted`'s doc comment), so its button only appears
-            // in `.remote` — `.local` keeps the single "Mute" button this
-            // column always had.
-            if RigctldSettings.connectionMode == .remote {
-                // Sub-then-Main left-to-right, matching the VFODisplayBox
-                // row above (SUB box on the left, MAIN box on the right).
-                HStack(spacing: 4) {
-                    channelMuteButton(label: "Sub", isMuted: hub.isSubAudioMuted, action: hub.toggleSubAudioMuted)
-                    channelMuteButton(label: "Main", isMuted: hub.isMainAudioMuted, action: hub.toggleMainAudioMuted)
-                }
-            } else {
-                channelMuteButton(label: "Mute", isMuted: hub.isMainAudioMuted, action: hub.toggleMainAudioMuted)
+            // with it since all live in this same side column. Shown in
+            // both `.local` and `.remote` now (2026-09-18) — Sub capture
+            // works in both, when the input device is stereo; if it isn't,
+            // Sub's button is just inert (see `HubService.isSubAudioMuted`'s
+            // doc comment), not hidden.
+            // Sub-then-Main left-to-right, matching the VFODisplayBox
+            // row above (SUB box on the left, MAIN box on the right).
+            HStack(spacing: 4) {
+                channelMuteButton(label: "Sub", isMuted: hub.isSubAudioMuted, action: hub.toggleSubAudioMuted)
+                channelMuteButton(label: "Main", isMuted: hub.isMainAudioMuted, action: hub.toggleMainAudioMuted)
             }
         }
     }
@@ -288,8 +284,7 @@ struct ContentView: View {
     }
 
     /// Generic over which channel it mutes — `scopeDisplayModeButtons`
-    /// calls this once for Main-only (`.local`) and twice, side by side,
-    /// for Main+Sub (`.remote`).
+    /// always shows both, side by side.
     private func channelMuteButton(label: String, isMuted: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
@@ -309,28 +304,21 @@ struct ContentView: View {
     /// out entirely with no way to adjust it from the Mac (only iPad had a
     /// slider, on a value that isn't shared between devices). Independent
     /// of the waterfall/oscilloscope/mute column, just grouped next to it.
-    /// Sub has its own pair, `.remote` mode only — same reasoning as the
-    /// Sub mute button above.
+    /// Sub has its own pair, shown in both `.local` and `.remote` now
+    /// (2026-09-18) — same reasoning as the Sub mute button above.
     private var audioLevelControls: some View {
         // Sub-then-Main left-to-right, matching the VFODisplayBox row above
-        // (SUB box on the left, MAIN box on the right) — Sub's column is
-        // conditional (`.remote` only), Main's always renders, so Sub comes
-        // first here even though that's the reverse of the property/method
-        // declaration order elsewhere in this file.
+        // (SUB box on the left, MAIN box on the right).
         HStack(spacing: 6) {
-            if RigctldSettings.connectionMode == .remote {
-                VStack(spacing: 2) {
-                    Text("SUB").font(.caption2).foregroundStyle(.secondary)
-                    HStack(spacing: 6) {
-                        verticalSlider(value: subSquelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
-                        verticalSlider(value: subVolumeBinding, label: "VOL")
-                    }
+            VStack(spacing: 2) {
+                Text("SUB").font(.caption2).foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    verticalSlider(value: subSquelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
+                    verticalSlider(value: subVolumeBinding, label: "VOL")
                 }
             }
             VStack(spacing: 2) {
-                if RigctldSettings.connectionMode == .remote {
-                    Text("MAIN").font(.caption2).foregroundStyle(.secondary)
-                }
+                Text("MAIN").font(.caption2).foregroundStyle(.secondary)
                 HStack(spacing: 6) {
                     verticalSlider(value: mainSquelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
                     verticalSlider(value: mainVolumeBinding, label: "VOL")

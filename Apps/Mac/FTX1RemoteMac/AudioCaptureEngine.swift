@@ -66,15 +66,18 @@ final class AudioCaptureEngine {
     /// frequency comparison, not real work.
     nonisolated(unsafe) var onAudioSamples: ((_ samples: [Float], _ sampleRate: Double) -> Void)?
 
-    /// Sub (right channel) samples — `.remote` mode only (see
-    /// `beginRemoteCapture()`; `.local` mode has no Sub capture yet, so
-    /// this never fires there). Same "always invoked on the main actor"
-    /// contract as `onAudioSamples`, same reasoning for why a plain
-    /// optional closure needs no lock. Deliberately a separate closure
-    /// rather than widening `onAudioSamples` to carry both channels: every
-    /// existing `onAudioSamples` consumer (iPad relay, Mac playback, FT8,
-    /// APRS) is Main-only by design for now (see repo CLAUDE.md, "Dual
-    /// Main/Sub audio channels"), so this keeps that surface unchanged.
+    /// Sub (right channel) samples — fires in both `.local` (see `process
+    /// (buffer:bitmap:gain:)`, when the selected input device delivers 2+
+    /// channels) and `.remote` (see `beginRemoteCapture()`). A mono `.local`
+    /// input device simply never triggers this — there's no separate
+    /// "is Sub actually available" signal, callers just get nothing. Same
+    /// "always invoked on the main actor" contract as `onAudioSamples`,
+    /// same reasoning for why a plain optional closure needs no lock.
+    /// Deliberately a separate closure rather than widening `onAudioSamples`
+    /// to carry both channels: every existing `onAudioSamples` consumer
+    /// (iPad relay, Mac playback, FT8, APRS) is Main-only by design for now
+    /// (see repo CLAUDE.md, "Dual Main/Sub audio channels"), so this keeps
+    /// that surface unchanged.
     nonisolated(unsafe) var onSubChannelSamples: ((_ samples: [Float], _ sampleRate: Double) -> Void)?
 
     private let fftSize = 2048
@@ -187,27 +190,28 @@ final class AudioCaptureEngine {
     private var remoteClient: RemoteAudioStreamClient?
     /// `nonisolated(unsafe)` — `Logger` is safe to use concurrently by
     /// design (that's the whole point of os.Logger), and this is read from
-    /// both `beginRemoteCapture()` (main actor) and the `nonisolated`
-    /// `logRemoteChannelDiagnostics(main:sub:)` below.
+    /// both `beginRemoteCapture()`/`process(buffer:bitmap:gain:)` (main
+    /// actor / the tap's real-time thread) and the `nonisolated`
+    /// `logChannelDiagnostics(source:channelCount:main:sub:)` below.
     nonisolated(unsafe) private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "audio-capture")
 
     private func beginRemoteCapture() {
         Self.logger.notice("beginRemoteCapture() — host=\(RigctldSettings.remoteHost, privacy: .public)")
         let bitmap = WaterfallBitmap(binCount: binCount, historyRows: historyRows)
         let gain = AutoGainState(minimumPeakDb: waterfallMinimumPeakDb, minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
-        // `RemoteAudioStreamClient` now delivers genuinely separate Main
-        // (left) and Sub (right) channels — see its own doc comment. `main`
-        // feeds the same process(samples:sampleRate:bitmap:gain:) entry
-        // point the local AVAudioEngine tap uses, so every existing
-        // downstream consumer (waterfall, APRS, FT8, Mac-local playback,
-        // iPad relay) keeps working unchanged. `sub` isn't consumed by any
-        // of that yet — see logRemoteChannelDiagnostics below — splitting
-        // it out into its own waterfall/squelch/volume pipeline is future
-        // work, not this milestone.
+        // `RemoteAudioStreamClient` delivers genuinely separate Main (left)
+        // and Sub (right) channels — see its own doc comment. `main` feeds
+        // the same process(samples:sampleRate:bitmap:gain:) entry point the
+        // local AVAudioEngine tap uses, so every existing downstream
+        // consumer (waterfall, APRS, FT8, Mac-local playback, iPad relay)
+        // keeps working unchanged. `sub` goes to `deliverSubChannelSamples`
+        // — `HubService.onSubChannelSamples` feeds it to `subAudioPlayback`
+        // and the independent `aprsDecoderSub` (see repo CLAUDE.md, "Dual
+        // Main/Sub audio channels").
         let client = RemoteAudioStreamClient(host: RigctldSettings.remoteHost) { [weak self] main, sub, sampleRate in
             self?.process(samples: main, sampleRate: sampleRate, bitmap: bitmap, gain: gain)
             self?.deliverSubChannelSamples(sub, sampleRate: sampleRate)
-            self?.logRemoteChannelDiagnostics(main: main, sub: sub)
+            self?.logChannelDiagnostics(source: "remote", channelCount: 2, main: main, sub: sub)
         }
         remoteClient = client
         Task { await client.start() }
@@ -224,7 +228,7 @@ final class AudioCaptureEngine {
         }
     }
 
-    private let remoteDiagnosticsCounter = Locked<Int>(0)
+    private let channelDiagnosticsCounter = Locked<Int>(0)
 
     /// Confirms Main/Sub are genuinely independent, without any new UI —
     /// throttled to roughly once per 2s (chunks arrive at ~21.5/s for
@@ -232,14 +236,24 @@ final class AudioCaptureEngine {
     /// Console.app, subsystem "com.ftx1remote.mac", category
     /// "audio-capture": during a dual-VFO test with different traffic on
     /// each side, the two RMS values should move independently, and should
-    /// track a `swapActiveVFO` swap.
-    nonisolated private func logRemoteChannelDiagnostics(main: [Float], sub: [Float]) {
-        let count = remoteDiagnosticsCounter.get() + 1
-        remoteDiagnosticsCounter.set(count)
+    /// track a `swapActiveVFO` swap. Shared by both `.local` (`process
+    /// (buffer:bitmap:gain:)`) and `.remote` (`beginRemoteCapture()`) —
+    /// `channelCount`/`sub` are logged explicitly so a "no Sub audio"
+    /// report can immediately tell "the input device isn't actually
+    /// reporting stereo" (`channelCount` stays 1, `sub` is `nil`) apart
+    /// from "capture is fine, something downstream of it is silent"
+    /// (`channelCount` is 2 and the RMS values look sane).
+    nonisolated private func logChannelDiagnostics(source: String, channelCount: Int, main: [Float], sub: [Float]?) {
+        let count = channelDiagnosticsCounter.get() + 1
+        channelDiagnosticsCounter.set(count)
         guard count % 43 == 0 else { return }
         let mainRMS = Self.rms(main)
-        let subRMS = Self.rms(sub)
-        Self.logger.notice("stereo check — main RMS=\(mainRMS, format: .fixed(precision: 4)) sub RMS=\(subRMS, format: .fixed(precision: 4))")
+        if let sub {
+            let subRMS = Self.rms(sub)
+            Self.logger.notice("stereo check (\(source, privacy: .public)) — channels=\(channelCount, privacy: .public) main RMS=\(mainRMS, format: .fixed(precision: 4)) sub RMS=\(subRMS, format: .fixed(precision: 4))")
+        } else {
+            Self.logger.notice("stereo check (\(source, privacy: .public)) — channels=\(channelCount, privacy: .public), no Sub (mono input device)")
+        }
     }
 
     nonisolated private static func rms(_ samples: [Float]) -> Float {
@@ -284,20 +298,51 @@ final class AudioCaptureEngine {
         // setting it afterward risks being silently ignored, leaving
         // capture on the system default device instead of the one chosen
         // in Settings.
-        if !deviceUID.isEmpty, let deviceID = AudioInputDeviceLister.deviceID(forUID: deviceUID),
-           let audioUnit = inputNode.audioUnit {
-            var mutableDeviceID = deviceID
-            AudioUnitSetProperty(
-                audioUnit,
-                kAudioOutputUnitProperty_CurrentDevice,
-                kAudioUnitScope_Global,
-                0,
-                &mutableDeviceID,
-                UInt32(MemoryLayout<AudioDeviceID>.size)
-            )
+        //
+        // Diagnostic-only logging below (2026-09-18) — added while chasing
+        // a real report of Sub always reading mono even with a confirmed-
+        // stereo device selected in Settings: this pins down whether the
+        // device resolved/the property set succeeded, separately from
+        // whatever channel count the tap's buffer ends up reporting (see
+        // `logChannelDiagnostics`). Check Console.app, subsystem
+        // "com.ftx1remote.mac", category "audio-capture".
+        if !deviceUID.isEmpty {
+            if let deviceID = AudioInputDeviceLister.deviceID(forUID: deviceUID) {
+                if let audioUnit = inputNode.audioUnit {
+                    var mutableDeviceID = deviceID
+                    let status = AudioUnitSetProperty(
+                        audioUnit,
+                        kAudioOutputUnitProperty_CurrentDevice,
+                        kAudioUnitScope_Global,
+                        0,
+                        &mutableDeviceID,
+                        UInt32(MemoryLayout<AudioDeviceID>.size)
+                    )
+                    Self.logger.notice("startEngine: resolved deviceUID to AudioDeviceID \(deviceID, privacy: .public), AudioUnitSetProperty(CurrentDevice) status=\(status, privacy: .public)")
+                } else {
+                    Self.logger.error("startEngine: resolved deviceUID to AudioDeviceID \(deviceID, privacy: .public) but inputNode.audioUnit was nil — device switch NOT applied")
+                }
+            } else {
+                Self.logger.error("startEngine: deviceUID \(deviceUID, privacy: .public) did not resolve to any currently-enumerated device — staying on system default")
+            }
         }
 
         engine.prepare()
+        // `inputFormat(forBus: 0)` correctly tracks the device just
+        // switched to above (2 channels, confirmed via the diagnostic
+        // below on real hardware, 2026-09-18) — `outputFormat(forBus: 0)`
+        // does not; it stays pinned to whatever channel count the engine's
+        // graph was originally built with (the system default input's, 1
+        // channel on this Mac), regardless of the CurrentDevice switch. A
+        // known `AVAudioEngine` quirk: `installTap`'s `format: nil` binds
+        // to the *output* side, so relying on it silently collapsed Sub
+        // out of existence even though the raw hardware capture was
+        // genuinely stereo the whole time. Passing the input-side format
+        // explicitly is the fix — `AVAudioEngine` inserts its own internal
+        // converter as needed, same as it would for any other explicit
+        // tap format.
+        let tapFormat = inputNode.inputFormat(forBus: 0)
+        Self.logger.notice("startEngine: after prepare(), inputNode input format channels=\(tapFormat.channelCount, privacy: .public) (output side reports \(inputNode.outputFormat(forBus: 0).channelCount, privacy: .public) — installTap uses the input side explicitly, see above)")
 
         // Created fresh per startEngine() call and captured directly by
         // the tap closure below (not stored on self) —
@@ -308,7 +353,7 @@ final class AudioCaptureEngine {
         let bitmap = WaterfallBitmap(binCount: binCount, historyRows: historyRows)
         let gain = AutoGainState(minimumPeakDb: waterfallMinimumPeakDb, minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
 
-        inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(fftSize), format: nil) { [weak self] buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(fftSize), format: tapFormat) { [weak self] buffer, _ in
             self?.process(buffer: buffer, bitmap: bitmap, gain: gain)
         }
 
@@ -359,16 +404,39 @@ final class AudioCaptureEngine {
     /// row of 0...1 intensities, then hands it to `bitmap` and publishes
     /// the resulting frame. Runs entirely on the Core Audio real-time
     /// thread except the final `onNewFrame` hop.
+    ///
+    /// Also extracts channel 1 (Sub) when the tap's buffer format has 2+
+    /// channels — the input device is whatever `AudioInputSettings.
+    /// deviceUID` selects, and `startEngine(deviceUID:)` now installs the
+    /// tap with that device's actual input-side format explicitly (not
+    /// `format: nil` — see its doc comment for why that silently collapsed
+    /// this to mono), so this is only ever true for a genuinely stereo
+    /// device (confirmed stereo on the user's own "FTX-1 Audio" USB input,
+    /// 2026-09-07 — see repo CLAUDE.md). A mono device just has
+    /// `channelCount == 1` and Sub is skipped entirely, same as `.remote`
+    /// mode against non-stereo hardware would be.
     nonisolated private func process(buffer: AVAudioPCMBuffer, bitmap: WaterfallBitmap, gain: AutoGainState) {
-        guard let channelData = buffer.floatChannelData?[0] else { return }
+        guard let channelData = buffer.floatChannelData else { return }
         let frameCount = Int(buffer.frameLength)
         guard frameCount > 0 else { return }
 
-        var rawSamples = [Float](repeating: 0, count: frameCount)
-        rawSamples.withUnsafeMutableBufferPointer { dest in
-            dest.baseAddress!.update(from: channelData, count: frameCount)
+        var mainSamples = [Float](repeating: 0, count: frameCount)
+        mainSamples.withUnsafeMutableBufferPointer { dest in
+            dest.baseAddress!.update(from: channelData[0], count: frameCount)
         }
-        process(samples: rawSamples, sampleRate: buffer.format.sampleRate, bitmap: bitmap, gain: gain)
+
+        var subSamples: [Float]?
+        if buffer.format.channelCount >= 2 {
+            var samples = [Float](repeating: 0, count: frameCount)
+            samples.withUnsafeMutableBufferPointer { dest in
+                dest.baseAddress!.update(from: channelData[1], count: frameCount)
+            }
+            deliverSubChannelSamples(samples, sampleRate: buffer.format.sampleRate)
+            subSamples = samples
+        }
+        logChannelDiagnostics(source: "local", channelCount: Int(buffer.format.channelCount), main: mainSamples, sub: subSamples)
+
+        process(samples: mainSamples, sampleRate: buffer.format.sampleRate, bitmap: bitmap, gain: gain)
     }
 
     /// The shared core both the local `AVAudioEngine` tap (via `process

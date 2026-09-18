@@ -67,11 +67,14 @@ final class HubService: ObservableObject {
     /// mute — see `isSubAudioMuted` below and repo CLAUDE.md, "Dual
     /// Main/Sub audio channels."
     @Published private(set) var isMainAudioMuted = AudioPlaybackSettings.isMuted
-    /// Sub-channel counterpart to `isMainAudioMuted` — `.remote` mode only,
-    /// since `.local` mode has no Sub capture yet (`AudioCaptureEngine.
-    /// onSubChannelSamples` simply never fires there, so this has nothing
-    /// to gate). Not persisted-shared with iPad — iPad's audio relay is
-    /// still Main-only.
+    /// Sub-channel counterpart to `isMainAudioMuted` — works in both
+    /// `.local` and `.remote` now (2026-09-18: `AudioCaptureEngine`'s local
+    /// `AVAudioEngine` tap reads a genuine second channel too, when the
+    /// selected input device is stereo). If the current device is mono,
+    /// `onSubChannelSamples` simply never fires and this has nothing to
+    /// gate — harmless, not worth its own "is Sub actually available" flag.
+    /// Not persisted-shared with iPad — iPad's audio relay is still
+    /// Main-only.
     @Published private(set) var isSubAudioMuted = AudioPlaybackSettings.subIsMuted
     /// Both bound directly by the Mac's Main squelch/volume sliders
     /// (`ContentView`) — plain read-write `@Published`, not `private(set)`,
@@ -103,8 +106,8 @@ final class HubService: ObservableObject {
         }
     }
     /// Sub-channel counterparts to `mainAudioVolume`/`mainSquelchThreshold`
-    /// — `.remote` mode only (see `isSubAudioMuted`). Not shared with iPad;
-    /// new, Sub-only `AudioPlaybackSettings` keys.
+    /// — both `.local` and `.remote` now (see `isSubAudioMuted`). Not
+    /// shared with iPad; new, Sub-only `AudioPlaybackSettings` keys.
     @Published var subAudioVolume: Float = Float(AudioPlaybackSettings.subVolume) {
         didSet {
             subAudioPlayback.volume = subAudioVolume
@@ -160,17 +163,19 @@ final class HubService: ObservableObject {
     /// `audioPlayback` (2026-09-18) — see `subAudioPlayback` below.
     private let mainAudioPlayback = AudioPlaybackEngine()
     /// Sub-channel counterparts to `mainAudioStreamEncoder`/
-    /// `mainAudioPlayback` — `.remote` mode only (see
-    /// `AudioCaptureEngine.onSubChannelSamples`). Not relayed to iPad and
-    /// not fed to FT8/`audioRecorder` — those stay Main-only (see repo
-    /// CLAUDE.md, "Dual Main/Sub audio channels"). APRS *is* decoded from
-    /// this channel too, via the separate `aprsDecoderSub` below.
+    /// `mainAudioPlayback` — fed from `AudioCaptureEngine.
+    /// onSubChannelSamples`, which fires in both `.local` and `.remote` now
+    /// (2026-09-18), whenever the active capture source is genuinely
+    /// stereo. Not relayed to iPad and not fed to FT8/`audioRecorder` —
+    /// those stay Main-only (see repo CLAUDE.md, "Dual Main/Sub audio
+    /// channels"). APRS *is* decoded from this channel too, via the
+    /// separate `aprsDecoderSub` below.
     private let subAudioStreamEncoder = AudioStreamEncoder()
     private let subAudioPlayback = AudioPlaybackEngine()
     private let wpsdMonitor = WPSDCallsignMonitor()
     private let aprsDecoder = APRSDecoder()
-    /// Independent decoder instance for the Sub channel — `.remote` mode
-    /// only, fed from `onSubChannelSamples` below, gated on
+    /// Independent decoder instance for the Sub channel, fed from
+    /// `onSubChannelSamples` below (both `.local` and `.remote`), gated on
     /// `rigState.secondaryFrequencyHz` rather than the Main gate's
     /// `rigState.frequencyHz`. Safe to run alongside `aprsDecoder`: both
     /// wrap value-type `AFSKDemodulator`/`AX25FrameDecoder` state on their
@@ -336,11 +341,13 @@ final class HubService: ObservableObject {
             guard isActive else { return }
             self.aprsDecoder.process(samples: samples, sampleRate: sampleRate)
         }
-        // Sub channel — `.remote` mode only, never fires in `.local` (see
-        // `AudioCaptureEngine.onSubChannelSamples`). Deliberately minimal
-        // compared to the Main tap above: capture → encode → local
-        // playback, plus an independent APRS gate/decode. No iPad relay,
-        // no FT8/recorder — those stay Main-only.
+        // Sub channel — fires whenever the active capture source is
+        // genuinely stereo, in both `.local` and `.remote` (see
+        // `AudioCaptureEngine.onSubChannelSamples`; simply never fires
+        // against a mono input device). Deliberately minimal compared to
+        // the Main tap above: capture → encode → local playback, plus an
+        // independent APRS gate/decode. No iPad relay, no FT8/recorder —
+        // those stay Main-only.
         audioCapture.onSubChannelSamples = { [weak self] samples, sampleRate in
             guard let self else { return }
             if let pcm = self.subAudioStreamEncoder.encode(samples: samples, sampleRate: sampleRate) {
@@ -974,13 +981,16 @@ final class HubService: ObservableObject {
                 let outputDeviceID = AudioOutputDeviceLister.deviceID(forUID: AudioOutputSettings.deviceUID)
                 mainAudioPlayback.setOutputDevice(outputDeviceID)
                 mainAudioPlayback.start()
-                // Sub only has anything to play in `.remote` mode (see
-                // `AudioCaptureEngine.onSubChannelSamples`) — no point
-                // running a second idle AVAudioEngine in `.local` mode.
-                if RigctldSettings.connectionMode == .remote {
-                    subAudioPlayback.setOutputDevice(outputDeviceID)
-                    subAudioPlayback.start()
-                }
+                // Unconditional in both modes now (2026-09-18) — Local
+                // capture can deliver a genuine Sub channel too, when the
+                // selected input device is stereo (see
+                // `AudioCaptureEngine.process(buffer:bitmap:gain:)`). If
+                // it isn't, `onSubChannelSamples` simply never fires and
+                // this sits idle — harmless, and simpler than tracking
+                // "is the current device actually stereo" as its own piece
+                // of state just to decide whether to start it.
+                subAudioPlayback.setOutputDevice(outputDeviceID)
+                subAudioPlayback.start()
                 beginBackgroundActivity()
                 try await pollLoop()
             } catch {
