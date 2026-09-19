@@ -1160,6 +1160,7 @@ final class HubService: ObservableObject {
                 vdd: try? await rigctld.getMeterReading(8)
             )
         }
+        let subSmeterDb = (try? await rigctld.getMeterReading(2)).flatMap { $0 }.map(SMeterScale.strengthDb(forRaw:))
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
         // Same staleness gap as the primary mode read above — see `isC4FM`
@@ -1238,6 +1239,7 @@ final class HubService: ObservableObject {
         rigState.powerLevel = powerLevel
         rigState.smeterDb = smeterDb
         rigState.txMeters = txMeters
+        rigState.subSmeterDb = subSmeterDb
         rigState.aprsActive = aprsActive
         rigState.aprsLastCallsign = aprsLastCallsign
         rigState.aprsSubActive = aprsSubActive

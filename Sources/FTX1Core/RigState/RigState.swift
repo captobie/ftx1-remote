@@ -104,6 +104,10 @@ public struct RigState: Codable, Equatable, Sendable {
     /// transmitting — so the meter needle can fall to rest rather than
     /// freeze on a stale value.
     public var smeterDb: Double?
+    /// Sub-side received signal strength, same dB-relative-to-S9 convention
+    /// as `smeterDb`. hamlib's STRENGTH only reads the active VFO, so this
+    /// comes from raw CAT "RM2" via `SMeterScale.strengthDb(forRaw:)`.
+    public var subSmeterDb: Double?
     /// Raw COMP/ALC/ID/VDD meter values (CAT "RM"), read only while
     /// transmitting; nil otherwise so the needle falls to rest.
     public var txMeters: TXMeterReadings?

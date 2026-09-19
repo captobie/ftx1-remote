@@ -118,4 +118,6 @@ public struct TXMeterReadings: Codable, Equatable, Sendable {
 
 public enum MeterSettings {
     public static let key = "appearance.meterSelection"
+    /// The Sub meter's own selection, like the rig's separate SUB-side METER SW.
+    public static let subKey = "appearance.meterSelectionSub"
 }

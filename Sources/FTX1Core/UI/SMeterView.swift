@@ -34,6 +34,20 @@ public enum SMeterScale {
         ("∞", 0.87),
     ]
 
+    /// Raw CAT "RM" S-meter value (0-255) -> dB relative to S9. The FTX-1
+    /// manual gives no calibration, so this uses the table hamlib ships for
+    /// the FT-991 family (S0 = -54 dB ... S9 = raw 130 ... +60 dB = 255);
+    /// spot-checked only at the noise floor (raw ~0-6 vs. hamlib's own
+    /// STRENGTH of about -50 dB). Retune the anchors if the Sub meter
+    /// disagrees with the rig's own display on a strong signal.
+    public static func strengthDb(forRaw raw: Int) -> Double {
+        piecewise(Double(raw), anchors: [
+            (0, -54), (12, -48), (27, -42), (40, -36), (55, -30), (65, -24),
+            (80, -18), (95, -12), (112, -6), (130, 0), (150, 10), (172, 20),
+            (190, 30), (220, 40), (240, 50), (255, 60),
+        ])
+    }
+
     /// RX: signal strength in dB relative to S9 (hamlib "STRENGTH"
     /// convention) -> needle fraction. nil (no reading) rests the needle.
     public static func fraction(forStrengthDb db: Double?) -> Double {
@@ -88,14 +102,22 @@ public struct SMeterView: View {
     let smeterDb: Double?
     let readings: MeterReadings
     let ptt: Bool
+    /// The Sub VFO's meter: identical face and tap-to-choose lower scale
+    /// (with its own remembered selection, like the rig's separate MAIN/SUB
+    /// METER SW settings), but the needle stays on the S scale — Sub can't
+    /// transmit today, and the TX readings (PO/SWR/COMP/...) are Main's.
+    /// When Sub TX exists, feed it its own readings and drop this override.
+    let isSub: Bool
 
     /// Which reading the lower scale shows while transmitting — picked by
     /// tapping the meter, like the rig (see `MeterSelection`). Default PO,
     /// same as the rig's.
-    @AppStorage(MeterSettings.key) private var selectionRaw = MeterSelection.po.rawValue
+    @AppStorage private var selectionRaw: String
     @State private var showingPicker = false
 
-    public init(smeterDb: Double?, swr: Double?, ptt: Bool, powerWatts: Double? = nil, txMeters: TXMeterReadings? = nil) {
+    public init(smeterDb: Double?, swr: Double?, ptt: Bool, powerWatts: Double? = nil, txMeters: TXMeterReadings? = nil, isSub: Bool = false) {
+        self.isSub = isSub
+        _selectionRaw = AppStorage(wrappedValue: MeterSelection.po.rawValue, isSub ? MeterSettings.subKey : MeterSettings.key)
         self.smeterDb = smeterDb
         self.readings = MeterReadings(powerWatts: powerWatts, swr: swr, tx: txMeters)
         self.ptt = ptt
@@ -104,7 +126,7 @@ public struct SMeterView: View {
     private var selection: MeterSelection { MeterSelection(rawValue: selectionRaw) ?? .po }
 
     private var needleFraction: Double {
-        ptt ? selection.fraction(from: readings) : SMeterScale.fraction(forStrengthDb: smeterDb)
+        ptt && !isSub ? selection.fraction(from: readings) : SMeterScale.fraction(forStrengthDb: smeterDb)
     }
 
     public var body: some View {
@@ -213,7 +235,7 @@ private enum MeterFace {
 
     static func draw(in context: inout GraphicsContext, size: CGSize, lower: MeterSelection) {
         let scale = size.width / designSize.width
-        context.scaleBy(x: scale, y: size.height / designSize.height)
+        context.scaleBy(x: scale, y: scale)
 
         // Dark ink on the lit face (printed scale, not glowing text).
         let blue = Color(red: 0.10, green: 0.25, blue: 0.75)
@@ -256,7 +278,7 @@ private enum MeterFace {
             at: point(fraction: 1.005, radialOffset: 0)
         )
 
-        // SWR scale.
+        // Lower scale (the rig's METER selection).
         context.draw(
             Text(lower.title).font(.system(size: 10, weight: .bold, design: .rounded)).foregroundStyle(white),
             at: CGPoint(x: 6, y: point(fraction: 0, radialOffset: swrLabelOffset - 2).y), anchor: .leading
@@ -296,7 +318,7 @@ private struct NeedleShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         let sx = rect.width / MeterFace.designSize.width
-        let sy = rect.height / MeterFace.designSize.height
+        let sy = sx
         let (base, tip) = MeterFace.needlePoints(fraction: fraction)
         var path = Path()
         path.move(to: CGPoint(x: rect.minX + base.x * sx, y: rect.minY + base.y * sy))
@@ -319,6 +341,12 @@ private struct NeedleShape: Shape {
 
 #Preview("TX SWR 1.5") {
     SMeterView(smeterDb: nil, swr: 1.5, ptt: true)
+        .frame(width: 280)
+        .padding()
+}
+
+#Preview("Sub") {
+    SMeterView(smeterDb: -20, swr: nil, ptt: false, isSub: true)
         .frame(width: 280)
         .padding()
 }

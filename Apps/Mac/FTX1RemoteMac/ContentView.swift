@@ -29,11 +29,13 @@ struct ContentView: View {
     @State private var isPTTPressed = false
     @AppStorage(ScopeDisplayMode.storageKey) private var scopeDisplayMode: ScopeDisplayMode = .waterfall
 
-    /// Matches `SMeterView`'s rendered height (locked to its 280:120
-    /// `MeterFace.designSize` aspect ratio at width 280) so the waterfall
-    /// lines up with it — there's no exported constant to reference
-    /// directly since that geometry is private to `SMeterView.swift`.
-    private let meterHeight: CGFloat = 120
+    /// Height of the waterfall/oscilloscope row. Shrunk from 120 (which
+    /// used to match the single S-meter) once the meters moved under the
+    /// VFO boxes.
+    private let scopeHeight: CGFloat = 96
+    /// Width of each VFO's S-meter; its height follows from `SMeterView`'s
+    /// fixed aspect ratio (280:120 Main, cropped for Sub).
+    private let meterWidth: CGFloat = 190
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -56,28 +58,34 @@ struct ContentView: View {
                 VFODisplayBox(label: "MAIN", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, txRxLabel: hub.rigState.splitEnabled == true ? "RX" : "TXRX", callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.vfoMemoryMode, memoryChannel: hub.rigState.memoryChannel, memoryChannelTag: hub.rigState.memoryChannelTag, onSetMemoryChannel: { hub.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepMemoryChannel(up: $0)) })
             }
 
+            // Per-VFO meter + audio controls, each under its own VFO box
+            // (Sub left, Main right, matching the row above). The fixed-width
+            // spacer stands in for the V/M and swap buttons' column so the
+            // two halves land roughly under their boxes.
+            HStack(alignment: .top, spacing: 12) {
+                channelControls(isSub: true)
+                Spacer().frame(width: 56)
+                channelControls(isSub: false)
+            }
+
             HStack(alignment: .bottom, spacing: 12) {
-                SMeterView(smeterDb: hub.rigState.smeterDb, swr: hub.rigState.swr, ptt: hub.rigState.ptt, powerWatts: hub.rigState.powerWatts, txMeters: hub.rigState.txMeters)
-                    .frame(width: 280)
                 VStack(alignment: .leading, spacing: 8) {
                     scopeDisplayModeButtons
                     Spacer(minLength: 0)
                     Text(swrLabel)
-                        .font(.system(.body, design: .monospaced))
+                        .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
                 }
-                .frame(width: 90, height: meterHeight)
-                audioLevelControls
-                    .frame(width: 156, height: meterHeight)
+                .frame(width: 90, height: scopeHeight)
                 zoomControls
-                    .frame(height: meterHeight)
+                    .frame(height: scopeHeight)
                 // `hub.scopeFrames` is a plain `let` on HubService, not
                 // `@Published` state, so reading it here adds no dependency —
                 // only ScopeDisplayView observes the store's per-frame
                 // updates (see ScopeFrameStore).
                 ScopeDisplayView(frames: hub.scopeFrames, mode: scopeDisplayMode, isActive: hub.connectionState == .connected)
                     .frame(maxWidth: .infinity)
-                    .frame(height: meterHeight)
+                    .frame(height: scopeHeight)
             }
 
             pttButton
@@ -247,23 +255,6 @@ struct ContentView: View {
             scopeDisplayModeButton("Waterfall", mode: .waterfall)
             scopeDisplayModeButton("Oscilloscope", mode: .oscilloscope)
             scopeDisplayModeButton("Off", mode: .off)
-            // Independent of scopeDisplayMode — these mute the Mac's own
-            // audio playback (see HubService.toggleMainAudioMuted()/
-            // toggleSubAudioMuted()), not the waterfall/oscilloscope
-            // display (there's still only one scope — dual waterfalls are
-            // future work, see repo CLAUDE.md), so they aren't part of
-            // that mutually-exclusive button group above; grouped visually
-            // with it since all live in this same side column. Shown in
-            // both `.local` and `.remote` now (2026-09-18) — Sub capture
-            // works in both, when the input device is stereo; if it isn't,
-            // Sub's button is just inert (see `HubService.isSubAudioMuted`'s
-            // doc comment), not hidden.
-            // Sub-then-Main left-to-right, matching the VFODisplayBox
-            // row above (SUB box on the left, MAIN box on the right).
-            HStack(spacing: 4) {
-                channelMuteButton(label: "Sub", isMuted: hub.isSubAudioMuted, action: hub.toggleSubAudioMuted)
-                channelMuteButton(label: "Main", isMuted: hub.isMainAudioMuted, action: hub.toggleMainAudioMuted)
-            }
         }
     }
 
@@ -298,33 +289,40 @@ struct ContentView: View {
         .buttonStyle(.plain)
     }
 
-    /// The Mac's own audio playback level controls (see
-    /// `HubService.mainAudioVolume`/`.mainSquelchThreshold`) — added once
-    /// the squelch default (0.02) turned out to gate quiet-but-real audio
-    /// out entirely with no way to adjust it from the Mac (only iPad had a
-    /// slider, on a value that isn't shared between devices). Independent
-    /// of the waterfall/oscilloscope/mute column, just grouped next to it.
-    /// Sub has its own pair, shown in both `.local` and `.remote` now
-    /// (2026-09-18) — same reasoning as the Sub mute button above.
-    private var audioLevelControls: some View {
-        // Sub-then-Main left-to-right, matching the VFODisplayBox row above
-        // (SUB box on the left, MAIN box on the right).
-        HStack(spacing: 6) {
-            VStack(spacing: 2) {
-                Text("SUB").font(.caption2).foregroundStyle(.secondary)
-                HStack(spacing: 6) {
-                    verticalSlider(value: subSquelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
-                    verticalSlider(value: subVolumeBinding, label: "VOL")
+    /// One VFO's meter and audio playback controls, laid out under its VFO
+    /// box: the S-meter on the left, Mute plus horizontal SQL/VOL sliders
+    /// (see `HubService.mainAudioVolume`/`.mainSquelchThreshold` and the Sub
+    /// equivalents) on the right. The sliders exist because the squelch
+    /// default (0.02) gated quiet-but-real audio out with no Mac-side way
+    /// to adjust it; Sub's are shown in both `.local` and `.remote` (Sub
+    /// capture works in both when the input device is stereo — otherwise
+    /// they're just inert, see `HubService.isSubAudioMuted`). Independent of
+    /// the waterfall/oscilloscope, which mute/volume don't affect.
+    private func channelControls(isSub: Bool) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            SMeterView(
+                smeterDb: isSub ? hub.rigState.subSmeterDb : hub.rigState.smeterDb,
+                swr: hub.rigState.swr,
+                ptt: hub.rigState.ptt,
+                powerWatts: hub.rigState.powerWatts,
+                txMeters: hub.rigState.txMeters,
+                isSub: isSub
+            )
+            .frame(width: meterWidth)
+            VStack(spacing: 4) {
+                if isSub {
+                    channelMuteButton(label: "Mute", isMuted: hub.isSubAudioMuted, action: hub.toggleSubAudioMuted)
+                    horizontalSlider(value: subSquelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
+                    horizontalSlider(value: subVolumeBinding, label: "VOL")
+                } else {
+                    channelMuteButton(label: "Mute", isMuted: hub.isMainAudioMuted, action: hub.toggleMainAudioMuted)
+                    horizontalSlider(value: mainSquelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
+                    horizontalSlider(value: mainVolumeBinding, label: "VOL")
                 }
             }
-            VStack(spacing: 2) {
-                Text("MAIN").font(.caption2).foregroundStyle(.secondary)
-                HStack(spacing: 6) {
-                    verticalSlider(value: mainSquelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
-                    verticalSlider(value: mainVolumeBinding, label: "VOL")
-                }
-            }
+            .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity)
     }
 
     /// Upper bound of the squelch slider's *displayed* range — chosen to
@@ -362,23 +360,14 @@ struct ContentView: View {
         Binding(get: { hub.subAudioVolume }, set: { hub.subAudioVolume = $0 })
     }
 
-    /// SwiftUI's `Slider` has no vertical orientation of its own — the
-    /// standard way to get one is laying it out horizontally at the target
-    /// length, then rotating the whole thing 90°. `GeometryReader` supplies
-    /// that target length from whatever space this view is actually given
-    /// (here, `audioLevelControls`' `.frame(width: 70, height: meterHeight)`
-    /// in the caller) rather than a hardcoded constant.
-    private func verticalSlider(value: Binding<Float>, label: String, range: ClosedRange<Float> = 0...1) -> some View {
-        VStack(spacing: 4) {
-            GeometryReader { geometry in
-                Slider(value: value, in: range)
-                    .frame(width: geometry.size.height)
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-            }
+    private func horizontalSlider(value: Binding<Float>, label: String, range: ClosedRange<Float> = 0...1) -> some View {
+        HStack(spacing: 6) {
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .frame(width: 26, alignment: .leading)
+            Slider(value: value, in: range)
+                .controlSize(.small)
         }
     }
 
