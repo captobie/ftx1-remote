@@ -29,10 +29,9 @@ struct ContentView: View {
     @State private var isPTTPressed = false
     @AppStorage(ScopeDisplayMode.storageKey) private var scopeDisplayMode: ScopeDisplayMode = .waterfall
 
-    /// Height of the waterfall/oscilloscope row. Shrunk from 120 (which
-    /// used to match the single S-meter) once the meters moved under the
-    /// VFO boxes.
-    private let scopeHeight: CGFloat = 96
+    /// Height of the waterfall/oscilloscope, matching the S-meters
+    /// (`meterWidth` at `SMeterView`'s 280:120 aspect) since they share a row.
+    private let scopeHeight: CGFloat = 190 * 120 / 280
     /// Width of each VFO's S-meter; its height follows from `SMeterView`'s
     /// fixed aspect ratio (280:120 Main, cropped for Sub).
     private let meterWidth: CGFloat = 190
@@ -51,41 +50,43 @@ struct ContentView: View {
                 Spacer()
             }
 
-            HStack(spacing: 12) {
-                VFODisplayBox(label: "SUB", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: false, mode: hub.rigState.secondaryMode?.displayName ?? "—", txRxLabel: "RX", callsign: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsSubActive ? hub.rigState.aprsSubLastCallsign : nil), reflector: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsSubActive, onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) })
-                vmToggleButton
-                vfoSwapButton
-                VFODisplayBox(label: "MAIN", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, txRxLabel: hub.rigState.splitEnabled == true ? "RX" : "TXRX", callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.vfoMemoryMode, memoryChannel: hub.rigState.memoryChannel, memoryChannelTag: hub.rigState.memoryChannelTag, onSetMemoryChannel: { hub.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepMemoryChannel(up: $0)) })
-            }
-
-            // Per-VFO meter + audio controls, each under its own VFO box
-            // (Sub left, Main right, matching the row above). The fixed-width
-            // spacer stands in for the V/M and swap buttons' column so the
-            // two halves land roughly under their boxes.
-            HStack(alignment: .top, spacing: 12) {
-                channelControls(isSub: true)
-                Spacer().frame(width: 56)
-                channelControls(isSub: false)
-            }
-
-            HStack(alignment: .bottom, spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
-                    scopeDisplayModeButtons
-                    Spacer(minLength: 0)
-                    Text(swrLabel)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
+            // A Grid so each VFO's meter/audio row shares a column with its
+            // VFO box (Sub left, Main right) and the waterfall/oscilloscope
+            // sits between the two meters. The middle column's top line
+            // (V/M, swap, room for more buttons later) is top-aligned with
+            // the VFO boxes; the scope mode buttons sit below it.
+            Grid(horizontalSpacing: 12, verticalSpacing: 6) {
+                GridRow(alignment: .top) {
+                    VFODisplayBox(label: "SUB", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: false, mode: hub.rigState.secondaryMode?.displayName ?? "—", txRxLabel: "RX", callsign: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsSubActive ? hub.rigState.aprsSubLastCallsign : nil), reflector: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsSubActive, onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) })
+                    VStack(spacing: 8) {
+                        HStack(spacing: 12) {
+                            vmToggleButton
+                            vfoSwapButton
+                        }
+                        HStack(spacing: 8) {
+                            scopeDisplayModeButtons
+                            Text(swrLabel)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
+                                .fixedSize()
+                        }
+                    }
+                    VFODisplayBox(label: "MAIN", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, txRxLabel: hub.rigState.splitEnabled == true ? "RX" : "TXRX", callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.vfoMemoryMode, memoryChannel: hub.rigState.memoryChannel, memoryChannelTag: hub.rigState.memoryChannelTag, onSetMemoryChannel: { hub.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepMemoryChannel(up: $0)) })
                 }
-                .frame(width: 90, height: scopeHeight)
-                zoomControls
+                GridRow(alignment: .top) {
+                    channelControls(isSub: true)
+                    HStack(spacing: 8) {
+                        zoomControls
+                        // `hub.scopeFrames` is a plain `let` on HubService, not
+                        // `@Published` state, so reading it here adds no
+                        // dependency — only ScopeDisplayView observes the
+                        // store's per-frame updates (see ScopeFrameStore).
+                        ScopeDisplayView(frames: hub.scopeFrames, mode: scopeDisplayMode, isActive: hub.connectionState == .connected)
+                            .frame(maxWidth: .infinity)
+                    }
                     .frame(height: scopeHeight)
-                // `hub.scopeFrames` is a plain `let` on HubService, not
-                // `@Published` state, so reading it here adds no dependency —
-                // only ScopeDisplayView observes the store's per-frame
-                // updates (see ScopeFrameStore).
-                ScopeDisplayView(frames: hub.scopeFrames, mode: scopeDisplayMode, isActive: hub.connectionState == .connected)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: scopeHeight)
+                    channelControls(isSub: false)
+                }
             }
 
             pttButton
@@ -251,7 +252,7 @@ struct ContentView: View {
     }
 
     private var scopeDisplayModeButtons: some View {
-        VStack(spacing: 4) {
+        HStack(spacing: 4) {
             scopeDisplayModeButton("Waterfall", mode: .waterfall)
             scopeDisplayModeButton("Oscilloscope", mode: .oscilloscope)
             scopeDisplayModeButton("Off", mode: .off)
@@ -308,7 +309,7 @@ struct ContentView: View {
                 txMeters: hub.rigState.txMeters,
                 isSub: isSub
             )
-            .frame(width: meterWidth)
+            .frame(width: meterWidth, height: meterWidth * 120 / 280)
             VStack(spacing: 4) {
                 if isSub {
                     channelMuteButton(label: "Mute", isMuted: hub.isSubAudioMuted, action: hub.toggleSubAudioMuted)
