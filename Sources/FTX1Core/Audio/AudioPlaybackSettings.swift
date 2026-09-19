@@ -74,4 +74,15 @@ public enum AudioPlaybackSettings {
         get { UserDefaults.standard.bool(forKey: subIsMutedKey) }
         set { UserDefaults.standard.set(newValue, forKey: subIsMutedKey) }
     }
+
+    /// Whether the rig's left/right USB audio channels are currently
+    /// swapped relative to the app's Main/Sub roles — Mac hub only (see
+    /// `HubService.audioChannelsSwapped`). Persisted because the rig's own
+    /// state persists across app launches, so the best guess at relaunch is
+    /// "whatever it was when the app last ran."
+    public static let channelsSwappedKey = "audio.channelsSwapped"
+    public static var channelsSwapped: Bool {
+        get { UserDefaults.standard.bool(forKey: channelsSwappedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: channelsSwappedKey) }
+    }
 }

@@ -208,10 +208,17 @@ final class AudioCaptureEngine {
         // — `HubService.onSubChannelSamples` feeds it to `subAudioPlayback`
         // and the independent `aprsDecoderSub` (see repo CLAUDE.md, "Dual
         // Main/Sub audio channels").
-        let client = RemoteAudioStreamClient(host: RigctldSettings.remoteHost) { [weak self] main, sub, sampleRate in
-            self?.process(samples: main, sampleRate: sampleRate, bitmap: bitmap, gain: gain)
-            self?.deliverSubChannelSamples(sub, sampleRate: sampleRate)
-            self?.logChannelDiagnostics(source: "remote", channelCount: 2, main: main, sub: sub)
+        let client = RemoteAudioStreamClient(host: RigctldSettings.remoteHost) { [weak self] left, right, sampleRate in
+            guard let self else { return }
+            // `left`/`right` are the rig's physical L/R channels; which of
+            // them is the Main *role* depends on `channelsSwapped` (see its
+            // doc comment).
+            let swapped = self.channelsSwapped.get()
+            let main = swapped ? right : left
+            let sub = swapped ? left : right
+            self.process(samples: main, sampleRate: sampleRate, bitmap: bitmap, gain: gain)
+            self.deliverSubChannelSamples(sub, sampleRate: sampleRate)
+            self.logChannelDiagnostics(source: "remote", channelCount: 2, swapped: swapped, main: main, sub: sub)
         }
         remoteClient = client
         Task { await client.start() }
@@ -243,14 +250,14 @@ final class AudioCaptureEngine {
     /// reporting stereo" (`channelCount` stays 1, `sub` is `nil`) apart
     /// from "capture is fine, something downstream of it is silent"
     /// (`channelCount` is 2 and the RMS values look sane).
-    nonisolated private func logChannelDiagnostics(source: String, channelCount: Int, main: [Float], sub: [Float]?) {
+    nonisolated private func logChannelDiagnostics(source: String, channelCount: Int, swapped: Bool, main: [Float], sub: [Float]?) {
         let count = channelDiagnosticsCounter.get() + 1
         channelDiagnosticsCounter.set(count)
         guard count % 43 == 0 else { return }
         let mainRMS = Self.rms(main)
         if let sub {
             let subRMS = Self.rms(sub)
-            Self.logger.notice("stereo check (\(source, privacy: .public)) — channels=\(channelCount, privacy: .public) main RMS=\(mainRMS, format: .fixed(precision: 4)) sub RMS=\(subRMS, format: .fixed(precision: 4))")
+            Self.logger.notice("stereo check (\(source, privacy: .public)) — channels=\(channelCount, privacy: .public) swapped=\(swapped, privacy: .public) main RMS=\(mainRMS, format: .fixed(precision: 4)) sub RMS=\(subRMS, format: .fixed(precision: 4))")
         } else {
             Self.logger.notice("stereo check (\(source, privacy: .public)) — channels=\(channelCount, privacy: .public), no Sub (mono input device)")
         }
@@ -381,6 +388,23 @@ final class AudioCaptureEngine {
         displayEnabled.set(enabled)
     }
 
+    /// Whether the physical left/right channels are currently swapped
+    /// relative to the Main/Sub *roles* every consumer downstream sees
+    /// (`onAudioSamples`/waterfall = Main role, `onSubChannelSamples` = Sub
+    /// role). Observed on real hardware (2026-09-19): the rig's L/R audio
+    /// stays with a physical receiver when Main/Sub swap (the `SV` command,
+    /// or the front-panel button), while the frequencies follow the swap —
+    /// so without this the audio kept playing under the wrong VFO's
+    /// controls, APRS gate, FT8 dial frequency and waterfall.
+    /// `HubService` owns the tracking (see `HubService.audioChannelsSwapped`)
+    /// and pushes it here. Takes effect on the next buffer; same lifetime/
+    /// locking reasoning as the zooms above.
+    private let channelsSwapped = Locked<Bool>(false)
+
+    func setChannelsSwapped(_ swapped: Bool) {
+        channelsSwapped.set(swapped)
+    }
+
     /// Idempotent — safe to call when not running (e.g. `HubService`
     /// calls this defensively on every path out of `.connected`), and
     /// safe to call while a permission decision is still pending from
@@ -420,21 +444,29 @@ final class AudioCaptureEngine {
         let frameCount = Int(buffer.frameLength)
         guard frameCount > 0 else { return }
 
-        var mainSamples = [Float](repeating: 0, count: frameCount)
-        mainSamples.withUnsafeMutableBufferPointer { dest in
+        var left = [Float](repeating: 0, count: frameCount)
+        left.withUnsafeMutableBufferPointer { dest in
             dest.baseAddress!.update(from: channelData[0], count: frameCount)
         }
 
-        var subSamples: [Float]?
+        var right: [Float]?
         if buffer.format.channelCount >= 2 {
             var samples = [Float](repeating: 0, count: frameCount)
             samples.withUnsafeMutableBufferPointer { dest in
                 dest.baseAddress!.update(from: channelData[1], count: frameCount)
             }
-            deliverSubChannelSamples(samples, sampleRate: buffer.format.sampleRate)
-            subSamples = samples
+            right = samples
         }
-        logChannelDiagnostics(source: "local", channelCount: Int(buffer.format.channelCount), main: mainSamples, sub: subSamples)
+
+        // Role assignment — see `channelsSwapped`. A mono device has no
+        // right channel to swap with, so it always stays Main.
+        let swapped = channelsSwapped.get() && right != nil
+        let mainSamples = swapped ? right! : left
+        let subSamples: [Float]? = swapped ? left : right
+        if let subSamples {
+            deliverSubChannelSamples(subSamples, sampleRate: buffer.format.sampleRate)
+        }
+        logChannelDiagnostics(source: "local", channelCount: Int(buffer.format.channelCount), swapped: swapped, main: mainSamples, sub: subSamples)
 
         process(samples: mainSamples, sampleRate: buffer.format.sampleRate, bitmap: bitmap, gain: gain)
     }

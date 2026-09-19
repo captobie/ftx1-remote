@@ -62,6 +62,7 @@ struct ContentView: View {
                         HStack(spacing: 12) {
                             vmToggleButton
                             vfoSwapButton
+                            audioChannelSwapButton
                         }
                         HStack(spacing: 8) {
                             scopeDisplayModeButtons
@@ -179,6 +180,27 @@ struct ContentView: View {
             Image(systemName: "arrow.left.arrow.right")
         }
         .buttonStyle(.bordered)
+    }
+
+    /// Manual override for which physical audio channel (L/R) plays under
+    /// the Main/Sub controls — see `HubService.audioChannelsSwapped`. The
+    /// app tracks swaps on its own, but the rig has no readout of the true
+    /// mapping, so this is the escape hatch when the tracked state has
+    /// drifted (a front-panel swap made while the app wasn't running).
+    /// Highlighted while the channels are swapped relative to the default.
+    private var audioChannelSwapButton: some View {
+        Button {
+            hub.toggleAudioChannelsSwapped()
+        } label: {
+            Image(systemName: "speaker.wave.2")
+                .foregroundStyle(hub.audioChannelsSwapped ? Color.white : Color.primary)
+                .padding(.horizontal, 2)
+        }
+        .buttonStyle(.bordered)
+        .tint(hub.audioChannelsSwapped ? .orange : nil)
+        .help(hub.audioChannelsSwapped
+              ? "Audio channels are swapped relative to the rig's default (L=Main, R=Sub). Click to swap back."
+              : "Swap which audio channel plays as Main and Sub — use if the audio doesn't match the VFO it's under.")
     }
 
     /// Toggles VFO A between VFO and Memory-channel mode — the rig's own

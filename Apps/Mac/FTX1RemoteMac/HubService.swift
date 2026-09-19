@@ -76,6 +76,24 @@ final class HubService: ObservableObject {
     /// Not persisted-shared with iPad — iPad's audio relay is still
     /// Main-only.
     @Published private(set) var isSubAudioMuted = AudioPlaybackSettings.subIsMuted
+    /// Whether the rig's physical left/right USB audio channels are swapped
+    /// relative to the app's Main/Sub roles. Hardware finding, 2026-09-19:
+    /// when Main/Sub swap (the `SV` command this app sends, or the rig's
+    /// front-panel swap button), the frequencies/modes follow the swap but
+    /// the rig's L/R audio stays with the physical receiver — so a swap
+    /// leaves the Main-role audio (and everything hung off it: waterfall,
+    /// playback controls, the APRS gate, FT8's dial frequency, the iPad
+    /// relay) playing the *other* VFO's signal. The fix is tracking that
+    /// parity here and telling `AudioCaptureEngine` to exchange the two
+    /// channels before anything downstream sees them (see its
+    /// `channelsSwapped`). Flipped by (1) `applyOptimistically`'s
+    /// `.swapActiveVFO`, (2) `trackExternalSwap` noticing the polled
+    /// frequencies exchange with no app command involved (a front-panel
+    /// swap), and (3) the manual override button in `ContentView` — the
+    /// rig exposes no readout of the true mapping, so (2) is a heuristic
+    /// and the app can't know the state of a swap made while it wasn't
+    /// running. Persisted across launches for the same reason.
+    @Published private(set) var audioChannelsSwapped = AudioPlaybackSettings.channelsSwapped
     /// Both bound directly by the Mac's Main squelch/volume sliders
     /// (`ContentView`) — plain read-write `@Published`, not `private(set)`,
     /// since SwiftUI needs a two-way `Binding` to a slider's value. `didSet`
@@ -226,6 +244,14 @@ final class HubService: ObservableObject {
     /// Sub-channel counterpart to `aprsLastCallsignHeard`, surfaced the
     /// same way as `RigState.aprsSubLastCallsign`.
     private var aprsLastCallsignHeardSub: (callsign: String, at: Date)?
+    /// Baseline for `trackExternalSwap`: the most recent polled Main/Sub
+    /// frequency pair where the two differed (a swap of equal frequencies is
+    /// unobservable, and a transient equal pair mid-poll shouldn't erase the
+    /// baseline). Reset by any app-issued tuning command or a Memory-mode
+    /// poll, since those legitimately produce pairs that could otherwise
+    /// look like an exchange.
+    private var lastDistinctFrequencies: (main: Int, sub: Int)?
+    private static let audioRoutingLogger = Logger(subsystem: "com.ftx1remote.mac", category: "audio-routing")
 
     /// Bumped by `applyOptimistically` every time a command lands.
     /// `refreshFastTier`/`refreshSlowTier` (the two halves the poll cycle is
@@ -305,6 +331,7 @@ final class HubService: ObservableObject {
             self?.scopeFrames.update(frame)
         }
         audioCapture.setDisplayEnabled(ScopeDisplayMode.persisted != .off)
+        audioCapture.setChannelsSwapped(audioChannelsSwapped)
         audioCapture.onAudioSamples = { [weak self] samples, sampleRate in
             guard let self else { return }
 
@@ -694,8 +721,12 @@ final class HubService: ObservableObject {
     private func applyOptimistically(_ command: RigCommand) {
         commandGeneration += 1
         switch command {
-        case .setFrequency(let hz): rigState.frequencyHz = hz
-        case .setSecondaryFrequency(let hz): rigState.secondaryFrequencyHz = hz
+        case .setFrequency(let hz):
+            rigState.frequencyHz = hz
+            lastDistinctFrequencies = nil
+        case .setSecondaryFrequency(let hz):
+            rigState.secondaryFrequencyHz = hz
+            lastDistinctFrequencies = nil
         case .swapActiveVFO:
             let freq = rigState.frequencyHz
             rigState.frequencyHz = rigState.secondaryFrequencyHz ?? freq
@@ -703,6 +734,15 @@ final class HubService: ObservableObject {
             if let newMode = rigState.secondaryMode {
                 rigState.secondaryMode = rigState.mode
                 rigState.mode = newMode
+            }
+            setAudioChannelsSwapped(!audioChannelsSwapped, reason: "app swap command")
+            // The frequencies just exchanged on purpose — re-baseline so the
+            // next poll (which reads the already-swapped values) isn't
+            // mistaken for a second, front-panel swap.
+            if let sub = rigState.secondaryFrequencyHz, sub != rigState.frequencyHz {
+                lastDistinctFrequencies = (rigState.frequencyHz, sub)
+            } else {
+                lastDistinctFrequencies = nil
             }
         case .setMode(let mode): rigState.mode = mode
         case .setPTT(let on): rigState.ptt = on
@@ -912,6 +952,41 @@ final class HubService: ObservableObject {
     func toggleSubAudioMuted() {
         isSubAudioMuted.toggle()
         AudioPlaybackSettings.subIsMuted = isSubAudioMuted
+    }
+
+    /// The manual override for `audioChannelsSwapped` — for when the tracked
+    /// state has drifted from the rig's real one (e.g. a swap made on the
+    /// front panel while the app wasn't running, or one the heuristic in
+    /// `trackExternalSwap` couldn't see).
+    func toggleAudioChannelsSwapped() {
+        setAudioChannelsSwapped(!audioChannelsSwapped, reason: "manual toggle")
+    }
+
+    private func setAudioChannelsSwapped(_ swapped: Bool, reason: String) {
+        guard swapped != audioChannelsSwapped else { return }
+        audioChannelsSwapped = swapped
+        AudioPlaybackSettings.channelsSwapped = swapped
+        audioCapture.setChannelsSwapped(swapped)
+        Self.audioRoutingLogger.notice("audio channels swapped=\(swapped, privacy: .public) (\(reason, privacy: .public)) — main \(self.rigState.frequencyHz, privacy: .public) Hz, sub \(self.rigState.secondaryFrequencyHz.map(String.init) ?? "unknown", privacy: .public) Hz")
+    }
+
+    /// Notices a swap nobody told the app about (the rig's front-panel swap
+    /// button): both polled frequencies exchange at once, relative to the
+    /// last pair where they differed. Called from `refreshFastTier` with the
+    /// freshly-read values, before they're published. `sub` is `nil` when
+    /// that read failed — then there's nothing to compare, and the baseline
+    /// is left alone. Anything but plain VFO mode resets the baseline: in
+    /// Memory mode "Main" is a channel's frequency, not a VFO's.
+    private func trackExternalSwap(main: Int, sub: Int?, inVFOMode: Bool) {
+        guard inVFOMode else {
+            lastDistinctFrequencies = nil
+            return
+        }
+        guard let sub, sub != main else { return }
+        if let last = lastDistinctFrequencies, main == last.sub, sub == last.main {
+            setAudioChannelsSwapped(!audioChannelsSwapped, reason: "front-panel swap detected (\(last.main)/\(last.sub) → \(main)/\(sub) Hz)")
+        }
+        lastDistinctFrequencies = (main, sub)
     }
 
     /// macOS App Nap throttles background GCD/dispatch scheduling for a
@@ -1211,6 +1286,14 @@ final class HubService: ObservableObject {
         } else if let segment {
             BandMemory.recordFrequencyHz(frequencyHz, forBand: segment.name)
         }
+
+        // Must run before the new values are published: compares them to the
+        // baseline from previous polls (see `trackExternalSwap`).
+        trackExternalSwap(
+            main: frequencyHz,
+            sub: secondaryFrequencyHz,
+            inVFOMode: vfoMemoryModeRaw.map(VFOMemoryMode.init(rawP2:)) == .vfo && rigState.vfoMemoryMode == .vfo
+        )
 
         let aprsActive = APRSSettings.isActive(atFrequencyHz: frequencyHz)
         // Read back as `nil` once 5 seconds have passed since the last

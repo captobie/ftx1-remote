@@ -483,6 +483,40 @@ re-architecture.
     (Mac, iPad, iOS) build clean against the shared `RigClientViewModel`/
     `AudioStreamFormat` changes.
 
+  - **Swap tracking — audio follows the swap (2026-09-19, hardware-tested,
+    one known gap)**: user-reported bug — after a Main/Sub swap
+    (the app's `SV` swap button, or the rig's front-panel swap) the
+    frequencies/modes followed but the audio did not: the rig's L/R USB
+    channels evidently stay with the physical receiver, so the Main-role
+    audio (waterfall, Main mute/volume/squelch, the Main APRS gate, FT8's
+    dial frequency, the iPad relay) kept playing the *other* VFO's signal.
+    Fix: `HubService.audioChannelsSwapped` (persisted via
+    `AudioPlaybackSettings.channelsSwapped`) tracks the L/R↔Main/Sub
+    parity and is pushed to `AudioCaptureEngine.setChannelsSwapped`, which
+    exchanges the two channels *before* anything downstream sees them, in
+    both the `.local` tap and the `.remote` client closure — so every
+    consumer follows automatically and none needed to change. The flag
+    flips on (1) `applyOptimistically(.swapActiveVFO)`, (2)
+    `trackExternalSwap`, a heuristic for front-panel swaps: both polled
+    frequencies exchange at once relative to the last pair where they
+    differed (baseline reset by app tuning commands and Memory-mode polls;
+    equal-frequency swaps are unobservable), and (3) a manual override
+    button (speaker icon next to the swap button, orange while swapped).
+    The rig exposes no readout of the true mapping, hence the heuristic and
+    the override; a swap made while the app wasn't running is why the flag
+    persists across launches. Each flip logs to Console (subsystem
+    "com.ftx1remote.mac", category "audio-routing"), and the `stereo check`
+    line now includes `swapped=`. **Hardware results (user, 2026-09-19)**:
+    dual-VFO swap via the app, dual-VFO swap on the radio, and single-VFO
+    swap on the radio all worked with no intervention. **Known gap**:
+    single-VFO swap via the app needed the manual override button — the
+    auto-flip on the app's swap command evidently doesn't match how the rig
+    routes audio in single-VFO display. Not root-caused (a possible fix is
+    skipping the flip when the rig is in single-VFO display, but the app
+    has no readout of that display mode today). **Still unverified**: that the mapping really is a simple parity flipped by each
+    swap; that `VS` (active-side select) doesn't move the audio; and how
+    the rig routes audio in single-VFO display while swapped.
+
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
 A Windows app with the same kind of functionality as the Mac app, but
