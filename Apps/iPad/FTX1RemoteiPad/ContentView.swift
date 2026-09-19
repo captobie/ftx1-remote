@@ -41,7 +41,7 @@ struct ContentView: View {
                 }
 
                 HStack(alignment: .bottom, spacing: 12) {
-                    SMeterView(smeterDb: viewModel.rigState.smeterDb, swr: viewModel.rigState.swr, ptt: viewModel.rigState.ptt)
+                    SMeterView(smeterDb: viewModel.rigState.smeterDb, swr: viewModel.rigState.swr, ptt: viewModel.rigState.ptt, powerWatts: viewModel.rigState.powerWatts, txMeters: viewModel.rigState.txMeters)
                         .frame(width: 280)
                     Text(swrLabel)
                         .font(.system(.body, design: .monospaced))

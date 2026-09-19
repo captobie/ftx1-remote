@@ -1148,6 +1148,18 @@ final class HubService: ObservableObject {
         let smeterDb = try? await rigctld.getLevel("STRENGTH")
         let powerWatts = try? await rigctld.getLevel("RFPOWER_METER_WATTS")
         let powerLevel = try? await rigctld.getLevel("RFPOWER")
+        // COMP/ALC/ID/VDD have no hamlib level, so they come from raw CAT
+        // "RM". Only meaningful while transmitting, so only read then —
+        // 4 extra round trips per tick aren't worth paying in RX.
+        var txMeters: TXMeterReadings?
+        if ptt == true {
+            txMeters = TXMeterReadings(
+                comp: try? await rigctld.getMeterReading(3),
+                alc: try? await rigctld.getMeterReading(4),
+                idd: try? await rigctld.getMeterReading(7),
+                vdd: try? await rigctld.getMeterReading(8)
+            )
+        }
         let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
         let secondaryModeName = try? await rigctld.getSecondaryMode()
         // Same staleness gap as the primary mode read above — see `isC4FM`
@@ -1225,6 +1237,7 @@ final class HubService: ObservableObject {
         rigState.secondaryMode = isSecondaryC4FM ? .c4fm : (secondaryModeName.flatMap(RigMode.init(rawValue:)) ?? rigState.secondaryMode)
         rigState.powerLevel = powerLevel
         rigState.smeterDb = smeterDb
+        rigState.txMeters = txMeters
         rigState.aprsActive = aprsActive
         rigState.aprsLastCallsign = aprsLastCallsign
         rigState.aprsSubActive = aprsSubActive

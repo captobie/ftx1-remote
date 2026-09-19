@@ -104,6 +104,9 @@ public struct RigState: Codable, Equatable, Sendable {
     /// transmitting — so the meter needle can fall to rest rather than
     /// freeze on a stale value.
     public var smeterDb: Double?
+    /// Raw COMP/ALC/ID/VDD meter values (CAT "RM"), read only while
+    /// transmitting; nil otherwise so the needle falls to rest.
+    public var txMeters: TXMeterReadings?
     /// Auto notch (DNF) on/off (the FTX-1's raw "BC" CAT command, P1 fixed
     /// to MAIN-side).
     public var dnfEnabled: Bool?

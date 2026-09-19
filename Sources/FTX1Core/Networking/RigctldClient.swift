@@ -427,6 +427,17 @@ public actor RigctldClient {
         return Int(digits)
     }
 
+    /// Reads one meter via CAT "RM" (READ METER): "RM<P1>;" answers
+    /// "RM<P1><P2 x3><P3 x3>;" — P2 (000-255) is the value. P1: 3 COMP,
+    /// 4 ALC, 5 PO, 6 SWR, 7 IDD, 8 VDD. `getRawInt` can't be used since
+    /// P2 and P3 run together as one digit string.
+    public func getMeterReading(_ p1: Int) async throws -> Int? {
+        let cmd = "RM\(p1)"
+        let reply = try await sendRawCommand(cmd)
+        guard reply.hasPrefix(cmd) else { return nil }
+        return Int(reply.dropFirst(cmd.count).prefix(3))
+    }
+
     /// Sets a fixed-width, zero-padded numeric CAT setting of the form
     /// "<CMD><digits>;" — see `getRawInt(_:)`. `digits` is the field width
     /// (e.g. 3 for "KS004;", 2 for "KP00;"), per the manual.

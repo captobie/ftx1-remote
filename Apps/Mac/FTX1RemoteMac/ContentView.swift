@@ -57,7 +57,7 @@ struct ContentView: View {
             }
 
             HStack(alignment: .bottom, spacing: 12) {
-                SMeterView(smeterDb: hub.rigState.smeterDb, swr: hub.rigState.swr, ptt: hub.rigState.ptt)
+                SMeterView(smeterDb: hub.rigState.smeterDb, swr: hub.rigState.swr, ptt: hub.rigState.ptt, powerWatts: hub.rigState.powerWatts, txMeters: hub.rigState.txMeters)
                     .frame(width: 280)
                 VStack(alignment: .leading, spacing: 8) {
                     scopeDisplayModeButtons

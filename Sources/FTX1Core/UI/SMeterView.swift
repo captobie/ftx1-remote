@@ -86,23 +86,31 @@ public enum SMeterScale {
 /// (like `VFODisplayBox`, whose dark-box styling this matches).
 public struct SMeterView: View {
     let smeterDb: Double?
-    let swr: Double?
+    let readings: MeterReadings
     let ptt: Bool
 
-    public init(smeterDb: Double?, swr: Double?, ptt: Bool) {
+    /// Which reading the lower scale shows while transmitting — picked by
+    /// tapping the meter, like the rig (see `MeterSelection`). Default PO,
+    /// same as the rig's.
+    @AppStorage(MeterSettings.key) private var selectionRaw = MeterSelection.po.rawValue
+    @State private var showingPicker = false
+
+    public init(smeterDb: Double?, swr: Double?, ptt: Bool, powerWatts: Double? = nil, txMeters: TXMeterReadings? = nil) {
         self.smeterDb = smeterDb
-        self.swr = swr
+        self.readings = MeterReadings(powerWatts: powerWatts, swr: swr, tx: txMeters)
         self.ptt = ptt
     }
 
+    private var selection: MeterSelection { MeterSelection(rawValue: selectionRaw) ?? .po }
+
     private var needleFraction: Double {
-        ptt ? SMeterScale.fraction(forSWR: swr) : SMeterScale.fraction(forStrengthDb: smeterDb)
+        ptt ? selection.fraction(from: readings) : SMeterScale.fraction(forStrengthDb: smeterDb)
     }
 
     public var body: some View {
         ZStack {
             Canvas { context, size in
-                MeterFace.draw(in: &context, size: size)
+                MeterFace.draw(in: &context, size: size, lower: selection)
             }
             NeedleShape(fraction: needleFraction)
                 .stroke(Color.red, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
@@ -124,6 +132,35 @@ public struct SMeterView: View {
                 .strokeBorder(Color.gray.opacity(0.6), lineWidth: 1.5)
         )
         .aspectRatio(MeterFace.designSize.width / MeterFace.designSize.height, contentMode: .fit)
+        .contentShape(Rectangle())
+        .onTapGesture { showingPicker = true }
+        .popover(isPresented: $showingPicker) {
+            MeterPickerView(selection: selection) {
+                selectionRaw = $0.rawValue
+                showingPicker = false
+            }
+        }
+    }
+}
+
+/// The rig's METER selector (manual p.20), recreated as a popover grid.
+private struct MeterPickerView: View {
+    let selection: MeterSelection
+    let onPick: (MeterSelection) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("METER").font(.headline)
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(70), spacing: 8), count: 3), spacing: 8) {
+                ForEach(MeterSelection.allCases, id: \.self) { item in
+                    Button(item.title) { onPick(item) }
+                        .buttonStyle(.borderedProminent)
+                        .tint(item == selection ? .accentColor : .gray)
+                        .help(item.detail)
+                }
+            }
+        }
+        .padding(14)
     }
 }
 
@@ -174,7 +211,7 @@ private enum MeterFace {
         )
     }
 
-    static func draw(in context: inout GraphicsContext, size: CGSize) {
+    static func draw(in context: inout GraphicsContext, size: CGSize, lower: MeterSelection) {
         let scale = size.width / designSize.width
         context.scaleBy(x: scale, y: size.height / designSize.height)
 
@@ -221,10 +258,16 @@ private enum MeterFace {
 
         // SWR scale.
         context.draw(
-            Text("SWR").font(.system(size: 10, weight: .bold, design: .rounded)).foregroundStyle(white),
+            Text(lower.title).font(.system(size: 10, weight: .bold, design: .rounded)).foregroundStyle(white),
             at: CGPoint(x: 6, y: point(fraction: 0, radialOffset: swrLabelOffset - 2).y), anchor: .leading
         )
-        for (label, fraction) in SMeterScale.swrTicks {
+        if let unit = lower.unit {
+            context.draw(
+                Text(unit).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(white),
+                at: point(fraction: 0.97, radialOffset: swrLabelOffset)
+            )
+        }
+        for (label, fraction) in lower.ticks {
             context.draw(
                 Text(label).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(white),
                 at: point(fraction: fraction, radialOffset: swrLabelOffset)
