@@ -106,14 +106,22 @@ public struct SMeterView: View {
             }
             NeedleShape(fraction: needleFraction)
                 .stroke(Color.red, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                .shadow(color: .red.opacity(0.6), radius: 1.5)
+                .shadow(color: .black.opacity(0.3), radius: 1.5, x: 1, y: 1)
         }
         .animation(.easeOut(duration: 0.4), value: needleFraction)
+        .background(MeterFace.backlight)
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.black))
+        .overlay(
+            // Recessed-bezel shading: darkens the rim so the lit face
+            // reads as sitting behind glass.
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.black.opacity(0.55), lineWidth: 3)
+                .blur(radius: 2)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(Color.gray.opacity(0.4), lineWidth: 1.5)
+                .strokeBorder(Color.gray.opacity(0.6), lineWidth: 1.5)
         )
         .aspectRatio(MeterFace.designSize.width / MeterFace.designSize.height, contentMode: .fit)
     }
@@ -149,12 +157,30 @@ private enum MeterFace {
         return CGPoint(x: pivot.x + r * sin(a), y: pivot.y - r * cos(a))
     }
 
+    /// Incandescent-lamp look of a backlit analog meter (modeled on an MFJ
+    /// SWR/wattmeter face): a warm amber hotspot low and centered, where
+    /// the lamp sits, falling off to pale cream toward the edges.
+    static var backlight: some View {
+        RadialGradient(
+            stops: [
+                .init(color: Color(red: 1.00, green: 0.88, blue: 0.58), location: 0.0),
+                .init(color: Color(red: 1.00, green: 0.94, blue: 0.78), location: 0.4),
+                .init(color: Color(red: 0.96, green: 0.92, blue: 0.84), location: 0.75),
+                .init(color: Color(red: 0.88, green: 0.85, blue: 0.79), location: 1.0),
+            ],
+            center: UnitPoint(x: 0.5, y: 0.8),
+            startRadius: 0,
+            endRadius: 190
+        )
+    }
+
     static func draw(in context: inout GraphicsContext, size: CGSize) {
         let scale = size.width / designSize.width
         context.scaleBy(x: scale, y: size.height / designSize.height)
 
-        let blue = Color(red: 0.45, green: 0.62, blue: 1.0)
-        let white = Color.white
+        // Dark ink on the lit face (printed scale, not glowing text).
+        let blue = Color(red: 0.10, green: 0.25, blue: 0.75)
+        let white = Color(red: 0.10, green: 0.08, blue: 0.06)
 
         // Row placement, as radial offsets inward from the S-numeral arc.
         let sTickSpan = (14.0, 26.0)
