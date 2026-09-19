@@ -138,6 +138,7 @@ public struct VFODisplayBox: View {
                             Text(reflector)
                                 .font(.caption2)
                                 .foregroundStyle(digitColor)
+                                .lineLimit(1)
                         }
                         if aprsActive {
                             Text("APRS")
@@ -148,6 +149,8 @@ public struct VFODisplayBox: View {
                             Text(callsign)
                                 .font(.system(size: 19, weight: .semibold, design: .monospaced))
                                 .foregroundStyle(digitColor)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
                         }
                     }
                 }
@@ -180,6 +183,10 @@ public struct VFODisplayBox: View {
                         }
                     }
             }
+            // Frequency claims its width first: without this, a callsign/
+            // reflector appearing in the left column shrinks the readout
+            // (via minimumScaleFactor) until it expires.
+            .layoutPriority(1)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
