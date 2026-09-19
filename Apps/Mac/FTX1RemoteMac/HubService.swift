@@ -735,7 +735,16 @@ final class HubService: ObservableObject {
                 rigState.secondaryMode = rigState.mode
                 rigState.mode = newMode
             }
-            setAudioChannelsSwapped(!audioChannelsSwapped, reason: "app swap command")
+            // Hardware finding (2026-09-19): in single-receive display the
+            // app's `SV` doesn't move the rig's L/R audio (a front-panel swap
+            // does, and is caught by `trackExternalSwap`), so flipping here
+            // would put the audio under the wrong VFO. `nil` (FR not read
+            // yet) is treated as dual, the common case.
+            if rigState.singleReceive == true {
+                Self.audioRoutingLogger.notice("app swap command in single-receive display — audio channels left as is (swapped=\(self.audioChannelsSwapped, privacy: .public))")
+            } else {
+                setAudioChannelsSwapped(!audioChannelsSwapped, reason: "app swap command")
+            }
             // The frequencies just exchanged on purpose — re-baseline so the
             // next poll (which reads the already-swapped values) isn't
             // mistaken for a second, front-panel swap.
@@ -1371,6 +1380,9 @@ final class HubService: ObservableObject {
         let moniLevel = try? await rigctld.getRawInt("ML1")
         let cwMessageStatusRaw = try? await rigctld.getCWMessageStatus()
         let moxEnabled = try? await rigctld.getRawBool("MX")
+        // "FR" (FUNCTION RX): 00 dual receive, 01 single — see
+        // RigState.singleReceive.
+        let receiveModeRaw = try? await rigctld.getRawInt("FR")
         let attEnabled = try? await rigctld.getRawBool("RA0")
         let preampMode = try? await rigctld.getRawInt("PA0")
         let tunerEnabled = try? await rigctld.getTunerEnabled()
@@ -1514,6 +1526,13 @@ final class HubService: ObservableObject {
         rigState.moniLevel = moniLevel ?? rigState.moniLevel
         rigState.cwMessageStatus = cwMessageStatusRaw.flatMap(CWMessageStatus.init(rawValue:)) ?? rigState.cwMessageStatus
         rigState.moxEnabled = moxEnabled ?? rigState.moxEnabled
+        if let receiveModeRaw {
+            let single = receiveModeRaw == 1
+            if single != rigState.singleReceive {
+                Self.audioRoutingLogger.notice("FR reply \(receiveModeRaw, privacy: .public) — \(single ? "single" : "dual", privacy: .public) receive")
+            }
+            rigState.singleReceive = single
+        }
         rigState.attEnabled = attEnabled ?? rigState.attEnabled
         rigState.preampMode = preampMode ?? rigState.preampMode
         rigState.tunerEnabled = tunerEnabled ?? rigState.tunerEnabled

@@ -508,12 +508,15 @@ re-architecture.
     "com.ftx1remote.mac", category "audio-routing"), and the `stereo check`
     line now includes `swapped=`. **Hardware results (user, 2026-09-19)**:
     dual-VFO swap via the app, dual-VFO swap on the radio, and single-VFO
-    swap on the radio all worked with no intervention. **Known gap**:
-    single-VFO swap via the app needed the manual override button — the
-    auto-flip on the app's swap command evidently doesn't match how the rig
-    routes audio in single-VFO display. Not root-caused (a possible fix is
-    skipping the flip when the rig is in single-VFO display, but the app
-    has no readout of that display mode today). **Still unverified**: that the mapping really is a simple parity flipped by each
+    swap on the radio all worked with no intervention. **Single-VFO gap, fixed and confirmed
+    (2026-09-19)**: the app's `SV` swap doesn't move the L/R audio while the
+    rig is in single-receive display (a front-panel swap does, and is
+    caught by `trackExternalSwap`), so `applyOptimistically` skips the flip
+    then. The display mode comes from the raw "FR" (FUNCTION RX) CAT
+    command — 00 dual, 01 single, hardware-confirmed to match the rig —
+    read in the slow tier into `RigState.singleReceive` (`nil` until read,
+    treated as dual); each change logs `FR reply …` under
+    "audio-routing". **Still unverified**: that the mapping really is a simple parity flipped by each
     swap; that `VS` (active-side select) doesn't move the audio; and how
     the rig routes audio in single-VFO display while swapped.
 

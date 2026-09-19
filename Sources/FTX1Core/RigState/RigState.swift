@@ -108,6 +108,14 @@ public struct RigState: Codable, Equatable, Sendable {
     /// as `smeterDb`. hamlib's STRENGTH only reads the active VFO, so this
     /// comes from raw CAT "RM2" via `SMeterScale.strengthDb(forRaw:)`.
     public var subSmeterDb: Double?
+    /// Whether the rig is in single-receive (`true`) or dual-receive
+    /// (`false`) display, from the raw "FR" (FUNCTION RX) CAT command —
+    /// per the manual P1 00 = dual, 01 = single (not yet cross-checked
+    /// against the rig's own display beyond the user's single-vs-dual swap
+    /// tests). `nil` until read. Only `HubService`'s audio-channel swap
+    /// tracking uses it: in single receive the app's `SV` swap doesn't move
+    /// the L/R audio, unlike a front-panel swap or dual receive.
+    public var singleReceive: Bool? = nil
     /// Raw COMP/ALC/ID/VDD meter values (CAT "RM"), read only while
     /// transmitting; nil otherwise so the needle falls to rest.
     public var txMeters: TXMeterReadings?
