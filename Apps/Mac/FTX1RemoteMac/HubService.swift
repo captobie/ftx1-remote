@@ -330,6 +330,11 @@ final class HubService: ObservableObject {
         audioCapture.onNewFrame = { [weak self] frame in
             self?.scopeFrames.update(frame)
         }
+        // The Filter Function Display's Sub-channel spectrum (only computed
+        // while SUB is the selected filter side — see updateSubSpectrumCapture).
+        audioCapture.onSubSpectrum = { [weak self] spectrum in
+            self?.scopeFrames.updateSub(spectrum: spectrum)
+        }
         audioCapture.setDisplayEnabled(ScopeDisplayMode.persisted != .off)
         audioCapture.setChannelsSwapped(audioChannelsSwapped)
         audioCapture.onAudioSamples = { [weak self] samples, sampleRate in
@@ -435,10 +440,10 @@ final class HubService: ObservableObject {
     /// see "rig offline" rather than being unable to reach the Mac at all.
     func start() {
         Task { [weak self, commandQueue] in
-            await commandQueue.setOnCommandApplied { command in
+            await commandQueue.setOnCommandApplied { command, appliedSide in
                 Task { @MainActor in
                     guard let self else { return }
-                    self.applyOptimistically(command)
+                    self.applyOptimistically(command, appliedSide: appliedSide)
                     // Broadcasts the same optimistic value the Mac's own
                     // `rigState` binding already shows instantly — without
                     // this, a remote (iPad) client only saw an app-triggered
@@ -586,7 +591,9 @@ final class HubService: ObservableObject {
                     // mode restore above would apply the saved index against
                     // whatever mode a mode-forcing segment left the rig in.
                     if let targetFilterWidth {
-                        await commandQueue.enqueue(.setFilterWidth(targetFilterWidth))
+                        // Band changes tune MAIN, so pin the width replay to
+                        // MAIN even while the filter controls are on SUB.
+                        await commandQueue.enqueue(.setFilterWidth(targetFilterWidth), filterSide: .main)
                     }
                 }
             } else if let segment = GeneralCoverageSegments.segment(named: name) {
@@ -629,6 +636,25 @@ final class HubService: ObservableObject {
                 await commandQueue.enqueue(command)
                 await commandQueue.enqueue(.setFrequency(hz: last.hz))
                 await commandQueue.enqueue(.setMode(last.mode))
+            }
+            return
+        }
+        if case .setFilterSide(let side) = command {
+            // The Sub receiver isn't shown in single-receive display, so a
+            // Sub filter selection there would be invisible (the UI
+            // disables the button; this covers remote clients too).
+            if side == .sub, rigState.singleReceive == true {
+                Self.connectionLogger.notice("Ignored SUB filter selection in single-receive display")
+                return
+            }
+            Task {
+                await commandQueue.enqueue(command)
+                // The side is passed explicitly rather than read from
+                // `rigState` inside the refresh: the queue applies the
+                // command (and `applyOptimistically` updates `filterSide`)
+                // concurrently with this task, so reading it there would
+                // race.
+                await refreshFilterState(side: side)
             }
             return
         }
@@ -695,9 +721,21 @@ final class HubService: ObservableObject {
              .setCWMessageRecording, .setAtt, .setPreamp, .setTuner, .setDisplayContrast,
              .setDisplayDimmer, .setDisplayLevel, .setDisplayPeak, .setDisplayMarker, .setMicGain,
              .setAMCLevel, .setVox, .setVoxGain, .setVoxDelay, .setDNF, .setAGC, .setMicEQ,
-             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow, .setAntSelect, .setTXW, .setSquelchType,
+             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow, .setFilterSide, .setAntSelect, .setTXW, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel:
+            return false
+        }
+    }
+
+    /// The commands that address one receiver's filter (`RigState.
+    /// filterSide`) — the ones `CommandQueue` routes by side.
+    private static func isFilterSideCommand(_ command: RigCommand) -> Bool {
+        switch command {
+        case .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour,
+             .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow:
+            return true
+        default:
             return false
         }
     }
@@ -718,8 +756,13 @@ final class HubService: ObservableObject {
     /// mismatch (e.g. the rig clamping an out-of-range value) self-corrects
     /// at the next poll tick, same as any other externally-driven change
     /// (e.g. the front panel).
-    private func applyOptimistically(_ command: RigCommand) {
+    private func applyOptimistically(_ command: RigCommand, appliedSide: FilterSide) {
         commandGeneration += 1
+        // The filter fields hold the *selected* side's values. A filter
+        // command that was applied to the other receiver (e.g. the
+        // band-memory width replay always retunes MAIN, even while SUB is
+        // selected) must not overwrite them.
+        if Self.isFilterSideCommand(command), appliedSide != rigState.activeFilterSide { return }
         switch command {
         case .setFrequency(let hz):
             rigState.frequencyHz = hz
@@ -728,6 +771,11 @@ final class HubService: ObservableObject {
             rigState.secondaryFrequencyHz = hz
             lastDistinctFrequencies = nil
         case .swapActiveVFO:
+            // Whether a receiver's filter settings travel with the VFO
+            // contents or stay with the receiver, re-reading the selected
+            // side afterwards shows whatever the rig now has there.
+            let selectedSide = rigState.activeFilterSide
+            Task { await refreshFilterState(side: selectedSide, afterDelay: .milliseconds(400)) }
             let freq = rigState.frequencyHz
             rigState.frequencyHz = rigState.secondaryFrequencyHz ?? freq
             rigState.secondaryFrequencyHz = freq
@@ -793,6 +841,13 @@ final class HubService: ObservableObject {
         case .setAPF(let on): rigState.apfEnabled = on
         case .setAPFOffset(let hz): rigState.apfHz = IFContour.snappedAPFHz(hz)
         case .setNarrow(let on): rigState.narrowEnabled = on
+        case .setFilterSide(let side):
+            // The filter fields hold the *selected* side's values, so drop
+            // the other side's until `refreshFilterState()` (kicked off by
+            // send(_:)) reads this one — never show them as this side's.
+            rigState.filterSide = side
+            clearFilterFields()
+            updateSubSpectrumCapture()
         case .setAntSelect(let mode): rigState.antSelect = mode
         case .setTXW(let on): rigState.txwEnabled = on
         case .setSquelchType(let mode): rigState.squelchType = mode
@@ -882,9 +937,11 @@ final class HubService: ObservableObject {
     /// `commandGeneration` so a poll cycle that captured the pre-NAR width
     /// is discarded rather than overwriting this at its end, publish.
     private func refreshWidthAfterNarrow() async {
+        let side = rigState.activeFilterSide
+        let mode = rigState.filterMode
         for attempt in 0..<2 {
             try? await Task.sleep(for: .milliseconds(300))
-            guard let width = try? await rigctld.getRawInt("SH0") else {
+            guard let width = try? await rigctld.getRawInt("SH\(side.p1)") else {
                 if attempt == 0 { continue } else { return }
             }
             // In SSB/CW/RTTY/DATA "SH0" doesn't move with NARROW — the
@@ -892,16 +949,136 @@ final class HubService: ObservableObject {
             // that too, for the Filter Function Display (see
             // NarrowWidthPreset / RigState.narrowWidthHz).
             var presetHz: Int?
-            if let item = NarrowWidthPreset.item(for: rigState.mode),
+            if let item = NarrowWidthPreset.item(for: mode),
                let raw = try? await rigctld.getMenuItem(p1: item.p1, p2: item.p2, p3: item.p3) {
-                presetHz = NarrowWidthPreset.hz(forRawValue: raw, mode: rigState.mode)
+                presetHz = NarrowWidthPreset.hz(forRawValue: raw, mode: mode)
             }
+            // The user may have switched sides while the reads were in
+            // flight — don't publish another side's width as this one's.
+            guard rigState.activeFilterSide == side else { return }
             commandGeneration += 1
             rigState.filterWidthIndex = width
             if let presetHz { rigState.narrowWidthHz = presetHz }
             await server.broadcast(rigState)
             return
         }
+    }
+
+    /// One read of the selected receiver's filter state — the ten fields
+    /// `RigState` holds for `filterSide`. Shared by the slow tier and the
+    /// side-switch/swap fast path so the two can't drift apart.
+    private struct FilterSnapshot {
+        var widthIndex: Int?
+        var shiftHz: Int?
+        var notchRaw: Int?
+        var notchCode: Int?
+        var contourRaw: Int?
+        var contourHzRaw: Int?
+        var apfRaw: Int?
+        var apfCode: Int?
+        var narrowEnabled: Bool?
+        var narrowWidthHz: Int?
+    }
+
+    /// Reads `side`'s filter state directly (bypassing `CommandQueue`, like
+    /// the poll loop). `mode` is *that side's* mode: the NAR WIDTH preset
+    /// is a per-mode Deep Settings item. All mnemonics carry `side`'s P1
+    /// ("0" MAIN / "1" SUB); hardware-probed 2026-09-19 that Sub replies
+    /// mirror Main's shapes. Each read is best-effort (`try?`) — a nil just
+    /// keeps the last known value when applied.
+    private func readFilterState(side: FilterSide, mode: RigMode) async -> FilterSnapshot {
+        let p1 = side.p1
+        var snapshot = FilterSnapshot()
+        // "SH<p1>" reads WIDTH with P1 baked in; the reply's P2 (always "0")
+        // lands as the value's leading digit, discarded for free by
+        // `Int(...)` — see RigState.filterWidthIndex.
+        snapshot.widthIndex = try? await rigctld.getRawInt("SH\(p1)")
+        // "IS" answers with a signed value, which getRawInt can't parse —
+        // dedicated helper, see RigctldClient.getIFShiftHz().
+        snapshot.shiftHz = try? await rigctld.getIFShiftHz(side: side)
+        // "BP<p1>0"/"BP<p1>1": manual notch on/off and frequency, both
+        // 3-digit fields, so on/off goes through getRawInt (!= 0) — see
+        // IFNotch. (A Sub side in a mode without a notch can answer a
+        // non-numeric frequency like "F35"; getRawInt returns nil then.)
+        snapshot.notchRaw = try? await rigctld.getRawInt("BP\(p1)0")
+        snapshot.notchCode = try? await rigctld.getRawInt("BP\(p1)1")
+        // "CO<p1>0".."CO<p1>3": CONTOUR on/off + frequency, APF on/off +
+        // offset — all 4-digit fields, see IFContour.
+        snapshot.contourRaw = try? await rigctld.getRawInt("CO\(p1)0")
+        snapshot.contourHzRaw = try? await rigctld.getRawInt("CO\(p1)1")
+        snapshot.apfRaw = try? await rigctld.getRawInt("CO\(p1)2")
+        snapshot.apfCode = try? await rigctld.getRawInt("CO\(p1)3")
+        // "NA<p1>": a plain single-digit boolean, so getRawBool is right.
+        snapshot.narrowEnabled = try? await rigctld.getRawBool("NA\(p1)")
+        // The mode's NAR WIDTH preset (Deep Settings item, generic "EX"
+        // passthrough) — what the rig really filters at while NARROW is on
+        // in SSB/CW/RTTY/DATA, since "SH" keeps reporting the wide setting
+        // there. See NarrowWidthPreset.
+        if let item = NarrowWidthPreset.item(for: mode),
+           let raw = try? await rigctld.getMenuItem(p1: item.p1, p2: item.p2, p3: item.p3) {
+            snapshot.narrowWidthHz = NarrowWidthPreset.hz(forRawValue: raw, mode: mode)
+        }
+        return snapshot
+    }
+
+    /// Publishes a `FilterSnapshot` into `rigState`, keeping the last known
+    /// value for any read that failed. `mode` is the filtered side's mode:
+    /// `narrowWidthHz` is cleared (not held over) when it has no preset, so
+    /// AM/FM never inherit an SSB value.
+    private func applyFilterSnapshot(_ snapshot: FilterSnapshot, mode: RigMode) {
+        rigState.filterWidthIndex = snapshot.widthIndex ?? rigState.filterWidthIndex
+        rigState.ifShiftHz = snapshot.shiftHz ?? rigState.ifShiftHz
+        rigState.notchEnabled = snapshot.notchRaw.map { $0 != 0 } ?? rigState.notchEnabled
+        rigState.notchHz = snapshot.notchCode.flatMap(IFNotch.hz(forCode:)) ?? rigState.notchHz
+        rigState.contourEnabled = snapshot.contourRaw.map { $0 != 0 } ?? rigState.contourEnabled
+        rigState.contourHz = snapshot.contourHzRaw.flatMap { IFContour.contourRangeHz.contains($0) ? $0 : nil } ?? rigState.contourHz
+        rigState.apfEnabled = snapshot.apfRaw.map { $0 != 0 } ?? rigState.apfEnabled
+        rigState.apfHz = snapshot.apfCode.flatMap(IFContour.apfHz(forCode:)) ?? rigState.apfHz
+        rigState.narrowEnabled = snapshot.narrowEnabled ?? rigState.narrowEnabled
+        rigState.narrowWidthHz = NarrowWidthPreset.item(for: mode) == nil ? nil : (snapshot.narrowWidthHz ?? rigState.narrowWidthHz)
+    }
+
+    /// Blanks the ten side-specific filter fields (on a side switch, until
+    /// the new side's values are read).
+    private func clearFilterFields() {
+        rigState.filterWidthIndex = nil
+        rigState.ifShiftHz = nil
+        rigState.notchEnabled = nil
+        rigState.notchHz = nil
+        rigState.contourEnabled = nil
+        rigState.contourHz = nil
+        rigState.apfEnabled = nil
+        rigState.apfHz = nil
+        rigState.narrowEnabled = nil
+        rigState.narrowWidthHz = nil
+    }
+
+    /// Fast path: re-reads the selected receiver's filter state right after
+    /// something changed which side's values are showing (a MAIN/SUB
+    /// switch, or a VFO swap) instead of waiting for the next slow tier
+    /// (~10s). Same shape as `refreshAfterEnteringMemory`: give the queue a
+    /// moment, read, bump `commandGeneration` so a poll cycle that captured
+    /// the old values is discarded rather than overwriting these, publish.
+    /// If the user switched sides again while the reads were in flight, the
+    /// result is dropped — that switch has its own refresh.
+    private func refreshFilterState(side: FilterSide, afterDelay delay: Duration = .milliseconds(200)) async {
+        try? await Task.sleep(for: delay)
+        // The mode is read after the delay: for a swap it has just changed
+        // (optimistically), and the NAR WIDTH preset lookup wants the
+        // receiver's *current* mode.
+        let mode = rigState.filterMode(for: side)
+        let snapshot = await readFilterState(side: side, mode: mode)
+        guard rigState.activeFilterSide == side, rigState.filterMode(for: side) == mode else { return }
+        commandGeneration += 1
+        applyFilterSnapshot(snapshot, mode: mode)
+        await server.broadcast(rigState)
+    }
+
+    /// The Sub-channel spectrum (the Filter Function Display's overlay while
+    /// SUB is selected) is only computed while it can actually be shown:
+    /// SUB selected and the scope column not Off.
+    private func updateSubSpectrumCapture() {
+        audioCapture.setSubSpectrumEnabled(rigState.activeFilterSide == .sub && ScopeDisplayMode.persisted != .off)
     }
 
     /// On-demand read for one Deep Settings item (see DeepSettingsCatalog),
@@ -944,6 +1121,7 @@ final class HubService: ObservableObject {
     /// hide the result. Raw audio keeps flowing to APRS/playback/relay.
     func setScopeDisplayMode(_ mode: ScopeDisplayMode) {
         audioCapture.setDisplayEnabled(mode != .off)
+        audioCapture.setSubSpectrumEnabled(rigState.activeFilterSide == .sub && mode != .off)
     }
 
     /// Doesn't stop/start `mainAudioPlayback` itself — muting just gates
@@ -994,6 +1172,8 @@ final class HubService: ObservableObject {
         guard let sub, sub != main else { return }
         if let last = lastDistinctFrequencies, main == last.sub, sub == last.main {
             setAudioChannelsSwapped(!audioChannelsSwapped, reason: "front-panel swap detected (\(last.main)/\(last.sub) → \(main)/\(sub) Hz)")
+            let selectedSide = rigState.activeFilterSide
+            Task { await refreshFilterState(side: selectedSide, afterDelay: .milliseconds(400)) }
         }
         lastDistinctFrequencies = (main, sub)
     }
@@ -1359,6 +1539,11 @@ final class HubService: ObservableObject {
     /// the cycle is split this way.
     private func refreshSlowTier() async throws {
         let generationAtStart = commandGeneration
+        // The receiver the filter fields are for, captured with the
+        // generation: a side switch bumps `commandGeneration`, so if it
+        // changes mid-cycle the guard below discards the whole cycle.
+        let filterSideAtStart = rigState.activeFilterSide
+        let filterModeAtStart = rigState.filterMode
         // Best-effort: these go through rigctld's raw CAT passthrough (see
         // RigctldClient.sendRawCommand), not hamlib's own func/level
         // abstraction, so a hiccup (e.g. hamlib's internal serial read
@@ -1436,42 +1621,7 @@ final class HubService: ObservableObject {
         // above.
         let nbLevel = try? await rigctld.getRawInt("NL0")
         let dnrLevel = try? await rigctld.getRawInt("RL0")
-        // "SH0" reads WIDTH with its fixed MAIN-side P1 baked in, same shape
-        // as "NL0"/"RL0" above. The reply's P2 (always "0") lands as this
-        // value's leading digit, but since the real P3 value is always
-        // 0-23, `Int(...)` parsing that combined 3-digit string discards
-        // the leading zero for free — see RigState.filterWidthIndex.
-        let filterWidthIndex = try? await rigctld.getRawInt("SH0")
-        // "IS" answers with a signed value ("IS00-0240;"), which getRawInt
-        // can't parse — dedicated helper, see RigctldClient.getIFShiftHz().
-        let ifShiftHz = try? await rigctld.getIFShiftHz()
-        // "BP00"/"BP01" read the manual notch's on/off and frequency
-        // sub-functions. Both answer with a 3-digit field ("BP00001;",
-        // "BP01124;"), so on/off goes through getRawInt (!= 0) rather than
-        // getRawBool, which would see only the leading "0" of "001" and
-        // report the notch off every time — see IFNotch.
-        let notchRaw = try? await rigctld.getRawInt("BP00")
-        let notchCode = try? await rigctld.getRawInt("BP01")
-        // "CO00".."CO03" read CONTOUR on/off + frequency and APF on/off +
-        // offset — all 4-digit fields, so the on/off ones go through
-        // getRawInt (!= 0) for the same reason as "BP00" above; see
-        // IFContour for the APF offset's 0000-0050 code.
-        let contourRaw = try? await rigctld.getRawInt("CO00")
-        let contourHzRaw = try? await rigctld.getRawInt("CO01")
-        let apfRaw = try? await rigctld.getRawInt("CO02")
-        let apfCode = try? await rigctld.getRawInt("CO03")
-        // "NA0" reads NARROW with its fixed MAIN-side P1 baked in — a plain
-        // single-digit boolean like "BC0", so getRawBool is right here.
-        let narrowEnabled = try? await rigctld.getRawBool("NA0")
-        // The current mode's NAR WIDTH preset (Deep Settings item, generic
-        // "EX" passthrough like HF ANT SELECT below) — what the rig really
-        // filters at while NARROW is on in SSB/CW/RTTY/DATA, since "SH0"
-        // keeps reporting the wide setting there. See NarrowWidthPreset.
-        var narrowWidthHz: Int?
-        if let presetItem = NarrowWidthPreset.item(for: rigState.mode),
-           let raw = try? await rigctld.getMenuItem(p1: presetItem.p1, p2: presetItem.p2, p3: presetItem.p3) {
-            narrowWidthHz = NarrowWidthPreset.hz(forRawValue: raw, mode: rigState.mode)
-        }
+        let filterSnapshot = await readFilterState(side: filterSideAtStart, mode: filterModeAtStart)
         // No dedicated mnemonic for HF ANT SELECT — reads through the same
         // generic "EX" passthrough Deep Settings uses, just at this one
         // fixed address (see RigState.antSelect/RigCommand.setAntSelect).
@@ -1555,19 +1705,7 @@ final class HubService: ObservableObject {
         rigState.procLevel = procLevel ?? rigState.procLevel
         rigState.nbLevel = nbLevel ?? rigState.nbLevel
         rigState.dnrLevel = dnrLevel ?? rigState.dnrLevel
-        rigState.filterWidthIndex = filterWidthIndex ?? rigState.filterWidthIndex
-        rigState.ifShiftHz = ifShiftHz ?? rigState.ifShiftHz
-        rigState.notchEnabled = notchRaw.map { $0 != 0 } ?? rigState.notchEnabled
-        rigState.notchHz = notchCode.flatMap(IFNotch.hz(forCode:)) ?? rigState.notchHz
-        rigState.contourEnabled = contourRaw.map { $0 != 0 } ?? rigState.contourEnabled
-        rigState.contourHz = contourHzRaw.flatMap { IFContour.contourRangeHz.contains($0) ? $0 : nil } ?? rigState.contourHz
-        rigState.apfEnabled = apfRaw.map { $0 != 0 } ?? rigState.apfEnabled
-        rigState.apfHz = apfCode.flatMap(IFContour.apfHz(forCode:)) ?? rigState.apfHz
-        rigState.narrowEnabled = narrowEnabled ?? rigState.narrowEnabled
-        // Cleared (not held over) when the mode has no preset, so AM/FM
-        // never inherit an SSB value; otherwise the usual failed-read
-        // fallback.
-        rigState.narrowWidthHz = NarrowWidthPreset.item(for: rigState.mode) == nil ? nil : (narrowWidthHz ?? rigState.narrowWidthHz)
+        applyFilterSnapshot(filterSnapshot, mode: filterModeAtStart)
         rigState.antSelect = antSelect ?? rigState.antSelect
         rigState.txwEnabled = txwEnabled ?? rigState.txwEnabled
         rigState.splitEnabled = splitEnabled ?? rigState.splitEnabled
@@ -1579,6 +1717,14 @@ final class HubService: ObservableObject {
         rigState.fmChannelStep = fmChannelStep ?? rigState.fmChannelStep
 
         await server.broadcast(rigState)
+
+        // The Sub receiver isn't shown in single-receive display: if the rig
+        // went there while SUB was selected, fall back to MAIN through the
+        // normal path (queue, field clear, re-read).
+        if rigState.singleReceive == true, rigState.activeFilterSide == .sub {
+            Self.audioRoutingLogger.notice("single-receive display while SUB filter selected — falling back to MAIN")
+            send(.setFilterSide(.main))
+        }
     }
 
     /// Starts/stops `wpsdMonitor` to match current settings + rig mode —

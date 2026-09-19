@@ -212,6 +212,15 @@ public struct RigState: Codable, Equatable, Sendable {
     /// tier; nil in modes without a preset (AM/FM/C4FM) or before the
     /// first read. Only the Filter Function Display uses it today.
     public var narrowWidthHz: Int?
+    /// Which receiver the ten filter fields above (`filterWidthIndex` …
+    /// `narrowWidthHz`) currently hold values for and the filter controls
+    /// address — nil means MAIN. Optional (rather than defaulting to
+    /// `.main`) because `RigState`'s Codable is synthesized, and a
+    /// non-optional field with a default still throws on a missing key,
+    /// which would break decoding a state push from an older peer. Use
+    /// `activeFilterSide`. Changing it (`RigCommand.setFilterSide`) clears
+    /// those fields until the new side's values are read.
+    public var filterSide: FilterSide?
     /// HF antenna connector selector: 0 = ANT1, 1 = ANT2. Unlike every other
     /// field here, this has no dedicated 2-letter CAT mnemonic — it's Table
     /// 3's "HF ANT SELECT" item (`DeepSettingsCatalog`'s OPERATION SETTING /
@@ -385,6 +394,7 @@ public struct RigState: Codable, Equatable, Sendable {
         apfHz: Int? = nil,
         narrowEnabled: Bool? = nil,
         narrowWidthHz: Int? = nil,
+        filterSide: FilterSide? = nil,
         antSelect: Int? = nil,
         txwEnabled: Bool? = nil,
         splitEnabled: Bool? = nil,
@@ -454,6 +464,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.apfHz = apfHz
         self.narrowEnabled = narrowEnabled
         self.narrowWidthHz = narrowWidthHz
+        self.filterSide = filterSide
         self.antSelect = antSelect
         self.txwEnabled = txwEnabled
         self.splitEnabled = splitEnabled
@@ -634,6 +645,28 @@ public enum RigMode: String, Codable, Sendable, CaseIterable, Hashable {
         case .dataFM: "DATA-FM"
         case .c4fm: "C4FM"
         default: rawValue
+        }
+    }
+}
+
+public extension RigState {
+    /// The receiver the filter controls address (`filterSide`, nil = MAIN).
+    var activeFilterSide: FilterSide { filterSide ?? .main }
+
+    /// The operating mode of the receiver the filter controls address —
+    /// `mode` for MAIN, `secondaryMode` for SUB (`.unknown` until the Sub
+    /// mode has been read). Every filter control and the Filter Function
+    /// Display gate on this rather than `mode`, since width tables, NAR
+    /// WIDTH presets and per-mode support all depend on the mode of the
+    /// receiver being filtered.
+    var filterMode: RigMode { filterMode(for: activeFilterSide) }
+
+    /// The operating mode of a specific receiver (`.unknown` for SUB until
+    /// its mode has been read).
+    func filterMode(for side: FilterSide) -> RigMode {
+        switch side {
+        case .main: mode
+        case .sub: secondaryMode ?? .unknown
         }
     }
 }

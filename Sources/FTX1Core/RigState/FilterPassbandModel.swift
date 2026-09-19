@@ -18,7 +18,9 @@ import Foundation
 /// modes NARROW doesn't change the "SH" index the rig reports, so while
 /// it's on the shape uses the mode's NAR WIDTH preset
 /// (`RigState.narrowWidthHz`, see `NarrowWidthPreset`) and the caption
-/// marks it with an "N".
+/// marks it with an "N". Everything is for the receiver the filter
+/// controls address (`RigState.activeFilterSide`/`filterMode`); when that's
+/// SUB the caption is prefixed "SUB".
 public struct FilterPassbandModel: Equatable, Sendable {
     public static let spanHz: ClosedRange<Double> = 0...4000
 
@@ -53,8 +55,8 @@ public struct FilterPassbandModel: Equatable, Sendable {
     public let widthLabel: String
 
     public init(state: RigState) {
-        let mode = state.mode
-        modeName = mode.displayName
+        let mode = state.filterMode
+        modeName = state.activeFilterSide == .sub ? "SUB \(mode.displayName)" : mode.displayName
 
         let shift = Double(state.ifShiftHz.map(IFShift.snapped) ?? 0)
         let pitch = Double(state.cwPitchHz ?? 700)

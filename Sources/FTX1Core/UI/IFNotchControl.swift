@@ -27,7 +27,7 @@ public struct IFNotchControl<Controller: RigController>: View {
     public init() {}
 
     public var body: some View {
-        let mode = hub.rigState.mode
+        let mode = hub.rigState.filterMode
         if mode != .c4fm && mode != .unknown {
             let isOn = hub.rigState.notchEnabled ?? false
             HStack(spacing: 6) {

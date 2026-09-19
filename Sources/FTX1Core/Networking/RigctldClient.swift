@@ -515,9 +515,9 @@ public actor RigctldClient {
     /// parses the signed run after it; `Int("+0240")` handles the
     /// explicit "+" fine. Same leading-run parse as
     /// `getSpectrumScopeLevel()` to keep the trailing ";" out of `Int.init`.
-    public func getIFShiftHz() async throws -> Int? {
-        let reply = try await sendRawCommand("IS0")
-        guard reply.hasPrefix("IS00") else { return nil }
+    public func getIFShiftHz(side: FilterSide = .main) async throws -> Int? {
+        let reply = try await sendRawCommand("IS\(side.p1)")
+        guard reply.hasPrefix("IS\(side.p1)0") else { return nil }
         let value = reply.dropFirst(4).prefix { $0.isNumber || $0 == "+" || $0 == "-" }
         return Int(value)
     }
@@ -527,10 +527,10 @@ public actor RigctldClient {
     /// zero-padded 4-digit magnitude: "IS00+0240;", "IS00-1200;",
     /// "IS00+0000;". Callers should pass a value already on the 20 Hz grid
     /// within ±1200 (`IFShift.snapped`); nothing is validated here.
-    public func setIFShiftHz(_ hz: Int) async throws {
+    public func setIFShiftHz(_ hz: Int, side: FilterSide = .main) async throws {
         let sign = hz < 0 ? "-" : "+"
         let magnitude = String(format: "%04d", abs(hz))
-        try await sendRawCommandFireAndForget("IS00\(sign)\(magnitude)")
+        try await sendRawCommandFireAndForget("IS\(side.p1)0\(sign)\(magnitude)")
     }
 
     /// Reads P3 of the FTX-1's raw "RI" (RADIO INFORMATION) status command —

@@ -17,6 +17,15 @@ final class ScopeFrameStore: ObservableObject {
     /// 0…4 kHz spectrum for the Filter Function Display — see
     /// `AudioCaptureFrame.spectrum`; observed only by `FilterDisplayHost`.
     @Published private(set) var spectrum: [Float] = []
+    /// The Sub channel's 0…4 kHz spectrum, shown by the Filter Function
+    /// Display instead of `spectrum` while SUB is the selected filter side
+    /// (`AudioCaptureEngine.onSubSpectrum`; empty whenever it isn't being
+    /// computed). Like `spectrum`, only `FilterDisplayHost` observes it.
+    @Published private(set) var subSpectrum: [Float] = []
+
+    func updateSub(spectrum: [Float]) {
+        subSpectrum = spectrum
+    }
 
     func update(_ frame: AudioCaptureFrame) {
         waterfall = frame.waterfall
@@ -28,6 +37,7 @@ final class ScopeFrameStore: ObservableObject {
         waterfall = nil
         oscilloscope = nil
         spectrum = []
+        subSpectrum = []
     }
 }
 

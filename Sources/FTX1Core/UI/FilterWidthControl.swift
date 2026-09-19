@@ -24,7 +24,7 @@ public struct FilterWidthControl<Controller: RigController>: View {
     public init() {}
 
     public var body: some View {
-        let mode = hub.rigState.mode
+        let mode = hub.rigState.filterMode
         let entries = FilterWidthTable.entries(for: mode)
         if !entries.isEmpty {
             HStack(spacing: 6) {

@@ -207,6 +207,51 @@ final class RigctldClientTests: XCTestCase {
         await client.disconnect()
     }
 
+    /// The filter commands' P1 selects the receiver ("0" MAIN, "1" SUB) —
+    /// replies hardware-captured 2026-09-19 from a real FTX-1's Sub side.
+    /// Covers the signed "IS" pair's `side:` parameter and the plain
+    /// `getRawInt`/`getRawBool` reads with the Sub prefix, including the
+    /// non-numeric notch-frequency reply the rig gave for an FM Sub
+    /// ("BP11F35;"), which must read as "no value", not crash or misparse.
+    func testSubSideFilterReadsAndWrites() async throws {
+        let server = try FakeRigctldServer.start()
+        defer { server.stop() }
+
+        let client = RigctldClient(host: "127.0.0.1", port: server.port)
+        try await client.connect()
+
+        server.respondRaw(to: "W IS1; ;", bytes: Array("IS10-0001;\0".utf8))
+        let shift = try await client.getIFShiftHz(side: .sub)
+        XCTAssertEqual(shift, -1)
+
+        server.respondRaw(to: "W SH1; ;", bytes: Array("SH1003;\0".utf8))
+        let width = try await client.getRawInt("SH1")
+        XCTAssertEqual(width, 3)
+
+        server.respondRaw(to: "W BP10; ;", bytes: Array("BP10001;\0".utf8))
+        let notchOn = try await client.getRawInt("BP10")
+        XCTAssertEqual(notchOn, 1)
+
+        server.respondRaw(to: "W BP11; ;", bytes: Array("BP11F35;\0".utf8))
+        let notchFreq = try await client.getRawInt("BP11")
+        XCTAssertNil(notchFreq, "non-numeric reply reads as no value")
+
+        server.respondRaw(to: "W CO11; ;", bytes: Array("CO111520;\0".utf8))
+        let contourHz = try await client.getRawInt("CO11")
+        XCTAssertEqual(contourHz, 1520)
+
+        server.respondRaw(to: "W NA1; ;", bytes: Array("NA11;\0".utf8))
+        let narrow = try await client.getRawBool("NA1")
+        XCTAssertEqual(narrow, true)
+
+        server.respondRaw(to: "W IS10+0240; ;", bytes: [])
+        try await client.setIFShiftHz(240, side: .sub)
+        server.respondRaw(to: "W IS00-0020; ;", bytes: [])
+        try await client.setIFShiftHz(-20)   // default side is MAIN
+
+        await client.disconnect()
+    }
+
     /// Regression test for the actual reported bug: the real rig sometimes
     /// never replies to a raw Set command at all (the manual doesn't
     /// promise an Answer for those), and `sendRawCommand` had no timeout —

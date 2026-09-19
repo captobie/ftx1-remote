@@ -127,6 +127,8 @@ struct ContentView: View {
             // Display on the right spanning both. Row 1: WIDTH, SHIFT.
             // Row 2: CONTOUR-or-APF (one slot, face picked by mode), N/W
             // (narrow), NOTCH. Rows left-aligned so later controls append.
+            // The MAIN/SUB selector sits just left of the display and picks
+            // which receiver the controls and the display address.
             HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 16) {
@@ -141,6 +143,7 @@ struct ContentView: View {
                         Spacer()
                     }
                 }
+                FilterSideSelector<HubService>()
                 FilterDisplayHost(frames: hub.scopeFrames, scopeMode: scopeDisplayMode)
             }
             .padding(12)

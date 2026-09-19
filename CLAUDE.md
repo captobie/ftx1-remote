@@ -69,7 +69,18 @@ over Tailscale, without needing to be physically near the rig.
   CONTOUR/APF on/off is 0000/0001) — `getRawBool` looks only at the first
   character after the prefix and would read those as always-off, so such
   fields go through `getRawInt` (`!= 0`) / `setRawInt(digits:)` with the
-  documented width (see `IFNotch`).
+  documented width (see `IFNotch`). The filter commands (`SH`/`IS`/`BP`/
+  `CO`/`NA`) take P1 = the receiver (0 MAIN, 1 SUB; Sub replies hardware-
+  confirmed to mirror Main's shapes, 2026-09-19). The app addresses one
+  side at a time (`RigState.filterSide`, set by `RigCommand.setFilterSide`):
+  `CommandQueue` holds the selected `FilterSide` and builds the mnemonics
+  from it (FIFO, so a switch followed by a control change can't race; a
+  command can also be pinned to a side with `enqueue(_:filterSide:)` — the
+  band-memory width replay is pinned to MAIN), the ten filter fields in
+  `RigState` hold the *selected* side's values, and `HubService` clears and
+  re-reads them on a switch (`refreshFilterState`) and polls only the
+  selected side. Every filter view gates on `RigState.filterMode` (the
+  selected side's mode), not `mode`.
 - **Waterfall/oscilloscope display is audio-derived, not CAT-derived.**
   `AudioCaptureEngine` (Mac-only) captures audio, runs an FFT to produce
   both a scrolling waterfall and an oscilloscope trace from the same
@@ -91,7 +102,12 @@ over Tailscale, without needing to be physically near the rig.
   normalized through the waterfall's auto-gain window), published through
   `ScopeFrameStore` to the Mac-only `FilterDisplayHost`, which feeds the
   shared `FilterDisplayView` (the app's Filter Function Display) — same
-  leaf-only observation rule as the scope.
+  leaf-only observation rule as the scope. While SUB is the selected filter
+  side, `AudioCaptureEngine` also computes a Sub-channel spectrum for that
+  display (`onSubSpectrum` → `ScopeFrameStore.subSpectrum`, enabled only
+  then via `setSubSpectrumEnabled`, with its own auto-gain; the FFT step is
+  shared with Main's path via `fftPowerDb`/`normalizedSpectrum`). Still no
+  Sub waterfall/oscilloscope (see the dual-waterfall decision below).
 - **Scope frames deliberately bypass `HubService`'s `@Published` state.**
   `AudioCaptureEngine` hands `HubService` a frame ~21 times a second
   (44100 Hz / 2048-sample chunks); `HubService` stores it in a separate
@@ -665,7 +681,9 @@ pattern as the APRS windows.
     CONTOUR + APF value spaces — CONTOUR 10-3200 Hz, APF −250…+250 Hz as a
     0000-0050 code — plus `face(for:)`, which picks CONTOUR or APF for a
     mode since the manual says they're mutually exclusive: APF CW-only,
-    CONTOUR not in CW).
+    CONTOUR not in CW), `FilterSide` (MAIN/SUB — the CAT P1 digit the
+    filter commands take; `RigState.filterSide`/`filterMode` say which
+    receiver the filter fields, controls and display currently address).
   - `Appearance/` — `AppTheme` (Light/Dark/Auto), `ButtonValueColor` (MENU
     grid button value color), `AppearanceSettings` (the `@AppStorage` keys
     both are read/written through) — shared so any future app target reads
@@ -709,13 +727,16 @@ pattern as the APRS windows.
     via `NarrowWidthPreset` into `RigState.narrowWidthHz` for the display),
     and `FilterDisplayView`
     (the Filter Function Display: `Canvas` drawing of `FilterPassbandModel`
-    over an optional normalized spectrum, `[]` on targets without audio) —
+    over an optional normalized spectrum, `[]` on targets without audio) and
+    `FilterSideSelector` (the MAIN/SUB buttons just left of the display
+    that pick which receiver the controls and the display address; SUB is
+    disabled in single-receive display) —
     all generic
     over `RigController` like `MenuPageView`, all living in the Mac
     `ContentView`'s two "Filter" rows under the Band/Mode pickers
     (WIDTH/SHIFT on the first, CONTOUR-or-APF, N/W and NOTCH on the
     second, with `FilterDisplayHost` — Mac-only, `Apps/Mac/` — on the right
-    spanning both rows) (the rig
+    spanning both rows, the `FilterSideSelector` between the two) (the rig
     keeps these on the MAIN-knob function menu, not the MENU grid, so
     they're not `MenuPageView` buttons), placed only on the Mac so far but
     deliberately built shared because the iPad is the planned next

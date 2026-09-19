@@ -24,7 +24,7 @@ public struct IFShiftControl<Controller: RigController>: View {
     public init() {}
 
     public var body: some View {
-        let mode = hub.rigState.mode
+        let mode = hub.rigState.filterMode
         if mode != .c4fm && mode != .unknown {
             HStack(spacing: 6) {
                 Text("Shift")

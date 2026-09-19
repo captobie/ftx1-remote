@@ -19,9 +19,12 @@ struct FilterDisplayHost: View {
 
     var body: some View {
         let connected = hub.connectionState == .connected
+        // The spectrum follows the selected filter side: Main's FFT frame,
+        // or the Sub channel's own spectrum while SUB is selected.
+        let spectrum = hub.rigState.activeFilterSide == .sub ? frames.subSpectrum : frames.spectrum
         FilterDisplayView(
             model: FilterPassbandModel(state: hub.rigState),
-            spectrum: (connected && scopeMode != .off) ? frames.spectrum : [],
+            spectrum: (connected && scopeMode != .off) ? spectrum : [],
             isActive: connected
         )
     }

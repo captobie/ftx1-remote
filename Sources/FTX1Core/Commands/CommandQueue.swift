@@ -9,24 +9,46 @@ import Foundation
 public actor CommandQueue {
     private let rigctld: RigctldClient
     private var isProcessing = false
-    private var pending: [RigCommand] = []
+    private var pending: [(command: RigCommand, filterSide: FilterSide?)] = []
+    /// The receiver the filter commands (`SH`/`IS`/`BP`/`CO`/`NA`) address,
+    /// updated when a `.setFilterSide` is applied. Held here rather than
+    /// passed per command so the filter commands stay wire-compatible, and
+    /// safe because this queue is strictly FIFO: a switch followed
+    /// immediately by a control change is always applied in that order.
+    private var filterSide: FilterSide = .main
+    /// A one-command override of `filterSide`, set while a command enqueued
+    /// with an explicit side is being applied (see `enqueue(_:filterSide:)`).
+    private var filterSideOverride: FilterSide?
+
+    /// The receiver the command being applied addresses: its explicit
+    /// override if it had one, otherwise the queue's selected side.
+    private var targetSide: FilterSide { filterSideOverride ?? filterSide }
 
     /// Called after each command completes, with the freshest rig state
     /// (however the caller chooses to derive it — e.g. by re-querying
     /// rigctld or applying the command optimistically). Wiring this up
     /// to a broadcast-to-WebSocket-clients step happens at the app layer.
-    public var onCommandApplied: (@Sendable (RigCommand) -> Void)?
+    /// The second argument is the receiver the command was applied to (the
+    /// filter commands address a side; for everything else it's just the
+    /// queue's current selection and can be ignored) — the app layer uses
+    /// it so an explicitly-MAIN command can't overwrite the selected
+    /// side's optimistic filter values.
+    public var onCommandApplied: (@Sendable (RigCommand, FilterSide) -> Void)?
 
     public init(rigctld: RigctldClient) {
         self.rigctld = rigctld
     }
 
-    public func setOnCommandApplied(_ handler: @escaping @Sendable (RigCommand) -> Void) {
+    public func setOnCommandApplied(_ handler: @escaping @Sendable (RigCommand, FilterSide) -> Void) {
         onCommandApplied = handler
     }
 
-    public func enqueue(_ command: RigCommand) {
-        pending.append(command)
+    /// `filterSide` pins one filter command to a receiver regardless of the
+    /// queue's selected side — e.g. the band-memory width replay after a
+    /// band change, which always retunes MAIN even while SUB is selected.
+    /// nil (the default) uses the selected side.
+    public func enqueue(_ command: RigCommand, filterSide: FilterSide? = nil) {
+        pending.append((command, filterSide))
         if !isProcessing {
             Task { await drain() }
         }
@@ -35,11 +57,14 @@ public actor CommandQueue {
     private func drain() async {
         isProcessing = true
         while !pending.isEmpty {
-            let command = pending.removeFirst()
+            let (command, override) = pending.removeFirst()
+            filterSideOverride = override
             do {
                 try await apply(command)
-                onCommandApplied?(command)
+                onCommandApplied?(command, targetSide)
+                filterSideOverride = nil
             } catch {
+                filterSideOverride = nil
                 // TODO: surface command failures to the app layer (e.g. via
                 // a dedicated error callback) rather than dropping silently.
             }
@@ -246,53 +271,58 @@ public actor CommandQueue {
             // above but a 2-digit field rather than 3.
             try await rigctld.setRawInt("RL0", level, digits: 2)
         case .setFilterWidth(let index):
-            // "SH"'s P1 is fixed to "0" (MAIN-side); P2 is fixed to "0" too,
-            // baked into the "SH0" prefix alongside P1 rather than sent
+            // "SH"'s P1 is the selected filter side (`filterSide`: "0" MAIN,
+            // "1" SUB); P2 is fixed to "0", baked into the prefix
+            // alongside P1 rather than sent
             // separately — since P3 (the value we're actually setting) is
             // always 0-23, zero-padding it to the combined P2+P3 field
             // width (3 digits) always reproduces P2="0" as the leading
             // digit for free, same trick `getRawInt`'s prefix-stripping
             // parse relies on for the read side below.
-            try await rigctld.setRawInt("SH0", index, digits: 3)
+            try await rigctld.setRawInt("SH\(targetSide.p1)", index, digits: 3)
+        case .setFilterSide(let side):
+            // No CAT traffic: just retargets the filter commands below (and
+            // the hub's filter reads) at the other receiver.
+            filterSide = side
         case .setIFShift(let hz):
             // "IS" carries a sign character before its 4-digit magnitude,
             // which setRawInt's plain zero-padding can't produce — a
-            // dedicated helper handles the "IS00±dddd" shape. Snapped here
+            // dedicated helper handles the "IS<side>0±dddd" shape. Snapped here
             // (not just in the UI) so a remote client can't send a value
             // off the 20 Hz grid or outside ±1200.
-            try await rigctld.setIFShiftHz(IFShift.snapped(hz))
+            try await rigctld.setIFShiftHz(IFShift.snapped(hz), side: targetSide)
         case .setNotch(let on):
-            // "BP"'s on/off sub-function (P2=0, baked into the "BP00"
-            // prefix with the MAIN-side P1) is a 3-digit 000/001 field per
+            // "BP"'s on/off sub-function (P2=0, baked into the "BP<side>0"
+            // prefix after the selected side's P1) is a 3-digit 000/001 field per
             // the manual, not the single-digit boolean setRawBool writes
             // ("BP001" wouldn't match the documented width) — so it goes
             // through setRawInt with the field width, same as its
             // frequency sibling below.
-            try await rigctld.setRawInt("BP00", on ? 1 : 0, digits: 3)
+            try await rigctld.setRawInt("BP\(targetSide.p1)0", on ? 1 : 0, digits: 3)
         case .setNotchFrequency(let hz):
             // "BP"'s frequency sub-function (P2=1) takes a 3-digit code of
             // 10 Hz units (001-320), not Hz. Snapped here too so a remote
             // client can't send an off-grid or out-of-range value.
-            try await rigctld.setRawInt("BP01", IFNotch.code(forHz: hz), digits: 3)
+            try await rigctld.setRawInt("BP\(targetSide.p1)1", IFNotch.code(forHz: hz), digits: 3)
         case .setContour(let on):
-            // "CO"'s four sub-functions (P2 baked into the "CO0x" prefix)
+            // "CO"'s four sub-functions (P2 baked into the "CO<side>x" prefix)
             // are all 4-digit fields, on/off included (0000/0001) — same
             // multi-digit-boolean shape as "BP" above, so setRawInt with
             // the field width rather than setRawBool.
-            try await rigctld.setRawInt("CO00", on ? 1 : 0, digits: 4)
+            try await rigctld.setRawInt("CO\(targetSide.p1)0", on ? 1 : 0, digits: 4)
         case .setContourFrequency(let hz):
             // "CO01" carries Hz directly as 4 digits (0010-3200).
-            try await rigctld.setRawInt("CO01", IFContour.snappedContourHz(hz), digits: 4)
+            try await rigctld.setRawInt("CO\(targetSide.p1)1", IFContour.snappedContourHz(hz), digits: 4)
         case .setAPF(let on):
-            try await rigctld.setRawInt("CO02", on ? 1 : 0, digits: 4)
+            try await rigctld.setRawInt("CO\(targetSide.p1)2", on ? 1 : 0, digits: 4)
         case .setAPFOffset(let hz):
             // "CO03" is a 4-digit code 0000-0050 for −250…+250 Hz, not Hz.
-            try await rigctld.setRawInt("CO03", IFContour.apfCode(forHz: hz), digits: 4)
+            try await rigctld.setRawInt("CO\(targetSide.p1)3", IFContour.apfCode(forHz: hz), digits: 4)
         case .setNarrow(let on):
-            // "NA"'s P1 is fixed to "0" (MAIN-side); P2 is a plain
+            // "NA"'s P1 is the selected filter side; P2 is a plain
             // single-digit boolean, same shape as "BC0" — no multi-digit
             // field here, unlike "BP"/"CO" above.
-            try await rigctld.setRawBool("NA0", on)
+            try await rigctld.setRawBool("NA\(targetSide.p1)", on)
         case .setAntSelect(let mode):
             // No dedicated mnemonic for this one — it's Table 3's "HF ANT
             // SELECT" (OPERATION SETTING / OPTION / p3=4), a single digit

@@ -80,6 +80,14 @@ final class AudioCaptureEngine {
     /// that surface unchanged.
     nonisolated(unsafe) var onSubChannelSamples: ((_ samples: [Float], _ sampleRate: Double) -> Void)?
 
+    /// Delivers the Sub channel's 0…4 kHz spectrum (normalized 0…1, same
+    /// shape as `AudioCaptureFrame.spectrum`) for the Filter Function
+    /// Display while SUB is the selected filter side. Only fires while
+    /// `setSubSpectrumEnabled(true)`; hops to the main actor like the other
+    /// callbacks. There is deliberately no Sub waterfall/oscilloscope (see
+    /// repo CLAUDE.md, "Dual waterfall/oscilloscope — decided against").
+    nonisolated(unsafe) var onSubSpectrum: ((_ spectrum: [Float]) -> Void)?
+
     private let fftSize = 2048
     private let binCount = 256
     private let historyRows = 150
@@ -139,9 +147,20 @@ final class AudioCaptureEngine {
     /// off. Same lock/lifetime reasoning as the zooms above.
     private let displayEnabled = Locked<Bool>(true)
 
+    /// Whether to compute the Sub channel's filter-display spectrum (see
+    /// `onSubSpectrum`). Off by default and whenever SUB isn't the selected
+    /// filter side or the scope is Off, so it costs nothing then. Same
+    /// lock/lifetime reasoning as `displayEnabled`.
+    private let subSpectrumEnabled = Locked<Bool>(false)
+    /// The Sub spectrum's own peak-hold/decay auto-gain, separate from
+    /// Main's so a quiet Sub isn't scaled against a loud Main. Only touched
+    /// from the audio-delivery path, one call at a time, like `gain`.
+    nonisolated(unsafe) private let subGain: AutoGainState
+
     init() {
         log2n = vDSP_Length(log2(Double(fftSize)))
         fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2))!
+        subGain = AutoGainState(minimumPeakDb: waterfallMinimumPeakDb, minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
     }
 
     deinit {
@@ -229,6 +248,9 @@ final class AudioCaptureEngine {
     /// waterfall/FFT), so it needs its own equivalent hand-off to the main
     /// actor.
     nonisolated private func deliverSubChannelSamples(_ samples: [Float], sampleRate: Double) {
+        if subSpectrumEnabled.get(), onSubSpectrum != nil {
+            publishSubSpectrum(samples, sampleRate: sampleRate)
+        }
         guard onSubChannelSamples != nil else { return }
         Task { @MainActor [weak self] in
             self?.onSubChannelSamples?(samples, sampleRate)
@@ -388,6 +410,11 @@ final class AudioCaptureEngine {
         displayEnabled.set(enabled)
     }
 
+    /// See `subSpectrumEnabled`. Takes effect on the next buffer.
+    func setSubSpectrumEnabled(_ enabled: Bool) {
+        subSpectrumEnabled.set(enabled)
+    }
+
     /// Whether the physical left/right channels are currently swapped
     /// relative to the Main/Sub *roles* every consumer downstream sees
     /// (`onAudioSamples`/waterfall = Main role, `onSubChannelSamples` = Sub
@@ -471,34 +498,12 @@ final class AudioCaptureEngine {
         process(samples: mainSamples, sampleRate: buffer.format.sampleRate, bitmap: bitmap, gain: gain)
     }
 
-    /// The shared core both the local `AVAudioEngine` tap (via `process
-    /// (buffer:bitmap:gain:)` above) and `RemoteAudioStreamClient`'s
-    /// network-delivered chunks feed into — everything from here down has
-    /// no idea whether `rawSamples` came from local hardware or the Pi.
-    /// Runs off the main actor in both cases (the local tap's Core Audio
-    /// real-time thread, or `RemoteAudioStreamClient`'s own actor), except
-    /// the final `onNewFrame`/`onAudioSamples` hops.
-    nonisolated private func process(samples rawSamples: [Float], sampleRate: Double, bitmap: WaterfallBitmap, gain: AutoGainState) {
-        guard !rawSamples.isEmpty else { return }
-
-        if onAudioSamples != nil {
-            Task { @MainActor [weak self] in
-                self?.onAudioSamples?(rawSamples, sampleRate)
-            }
-        }
-
-        // Everything below exists only to produce display frames — skip the
-        // lot while the scope is "Off" (see `displayEnabled`).
-        guard displayEnabled.get() else { return }
-
-        var samples = [Float](repeating: 0, count: fftSize)
-        let copyCount = min(rawSamples.count, fftSize)
-        samples.withUnsafeMutableBufferPointer { dest in
-            rawSamples.withUnsafeBufferPointer { src in
-                dest.baseAddress!.update(from: src.baseAddress!, count: copyCount)
-            }
-        }
-
+    /// Window + FFT + power→dB of exactly `fftSize` samples (the bins up to
+    /// Nyquist, `fftSize / 2` of them). Shared by Main's `process(samples:…)`
+    /// and the Sub-channel filter spectrum so the two can't drift apart.
+    /// All vDSP — this runs 21+ times a second, and the Debug build is
+    /// `-Onone` (see repo CLAUDE.md on per-sample Swift in hot paths).
+    nonisolated private func fftPowerDb(_ samples: [Float]) -> [Float] {
         var window = [Float](repeating: 0, count: fftSize)
         vDSP_hann_window(&window, vDSP_Length(fftSize), Int32(vDSP_HANN_NORM))
         var windowed = [Float](repeating: 0, count: fftSize)
@@ -527,6 +532,79 @@ final class AudioCaptureEngine {
         var reference: Float = 1
         var db = [Float](repeating: 0, count: halfSize)
         vDSP_vdbcon(magnitudes, 1, &reference, &db, 1, vDSP_Length(halfSize), 1)
+        return db
+    }
+
+    /// The Filter Function Display's spectrum: the raw dB bins up to 4 kHz
+    /// (its fixed span — ~186 bins at 44.1 kHz), clipped to the given
+    /// floor/ceiling window and normalized 0…1. Shared by Main and Sub.
+    nonisolated private func normalizedSpectrum(db: [Float], floorDb: Float, ceilingDb: Float, sampleRate: Double) -> [Float] {
+        let spectrumBins = min(db.count, Int(4000 / (sampleRate / Double(fftSize))))
+        var spectrum = [Float](repeating: 0, count: spectrumBins)
+        var floorClip = floorDb
+        var ceilingClip = ceilingDb
+        vDSP_vclip(db, 1, &floorClip, &ceilingClip, &spectrum, 1, vDSP_Length(spectrumBins))
+        var negFloor = -floorDb
+        vDSP_vsadd(spectrum, 1, &negFloor, &spectrum, 1, vDSP_Length(spectrumBins))
+        var invRange = 1 / max(ceilingDb - floorDb, 1e-6)
+        vDSP_vsmul(spectrum, 1, &invRange, &spectrum, 1, vDSP_Length(spectrumBins))
+        return spectrum
+    }
+
+    /// Computes the Sub channel's normalized spectrum with its own auto-gain
+    /// and hands it to `onSubSpectrum` on the main actor. Chunks shorter
+    /// than `fftSize` are zero-padded, longer ones truncated — the same as
+    /// Main's path, so local (2048-sample) and remote chunks behave alike.
+    nonisolated private func publishSubSpectrum(_ raw: [Float], sampleRate: Double) {
+        guard !raw.isEmpty else { return }
+        var samples = [Float](repeating: 0, count: fftSize)
+        let copyCount = min(raw.count, fftSize)
+        samples.withUnsafeMutableBufferPointer { dest in
+            raw.withUnsafeBufferPointer { src in
+                dest.baseAddress!.update(from: src.baseAddress!, count: copyCount)
+            }
+        }
+        let db = fftPowerDb(samples)
+        let frameMaxDb = db.max() ?? waterfallMinimumPeakDb
+        subGain.peakDb = max(waterfallMinimumPeakDb, max(frameMaxDb, subGain.peakDb - waterfallPeakDecayPerFrameDb))
+        let ceilingDb = subGain.peakDb + waterfallHeadroomDb
+        let floorDb = ceilingDb - waterfallDynamicRangeDb / waterfallZoom.get()
+        let spectrum = normalizedSpectrum(db: db, floorDb: floorDb, ceilingDb: ceilingDb, sampleRate: sampleRate)
+        Task { @MainActor [weak self] in
+            self?.onSubSpectrum?(spectrum)
+        }
+    }
+
+    /// The shared core both the local `AVAudioEngine` tap (via `process
+    /// (buffer:bitmap:gain:)` above) and `RemoteAudioStreamClient`'s
+    /// network-delivered chunks feed into — everything from here down has
+    /// no idea whether `rawSamples` came from local hardware or the Pi.
+    /// Runs off the main actor in both cases (the local tap's Core Audio
+    /// real-time thread, or `RemoteAudioStreamClient`'s own actor), except
+    /// the final `onNewFrame`/`onAudioSamples` hops.
+    nonisolated private func process(samples rawSamples: [Float], sampleRate: Double, bitmap: WaterfallBitmap, gain: AutoGainState) {
+        guard !rawSamples.isEmpty else { return }
+
+        if onAudioSamples != nil {
+            Task { @MainActor [weak self] in
+                self?.onAudioSamples?(rawSamples, sampleRate)
+            }
+        }
+
+        // Everything below exists only to produce display frames — skip the
+        // lot while the scope is "Off" (see `displayEnabled`).
+        guard displayEnabled.get() else { return }
+
+        var samples = [Float](repeating: 0, count: fftSize)
+        let copyCount = min(rawSamples.count, fftSize)
+        samples.withUnsafeMutableBufferPointer { dest in
+            rawSamples.withUnsafeBufferPointer { src in
+                dest.baseAddress!.update(from: src.baseAddress!, count: copyCount)
+            }
+        }
+
+        let halfSize = fftSize / 2
+        let db = fftPowerDb(samples)
 
         // Auto-gain: jump the tracked peak up to this frame's loudest bin
         // immediately, or let it decay down by one step — never below the
@@ -543,15 +621,7 @@ final class AudioCaptureEngine {
         // fixed span — ~186 bins at 44.1 kHz), clipped to the same
         // floor/ceiling window and normalized 0…1, all in vDSP so the
         // Debug build pays nothing per bin (see CLAUDE.md on -Onone).
-        let spectrumBins = min(halfSize, Int(4000 / (sampleRate / Double(fftSize))))
-        var spectrum = [Float](repeating: 0, count: spectrumBins)
-        var floorClip = floorDb
-        var ceilingClip = ceilingDb
-        vDSP_vclip(db, 1, &floorClip, &ceilingClip, &spectrum, 1, vDSP_Length(spectrumBins))
-        var negFloor = -floorDb
-        vDSP_vsadd(spectrum, 1, &negFloor, &spectrum, 1, vDSP_Length(spectrumBins))
-        var invRange = 1 / max(ceilingDb - floorDb, 1e-6)
-        vDSP_vsmul(spectrum, 1, &invRange, &spectrum, 1, vDSP_Length(spectrumBins))
+        let spectrum = normalizedSpectrum(db: db, floorDb: floorDb, ceilingDb: ceilingDb, sampleRate: sampleRate)
 
         // Bucket the raw FFT bins down to binCount display columns, taking
         // each bucket's peak so brief narrow-band signals don't disappear

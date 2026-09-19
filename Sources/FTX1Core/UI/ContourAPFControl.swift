@@ -21,7 +21,7 @@ public struct ContourAPFControl<Controller: RigController>: View {
     public init() {}
 
     public var body: some View {
-        let mode = hub.rigState.mode
+        let mode = hub.rigState.filterMode
         switch IFContour.face(for: mode) {
         case nil:
             EmptyView()

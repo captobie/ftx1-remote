@@ -84,6 +84,27 @@ final class FilterPassbandModelTests: XCTestCase {
         XCTAssertEqual(FilterPassbandModel(state: state(mode: .am, width: 2, narrow: (true, 1800))).widthLabel, "9000 Hz")
     }
 
+    /// With SUB selected the model uses the Sub receiver's mode, and the
+    /// caption says which receiver the picture is of.
+    func testSubSideUsesTheSubModeAndCaption() {
+        var s = state(mode: .usb, width: 17)
+        s.secondaryMode = .cw
+        s.cwPitchHz = 700
+        // MAIN selected (nil): the USB picture, unprefixed.
+        XCTAssertEqual(FilterPassbandModel(state: s).modeName, "USB")
+        // SUB selected: filter fields are the Sub side's; mode is CW.
+        s.filterSide = .sub
+        s.filterWidthIndex = 10   // 500 Hz in the CW column
+        let model = FilterPassbandModel(state: s)
+        XCTAssertEqual(model.modeName, "SUB CW")
+        XCTAssertEqual(model.passband, 450...950)
+        XCTAssertEqual(model.markers, [.init(label: "P", hz: 700)])
+        XCTAssertEqual(model.widthLabel, "500 Hz")
+        // Sub mode unknown (not read yet): nothing to draw.
+        s.secondaryMode = nil
+        XCTAssertNil(FilterPassbandModel(state: s).passband)
+    }
+
     func testNoFilterModes() {
         XCTAssertNil(FilterPassbandModel(state: state(mode: .c4fm, width: 17)).passband)
         XCTAssertNil(FilterPassbandModel(state: state(mode: .usb)).passband, "unknown width draws nothing")

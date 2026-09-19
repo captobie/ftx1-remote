@@ -196,6 +196,14 @@ public enum RigCommand: Sendable, Equatable {
     /// NARROW ("N/W") on/off — see `RigState.narrowEnabled`. Raw "NA" CAT
     /// command, P1 fixed to "0" (MAIN-side), plain boolean like `setDNF`.
     case setNarrow(Bool)
+    /// Which receiver the filter commands above (`setFilterWidth`,
+    /// `setIFShift`, `setNotch*`, `setContour*`, `setAPF*`, `setNarrow`)
+    /// address — see `RigState.filterSide`/`FilterSide`. Those commands are
+    /// unchanged and apply to the selected side, so they stay
+    /// wire-compatible; `CommandQueue` holds the side and applies commands
+    /// in FIFO order, so a switch followed immediately by a control change
+    /// can't race. Wire value is the side's raw Int (0 MAIN, 1 SUB).
+    case setFilterSide(FilterSide)
     /// HF antenna connector selector: 0 = ANT1, 1 = ANT2 — see
     /// `RigState.antSelect`. No dedicated mnemonic; goes through the same
     /// "EX" (MENU) passthrough as `.setMenuItem` below, addressed at Table
@@ -319,6 +327,7 @@ public enum RigCommand: Sendable, Equatable {
         case setAPF = "set_apf"
         case setAPFOffset = "set_apf_offset"
         case setNarrow = "set_narrow"
+        case setFilterSide = "set_filter_side"
         case setAntSelect = "set_ant_select"
         case setTXW = "set_txw"
         case setSquelchType = "set_squelch_type"
@@ -435,6 +444,8 @@ extension RigCommand: Codable {
             self = .setAPFOffset(hz: try container.decode(Int.self, forKey: .value))
         case .setNarrow:
             self = .setNarrow(try container.decode(Bool.self, forKey: .value))
+        case .setFilterSide:
+            self = .setFilterSide(try container.decode(FilterSide.self, forKey: .value))
         case .setAntSelect:
             self = .setAntSelect(try container.decode(Int.self, forKey: .value))
         case .setTXW:
@@ -607,6 +618,9 @@ extension RigCommand: Codable {
         case .setNarrow(let on):
             try container.encode(CommandName.setNarrow, forKey: .cmd)
             try container.encode(on, forKey: .value)
+        case .setFilterSide(let side):
+            try container.encode(CommandName.setFilterSide, forKey: .cmd)
+            try container.encode(side, forKey: .value)
         case .setAntSelect(let mode):
             try container.encode(CommandName.setAntSelect, forKey: .cmd)
             try container.encode(mode, forKey: .value)
