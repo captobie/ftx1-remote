@@ -330,6 +330,9 @@ public actor CommandQueue {
             // passthrough `.setMenuItem` uses under the hood, just for this
             // one fixed address rather than an arbitrary Deep Settings item.
             try await rigctld.setMenuItem(p1: 3, p2: 7, p3: 4, rawValue: "\(mode)")
+        case .setTXSide(let side):
+            // "FT" is a bare single digit (0 MAIN-side, 1 SUB-side), no P1.
+            try await rigctld.setRawInt("FT", side.rawValue, digits: 1)
         case .setTXW(let on):
             // "TS" has no MAIN/SUB P1 selector at all — a bare boolean like
             // "MX"/"VX", not baked into a fixed-P1 mnemonic like most of the

@@ -245,6 +245,20 @@ public struct RigState: Codable, Equatable, Sendable {
     /// spans MAIN/SUB — don't assume the current MAIN ternary above is
     /// final for the split-ON case).
     public var splitEnabled: Bool?
+    /// Which receiver's side transmits (the FTX-1's raw "FT" FUNCTION TX CAT
+    /// command: 0 MAIN-side transmitter, 1 SUB-side). Bare single digit, no
+    /// P1 selector. nil until first read.
+    public var txSide: FilterSide?
+    /// "TXRX"/"RX" caption for the MAIN box: "TXRX" while MAIN is the TX side
+    /// (the default until `txSide` is read); "RX" when SUB transmits or split
+    /// is on (split-on labels are still unconfirmed on hardware).
+    public var mainTxRxLabel: String {
+        splitEnabled == true || txSide == .sub ? "RX" : "TXRX"
+    }
+    /// Same for the SUB box: "TXRX" only while SUB is the TX side.
+    public var subTxRxLabel: String {
+        splitEnabled != true && txSide == .sub ? "TXRX" : "RX"
+    }
     /// Squelch type, 0-5 (OFF/ENC/TSQ/DCS/PR FREQ/REV TONE) — the FTX-1's raw
     /// "CT" CAT command, P1 fixed to "0" (MAIN-side). Same setting as Deep
     /// Settings' RADIO SETTING → MODE FM → SQL TYPE item, but reached here
@@ -398,6 +412,7 @@ public struct RigState: Codable, Equatable, Sendable {
         antSelect: Int? = nil,
         txwEnabled: Bool? = nil,
         splitEnabled: Bool? = nil,
+        txSide: FilterSide? = nil,
         squelchType: Int? = nil,
         ctcssToneIndex: Int? = nil,
         dcsCodeIndex: Int? = nil,
@@ -468,6 +483,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.antSelect = antSelect
         self.txwEnabled = txwEnabled
         self.splitEnabled = splitEnabled
+        self.txSide = txSide
         self.squelchType = squelchType
         self.ctcssToneIndex = ctcssToneIndex
         self.dcsCodeIndex = dcsCodeIndex

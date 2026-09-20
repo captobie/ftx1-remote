@@ -212,6 +212,10 @@ public enum RigCommand: Sendable, Equatable {
     /// TXW on/off — see `RigState.txwEnabled`. Maps to the FTX-1's raw "TS"
     /// CAT command, a bare boolean with no MAIN/SUB P1 selector.
     case setTXW(Bool)
+    /// Selects which side transmits — see `RigState.txSide`. Maps to the
+    /// FTX-1's raw "FT" (FUNCTION TX) CAT command. Wire value is the side's
+    /// raw Int (0 MAIN, 1 SUB).
+    case setTXSide(FilterSide)
     /// Squelch type, 0-5 (OFF/ENC/TSQ/DCS/PR FREQ/REV TONE) — see
     /// `RigState.squelchType`. Maps to the FTX-1's raw "CT" CAT command, P1
     /// fixed to "0" (MAIN-side).
@@ -330,6 +334,7 @@ public enum RigCommand: Sendable, Equatable {
         case setFilterSide = "set_filter_side"
         case setAntSelect = "set_ant_select"
         case setTXW = "set_txw"
+        case setTXSide = "set_tx_side"
         case setSquelchType = "set_squelch_type"
         case setToneFreq = "set_tone_freq"
         case setDCSCode = "set_dcs_code"
@@ -450,6 +455,8 @@ extension RigCommand: Codable {
             self = .setAntSelect(try container.decode(Int.self, forKey: .value))
         case .setTXW:
             self = .setTXW(try container.decode(Bool.self, forKey: .value))
+        case .setTXSide:
+            self = .setTXSide(try container.decode(FilterSide.self, forKey: .value))
         case .setSquelchType:
             self = .setSquelchType(try container.decode(Int.self, forKey: .value))
         case .setToneFreq:
@@ -624,6 +631,9 @@ extension RigCommand: Codable {
         case .setAntSelect(let mode):
             try container.encode(CommandName.setAntSelect, forKey: .cmd)
             try container.encode(mode, forKey: .value)
+        case .setTXSide(let side):
+            try container.encode(CommandName.setTXSide, forKey: .cmd)
+            try container.encode(side, forKey: .value)
         case .setTXW(let on):
             try container.encode(CommandName.setTXW, forKey: .cmd)
             try container.encode(on, forKey: .value)

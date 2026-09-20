@@ -721,7 +721,7 @@ final class HubService: ObservableObject {
              .setCWMessageRecording, .setAtt, .setPreamp, .setTuner, .setDisplayContrast,
              .setDisplayDimmer, .setDisplayLevel, .setDisplayPeak, .setDisplayMarker, .setMicGain,
              .setAMCLevel, .setVox, .setVoxGain, .setVoxDelay, .setDNF, .setAGC, .setMicEQ,
-             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow, .setFilterSide, .setAntSelect, .setTXW, .setSquelchType,
+             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow, .setFilterSide, .setAntSelect, .setTXW, .setTXSide, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel:
             return false
@@ -850,6 +850,7 @@ final class HubService: ObservableObject {
             updateSubSpectrumCapture()
         case .setAntSelect(let mode): rigState.antSelect = mode
         case .setTXW(let on): rigState.txwEnabled = on
+        case .setTXSide(let side): rigState.txSide = side
         case .setSquelchType(let mode): rigState.squelchType = mode
         case .setToneFreq(let index): rigState.ctcssToneIndex = index
         case .setDCSCode(let index): rigState.dcsCodeIndex = index
@@ -1631,6 +1632,8 @@ final class HubService: ObservableObject {
         // "ST" reads SPLIT with no P1 selector at all, same bare-boolean
         // shape as "TS" above — see RigState.splitEnabled.
         let splitEnabled = try? await rigctld.getRawBool("ST")
+        // "FT" reads the TX side (0 MAIN, 1 SUB), a bare digit like "ST".
+        let txSideRaw = try? await rigctld.getRawDigit("FT")
         // "CT0" reads SQL TYPE with its fixed MAIN-side P1 baked in, same
         // shape as "GT0"/"BC0" above.
         let squelchType = try? await rigctld.getRawDigit("CT0")
@@ -1709,6 +1712,7 @@ final class HubService: ObservableObject {
         rigState.antSelect = antSelect ?? rigState.antSelect
         rigState.txwEnabled = txwEnabled ?? rigState.txwEnabled
         rigState.splitEnabled = splitEnabled ?? rigState.splitEnabled
+        rigState.txSide = txSideRaw.flatMap(FilterSide.init(rawValue:)) ?? rigState.txSide
         rigState.squelchType = squelchType ?? rigState.squelchType
         rigState.ctcssToneIndex = ctcssToneIndex ?? rigState.ctcssToneIndex
         rigState.dcsCodeIndex = dcsCodeIndex ?? rigState.dcsCodeIndex

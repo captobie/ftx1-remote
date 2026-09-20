@@ -57,11 +57,12 @@ struct ContentView: View {
             // the VFO boxes; the scope mode buttons sit below it.
             Grid(horizontalSpacing: 12, verticalSpacing: 6) {
                 GridRow(alignment: .top) {
-                    VFODisplayBox(label: "SUB", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: hub.rigState.singleReceive != true, mode: hub.rigState.secondaryMode?.displayName ?? "—", txRxLabel: "RX", callsign: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsSubActive ? hub.rigState.aprsSubLastCallsign : nil), reflector: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsSubActive, onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) })
+                    VFODisplayBox(label: "SUB", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: hub.rigState.singleReceive != true, mode: hub.rigState.secondaryMode?.displayName ?? "—", txRxLabel: hub.rigState.subTxRxLabel, callsign: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsSubActive ? hub.rigState.aprsSubLastCallsign : nil), reflector: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsSubActive, onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) })
                     VStack(spacing: 8) {
                         HStack(spacing: 12) {
                             vmToggleButton
                             vfoSwapButton
+                            txSideButton
                             audioChannelSwapButton
                         }
                         HStack(spacing: 8) {
@@ -72,7 +73,7 @@ struct ContentView: View {
                                 .fixedSize()
                         }
                     }
-                    VFODisplayBox(label: "MAIN", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, txRxLabel: hub.rigState.splitEnabled == true ? "RX" : "TXRX", callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.vfoMemoryMode, memoryChannel: hub.rigState.memoryChannel, memoryChannelTag: hub.rigState.memoryChannelTag, onSetMemoryChannel: { hub.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepMemoryChannel(up: $0)) })
+                    VFODisplayBox(label: "MAIN", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, txRxLabel: hub.rigState.mainTxRxLabel, callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.vfoMemoryMode, memoryChannel: hub.rigState.memoryChannel, memoryChannelTag: hub.rigState.memoryChannelTag, onSetMemoryChannel: { hub.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepMemoryChannel(up: $0)) })
                 }
                 GridRow(alignment: .top) {
                     channelControls(isSub: true)
@@ -183,6 +184,19 @@ struct ContentView: View {
             Image(systemName: "arrow.left.arrow.right")
         }
         .buttonStyle(.bordered)
+    }
+
+    /// Moves the transmitter between MAIN and SUB (raw "FT", see
+    /// `RigState.txSide`); the caption shows the side currently transmitting.
+    private var txSideButton: some View {
+        Button {
+            hub.send(.setTXSide(hub.rigState.txSide == .sub ? .main : .sub))
+        } label: {
+            Text(hub.rigState.txSide == .sub ? "TX:SUB" : "TX:MAIN")
+                .font(.caption)
+        }
+        .buttonStyle(.bordered)
+        .help("Switch the transmit side between MAIN and SUB")
     }
 
     /// Manual override for which physical audio channel (L/R) plays under
