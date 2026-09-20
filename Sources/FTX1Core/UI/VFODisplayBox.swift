@@ -97,14 +97,12 @@ public struct VFODisplayBox: View {
         vfoMemoryMode == .memory && onSetMemoryChannel != nil && onStepMemoryChannel != nil
     }
 
-    /// The top line's text — plain `mode` normally, or `mode` plus the
-    /// memory channel number (and its tag, if it has one) while in Memory
-    /// mode. Combined onto one line per the user's request, rather than the
-    /// channel number occupying its own line below `mode`.
-    private var topLineText: String {
-        guard vfoMemoryMode == .memory, let memoryChannel else { return mode }
+    /// The memory-channel tag's text ("CH 11 K7RPT") while in Memory mode,
+    /// shown in its own box after the TXRX/RX indicator; nil otherwise.
+    private var channelText: String? {
+        guard vfoMemoryMode == .memory, let memoryChannel else { return nil }
         let tagSuffix = memoryChannelTag.map { " \($0)" } ?? ""
-        return "\(mode)  CH \(memoryChannel)\(tagSuffix)"
+        return "CH \(memoryChannel)\(tagSuffix)"
     }
 
     public var body: some View {
@@ -128,7 +126,18 @@ public struct VFODisplayBox: View {
                             .foregroundStyle(txRxFillColor == nil ? Color.secondary : Color.white)
                             .tagBoxed(fill: txRxFillColor)
                     }
+                    if let channelText {
+                        Text(channelText)
+                            .font(.caption2)
+                            .foregroundStyle(digitColor)
+                            .lineLimit(1)
+                            .tagBoxed()
+                    }
                 }
+                // Tags keep their natural size: without this, a wide callsign
+                // or the priority frequency squeezes them into wrapped/
+                // truncated text.
+                .fixedSize(horizontal: true, vertical: false)
                 // Reflector/APRS indicator and the decoded callsign are
                 // grouped together — all three describe the same
                 // decoded-digital-traffic state for this VFO.
@@ -157,7 +166,7 @@ public struct VFODisplayBox: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 6) {
-                Text(topLineText)
+                Text(mode)
                     .font(.caption2)
                     .foregroundStyle(digitColor)
                     .tagBoxed()

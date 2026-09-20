@@ -1445,6 +1445,13 @@ final class HubService: ObservableObject {
         if let memoryChannel {
             memoryChannelTag = try? await rigctld.getMemoryChannelTag(channel: memoryChannel)
         }
+        // SUB-side equivalents (P1 = 1), same "only while relevant" reads.
+        let subVfoMemoryModeRaw = try? await rigctld.getRawInt("VM1")
+        let subMemoryChannel = (subVfoMemoryModeRaw == 11) ? (try? await rigctld.getRawInt("MC1")) : nil
+        var subMemoryChannelTag: String?
+        if let subMemoryChannel {
+            subMemoryChannelTag = try? await rigctld.getMemoryChannelTag(channel: subMemoryChannel)
+        }
 
         // Every field above has an optimistic-set counterpart in
         // applyOptimistically (frequency, mode, PTT, power level). If a
@@ -1523,6 +1530,9 @@ final class HubService: ObservableObject {
         // stale channel number from the last time it was active.
         rigState.memoryChannel = memoryChannel
         rigState.memoryChannelTag = memoryChannelTag
+        rigState.subVfoMemoryMode = subVfoMemoryModeRaw.map(VFOMemoryMode.init(rawP2:)) ?? rigState.subVfoMemoryMode
+        rigState.subMemoryChannel = subMemoryChannel
+        rigState.subMemoryChannelTag = subMemoryChannelTag
 
         // Only while genuinely in VFO mode — never from a Memory-mode
         // snapshot, whose frequency/mode are the channel's, not the VFO's.

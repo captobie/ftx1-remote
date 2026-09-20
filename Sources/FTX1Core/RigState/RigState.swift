@@ -350,6 +350,11 @@ public struct RigState: Codable, Equatable, Sendable {
     /// as `memoryChannel`: only meaningful alongside a non-nil
     /// `memoryChannel`, and nil (not held over) once that's nil too.
     public var memoryChannelTag: String?
+    /// SUB-side counterparts of `vfoMemoryMode`/`memoryChannel`/
+    /// `memoryChannelTag`, read with P1 = 1 ("VM1"/"MC1"). Display-only.
+    public var subVfoMemoryMode: VFOMemoryMode?
+    public var subMemoryChannel: Int?
+    public var subMemoryChannelTag: String?
     /// Local app-level safety policy, not CAT-sourced — mirrors the Mac's
     /// `RigctldSettings.transmitEnabled` and is pushed to clients like every
     /// other field so a remote PTT/MOX/ANT TUNE control can reflect it. When
@@ -428,6 +433,9 @@ public struct RigState: Codable, Equatable, Sendable {
         vfoMemoryMode: VFOMemoryMode? = nil,
         memoryChannel: Int? = nil,
         memoryChannelTag: String? = nil,
+        subVfoMemoryMode: VFOMemoryMode? = nil,
+        subMemoryChannel: Int? = nil,
+        subMemoryChannelTag: String? = nil,
         transmitEnabled: Bool = true
     ) {
         self.frequencyHz = frequencyHz
@@ -499,6 +507,9 @@ public struct RigState: Codable, Equatable, Sendable {
         self.vfoMemoryMode = vfoMemoryMode
         self.memoryChannel = memoryChannel
         self.memoryChannelTag = memoryChannelTag
+        self.subVfoMemoryMode = subVfoMemoryMode
+        self.subMemoryChannel = subMemoryChannel
+        self.subMemoryChannelTag = subMemoryChannelTag
         self.transmitEnabled = transmitEnabled
     }
 }
