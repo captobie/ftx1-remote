@@ -20,17 +20,17 @@ final class WPSDCallsignMonitor {
     /// Same contract as `onCallsignUpdate`.
     var onReflectorUpdate: ((String?) -> Void)?
 
-    /// Slightly slower than the dashboard page's own ~1s polling cadence —
-    /// this hotspot's PHP backend visibly strains (roughly half of 1s-cadence
-    /// requests time out) when polled that fast by two clients (the WPSD
-    /// dashboard page itself, if left open, plus this app) at once.
-    private let pollInterval: Duration = .seconds(2)
+    /// Slower than the dashboard page's own ~1s polling cadence — this
+    /// hotspot (a Pi Zero 2 W) costs ~0.7s of PHP work per request when idle
+    /// and ~3.3s once polled at ~0.7 req/s by this app plus the dashboard
+    /// page (measured 2026-09-20), so poll conservatively.
+    private let pollInterval: Duration = .seconds(3)
     /// The linked reflector changes far less often than the live caller, so
     /// this polls on its own, slower loop rather than riding along with
-    /// `pollInterval` — matches the WPSD dashboard's own cadence for this
-    /// endpoint (`reloadRepeaterInfo` polls every 5s) and keeps this app
-    /// from adding to the backend strain noted above.
-    private let reflectorPollInterval: Duration = .seconds(5)
+    /// `pollInterval`. The WPSD dashboard polls this endpoint every 5s
+    /// (`reloadRepeaterInfo`), which is faster than needed here, and a slower
+    /// cadence keeps this app from adding to the backend strain noted above.
+    private let reflectorPollInterval: Duration = .seconds(30)
     private let session: URLSession
     private var pollTask: Task<Void, Never>?
     private var reflectorPollTask: Task<Void, Never>?
@@ -60,7 +60,7 @@ final class WPSDCallsignMonitor {
         reflectorPollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.pollReflector(host: host)
-                try? await Task.sleep(for: self?.reflectorPollInterval ?? .seconds(5))
+                try? await Task.sleep(for: self?.reflectorPollInterval ?? .seconds(30))
             }
         }
     }
