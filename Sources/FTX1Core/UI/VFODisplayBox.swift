@@ -106,13 +106,13 @@ public struct VFODisplayBox: View {
     }
 
     public var body: some View {
-        // Fixed two-row structure so nothing here can resize the box or the
-        // frequency: the top row holds the tags (MAIN/TXRX/channel) on the
-        // left and the mode on the right; the bottom row holds the decoded
-        // reflector/APRS/callsign on the left and the frequency on the
-        // right. The frequency never scales, and the callsign column is the
-        // only flexible piece (it shrinks/truncates rather than push).
-        VStack(alignment: .leading, spacing: 6) {
+        // Fixed three-row structure so nothing here can resize the box or
+        // the frequency: tags (MAIN/TXRX/channel) and mode on top, the
+        // reflector/APRS indicator under them (height reserved), then the
+        // decoded callsign on the left and the frequency on the right. The
+        // frequency never scales; the callsign is the only flexible piece
+        // (it shrinks/truncates rather than push).
+        VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Text(label)
                     .font(.caption)
@@ -140,28 +140,32 @@ public struct VFODisplayBox: View {
                     .tagBoxed()
                     .fixedSize()
             }
-            HStack(alignment: .center, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    if let reflector {
-                        Text(reflector)
-                            .font(.caption2)
-                            .foregroundStyle(digitColor)
-                            .lineLimit(1)
-                    }
-                    if aprsActive {
-                        Text("APRS")
-                            .font(.caption2)
-                            .foregroundStyle(digitColor)
-                    }
-                    if let callsign {
-                        Text(callsign)
-                            .font(.system(size: 24, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(digitColor)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.5)
-                    }
+            // Reflector/APRS indicator sits directly under MAIN/SUB. Its
+            // height is reserved even when empty so neither it nor anything
+            // below it moves as indicators or callsigns come and go.
+            HStack(spacing: 6) {
+                if let reflector {
+                    Text(reflector)
+                        .font(.caption2)
+                        .foregroundStyle(digitColor)
+                        .lineLimit(1)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                if aprsActive {
+                    Text("APRS")
+                        .font(.caption2)
+                        .foregroundStyle(digitColor)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 14, alignment: .leading)
+            HStack(alignment: .center, spacing: 8) {
+                if let callsign {
+                    Text(callsign)
+                        .font(.system(size: 24, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(digitColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                }
+                Spacer(minLength: 0)
                 Text(formattedFrequency)
                     .font(.system(size: 36, weight: .medium, design: .monospaced))
                     .foregroundStyle(digitColor)
@@ -184,10 +188,7 @@ public struct VFODisplayBox: View {
                         }
                     }
             }
-            // Reserves room for the tallest left-column stack (reflector/
-            // APRS caption over a 24pt callsign) so the box's height is the
-            // same whether or not a decode is showing.
-            .frame(minHeight: 46)
+
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -217,7 +218,7 @@ public struct VFODisplayBox: View {
     /// Grouped like the rig's own display (e.g. "147.380.000") rather than
     /// a plain Hz count, so it reads the way a radio operator expects.
     private var formattedFrequency: String {
-        guard let frequencyHz else { return "-- . --- . ---" }
+        guard let frequencyHz, frequencyHz > 0 else { return "-- . --- . ---" }
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = "."
