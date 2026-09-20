@@ -110,8 +110,7 @@ public struct VFODisplayBox: View {
         // the frequency: tags (MAIN/TXRX/channel) and mode on top, the
         // reflector/APRS indicator under them (height reserved), then the
         // decoded callsign on the left and the frequency on the right. The
-        // frequency never scales; the callsign is the only flexible piece
-        // (it shrinks/truncates rather than push).
+        // frequency and callsign are fixed-size (never scale).
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Text(label)
@@ -163,7 +162,7 @@ public struct VFODisplayBox: View {
                         .font(.system(size: 24, weight: .semibold, design: .monospaced))
                         .foregroundStyle(digitColor)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.5)
+                        .fixedSize()
                 }
                 Spacer(minLength: 0)
                 Text(formattedFrequency)
