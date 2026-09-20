@@ -61,8 +61,8 @@ struct ContentView: View {
                     VStack(spacing: 8) {
                         HStack(spacing: 12) {
                             vmToggleButton
-                            vfoSwapButton
                             txSideButton
+                            vfoSwapButton
                             audioChannelSwapButton
                         }
                         HStack(spacing: 8) {
