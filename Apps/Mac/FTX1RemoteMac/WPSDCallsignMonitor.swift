@@ -38,7 +38,11 @@ final class WPSDCallsignMonitor {
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 3
+        // The hotspot's PHP backend routinely takes 4-5s to answer (measured
+        // 2026-09-20 with a ~8ms network RTT), so 3s timed out nearly every
+        // request. Polls are sequential per loop, so a long timeout can't
+        // pile up overlapping requests.
+        configuration.timeoutIntervalForRequest = 10
         session = URLSession(configuration: configuration)
     }
 
