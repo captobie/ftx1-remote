@@ -712,7 +712,19 @@ pattern as the APRS windows.
     conform to — see Architecture above), `MenuPageView` (the numbered 7×4
     MENU grid, generic over `RigController`, one hand-written button per
     item), `VFODisplayBox` (the dense side-by-side VFO A/B readout used by
-    Mac and iPad), `SMeterView` (the analog S/SWR meter face, used by Mac
+    Mac and iPad), laid out as three fixed rows so nothing can resize the box or
+    move the frequency: (1) tag row — MAIN/SUB, TXRX/RX, then (Memory mode
+    only) a separate "CH n TAG" box, with the mode box at the right edge;
+    (2) reflector/APRS indicator line, height reserved even when empty;
+    (3) decoded callsign on the left (24pt, fixed size, never scaled) and
+    the frequency on the right (36pt, fixed size, never scaled; shows
+    `-- . --- . ---` when nil or 0, i.e. before the first read). Don't add
+    `minimumScaleFactor`/flexible frames to the callsign or frequency — an
+    earlier version did, and a callsign appearing squeezed the tags and
+    shrank the frequency. SUB's memory channel/tag come from
+    `RigState.subVfoMemoryMode`/`subMemoryChannel`/`subMemoryChannelTag`
+    (read via "VM1"/"MC1", display-only; P1=1 addressing hardware-confirmed
+    2026-09-20 when SUB showed "CH 1 Pi-STAR"), `SMeterView` (the analog S/SWR meter face, used by Mac
     and iPad), `FilterWidthControl` (IF WIDTH picker + narrower/wider
     steppers), `IFShiftControl` (IF SHIFT slider + center button,
     command sent on drag release, not per tick) and `IFNotchControl`
