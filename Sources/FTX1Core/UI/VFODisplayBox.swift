@@ -147,10 +147,10 @@ public struct VFODisplayBox: View {
                         }
                         if let callsign {
                             Text(callsign)
-                                .font(.system(size: 19, weight: .semibold, design: .monospaced))
+                                .font(.system(size: 34, weight: .semibold, design: .monospaced))
                                 .foregroundStyle(digitColor)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.5)
+                                .minimumScaleFactor(0.7)
                         }
                     }
                 }
@@ -162,7 +162,7 @@ public struct VFODisplayBox: View {
                     .foregroundStyle(digitColor)
                     .tagBoxed()
                 Text(formattedFrequency)
-                    .font(.system(size: 38, weight: .medium, design: .monospaced))
+                    .font(.system(size: 52, weight: .medium, design: .monospaced))
                     .foregroundStyle(digitColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
