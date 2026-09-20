@@ -106,75 +106,67 @@ public struct VFODisplayBox: View {
     }
 
     public var body: some View {
-        // Two flow-laid-out columns rather than absolutely-positioned
-        // overlays: MAIN/SUB + TXRX/RX and the decoded reflector/APRS/
-        // callsign info stack on the left, mode info and the frequency
-        // readout stack on the right. Using real layout (not fixed overlay
-        // offsets) means the box grows to fit whichever column is taller,
-        // so the two never overlap regardless of how many lines either one
-        // shows.
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 4) {
-                    Text(label)
-                        .font(.caption)
-                        .foregroundStyle(isActive ? .primary : .secondary)
+        // Fixed two-row structure so nothing here can resize the box or the
+        // frequency: the top row holds the tags (MAIN/TXRX/channel) on the
+        // left and the mode on the right; the bottom row holds the decoded
+        // reflector/APRS/callsign on the left and the frequency on the
+        // right. The frequency never scales, and the callsign column is the
+        // only flexible piece (it shrinks/truncates rather than push).
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(isActive ? .primary : .secondary)
+                    .tagBoxed()
+                    .fixedSize()
+                if let txRxLabel {
+                    Text(txRxLabel)
+                        .font(.caption2)
+                        .foregroundStyle(txRxFillColor == nil ? Color.secondary : Color.white)
+                        .tagBoxed(fill: txRxFillColor)
+                        .fixedSize()
+                }
+                if let channelText {
+                    Text(channelText)
+                        .font(.caption2)
+                        .foregroundStyle(digitColor)
+                        .lineLimit(1)
                         .tagBoxed()
-                    if let txRxLabel {
-                        Text(txRxLabel)
-                            .font(.caption2)
-                            .foregroundStyle(txRxFillColor == nil ? Color.secondary : Color.white)
-                            .tagBoxed(fill: txRxFillColor)
-                    }
-                    if let channelText {
-                        Text(channelText)
-                            .font(.caption2)
-                            .foregroundStyle(digitColor)
-                            .lineLimit(1)
-                            .tagBoxed()
-                    }
                 }
-                // Tags keep their natural size: without this, a wide callsign
-                // or the priority frequency squeezes them into wrapped/
-                // truncated text.
-                .fixedSize(horizontal: true, vertical: false)
-                // Reflector/APRS indicator and the decoded callsign are
-                // grouped together — all three describe the same
-                // decoded-digital-traffic state for this VFO.
-                if reflector != nil || aprsActive || callsign != nil {
-                    VStack(alignment: .leading, spacing: 2) {
-                        if let reflector {
-                            Text(reflector)
-                                .font(.caption2)
-                                .foregroundStyle(digitColor)
-                                .lineLimit(1)
-                        }
-                        if aprsActive {
-                            Text("APRS")
-                                .font(.caption2)
-                                .foregroundStyle(digitColor)
-                        }
-                        if let callsign {
-                            Text(callsign)
-                                .font(.system(size: 34, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(digitColor)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-                        }
-                    }
-                }
-            }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 6) {
+                Spacer(minLength: 8)
                 Text(mode)
                     .font(.caption2)
                     .foregroundStyle(digitColor)
                     .tagBoxed()
+                    .fixedSize()
+            }
+            HStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let reflector {
+                        Text(reflector)
+                            .font(.caption2)
+                            .foregroundStyle(digitColor)
+                            .lineLimit(1)
+                    }
+                    if aprsActive {
+                        Text("APRS")
+                            .font(.caption2)
+                            .foregroundStyle(digitColor)
+                    }
+                    if let callsign {
+                        Text(callsign)
+                            .font(.system(size: 24, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(digitColor)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Text(formattedFrequency)
-                    .font(.system(size: 52, weight: .medium, design: .monospaced))
+                    .font(.system(size: 36, weight: .medium, design: .monospaced))
                     .foregroundStyle(digitColor)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                    .fixedSize()
                     .contentShape(Rectangle())
                     .onTapGesture {
                         guard onSetFrequency != nil || isMemoryMode else { return }
@@ -192,10 +184,10 @@ public struct VFODisplayBox: View {
                         }
                     }
             }
-            // Frequency claims its width first: without this, a callsign/
-            // reflector appearing in the left column shrinks the readout
-            // (via minimumScaleFactor) until it expires.
-            .layoutPriority(1)
+            // Reserves room for the tallest left-column stack (reflector/
+            // APRS caption over a 24pt callsign) so the box's height is the
+            // same whether or not a decode is showing.
+            .frame(minHeight: 46)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
