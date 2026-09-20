@@ -57,7 +57,7 @@ struct ContentView: View {
             // the VFO boxes; the scope mode buttons sit below it.
             Grid(horizontalSpacing: 12, verticalSpacing: 6) {
                 GridRow(alignment: .top) {
-                    VFODisplayBox(label: "SUB", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: false, mode: hub.rigState.secondaryMode?.displayName ?? "—", txRxLabel: "RX", callsign: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsSubActive ? hub.rigState.aprsSubLastCallsign : nil), reflector: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsSubActive, onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) })
+                    VFODisplayBox(label: "SUB", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: hub.rigState.singleReceive != true, mode: hub.rigState.secondaryMode?.displayName ?? "—", txRxLabel: "RX", callsign: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsSubActive ? hub.rigState.aprsSubLastCallsign : nil), reflector: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsSubActive, onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) })
                     VStack(spacing: 8) {
                         HStack(spacing: 12) {
                             vmToggleButton
