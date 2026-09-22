@@ -1,4 +1,5 @@
 import FTX1Core
+import Sparkle
 import SwiftUI
 
 @main
@@ -14,6 +15,9 @@ struct FTX1RemoteMacApp: App {
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
         .commands {
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesView(updater: appDelegate.updaterController.updater)
+            }
             CommandGroup(after: .toolbar) {
                 Menu("APRS") {
                     Button("Station List") {

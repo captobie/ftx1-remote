@@ -11,6 +11,7 @@
 		17BAC8833002927800096320 /* FTX1Core in Frameworks */ = {isa = PBXBuildFile; productRef = 17BAC8823002927800096320 /* FTX1Core */; };
 		392190C1DE2BA02639B8A586 /* FTX1Core in Frameworks */ = {isa = PBXBuildFile; productRef = 3102B10EC9D493C0A039A314 /* FTX1Core */; };
 		EFD383E8E3E34549ADEF876D /* FT8Kit in Frameworks */ = {isa = PBXBuildFile; productRef = C28A82548BE9440A9A9565E9 /* FT8Kit */; };
+		29AF84D3927F05B25A265368 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 31616DA851DD82F6D38CED9E /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -47,6 +48,7 @@
 			files = (
 				17BAC8813002926B00096320 /* FTX1Core in Frameworks */,
 				EFD383E8E3E34549ADEF876D /* FT8Kit in Frameworks */,
+				29AF84D3927F05B25A265368 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -122,6 +124,7 @@
 			packageProductDependencies = (
 				17BAC8803002926B00096320 /* FTX1Core */,
 				C28A82548BE9440A9A9565E9 /* FT8Kit */,
+				31616DA851DD82F6D38CED9E /* Sparkle */,
 			);
 			productName = FTX1RemoteMac;
 			productReference = 17BAC8453002901F00096320 /* FTX1RemoteMac.app */;
@@ -208,6 +211,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				17BAC87E3002922C00096320 /* XCLocalSwiftPackageReference "../../ftx1-remote" */,
+				1706E508306344A10003F4FE /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 17BAC8463002901F00096320 /* Products */;
@@ -286,6 +290,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -322,6 +327,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -470,6 +476,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -505,6 +512,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -651,6 +659,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		1706E508306344A10003F4FE /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		17BAC8803002926B00096320 /* FTX1Core */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -671,6 +690,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 17BAC87E3002922C00096320 /* XCLocalSwiftPackageReference "../../ftx1-remote" */;
 			productName = FT8Kit;
+		};
+		31616DA851DD82F6D38CED9E /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1706E508306344A10003F4FE /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

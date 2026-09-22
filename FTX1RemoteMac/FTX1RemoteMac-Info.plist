@@ -7,5 +7,9 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/captobie/ftx1-remote/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Xu1kV/OxMn0Yx53Wslwdo7zjYDUyiOqjK1a84j33YSk=</string>
 </dict>
 </plist>

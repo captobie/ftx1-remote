@@ -557,6 +557,147 @@ build-verified (`dotnet build -r win-x64 --self-contained`, not yet
 run against real hardware) unpackaged WinUI 3 skeleton covering the full
 v1 checklist.
 
+## Sparkle updates (Mac only, in progress, 2026-09-22)
+
+Mac-app auto-update via [Sparkle](https://sparkle-project.org). Mac-only —
+iOS/iPadOS ship through the App Store (or TestFlight/sideloading), which
+manage their own updates; Sparkle doesn't apply there and isn't linked into
+those targets.
+
+- **Distribution: Developer ID + notarization, not the Mac App Store.**
+  Team `9MAKNY2JX8` has a paid Apple Developer Program membership, so
+  releases are signed with a "Developer ID Application" certificate and
+  notarized via `notarytool`, not sandboxed/submitted through App Store
+  Connect. `Scripts/ExportOptions.plist` (`method: developer-id`) is the
+  export config; `ENABLE_APP_SANDBOX = NO` on the Mac target (see
+  Architecture above) was already the case for unrelated reasons and is a
+  prerequisite here too — a sandboxed app can't self-replace the way
+  Sparkle needs to without an XPC helper, which this setup deliberately
+  avoids.
+- **Hosting: GitHub Releases**, since the repo (`captobie/ftx1-remote`) is
+  already public. `appcast.xml` lives at the repo root and is committed to
+  `main`; `SUFeedURL` (an `INFOPLIST_KEY_SUFeedURL` build setting on the Mac
+  target only, both Debug/Release configs) points at
+  `raw.githubusercontent.com/captobie/ftx1-remote/main/appcast.xml`. The
+  notarized `.zip` for each version is a GitHub Release asset (not
+  committed to git — `/releases/` and `/build/` are gitignored), referenced
+  from `appcast.xml`'s `<enclosure url>` by its stable release-download URL.
+- **`Scripts/release-mac.sh`** does the whole release: `xcodebuild archive`
+  → export (Developer ID) → zip → `notarytool submit --wait` → staple →
+  re-zip → `generate_appcast` (Sparkle's own tool; finds the EdDSA key in
+  Keychain and signs each appcast entry itself, no key material in the
+  script or repo) → moves the regenerated `appcast.xml` to the repo root.
+  Prints the two manual follow-ups it deliberately doesn't automate:
+  committing/pushing `appcast.xml`, and `gh release create` to upload the
+  zip (kept manual so release notes are always hand-written, not
+  templated).
+- **`CheckForUpdatesView`/`CheckForUpdatesViewModel`**
+  (`Apps/Mac/FTX1RemoteMac/CheckForUpdatesView.swift`) is Sparkle's own
+  documented SwiftUI pattern — bridges `SPUUpdater.canCheckForUpdates`
+  (KVO, not `@Published`) into a view model so the menu item's disabled
+  state follows it. Wired into `FTX1RemoteMacApp`'s `.commands` via
+  `CommandGroup(after: .appInfo)`. `AppDelegate` owns the
+  `SPUStandardUpdaterController` (`startingUpdater: true` — background
+  checks start automatically on launch, gated by Sparkle's own first-run
+  permission prompt, not app code) alongside `hub`, matching the existing
+  "AppDelegate owns the long-lived services" shape.
+- **Done since scaffolding, 2026-09-22** (see chat history for the full
+  walkthrough): `generate_keys` run, real public key
+  (`Xu1kV/OxMn0Yx53Wslwdo7zjYDUyiOqjK1a84j33YSk=`) is in
+  `INFOPLIST_KEY_SUPublicEDKey` on both Mac configs; `notarytool
+  store-credentials` done for the `ftx1remote-notary` profile
+  `Scripts/release-mac.sh` expects; Developer ID Application certificate
+  confirmed present in Keychain. **`brew install sparkle` doesn't work —
+  Homebrew disabled that cask 2026-09-01 (fails Gatekeeper) — don't retry
+  it.** Instead `generate_appcast`/`sign_update`/`BinaryDelta` came from
+  Sparkle's own release zip (same one `generate_keys` was extracted from),
+  relocated from `~/Downloads` to
+  `~/Library/Application Support/Sparkle-CLI/Sparkle-2.10.0/` (a stable,
+  non-cleaned-up path), quarantine-cleared, and symlinked into
+  `/opt/homebrew/bin` so they're on PATH for `Scripts/release-mac.sh`.
+- **Sparkle SPM package added 2026-09-22**, with one wrinkle: adding it via
+  Xcode's File → Add Package Dependencies only created the
+  `XCRemoteSwiftPackageReference` at the project level — it did *not*
+  attach the `Sparkle` product to the `FTX1RemoteMac` target (Xcode UI
+  quirk, not user error; the target's `packageProductDependencies` stayed
+  `FTX1Core`/`FT8Kit` only, hence the initial "Unable to resolve module
+  dependency: 'Sparkle'" build failure). Fixed by hand-adding the missing
+  `XCSwiftPackageProductDependency` + `PBXBuildFile` + Frameworks-phase +
+  `packageProductDependencies` entries, mirroring the existing
+  `FTX1Core`/`FT8Kit` pattern exactly (safe to do by hand once the
+  `XCRemoteSwiftPackageReference` itself already exists and just needs
+  wiring to a target — the earlier caution above was about fabricating the
+  package reference/checksum from scratch, which is the part that
+  genuinely needs Xcode). Also needed two explicit imports the project's
+  `MemberImportVisibility` upcoming-feature flag requires: `import Combine`
+  in `CheckForUpdatesView.swift` (for `@Published`) and `import Sparkle` in
+  `FTX1RemoteMacApp.swift` itself (for `.updaterController.updater`), even
+  though both were already transitively visible. `Sparkle.framework`
+  confirmed embedded in the built `.app`'s `Contents/Frameworks/`. Full Mac
+  target build (`xcodebuild ... -scheme FTX1RemoteMac`) green.
+- **First `Scripts/release-mac.sh` run, two real issues hit (2026-09-22):**
+  1. **Keychain kept re-prompting for the Developer ID Application private
+     key during export**, even after entering the correct login password
+     repeatedly. Not a wrong password — it's macOS asking fresh
+     authorization for a signing identity being used from this
+     non-interactive `xcodebuild`-driven path for the first time; clicking
+     **Always Allow** (not just Allow) on the prompt resolved it for that
+     and subsequent runs. If it recurs, the fix is
+     `security set-key-partition-list -S apple-tool:,apple:,codesign: -s
+     ~/Library/Keychains/login.keychain-db`, which grants `codesign`
+     standing access to the key without prompting.
+  2. **Notarization returned `status: Invalid`** (`statusCode: 4000`,
+     `xcrun notarytool log <submission-id> --keychain-profile
+     ftx1remote-notary` showed `"The executable does not have the hardened
+     runtime enabled."` for both architectures) — `ENABLE_HARDENED_RUNTIME`
+     was never set anywhere in `project.pbxproj`. This is a distinct
+     setting from `ENABLE_APP_SANDBOX` (deliberately `NO`, see
+     Architecture above) — Apple requires Hardened Runtime specifically
+     for Developer ID notarization, independent of sandboxing. Fixed by
+     adding `ENABLE_HARDENED_RUNTIME = YES` to the Mac target's Debug and
+     Release configs (iOS/iPad untouched, same scoping approach as the
+     `SUFeedURL`/`SUPublicEDKey` keys above). No entitlements file was
+     needed on top of that — `Sparkle.framework` is embedded via Xcode's
+     own "Embed & Sign" step, which re-signs it under the app's own
+     Developer ID identity, so Hardened Runtime's library-validation
+     requirement (loaded code must share the host app's Team ID) is
+     already satisfied without `com.apple.security.cs.disable-library-
+     validation`.
+  3. **`generate_appcast` silently produced an unsigned `<enclosure>`**
+     (no `sparkle:edSignature` at all, no error) even though `sign_update`
+     run standalone against the same zip worked fine and the EdDSA key was
+     confirmed present and matching in Keychain. Root cause:
+     `INFOPLIST_KEY_SUFeedURL`/`INFOPLIST_KEY_SUPublicEDKey` — the build
+     settings the first Sparkle scaffolding pass added — never actually
+     reached the compiled `Info.plist` (`PlistBuddy -c "Print
+     :SUPublicEDKey" .../FTX1RemoteMac.app/Contents/Info.plist` came back
+     empty), so `generate_appcast` correctly saw the app as not requesting
+     signed updates and skipped signing. This target's
+     `GENERATE_INFOPLIST_FILE = YES` is paired with a real physical
+     `INFOPLIST_FILE` (`FTX1RemoteMac-Info.plist`, holding the
+     `NSAppTransportSecurity` exception) — Xcode's `INFOPLIST_KEY_*`
+     build-setting synthesis only merges its own "blessed" keys (the ones
+     with dedicated Xcode Info-tab UI, e.g. `NSMicrophoneUsageDescription`,
+     which *did* make it through) on top of a physical base file; arbitrary
+     custom keys like `SUFeedURL`/`SUPublicEDKey` are silently dropped in
+     that combination. Fixed by moving both keys directly into
+     `FTX1RemoteMac-Info.plist` itself (same file `NSAppTransportSecurity`
+     already lives in) and removing the now-dead
+     `INFOPLIST_KEY_SUFeedURL`/`INFOPLIST_KEY_SUPublicEDKey` build
+     settings from `project.pbxproj` so they don't mislead a future reader
+     into thinking that's the source of truth. **Lesson for any future
+     custom (non-Apple-standard) Info.plist key on this target**: don't
+     add it as an `INFOPLIST_KEY_*` build setting — add it to
+     `FTX1RemoteMac-Info.plist` directly, and verify with
+     `PlistBuddy -c "Print :<Key>" <built .app>/Contents/Info.plist`
+     against the actual built product, not just `-showBuildSettings`
+     (which shows the setting as "set" even when it never reaches the
+     compiled plist).
+
+  Confirmed clean end-to-end after all three fixes: built `Info.plist` has
+  both keys, notarization `status: Accepted`, stapling succeeded, and
+  `appcast.xml`'s `<enclosure>` carries a real `sparkle:edSignature`.
+
 ## Digital modes — FT8 (2026-09-14)
 
 First digital mode, built with more (FT4 most likely next) explicitly in

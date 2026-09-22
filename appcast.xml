@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>FTX1RemoteMac</title>
+        <item>
+            <title>0.5</title>
+            <pubDate>Tue, 22 Sep 2026 16:47:10 -0700</pubDate>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>0.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.5/FTX1RemoteMac-0.5.zip" length="3307812" type="application/octet-stream" sparkle:edSignature="CGty+J3jy7gO34/RC7LuNHpgmYQEgteg5LnpXmIIHCR6IrNRd3TRdZwaJbl5WGfwVmDbHJ8HpeBbkElecCxYCA=="/>
+        </item>
+    </channel>
+</rss>

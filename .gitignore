@@ -70,3 +70,9 @@ bin/
 obj/
 .vs/
 *.user
+
+# Sparkle release builds (Scripts/release-mac.sh) — the notarized .zip is
+# uploaded to a GitHub Release, not committed; appcast.xml at the repo
+# root IS committed (that's the whole point of it).
+/build/
+/releases/
