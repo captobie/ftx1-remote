@@ -272,7 +272,7 @@ private struct C4FMSettingsTab: View {
     var body: some View {
         Form {
             Toggle("Show received callsign (via WPSD)", isOn: $enabled)
-            TextField("Hotspot address", text: $host, prompt: Text("e.g. 100.75.175.9"))
+            TextField("Hotspot address", text: $host, prompt: Text("e.g. 192.168.1.50"))
         }
         .padding(.top, 8)
     }

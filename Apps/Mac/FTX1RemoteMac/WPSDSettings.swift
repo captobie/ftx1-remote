@@ -14,7 +14,7 @@ enum WPSDSettings {
     }
 
     /// Hotspot address (IP or hostname, optionally with a port), e.g.
-    /// "100.75.175.9". Empty means "not configured" — lookup stays disabled
+    /// "192.168.1.50". Empty means "not configured" — lookup stays disabled
     /// regardless of `enabled` until a host is set.
     static var host: String {
         get { UserDefaults.standard.string(forKey: hostKey) ?? "" }
