@@ -30,7 +30,7 @@ hardware.
 From the Mac (this repo checkout), copy the two files to the Pi first:
 
 ```bash
-scp Pi/ftx1-audiostream.py Pi/ftx1-audiostream.service captobie@ftx1pi:~/
+scp Pi/ftx1-audiostream.py Pi/ftx1-audiostream.service pi@ftx1pi:~/
 ```
 
 Then on the Pi:
@@ -70,7 +70,7 @@ an older deployment, redeploy both files together — they must agree on the
 wire format, same as `RemoteAudioStreamClient.swift` on the Mac side:
 
 ```bash
-scp Pi/ftx1-audiostream.py Pi/asound-ftx1.conf captobie@ftx1pi:~/
+scp Pi/ftx1-audiostream.py Pi/asound-ftx1.conf pi@ftx1pi:~/
 ```
 
 On the Pi:
@@ -106,7 +106,7 @@ Fix: `asound-ftx1.conf` sets up an ALSA `dsnoop`+`plug` device
 device at once, each with their own sample rate.
 
 ```bash
-scp Pi/asound-ftx1.conf captobie@ftx1pi:~/
+scp Pi/asound-ftx1.conf pi@ftx1pi:~/
 ```
 
 On the Pi:
@@ -132,7 +132,7 @@ sudo sed -i 's/^ADEVICE .*/ADEVICE ftx1_shared plughw:1,0/' /etc/direwolf.conf
 # Update this script's own DEVICE constant the same way (already done in
 # the repo as of this fix — re-copy ftx1-audiostream.py if you deployed it
 # before this change)
-scp Pi/ftx1-audiostream.py captobie@ftx1pi:~/
+scp Pi/ftx1-audiostream.py pi@ftx1pi:~/
 sudo cp ~/ftx1-audiostream.py /opt/ftx1remote/
 
 sudo systemctl restart direwolf
@@ -151,7 +151,7 @@ just this one file's contents (nothing else was ever appended to it),
 **overwrite** rather than append this time:
 
 ```bash
-scp Pi/asound-ftx1.conf captobie@ftx1pi:~/
+scp Pi/asound-ftx1.conf pi@ftx1pi:~/
 ```
 
 On the Pi:
