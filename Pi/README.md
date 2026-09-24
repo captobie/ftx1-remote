@@ -30,7 +30,7 @@ hardware.
 From the Mac (this repo checkout), copy the two files to the Pi first:
 
 ```bash
-scp Pi/ftx1-audiostream.py Pi/ftx1-audiostream.service pi@ftx1pi:~/
+scp Pi/ftx1-audiostream.py Pi/ftx1-audiostream.service <user>@<pi-address>:~/
 ```
 
 Then on the Pi:
