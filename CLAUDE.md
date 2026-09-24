@@ -805,6 +805,49 @@ pattern as the APRS windows.
   check `.remote`/Pi audio timing specifically) — same shape as every
   other CAT/audio feature's hardware-validation step in this project.
 
+## WebSDR follow (v1, KiwiSDR only, 2026-09-24)
+
+Digital → **WebSDR** opens `Window(id: "websdr-follow")` (Mac-only): an
+embedded KiwiSDR (`KiwiWebView`, a `WKWebView` `NSViewRepresentable`) that
+retunes to follow the rig's Main VFO. One direction only (rig → Kiwi).
+
+- **Follows `hub.$rigState`**, not a new poll path — the same value every
+  `server.broadcast(rigState)` sends to WebSocket clients (there's no
+  separate publisher; broadcasts are imperative calls after mutating the
+  `@Published` `rigState`). `WebSDRFollowModel` maps it to (frequencyHz,
+  mode), `removeDuplicates`, 400 ms `debounce` — which also absorbs the fast
+  tier's separate frequency/mode writes. Own `ObservableObject`, so it never
+  re-renders `ContentView`.
+- **URL shape verified against a live Kiwi's `kiwisdr.min.js` (v1.578)**:
+  `/?f=<kHz with 2 decimals><mode token>` — the Kiwi's own "copy frequency
+  link" format. Omitting the mode falls back to the Kiwi's stored
+  `last_mode` (live-tested), which is how unmapped modes (RTTY, DATA-FM,
+  C4FM) leave the mode unchanged. Zoom is never sent. DATA-U → `usb`
+  (user decision), FM → `nbfm`. Logic + mapping in `KiwiSDRURLBuilder`.
+- Every retune is a full page reload (Kiwi reconnect, brief audio gap);
+  identical URLs are skipped. Above 30 MHz, not retuned — status line says
+  so. `mediaTypesRequiringUserActionForPlayback = []` + WebKit's default
+  persistent store: confirmed a reload keeps the Kiwi's saved name and
+  shows no click-to-start overlay, and that a Kiwi which rejects a second
+  connection from the same IP accepted the reload (only a genuinely
+  concurrent session, e.g. a browser tab, trips that).
+- **Connect/Disconnect button; the window always opens disconnected** (public
+  Kiwis have few listener slots). Disconnect and window close both set
+  `pageRequest` to nil, which navigates the `WKWebView` to about:blank —
+  that page unload is what closes the Kiwi's WebSockets. Closing the window
+  runs `.onDisappear(perform: model.disconnect)`; `dismantleNSView` does the
+  same unload as a backstop. The `onDisappear` path is the one that
+  matters: SwiftUI reuses the `Window` scene's NSWindow on reopen (same
+  window ID), so dismantling can't be relied on. Verified with `netstat`
+  against the Kiwi's IP (`lsof` can't see WebKit's networking process): 2
+  ESTABLISHED sockets while connected, none after Disconnect or close;
+  minimizing correctly keeps them open.
+- **Not yet done**: validation against the real rig (retune on VFO change,
+  debounce feel, CW offset vs. the Kiwi's CW passband). v1.1 seams are
+  noted in comments: click-to-tune back, JS-injection retune, mute-on-TX,
+  Sub following, other WebSDR platforms, favorites, per-Kiwi range from
+  `/status`.
+
 ## Structure
 
 - `Sources/FTX1Core/` — Swift Package Manager package (target `FTX1Core`,

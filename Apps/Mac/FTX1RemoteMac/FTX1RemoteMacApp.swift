@@ -40,6 +40,10 @@ struct FTX1RemoteMacApp: App {
                 Button("FT8") {
                     openWindow(id: "ft8")
                 }
+                Divider()
+                Button("WebSDR") {
+                    openWindow(id: "websdr-follow")
+                }
             }
         }
 
@@ -73,6 +77,14 @@ struct FTX1RemoteMacApp: App {
             FT8ListView()
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.ft8Store)
+                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+        }
+
+        // Digital → WebSDR. Passes `hub` in directly rather than via the
+        // environment — `WebSDRFollowView` needs it in `init` to build its
+        // `@StateObject` model, which subscribes to `hub.$rigState`.
+        Window("WebSDR", id: "websdr-follow") {
+            WebSDRFollowView(hub: appDelegate.hub)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
 
