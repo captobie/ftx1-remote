@@ -9,6 +9,10 @@ struct WebSDRFollowView: View {
     /// The text field's in-progress edit; committed to `model.hostPort` on
     /// Return so a half-typed host never triggers a load.
     @State private var hostDraft: String
+    /// Owned here (not per sheet presentation) so reopening the sheet shows
+    /// the already-loaded list; its disk cache outlives the window anyway.
+    @StateObject private var directory = KiwiSDRDirectory()
+    @State private var showingDirectory = false
 
     init(hub: HubService) {
         let model = WebSDRFollowModel(hub: hub)
@@ -28,6 +32,9 @@ struct WebSDRFollowView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
+                Button("Stations…", systemImage: "list.bullet") { showingDirectory = true }
+                    .labelStyle(.titleAndIcon)
+                    .help("Choose a public KiwiSDR from the directory")
                 TextField("KiwiSDR host:port", text: $hostDraft)
                     .textFieldStyle(.roundedBorder)
                     .fontDesign(.monospaced)
@@ -60,7 +67,7 @@ struct WebSDRFollowView: View {
                     ContentUnavailableView(
                         "Not Connected",
                         systemImage: "antenna.radiowaves.left.and.right.slash",
-                        description: Text("Enter a KiwiSDR host:port and press Connect.")
+                        description: Text("Pick a station or enter a KiwiSDR host:port, then press Connect.")
                     )
                 }
             }
@@ -77,6 +84,13 @@ struct WebSDRFollowView: View {
                 .padding(.vertical, 5)
         }
         .navigationTitle("WebSDR")
+        .sheet(isPresented: $showingDirectory) {
+            KiwiSDRDirectoryView(directory: directory, rigFrequencyHz: model.rigFrequencyHz) { station in
+                model.select(station)
+            }
+        }
+        // `select` sets the committed host; mirror it into the field.
+        .onChange(of: model.hostPort) { _, newHost in hostDraft = newHost }
         // Closing the window ends the Kiwi session (see also
         // `KiwiWebView.dismantleNSView`, the backstop for the same thing).
         .onDisappear(perform: model.disconnect)

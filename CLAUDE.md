@@ -842,10 +842,28 @@ retunes to follow the rig's Main VFO. One direction only (rig → Kiwi).
   against the Kiwi's IP (`lsof` can't see WebKit's networking process): 2
   ESTABLISHED sockets while connected, none after Disconnect or close;
   minimizing correctly keeps them open.
+- **Station directory ("Stations…" sheet, `KiwiSDRDirectory`/
+  `KiwiSDRDirectoryView`)**: source is `rx.linkfanel.net/kiwisdr_com.js`,
+  the community mirror behind the "dyatlov" receiver map. The official
+  kiwisdr.com/public list is deliberately gated (click-to-show +
+  `x-kiwi-auth` header), so don't imitate it. The file is a JS array that's
+  JSON apart from a trailing comma, ~900 KB, all values strings. Fetched
+  only when the sheet opens with a cache older than 30 min, or on Refresh
+  — never polled; conditional GET + app User-Agent; raw file cached at
+  `~/Library/Application Support/FTX1Remote/kiwisdr_com.js`. Picking a
+  station only fills the host (`WebSDRFollowModel.select`) and never
+  connects (user decision); picking a different one while connected
+  disconnects. A picked station's own `bands` replace the fixed 0–30 MHz
+  check (persisted with the host it belongs to). Those ranges already
+  include `freq_offset`, so converter-fed Kiwis (e.g. 110–142 MHz airband)
+  follow the rig above 30 MHz with `?f=` in displayed kHz — built from the
+  Kiwi's own link code, not yet tried against a real converter Kiwi.
+  Distance sort uses `StationSettings.gridSquare` (`Maidenhead`); with no
+  grid set it sorts by name and shows a hint.
 - **Hardware-confirmed on the real rig (user, 2026-09-24)**: retunes
   follow the FTX-1. v1.1 seams are noted in comments: click-to-tune back, JS-injection retune, mute-on-TX,
-  Sub following, other WebSDR platforms, favorites, per-Kiwi range from
-  `/status`.
+  Sub following, other WebSDR platforms, favorites, and the range of a
+  hand-typed host (only directory picks carry their own range).
 
 ## Structure
 

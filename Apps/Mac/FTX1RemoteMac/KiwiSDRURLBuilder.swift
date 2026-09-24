@@ -13,18 +13,20 @@ import Foundation
 /// `usb` session stayed `usb`), which is how an unmapped rig mode leaves
 /// the Kiwi's mode unchanged. Zoom is deliberately never sent, so a zoom
 /// the user set by hand in the Kiwi page survives retunes the same way.
-enum KiwiSDRURLBuilder {
-    /// KiwiSDR's receive range. Hard-coded for v1 — v1.1: read the actual
-    /// range from the Kiwi's own `/status` endpoint, since some variants
-    /// extend slightly past 30 MHz.
+nonisolated enum KiwiSDRURLBuilder {
+    /// KiwiSDR's standard receive range — the fallback for a host typed in
+    /// by hand. A station picked from the directory brings its own ranges
+    /// (`KiwiSDRStation.bands`), which can be wider (0–32 MHz) or entirely
+    /// elsewhere (converter-fed Kiwis).
     static let maxFrequencyHz = 30_000_000
+    static let defaultBands = [0...maxFrequencyHz]
 
     enum Result: Equatable {
         case tune(URL, frequencyHz: Int, modeToken: String?)
         case noHost
         case invalidHost
         case noFrequency
-        case outOfRange(frequencyHz: Int)
+        case outOfRange(frequencyHz: Int, bands: [ClosedRange<Int>])
     }
 
     /// The KiwiSDR mode token for a rig mode, or nil to retune frequency
@@ -63,11 +65,14 @@ enum KiwiSDRURLBuilder {
         return components.url
     }
 
-    static func retune(hostPort: String, frequencyHz: Int, mode: RigMode) -> Result {
+    static func retune(hostPort: String, frequencyHz: Int, mode: RigMode,
+                       bands: [ClosedRange<Int>] = defaultBands) -> Result {
         if hostPort.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return .noHost }
         guard let base = baseURL(from: hostPort) else { return .invalidHost }
         guard frequencyHz > 0 else { return .noFrequency }
-        guard frequencyHz <= maxFrequencyHz else { return .outOfRange(frequencyHz: frequencyHz) }
+        guard bands.contains(where: { $0.contains(frequencyHz) }) else {
+            return .outOfRange(frequencyHz: frequencyHz, bands: bands)
+        }
 
         let token = modeToken(for: mode)
         var components = URLComponents(url: base, resolvingAgainstBaseURL: false)!

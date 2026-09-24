@@ -3,11 +3,16 @@ import FTX1Core
 import Foundation
 
 /// Persisted settings for the WebSDR window, `UserDefaults`-backed like
-/// `APRSSettings`/`WPSDSettings`. v1 is a single current host — v1.1: a
-/// favorites list would replace `hostPort` here.
+/// `APRSSettings`/`WPSDSettings`. A single current host (picked from the
+/// directory or typed) — a favorites list would replace `hostPort` here.
 enum WebSDRSettings {
     static let hostPortKey = "webSDR.hostPort"
     static let followRigKey = "webSDR.followRig"
+    /// The receive ranges of the station last picked from the directory,
+    /// as "lo-hi,lo-hi" (the listing's own format), plus the host they
+    /// belong to — only applied while `hostPort` still equals that host.
+    static let stationBandsKey = "webSDR.stationBands"
+    static let stationBandsHostKey = "webSDR.stationBandsHost"
 }
 
 /// Drives the WebSDR window: follows the rig's Main VFO frequency/mode and
@@ -41,6 +46,20 @@ final class WebSDRFollowModel: ObservableObject {
             UserDefaults.standard.set(hostPort, forKey: WebSDRSettings.hostPortKey)
         }
     }
+
+    /// Where the retune range check comes from: the picked station's own
+    /// ranges while its host is the current one, else KiwiSDR's 0–30 MHz.
+    private var stationBands: (host: String, bands: [ClosedRange<Int>])?
+
+    var activeBands: [ClosedRange<Int>] {
+        if let stationBands, stationBands.host == hostPort { return stationBands.bands }
+        return KiwiSDRURLBuilder.defaultBands
+    }
+
+    /// The rig frequency the window is following (after the debounce), for
+    /// the directory's "covers rig frequency" filter. nil before the first
+    /// rig value, or 0 while the rig isn't connected.
+    @Published private(set) var rigFrequencyHz: Int?
 
     /// Whether the window should hold a live Kiwi session. Starts false on
     /// every open (public Kiwis have few listener slots, so a session is
@@ -79,6 +98,10 @@ final class WebSDRFollowModel: ObservableObject {
         let defaults = UserDefaults.standard
         hostPort = defaults.string(forKey: WebSDRSettings.hostPortKey) ?? ""
         followRig = defaults.object(forKey: WebSDRSettings.followRigKey) as? Bool ?? true
+        if let host = defaults.string(forKey: WebSDRSettings.stationBandsHostKey),
+           let raw = defaults.string(forKey: WebSDRSettings.stationBandsKey) {
+            stationBands = (host, KiwiSDRStation.parseBands(raw))
+        }
 
         cancellable = hub.$rigState
             .map { FollowTarget(frequencyHz: $0.frequencyHz, mode: $0.mode) }
@@ -87,6 +110,7 @@ final class WebSDRFollowModel: ObservableObject {
             .sink { [weak self] target in
                 guard let self else { return }
                 latest = target
+                rigFrequencyHz = target.frequencyHz
                 // First value (~400 ms after open, since `$rigState` emits
                 // its current value on subscribe): load *something* even if
                 // there's nothing to tune to. Not done in `init` itself —
@@ -105,6 +129,22 @@ final class WebSDRFollowModel: ObservableObject {
         isConnected = true
         lastIssuedURL = nil
         evaluate(forceHostPage: latest != nil)
+    }
+
+    /// Picks a station from the directory: fills the host and remembers the
+    /// station's receive ranges, but does NOT connect — connecting is always
+    /// a separate, explicit Connect. If a different Kiwi is currently
+    /// connected, that session is ended (never switched to the new one
+    /// automatically).
+    func select(_ station: KiwiSDRStation) {
+        let host = station.hostPort
+        if isConnected, host != hostPort { disconnect() }
+        stationBands = (host, station.bands)
+        let raw = station.bands.map { "\($0.lowerBound)-\($0.upperBound)" }.joined(separator: ",")
+        UserDefaults.standard.set(raw, forKey: WebSDRSettings.stationBandsKey)
+        UserDefaults.standard.set(host, forKey: WebSDRSettings.stationBandsHostKey)
+        hostPort = host
+        evaluate()
     }
 
     /// Ends the Kiwi session: `KiwiWebView` navigates to about:blank when
@@ -151,7 +191,8 @@ final class WebSDRFollowModel: ObservableObject {
             return
         }
 
-        switch KiwiSDRURLBuilder.retune(hostPort: hostPort, frequencyHz: latest.frequencyHz, mode: latest.mode) {
+        switch KiwiSDRURLBuilder.retune(hostPort: hostPort, frequencyHz: latest.frequencyHz, mode: latest.mode,
+                                         bands: activeBands) {
         case let .tune(tuneURL, hz, token):
             let description = KiwiSDRURLBuilder.kHzString(hz) + " kHz " + (token?.uppercased() ?? "")
             lastTunedDescription = description.trimmingCharacters(in: .whitespaces)
@@ -165,9 +206,10 @@ final class WebSDRFollowModel: ObservableObject {
             status = token == nil
                 ? "Tuned to \(lastTunedDescription!) at \(time) (mode unchanged — \(latest.mode.displayName) has no KiwiSDR equivalent)"
                 : "Tuned to \(lastTunedDescription!) at \(time)"
-        case let .outOfRange(hz):
+        case let .outOfRange(hz, bands):
             if forceHostPage { issue(base) }
-            status = String(format: "Not retuned: %.3f MHz is out of KiwiSDR range (0–30 MHz)", Double(hz) / 1_000_000)
+            let range = bands.map(KiwiSDRStation.describe).joined(separator: ", ")
+            status = String(format: "Not retuned: %.3f MHz is outside this KiwiSDR's range (", Double(hz) / 1_000_000) + range + ")"
         case .noFrequency:
             if forceHostPage { issue(base) }
             status = "Not retuned: no rig frequency yet (rig not connected?)"
