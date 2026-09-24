@@ -842,9 +842,8 @@ retunes to follow the rig's Main VFO. One direction only (rig → Kiwi).
   against the Kiwi's IP (`lsof` can't see WebKit's networking process): 2
   ESTABLISHED sockets while connected, none after Disconnect or close;
   minimizing correctly keeps them open.
-- **Not yet done**: validation against the real rig (retune on VFO change,
-  debounce feel, CW offset vs. the Kiwi's CW passband). v1.1 seams are
-  noted in comments: click-to-tune back, JS-injection retune, mute-on-TX,
+- **Hardware-confirmed on the real rig (user, 2026-09-24)**: retunes
+  follow the FTX-1. v1.1 seams are noted in comments: click-to-tune back, JS-injection retune, mute-on-TX,
   Sub following, other WebSDR platforms, favorites, per-Kiwi range from
   `/status`.
 
