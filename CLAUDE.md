@@ -998,8 +998,8 @@ WebSDR differences are in their own bullet at the end.
     window captures; use full-screen screenshots to see the pages.
   - Tested in the built app 2026-09-25: websdr.org tab + pick,
     connect/detect/learn (Twente, and Maasbree typed by hand), Record →
-    WAV, Disconnect closes the sockets. **Not yet rig-tested** (user will
-    confirm): follow in place, click-to-tune, recording split on retune.
+    WAV, Disconnect closes the sockets. Rig-confirmed by the user the same
+    day (follow in place, click-to-tune, recording split on retune).
     Some skins (Maasbree) keep the standard element IDs but hide the
     checkbox behind their own Mute button, which then won't reflect the
     app's mute state visually.
