@@ -590,7 +590,14 @@ those targets.
   Prints the two manual follow-ups it deliberately doesn't automate:
   committing/pushing `appcast.xml`, and `gh release create` to upload the
   zip (kept manual so release notes are always hand-written, not
-  templated).
+  templated). Keep earlier releases' zips in `releases/`: `generate_appcast`
+  builds delta updates from them (upload the `*.delta` files it makes to the
+  new release too). It also re-points every archive it finds at the new
+  `--download-url-prefix` — v0.6's first run rewrote 0.5's link to `v0.6/`
+  — so the script seeds `releases/` with the committed `appcast.xml` and
+  then restores the original URL of every file that appcast already listed.
+  Create the GitHub release *before* pushing `appcast.xml`, or updating
+  clients see the new version while its download still 404s.
 - **`CheckForUpdatesView`/`CheckForUpdatesViewModel`**
   (`Apps/Mac/FTX1RemoteMac/CheckForUpdatesView.swift`) is Sparkle's own
   documented SwiftUI pattern — bridges `SPUUpdater.canCheckForUpdates`

@@ -78,12 +78,29 @@ rm -f "$ZIP_PATH"
 ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
 echo "==> Regenerating appcast.xml"
+# Earlier releases' zips stay in $RELEASES_DIR on purpose: generate_appcast
+# builds delta updates from them. But it also re-points every archive it
+# finds at --download-url-prefix, including old ones (0.5's link was
+# rewritten to v0.6/ this way), so start from the committed appcast and
+# afterwards put back the original URL of every file it already listed.
+# Only files new in this release keep the v$VERSION/ prefix.
+cp appcast.xml "$RELEASES_DIR/appcast.xml"
 generate_appcast "$RELEASES_DIR" \
   --download-url-prefix "https://github.com/$GITHUB_REPO/releases/download/v$VERSION/"
+grep -o 'url="[^"]*"' appcast.xml | sed -e 's/^url="//' -e 's/"$//' | while read -r url; do
+  file="${url##*/}"
+  sed -i '' "s#url=\"[^\"]*/${file//./\\.}\"#url=\"$url\"#" "$RELEASES_DIR/appcast.xml"
+done
 mv "$RELEASES_DIR/appcast.xml" appcast.xml
+
+NEW_FILES=$(grep -o "url=\"[^\"]*/releases/download/v$VERSION/[^\"]*\"" appcast.xml \
+  | sed -e 's#.*/##' -e 's/"$//' | sed "s#^#$RELEASES_DIR/#" | tr '\n' ' ' || true)
 
 echo
 echo "Done: $ZIP_PATH, appcast.xml updated for v$VERSION."
-echo "Next steps:"
-echo "  1. git add appcast.xml && git commit -m 'Update appcast for v$VERSION' && git push"
-echo "  2. gh release create v$VERSION '$ZIP_PATH' --title v$VERSION --notes '<changelog>'"
+echo "Enclosure URLs now in appcast.xml:"
+grep -o 'url="[^"]*"' appcast.xml | sed 's/^/  /'
+echo "Next steps (in this order: the release must exist before the appcast is"
+echo "live, or updating clients get a 404):"
+echo "  1. gh release create v$VERSION ${NEW_FILES}--title v$VERSION --notes-file $RELEASES_DIR/notes-$VERSION.md"
+echo "  2. git add appcast.xml && git commit -m 'Update appcast for v$VERSION' && git push"
