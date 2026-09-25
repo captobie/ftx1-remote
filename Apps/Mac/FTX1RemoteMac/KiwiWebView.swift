@@ -7,9 +7,15 @@ import WebKit
 /// Kiwi page would avoid the reconnect gap, but is out of scope for v1.
 struct KiwiWebView: NSViewRepresentable {
     let request: WebSDRFollowModel.PageRequest?
+    /// Receives the Kiwi's own recorder's WAV saves (see
+    /// `KiwiRecordingBridge`) and gets this web view to run its commands.
+    let recordingBridge: KiwiRecordingBridge
     var onLoadFailure: (String) -> Void = { _ in }
+    /// A Kiwi page (not about:blank) finished loading — where a recording
+    /// that spans a retune picks up again.
+    var onPageLoaded: () -> Void = {}
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeCoordinator() -> Coordinator { Coordinator(recordingBridge: recordingBridge) }
 
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -21,11 +27,13 @@ struct KiwiWebView: NSViewRepresentable {
         configuration.mediaTypesRequiringUserActionForPlayback = []
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
+        recordingBridge.webView = webView
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.onLoadFailure = onLoadFailure
+        context.coordinator.onPageLoaded = onPageLoaded
         guard request != context.coordinator.loaded else { return }
         context.coordinator.loaded = request
         if let request {
@@ -50,9 +58,51 @@ struct KiwiWebView: NSViewRepresentable {
         webView.load(URLRequest(url: URL(string: "about:blank")!))
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKDownloadDelegate {
         var loaded: WebSDRFollowModel.PageRequest?
         var onLoadFailure: (String) -> Void = { _ in }
+        var onPageLoaded: () -> Void = {}
+        let recordingBridge: KiwiRecordingBridge
+
+        init(recordingBridge: KiwiRecordingBridge) {
+            self.recordingBridge = recordingBridge
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            guard webView.url?.scheme != "about" else { return }
+            onPageLoaded()
+        }
+
+        // MARK: The Kiwi recorder's save
+
+        /// The Kiwi saves a recording by clicking a hidden `<a download>`
+        /// pointing at a blob — WebKit flags that as a download, which is
+        /// the only download this page is expected to make.
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
+            decisionHandler(navigationAction.shouldPerformDownload ? .download : .allow)
+        }
+
+        func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+            download.delegate = self
+        }
+
+        func download(_ download: WKDownload, decideDestinationUsing response: URLResponse,
+                      suggestedFilename: String) async -> URL? {
+            recordingBridge.destinationURL()
+        }
+
+        func downloadDidFinish(_ download: WKDownload) {
+            recordingBridge.downloadFinished(success: true)
+        }
+
+        func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+            recordingBridge.downloadFinished(success: false)
+        }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
             report(error)

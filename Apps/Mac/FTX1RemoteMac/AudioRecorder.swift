@@ -1,4 +1,5 @@
 import AVFoundation
+import FTX1Core
 import Foundation
 import os
 
@@ -102,13 +103,7 @@ final class AudioRecorder {
     /// comes from `RigMode.displayName`, which won't contain a "/", but
     /// there's no reason to trust that at the file-naming boundary either.
     private static func makeFile(sampleRate: Double, label: String) -> AVAudioFile? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
-        let sanitizedLabel = label.replacingOccurrences(of: "/", with: "-")
-        let base = sanitizedLabel.isEmpty
-            ? "Recording \(formatter.string(from: Date()))"
-            : "Recording \(formatter.string(from: Date())) \(sanitizedLabel)"
-        let url = recordingsDirectory.appendingPathComponent(base).appendingPathExtension("wav")
+        let url = newRecordingURL(label: label, date: Date())
         guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: 1, interleaved: false) else { return nil }
         do {
             return try AVAudioFile(forWriting: url, settings: format.settings)
@@ -116,6 +111,36 @@ final class AudioRecorder {
             Self.logger.error("failed to create recording file: \(String(describing: error), privacy: .public)")
             return nil
         }
+    }
+
+    /// "Recording 2026-09-24 07.47.30 14.074.000 USB.wav" in
+    /// `recordingsDirectory` — the one naming scheme for every recording
+    /// the app makes (the rig's own via `makeFile`, and KiwiSDR recordings
+    /// saved by the WebSDR window, whose label ends in "KiwiSDR").
+    static func newRecordingURL(label: String, date: Date) -> URL {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
+        let sanitizedLabel = label.replacingOccurrences(of: "/", with: "-")
+        let base = sanitizedLabel.isEmpty
+            ? "Recording \(formatter.string(from: date))"
+            : "Recording \(formatter.string(from: date)) \(sanitizedLabel)"
+        return recordingsDirectory.appendingPathComponent(base).appendingPathExtension("wav")
+    }
+
+    /// "147.380.000 FM" — dot-grouped like `VFODisplayBox.formattedFrequency`,
+    /// so a file name reads the way the rig's own display does.
+    static func label(frequencyHz: Int, mode: RigMode) -> String {
+        label(frequencyHz: frequencyHz, modeName: mode.displayName)
+    }
+
+    static func label(frequencyHz: Int, modeName: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = "."
+        formatter.groupingSize = 3
+        formatter.usesGroupingSeparator = true
+        let frequency = formatter.string(from: NSNumber(value: frequencyHz)) ?? "\(frequencyHz)"
+        return modeName.isEmpty ? frequency : "\(frequency) \(modeName)"
     }
 
     /// Reads `recordingsDirectory` fresh each call — recordings are only

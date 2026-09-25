@@ -860,6 +860,29 @@ retunes to follow the rig's Main VFO. One direction only (rig → Kiwi).
   Kiwi's own link code, not yet tried against a real converter Kiwi.
   Distance sort uses `StationSettings.gridSquare` (`Maidenhead`); with no
   grid set it sorts by name and shows a hint.
+- **Record/Play (2026-09-24, `KiwiRecordingBridge`)**: Record drives the
+  Kiwi page's *own* recorder, `toggle_or_set_rec(true/false)` (its "r"
+  key), via `evaluateJavaScript` — the one place the app calls into the
+  page (user decision; it only calls the page's own function, nothing is
+  patched). That recorder captures the decoded 12 kHz Int16 mono audio
+  before the page's volume/mute, and saves by clicking a hidden
+  `<a download>` blob link; `KiwiWebView`'s navigation delegate turns that
+  into a `WKDownload` saved to `AudioRecorder.recordingsDirectory`, named
+  like the rig's recordings plus "KiwiSDR" (`AudioRecorder.
+  newRecordingURL`/`label` are now shared). The name comes from the page's
+  own `freq_displayed_kHz_str_with_freq_offset`/`cur_mode`, so it's right
+  with Follow off too. Saving is async, so anything that would reload or
+  unload the page (retune, Return, Disconnect, window close, picking
+  another station) first stops the recording and waits (≤5 s) for the
+  file; a retune then starts a new file once the reloaded page's audio is
+  running (user decision: one file per frequency). If the Kiwi ends a
+  recording itself (its `owrx_close_cb` on connection close), the file is
+  still saved and the window says so. Play opens the existing Recordings
+  window (`openWindow(id: "recordings")`), same as the CW page's PLAY.
+  Tested against a public Kiwi: Stop and Disconnect both save a playable
+  file, which is listed in Recordings. **Not yet tested**: the retune
+  split — it needs the rig (or a Return keystroke) to trigger a reload
+  while recording.
 - **Hardware-confirmed on the real rig (user, 2026-09-24)**: retunes
   follow the FTX-1. v1.1 seams are noted in comments: click-to-tune back, JS-injection retune, mute-on-TX,
   Sub following, other WebSDR platforms, favorites, and the range of a

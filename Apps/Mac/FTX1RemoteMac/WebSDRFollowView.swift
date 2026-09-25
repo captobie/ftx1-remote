@@ -13,6 +13,7 @@ struct WebSDRFollowView: View {
     /// the already-loaded list; its disk cache outlives the window anyway.
     @StateObject private var directory = KiwiSDRDirectory()
     @State private var showingDirectory = false
+    @Environment(\.openWindow) private var openWindow
 
     init(hub: HubService) {
         let model = WebSDRFollowModel(hub: hub)
@@ -27,6 +28,32 @@ struct WebSDRFollowView: View {
         hostDraft = hostDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         model.hostPort = hostDraft
         model.connect()
+    }
+
+    /// Record while connected; Stop (red, with the current file's elapsed
+    /// time) while recording. The time is blank between files — saving,
+    /// reloading after a retune, or waiting for the Kiwi's audio.
+    @ViewBuilder
+    private var recordButton: some View {
+        if model.isRecording {
+            Button(action: model.toggleRecording) {
+                HStack(spacing: 4) {
+                    Image(systemName: "stop.circle.fill")
+                    Text("Stop")
+                    if let started = model.segmentStartedAt {
+                        Text(started, style: .timer).monospacedDigit()
+                    }
+                }
+            }
+            .tint(.red)
+            .foregroundStyle(.red)
+            .help("Stop recording and save to Recordings")
+        } else {
+            Button("Record", systemImage: "record.circle", action: model.toggleRecording)
+                .labelStyle(.titleAndIcon)
+                .disabled(!model.isConnected)
+                .help(model.isConnected ? "Record the KiwiSDR's audio" : "Connect to a KiwiSDR to record")
+        }
     }
 
     var body: some View {
@@ -51,6 +78,12 @@ struct WebSDRFollowView: View {
                 Toggle("Follow rig", isOn: $model.followRig)
                     .toggleStyle(.switch)
                 Spacer()
+                recordButton
+                // Same window as the CW page's PLAY button: KiwiSDR
+                // recordings are saved alongside the rig's own.
+                Button("Play", systemImage: "waveform") { openWindow(id: "recordings") }
+                    .labelStyle(.titleAndIcon)
+                    .help("Open Recordings")
             }
             .padding(10)
 
@@ -58,9 +91,10 @@ struct WebSDRFollowView: View {
 
             // Hidden rather than removed while disconnected: it has to stay in
             // the hierarchy to see `pageRequest` go nil and unload the Kiwi.
-            KiwiWebView(request: model.pageRequest) { message in
-                model.reportLoadFailure(message)
-            }
+            KiwiWebView(request: model.pageRequest,
+                        recordingBridge: model.recordingBridge,
+                        onLoadFailure: model.reportLoadFailure,
+                        onPageLoaded: model.pageDidLoad)
             .opacity(model.isConnected ? 1 : 0)
             .overlay {
                 if !model.isConnected {
@@ -74,14 +108,21 @@ struct WebSDRFollowView: View {
 
             Divider()
 
-            Text(model.status)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
+            HStack(spacing: 12) {
+                Text(model.status)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let note = model.recordingNote {
+                    Text(note)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
         }
         .navigationTitle("WebSDR")
         .sheet(isPresented: $showingDirectory) {

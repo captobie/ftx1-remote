@@ -29,17 +29,9 @@ extension HubService: RigController {
     /// "147.380.000 FM" — the frequency/mode at the moment RECORD is
     /// pressed, folded into the new file's name by `AudioRecorder.toggle
     /// (label:)` so a recording is identifiable without opening and
-    /// listening to it. Same dot-grouped frequency formatting as
-    /// `VFODisplayBox.formattedFrequency`, so it reads the way the rig's
-    /// own display does; ignored entirely when RECORD is pressed again to
+    /// listening to it; ignored entirely when RECORD is pressed again to
     /// stop.
     private static func audioRecordingLabel(frequencyHz: Int, mode: RigMode) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.groupingSeparator = "."
-        formatter.groupingSize = 3
-        formatter.usesGroupingSeparator = true
-        let frequency = formatter.string(from: NSNumber(value: frequencyHz)) ?? "\(frequencyHz)"
-        return "\(frequency) \(mode.displayName)"
+        AudioRecorder.label(frequencyHz: frequencyHz, mode: mode)
     }
 }

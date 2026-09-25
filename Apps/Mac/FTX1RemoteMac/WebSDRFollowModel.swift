@@ -88,6 +88,30 @@ final class WebSDRFollowModel: ObservableObject {
     @Published private(set) var pageRequest: PageRequest?
     @Published private(set) var status = ""
 
+    // MARK: Recording (the Kiwi's own recorder — see KiwiRecordingBridge)
+
+    let recordingBridge = KiwiRecordingBridge()
+
+    /// The user's Record/Stop intent. Stays true across retunes: each
+    /// retune saves the current file and starts a new one for the new
+    /// frequency once the reloaded page's audio is running (user decision:
+    /// one file per frequency, not paused following).
+    @Published private(set) var isRecording = false
+    /// When the current file's recording actually began; nil while between
+    /// files (saving, reloading, waiting for the Kiwi's audio).
+    @Published private(set) var segmentStartedAt: Date?
+    /// Last save/failure note, shown at the right of the status line.
+    @Published private(set) var recordingNote: String?
+
+    /// What the page on screen is tuned to — the saved file's label.
+    /// nil for the bare host page (no `?f=`).
+    private var tunedTarget: FollowTarget?
+    private var startTask: Task<Void, Never>?
+    /// A reload waiting for the current recording to finish saving; only
+    /// the newest survives if the rig moves again meanwhile.
+    private var pendingReload: (request: PageRequest, tuned: FollowTarget?)?
+    private var reloadTask: Task<Void, Never>?
+
     private var latest: FollowTarget?
     private var lastIssuedURL: URL?
     private var lastTunedDescription: String?
@@ -119,6 +143,9 @@ final class WebSDRFollowModel: ObservableObject {
                 // Kiwis reject a second connection from the same IP.
                 evaluate(forceHostPage: isConnected && pageRequest == nil)
             }
+        recordingBridge.onUnexpectedSave = { [weak self] url in
+            self?.kiwiEndedRecording(savedTo: url)
+        }
         evaluate()
     }
 
@@ -150,11 +177,90 @@ final class WebSDRFollowModel: ObservableObject {
     /// Ends the Kiwi session: `KiwiWebView` navigates to about:blank when
     /// `pageRequest` goes nil, which unloads the Kiwi page and closes its
     /// WebSocket (freeing the listener slot).
+    ///
+    /// A recording in progress is saved first — unloading the page would
+    /// throw it away — so the unload waits for that (≤5 s). The UI shows
+    /// disconnected immediately.
     func disconnect() {
         isConnected = false
-        pageRequest = nil
+        pendingReload = nil
         lastIssuedURL = nil
+        if isRecording {
+            endRecording()
+            Task { [weak self] in
+                let url = await self?.recordingBridge.stop()
+                self?.noteSaved(url)
+                self?.unloadIfStillDisconnected()
+            }
+        } else {
+            unloadIfStillDisconnected()
+        }
         evaluate()
+    }
+
+    private func unloadIfStillDisconnected() {
+        guard !isConnected else { return }
+        pageRequest = nil
+        tunedTarget = nil
+    }
+
+    func toggleRecording() {
+        if isRecording {
+            endRecording()
+            Task { [weak self] in
+                let url = await self?.recordingBridge.stop()
+                self?.noteSaved(url)
+            }
+        } else {
+            guard isConnected, pageRequest != nil else { return }
+            isRecording = true
+            recordingNote = nil
+            startSegment()
+        }
+    }
+
+    /// `KiwiWebView` finished loading a Kiwi page: if a recording spans the
+    /// reload (a retune), start the next file.
+    func pageDidLoad() {
+        if isRecording, reloadTask == nil { startSegment() }
+    }
+
+    private func startSegment() {
+        startTask?.cancel()
+        segmentStartedAt = nil
+        let label = tunedTarget.map { AudioRecorder.label(frequencyHz: $0.frequencyHz, mode: $0.mode) } ?? ""
+        startTask = Task { [weak self] in
+            guard let self else { return }
+            let started = await recordingBridge.start(fallbackLabel: label)
+            guard !Task.isCancelled, isRecording else { return }
+            if started {
+                segmentStartedAt = Date()
+            } else {
+                endRecording()
+                recordingNote = "Recording didn't start — the KiwiSDR's audio isn't running."
+            }
+        }
+    }
+
+    private func endRecording() {
+        isRecording = false
+        segmentStartedAt = nil
+        startTask?.cancel()
+        startTask = nil
+    }
+
+    private func noteSaved(_ url: URL?) {
+        recordingNote = url.map { "Saved “\($0.deletingPathExtension().lastPathComponent)”" }
+            ?? recordingNote
+    }
+
+    /// The Kiwi stopped (and saved) on its own — its audio connection
+    /// closed, e.g. a listening time limit. Not restarted automatically.
+    private func kiwiEndedRecording(savedTo url: URL?) {
+        guard isRecording, reloadTask == nil else { noteSaved(url); return }
+        endRecording()
+        recordingNote = "Recording stopped by the KiwiSDR (its connection closed)"
+            + (url.map { " — saved “\($0.deletingPathExtension().lastPathComponent)”" } ?? "")
     }
 
     /// Called by `KiwiWebView` when a load fails outright (bad host, Kiwi
@@ -199,7 +305,7 @@ final class WebSDRFollowModel: ObservableObject {
             // Status is refreshed even when the URL is unchanged (e.g. back
             // in range at the same frequency), so it never goes stale.
             if forceHostPage || tuneURL != lastIssuedURL {
-                issue(tuneURL)
+                issue(tuneURL, tuned: latest)
                 lastTunedAt = Date()
             }
             let time = lastTunedAt.formatted(date: .omitted, time: .standard)
@@ -218,8 +324,30 @@ final class WebSDRFollowModel: ObservableObject {
         }
     }
 
-    private func issue(_ newURL: URL) {
+    /// Loads `newURL` — unless a recording is running on the current page,
+    /// in which case that file is saved first (a reload would lose it) and
+    /// the load follows; `pageDidLoad` then starts the next file.
+    private func issue(_ newURL: URL, tuned: FollowTarget? = nil) {
         lastIssuedURL = newURL
-        pageRequest = PageRequest(url: newURL, id: (pageRequest?.id ?? 0) + 1)
+        let request = PageRequest(url: newURL, id: (pendingReload?.request.id ?? pageRequest?.id ?? 0) + 1)
+        guard isRecording, pageRequest != nil else {
+            tunedTarget = tuned
+            pageRequest = request
+            return
+        }
+        pendingReload = (request, tuned)
+        guard reloadTask == nil else { return }
+        startTask?.cancel()
+        segmentStartedAt = nil
+        reloadTask = Task { [weak self] in
+            let url = await self?.recordingBridge.stop()
+            guard let self else { return }
+            noteSaved(url)
+            reloadTask = nil
+            guard isConnected, let next = pendingReload else { return }
+            pendingReload = nil
+            tunedTarget = next.tuned
+            pageRequest = next.request
+        }
     }
 }

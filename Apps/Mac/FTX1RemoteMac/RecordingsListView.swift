@@ -108,7 +108,7 @@ struct RecordingsListView: View {
                 ContentUnavailableView(
                     "No Recordings Yet",
                     systemImage: "waveform",
-                    description: Text("Recordings made from the CW page's RECORD button will appear here.")
+                    description: Text("Recordings made from the CW page's RECORD button or the WebSDR window's Record button will appear here.")
                 )
             }
         }
