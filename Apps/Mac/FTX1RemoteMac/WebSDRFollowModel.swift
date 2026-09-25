@@ -8,6 +8,7 @@ import Foundation
 enum WebSDRSettings {
     static let hostPortKey = "webSDR.hostPort"
     static let followRigKey = "webSDR.followRig"
+    static let mutedKey = "webSDR.muted"
     /// The receive ranges of the station last picked from the directory,
     /// as "lo-hi,lo-hi" (the listing's own format), plus the host they
     /// belong to — only applied while `hostPort` still equals that host.
@@ -88,9 +89,37 @@ final class WebSDRFollowModel: ObservableObject {
     @Published private(set) var pageRequest: PageRequest?
     @Published private(set) var status = ""
 
-    // MARK: Recording (the Kiwi's own recorder — see KiwiRecordingBridge)
+    // MARK: Mute
 
-    let recordingBridge = KiwiRecordingBridge()
+    /// The WebSDR window's Mute. While the Kiwi is audible — connected and
+    /// not muted here — the rig's Main playback is muted so the two don't
+    /// play over each other; muting here (or disconnecting) unmutes Main
+    /// again (`HubService.setWebSDRAudioActive`, which only ever undoes a
+    /// mute it made itself). Applied to the page live via `KiwiPageBridge.
+    /// setPageMuted`, and as the Kiwi's own `mute=1` URL parameter on every
+    /// load so it survives the reload each retune causes.
+    @Published private(set) var isMuted: Bool {
+        didSet { UserDefaults.standard.set(isMuted, forKey: WebSDRSettings.mutedKey) }
+    }
+    private weak var hub: HubService?
+    private var muteTask: Task<Void, Never>?
+
+    func toggleMuted() {
+        isMuted.toggle()
+        updateMainAudio()
+        guard pageRequest != nil else { return }
+        muteTask?.cancel()
+        let muted = isMuted
+        muteTask = Task { [weak self] in await self?.pageBridge.setPageMuted(muted) }
+    }
+
+    private func updateMainAudio() {
+        hub?.setWebSDRAudioActive(isConnected && !isMuted)
+    }
+
+    // MARK: Recording (the Kiwi's own recorder — see KiwiPageBridge)
+
+    let pageBridge = KiwiPageBridge()
 
     /// The user's Record/Stop intent. Stays true across retunes: each
     /// retune saves the current file and starts a new one for the new
@@ -122,6 +151,8 @@ final class WebSDRFollowModel: ObservableObject {
         let defaults = UserDefaults.standard
         hostPort = defaults.string(forKey: WebSDRSettings.hostPortKey) ?? ""
         followRig = defaults.object(forKey: WebSDRSettings.followRigKey) as? Bool ?? true
+        isMuted = defaults.bool(forKey: WebSDRSettings.mutedKey)
+        self.hub = hub
         if let host = defaults.string(forKey: WebSDRSettings.stationBandsHostKey),
            let raw = defaults.string(forKey: WebSDRSettings.stationBandsKey) {
             stationBands = (host, KiwiSDRStation.parseBands(raw))
@@ -143,7 +174,7 @@ final class WebSDRFollowModel: ObservableObject {
                 // Kiwis reject a second connection from the same IP.
                 evaluate(forceHostPage: isConnected && pageRequest == nil)
             }
-        recordingBridge.onUnexpectedSave = { [weak self] url in
+        pageBridge.onUnexpectedSave = { [weak self] url in
             self?.kiwiEndedRecording(savedTo: url)
         }
         evaluate()
@@ -154,6 +185,7 @@ final class WebSDRFollowModel: ObservableObject {
     /// left to the subscription above so it goes straight to the tuned URL.
     func connect() {
         isConnected = true
+        updateMainAudio()
         lastIssuedURL = nil
         evaluate(forceHostPage: latest != nil)
     }
@@ -183,12 +215,14 @@ final class WebSDRFollowModel: ObservableObject {
     /// disconnected immediately.
     func disconnect() {
         isConnected = false
+        updateMainAudio()
+        muteTask?.cancel()
         pendingReload = nil
         lastIssuedURL = nil
         if isRecording {
             endRecording()
             Task { [weak self] in
-                let url = await self?.recordingBridge.stop()
+                let url = await self?.pageBridge.stop()
                 self?.noteSaved(url)
                 self?.unloadIfStillDisconnected()
             }
@@ -208,7 +242,7 @@ final class WebSDRFollowModel: ObservableObject {
         if isRecording {
             endRecording()
             Task { [weak self] in
-                let url = await self?.recordingBridge.stop()
+                let url = await self?.pageBridge.stop()
                 self?.noteSaved(url)
             }
         } else {
@@ -231,7 +265,7 @@ final class WebSDRFollowModel: ObservableObject {
         let label = tunedTarget.map { AudioRecorder.label(frequencyHz: $0.frequencyHz, mode: $0.mode) } ?? ""
         startTask = Task { [weak self] in
             guard let self else { return }
-            let started = await recordingBridge.start(fallbackLabel: label)
+            let started = await pageBridge.start(fallbackLabel: label)
             guard !Task.isCancelled, isRecording else { return }
             if started {
                 segmentStartedAt = Date()
@@ -324,12 +358,22 @@ final class WebSDRFollowModel: ObservableObject {
         }
     }
 
+    /// Adds the Kiwi's own `mute=1` when muted here, so a reload comes up
+    /// muted. Kept out of `lastIssuedURL`, which dedups on the tuning alone
+    /// — toggling Mute must not trigger a reload.
+    private func withMuteParameter(_ url: URL) -> URL {
+        guard isMuted, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        components.queryItems = (components.queryItems ?? []) + [URLQueryItem(name: "mute", value: "1")]
+        return components.url ?? url
+    }
+
     /// Loads `newURL` — unless a recording is running on the current page,
     /// in which case that file is saved first (a reload would lose it) and
     /// the load follows; `pageDidLoad` then starts the next file.
     private func issue(_ newURL: URL, tuned: FollowTarget? = nil) {
         lastIssuedURL = newURL
-        let request = PageRequest(url: newURL, id: (pendingReload?.request.id ?? pageRequest?.id ?? 0) + 1)
+        let request = PageRequest(url: withMuteParameter(newURL),
+                                  id: (pendingReload?.request.id ?? pageRequest?.id ?? 0) + 1)
         guard isRecording, pageRequest != nil else {
             tunedTarget = tuned
             pageRequest = request
@@ -340,7 +384,7 @@ final class WebSDRFollowModel: ObservableObject {
         startTask?.cancel()
         segmentStartedAt = nil
         reloadTask = Task { [weak self] in
-            let url = await self?.recordingBridge.stop()
+            let url = await self?.pageBridge.stop()
             guard let self else { return }
             noteSaved(url)
             reloadTask = nil

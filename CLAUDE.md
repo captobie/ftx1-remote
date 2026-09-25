@@ -860,7 +860,7 @@ retunes to follow the rig's Main VFO. One direction only (rig → Kiwi).
   Kiwi's own link code, not yet tried against a real converter Kiwi.
   Distance sort uses `StationSettings.gridSquare` (`Maidenhead`); with no
   grid set it sorts by name and shows a hint.
-- **Record/Play (2026-09-24, `KiwiRecordingBridge`)**: Record drives the
+- **Record/Play (2026-09-24, `KiwiPageBridge`)**: Record drives the
   Kiwi page's *own* recorder, `toggle_or_set_rec(true/false)` (its "r"
   key), via `evaluateJavaScript` — the one place the app calls into the
   page (user decision; it only calls the page's own function, nothing is
@@ -882,6 +882,28 @@ retunes to follow the rig's Main VFO. One direction only (rig → Kiwi).
   Tested against a public Kiwi: Stop and Disconnect both save a playable
   file, which is listed in Recordings. The retune split (one file per
   frequency) was hardware-confirmed on the rig by the user, 2026-09-24.
+- **Mute + automatic Main mute (2026-09-25)**: while the Kiwi is audible
+  (connected and not muted by the window's Mute button) the rig's Main
+  Mac playback is muted, so the two don't play over each other; muting the
+  WebSDR, disconnecting or closing the window brings Main back.
+  `HubService.setWebSDRAudioActive` owns this and only undoes a mute it
+  made itself (`mainMutedByWebSDR`): if Main was already muted it's left
+  alone, and pressing Main's own Mute hands control back to the user. The
+  flag is persisted and cleared in `HubService.init` (the WebSDR window
+  always opens disconnected), so a quit mid-session can't leave Main
+  stuck muted — note `didSet` doesn't fire inside `init`, hence the
+  explicit write there. Gates Mac playback only (iPad relay, APRS, FT8,
+  recording unaffected). The Kiwi page is muted via its own
+  `toggle_or_set_mute` (`KiwiPageBridge.setPageMuted`, renamed from
+  `KiwiRecordingBridge`), after the page has applied its initial mute
+  (`muted_until_freq_set`), and via the Kiwi's own `mute=1` URL parameter
+  on each load so it survives retune reloads; `mute=` is kept out of
+  `lastIssuedURL` so toggling never reloads. Kiwi recordings are taken
+  before the page's mute, so muting doesn't silence a recording. Tested
+  against a public Kiwi via the saved settings: each transition, the
+  already-muted case, window close, and quit recovery; confirmed working
+  by the user on the rig, 2026-09-25. Not synced: using
+  the Kiwi page's own speaker icon doesn't update the window's Mute.
 - **Hardware-confirmed on the real rig (user, 2026-09-24)**: retunes
   follow the FTX-1. v1.1 seams are noted in comments: click-to-tune back, JS-injection retune, mute-on-TX,
   Sub following, other WebSDR platforms, favorites, and the range of a

@@ -2,9 +2,11 @@ import Foundation
 import WebKit
 import os
 
-/// Drives the KiwiSDR page's own audio recorder for the WebSDR window's
-/// Record button, and files the WAVs it saves into the app's Recordings
-/// folder (`AudioRecorder.recordingsDirectory`).
+/// The WebSDR window's calls into the KiwiSDR page — only ever the page's
+/// *own* functions, nothing patched or injected:
+/// - its audio recorder, for Record (files the WAVs it saves into the app's
+///   Recordings folder, `AudioRecorder.recordingsDirectory`);
+/// - its mute, `toggle_or_set_mute`, for the window's Mute button.
 ///
 /// **Why the Kiwi's recorder** (user decision, 2026-09-24): the page already
 /// has one — `toggle_or_set_rec(set)`, the same function as its own "r"
@@ -13,13 +15,11 @@ import os
 /// volume/mute, and on stop builds a WAV blob and "downloads" it through a
 /// hidden `<a download>` click. `KiwiWebView`'s navigation delegate turns
 /// that into a `WKDownload` and asks `destinationURL()` where to put it.
-/// This is the only call the app makes into the page, and it only invokes
-/// the page's own function — nothing is patched or injected.
 ///
 /// Stopping is asynchronous — the file exists only once the download
 /// finishes — so `stop()` waits for it (with a timeout) before the caller
 /// reloads or unloads the page, which would otherwise drop the recording.
-final class KiwiRecordingBridge {
+final class KiwiPageBridge {
     weak var webView: WKWebView?
 
     /// Called when the Kiwi saves a recording the app didn't ask to stop —
@@ -105,6 +105,28 @@ final class KiwiRecordingBridge {
                 self.stopContinuation = nil
                 pending.resume(returning: nil)
             }
+        }
+    }
+
+    // MARK: Mute
+
+    /// Mutes/unmutes the Kiwi page's audio via its own `toggle_or_set_mute`
+    /// (the same function as its speaker icon). A freshly loaded page
+    /// applies its `mute=` URL parameter itself once the frequency is set
+    /// (`muted_until_freq_set`), which would override an earlier call — so
+    /// this waits for that to have happened (≤30 s), then asserts `muted`.
+    func setPageMuted(_ muted: Bool) async {
+        let js = """
+        (function() {
+          if (typeof toggle_or_set_mute !== 'function' || typeof muted_until_freq_set === 'undefined' || muted_until_freq_set) return 'waiting';
+          toggle_or_set_mute(\(muted ? 1 : 0));
+          return 'done';
+        })()
+        """
+        for _ in 0..<60 {
+            if Task.isCancelled { return }
+            if let result = try? await webView?.evaluateJavaScript(js) as? String, result == "done" { return }
+            try? await Task.sleep(for: .milliseconds(500))
         }
     }
 

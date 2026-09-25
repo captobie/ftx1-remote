@@ -8,14 +8,14 @@ import WebKit
 struct KiwiWebView: NSViewRepresentable {
     let request: WebSDRFollowModel.PageRequest?
     /// Receives the Kiwi's own recorder's WAV saves (see
-    /// `KiwiRecordingBridge`) and gets this web view to run its commands.
-    let recordingBridge: KiwiRecordingBridge
+    /// `KiwiPageBridge`) and gets this web view to run its commands.
+    let pageBridge: KiwiPageBridge
     var onLoadFailure: (String) -> Void = { _ in }
     /// A Kiwi page (not about:blank) finished loading — where a recording
     /// that spans a retune picks up again.
     var onPageLoaded: () -> Void = {}
 
-    func makeCoordinator() -> Coordinator { Coordinator(recordingBridge: recordingBridge) }
+    func makeCoordinator() -> Coordinator { Coordinator(pageBridge: pageBridge) }
 
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -27,7 +27,7 @@ struct KiwiWebView: NSViewRepresentable {
         configuration.mediaTypesRequiringUserActionForPlayback = []
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
-        recordingBridge.webView = webView
+        pageBridge.webView = webView
         return webView
     }
 
@@ -62,10 +62,10 @@ struct KiwiWebView: NSViewRepresentable {
         var loaded: WebSDRFollowModel.PageRequest?
         var onLoadFailure: (String) -> Void = { _ in }
         var onPageLoaded: () -> Void = {}
-        let recordingBridge: KiwiRecordingBridge
+        let pageBridge: KiwiPageBridge
 
-        init(recordingBridge: KiwiRecordingBridge) {
-            self.recordingBridge = recordingBridge
+        init(pageBridge: KiwiPageBridge) {
+            self.pageBridge = pageBridge
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -93,15 +93,15 @@ struct KiwiWebView: NSViewRepresentable {
 
         func download(_ download: WKDownload, decideDestinationUsing response: URLResponse,
                       suggestedFilename: String) async -> URL? {
-            recordingBridge.destinationURL()
+            pageBridge.destinationURL()
         }
 
         func downloadDidFinish(_ download: WKDownload) {
-            recordingBridge.downloadFinished(success: true)
+            pageBridge.downloadFinished(success: true)
         }
 
         func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
-            recordingBridge.downloadFinished(success: false)
+            pageBridge.downloadFinished(success: false)
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {

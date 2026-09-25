@@ -30,6 +30,22 @@ struct WebSDRFollowView: View {
         model.connect()
     }
 
+    /// Mutes the KiwiSDR. While it's audible (connected, not muted here)
+    /// the rig's Main audio is muted; muting here brings Main back — see
+    /// `WebSDRFollowModel.isMuted`. Usable while disconnected too, to pick
+    /// how the next connection starts.
+    private var muteButton: some View {
+        Button(action: model.toggleMuted) {
+            Label(model.isMuted ? "Muted" : "Mute",
+                  systemImage: model.isMuted ? "speaker.slash.fill" : "speaker.wave.2")
+        }
+        .labelStyle(.titleAndIcon)
+        .foregroundStyle(model.isMuted ? .red : .primary)
+        .help(model.isMuted
+              ? "Unmute the KiwiSDR (mutes the rig's Main audio while connected)"
+              : "Mute the KiwiSDR and bring back the rig's Main audio")
+    }
+
     /// Record while connected; Stop (red, with the current file's elapsed
     /// time) while recording. The time is blank between files — saving,
     /// reloading after a retune, or waiting for the Kiwi's audio.
@@ -78,6 +94,7 @@ struct WebSDRFollowView: View {
                 Toggle("Follow rig", isOn: $model.followRig)
                     .toggleStyle(.switch)
                 Spacer()
+                muteButton
                 recordButton
                 // Same window as the CW page's PLAY button: KiwiSDR
                 // recordings are saved alongside the rig's own.
@@ -92,7 +109,7 @@ struct WebSDRFollowView: View {
             // Hidden rather than removed while disconnected: it has to stay in
             // the hierarchy to see `pageRequest` go nil and unload the Kiwi.
             KiwiWebView(request: model.pageRequest,
-                        recordingBridge: model.recordingBridge,
+                        pageBridge: model.pageBridge,
                         onLoadFailure: model.reportLoadFailure,
                         onPageLoaded: model.pageDidLoad)
             .opacity(model.isConnected ? 1 : 0)
