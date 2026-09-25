@@ -53,6 +53,8 @@ struct SettingsView: View {
                     .tabItem { Text("Station") }
                 HomeFrequencySettingsTab()
                     .tabItem { Text("Home Freq") }
+                PollingSettingsTab()
+                    .tabItem { Text("Polling") }
                 AppearanceSettingsTab()
                     .tabItem { Text("Appearance") }
             }
@@ -375,6 +377,80 @@ private struct HomeFrequencyField: View {
 
     var body: some View {
         TextField("\(band.displayName) (MHz)", value: megahertz, format: .number.precision(.fractionLength(0...6)))
+    }
+}
+
+/// Polling rates — see `PollingSettings`. Applies instantly via
+/// `@AppStorage` (each consumer re-reads its rate every loop iteration),
+/// same reasoning as the other non-rigctld tabs: the steppers and
+/// `PollingSettings`' own clamping keep every value in a safe range, so
+/// there's no invalid input worth a Cancel/Done escape hatch. "Restore
+/// Defaults" is the way back if a tuned value makes things worse.
+private struct PollingSettingsTab: View {
+    @AppStorage(PollingSettings.fastPollMilliseconds.key) private var fastPollMs = PollingSettings.fastPollMilliseconds.defaultValue
+    @AppStorage(PollingSettings.slowTierEvery.key) private var slowTierEvery = PollingSettings.slowTierEvery.defaultValue
+    @AppStorage(PollingSettings.reconnectDelaySeconds.key) private var reconnectSeconds = PollingSettings.reconnectDelaySeconds.defaultValue
+    @AppStorage(PollingSettings.wpsdCallerSeconds.key) private var wpsdCallerSeconds = PollingSettings.wpsdCallerSeconds.defaultValue
+    @AppStorage(PollingSettings.wpsdReflectorSeconds.key) private var wpsdReflectorSeconds = PollingSettings.wpsdReflectorSeconds.defaultValue
+    @State private var showingRestoreConfirmation = false
+
+    var body: some View {
+        Form {
+            Section("Radio (rigctld)") {
+                Stepper(value: $fastPollMs, in: PollingSettings.fastPollMilliseconds.range, step: 50) {
+                    Text("VFO / meters pause: \(fastPollMs) ms")
+                }
+                Stepper(value: $slowTierEvery, in: PollingSettings.slowTierEvery.range) {
+                    Text("Menu settings: every \(slowTierEvery) VFO poll\(slowTierEvery == 1 ? "" : "s")")
+                }
+                Stepper(value: $reconnectSeconds, in: PollingSettings.reconnectDelaySeconds.range) {
+                    Text("Reconnect delay: \(reconnectSeconds) s")
+                }
+                Text("Lower values update the display faster but put more load on the CAT link; each VFO poll also takes about a second of reads on top of the pause.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section("WPSD hotspot") {
+                Stepper(value: $wpsdCallerSeconds, in: PollingSettings.wpsdCallerSeconds.range) {
+                    Text("Caller lookup: every \(wpsdCallerSeconds) s")
+                }
+                Stepper(value: $wpsdReflectorSeconds, in: PollingSettings.wpsdReflectorSeconds.range, step: 5) {
+                    Text("Reflector lookup: every \(wpsdReflectorSeconds) s")
+                }
+            }
+            HStack {
+                Text("Changes apply immediately.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Restore Defaults…") { showingRestoreConfirmation = true }
+                    .disabled(isAtDefaults)
+            }
+        }
+        .padding(.top, 8)
+        .confirmationDialog("Restore default polling rates?", isPresented: $showingRestoreConfirmation, titleVisibility: .visible) {
+            Button("Restore Defaults") { restoreDefaults() }
+        }
+    }
+
+    private var isAtDefaults: Bool {
+        fastPollMs == PollingSettings.fastPollMilliseconds.defaultValue
+            && slowTierEvery == PollingSettings.slowTierEvery.defaultValue
+            && reconnectSeconds == PollingSettings.reconnectDelaySeconds.defaultValue
+            && wpsdCallerSeconds == PollingSettings.wpsdCallerSeconds.defaultValue
+            && wpsdReflectorSeconds == PollingSettings.wpsdReflectorSeconds.defaultValue
+    }
+
+    /// Assigns through the `@AppStorage` bindings rather than only calling
+    /// `PollingSettings.restoreDefaults()`, so the steppers visibly snap
+    /// back too.
+    private func restoreDefaults() {
+        PollingSettings.restoreDefaults()
+        fastPollMs = PollingSettings.fastPollMilliseconds.defaultValue
+        slowTierEvery = PollingSettings.slowTierEvery.defaultValue
+        reconnectSeconds = PollingSettings.reconnectDelaySeconds.defaultValue
+        wpsdCallerSeconds = PollingSettings.wpsdCallerSeconds.defaultValue
+        wpsdReflectorSeconds = PollingSettings.wpsdReflectorSeconds.defaultValue
     }
 }
 

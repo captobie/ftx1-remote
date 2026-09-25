@@ -264,14 +264,15 @@ final class HubService: ObservableObject {
     /// Counts fast-tier poll ticks so `pollLoop()` runs `refreshSlowTier()`
     /// only every `slowTierInterval`th tick instead of every tick.
     private var slowTierTickCounter = 0
-    /// ~3s at the default 500ms `pollInterval`. The slow tier only needs to
+    /// User-adjustable (Settings → Polling), default 6 — ~3s at the default
+    /// 500ms `pollInterval`. The slow tier only needs to
     /// catch external (front-panel) menu changes or correct a mispredicted
     /// optimistic value — changes made through the app already show up
     /// instantly via `applyOptimistically` — so trading a few seconds of
     /// staleness on menu/settings fields is an acceptable price for them no
     /// longer sharing a path with the VFO display (see `refreshFastTier`'s
     /// doc comment).
-    private static let slowTierInterval = 6
+    private var slowTierInterval: Int { PollingSettings.slowTierEvery.value }
 
     /// The Main-side frequency/mode most recently polled while the rig was
     /// in VFO (not Memory) mode — refreshed every poll tick in VFO mode,
@@ -295,8 +296,14 @@ final class HubService: ObservableObject {
     /// the exit falls back to a bare "VM000".
     private var lastVFOState: (hz: Int, mode: RigMode)?
 
-    private let pollInterval: Duration
-    private let reconnectDelay: Duration
+    /// Both read live from `PollingSettings` (Settings → Polling), so an
+    /// edit applies at the next tick without reconnecting.
+    private var pollInterval: Duration { PollingSettings.fastPollInterval }
+    private var reconnectDelay: Duration { PollingSettings.reconnectDelay }
+    /// The WebSocket server's bind-retry interval. Fixed rather than
+    /// user-adjustable — it's not a rig poll, and only matters in the rare
+    /// case the port is held by a just-killed previous instance.
+    private let webSocketRebindDelay: Duration = .seconds(3)
     private let startupRetryInterval: Duration
     private let startupGracePeriod: Duration
 
@@ -304,8 +311,6 @@ final class HubService: ObservableObject {
         rigctldHost: String = "127.0.0.1",
         rigctldPort: UInt16 = 4532,
         webSocketPort: UInt16 = 8765,
-        pollInterval: Duration = .milliseconds(500),
-        reconnectDelay: Duration = .seconds(3),
         startupRetryInterval: Duration = .milliseconds(250),
         startupGracePeriod: Duration = .seconds(10)
     ) {
@@ -316,8 +321,6 @@ final class HubService: ObservableObject {
         self.webSocketPort = webSocketPort
         self.rigctldHost = rigctldHost
         self.rigctldPort = rigctldPort
-        self.pollInterval = pollInterval
-        self.reconnectDelay = reconnectDelay
         self.startupRetryInterval = startupRetryInterval
         self.startupGracePeriod = startupGracePeriod
 
@@ -458,8 +461,7 @@ final class HubService: ObservableObject {
         startWebSocketServer()
     }
 
-    /// Retries the bind indefinitely (reusing `reconnectDelay` as the
-    /// interval — no need for a second, separately-tuned constant here)
+    /// Retries the bind indefinitely (every `webSocketRebindDelay`)
     /// whenever `RigWebSocketServer.isListening()` reports false — covers
     /// both the initial bind failing (e.g. the port still held by a
     /// just-killed previous instance) and a later failure it clears itself
@@ -471,16 +473,16 @@ final class HubService: ObservableObject {
     private func startWebSocketServer() {
         guard webSocketServerTask == nil else { return }
         let port = webSocketPort
-        webSocketServerTask = Task { [weak self, server, reconnectDelay] in
+        webSocketServerTask = Task { [weak self, server, webSocketRebindDelay] in
             while !Task.isCancelled {
                 if await server.isListening() {
-                    try? await Task.sleep(for: reconnectDelay)
+                    try? await Task.sleep(for: webSocketRebindDelay)
                     continue
                 }
                 try? await server.start(port: port) { command in
                     Task { @MainActor in self?.send(command) }
                 }
-                try? await Task.sleep(for: reconnectDelay)
+                try? await Task.sleep(for: webSocketRebindDelay)
             }
         }
     }
@@ -1299,11 +1301,11 @@ final class HubService: ObservableObject {
         // reading them at all. Priming costs one ~2s slow tier up front
         // and brings that to ~3s. Also right on a reconnect: anything
         // could have changed while the link was down.
-        slowTierTickCounter = Self.slowTierInterval
+        slowTierTickCounter = slowTierInterval
         while !Task.isCancelled {
             try await refreshFastTier()
             slowTierTickCounter += 1
-            if slowTierTickCounter >= Self.slowTierInterval {
+            if slowTierTickCounter >= slowTierInterval {
                 slowTierTickCounter = 0
                 try await refreshSlowTier()
             }

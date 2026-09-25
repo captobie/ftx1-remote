@@ -23,14 +23,16 @@ final class WPSDCallsignMonitor {
     /// Slower than the dashboard page's own ~1s polling cadence — this
     /// hotspot (a Pi Zero 2 W) costs ~0.7s of PHP work per request when idle
     /// and ~3.3s once polled at ~0.7 req/s by this app plus the dashboard
-    /// page (measured 2026-09-20), so poll conservatively.
-    private let pollInterval: Duration = .seconds(3)
+    /// page (measured 2026-09-20), so poll conservatively. User-adjustable
+    /// (Settings → Polling, default 3s), read live each iteration.
+    private var pollInterval: Duration { PollingSettings.wpsdCallerInterval }
     /// The linked reflector changes far less often than the live caller, so
     /// this polls on its own, slower loop rather than riding along with
     /// `pollInterval`. The WPSD dashboard polls this endpoint every 5s
     /// (`reloadRepeaterInfo`), which is faster than needed here, and a slower
     /// cadence keeps this app from adding to the backend strain noted above.
-    private let reflectorPollInterval: Duration = .seconds(30)
+    /// User-adjustable (Settings → Polling, default 30s).
+    private var reflectorPollInterval: Duration { PollingSettings.wpsdReflectorInterval }
     private let session: URLSession
     private var pollTask: Task<Void, Never>?
     private var reflectorPollTask: Task<Void, Never>?

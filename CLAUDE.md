@@ -1009,7 +1009,9 @@ retunes to follow the rig's Main VFO. One direction only (rig → Kiwi).
   `FT8Spot`, `FT8ListView`) — see "Digital modes — FT8" above. Dense
   multi-pane UI (`ContentView`: VFO, meters, scope display,
   band/mode selectors all visible at once), `SettingsView` (tabbed sheet:
-  rigctld connection config, Audio input device, Station, Appearance),
+  rigctld connection config, Audio input device, Station, Polling —
+  `PollingSettings`, read live by the poll loops, with Restore Defaults —,
+  Appearance),
   plus two menu systems: `MenuPageView` (shared, see `Sources/FTX1Core/UI/`
   above) and `DeepSettingsView` (Mac-only — the page-3 category screens,
   rendered generically from `DeepSettingsCatalog`).
