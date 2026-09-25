@@ -115,8 +115,9 @@ final class AudioRecorder {
 
     /// "Recording 2026-09-24 07.47.30 14.074.000 USB.wav" in
     /// `recordingsDirectory` — the one naming scheme for every recording
-    /// the app makes (the rig's own via `makeFile`, and KiwiSDR recordings
-    /// saved by the WebSDR window, whose label ends in "KiwiSDR").
+    /// the app makes (the rig's own via `makeFile`, and KiwiSDR/WebSDR
+    /// recordings saved by the WebSDR window, whose label ends in "KiwiSDR"
+    /// or "WebSDR").
     static func newRecordingURL(label: String, date: Date) -> URL {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"

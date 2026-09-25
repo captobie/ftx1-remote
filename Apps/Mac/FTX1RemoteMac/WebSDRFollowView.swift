@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The Digital menu's "WebSDR" item opens this in its own window
 /// (`websdr-follow`, declared in `FTX1RemoteMacApp`): an embedded KiwiSDR
-/// that retunes to follow the rig. Mac-only — see `WebSDRFollowModel` for
+/// or classic WebSDR that retunes to follow the rig. Mac-only — see `WebSDRFollowModel` for
 /// how it follows rig state and what's deliberately left for v1.1.
 struct WebSDRFollowView: View {
     @StateObject private var model: WebSDRFollowModel
@@ -31,7 +31,7 @@ struct WebSDRFollowView: View {
         model.connect()
     }
 
-    /// Mutes the KiwiSDR. While it's audible (connected, not muted here)
+    /// Mutes the receiver page. While it's audible (connected, not muted here)
     /// the rig's Main audio is muted; muting here brings Main back — see
     /// `WebSDRFollowModel.isMuted`. Usable while disconnected too, to pick
     /// how the next connection starts.
@@ -43,8 +43,8 @@ struct WebSDRFollowView: View {
         .labelStyle(.titleAndIcon)
         .foregroundStyle(model.isMuted ? .red : .primary)
         .help(model.isMuted
-              ? "Unmute the KiwiSDR (mutes the rig's Main audio while connected)"
-              : "Mute the KiwiSDR and bring back the rig's Main audio")
+              ? "Unmute the WebSDR (mutes the rig's Main audio while connected)"
+              : "Mute the WebSDR and bring back the rig's Main audio")
     }
 
     /// Picks a saved station (fills the host, never connects — same as a
@@ -71,7 +71,7 @@ struct WebSDRFollowView: View {
             Label("Favorites", systemImage: "star")
         }
         .fixedSize()
-        .help("Choose a saved KiwiSDR")
+        .help("Choose a saved station")
     }
 
     /// Saves or removes the current host. Uses the committed host, not the
@@ -86,9 +86,9 @@ struct WebSDRFollowView: View {
         }
         .buttonStyle(.borderless)
         .disabled(model.hostPort.isEmpty || hostDraft != model.hostPort)
-        .help(isFavorite ? "Remove this KiwiSDR from Favorites"
+        .help(isFavorite ? "Remove this station from Favorites"
               : hostDraft != model.hostPort ? "Press Return to use this host, then add it to Favorites"
-              : "Add this KiwiSDR to Favorites")
+              : "Add this station to Favorites")
     }
 
     /// Record while connected; Stop (red, with the current file's elapsed
@@ -113,7 +113,7 @@ struct WebSDRFollowView: View {
             Button("Record", systemImage: "record.circle", action: model.toggleRecording)
                 .labelStyle(.titleAndIcon)
                 .disabled(!model.isConnected)
-                .help(model.isConnected ? "Record the KiwiSDR's audio" : "Connect to a KiwiSDR to record")
+                .help(model.isConnected ? "Record the WebSDR's audio" : "Connect to a station to record")
         }
     }
 
@@ -122,9 +122,9 @@ struct WebSDRFollowView: View {
             HStack(spacing: 12) {
                 Button("Stations…", systemImage: "list.bullet") { showingDirectory = true }
                     .labelStyle(.titleAndIcon)
-                    .help("Choose a public KiwiSDR from the directory")
+                    .help("Choose a public KiwiSDR or WebSDR")
                 favoritesMenu
-                TextField("KiwiSDR host:port", text: $hostDraft)
+                TextField("KiwiSDR or WebSDR host:port", text: $hostDraft)
                     .textFieldStyle(.roundedBorder)
                     .fontDesign(.monospaced)
                     .frame(maxWidth: 360)
@@ -140,14 +140,14 @@ struct WebSDRFollowView: View {
                 }
                 Toggle("Follow rig", isOn: $model.followRig)
                     .toggleStyle(.switch)
-                    .help("Retune the KiwiSDR when the rig's Main VFO changes")
+                    .help("Retune the WebSDR when the rig's Main VFO changes")
                 Toggle("Tune rig", isOn: $model.tuneRig)
                     .toggleStyle(.switch)
-                    .help("Tune the rig's Main VFO when you tune in the KiwiSDR page (click the waterfall, enter a frequency, pick a mode)")
+                    .help("Tune the rig's Main VFO when you tune in the WebSDR page (click the waterfall, enter a frequency, pick a mode)")
                 Spacer()
                 muteButton
                 recordButton
-                // Same window as the CW page's PLAY button: KiwiSDR
+                // Same window as the CW page's PLAY button: WebSDR/KiwiSDR
                 // recordings are saved alongside the rig's own.
                 Button("Play", systemImage: "waveform") { openWindow(id: "recordings") }
                     .labelStyle(.titleAndIcon)
@@ -169,7 +169,7 @@ struct WebSDRFollowView: View {
                     ContentUnavailableView(
                         "Not Connected",
                         systemImage: "antenna.radiowaves.left.and.right.slash",
-                        description: Text("Pick a station or enter a KiwiSDR host:port, then press Connect.")
+                        description: Text("Pick a station or enter a KiwiSDR or WebSDR host:port, then press Connect.")
                     )
                 }
             }
@@ -194,12 +194,12 @@ struct WebSDRFollowView: View {
         }
         .navigationTitle("WebSDR")
         .sheet(isPresented: $showingDirectory) {
-            KiwiSDRDirectoryView(directory: directory,
-                                 rigFrequencyHz: model.rigFrequencyHz,
-                                 favoriteIDs: Set(model.favorites.map(\.id)),
-                                 onToggleFavorite: model.toggleFavorite) { station in
-                model.select(station)
-            }
+            WebSDRStationsView(directory: directory,
+                               rigFrequencyHz: model.rigFrequencyHz,
+                               favoriteIDs: Set(model.favorites.map(\.id)),
+                               onToggleFavorite: model.toggleFavorite,
+                               onChooseKiwi: { model.select($0) },
+                               onChooseWebSDR: { model.selectWebSDR(hostPort: WebSDRFavorite.hostPort(from: $0)) })
         }
         .sheet(isPresented: $showingManageFavorites) {
             WebSDRFavoritesView(model: model)
@@ -207,7 +207,7 @@ struct WebSDRFollowView: View {
         // `select` sets the committed host; mirror it into the field.
         .onChange(of: model.hostPort) { _, newHost in hostDraft = newHost }
         .onChange(of: directory.stations) { _, stations in model.fillInFavorites(from: stations) }
-        // Closing the window ends the Kiwi session (see also
+        // Closing the window ends the receiver session (see also
         // `KiwiWebView.dismantleNSView`, the backstop for the same thing).
         .onDisappear(perform: model.disconnect)
         .frame(minWidth: 800, minHeight: 560)

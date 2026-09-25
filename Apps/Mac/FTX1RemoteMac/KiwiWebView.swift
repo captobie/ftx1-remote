@@ -1,18 +1,19 @@
 import SwiftUI
 import WebKit
 
-/// `WKWebView` host for the WebSDR window. Loads whenever `request` changes
-/// — retuning is a plain `load()` of a new `?f=` URL (a full Kiwi page
-/// reload/reconnect), skipped when the page is already there (see
-/// `WebSDRFollowModel`'s click-to-tune). v1.1: retuning in place via JS
-/// injection into the Kiwi page would avoid the reconnect gap.
+/// `WKWebView` host for the WebSDR window, KiwiSDR or classic WebSDR page.
+/// Loads whenever `request` changes — for a Kiwi, retuning is a plain
+/// `load()` of a new `?f=` URL (a full page reload/reconnect), skipped when
+/// the page is already there (see `WebSDRFollowModel`'s click-to-tune). A
+/// classic WebSDR is only loaded once per connection and then retuned in
+/// place (`SDRPageBridge.retuneInPlace`), so `request` doesn't change.
 struct KiwiWebView: NSViewRepresentable {
     let request: WebSDRFollowModel.PageRequest?
-    /// Receives the Kiwi's own recorder's WAV saves (see
-    /// `KiwiPageBridge`) and gets this web view to run its commands.
-    let pageBridge: KiwiPageBridge
+    /// Receives the page's own recorder's WAV saves (see
+    /// `SDRPageBridge`) and gets this web view to run its commands.
+    let pageBridge: SDRPageBridge
     var onLoadFailure: (String) -> Void = { _ in }
-    /// A Kiwi page (not about:blank) finished loading — where a recording
+    /// A receiver page (not about:blank) finished loading — where a recording
     /// that spans a retune picks up again.
     var onPageLoaded: () -> Void = {}
 
@@ -63,9 +64,9 @@ struct KiwiWebView: NSViewRepresentable {
         var loaded: WebSDRFollowModel.PageRequest?
         var onLoadFailure: (String) -> Void = { _ in }
         var onPageLoaded: () -> Void = {}
-        let pageBridge: KiwiPageBridge
+        let pageBridge: SDRPageBridge
 
-        init(pageBridge: KiwiPageBridge) {
+        init(pageBridge: SDRPageBridge) {
             self.pageBridge = pageBridge
         }
 
@@ -74,11 +75,13 @@ struct KiwiWebView: NSViewRepresentable {
             onPageLoaded()
         }
 
-        // MARK: The Kiwi recorder's save
+        // MARK: The page recorder's save
 
-        /// The Kiwi saves a recording by clicking a hidden `<a download>`
-        /// pointing at a blob — WebKit flags that as a download, which is
-        /// the only download this page is expected to make.
+        /// The page saves a recording through an `<a download>` pointing at
+        /// a blob (the Kiwi clicks its hidden one itself; a WebSDR's "save"
+        /// link is clicked by `SDRPageBridge.stop`) — WebKit flags that as a
+        /// download, which is the only download these pages are expected to
+        /// make.
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
             decisionHandler(navigationAction.shouldPerformDownload ? .download : .allow)

@@ -50,7 +50,8 @@ nonisolated enum KiwiSDRURLBuilder {
     /// The Kiwi mode as the token `modeToken(for:)` would send for it —
     /// folding the Kiwi's variants (narrow/wide/synchronous AM, narrow
     /// sideband, narrow FM) into the family the rig can match. nil for
-    /// modes with no rig equivalent (IQ, DRM).
+    /// modes with no rig equivalent (IQ, DRM). Click-to-tune's rig-mode
+    /// choice built on this is `SDRPlatform.rigMode(forPageMode:current:)`.
     static func modeFamily(ofKiwiMode kiwiMode: String) -> String? {
         switch kiwiMode.lowercased() {
         case "usb", "usn": "usb"
@@ -59,27 +60,6 @@ nonisolated enum KiwiSDRURLBuilder {
         case "am", "amn", "amw", "sam", "sau", "sal", "sas", "qam": "am"
         case "nbfm", "nnfm": "nbfm"
         default: nil
-        }
-    }
-
-    /// The rig mode for a Kiwi mode, for click-to-tune, or nil to leave the
-    /// rig's mode alone: when the Kiwi mode has no rig equivalent, when it's
-    /// already what the rig's mode maps to (so DATA-U stays DATA-U under a
-    /// Kiwi in USB), and when the rig's mode has no Kiwi equivalent (RTTY,
-    /// DATA-FM, C4FM — following never set the Kiwi's mode from those, so
-    /// its mode isn't a statement about what the rig should be in).
-    static func rigMode(forKiwiMode kiwiMode: String, current: RigMode) -> RigMode? {
-        guard let family = modeFamily(ofKiwiMode: kiwiMode),
-              let currentToken = modeToken(for: current),
-              family != currentToken
-        else { return nil }
-        switch family {
-        case "usb": return .usb
-        case "lsb": return .lsb
-        case "cw": return .cw
-        case "am": return .am
-        case "nbfm": return .fm
-        default: return nil
         }
     }
 

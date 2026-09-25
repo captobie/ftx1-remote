@@ -805,12 +805,14 @@ pattern as the APRS windows.
   check `.remote`/Pi audio timing specifically) — same shape as every
   other CAT/audio feature's hardware-validation step in this project.
 
-## WebSDR follow (v1, KiwiSDR only, 2026-09-24)
+## WebSDR follow (KiwiSDR 2026-09-24, classic WebSDR 2026-09-25)
 
 Digital → **WebSDR** opens `Window(id: "websdr-follow")` (Mac-only): an
-embedded KiwiSDR (`KiwiWebView`, a `WKWebView` `NSViewRepresentable`) that
-retunes to follow the rig's Main VFO, and (click-to-tune, "Tune rig")
-tunes the rig when the user tunes in the Kiwi page.
+embedded KiwiSDR or classic WebSDR (`KiwiWebView`, a `WKWebView`
+`NSViewRepresentable`, despite the name) that retunes to follow the rig's
+Main VFO, and (click-to-tune, "Tune rig") tunes the rig when the user tunes
+in the page. Most bullets below were written for the Kiwi; the classic
+WebSDR differences are in their own bullet at the end.
 
 - **Follows `hub.$rigState`**, not a new poll path — the same value every
   `server.broadcast(rigState)` sends to WebSocket clients (there's no
@@ -928,9 +930,10 @@ tunes the rig when the user tunes in the Kiwi page.
   Tuning inside the page while recording doesn't split the file (no
   reload happens).
 - **Hardware-confirmed on the real rig (user, 2026-09-24)**: retunes
-  follow the FTX-1. v1.1 seams are noted in comments: JS-injection retune, mute-on-TX,
-  Sub following, other WebSDR platforms, and the range of a hand-typed
-  host (only directory picks and favorites carry their own range).
+  follow the FTX-1. v1.1 seams are noted in comments: JS-injection retune
+  for the Kiwi, mute-on-TX, Sub following, further platforms (OpenWebRX),
+  and the range of a hand-typed Kiwi host (only directory picks and
+  favorites carry their own range; a WebSDR learns its range from its page).
 - **Favorites (2026-09-25, `WebSDRFavorite`/`WebSDRFavoritesView`)**: a
   star next to the host field adds/removes the current host; the Stations
   sheet has a star column and a "Favorites only" filter; the toolbar's
@@ -953,6 +956,53 @@ tunes the rig when the user tunes in the Kiwi page.
   edits the name. Done is Escape, not
   Return, so Return only commits a rename. UI-tested in the built app,
   2026-09-25.
+- **Classic WebSDR (PA3FWM's software, websdr.org; 2026-09-25)**:
+  `SDRPlatform` (`.kiwiSDR`/`.webSDR`) is stored per station
+  (`WebSDRFavorite.platform`, optional so older saved JSON still loads) and
+  picks the URL builder (`KiwiSDRURLBuilder`/`WebSDRURLBuilder`) and the
+  page JS (`SDRPageBridge`, renamed from `KiwiPageBridge`). Everything was
+  checked against live servers' own `websdr-base.js`/`websdr-sound.js`
+  (Twente, Maasbree), not docs:
+  - First load `?tune=<kHz><mode>`; every later retune is **in place** via
+    the page's own `setfreqtune()` (user decision, the same function as its
+    `postMessage("tune …")` interface): no reload, no reconnect.
+    `WebSDRFollowModel.retuneInPlace` handles this, and while recording
+    saves the file and starts a new one (one file per frequency, user
+    decision, same as Kiwi).
+  - Reads `nominalfreq()` (kHz) + `mode` once `allloadeddone`. Ranges come
+    from the page's `bandinfo` (centerfreq ± samplerate/2, kHz) on the first
+    connect; many WebSDRs are ~200–400 kHz slices. Mute is the page's
+    `#mutecheckbox` + `setmute()`, set once `did_read_settings` (no URL
+    parameter; `bodyonload` resets the checkbox, and audio start applies
+    it). Record is `record_click()`; its stop only leaves a "save" link
+    (`#reccontrol a`), which the bridge clicks, and that save goes through
+    the same `WKDownload` path as the Kiwi's.
+  - **Platform detection from the page**: a host with no known platform is
+    loaded Kiwi-style (`?f=`, ignored by a WebSDR). On `didFinish`,
+    `detectPlatform()` checks the globals (`setfreqtune`+`bandinfo` vs
+    `kiwi`), and `learnStation` records the platform, ranges and page title
+    (quotes stripped) on the pick and any matching favorite. A WebSDR is
+    then retuned in place, so there's no second session and no HTTP probe.
+  - **Directory = websdr.org itself, embedded** (Stations sheet → WebSDR
+    tab, `WebSDROrgBrowserView`). websdr.org's list JSON
+    (`/~~websdrlistk`) opens with "this data may not be re-used in another
+    website or automated system without prior permission –
+    pa3fwm@websdr.org", so the app must never fetch or parse it (user
+    decision). A main-frame navigation off websdr.org /
+    websdr.ewi.utwente.nl:80 (the site's own station links) is cancelled
+    and becomes the pick (`selectWebSDR`), which fills the host and never
+    connects. `target=_blank`/mailto go to the default browser.
+    rx.linkfanel.net mirrors only 3 WebSDRs (`static_rx.js`), so it isn't
+    a usable alternative.
+  - Testing note: WebKit content doesn't show in background (app_*)
+    window captures; use full-screen screenshots to see the pages.
+  - Tested in the built app 2026-09-25: websdr.org tab + pick,
+    connect/detect/learn (Twente, and Maasbree typed by hand), Record →
+    WAV, Disconnect closes the sockets. **Not yet rig-tested** (user will
+    confirm): follow in place, click-to-tune, recording split on retune.
+    Some skins (Maasbree) keep the standard element IDs but hide the
+    checkbox behind their own Mute button, which then won't reflect the
+    app's mute state visually.
 
 ## Structure
 

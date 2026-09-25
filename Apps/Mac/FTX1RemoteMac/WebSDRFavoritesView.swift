@@ -60,10 +60,11 @@ struct WebSDRFavoritesView: View {
         }
 
         private var details: String {
-            var parts = [favorite.hostPort]
+            var parts = [favorite.platform?.displayName, favorite.hostPort].compactMap { $0 }
             if !favorite.location.isEmpty { parts.append(favorite.location) }
+            let unknownRange = favorite.platform == .webSDR ? "range read on next connect" : "0–30 MHz (range unknown)"
             parts.append(favorite.bandRanges.map { $0.map(KiwiSDRStation.describe).joined(separator: ", ") }
-                         ?? "0–30 MHz (range unknown)")
+                         ?? unknownRange)
             return parts.joined(separator: " · ")
         }
 
