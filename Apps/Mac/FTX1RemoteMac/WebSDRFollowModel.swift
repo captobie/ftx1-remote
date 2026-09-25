@@ -1,10 +1,11 @@
 import Combine
 import FTX1Core
 import Foundation
+import SwiftUI  // IndexSet-based move for the Manage Favorites list
 
 /// Persisted settings for the WebSDR window, `UserDefaults`-backed like
-/// `APRSSettings`/`WPSDSettings`. A single current host (picked from the
-/// directory or typed) — a favorites list would replace `hostPort` here.
+/// `APRSSettings`/`WPSDSettings`. One current host (picked from the
+/// directory or Favorites, or typed), plus the Favorites list itself.
 enum WebSDRSettings {
     static let hostPortKey = "webSDR.hostPort"
     static let followRigKey = "webSDR.followRig"
@@ -15,6 +16,12 @@ enum WebSDRSettings {
     /// belong to — only applied while `hostPort` still equals that host.
     static let stationBandsKey = "webSDR.stationBands"
     static let stationBandsHostKey = "webSDR.stationBandsHost"
+    /// The station last picked from the directory or Favorites, as a JSON
+    /// `WebSDRFavorite` (host, name, location, ranges). Replaces the two
+    /// keys above, which are only read once to migrate.
+    static let pickedStationKey = "webSDR.pickedStation"
+    /// JSON `[WebSDRFavorite]`, in the user's order.
+    static let favoritesKey = "webSDR.favorites"
 }
 
 /// Drives the WebSDR window: follows the rig's Main VFO frequency/mode and
@@ -57,13 +64,35 @@ final class WebSDRFollowModel: ObservableObject {
         }
     }
 
-    /// Where the retune range check comes from: the picked station's own
-    /// ranges while its host is the current one, else KiwiSDR's 0–30 MHz.
-    private var stationBands: (host: String, bands: [ClosedRange<Int>])?
+    /// The station last picked from the directory or Favorites. Its ranges
+    /// drive the retune range check while its host is the current one (else
+    /// KiwiSDR's 0–30 MHz), and its name/location/ranges are what a star
+    /// press saves for that host.
+    private var pickedStation: WebSDRFavorite? {
+        didSet {
+            let data = pickedStation.flatMap { try? JSONEncoder().encode($0) }
+            UserDefaults.standard.set(data, forKey: WebSDRSettings.pickedStationKey)
+        }
+    }
+
+    /// `pickedStation`, while its host is still the current one.
+    private var currentStation: WebSDRFavorite? {
+        guard let pickedStation, pickedStation.id == WebSDRFavorite.key(hostPort) else { return nil }
+        return pickedStation
+    }
 
     var activeBands: [ClosedRange<Int>] {
-        if let stationBands, stationBands.host == hostPort { return stationBands.bands }
-        return KiwiSDRURLBuilder.defaultBands
+        currentStation?.bandRanges ?? KiwiSDRURLBuilder.defaultBands
+    }
+
+    /// Saved stations, in the user's order. Small (a handful of hosts), so
+    /// `UserDefaults` rather than a file like the directory cache.
+    @Published private(set) var favorites: [WebSDRFavorite] {
+        didSet {
+            if let data = try? JSONEncoder().encode(favorites) {
+                UserDefaults.standard.set(data, forKey: WebSDRSettings.favoritesKey)
+            }
+        }
     }
 
     /// The rig frequency the window is following (after the debounce), for
@@ -170,9 +199,17 @@ final class WebSDRFollowModel: ObservableObject {
         tuneRig = defaults.object(forKey: WebSDRSettings.tuneRigKey) as? Bool ?? true
         isMuted = defaults.bool(forKey: WebSDRSettings.mutedKey)
         self.hub = hub
-        if let host = defaults.string(forKey: WebSDRSettings.stationBandsHostKey),
-           let raw = defaults.string(forKey: WebSDRSettings.stationBandsKey) {
-            stationBands = (host, KiwiSDRStation.parseBands(raw))
+        favorites = defaults.data(forKey: WebSDRSettings.favoritesKey)
+            .flatMap { try? JSONDecoder().decode([WebSDRFavorite].self, from: $0) } ?? []
+        if let data = defaults.data(forKey: WebSDRSettings.pickedStationKey) {
+            pickedStation = try? JSONDecoder().decode(WebSDRFavorite.self, from: data)
+        } else if let host = defaults.string(forKey: WebSDRSettings.stationBandsHostKey),
+                  let raw = defaults.string(forKey: WebSDRSettings.stationBandsKey) {
+            // Pre-favorites settings: only the host and its ranges were kept.
+            // (`didSet` doesn't fire in init, so this isn't re-saved until
+            // the next pick — harmless, it migrates again next launch.)
+            pickedStation = WebSDRFavorite(hostPort: host, name: host,
+                                           bands: KiwiSDRStation.parseBands(raw))
         }
 
         cancellable = hub.$rigState
@@ -213,14 +250,87 @@ final class WebSDRFollowModel: ObservableObject {
     /// connected, that session is ended (never switched to the new one
     /// automatically).
     func select(_ station: KiwiSDRStation) {
-        let host = station.hostPort
-        if isConnected, host != hostPort { disconnect() }
-        stationBands = (host, station.bands)
-        let raw = station.bands.map { "\($0.lowerBound)-\($0.upperBound)" }.joined(separator: ",")
-        UserDefaults.standard.set(raw, forKey: WebSDRSettings.stationBandsKey)
-        UserDefaults.standard.set(host, forKey: WebSDRSettings.stationBandsHostKey)
-        hostPort = host
+        select(WebSDRFavorite(station: station))
+    }
+
+    /// Picks a favorite — same rules as a directory pick. A favorite with no
+    /// saved ranges (added from a typed host) uses 0–30 MHz.
+    func select(_ favorite: WebSDRFavorite) {
+        if isConnected, favorite.id != WebSDRFavorite.key(hostPort) { disconnect() }
+        pickedStation = favorite
+        hostPort = favorite.hostPort
         evaluate()
+    }
+
+    // MARK: Favorites
+
+    func isFavorite(hostPort: String) -> Bool {
+        let key = WebSDRFavorite.key(hostPort)
+        return favorites.contains { $0.id == key }
+    }
+
+    /// The star next to the host field: saves the current host — with the
+    /// picked station's name/location/ranges if that's where it came from,
+    /// else the directory's entry for a typed host that happens to be listed
+    /// (`directoryStations` is empty until the Stations sheet has loaded
+    /// once; `fillInFavorites` catches up then) — or removes it if it's
+    /// already a favorite.
+    func toggleFavoriteForCurrentHost(directoryStations: [KiwiSDRStation]) {
+        let host = hostPort.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !host.isEmpty else { return }
+        if isFavorite(hostPort: host) {
+            removeFavorite(hostPort: host)
+        } else {
+            let key = WebSDRFavorite.key(host)
+            let listed = directoryStations.first { WebSDRFavorite.key($0.hostPort) == key }
+            favorites.append(listed.map(WebSDRFavorite.init(station:))
+                             ?? currentStation
+                             ?? WebSDRFavorite(hostPort: host, name: host))
+        }
+    }
+
+    /// Gives favorites saved from a typed host (named after the host, no
+    /// location/ranges) the directory's details once it's loaded. A name the
+    /// user has changed is kept.
+    func fillInFavorites(from stations: [KiwiSDRStation]) {
+        let byKey = Dictionary(stations.map { (WebSDRFavorite.key($0.hostPort), $0) },
+                               uniquingKeysWith: { first, _ in first })
+        var updated = favorites
+        for i in updated.indices {
+            guard let station = byKey[updated[i].id] else { continue }
+            if updated[i].name == updated[i].hostPort { updated[i].name = station.name }
+            if updated[i].location.isEmpty { updated[i].location = station.location }
+            if updated[i].bands == nil || updated[i].bands == WebSDRFavorite.encode(KiwiSDRURLBuilder.defaultBands) {
+                updated[i].bands = WebSDRFavorite.encode(station.bands)
+            }
+        }
+        if updated != favorites { favorites = updated }
+    }
+
+    /// The Stations sheet's star column.
+    func toggleFavorite(_ station: KiwiSDRStation) {
+        if isFavorite(hostPort: station.hostPort) {
+            removeFavorite(hostPort: station.hostPort)
+        } else {
+            favorites.append(WebSDRFavorite(station: station))
+        }
+    }
+
+    func removeFavorite(hostPort: String) {
+        let key = WebSDRFavorite.key(hostPort)
+        favorites.removeAll { $0.id == key }
+    }
+
+    func moveFavorites(fromOffsets source: IndexSet, toOffset destination: Int) {
+        favorites.move(fromOffsets: source, toOffset: destination)
+    }
+
+    /// Blank names fall back to the host rather than leaving an empty menu item.
+    func renameFavorite(id: WebSDRFavorite.ID, to name: String) {
+        guard let index = favorites.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        favorites[index].name = trimmed.isEmpty ? favorites[index].hostPort : trimmed
+        if pickedStation?.id == id { pickedStation?.name = favorites[index].name }
     }
 
     /// Ends the Kiwi session: `KiwiWebView` navigates to about:blank when

@@ -13,6 +13,7 @@ struct WebSDRFollowView: View {
     /// the already-loaded list; its disk cache outlives the window anyway.
     @StateObject private var directory = KiwiSDRDirectory()
     @State private var showingDirectory = false
+    @State private var showingManageFavorites = false
     @Environment(\.openWindow) private var openWindow
 
     init(hub: HubService) {
@@ -44,6 +45,50 @@ struct WebSDRFollowView: View {
         .help(model.isMuted
               ? "Unmute the KiwiSDR (mutes the rig's Main audio while connected)"
               : "Mute the KiwiSDR and bring back the rig's Main audio")
+    }
+
+    /// Picks a saved station (fills the host, never connects — same as a
+    /// directory pick). Disabled-looking but still openable when empty, so
+    /// Manage stays reachable.
+    private var favoritesMenu: some View {
+        Menu {
+            if model.favorites.isEmpty {
+                Text("No favorites yet — star a station")
+            } else {
+                // A Toggle is how a macOS menu item gets its checkmark (a
+                // Label's icon is dropped); unchecking does nothing.
+                ForEach(model.favorites) { favorite in
+                    Toggle(favorite.name, isOn: Binding(
+                        get: { favorite.id == WebSDRFavorite.key(model.hostPort) },
+                        set: { _ in model.select(favorite) }
+                    ))
+                }
+            }
+            Divider()
+            Button("Manage Favorites…") { showingManageFavorites = true }
+                .disabled(model.favorites.isEmpty)
+        } label: {
+            Label("Favorites", systemImage: "star")
+        }
+        .fixedSize()
+        .help("Choose a saved KiwiSDR")
+    }
+
+    /// Saves or removes the current host. Uses the committed host, not the
+    /// field's draft, so it matches what Connect would load.
+    private var favoriteToggle: some View {
+        let isFavorite = model.isFavorite(hostPort: model.hostPort)
+        return Button {
+            model.toggleFavoriteForCurrentHost(directoryStations: directory.stations)
+        } label: {
+            Image(systemName: isFavorite ? "star.fill" : "star")
+                .foregroundStyle(isFavorite ? .yellow : .secondary)
+        }
+        .buttonStyle(.borderless)
+        .disabled(model.hostPort.isEmpty || hostDraft != model.hostPort)
+        .help(isFavorite ? "Remove this KiwiSDR from Favorites"
+              : hostDraft != model.hostPort ? "Press Return to use this host, then add it to Favorites"
+              : "Add this KiwiSDR to Favorites")
     }
 
     /// Record while connected; Stop (red, with the current file's elapsed
@@ -78,11 +123,13 @@ struct WebSDRFollowView: View {
                 Button("Stations…", systemImage: "list.bullet") { showingDirectory = true }
                     .labelStyle(.titleAndIcon)
                     .help("Choose a public KiwiSDR from the directory")
+                favoritesMenu
                 TextField("KiwiSDR host:port", text: $hostDraft)
                     .textFieldStyle(.roundedBorder)
                     .fontDesign(.monospaced)
                     .frame(maxWidth: 360)
                     .onSubmit(commitHostAndConnect)
+                favoriteToggle
                 if model.isConnected {
                     Button("Disconnect", systemImage: "stop.circle", action: model.disconnect)
                         .labelStyle(.titleAndIcon)
@@ -147,12 +194,19 @@ struct WebSDRFollowView: View {
         }
         .navigationTitle("WebSDR")
         .sheet(isPresented: $showingDirectory) {
-            KiwiSDRDirectoryView(directory: directory, rigFrequencyHz: model.rigFrequencyHz) { station in
+            KiwiSDRDirectoryView(directory: directory,
+                                 rigFrequencyHz: model.rigFrequencyHz,
+                                 favoriteIDs: Set(model.favorites.map(\.id)),
+                                 onToggleFavorite: model.toggleFavorite) { station in
                 model.select(station)
             }
         }
+        .sheet(isPresented: $showingManageFavorites) {
+            WebSDRFavoritesView(model: model)
+        }
         // `select` sets the committed host; mirror it into the field.
         .onChange(of: model.hostPort) { _, newHost in hostDraft = newHost }
+        .onChange(of: directory.stations) { _, stations in model.fillInFavorites(from: stations) }
         // Closing the window ends the Kiwi session (see also
         // `KiwiWebView.dismantleNSView`, the backstop for the same thing).
         .onDisappear(perform: model.disconnect)

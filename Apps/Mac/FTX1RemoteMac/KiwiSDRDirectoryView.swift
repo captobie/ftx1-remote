@@ -10,12 +10,16 @@ struct KiwiSDRDirectoryView: View {
     /// The rig frequency being followed, for the "Covers rig frequency"
     /// filter; nil/0 disables it.
     let rigFrequencyHz: Int?
+    /// `WebSDRFavorite.id`s, for the star column and "Favorites only".
+    let favoriteIDs: Set<String>
+    let onToggleFavorite: (KiwiSDRStation) -> Void
     let onChoose: (KiwiSDRStation) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
     @State private var coversRigFrequency = false
     @State private var hideFull = false
+    @State private var favoritesOnly = false
     @State private var selection: KiwiSDRStation.ID?
     /// Nearest first when the operator's grid square is set; otherwise
     /// every distance is "—", so sort by name instead.
@@ -55,6 +59,7 @@ struct KiwiSDRDirectoryView: View {
         let filterFrequency = coversRigFrequency ? rigFrequencyUsable : nil
         return directory.stations
             .filter { station in
+                if favoritesOnly, !isFavorite(station) { return false }
                 if hideFull, station.isFull { return false }
                 if let filterFrequency, !station.covers(frequencyHz: filterFrequency) { return false }
                 if query.isEmpty { return true }
@@ -71,6 +76,10 @@ struct KiwiSDRDirectoryView: View {
             .sorted(using: sortOrder)
     }
 
+    private func isFavorite(_ station: KiwiSDRStation) -> Bool {
+        favoriteIDs.contains(WebSDRFavorite.key(station.hostPort))
+    }
+
     var body: some View {
         let rows = rows
         VStack(alignment: .leading, spacing: 0) {
@@ -78,6 +87,18 @@ struct KiwiSDRDirectoryView: View {
                 .padding(10)
             Divider()
             Table(rows, selection: $selection, sortOrder: $sortOrder) {
+                // Not sortable ("Favorites only" covers that); starring
+                // doesn't choose the station or close the sheet.
+                TableColumn("") { row in
+                    let starred = isFavorite(row.station)
+                    Button { onToggleFavorite(row.station) } label: {
+                        Image(systemName: starred ? "star.fill" : "star")
+                            .foregroundStyle(starred ? .yellow : .secondary)
+                    }
+                    .buttonStyle(.borderless)
+                    .help(starred ? "Remove from Favorites" : "Add to Favorites")
+                }
+                .width(22)
                 TableColumn("Name", value: \.name) { row in
                     Text(row.name).help(row.name)
                 }
@@ -134,6 +155,7 @@ struct KiwiSDRDirectoryView: View {
                       ? "Available once the rig's frequency is known."
                       : "Only stations whose receive range includes the rig's current frequency.")
             Toggle("Hide full", isOn: $hideFull)
+            Toggle("Favorites only", isOn: $favoritesOnly)
             Spacer()
             if home == nil {
                 Text("Set your grid square in Settings → Station to sort by distance.")

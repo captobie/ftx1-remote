@@ -929,8 +929,26 @@ tunes the rig when the user tunes in the Kiwi page.
   reload happens).
 - **Hardware-confirmed on the real rig (user, 2026-09-24)**: retunes
   follow the FTX-1. v1.1 seams are noted in comments: JS-injection retune, mute-on-TX,
-  Sub following, other WebSDR platforms, favorites, and the range of a
-  hand-typed host (only directory picks carry their own range).
+  Sub following, other WebSDR platforms, and the range of a hand-typed
+  host (only directory picks and favorites carry their own range).
+- **Favorites (2026-09-25, `WebSDRFavorite`/`WebSDRFavoritesView`)**: a
+  star next to the host field adds/removes the current host; the Stations
+  sheet has a star column and a "Favorites only" filter; the toolbar's
+  Favorites menu picks one (checkmark on the current host) and opens
+  "Manage Favorites…" (rename in place, drag to reorder, per-row remove).
+  Picking a favorite goes through the same `select` as a directory pick —
+  fills the host and its saved ranges, never connects. Stored as JSON in
+  `UserDefaults` (`webSDR.favorites`), keyed by a normalized host
+  (`WebSDRFavorite.key`). The last pick is `webSDR.pickedStation` (JSON,
+  replaces the old `stationBands`/`stationBandsHost` pair, migrated on
+  read); it's what lets the star save a directory pick's name/location/
+  ranges. A favorite saved from a typed host is named after the host until
+  the directory loads, then `fillInFavorites` gives it the directory's
+  name/location/ranges (a renamed one keeps its name). Manage's list has no
+  row selection on purpose: in a selectable macOS `List` a click selects
+  the row instead of focusing the name `TextField`. Done is Escape, not
+  Return, so Return only commits a rename. UI-tested in the built app,
+  2026-09-25.
 
 ## Structure
 
