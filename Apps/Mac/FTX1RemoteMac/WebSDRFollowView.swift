@@ -93,6 +93,10 @@ struct WebSDRFollowView: View {
                 }
                 Toggle("Follow rig", isOn: $model.followRig)
                     .toggleStyle(.switch)
+                    .help("Retune the KiwiSDR when the rig's Main VFO changes")
+                Toggle("Tune rig", isOn: $model.tuneRig)
+                    .toggleStyle(.switch)
+                    .help("Tune the rig's Main VFO when you tune in the KiwiSDR page (click the waterfall, enter a frequency, pick a mode)")
                 Spacer()
                 muteButton
                 recordButton

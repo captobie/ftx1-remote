@@ -3,8 +3,9 @@ import WebKit
 
 /// `WKWebView` host for the WebSDR window. Loads whenever `request` changes
 /// — retuning is a plain `load()` of a new `?f=` URL (a full Kiwi page
-/// reload/reconnect). v1.1: retuning in place via JS injection into the
-/// Kiwi page would avoid the reconnect gap, but is out of scope for v1.
+/// reload/reconnect), skipped when the page is already there (see
+/// `WebSDRFollowModel`'s click-to-tune). v1.1: retuning in place via JS
+/// injection into the Kiwi page would avoid the reconnect gap.
 struct KiwiWebView: NSViewRepresentable {
     let request: WebSDRFollowModel.PageRequest?
     /// Receives the Kiwi's own recorder's WAV saves (see

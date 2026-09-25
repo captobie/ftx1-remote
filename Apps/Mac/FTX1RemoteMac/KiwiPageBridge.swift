@@ -6,7 +6,8 @@ import os
 /// *own* functions, nothing patched or injected:
 /// - its audio recorder, for Record (files the WAVs it saves into the app's
 ///   Recordings folder, `AudioRecorder.recordingsDirectory`);
-/// - its mute, `toggle_or_set_mute`, for the window's Mute button.
+/// - its mute, `toggle_or_set_mute`, for the window's Mute button;
+/// - its tuning globals, read-only, for click-to-tune (`readTuning`).
 ///
 /// **Why the Kiwi's recorder** (user decision, 2026-09-24): the page already
 /// has one — `toggle_or_set_rec(set)`, the same function as its own "r"
@@ -128,6 +129,34 @@ final class KiwiPageBridge {
             if let result = try? await webView?.evaluateJavaScript(js) as? String, result == "done" { return }
             try? await Task.sleep(for: .milliseconds(500))
         }
+    }
+
+    // MARK: Tuning (click-to-tune)
+
+    /// What the Kiwi page is tuned to, read from its own globals — the same
+    /// ones its frequency field shows: `freq_displayed_Hz` plus
+    /// `kiwi.freq_offset_Hz` (so a converter-fed Kiwi reports the real RF
+    /// frequency, the same "displayed kHz" `?f=` takes) and `cur_mode`.
+    /// Read-only; nothing in the page is called or patched.
+    ///
+    /// nil until the page has applied its initial frequency: the page
+    /// clears `muted_until_freq_set` right after that first tune, whatever
+    /// its `mute=` parameter — before that, `freq_displayed_Hz` can still
+    /// be a startup value.
+    func readTuning() async -> (frequencyHz: Int, mode: String)? {
+        let js = """
+        (function() {
+          if (typeof freq_displayed_Hz !== 'number' || typeof cur_mode !== 'string'
+              || typeof muted_until_freq_set === 'undefined' || muted_until_freq_set) return null;
+          var offset = (typeof kiwi === 'object' && typeof kiwi.freq_offset_Hz === 'number') ? kiwi.freq_offset_Hz : 0;
+          return [freq_displayed_Hz + offset, cur_mode];
+        })()
+        """
+        guard let result = try? await webView?.evaluateJavaScript(js) as? [Any], result.count == 2,
+              let hz = (result[0] as? NSNumber)?.doubleValue, hz > 0,
+              let mode = result[1] as? String
+        else { return nil }
+        return (Int(hz.rounded()), mode)
     }
 
     // MARK: Download plumbing (called by KiwiWebView's coordinator)

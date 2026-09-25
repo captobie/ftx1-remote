@@ -809,7 +809,8 @@ pattern as the APRS windows.
 
 Digital → **WebSDR** opens `Window(id: "websdr-follow")` (Mac-only): an
 embedded KiwiSDR (`KiwiWebView`, a `WKWebView` `NSViewRepresentable`) that
-retunes to follow the rig's Main VFO. One direction only (rig → Kiwi).
+retunes to follow the rig's Main VFO, and (click-to-tune, "Tune rig")
+tunes the rig when the user tunes in the Kiwi page.
 
 - **Follows `hub.$rigState`**, not a new poll path — the same value every
   `server.broadcast(rigState)` sends to WebSocket clients (there's no
@@ -904,8 +905,30 @@ retunes to follow the rig's Main VFO. One direction only (rig → Kiwi).
   already-muted case, window close, and quit recovery; confirmed working
   by the user on the rig, 2026-09-25. Not synced: using
   the Kiwi page's own speaker icon doesn't update the window's Mute.
+- **Click-to-tune (Kiwi → rig, 2026-09-25, hardware-confirmed by the
+  user on the rig)**: "Tune rig" toggle (persisted, default on, independent
+  of Follow). While a page is loaded, `KiwiPageBridge.readTuning` reads the
+  page's own globals ~4×/s — `freq_displayed_Hz + kiwi.freq_offset_Hz` and
+  `cur_mode`, read-only — and returns nil until `muted_until_freq_set` goes
+  false (the page clears it right after applying its first frequency,
+  whatever its `mute=`). The first settled reading of each page is the
+  baseline and is never sent (so a bare-host page load can't retune the
+  rig); after that, a change that holds for one poll sends
+  `setFrequency` (+ `setMode` when `KiwiSDRURLBuilder.rigMode(forKiwiMode:
+  current:)` maps it — DATA-U stays DATA-U under a Kiwi in USB, and a rig
+  mode with no Kiwi token (RTTY/DATA-FM/C4FM) is never changed). Not sent
+  while transmitting, in Memory mode, or with no rig frequency. Echo
+  suppression in `evaluate`: no reload when the page is already at the
+  rig's frequency/mode family (`kiwiAlreadyAt`; a Kiwi mode with no rig
+  equivalent, IQ/DRM, counts as matching), and for 3 s after a send the
+  rig's not-yet-updated value is ignored (`pendingRigTune`), re-evaluated
+  when that expires. The poll restarts on each page's `didFinish` and
+  stops on every new request/unload. JS read verified against a live Kiwi
+  (v1.902) in a browser: initial `?f=` value, then an in-page tune.
+  Tuning inside the page while recording doesn't split the file (no
+  reload happens).
 - **Hardware-confirmed on the real rig (user, 2026-09-24)**: retunes
-  follow the FTX-1. v1.1 seams are noted in comments: click-to-tune back, JS-injection retune, mute-on-TX,
+  follow the FTX-1. v1.1 seams are noted in comments: JS-injection retune, mute-on-TX,
   Sub following, other WebSDR platforms, favorites, and the range of a
   hand-typed host (only directory picks carry their own range).
 

@@ -8,6 +8,7 @@ import Foundation
 enum WebSDRSettings {
     static let hostPortKey = "webSDR.hostPort"
     static let followRigKey = "webSDR.followRig"
+    static let tuneRigKey = "webSDR.tuneRig"
     static let mutedKey = "webSDR.muted"
     /// The receive ranges of the station last picked from the directory,
     /// as "lo-hi,lo-hi" (the listing's own format), plus the host they
@@ -27,9 +28,17 @@ enum WebSDRSettings {
 /// the 400 ms debounce absorb that as well as VFO-knob spinning. Kept as
 /// its own `ObservableObject` so nothing here re-renders `ContentView`.
 ///
-/// One direction only (rig → Kiwi). v1.1 seams, deliberately not built:
-/// click-to-tune back to the rig (would need JS injection into the Kiwi
-/// page to observe its tuning), mute-on-TX (observe `rigState.ptt` here),
+/// The other direction, click-to-tune (Kiwi → rig, "Tune rig"): while
+/// connected, the Kiwi page's own tuning globals are read ~4×/s
+/// (`KiwiPageBridge.readTuning`); a change the user makes in the page —
+/// clicking the waterfall, typing a frequency, a mode button — is sent to
+/// the rig once it has held still for one poll. The rig's echo of that
+/// change must not reload the Kiwi: `evaluate` skips the reload while the
+/// Kiwi is already where the rig is, and holds off while the rig hasn't
+/// caught up yet (`pendingRigTune`), since a poll cycle can still report
+/// the old frequency after the set went out.
+///
+/// v1.1 seams, deliberately not built: mute-on-TX (observe `rigState.ptt` here),
 /// following Sub (`secondaryFrequencyHz`/`secondaryMode`), and other
 /// WebSDR/OpenWebRX platforms (a per-platform URL builder alongside
 /// `KiwiSDRURLBuilder`).
@@ -73,6 +82,13 @@ final class WebSDRFollowModel: ObservableObject {
             UserDefaults.standard.set(followRig, forKey: WebSDRSettings.followRigKey)
             evaluate()
         }
+    }
+
+    /// Click-to-tune: tuning in the Kiwi page tunes the rig's Main VFO (and
+    /// its mode, where the two map — see `KiwiSDRURLBuilder.rigMode`).
+    /// Independent of `followRig`.
+    @Published var tuneRig: Bool {
+        didSet { UserDefaults.standard.set(tuneRig, forKey: WebSDRSettings.tuneRigKey) }
     }
 
     /// One page load for `KiwiWebView`. `id` distinguishes a deliberate
@@ -151,6 +167,7 @@ final class WebSDRFollowModel: ObservableObject {
         let defaults = UserDefaults.standard
         hostPort = defaults.string(forKey: WebSDRSettings.hostPortKey) ?? ""
         followRig = defaults.object(forKey: WebSDRSettings.followRigKey) as? Bool ?? true
+        tuneRig = defaults.object(forKey: WebSDRSettings.tuneRigKey) as? Bool ?? true
         isMuted = defaults.bool(forKey: WebSDRSettings.mutedKey)
         self.hub = hub
         if let host = defaults.string(forKey: WebSDRSettings.stationBandsHostKey),
@@ -234,6 +251,7 @@ final class WebSDRFollowModel: ObservableObject {
 
     private func unloadIfStillDisconnected() {
         guard !isConnected else { return }
+        stopTuningPoll()
         pageRequest = nil
         tunedTarget = nil
     }
@@ -256,7 +274,128 @@ final class WebSDRFollowModel: ObservableObject {
     /// `KiwiWebView` finished loading a Kiwi page: if a recording spans the
     /// reload (a retune), start the next file.
     func pageDidLoad() {
+        startTuningPoll()
         if isRecording, reloadTask == nil { startSegment() }
+    }
+
+    // MARK: Click-to-tune (Kiwi → rig)
+
+    private struct KiwiTuning: Equatable {
+        let frequencyHz: Int
+        let mode: String
+    }
+
+    /// Frequencies closer than this count as the same: `?f=` carries 10 Hz
+    /// resolution, so a round trip through the rig can land that far off.
+    private static let sameFrequencyToleranceHz = 10
+    private static let tuningPollInterval = Duration.milliseconds(250)
+    /// How long a rig tune sent from the Kiwi may take to show up in
+    /// `rigState` before the rig's (still old) value is followed again.
+    private static let rigTuneGrace: TimeInterval = 3
+
+    /// What the current page is tuned to, per the last poll; nil before
+    /// the page has settled on its first frequency, and cleared whenever a
+    /// new page is requested.
+    private var kiwiTuning: KiwiTuning?
+    /// The tuning already acted on (or the page's initial tuning), so each
+    /// change is sent to the rig once.
+    private var handledKiwiTuning: KiwiTuning?
+    private var tuningPollTask: Task<Void, Never>?
+    /// A rig tune sent from the Kiwi that `rigState` hasn't shown yet.
+    private var pendingRigTune: (frequencyHz: Int, mode: RigMode?, until: Date)?
+
+    /// Starts on each finished page load (not on request) so a read can't
+    /// come from the page being navigated away from.
+    private func startTuningPoll() {
+        stopTuningPoll()
+        tuningPollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                let reading = await pageBridge.readTuning()
+                guard !Task.isCancelled else { return }
+                if let reading { kiwiTuningRead(KiwiTuning(frequencyHz: reading.frequencyHz, mode: reading.mode)) }
+                try? await Task.sleep(for: Self.tuningPollInterval)
+            }
+        }
+    }
+
+    private func stopTuningPoll() {
+        tuningPollTask?.cancel()
+        tuningPollTask = nil
+        kiwiTuning = nil
+        handledKiwiTuning = nil
+    }
+
+    private func kiwiTuningRead(_ reading: KiwiTuning) {
+        // The page's first settled tuning is where it was loaded to (the
+        // rig's frequency, or the Kiwi's own last one for a bare host
+        // page) — never something the user did, so never sent to the rig.
+        guard kiwiTuning != nil else {
+            kiwiTuning = reading
+            handledKiwiTuning = reading
+            return
+        }
+        // Wait for the tuning to hold still for a poll, so a drag or a
+        // spun mouse wheel sends where it stopped, not every step on the way.
+        guard reading == kiwiTuning else {
+            kiwiTuning = reading
+            return
+        }
+        guard reading != handledKiwiTuning else { return }
+        handledKiwiTuning = reading
+        tuneRigFromKiwi(reading)
+    }
+
+    private func tuneRigFromKiwi(_ reading: KiwiTuning) {
+        guard tuneRig, let hub else { return }
+        let rig = hub.rigState
+        let frequencyChanged = abs(reading.frequencyHz - rig.frequencyHz) > Self.sameFrequencyToleranceHz
+        let newMode = KiwiSDRURLBuilder.rigMode(forKiwiMode: reading.mode, current: rig.mode)
+        guard frequencyChanged || newMode != nil else { return }
+
+        let description = KiwiSDRURLBuilder.kHzString(reading.frequencyHz) + " kHz " + reading.mode.uppercased()
+        guard rig.frequencyHz > 0 else {
+            status = "Rig not tuned to \(description): no rig frequency yet (rig not connected?)"
+            return
+        }
+        guard !rig.ptt else {
+            status = "Rig not tuned to \(description): it's transmitting"
+            return
+        }
+        // The rig rejects a VFO frequency set while in Memory mode.
+        guard rig.vfoMemoryMode != .memory else {
+            status = "Rig not tuned to \(description): it's in Memory mode"
+            return
+        }
+
+        pendingRigTune = (reading.frequencyHz, newMode, Date().addingTimeInterval(Self.rigTuneGrace))
+        if frequencyChanged { hub.send(.setFrequency(hz: reading.frequencyHz)) }
+        if let newMode { hub.send(.setMode(newMode)) }
+        lastTunedDescription = description
+        status = "Tuned the rig to \(description) from the KiwiSDR at "
+            + Date().formatted(date: .omitted, time: .standard)
+        // If the rig never shows the new tuning (rejected, disconnected),
+        // follow its actual state again once the grace period is over.
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.rigTuneGrace + 0.1))
+            guard let self, let pending = pendingRigTune, Date() >= pending.until else { return }
+            pendingRigTune = nil
+            evaluate()
+        }
+    }
+
+    /// Whether the page on screen is already at `hz`/`token` (after
+    /// click-to-tune, or the rig tuned to where the Kiwi was), so following
+    /// the rig there needs no reload.
+    private func kiwiAlreadyAt(_ hz: Int, modeToken token: String?) -> Bool {
+        guard let kiwiTuning,
+              abs(kiwiTuning.frequencyHz - hz) <= Self.sameFrequencyToleranceHz
+        else { return false }
+        // A Kiwi mode with no rig equivalent (IQ, DRM) was picked in the
+        // page on purpose; reloading to the rig's mode after every click
+        // would keep undoing it.
+        guard token != nil, let family = KiwiSDRURLBuilder.modeFamily(ofKiwiMode: kiwiTuning.mode) else { return true }
+        return family == token
     }
 
     private func startSegment() {
@@ -334,11 +473,23 @@ final class WebSDRFollowModel: ObservableObject {
         switch KiwiSDRURLBuilder.retune(hostPort: hostPort, frequencyHz: latest.frequencyHz, mode: latest.mode,
                                          bands: activeBands) {
         case let .tune(tuneURL, hz, token):
+            // The rig hasn't caught up with a tune sent from the Kiwi yet:
+            // following its old value would undo the user's click.
+            if let pending = pendingRigTune {
+                let caughtUp = abs(hz - pending.frequencyHz) <= Self.sameFrequencyToleranceHz
+                    && (pending.mode == nil || latest.mode == pending.mode)
+                guard caughtUp || Date() >= pending.until else { return }
+                pendingRigTune = nil
+            }
             let description = KiwiSDRURLBuilder.kHzString(hz) + " kHz " + (token?.uppercased() ?? "")
             lastTunedDescription = description.trimmingCharacters(in: .whitespaces)
             // Status is refreshed even when the URL is unchanged (e.g. back
             // in range at the same frequency), so it never goes stale.
-            if forceHostPage || tuneURL != lastIssuedURL {
+            if !forceHostPage, tuneURL != lastIssuedURL, kiwiAlreadyAt(hz, modeToken: token) {
+                lastIssuedURL = tuneURL
+                tunedTarget = latest
+                lastTunedAt = Date()
+            } else if forceHostPage || tuneURL != lastIssuedURL {
                 issue(tuneURL, tuned: latest)
                 lastTunedAt = Date()
             }
@@ -371,6 +522,7 @@ final class WebSDRFollowModel: ObservableObject {
     /// in which case that file is saved first (a reload would lose it) and
     /// the load follows; `pageDidLoad` then starts the next file.
     private func issue(_ newURL: URL, tuned: FollowTarget? = nil) {
+        stopTuningPoll()
         lastIssuedURL = newURL
         let request = PageRequest(url: withMuteParameter(newURL),
                                   id: (pendingReload?.request.id ?? pageRequest?.id ?? 0) + 1)
