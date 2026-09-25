@@ -49,6 +49,7 @@ struct WebSDRFavoritesView: View {
         let onRename: (String) -> Void
         let onRemove: () -> Void
         @State private var name: String
+        @FocusState private var nameFocused: Bool
 
         init(favorite: WebSDRFavorite, onRename: @escaping (String) -> Void,
              onRemove: @escaping () -> Void) {
@@ -81,8 +82,17 @@ struct WebSDRFavoritesView: View {
             VStack(alignment: .leading, spacing: 2) {
                 TextField("Name", text: $name)
                     .textFieldStyle(.plain)
-                    // Full row width, so clicking beside a short name still edits it.
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .focused($nameFocused)
+                    // The field spans the row but inside a List only takes
+                    // clicks on its text; until it's editing, this layer
+                    // takes every click on the line and focuses it instead.
+                    .overlay {
+                        if !nameFocused {
+                            Color.clear
+                                .contentShape(Rectangle())
+                                .onTapGesture { nameFocused = true }
+                        }
+                    }
                     .onSubmit { onRename(name) }
                     .onChange(of: favorite.name) { _, newName in name = newName }
                     // Done/close without Return still keeps the edit.
@@ -94,6 +104,11 @@ struct WebSDRFavoritesView: View {
                     .truncationMode(.middle)
             }
             .padding(.vertical, 2)
+            // Clicks on the details line (or anywhere else in the row
+            // besides the trash button) edit the name too.
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { nameFocused = true }
         }
     }
 }

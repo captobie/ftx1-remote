@@ -946,7 +946,11 @@ tunes the rig when the user tunes in the Kiwi page.
   the directory loads, then `fillInFavorites` gives it the directory's
   name/location/ranges (a renamed one keeps its name). Manage's list has no
   row selection on purpose: in a selectable macOS `List` a click selects
-  the row instead of focusing the name `TextField`. Done is Escape, not
+  the row instead of focusing the name `TextField`. Even unselectable, a
+  `List` row's plain `TextField` only takes clicks on its text, so a
+  clear overlay (present only while not editing) plus a row tap gesture
+  set a `@FocusState` — any click in the row except the trash button
+  edits the name. Done is Escape, not
   Return, so Return only commits a rename. UI-tested in the built app,
   2026-09-25.
 
