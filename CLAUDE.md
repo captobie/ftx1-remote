@@ -880,9 +880,8 @@ retunes to follow the rig's Main VFO. One direction only (rig → Kiwi).
   still saved and the window says so. Play opens the existing Recordings
   window (`openWindow(id: "recordings")`), same as the CW page's PLAY.
   Tested against a public Kiwi: Stop and Disconnect both save a playable
-  file, which is listed in Recordings. **Not yet tested**: the retune
-  split — it needs the rig (or a Return keystroke) to trigger a reload
-  while recording.
+  file, which is listed in Recordings. The retune split (one file per
+  frequency) was hardware-confirmed on the rig by the user, 2026-09-24.
 - **Hardware-confirmed on the real rig (user, 2026-09-24)**: retunes
   follow the FTX-1. v1.1 seams are noted in comments: click-to-tune back, JS-injection retune, mute-on-TX,
   Sub following, other WebSDR platforms, favorites, and the range of a
