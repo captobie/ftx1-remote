@@ -3,6 +3,17 @@
     <channel>
         <title>FTX1RemoteMac</title>
         <item>
+            <title>0.6</title>
+            <pubDate>Fri, 25 Sep 2026 12:33:07 -0700</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>0.6</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.6/FTX1RemoteMac-0.6.zip" length="3659097" type="application/octet-stream" sparkle:edSignature="0rrPzSBopY24EhB/rAkbqU4T+r6uYxA+z47G8Rebz7HGn4zWMRGC0TX9Q1xE2mROHpDwsGc0AxD1B8NkHn4GBQ=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.6/FTX1RemoteMac2-1.delta" sparkle:deltaFrom="1" length="614194" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="3LHLc9MAL3JJFXLCvvrr5mty8kQ5r2OA+I9hm43Nk5oid3CFTq7Rh/OE61HrKEv/0EjCskUmmKjzTur6UHqqBw=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>0.5</title>
             <pubDate>Tue, 22 Sep 2026 16:47:10 -0700</pubDate>
             <sparkle:version>1</sparkle:version>
