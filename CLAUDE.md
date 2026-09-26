@@ -669,7 +669,14 @@ those targets.
      Developer ID identity, so Hardened Runtime's library-validation
      requirement (loaded code must share the host app's Team ID) is
      already satisfied without `com.apple.security.cs.disable-library-
-     validation`.
+     validation`. **But** Hardened Runtime also silently denies audio
+     input without `com.apple.security.device.audio-input` — no prompt,
+     `AVCaptureDevice.requestAccess` just returns false — which left
+     `.local` mode with no audio at all in 0.5/0.6 (2026-09-26; `.remote`
+     was unaffected). Fixed with `ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES`
+     on the Mac target (Xcode synthesizes the entitlement, same as
+     `ENABLE_USER_SELECTED_FILES`); check with `codesign -d --entitlements
+     - <app>`.
   3. **`generate_appcast` silently produced an unsigned `<enclosure>`**
      (no `sparkle:edSignature` at all, no error) even though `sign_update`
      run standalone against the same zip worked fine and the EdDSA key was

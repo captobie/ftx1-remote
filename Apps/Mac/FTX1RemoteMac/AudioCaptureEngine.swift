@@ -197,6 +197,10 @@ final class AudioCaptureEngine {
         case .local:
             AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
                 Task { @MainActor in
+                    // Denied also when the build lacks the Hardened Runtime
+                    // audio-input entitlement (ENABLE_RESOURCE_ACCESS_AUDIO_INPUT),
+                    // with no prompt — which silently disabled .local capture in 0.5/0.6.
+                    if !granted { Self.logger.error("start: microphone access denied — no local audio capture") }
                     guard let self, self.shouldBeRunning, granted else { return }
                     self.beginCapture(deviceUID: deviceUID)
                 }
