@@ -945,9 +945,20 @@ WebSDR differences are in their own bullet at the end.
   reload happens).
 - **Hardware-confirmed on the real rig (user, 2026-09-24)**: retunes
   follow the FTX-1. v1.1 seams are noted in comments: JS-injection retune
-  for the Kiwi, mute-on-TX, Sub following, further platforms (OpenWebRX),
+  for the Kiwi, Sub following, further platforms (OpenWebRX),
   and the range of a hand-typed Kiwi host (only directory picks and
   favorites carry their own range; a WebSDR learns its range from its page).
+- **Mute on TX (2026-09-26, rig-confirmed by the user)**: a
+  "Mute on TX" toggle (persisted, default on) mutes the page itself while
+  `rigState.ptt` is true (own undebounced `$rigState.map(\.ptt)`
+  subscription), through the same `setPageMuted`/Kiwi `mute=1` paths as
+  Mute (`pageShouldBeMuted` = Mute || TX). It doesn't touch `isMuted` or
+  the rig's Main audio, and the page unmutes by itself after TX. Only as
+  fast as the fast tier sees PTT, so a front-panel/CW-keyed TX mutes after
+  a short delay; app-initiated PTT is applied at once. Testing this found
+  that `getPTT` had never seen a front-panel TX: hamlib reports the
+  FTX-1's TX2 state as `t` = 3 (PTT_ON_DATA), and the check was `== "1"`;
+  any nonzero value now counts (Windows client fixed the same way).
 - **Favorites (2026-09-25, `WebSDRFavorite`/`WebSDRFavoritesView`)**: a
   star next to the host field adds/removes the current host; the Stations
   sheet has a star column and a "Favorites only" filter; the toolbar's

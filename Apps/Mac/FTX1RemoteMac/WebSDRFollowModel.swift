@@ -11,6 +11,7 @@ enum WebSDRSettings {
     static let followRigKey = "webSDR.followRig"
     static let tuneRigKey = "webSDR.tuneRig"
     static let mutedKey = "webSDR.muted"
+    static let muteOnTransmitKey = "webSDR.muteOnTransmit"
     /// The receive ranges of the station last picked from the directory,
     /// as "lo-hi,lo-hi" (the listing's own format), plus the host they
     /// belong to — only applied while `hostPort` still equals that host.
@@ -48,8 +49,7 @@ enum WebSDRSettings {
 /// caught up yet (`pendingRigTune`), since a poll cycle can still report
 /// the old frequency after the set went out.
 ///
-/// v1.1 seams, deliberately not built: mute-on-TX (observe `rigState.ptt` here),
-/// following Sub (`secondaryFrequencyHz`/`secondaryMode`), and further
+/// v1.1 seams, deliberately not built: following Sub (`secondaryFrequencyHz`/`secondaryMode`), and further
 /// platforms such as OpenWebRX (another `SDRPlatform` case with its own URL
 /// builder and page-bridge JS).
 final class WebSDRFollowModel: ObservableObject {
@@ -166,12 +166,37 @@ final class WebSDRFollowModel: ObservableObject {
     private weak var hub: HubService?
     private var muteTask: Task<Void, Never>?
 
+    /// Mutes the page while the rig transmits (`rigState.ptt`), so the
+    /// operator doesn't hear their own signal come back from the receiver,
+    /// delayed. Only the page is muted: `isMuted` (the user's Mute) and the
+    /// rig's Main audio are left as they are, and the page comes back on
+    /// its own after TX. Recordings are unaffected (taken before the page's
+    /// mute, same as Mute).
+    @Published var muteOnTransmit: Bool {
+        didSet {
+            UserDefaults.standard.set(muteOnTransmit, forKey: WebSDRSettings.muteOnTransmitKey)
+            applyPageMute()
+        }
+    }
+    private var isTransmitting = false
+    private var pttCancellable: AnyCancellable?
+
+    /// What the page's own mute should be: the user's Mute, or TX while
+    /// Mute on Transmit is on.
+    private var pageShouldBeMuted: Bool {
+        isMuted || (muteOnTransmit && isTransmitting)
+    }
+
     func toggleMuted() {
         isMuted.toggle()
         updateMainAudio()
+        applyPageMute()
+    }
+
+    private func applyPageMute() {
         guard pageRequest != nil else { return }
         muteTask?.cancel()
-        let muted = isMuted
+        let muted = pageShouldBeMuted
         muteTask = Task { [weak self] in await self?.pageBridge.setPageMuted(muted) }
     }
 
@@ -216,6 +241,7 @@ final class WebSDRFollowModel: ObservableObject {
         followRig = defaults.object(forKey: WebSDRSettings.followRigKey) as? Bool ?? true
         tuneRig = defaults.object(forKey: WebSDRSettings.tuneRigKey) as? Bool ?? true
         isMuted = defaults.bool(forKey: WebSDRSettings.mutedKey)
+        muteOnTransmit = defaults.object(forKey: WebSDRSettings.muteOnTransmitKey) as? Bool ?? true
         self.hub = hub
         favorites = defaults.data(forKey: WebSDRSettings.favoritesKey)
             .flatMap { try? JSONDecoder().decode([WebSDRFavorite].self, from: $0) } ?? []
@@ -245,6 +271,17 @@ final class WebSDRFollowModel: ObservableObject {
                 // later would open two Kiwi sessions back to back, and some
                 // Kiwis reject a second connection from the same IP.
                 evaluate(forceHostPage: isConnected && pageRequest == nil)
+            }
+        // Not debounced like the follow subscription above: the page should
+        // go quiet as soon as the rig is seen transmitting.
+        pttCancellable = hub.$rigState
+            .map(\.ptt)
+            .removeDuplicates()
+            .sink { [weak self] ptt in
+                guard let self else { return }
+                let wasMuted = pageShouldBeMuted
+                isTransmitting = ptt
+                if pageShouldBeMuted != wasMuted { applyPageMute() }
             }
         pageBridge.onUnexpectedSave = { [weak self] url in
             self?.kiwiEndedRecording(savedTo: url)
@@ -468,10 +505,7 @@ final class WebSDRFollowModel: ObservableObject {
                 learnStation(platform: platform, bands: bands, title: title)
             }
             startTuningPoll()
-            if platform == .webSDR, isMuted {
-                muteTask?.cancel()
-                muteTask = Task { [weak self] in await self?.pageBridge.setPageMuted(true) }
-            }
+            if platform == .webSDR, pageShouldBeMuted { applyPageMute() }
             if isRecording, reloadTask == nil { startSegment() }
             if platform != expected {
                 lastIssuedURL = nil
@@ -713,11 +747,11 @@ final class WebSDRFollowModel: ObservableObject {
         }
     }
 
-    /// Adds the Kiwi's own `mute=1` when muted here, so a reload comes up
-    /// muted. Kept out of `lastIssuedURL`, which dedups on the tuning alone
+    /// Adds the Kiwi's own `mute=1` when muted here (or transmitting with
+    /// Mute on Transmit on), so a reload comes up muted. Kept out of `lastIssuedURL`, which dedups on the tuning alone
     /// — toggling Mute must not trigger a reload.
     private func withMuteParameter(_ url: URL) -> URL {
-        guard isMuted, currentPlatform == .kiwiSDR,
+        guard pageShouldBeMuted, currentPlatform == .kiwiSDR,
               var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
         components.queryItems = (components.queryItems ?? []) + [URLQueryItem(name: "mute", value: "1")]
         return components.url ?? url

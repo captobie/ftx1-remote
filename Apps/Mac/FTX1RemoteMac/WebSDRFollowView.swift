@@ -144,6 +144,9 @@ struct WebSDRFollowView: View {
                 Toggle("Tune rig", isOn: $model.tuneRig)
                     .toggleStyle(.switch)
                     .help("Tune the rig's Main VFO when you tune in the WebSDR page (click the waterfall, enter a frequency, pick a mode)")
+                Toggle("Mute on TX", isOn: $model.muteOnTransmit)
+                    .toggleStyle(.switch)
+                    .help("Mute the WebSDR while the rig is transmitting")
                 Spacer()
                 muteButton
                 recordButton
