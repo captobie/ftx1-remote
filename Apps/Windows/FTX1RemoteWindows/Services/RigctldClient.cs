@@ -151,7 +151,9 @@ public sealed class RigctldClient : IAsyncDisposable
     public async Task<bool> GetPttAsync(CancellationToken cancellationToken = default)
     {
         var line = await SendAsync($"t {CurrentVfoArg}", cancellationToken).ConfigureAwait(false);
-        return line == "1";
+        // hamlib: 0 off, 1 on, 2 on (mic), 3 on (data). The FTX-1 reports
+        // its TX2 state as 3, so any nonzero value is transmitting.
+        return int.TryParse(line, out var value) && value != 0;
     }
 
     public async Task SetPttAsync(bool on, CancellationToken cancellationToken = default)

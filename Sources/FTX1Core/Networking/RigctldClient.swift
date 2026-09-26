@@ -272,9 +272,15 @@ public actor RigctldClient {
         try await sendRawFireAndForget("MD\(p1)H")
     }
 
+    /// hamlib's PTT values are 0 off, 1 on, 2 on (mic), 3 on (data) — any
+    /// nonzero value is transmitting. The FTX-1 reports its "TX2" state as
+    /// 3 (hardware-confirmed 2026-09-26, keying from the front panel), so
+    /// comparing against "1" alone never saw TX. A non-numeric reply throws
+    /// so callers keep the last known state rather than reading it as RX.
     public func getPTT() async throws -> Bool {
         let line = try await send("t \(Self.currentVFOArg)")
-        return line == "1"
+        guard let value = Int(line) else { throw RigctldError.badResponse }
+        return value != 0
     }
 
     /// Reads a rigctld level (e.g. "SWR", "RFPOWER_METER_WATTS"). Returns
