@@ -178,7 +178,13 @@ Hardware checklist (user, on the rig, 2026-09-27):
       rigctld … (The operation was canceled)": each timed-out read
       reset the connected flag, so the final message picked the wrong
       branch. Fixed; re-test.
-- [ ] An already-running rigctld is adopted and survives Disconnect.
+- [x] An already-running rigctld is adopted ("Connected to
+      already-running rigctld on localhost:4532") and still runs after
+      Disconnect. The first try failed only because the radio was still
+      off from the previous test: with no reply the probe judged it stale,
+      killed it and spawned its own — by design, same as the Mac, though
+      killing a user-started rigctld whose radio is merely off is
+      debatable.
 - [ ] PTT keys the rig.
 
 ## v1 scope
