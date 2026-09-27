@@ -7,6 +7,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 using Windows.Storage.Pickers;
 using Microsoft.UI.Xaml.Media;
 
@@ -51,6 +52,17 @@ public sealed partial class MainWindow : Window
     /// current level used to fire ValueChanged and send that level straight
     /// back ("L RFPOWER") every second.
     private bool _suppressPowerEvents;
+
+    /// True from a pointer press on the power slider until release. While
+    /// set, ValueChanged doesn't send (one command on release instead of one
+    /// per drag tick) and the poll leaves the slider alone, so it can't snap
+    /// the thumb back mid-drag.
+    private bool _powerDragging;
+    /// The poll also leaves the slider alone briefly after a send, until
+    /// the rig reports the new level — otherwise a poll that read the old
+    /// level just before the set landed would flick the thumb back.
+    private DateTime _powerHoldUntil;
+    private static readonly TimeSpan PowerHoldAfterSend = TimeSpan.FromSeconds(2);
 
     private RigState _lastState = new();
 
@@ -138,6 +150,13 @@ public sealed partial class MainWindow : Window
             BandComboBox.Items.Add(new ComboBoxItem { Content = band.Name, Tag = band });
         }
         _suppressSelectionEvents = false;
+
+        // The slider's Thumb handles (and marks handled) its own pointer
+        // events, hence handledEventsToo. Capture loss covers a release
+        // outside the window.
+        PowerSlider.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, _) => _powerDragging = true), true);
+        PowerSlider.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(PowerSlider_PointerDone), true);
+        PowerSlider.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(PowerSlider_PointerDone), true);
 
         _pollTimer = DispatcherQueue.CreateTimer();
         _pollTimer.Interval = TimeSpan.FromSeconds(1);
@@ -647,8 +666,11 @@ public sealed partial class MainWindow : Window
             if (level is { } l)
             {
                 _lastState.PowerLevel = l;
+            }
+            if (level is { } shown && !_powerDragging && DateTime.UtcNow >= _powerHoldUntil)
+            {
                 _suppressPowerEvents = true;
-                PowerSlider.Value = l * 100;
+                PowerSlider.Value = shown * 100;
                 _suppressPowerEvents = false;
             }
         }
@@ -836,15 +858,42 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// Keyboard changes (arrow keys, Home/End) send at once; pointer drags
+    /// and track clicks send once, on release (PowerSlider_PointerDone).
     private async void PowerSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
-        if (_suppressPowerEvents || _client is null)
+        if (_suppressPowerEvents || _powerDragging)
         {
             return;
         }
+        await SendPowerLevelAsync(e.NewValue);
+    }
+
+    private async void PowerSlider_PointerDone(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_powerDragging)
+        {
+            return;
+        }
+        _powerDragging = false;
+        // A click that didn't move the thumb shouldn't send anything.
+        if (_lastState.PowerLevel is { } rig && Math.Abs(rig * 100 - PowerSlider.Value) < 0.05)
+        {
+            return;
+        }
+        await SendPowerLevelAsync(PowerSlider.Value);
+    }
+
+    private async Task SendPowerLevelAsync(double sliderValue)
+    {
+        if (_client is null)
+        {
+            return;
+        }
+        _powerHoldUntil = DateTime.UtcNow + PowerHoldAfterSend;
         try
         {
-            await _client.SetPowerLevelAsync(e.NewValue / 100.0);
+            await _client.SetPowerLevelAsync(sliderValue / 100.0);
         }
         catch (Exception ex)
         {
