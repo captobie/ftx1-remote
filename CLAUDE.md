@@ -158,7 +158,7 @@ re-architecture.
   fixed for `HubService`'s lifetime, resolved once in `AppDelegate.init`
   from `RigctldSettings.connectionMode`/`.remoteHost`). When Done saves a
   different mode (or, in `.remote`, a different host), Settings offers
-  "Restart Now"/"Later" (2026-09-27; `AppDelegate.relaunch()` waits for the
+  "Restart Now"/"Later" (2026-09-27, confirmed working by the user; `AppDelegate.relaunch()` waits for the
   old process to exit, then `open`s the bundle). Everything that runs after
   launch reads `RigctldSettings.activeConnectionMode`/`.activeRemoteHost`
   (snapshotted at launch), never the saved values, so "Later" can't mix
