@@ -538,13 +538,31 @@ re-architecture.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
-A Windows app with the same kind of functionality as the Mac app, but
-remote-only: talks directly to the Pi (rigctld + `ftx1-audiostream.py`),
-never to a locally-attached radio, and never through the Mac's WebSocket
-hub — the Mac is not required to be running. Architecturally closest to the
-Mac permanently in `.remote` mode, minus `RigctldProcessController`
-(nothing to spawn — the Pi's `rigctld.service` is always-on) and minus the
-WebSocket *server* (this app is a leaf client only). C# + WinUI 3,
+A Windows app with the same kind of functionality as the Mac app. Talks
+directly to the Pi (rigctld + `ftx1-audiostream.py`), never through the
+Mac's WebSocket hub — the Mac is not required to be running. Since
+2026-09-27 it also has a Local mode (a "Radio:" Remote/Local picker, like
+the Mac's `connectionMode`): the radio's USB on the Windows PC, driven by a
+`rigctld.exe` the app spawns or adopts on `127.0.0.1:4532` via
+`Services/RigctldProcessController.cs`, a port of the Mac's — still
+rigctld-only, never CAT over the serial port directly. Built and run on
+the user's Windows PC 2026-09-27 (.NET 10 SDK; the .NET 5 SDK that PC had
+first can't target net8.0) and hardware-confirmed by the user the
+same day: every item of `Apps/Windows/README.md`'s "Local mode" checklist
+passed (connect, wrong-port and radio-off errors, rigctld cleanup on
+Disconnect/close, adopting a user-started rigctld, PTT). No WebSocket *server* (this app is
+a leaf client only).
+
+**The user's Windows test PC** — use these values in any commands given
+for it instead of placeholders: the FTX-1 is on **COM4** at **115200**
+baud; hamlib's binaries are in `C:\Tools\hamlib\bin`; the .NET 10 SDK is
+at `C:\Program Files\dotnet\dotnet.exe` (the bare `dotnet` there was an old
+.NET 5 SDK — call it by full path); the repo clone is under the user's
+OneDrive Documents folder (`...\Documents\ftx1-remote`). So e.g. a
+manual rigctld is `.\rigctld.exe -m 1051 -r COM4 -s 115200 -t 4532 -T
+127.0.0.1 -o`, run from `C:\Tools\hamlib\bin`.
+
+C# + WinUI 3,
 MSIX-packaged, lives in this repo at `Apps/Windows/FTX1RemoteWindows/`
 despite sharing no code with the Swift targets (Swift/SwiftUI isn't viable
 on Windows). v1 scope is core rig control only (VFO A/B, mode, PTT, power,
@@ -1172,9 +1190,10 @@ WebSDR differences are in their own bullet at the end.
   opening `DeepSettingsView` — see the `RigController`/Deep Settings note
   above for why, and don't wire them up without first adding the wire-
   protocol read/response mechanism that unblocks it.
-- `Apps/Windows/` — Windows app (C# + WinUI 3, remote-only, direct to the
-  Pi). `FTX1RemoteWindows/` has a build-verified v1 skeleton (core rig
-  control only) — see `Apps/Windows/README.md` for the full plan, porting
+- `Apps/Windows/` — Windows app (C# + WinUI 3, Remote direct to the
+  Pi, or Local via a spawned `rigctld.exe`). `FTX1RemoteWindows/` has a
+  build-verified v1 skeleton (core rig control only; Local mode added
+  after, hardware-confirmed on the user's PC 2026-09-27) — see `Apps/Windows/README.md` for the full plan, porting
   notes, and the "Windows app" section above. Not built via `xcodebuild`/
   `swift build` like the other `Apps/*` targets — use `dotnet build`
   from within `Apps/Windows/FTX1RemoteWindows/` instead.

@@ -2,21 +2,43 @@ using System.Text.Json;
 
 namespace FTX1RemoteWindows.Settings;
 
-/// Persists the one setting this app has: the Pi's Tailscale MagicDNS
-/// hostname (port is fixed at 4532, not configurable — see
-/// Apps/Windows/README.md's "Settings" section, matching
-/// RigctldSettings.remoteHost on the Mac side).
+/// Where the radio's USB cable is plugged in — same split as the Mac's
+/// RigctldSettings.ConnectionMode (Apps/Mac/FTX1RemoteMac/
+/// RigctldSettings.swift): Remote talks to the Pi's always-on
+/// rigctld.service over Tailscale; Local launches (or adopts) a rigctld.exe
+/// on this PC against a USB-attached rig. Either way this app only ever
+/// talks rigctld's TCP protocol — never CAT over the serial port itself.
+public enum ConnectionMode
+{
+    Remote,
+    Local,
+}
+
+/// Persists this app's settings: the connection mode, the Pi's Tailscale
+/// MagicDNS hostname for Remote (port fixed at 4532, not configurable —
+/// see Apps/Windows/README.md's "Settings" section, matching
+/// RigctldSettings.remoteHost on the Mac side), and the rigctld launch
+/// configuration for Local (mirroring RigctldSettings' binaryPath/
+/// modelNumber/devicePath/baudRate).
 ///
 /// File-based (not ApplicationData.Current.LocalSettings) because the
 /// project currently builds unpackaged (WindowsPackageType=None — see
 /// FTX1RemoteWindows.csproj's comment) and LocalSettings requires package
 /// identity. Swap to LocalSettings once packaging flips to MSIX; the
-/// static Host get/set surface below can stay the same either way.
+/// static get/set surface below can stay the same either way.
 public static class AppSettings
 {
     private sealed class Data
     {
+        // Remote by default: this app was remote-only before Local existed,
+        // so an existing settings file (which has no ConnectionMode key)
+        // keeps behaving exactly as it did.
+        public ConnectionMode ConnectionMode { get; set; } = ConnectionMode.Remote;
         public string PiHost { get; set; } = "";
+        public string RigctldPath { get; set; } = "";
+        public int ModelNumber { get; set; } = 1051;
+        public string ComPort { get; set; } = "";
+        public int BaudRate { get; set; } = 38400;
     }
 
     private static readonly string SettingsPath = Path.Combine(
@@ -26,12 +48,72 @@ public static class AppSettings
 
     private static Data _cache = Load();
 
+    public static ConnectionMode ConnectionMode
+    {
+        get => _cache.ConnectionMode;
+        set
+        {
+            _cache.ConnectionMode = value;
+            Save();
+        }
+    }
+
     public static string PiHost
     {
         get => _cache.PiHost;
         set
         {
             _cache.PiHost = value;
+            Save();
+        }
+    }
+
+    /// Full path to hamlib's rigctld.exe. No default: hamlib's Windows
+    /// installer puts it under a version-numbered folder (e.g.
+    /// C:\Program Files\hamlib-w64-4.7\bin\rigctld.exe), so any fixed guess
+    /// would be wrong after the next hamlib upgrade.
+    public static string RigctldPath
+    {
+        get => _cache.RigctldPath;
+        set
+        {
+            _cache.RigctldPath = value;
+            Save();
+        }
+    }
+
+    /// hamlib rig model number — 1051 is the FTX-1, same default as the
+    /// Mac's RigctldSettings.modelNumber. Not exposed in the UI (this app
+    /// only drives one radio); kept as a setting so a hamlib renumbering
+    /// can be fixed by editing settings.json.
+    public static int ModelNumber
+    {
+        get => _cache.ModelNumber;
+        set
+        {
+            _cache.ModelNumber = value;
+            Save();
+        }
+    }
+
+    /// The rig's CAT serial port, e.g. "COM3" (the Enhanced COM port of the
+    /// FTX-1's CP210x pair).
+    public static string ComPort
+    {
+        get => _cache.ComPort;
+        set
+        {
+            _cache.ComPort = value;
+            Save();
+        }
+    }
+
+    public static int BaudRate
+    {
+        get => _cache.BaudRate;
+        set
+        {
+            _cache.BaudRate = value;
             Save();
         }
     }
@@ -64,7 +146,7 @@ public static class AppSettings
         }
         catch
         {
-            // Best-effort — losing a saved hostname isn't fatal, the user
+            // Best-effort — losing a saved setting isn't fatal, the user
             // just has to retype it next launch.
         }
     }

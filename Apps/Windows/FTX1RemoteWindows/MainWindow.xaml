@@ -11,12 +11,37 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Connection bar -->
-        <StackPanel Orientation="Horizontal" Spacing="8" Grid.Row="0">
-            <TextBlock Text="Pi host:" VerticalAlignment="Center" />
-            <TextBox x:Name="PiHostBox" Width="220" PlaceholderText="ftx1-pi (Tailscale MagicDNS name)" />
-            <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click" />
-            <TextBlock x:Name="ConnectionStateText" Text="Disconnected" VerticalAlignment="Center" Foreground="Gray" />
+        <!-- Connection bar: mode picker, then either the Pi host (Remote)
+             or the rigctld launch settings (Local), then Connect. -->
+        <StackPanel Grid.Row="0" Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Radio:" VerticalAlignment="Center" />
+                <ComboBox x:Name="ConnectionModeComboBox" Width="200"
+                          SelectionChanged="ConnectionModeComboBox_SelectionChanged">
+                    <ComboBoxItem Content="Remote (Pi over Tailscale)" Tag="Remote" />
+                    <ComboBoxItem Content="Local (USB on this PC)" Tag="Local" />
+                </ComboBox>
+                <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click" />
+                <TextBlock x:Name="ConnectionStateText" Text="Disconnected" VerticalAlignment="Center" Foreground="Gray" />
+            </StackPanel>
+
+            <StackPanel x:Name="RemoteSettingsPanel" Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Pi host:" VerticalAlignment="Center" />
+                <TextBox x:Name="PiHostBox" Width="220" PlaceholderText="ftx1-pi (Tailscale MagicDNS name)" />
+            </StackPanel>
+
+            <StackPanel x:Name="LocalSettingsPanel" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                <TextBlock Text="rigctld.exe:" VerticalAlignment="Center" />
+                <TextBox x:Name="RigctldPathBox" Width="320"
+                         PlaceholderText="C:\Program Files\hamlib-w64-4.7\bin\rigctld.exe" />
+                <Button x:Name="BrowseRigctldButton" Content="Browse…" Click="BrowseRigctldButton_Click" />
+                <TextBlock Text="COM port:" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <ComboBox x:Name="ComPortComboBox" Width="110" IsEditable="True" PlaceholderText="COM3"
+                          DropDownOpened="ComPortComboBox_DropDownOpened"
+                          ToolTipService.ToolTip="The FTX-1's CAT port (the Enhanced COM port of its CP210x pair)" />
+                <TextBlock Text="Baud:" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <ComboBox x:Name="BaudRateComboBox" Width="110" />
+            </StackPanel>
         </StackPanel>
 
         <!-- VFO A/B -->
