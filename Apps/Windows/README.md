@@ -13,9 +13,16 @@ below.
 
 Update (2026-09-27): **Local (direct USB) connection mode added**, the
 Windows counterpart of the Mac's `.local` mode — see "Local mode" below.
-Written without a Windows machine or .NET SDK at hand, so it is **not yet
-build-verified**, let alone run against the radio; build it and run the
-checklist under "Local mode" before relying on it.
+Written without a Windows machine at hand; **built and run on the user's
+Windows PC the same day** (`dotnet run`, .NET 10 SDK) and reported working
+as expected. The individual items of the checklist under "Local mode"
+haven't been reported one by one yet.
+
+Building needs the .NET 8 SDK or newer — that PC only had the .NET 5 SDK
+at first, which fails with `NETSDK1045` ("does not support targeting .NET
+8.0"); `winget install Microsoft.DotNet.SDK.10` fixed it. It also keeps the
+repo under OneDrive, which can lock `bin\`/`obj\` files mid-build — pause
+syncing or clone outside OneDrive if a build hits "file in use".
 
 **Toolchain note for whoever picks this up next:** the .NET SDK (10.0.400)
 is installed on this machine at `C:\Program Files\dotnet` but isn't on

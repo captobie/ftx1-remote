@@ -545,9 +545,11 @@ Mac's WebSocket hub — the Mac is not required to be running. Since
 the Mac's `connectionMode`): the radio's USB on the Windows PC, driven by a
 `rigctld.exe` the app spawns or adopts on `127.0.0.1:4532` via
 `Services/RigctldProcessController.cs`, a port of the Mac's — still
-rigctld-only, never CAT over the serial port directly. Written without a
-Windows toolchain; not yet build-verified or hardware-tested (checklist in
-`Apps/Windows/README.md`'s "Local mode"). No WebSocket *server* (this app is
+rigctld-only, never CAT over the serial port directly. Built and run on
+the user's Windows PC 2026-09-27 (.NET 10 SDK; the .NET 5 SDK that PC had
+first can't target net8.0) and reported working as expected; the
+item-by-item hardware checklist is in `Apps/Windows/README.md`'s "Local
+mode". No WebSocket *server* (this app is
 a leaf client only). C# + WinUI 3,
 MSIX-packaged, lives in this repo at `Apps/Windows/FTX1RemoteWindows/`
 despite sharing no code with the Swift targets (Swift/SwiftUI isn't viable
@@ -1179,7 +1181,7 @@ WebSDR differences are in their own bullet at the end.
 - `Apps/Windows/` — Windows app (C# + WinUI 3, Remote direct to the
   Pi, or Local via a spawned `rigctld.exe`). `FTX1RemoteWindows/` has a
   build-verified v1 skeleton (core rig control only; Local mode added
-  after, not yet build-verified) — see `Apps/Windows/README.md` for the full plan, porting
+  after, built and run on the user's PC 2026-09-27) — see `Apps/Windows/README.md` for the full plan, porting
   notes, and the "Windows app" section above. Not built via `xcodebuild`/
   `swift build` like the other `Apps/*` targets — use `dotnet build`
   from within `Apps/Windows/FTX1RemoteWindows/` instead.
