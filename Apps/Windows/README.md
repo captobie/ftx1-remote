@@ -367,6 +367,53 @@ Not done yet:
 - Waterfall/oscilloscope from the same samples (the chunking already
   matches the Mac's 2048-sample FFT size).
 
+## Mac parity plan (2026-09-27)
+
+The order for bringing this app up to the Mac's feature set. Each step is
+meant to be its own change, built, committed and hardware-checked before
+the next one starts.
+
+1. **Transmit safety gate — done** (`bc4f5f8`, build-verified, not yet
+   hardware-tested; see "Transmit gate" above). Port the Mac's Enable
+   Transmit: gate exactly PTT on, MOX on, CW MESSAGE play and ANT TUNE
+   start; force-unkey at once if it's switched off mid-transmit; dim the
+   controls while it's off. It came first because it's the one gap with
+   Part 97 consequences: nothing else that can transmit gets added before
+   it.
+2. **PTT press-and-hold — done** (`89c5aa8`, build-verified, not yet
+   hardware-tested). PTT is momentary, like the Mac and iPad, instead of a
+   click toggle.
+3. **The 28-item MENU grid.** Port the CAT mappings `MenuPageView.swift`/
+   `RigState.swift` already use to C#, sent straight to rigctld the way the
+   Mac does. This copies command logic that already works; it doesn't
+   need new reverse-engineering. Its MOX, ANT TUNE and CW MESSAGE play
+   buttons must go through `TransmitGate` (step 1).
+4. **Graphical S-meter.** The same analog meter the Mac and iPad draw
+   (`UI/SMeterView.swift`). The plan called this replacing a text-only
+   S-meter, but this app has no S-meter readout yet (only power out and
+   SWR as text), so the signal-strength read is new here too, not just
+   drawing.
+5. **V/M memory toggle and channel stepping.** The memory-mode toggle, get/
+   set/step of the channel number, and the channel tag. The Mac has these;
+   iPad doesn't have the button wired yet, so Windows can get ahead here.
+   Reuse the Mac's read-then-set toggle that fixed its "backwards toggle"
+   bug.
+6. **C4FM callsign display.** Port the WPSD hotspot-page scrape (an HTTP
+   GET and parse, no CAT or rigctld involved) that the Mac and iPad use to
+   show the active C4FM callsign and reflector.
+7. **Full Settings UI.** Give it the Mac's tab layout: rigctld connection
+   (host, model, serial port, baud), per-band home frequency, Appearance,
+   plus Audio and APRS tabs as placeholders until those features exist.
+   The plan's "Pi host only" starting point is out of date: the main
+   window already has the Local-mode fields (rigctld path, COM port, baud)
+   and the audio device pickers, which would move into Settings.
+8. **Deep Settings (the 341-item catalog).** Port `DeepSettingsCatalog`'s
+   table-driven EX P1/P2/P3 passthrough to C#, straight to rigctld. This is
+   what talking to rigctld directly (not through the Mac's hub) pays for:
+   iPad can't have it until the wire protocol gets request/response, but
+   this app doesn't need to wait. The biggest item, so it goes last, once
+   steps 3–6 have proven the direct-rigctld command patterns.
+
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
 - **MENU grid** (`UI/MenuPageView.swift` port) and **Deep Settings**
