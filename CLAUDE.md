@@ -156,8 +156,13 @@ re-architecture.
 - **Changing the mode requires an app relaunch to take effect** — implemented
   — no runtime teardown/rebuild of `RigctldClient`/`CommandQueue` (both are
   fixed for `HubService`'s lifetime, resolved once in `AppDelegate.init`
-  from `RigctldSettings.connectionMode`/`.remoteHost`). Settings shows a
-  "restart to apply" caption under the mode picker.
+  from `RigctldSettings.connectionMode`/`.remoteHost`). When Done saves a
+  different mode (or, in `.remote`, a different host), Settings offers
+  "Restart Now"/"Later" (2026-09-27; `AppDelegate.relaunch()` waits for the
+  old process to exit, then `open`s the bundle). Everything that runs after
+  launch reads `RigctldSettings.activeConnectionMode`/`.activeRemoteHost`
+  (snapshotted at launch), never the saved values, so "Later" can't mix
+  the two modes in one session.
 - **`RigctldProcessController` stays, but only runs in `.local` mode** —
   implemented. `HubService.startRigctld()`/`stopRigctld()` branch on
   `connectionMode`: in `.remote`, they skip `RigctldProcessController`

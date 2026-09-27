@@ -43,7 +43,7 @@ struct ContentView: View {
                 // rigctldProcessState has nothing to report in .remote mode
                 // (see HubService.startRigctld()) — nothing is ever spawned
                 // there, so there's no process-lifecycle label worth showing.
-                if RigctldSettings.connectionMode == .local {
+                if RigctldSettings.activeConnectionMode == .local {
                     Text(rigctldProcessLabel)
                         .foregroundStyle(.secondary)
                 }

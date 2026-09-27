@@ -41,6 +41,18 @@ enum RigctldSettings {
         set { UserDefaults.standard.set(newValue, forKey: remoteHostKey) }
     }
 
+    /// The mode and remote host this launch is actually running with,
+    /// snapshotted on first read (`AppDelegate.init`, before anything else
+    /// reads them). Changing either takes a relaunch, so everything that
+    /// runs after launch reads these rather than `connectionMode`/
+    /// `remoteHost`: those can already hold a newer saved value if the user
+    /// picked "Later" at the restart prompt, and reading them live would
+    /// mix the two modes in one session (e.g. remote audio while still
+    /// spawning a local rigctld). `SettingsView` compares against these to
+    /// decide whether to offer a restart.
+    static let activeConnectionMode = connectionMode
+    static let activeRemoteHost = remoteHost
+
     static var binaryPath: String {
         get { UserDefaults.standard.string(forKey: binaryPathKey) ?? "/opt/homebrew/bin/rigctld" }
         set { UserDefaults.standard.set(newValue, forKey: binaryPathKey) }

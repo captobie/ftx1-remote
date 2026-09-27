@@ -193,7 +193,7 @@ final class AudioCaptureEngine {
         guard !shouldBeRunning else { return }
         shouldBeRunning = true
 
-        switch RigctldSettings.connectionMode {
+        switch RigctldSettings.activeConnectionMode {
         case .local:
             AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
                 Task { @MainActor in
@@ -219,7 +219,7 @@ final class AudioCaptureEngine {
     nonisolated(unsafe) private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "audio-capture")
 
     private func beginRemoteCapture() {
-        Self.logger.notice("beginRemoteCapture() — host=\(RigctldSettings.remoteHost, privacy: .public)")
+        Self.logger.notice("beginRemoteCapture() — host=\(RigctldSettings.activeRemoteHost, privacy: .public)")
         let bitmap = WaterfallBitmap(binCount: binCount, historyRows: historyRows)
         let gain = AutoGainState(minimumPeakDb: waterfallMinimumPeakDb, minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
         // `RemoteAudioStreamClient` delivers genuinely separate Main (left)
@@ -231,7 +231,7 @@ final class AudioCaptureEngine {
         // — `HubService.onSubChannelSamples` feeds it to `subAudioPlayback`
         // and the independent `aprsDecoderSub` (see repo CLAUDE.md, "Dual
         // Main/Sub audio channels").
-        let client = RemoteAudioStreamClient(host: RigctldSettings.remoteHost) { [weak self] left, right, sampleRate in
+        let client = RemoteAudioStreamClient(host: RigctldSettings.activeRemoteHost) { [weak self] left, right, sampleRate in
             guard let self else { return }
             // `left`/`right` are the rig's physical L/R channels; which of
             // them is the Main *role* depends on `channelsSwapped` (see its

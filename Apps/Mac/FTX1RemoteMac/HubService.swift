@@ -540,7 +540,7 @@ final class HubService: ObservableObject {
     /// on every normal startup.
     func startRigctld() {
         isActive = true
-        guard RigctldSettings.connectionMode == .local else {
+        guard RigctldSettings.activeConnectionMode == .local else {
             // Remote mode: rigctld already runs on the configured host (e.g.
             // a Raspberry Pi over Tailscale) — this Mac only ever connects
             // to it as a network client, never spawns or owns the process.
@@ -570,7 +570,7 @@ final class HubService: ObservableObject {
     func stopRigctld() {
         isActive = false
         disconnectRigctld()
-        guard RigctldSettings.connectionMode == .local else { return }
+        guard RigctldSettings.activeConnectionMode == .local else { return }
         rigctldProcess.stop()
     }
 

@@ -19,15 +19,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
 
     /// Resolves which host `HubService` connects to once, at launch, per
-    /// `RigctldSettings.connectionMode` — switching modes takes a relaunch
+    /// `RigctldSettings.activeConnectionMode` — switching modes takes a relaunch
     /// to apply (see repo root CLAUDE.md's "Remote rigctld (Option A)"),
     /// so there's no need to re-check this after this point.
     override init() {
-        switch RigctldSettings.connectionMode {
+        switch RigctldSettings.activeConnectionMode {
         case .local:
             hub = HubService()
         case .remote:
-            hub = HubService(rigctldHost: RigctldSettings.remoteHost)
+            hub = HubService(rigctldHost: RigctldSettings.activeRemoteHost)
         }
         super.init()
     }
@@ -38,5 +38,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         hub.stop()
+    }
+
+    /// Quits and reopens the app, for settings that only apply at launch
+    /// (the Local/Remote connection mode). A detached shell waits for this
+    /// process to exit before running `open`, so the new instance can't
+    /// start while this one is still shutting down (`applicationWillTerminate`
+    /// stops rigctld and the WebSocket server first) — or be swallowed by
+    /// `open` just re-activating the old one.
+    static func relaunch() {
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = [
+            "-c",
+            "while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done; /usr/bin/open \"$0\"",
+            Bundle.main.bundlePath,
+        ]
+        do {
+            try task.run()
+        } catch {
+            // Without the helper nothing would reopen the app — stay
+            // running rather than quit into nothing.
+            NSSound.beep()
+            return
+        }
+        NSApp.terminate(nil)
     }
 }

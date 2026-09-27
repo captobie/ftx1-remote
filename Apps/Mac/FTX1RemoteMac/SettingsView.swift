@@ -25,6 +25,8 @@ struct SettingsView: View {
     @State private var baudRate = RigctldSettings.baudRate
     @State private var pttPort = RigctldSettings.pttPort
 
+    @State private var showRestartPrompt = false
+
     @State private var availableDevices: [String] = []
     @State private var availableBinaryPaths: [String] = []
 
@@ -73,6 +75,28 @@ struct SettingsView: View {
             refreshAvailableDevices()
             refreshAvailableBinaryPaths()
         }
+        .alert("Restart FTX1Remote?", isPresented: $showRestartPrompt) {
+            Button("Restart Now") { AppDelegate.relaunch() }
+                .keyboardShortcut(.defaultAction)
+            Button("Later", role: .cancel) { dismiss() }
+        } message: {
+            Text("The new connection settings take effect after a restart. Until then FTX1Remote keeps using \(Self.describe(RigctldSettings.activeConnectionMode, host: RigctldSettings.activeRemoteHost)).")
+        }
+    }
+
+    /// Whether the saved connection differs from what this launch is
+    /// running with. The remote host only counts in `.remote` mode — in
+    /// `.local` it isn't used, so editing it needs no restart.
+    private var connectionNeedsRestart: Bool {
+        if connectionMode != RigctldSettings.activeConnectionMode { return true }
+        return connectionMode == .remote && remoteHost != RigctldSettings.activeRemoteHost
+    }
+
+    private static func describe(_ mode: RigctldSettings.ConnectionMode, host: String) -> String {
+        switch mode {
+        case .local: "the local (USB) connection"
+        case .remote: host.isEmpty ? "the remote (Pi) connection" : "the remote connection to \(host)"
+        }
     }
 
     private var rigctldTab: some View {
@@ -94,7 +118,7 @@ struct SettingsView: View {
                 Text("Remote (Pi)").tag(RigctldSettings.ConnectionMode.remote)
             }
             .pickerStyle(.segmented)
-            Text("Changing this requires restarting FTX1Remote to take effect.")
+            Text("Changing this requires restarting FTX1Remote — you'll be offered a restart when you click Done.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -141,7 +165,13 @@ struct SettingsView: View {
         RigctldSettings.devicePath = devicePath
         RigctldSettings.baudRate = baudRate
         RigctldSettings.pttPort = pttPort
-        dismiss()
+        // Saved either way; "Later" just keeps this launch on its current
+        // connection until the next quit/reopen.
+        if connectionNeedsRestart {
+            showRestartPrompt = true
+        } else {
+            dismiss()
+        }
     }
 
     /// Opens a file browser rooted at the standard Homebrew bin directory,
