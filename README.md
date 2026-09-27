@@ -131,9 +131,9 @@ Mac, iOS, and iPadOS targets. The Windows client shares no code with it
   through the Mac hub, and the Mac doesn't need to be running — or, in its
   Local mode, to a `rigctld.exe` it launches against a radio on the PC's
   own USB port (hardware-confirmed, 2026-09-27). v1 scope is
-  core rig control only (VFO A/B, mode, PTT, power, SWR, band); MENU grid,
-  Deep Settings, waterfall/audio, and APRS are deferred but not
-  architecturally blocked (direct-to-Pi gives it the live per-item read
+  core rig control (VFO A/B, mode, PTT, power, SWR, band) plus Main/Sub
+  audio playback from the Pi (Remote mode); MENU grid, Deep Settings,
+  waterfall, and APRS are deferred but not architecturally blocked (direct-to-Pi gives it the live per-item read
   Deep Settings needs, unlike iPad). Build-verified, not yet run against
   real hardware. See `Apps/Windows/README.md`.
 - **High-rate state (audio frames, meter samples) stays off `HubService`'s
@@ -250,6 +250,9 @@ Its `fft/` subdirectory is [kissfft](https://github.com/mborgerding/kissfft)
 (BSD-3-Clause, Mark Borgerding — see `Sources/CFT8Lib/fft/LICENSE-kissfft.txt`).
 `Tests/FT8KitTests/Resources/` vendors a few of ft8_lib's own reference WAV
 captures + truth-decode files for the reference-vector test.
+
+The Windows app uses [NAudio](https://github.com/naudio/NAudio) (MIT, Mark
+Heath) as a NuGet package (`NAudio.Wasapi`) for audio output — not vendored.
 
 ## Commands
 

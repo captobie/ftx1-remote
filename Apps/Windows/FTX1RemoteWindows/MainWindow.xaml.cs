@@ -2,17 +2,20 @@ using System.Diagnostics;
 using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Services;
 using FTX1RemoteWindows.Settings;
+using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Windows.Storage.Pickers;
+using Microsoft.UI.Xaml.Media;
 
 namespace FTX1RemoteWindows;
 
 /// v1 core-rig-control window: VFO A/B, mode, PTT, power, SWR, band — see
-/// Apps/Windows/README.md's "v1 scope". No MENU grid / Deep Settings /
-/// waterfall / APRS here yet, all deliberately deferred.
+/// Apps/Windows/README.md's "v1 scope" — plus Main/Sub audio playback from
+/// the Pi's :8532 stream. No MENU grid / Deep Settings / waterfall / APRS
+/// here yet, all deliberately deferred.
 public sealed partial class MainWindow : Window
 {
     /// rigctld's port — fixed in both modes: the Pi's rigctld.service
@@ -45,6 +48,22 @@ public sealed partial class MainWindow : Window
     private bool _suppressSelectionEvents;
 
     private RigState _lastState = new();
+
+    /// Upper bound of the SQL sliders, which show `SquelchRange - threshold`
+    /// so that further right = tighter — same inversion and range as the
+    /// Mac's ContentView.squelchDisplayRange.
+    private const double SquelchRange = 0.05;
+
+    private readonly ChannelPlayer _mainPlayer;
+    private readonly ChannelPlayer _subPlayer;
+    private readonly AudioPlayback _playback;
+    private RemoteAudioStreamClient? _audioClient;
+    private readonly DispatcherQueueTimer _audioStatusTimer;
+    private string? _playbackError;
+
+    /// Suppresses the audio controls' change handlers while the constructor
+    /// loads saved values into them.
+    private bool _suppressAudioEvents;
 
     public MainWindow()
     {
@@ -88,11 +107,34 @@ public sealed partial class MainWindow : Window
                 }
             });
 
+        var mainAudio = AppSettings.MainAudio;
+        var subAudio = AppSettings.SubAudio;
+        _mainPlayer = new ChannelPlayer((float)mainAudio.Volume, (float)mainAudio.SquelchThreshold, mainAudio.Muted);
+        _subPlayer = new ChannelPlayer((float)subAudio.Volume, (float)subAudio.SquelchThreshold, subAudio.Muted);
+        _playback = new AudioPlayback(_mainPlayer, _subPlayer);
+
+        _suppressAudioEvents = true;
+        AudioSwitch.IsOn = AppSettings.AudioEnabled;
+        MainMuteToggle.IsChecked = mainAudio.Muted;
+        MainVolumeSlider.Value = mainAudio.Volume;
+        MainSquelchSlider.Value = SquelchRange - mainAudio.SquelchThreshold;
+        SubMuteToggle.IsChecked = subAudio.Muted;
+        SubVolumeSlider.Value = subAudio.Volume;
+        SubSquelchSlider.Value = SquelchRange - subAudio.SquelchThreshold;
+        _suppressAudioEvents = false;
+
+        _audioStatusTimer = DispatcherQueue.CreateTimer();
+        _audioStatusTimer.Interval = TimeSpan.FromMilliseconds(250);
+        _audioStatusTimer.Tick += (_, _) => UpdateAudioStatus();
+
         // Don't leave a rigctld we spawned running after the window closes
         // (an adopted one is left alone — see RigctldProcessController).
         Closed += (_, _) =>
         {
             _pollTimer.Stop();
+            _audioStatusTimer.Stop();
+            _playback.Stop();
+            _ = _audioClient?.StopAsync();
             _client?.Disconnect();
             _client = null;
             _rigctldProcess.Stop();
@@ -100,6 +142,11 @@ public sealed partial class MainWindow : Window
     }
 
     private bool IsConnected => _client is not null;
+
+    /// The mode of the current session (set on a successful Connect) — the
+    /// picker itself is locked while connected, but this is what audio
+    /// gating reads.
+    private ConnectionMode _connectedMode;
 
     private ConnectionMode SelectedMode =>
         ConnectionModeComboBox.SelectedItem is ComboBoxItem { Tag: "Local" } ? ConnectionMode.Local : ConnectionMode.Remote;
@@ -268,7 +315,15 @@ public sealed partial class MainWindow : Window
             ConnectionStateText.Text = $"Connected to {description}";
             ConnectionStateText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green);
             ConnectButton.Content = "Disconnect";
+            _connectedMode = mode;
             _pollTimer.Start();
+            // The :8532 audio stream only exists on the Pi. Local mode would
+            // need a PC sound-card capture instead (the Mac's .local tap) —
+            // not built yet.
+            if (mode == ConnectionMode.Remote && AudioSwitch.IsOn)
+            {
+                StartAudio(host);
+            }
             await PollOnceAsync();
         }
         catch (Exception ex)
@@ -352,6 +407,7 @@ public sealed partial class MainWindow : Window
     private async Task DisconnectAsync(string? reason)
     {
         _pollTimer.Stop();
+        await StopAudioAsync();
         var client = _client;
         _client = null;
         if (client is not null)
@@ -606,5 +662,164 @@ public sealed partial class MainWindow : Window
         {
             StatusText.Text = $"Set power failed: {ex.Message}";
         }
+    }
+
+    // Audio (Pi :8532)
+
+    /// Starts playback and the stream client together. Runs only while the
+    /// rig link is up — the audio link has its own reconnect loop, but its
+    /// lifetime follows Connect/Disconnect and the Audio switch.
+    private void StartAudio(string host)
+    {
+        if (_audioClient is not null)
+        {
+            return;
+        }
+        _playbackError = _playback.Start();
+        _audioClient = new RemoteAudioStreamClient(host, (main, sub) =>
+        {
+            _mainPlayer.Push(main);
+            _subPlayer.Push(sub);
+        });
+        _audioClient.Start();
+        _audioStatusTimer.Start();
+        UpdateAudioStatus();
+    }
+
+    private async Task StopAudioAsync()
+    {
+        var client = _audioClient;
+        _audioClient = null;
+        _audioStatusTimer.Stop();
+        if (client is not null)
+        {
+            await client.StopAsync();
+        }
+        _playback.Stop();
+        _playbackError = null;
+        UpdateAudioStatus();
+    }
+
+    private void UpdateAudioStatus()
+    {
+        var gray = new SolidColorBrush(Colors.Gray);
+        if (_audioClient is not { } client)
+        {
+            AudioStateText.Text = !IsConnected ? "Not connected"
+                : _connectedMode == ConnectionMode.Local ? "Not available in Local mode yet (audio comes from the Pi's stream)"
+                : AudioSwitch.IsOn ? "Starting…" : "Off";
+            AudioStateText.Foreground = gray;
+            AudioLevelsText.Text = "";
+            MainSquelchLed.Fill = gray;
+            SubSquelchLed.Fill = gray;
+            return;
+        }
+
+        var status = client.GetStatus();
+        var (text, color) = status.Phase switch
+        {
+            AudioLinkPhase.Connecting => ("Connecting to :8532…", Colors.Orange),
+            AudioLinkPhase.Unreachable => ($"Can't reach the Pi's audio stream (:8532), retrying — {status.Detail}", Colors.Firebrick),
+            AudioLinkPhase.WaitingForStream => ("Connected, no audio — another client (the Mac?) probably has the Pi's stream; will pick it up when it's free", Colors.Orange),
+            AudioLinkPhase.Streaming => ("Streaming", Colors.Green),
+            _ => ("Off", Colors.Gray),
+        };
+        if (_playbackError is not null)
+        {
+            text += $" · no audio output: {_playbackError}";
+            color = Colors.Firebrick;
+        }
+        AudioStateText.Text = text;
+        AudioStateText.Foreground = new SolidColorBrush(color);
+
+        var streaming = status.Phase == AudioLinkPhase.Streaming;
+        // Raw per-channel levels — the quickest check that Main (L) and Sub
+        // (R) really are separate, like the Mac's "stereo check" log line.
+        AudioLevelsText.Text = streaming ? $"RMS  Main {status.MainRms:F3}   Sub {status.SubRms:F3}" : "";
+        var open = new SolidColorBrush(Colors.LimeGreen);
+        MainSquelchLed.Fill = streaming && _mainPlayer.IsSquelchOpen ? open : gray;
+        SubSquelchLed.Fill = streaming && _subPlayer.IsSquelchOpen ? open : gray;
+    }
+
+    private async void AudioSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_suppressAudioEvents)
+        {
+            return;
+        }
+        AppSettings.AudioEnabled = AudioSwitch.IsOn;
+        if (!IsConnected || _connectedMode != ConnectionMode.Remote)
+        {
+            UpdateAudioStatus();
+            return;
+        }
+        if (AudioSwitch.IsOn)
+        {
+            StartAudio(AppSettings.PiHost);
+        }
+        else
+        {
+            await StopAudioAsync();
+        }
+    }
+
+    private void MainMuteToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _mainPlayer.IsMuted = MainMuteToggle.IsChecked == true;
+        AppSettings.MainAudio.Muted = _mainPlayer.IsMuted;
+        AppSettings.SaveAudio();
+    }
+
+    private void SubMuteToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _subPlayer.IsMuted = SubMuteToggle.IsChecked == true;
+        AppSettings.SubAudio.Muted = _subPlayer.IsMuted;
+        AppSettings.SaveAudio();
+    }
+
+    private void MainVolumeSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (_suppressAudioEvents)
+        {
+            return;
+        }
+        _mainPlayer.Volume = (float)e.NewValue;
+        AppSettings.MainAudio.Volume = e.NewValue;
+        AppSettings.SaveAudio();
+    }
+
+    private void SubVolumeSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (_suppressAudioEvents)
+        {
+            return;
+        }
+        _subPlayer.Volume = (float)e.NewValue;
+        AppSettings.SubAudio.Volume = e.NewValue;
+        AppSettings.SaveAudio();
+    }
+
+    private void MainSquelchSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (_suppressAudioEvents)
+        {
+            return;
+        }
+        var threshold = SquelchRange - e.NewValue;
+        _mainPlayer.SquelchThreshold = (float)threshold;
+        AppSettings.MainAudio.SquelchThreshold = threshold;
+        AppSettings.SaveAudio();
+    }
+
+    private void SubSquelchSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (_suppressAudioEvents)
+        {
+            return;
+        }
+        var threshold = SquelchRange - e.NewValue;
+        _subPlayer.SquelchThreshold = (float)threshold;
+        AppSettings.SubAudio.SquelchThreshold = threshold;
+        AppSettings.SaveAudio();
     }
 }

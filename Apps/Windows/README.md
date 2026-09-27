@@ -24,6 +24,11 @@ at first, which fails with `NETSDK1045` ("does not support targeting .NET
 repo under OneDrive, which can lock `bin\`/`obj\` files mid-build — pause
 syncing or clone outside OneDrive if a build hits "file in use".
 
+**Audio playback added 2026-09-27** — see "Audio" below. Tested end to end
+against a local fake Pi (a stand-in rigctld plus a copy of
+`ftx1-audiostream.py`'s single-client accept loop streaming test tones), not
+yet against the real Pi/rig. Remote mode only for now — see "Audio".
+
 **Toolchain note for whoever picks this up next:** the .NET SDK (10.0.400)
 is installed on this machine at `C:\Program Files\dotnet` but isn't on
 `PATH` in either PowerShell or Git Bash — invoke it by full path, add it to
@@ -199,6 +204,55 @@ Core rig control only:
 - Connect/disconnect + live connection-state indicator (with the
   unreachable-vs-down distinction above)
 
+## Audio (Main/Sub playback)
+
+Second TCP connection to the Pi's `ftx1-audiostream.py` on :8532, next to
+the rigctld link. Wire format: raw interleaved-stereo Int16 LE, 44100 Hz,
+Main on the left channel and Sub on the right, no framing (see that script's
+doc comment).
+
+- `Services/RemoteAudioStreamClient.cs`: port of the Mac's
+  `RemoteAudioStreamClient.swift`. Has its own reconnect loop (3 s), splits
+  the stream into Main/Sub float chunks of 2048 samples, and reports
+  `AudioLinkPhase`: Connecting / Unreachable (the TCP connect failed) /
+  WaitingForStream / Streaming.
+- **The Pi serves one audio client at a time** (`listen(1)` and a serial
+  accept loop — left that way on purpose, user decision 2026-09-27). If the
+  Mac already has the stream, our connect still completes into the Pi's
+  listen backlog and then no data arrives. The client treats "connected, no
+  bytes for 2 s" as WaitingForStream, keeps the socket open, and picks the
+  stream up as soon as the other client disconnects (tested against the
+  fake Pi). The window's **Audio** switch (persisted) closes the link, so
+  the Mac can have the stream while this app keeps rig control.
+- `Services/ChannelPlayer.cs`: one per receiver. A 120 ms prime jitter
+  buffer (it re-primes after an underrun and caps at 500 ms, dropping the
+  oldest audio, since the Pi's and this PC's sound-card clocks drift), the
+  quieting-dip squelch (`Services/SquelchGate.cs`, a straight port of
+  `SquelchGate.swift`), volume, and mute, with ~10 ms gain ramps.
+- `Services/AudioPlayback.cs`: mixes both channels into one NAudio
+  `WasapiOut` (shared mode, default output device), resampled to the
+  device's mix rate with NAudio's WDL resampler. Both channels play
+  centered, like the Mac.
+- UI: under the mode row there's MAIN and SUB, each with Mute, VOL, SQL
+  (inverted, same 0-0.05 range as the Mac's) and a squelch-open light, plus
+  the link state and per-channel RMS (a quick L/R separation check).
+  Settings are in `settings.json` with the Mac's `AudioPlaybackSettings`
+  defaults (volume 0.8, threshold 0.015).
+- Audio runs only while the rig link is connected (it starts on Connect and
+  stops on Disconnect or window close).
+- **Remote mode only.** In Local mode there's no Pi stream; the audio row
+  says so. Local audio would need a PC sound-card capture (the Mac's
+  `.local` tap) and isn't built yet.
+
+Not done yet:
+- **Swap tracking**: after a Main/Sub swap, the rig's L/R audio stays with
+  the physical receiver (see root `CLAUDE.md`'s "Swap tracking"). The Mac
+  follows this with `audioChannelsSwapped` plus a heuristic; this app
+  doesn't yet, so after a swap the MAIN/SUB audio labels are backwards.
+- Output device picker (always the default device).
+- Waterfall/oscilloscope from the same samples (the chunking already
+  matches the Mac's 2048-sample FFT size).
+
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
 - **MENU grid** (`UI/MenuPageView.swift` port) and **Deep Settings**
@@ -206,14 +260,9 @@ Core rig control only:
   actually *feasible* here, unlike on iPad, because this app has the same
   direct per-item-read capability the Mac's `HubService.readMenuItem` has
   (see "Why direct-to-Pi" above). Not a blocked feature, just not v1.
-- **Waterfall/oscilloscope + audio playback** — would reuse the
-  direct-to-Pi pattern of `Apps/Mac/FTX1RemoteMac/RemoteAudioStreamClient.swift`:
-  a second, independent TCP connection to the Pi's :8532
-  (`ftx1-audiostream.py`), decoded the same way (paired Int16 LE samples →
-  Float32 at 44100Hz) into an FFT feeding a WinUI 3 `CanvasControl`/Win2D
-  waterfall. Its own reconnect loop, independent of the rigctld link's —
-  same reasoning as the Mac's version (two separate TCP connections to two
-  separate Pi-side services, one can drop while the other stays up).
+- **Waterfall/oscilloscope** — an FFT over the Main samples the audio
+  client already delivers (see "Audio" above), drawn with a WinUI 3
+  `CanvasControl`/Win2D waterfall.
 - **APRS decode** — the AFSK/AX.25 stack (`APRS/AFSKDemodulator.swift`,
   `AX25Frame.swift`, `APRSPacket.swift`) is the most DSP-heavy piece to
   port; leave until audio capture itself is working.
@@ -252,7 +301,7 @@ Apps/Windows/FTX1RemoteWindows/
   FTX1RemoteWindows.csproj   unpackaged WinUI 3, net8.0-windows10.0.19041.0
   app.manifest               DPI-awareness manifest (unpackaged apps need this)
   App.xaml(.cs)               standard WinUI 3 application entry point
-  MainWindow.xaml(.cs)        v1 core-rig-control UI + 1s poll loop
+  MainWindow.xaml(.cs)        v1 core-rig-control UI + 1s poll loop + audio controls
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
@@ -260,6 +309,10 @@ Apps/Windows/FTX1RemoteWindows/
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
     RigctldProcessController.cs  Local mode: spawns/adopts rigctld.exe (port of the Mac's)
+    RemoteAudioStreamClient.cs   TCP client for ftx1-audiostream.py (:8532), Main/Sub split
+    ChannelPlayer.cs             per-receiver jitter buffer + squelch/volume/mute
+    SquelchGate.cs               port of SquelchGate.swift
+    AudioPlayback.cs             NAudio WASAPI output mixing Main + Sub
   Settings/
-    AppSettings.cs                connection mode, Pi hostname, Local rigctld settings; file-based (see its doc comment on why not LocalSettings yet)
+    AppSettings.cs                connection mode, Pi hostname, Local rigctld settings, audio settings; file-based (see its doc comment on why not LocalSettings yet)
 ```

@@ -43,6 +43,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
+    <!--
+      Audio output (WASAPI) for the Pi's :8532 stream. NAudio.Wasapi rather
+      than the NAudio metapackage, which also drags in WinForms/ASIO/MIDI.
+      MIT-licensed.
+    -->
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
   </ItemGroup>
 
 

@@ -565,8 +565,12 @@ manual rigctld is `.\rigctld.exe -m 1051 -r COM4 -s 115200 -t 4532 -T
 C# + WinUI 3,
 MSIX-packaged, lives in this repo at `Apps/Windows/FTX1RemoteWindows/`
 despite sharing no code with the Swift targets (Swift/SwiftUI isn't viable
-on Windows). v1 scope is core rig control only (VFO A/B, mode, PTT, power,
-SWR, band) — MENU grid, Deep Settings, waterfall/audio, and APRS decode are
+on Windows). v1 scope is core rig control (VFO A/B, mode, PTT, power, SWR,
+band); Main/Sub audio playback from the Pi's :8532 stream was added
+2026-09-27 (NAudio, Remote mode only, tested against a local fake Pi only — no swap tracking
+yet, and the Pi still serves one audio client at a time, so the Windows app
+shows "waiting" while the Mac has the stream; see the README's "Audio"
+section). MENU grid, Deep Settings, waterfall, and APRS decode are
 deferred but not architecturally blocked (direct-to-Pi means this app,
 unlike iPad, actually has the live per-item-read capability Deep Settings
 needs). Full plan, protocol/model porting notes, and open items:

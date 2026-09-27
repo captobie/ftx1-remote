@@ -19,7 +19,9 @@ public enum ConnectionMode
 /// see Apps/Windows/README.md's "Settings" section, matching
 /// RigctldSettings.remoteHost on the Mac side), and the rigctld launch
 /// configuration for Local (mirroring RigctldSettings' binaryPath/
-/// modelNumber/devicePath/baudRate).
+/// modelNumber/devicePath/baudRate), plus the audio link's on/off and
+/// per-channel playback settings (same defaults as the Mac's
+/// AudioPlaybackSettings).
 ///
 /// File-based (not ApplicationData.Current.LocalSettings) because the
 /// project currently builds unpackaged (WindowsPackageType=None — see
@@ -39,6 +41,19 @@ public static class AppSettings
         public int ModelNumber { get; set; } = 1051;
         public string ComPort { get; set; } = "";
         public int BaudRate { get; set; } = 38400;
+        public bool AudioEnabled { get; set; } = true;
+        public ChannelAudio MainAudio { get; set; } = new();
+        public ChannelAudio SubAudio { get; set; } = new();
+    }
+
+    /// One receiver's playback settings. SquelchThreshold is SquelchGate's
+    /// raw threshold (RMS at or below which a chunk counts as a quieting
+    /// dip), not the inverted value the slider shows.
+    public sealed class ChannelAudio
+    {
+        public double Volume { get; set; } = 0.8;
+        public double SquelchThreshold { get; set; } = 0.015;
+        public bool Muted { get; set; }
     }
 
     private static readonly string SettingsPath = Path.Combine(
@@ -82,6 +97,19 @@ public static class AppSettings
         }
     }
 
+    /// Whether to open the :8532 audio link on connect. Off lets another
+    /// client (the Mac) have the Pi's single audio-stream slot while this
+    /// app keeps rig control.
+    public static bool AudioEnabled
+    {
+        get => _cache.AudioEnabled;
+        set
+        {
+            _cache.AudioEnabled = value;
+            Save();
+        }
+    }
+
     /// hamlib rig model number — 1051 is the FTX-1, same default as the
     /// Mac's RigctldSettings.modelNumber. Not exposed in the UI (this app
     /// only drives one radio); kept as a setting so a hamlib renumbering
@@ -117,6 +145,13 @@ public static class AppSettings
             Save();
         }
     }
+
+    /// Mutate the returned object, then call <see cref="SaveAudio"/>.
+    public static ChannelAudio MainAudio => _cache.MainAudio;
+
+    public static ChannelAudio SubAudio => _cache.SubAudio;
+
+    public static void SaveAudio() => Save();
 
     private static Data Load()
     {
