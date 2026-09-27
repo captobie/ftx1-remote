@@ -166,11 +166,16 @@ WSJT-X on the same PC can share the radio by pointing its "Hamlib NET
 rigctl" at `localhost:4532` — or start rigctld yourself and this app adopts
 it.
 
-Hardware checklist (not yet done): build; connect with the right COM port
-(first of the FTX-1's two CP210x ports, usually — the Enhanced one);
-wrong COM port / radio off gives a readable error; Disconnect and window
-close leave no `rigctld.exe` in Task Manager; an already-running rigctld is
-adopted and survives Disconnect; PTT keys the rig.
+Hardware checklist (user, on the rig, 2026-09-27):
+
+- [x] Builds (.NET 10 SDK) and connects with the right COM port.
+- [x] Wrong COM port → "Connect failed: …" error.
+- [x] Disconnect leaves no `rigctld.exe` running (`tasklist | findstr
+      rigctld`).
+- [x] Closing the window while connected leaves none either.
+- [ ] Radio off → "rigctld is running but the radio isn't answering…".
+- [ ] An already-running rigctld is adopted and survives Disconnect.
+- [ ] PTT keys the rig.
 
 ## v1 scope
 
