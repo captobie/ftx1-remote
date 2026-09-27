@@ -105,7 +105,19 @@
 
                 <StackPanel Spacing="4">
                     <TextBlock Text="PTT" FontWeight="SemiBold" />
-                    <ToggleButton x:Name="PttToggle" Content="TX" Click="PttToggle_Click" />
+                    <!-- Momentary: keyed while held, like the Mac/iPad PTT. A Border
+                         rather than a Button so its background can show TX
+                         state without the Button template's pressed/hover
+                         states overriding it. -->
+                    <Border x:Name="PttButton" MinWidth="130" Padding="16,8" CornerRadius="8"
+                            Background="#40808080"
+                            AutomationProperties.Name="Push to talk"
+                            PointerPressed="PttButton_PointerPressed"
+                            PointerReleased="PttButton_PointerReleased"
+                            PointerCanceled="PttButton_PointerReleased"
+                            PointerCaptureLost="PttButton_PointerReleased">
+                        <TextBlock x:Name="PttText" Text="PTT" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    </Border>
                 </StackPanel>
 
                 <StackPanel Spacing="4" Width="160">

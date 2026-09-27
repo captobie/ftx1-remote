@@ -240,19 +240,29 @@ gated.
   settings files keep working).
 - Switching it off sends PTT off and MOX off ("MX0") straight away,
   unconditionally, rather than only if the last poll saw them on.
-- The PTT button is disabled (dimmed) while blocked, with the reason as
-  its tooltip — except while it's checked, so the unkey click always
-  works. The click handler checks the gate again.
+- PTT is momentary (hold to transmit, release to unkey), like the Mac and
+  iPad — it was a click-on/click-off toggle before. A `Border`, not a
+  `Button`, so the red "TRANSMITTING" background isn't overridden by the
+  Button template's hover/pressed states. It dims to 0.4 while blocked,
+  with the reason as its tooltip, but stays pressable: every release sends
+  PTT off (as the Mac's `onEnded` does), so it can also unkey a TX started
+  elsewhere. The press handler checks the gate again. Disconnect or window
+  close while held unkeys first.
 - Not done, same as the Mac: nothing unkeys a TX started elsewhere (front
   panel, WSJT-X through the same rigctld) while the switch is already off.
 
 Hardware checklist (not yet run):
 
 - [ ] Switch off → PTT dimmed, tooltip "Transmit disabled"; on → PTT works.
-- [ ] Key PTT, then switch off → the rig unkeys at once.
+- [ ] Key the rig, then switch off → it unkeys at once. With PTT now
+      momentary a mouse can't hold it and click the switch, so key from
+      the front panel or WSJT-X (the force-unkey is unconditional, so it
+      unkeys those too), or hold PTT by touch.
 - [ ] Tune outside a band (e.g. 15.000 MHz) → PTT dimmed with the
       out-of-band tooltip.
 - [ ] Setting survives an app restart.
+- [ ] Hold PTT → keys, button red "TRANSMITTING"; release → unkeys. Also
+      release outside the button/window, and a quick tap.
 
 ## Audio (Main/Sub playback)
 

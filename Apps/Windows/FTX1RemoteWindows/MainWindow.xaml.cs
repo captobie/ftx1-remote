@@ -118,6 +118,16 @@ public sealed partial class MainWindow : Window
     private const int SlowPollEvery = 5;
     private bool _pollInFlight;
 
+    /// True from a press on the PTT button until its release (or capture
+    /// loss). Every release sends PTT off, even when the press was blocked
+    /// from keying — same as the Mac's DragGesture onEnded — so pressing
+    /// and releasing also unkeys a TX started elsewhere.
+    private bool _pttPointerDown;
+    /// True while this app is keying the rig from a held PTT press. Shown as
+    /// transmitting straight away, rather than waiting for the poll.
+    private bool _pttHeld;
+    private Brush? _pttIdleBackground;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -192,6 +202,7 @@ public sealed partial class MainWindow : Window
         _subPlayer = new ChannelPlayer((float)subAudio.Volume, (float)subAudio.SquelchThreshold, subAudio.Muted);
         _playback = new AudioPlayback(_mainPlayer, _subPlayer);
 
+        _pttIdleBackground = PttButton.Background;
         TransmitEnabledSwitch.IsOn = AppSettings.TransmitEnabled;
         UpdateTransmitControls();
 
@@ -218,6 +229,7 @@ public sealed partial class MainWindow : Window
         Closed += (_, _) =>
         {
             _pollTimer.Stop();
+            UnkeyBeforeDisconnect();
             _audioStatusTimer.Stop();
             _playback.Stop();
             _ = _audioSource?.StopAsync();
@@ -526,6 +538,7 @@ public sealed partial class MainWindow : Window
     private async Task DisconnectAsync(string? reason)
     {
         _pollTimer.Stop();
+        UnkeyBeforeDisconnect();
         await StopAudioAsync();
         var client = _client;
         _client = null;
@@ -656,7 +669,6 @@ public sealed partial class MainWindow : Window
         {
             var ptt = await client.GetPttAsync();
             _lastState.Ptt = ptt;
-            PttToggle.IsChecked = ptt;
         }
         catch (Exception ex)
         {
@@ -847,31 +859,90 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void PttToggle_Click(object sender, RoutedEventArgs e)
+    /// Momentary PTT, like the Mac/iPad: keyed while held, unkeyed on
+    /// release. Pointer capture keeps the release coming here even if it
+    /// happens outside the button (or the window).
+    private async void PttButton_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (_client is null)
+        if (_pttPointerDown || _client is not { } client)
         {
             return;
         }
-        var on = PttToggle.IsChecked == true;
-        // Checked here as well as by disabling the button: a click can land
-        // before the button's state catches up (same as the Mac, where
-        // HubService.send re-checks what the PTT button already shows).
-        if (on && TransmitGate.BlockReason(TransmitAction.PttOn, AppSettings.TransmitEnabled, _lastState.FrequencyHz) is { } reason)
+        if (e.Pointer.PointerDeviceType == Microsoft.UI.Input.PointerDeviceType.Mouse
+            && !e.GetCurrentPoint(PttButton).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+        PttButton.CapturePointer(e.Pointer);
+        _pttPointerDown = true;
+        e.Handled = true;
+        // Checked here as well as by dimming the button, same as the Mac,
+        // where HubService.send re-checks what the PTT button already shows.
+        if (TransmitGate.BlockReason(TransmitAction.PttOn, AppSettings.TransmitEnabled, _lastState.FrequencyHz) is { } reason)
         {
             Debug.WriteLine($"transmit-gate: blocked PTT on ({reason}) at {_lastState.FrequencyHz} Hz");
-            PttToggle.IsChecked = false;
             StatusText.Text = reason;
-            UpdateTransmitControls();
             return;
         }
+        _pttHeld = true;
+        UpdateTransmitControls();
         try
         {
-            await _client.SetPttAsync(on);
+            await client.SetPttAsync(true);
         }
         catch (Exception ex)
         {
             StatusText.Text = $"Set PTT failed: {ex.Message}";
+        }
+    }
+
+    /// Release, cancel and capture loss all end the press. The T 0 queues
+    /// behind a T 1 still in flight (RigctldClient serializes commands), so
+    /// a quick tap can't leave the rig keyed.
+    private async void PttButton_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_pttPointerDown)
+        {
+            return;
+        }
+        _pttPointerDown = false;
+        _pttHeld = false;
+        PttButton.ReleasePointerCaptures();
+        UpdateTransmitControls();
+        if (_client is not { } client)
+        {
+            return;
+        }
+        try
+        {
+            await client.SetPttAsync(false);
+            _lastState.Ptt = false;
+            UpdateTransmitControls();
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Unkey failed — check the rig: {ex.Message}";
+        }
+    }
+
+    /// Disconnect or window close with PTT still held: the pointer release
+    /// would find no client, so unkey first. Blocks briefly (the client's
+    /// awaits don't need this thread) since the window may be going away.
+    private void UnkeyBeforeDisconnect()
+    {
+        if (!_pttHeld || _client is not { } client)
+        {
+            return;
+        }
+        _pttHeld = false;
+        _pttPointerDown = false;
+        try
+        {
+            client.SetPttAsync(false).Wait(TimeSpan.FromSeconds(1));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"ptt: unkey before disconnect failed: {ex.Message}");
         }
     }
 
@@ -908,7 +979,7 @@ public sealed partial class MainWindow : Window
         try
         {
             await client.SetPttAsync(false);
-            PttToggle.IsChecked = false;
+            _pttHeld = false;
             _lastState.Ptt = false;
         }
         catch (Exception ex)
@@ -926,15 +997,27 @@ public sealed partial class MainWindow : Window
         UpdateTransmitControls();
     }
 
-    /// Enables PTT only while TransmitGate allows keying, like the Mac's
-    /// canTransmit (disabled controls are dimmed by WinUI itself). The
-    /// exception is while it's checked: that click is the unkey, which must
-    /// never be locked out — e.g. after tuning out of band mid-transmission.
+    /// Shows PTT as transmitting (red, like the Mac) while this app holds it
+    /// or the poll reads the rig keyed, and dims it to the Mac's 0.4 while
+    /// TransmitGate would block keying. It stays pressable when dimmed: a
+    /// press still sends PTT off on release, so it can unkey a TX started
+    /// elsewhere.
     private void UpdateTransmitControls()
     {
+        var keyed = _pttHeld || _lastState.Ptt;
         var reason = TransmitGate.BlockReason(TransmitAction.PttOn, AppSettings.TransmitEnabled, _lastState.FrequencyHz);
-        PttToggle.IsEnabled = reason is null || PttToggle.IsChecked == true;
-        ToolTipService.SetToolTip(PttToggle, reason);
+        PttButton.Opacity = reason is null || keyed ? 1 : 0.4;
+        PttButton.Background = keyed ? new SolidColorBrush(Colors.Red) : _pttIdleBackground;
+        PttText.Text = keyed ? "TRANSMITTING" : "PTT";
+        if (keyed)
+        {
+            PttText.Foreground = new SolidColorBrush(Colors.White);
+        }
+        else
+        {
+            PttText.ClearValue(TextBlock.ForegroundProperty);
+        }
+        ToolTipService.SetToolTip(PttButton, reason ?? "Hold to transmit");
     }
 
     /// Keyboard changes (arrow keys, Home/End) send at once; pointer drags
