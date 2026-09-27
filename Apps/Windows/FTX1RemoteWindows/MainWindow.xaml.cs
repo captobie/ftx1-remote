@@ -57,7 +57,14 @@ public sealed partial class MainWindow : Window
     private readonly ChannelPlayer _mainPlayer;
     private readonly ChannelPlayer _subPlayer;
     private readonly AudioPlayback _playback;
-    private RemoteAudioStreamClient? _audioClient;
+    /// The Pi stream (Remote) or the local input device (Local), while
+    /// audio is running.
+    private IAudioSource? _audioSource;
+    /// Why audio couldn't start at all (no input device chosen, feedback
+    /// guard, ...), shown instead of a link state.
+    private string? _audioSetupError;
+    private string _connectedHost = "";
+    private bool _suppressAudioInputEvents;
     private readonly DispatcherQueueTimer _audioStatusTimer;
     private string? _playbackError;
 
@@ -89,6 +96,7 @@ public sealed partial class MainWindow : Window
         RigctldPathBox.Text = AppSettings.RigctldPath;
         ComPortComboBox.Text = AppSettings.ComPort;
         RefreshComPorts();
+        RefreshAudioInputs();
         foreach (var rate in BaudRates)
         {
             BaudRateComboBox.Items.Add(new ComboBoxItem { Content = rate.ToString(), Tag = rate });
@@ -163,7 +171,7 @@ public sealed partial class MainWindow : Window
             _pollTimer.Stop();
             _audioStatusTimer.Stop();
             _playback.Stop();
-            _ = _audioClient?.StopAsync();
+            _ = _audioSource?.StopAsync();
             _client?.Disconnect();
             _client = null;
             _rigctldProcess.Stop();
@@ -345,13 +353,11 @@ public sealed partial class MainWindow : Window
             ConnectionStateText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green);
             ConnectButton.Content = "Disconnect";
             _connectedMode = mode;
+            _connectedHost = host;
             _pollTimer.Start();
-            // The :8532 audio stream only exists on the Pi. Local mode would
-            // need a PC sound-card capture instead (the Mac's .local tap) —
-            // not built yet.
-            if (mode == ConnectionMode.Remote && AudioSwitch.IsOn)
+            if (AudioSwitch.IsOn)
             {
-                StartAudio(host);
+                StartAudio();
             }
             else
             {
@@ -788,61 +794,165 @@ public sealed partial class MainWindow : Window
 
     // Audio (Pi :8532)
 
-    /// Starts playback and the stream client together. Runs only while the
-    /// rig link is up — the audio link has its own reconnect loop, but its
-    /// lifetime follows Connect/Disconnect and the Audio switch.
-    private void StartAudio(string host)
+    /// Starts the session's audio source and playback together: the Pi's
+    /// :8532 stream in Remote mode, the chosen input device in Local mode.
+    /// Runs only while the rig link is up — each source has its own retry
+    /// loop, but its lifetime follows Connect/Disconnect, the Audio switch
+    /// and (Local) the Audio in picker.
+    private void StartAudio()
     {
-        if (_audioClient is not null)
+        if (_audioSource is not null)
         {
             return;
         }
-        _playbackError = _playback.Start();
-        // The stream's channels are physical L/R; after a Main/Sub swap they
+        _audioSetupError = null;
+
+        // The source's channels are physical L/R; after a Main/Sub swap they
         // go to the opposite roles (see AudioChannelSwapTracker).
-        _audioClient = new RemoteAudioStreamClient(host, (left, right) =>
+        void Route(float[] left, float[] right)
         {
             var swapped = _audioChannelsSwapped;
             _mainPlayer.Push(swapped ? right : left);
             _subPlayer.Push(swapped ? left : right);
-        });
-        _audioClient.Start();
+        }
+
+        IAudioSource source;
+        var playbackAllowed = true;
+        if (_connectedMode == ConnectionMode.Remote)
+        {
+            source = new RemoteAudioStreamClient(_connectedHost, Route);
+        }
+        else
+        {
+            var deviceId = AppSettings.LocalAudioDeviceId;
+            if (deviceId.Length == 0)
+            {
+                _audioSetupError = "Choose the radio's audio input under \"Audio in\".";
+                UpdateAudioStatus();
+                return;
+            }
+            try
+            {
+                source = new LocalAudioCapture(deviceId, Route);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"local-audio: can't open {deviceId}: {ex.Message}");
+                _audioSetupError = $"\"{AppSettings.LocalAudioDeviceName}\" isn't available — is the radio plugged in and on? Pick it again under \"Audio in\" once it is.";
+                UpdateAudioStatus();
+                return;
+            }
+            // Playing to the radio's own USB codec would feed its TX audio
+            // input (and with VOX or DATA-mode keying, could transmit it).
+            if (LocalAudioCapture.DefaultOutputIsSameAdapter(deviceId))
+            {
+                playbackAllowed = false;
+                _playbackError = "Windows' default output is the radio's own USB audio, which would feed its transmit input — pick your speakers as the default output device";
+            }
+        }
+
+        if (playbackAllowed)
+        {
+            _playbackError = _playback.Start(source.SampleRate);
+        }
+        _audioSource = source;
+        source.Start();
         _audioStatusTimer.Start();
         UpdateAudioStatus();
     }
 
     private async Task StopAudioAsync()
     {
-        var client = _audioClient;
-        _audioClient = null;
+        var source = _audioSource;
+        _audioSource = null;
         _audioStatusTimer.Stop();
-        if (client is not null)
+        if (source is not null)
         {
-            await client.StopAsync();
+            await source.StopAsync();
         }
         _playback.Stop();
         _playbackError = null;
+        _audioSetupError = null;
         UpdateAudioStatus();
+    }
+
+    private void AudioInputComboBox_DropDownOpened(object sender, object e) => RefreshAudioInputs();
+
+    /// Lists the active recording devices. A saved device that isn't
+    /// plugged in stays listed (marked) so the selection isn't silently
+    /// lost. With nothing saved yet, pre-selects the only "USB Audio"
+    /// input if there's exactly one — the FTX-1's codec's usual name.
+    private void RefreshAudioInputs()
+    {
+        _suppressAudioInputEvents = true;
+        var devices = LocalAudioCapture.ListDevices();
+        var savedId = AppSettings.LocalAudioDeviceId;
+        AudioInputComboBox.Items.Clear();
+        ComboBoxItem? selected = null;
+        foreach (var (id, name) in devices)
+        {
+            var item = new ComboBoxItem { Content = name, Tag = id };
+            AudioInputComboBox.Items.Add(item);
+            if (id == savedId)
+            {
+                selected = item;
+            }
+        }
+        if (selected is null && savedId.Length > 0)
+        {
+            selected = new ComboBoxItem { Content = $"{AppSettings.LocalAudioDeviceName} (not connected)", Tag = savedId };
+            AudioInputComboBox.Items.Add(selected);
+        }
+        if (selected is null && savedId.Length == 0)
+        {
+            var usb = devices.Where(d => d.Name.Contains("USB Audio", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (usb.Count == 1)
+            {
+                AppSettings.SetLocalAudioDevice(usb[0].Id, usb[0].Name);
+                selected = AudioInputComboBox.Items.OfType<ComboBoxItem>().First(i => (string)i.Tag == usb[0].Id);
+            }
+        }
+        AudioInputComboBox.SelectedItem = selected;
+        _suppressAudioInputEvents = false;
+    }
+
+    private async void AudioInputComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressAudioInputEvents || AudioInputComboBox.SelectedItem is not ComboBoxItem { Tag: string id } item)
+        {
+            return;
+        }
+        if (id == AppSettings.LocalAudioDeviceId)
+        {
+            return;
+        }
+        AppSettings.SetLocalAudioDevice(id, (string)item.Content);
+        if (IsConnected && _connectedMode == ConnectionMode.Local && AudioSwitch.IsOn)
+        {
+            await StopAudioAsync();
+            StartAudio();
+        }
     }
 
     private void UpdateAudioStatus()
     {
         var gray = new SolidColorBrush(Colors.Gray);
-        if (_audioClient is not { } client)
+        if (_audioSource is not { } source)
         {
             AudioStateText.Text = !IsConnected ? "Not connected"
-                : _connectedMode == ConnectionMode.Local ? "Not available in Local mode yet (audio comes from the Pi's stream)"
-                : AudioSwitch.IsOn ? "Starting…" : "Off";
-            AudioStateText.Foreground = gray;
+                : _audioSetupError ?? (AudioSwitch.IsOn ? "Starting…" : "Off");
+            AudioStateText.Foreground = _audioSetupError is null ? gray : new SolidColorBrush(Colors.Firebrick);
             AudioLevelsText.Text = "";
             MainSquelchLed.Fill = gray;
             SubSquelchLed.Fill = gray;
             return;
         }
 
-        var status = client.GetStatus();
+        var status = source.GetStatus();
         var (text, color) = status.Phase switch
         {
+            AudioLinkPhase.Streaming when _connectedMode == ConnectionMode.Local => ($"Capturing — {status.Detail}", Colors.Green),
+            AudioLinkPhase.DeviceUnavailable => ($"Audio input unavailable, retrying — {status.Detail}", Colors.Firebrick),
             AudioLinkPhase.Connecting => ("Connecting to :8532…", Colors.Orange),
             AudioLinkPhase.Unreachable => ($"Can't reach the Pi's audio stream (:8532), retrying — {status.Detail}", Colors.Firebrick),
             AudioLinkPhase.WaitingForStream => ("Connected, no audio — another client (the Mac?) probably has the Pi's stream; will pick it up when it's free", Colors.Orange),
@@ -876,14 +986,14 @@ public sealed partial class MainWindow : Window
             return;
         }
         AppSettings.AudioEnabled = AudioSwitch.IsOn;
-        if (!IsConnected || _connectedMode != ConnectionMode.Remote)
+        if (!IsConnected)
         {
             UpdateAudioStatus();
             return;
         }
         if (AudioSwitch.IsOn)
         {
-            StartAudio(AppSettings.PiHost);
+            StartAudio();
         }
         else
         {

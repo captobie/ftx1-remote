@@ -20,7 +20,11 @@ public enum AudioLinkPhase
     /// client disconnects. Deliberately keeps the socket open rather than
     /// reconnecting, so this app picks the stream up as soon as it's free.
     WaitingForStream,
+    /// Audio is arriving (from the Pi, or from the local input device).
     Streaming,
+    /// Local mode: the input device is missing, disabled, refused access,
+    /// or stopped delivering. Retrying.
+    DeviceUnavailable,
 }
 
 /// Levels are per physical channel; which one is Main depends on swap
@@ -42,10 +46,11 @@ public readonly record struct AudioLinkStatus(AudioLinkPhase Phase, string? Deta
 /// Unlike the Mac's client, this one tells "unreachable" apart from
 /// "connected but nothing arriving" (see <see cref="AudioLinkPhase"/>),
 /// in the spirit of Apps/Windows/README.md's connection-state note.
-public sealed class RemoteAudioStreamClient : IAsyncDisposable
+public sealed class RemoteAudioStreamClient : IAudioSource
 {
     public const int DefaultPort = 8532;
-    public const int SampleRate = 44100;
+    /// Pi/ftx1-audiostream.py's SAMPLE_RATE.
+    public const int StreamSampleRate = 44100;
     private const int BytesPerFrame = 4;
 
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(5);
@@ -82,6 +87,8 @@ public sealed class RemoteAudioStreamClient : IAsyncDisposable
         _samplesPerChunk = samplesPerChunk;
         _onSamples = onSamples;
     }
+
+    public int SampleRate => StreamSampleRate;
 
     public void Start()
     {

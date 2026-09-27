@@ -42,6 +42,12 @@
                           ToolTipService.ToolTip="The FTX-1's CAT port (the Enhanced COM port of its CP210x pair)" />
                 <TextBlock Text="Baud:" VerticalAlignment="Center" Margin="8,0,0,0" />
                 <ComboBox x:Name="BaudRateComboBox" Width="110" />
+                <!-- Stays enabled while connected: picking another input restarts capture. -->
+                <TextBlock Text="Audio in:" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <ComboBox x:Name="AudioInputComboBox" Width="280" PlaceholderText="The radio's USB audio input"
+                          DropDownOpened="AudioInputComboBox_DropDownOpened"
+                          SelectionChanged="AudioInputComboBox_SelectionChanged"
+                          ToolTipService.ToolTip="The FTX-1's USB audio as a Windows recording device (usually &quot;Microphone (USB Audio Device)&quot;)" />
             </StackPanel>
         </StackPanel>
 

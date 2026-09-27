@@ -23,16 +23,17 @@ public sealed class ChannelPlayer : ISampleProvider
     /// would creep up for the whole session.
     private const double MaxBufferedSeconds = 0.5;
     /// Gain changes (mute, volume, squelch opening/closing) ramp over
-    /// ~10 ms instead of stepping, so they don't click.
+    /// ~10 ms instead of stepping, so they don't click (at 44.1 kHz; a
+    /// little quicker at 48 kHz, which doesn't matter).
     private const float GainStepPerSample = 1f / 441f;
 
     private readonly object _lock = new();
-    private readonly float[] _ring;
+    private float[] _ring = [];
     private int _readIndex;
     private int _count;
     private bool _primed;
-    private readonly int _primeSamples;
-    private readonly int _maxSamples;
+    private int _primeSamples;
+    private int _maxSamples;
 
     private readonly SquelchGate _gate;
     private float _volume;
@@ -41,16 +42,31 @@ public sealed class ChannelPlayer : ISampleProvider
 
     public ChannelPlayer(float volume, float squelchThreshold, bool muted)
     {
-        WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(RemoteAudioStreamClient.SampleRate, 1);
-        _ring = new float[RemoteAudioStreamClient.SampleRate];
-        _primeSamples = (int)(RemoteAudioStreamClient.SampleRate * PrimeSeconds);
-        _maxSamples = (int)(RemoteAudioStreamClient.SampleRate * MaxBufferedSeconds);
+        Configure(RemoteAudioStreamClient.StreamSampleRate);
         _gate = new SquelchGate(squelchThreshold);
         _volume = volume;
         _muted = muted;
     }
 
-    public WaveFormat WaveFormat { get; }
+    public WaveFormat WaveFormat { get; private set; } = null!;
+
+    /// Sets the rate of the samples <see cref="Push"/> will receive — 44.1
+    /// kHz from the Pi, the device's own rate for a local input. Call only
+    /// while not playing (<see cref="AudioPlayback.Start"/> does); clears
+    /// the buffer.
+    public void Configure(int sampleRate)
+    {
+        lock (_lock)
+        {
+            WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1);
+            _ring = new float[sampleRate];
+            _primeSamples = (int)(sampleRate * PrimeSeconds);
+            _maxSamples = (int)(sampleRate * MaxBufferedSeconds);
+            _readIndex = 0;
+            _count = 0;
+            _primed = false;
+        }
+    }
 
     public float Volume
     {

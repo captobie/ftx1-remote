@@ -27,7 +27,9 @@ syncing or clone outside OneDrive if a build hits "file in use".
 **Audio playback added 2026-09-27** — see "Audio" below. Tested end to end
 against a local fake Pi (a stand-in rigctld plus a copy of
 `ftx1-audiostream.py`'s single-client accept loop streaming test tones), not
-yet against the real Pi/rig. Remote mode only for now — see "Audio".
+yet against the real Pi/rig. Local mode (the PC's own sound-card input)
+followed the same day and was tested capturing the real FTX-1's USB audio
+on the user's test PC — see "Audio".
 
 **Toolchain note for whoever picks this up next:** the .NET SDK (10.0.400)
 is installed on this machine at `C:\Program Files\dotnet` but isn't on
@@ -206,10 +208,35 @@ Core rig control only:
 
 ## Audio (Main/Sub playback)
 
-Second TCP connection to the Pi's `ftx1-audiostream.py` on :8532, next to
-the rigctld link. Wire format: raw interleaved-stereo Int16 LE, 44100 Hz,
-Main on the left channel and Sub on the right, no framing (see that script's
-doc comment).
+Two sources behind one interface (`Services/IAudioSource.cs`), picked by
+the connection mode — the Windows counterpart of the Mac feeding one
+`process()` from both its local tap and its remote client. Both deliver
+Main (left) / Sub (right) float chunks of 2048 samples, so everything
+downstream (squelch, swap routing, playback, levels) is shared.
+
+- **Remote**: a second TCP connection to the Pi's `ftx1-audiostream.py` on
+  :8532, next to the rigctld link. Wire format: raw interleaved-stereo
+  Int16 LE, 44100 Hz, Main on the left channel and Sub on the right, no
+  framing (see that script's doc comment).
+- **Local** (`Services/LocalAudioCapture.cs`): NAudio `WasapiCapture`
+  (shared mode) on the input chosen under **Audio in** in the Local
+  settings row, at the device's own rate (48 kHz for the FTX-1's codec on
+  the test PC, which shows up as "Microphone (2- USB Audio Device)"). The
+  picker lists active recording devices; with nothing saved it pre-selects
+  the only one named "USB Audio", if there's exactly one. It stays enabled
+  while connected (a change restarts capture), and a saved device that
+  isn't plugged in stays listed as "(not connected)". A missing/removed
+  device or a capture error shows "Audio input unavailable" and retries
+  every 3 s; a microphone-privacy denial says which Windows setting to
+  turn on. A mono device gives Main only and says so. **Feedback guard**:
+  if Windows' default output is the same adapter as the input (the rig's
+  own codec), playback is refused — it would feed the rig's TX audio input.
+  Tested 2026-09-27 against the real rig's audio with the fake rigctld
+  (so CAT never touched the radio): capture at 48 kHz, playback reaching
+  the output device, the missing-device message and picker entry. Sub read
+  near-silent (right-channel peak ~0.0001) during that test, most likely
+  single-receive display or a quiet Sub — not yet confirmed with the rig
+  in dual-VFO display.
 
 - `Services/RemoteAudioStreamClient.cs`: port of the Mac's
   `RemoteAudioStreamClient.swift`. Has its own reconnect loop (3 s), splits
@@ -240,9 +267,6 @@ doc comment).
   defaults (volume 0.8, threshold 0.015).
 - Audio runs only while the rig link is connected (it starts on Connect and
   stops on Disconnect or window close).
-- **Remote mode only.** In Local mode there's no Pi stream; the audio row
-  says so. Local audio would need a PC sound-card capture (the Mac's
-  `.local` tap) and isn't built yet.
 
 **Swap tracking (2026-09-27)**: after a Main/Sub swap, the rig's L/R audio
 stays with the physical receiver (see root `CLAUDE.md`'s "Swap tracking").
@@ -270,6 +294,8 @@ poll loop), not yet on the rig.
 
 Not done yet:
 - Output device picker (always the default device).
+- Local mode: no automatic check that the input device is really the
+  rig's (it only pre-selects by name).
 - Waterfall/oscilloscope from the same samples (the chunking already
   matches the Mac's 2048-sample FFT size).
 

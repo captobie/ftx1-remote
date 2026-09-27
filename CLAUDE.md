@@ -567,7 +567,8 @@ MSIX-packaged, lives in this repo at `Apps/Windows/FTX1RemoteWindows/`
 despite sharing no code with the Swift targets (Swift/SwiftUI isn't viable
 on Windows). v1 scope is core rig control (VFO A/B, mode, PTT, power, SWR,
 band); Main/Sub audio playback from the Pi's :8532 stream was added
-2026-09-27 (NAudio, Remote mode only, tested against a local fake Pi only; swap tracking ported from
+2026-09-27 (NAudio; Remote from the Pi's stream, Local from a PC sound-card
+input, tested against a local fake Pi and the real rig's USB audio; swap tracking ported from
 the Mac the same day, which also fixed the Windows ⇄ to send raw "SV"
 instead of hamlib's "V"/VS; the Pi still serves one audio client at a time, so the Windows app
 shows "waiting" while the Mac has the stream; see the README's "Audio"

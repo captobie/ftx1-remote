@@ -11,7 +11,7 @@ namespace FTX1RemoteWindows.Services;
 /// is simpler here and each channel still has its own mute/volume/squelch.
 /// Like the Mac, both play centered, not panned L/R.
 ///
-/// Resamples 44.1 kHz to the device's own mix rate itself (WDL resampler)
+/// Resamples the source's rate to the output device's mix rate itself (WDL resampler)
 /// rather than leaving it to WasapiOut, so the path doesn't depend on
 /// whichever fallback WasapiOut would pick for an unsupported format.
 public sealed class AudioPlayback : IDisposable
@@ -32,14 +32,16 @@ public sealed class AudioPlayback : IDisposable
     /// Returns an error message on failure (no output device, device in
     /// exclusive use, ...) instead of throwing — no audio isn't a reason to
     /// fail the rig connection.
-    public string? Start()
+    /// <paramref name="sampleRate"/> is the rate of the samples the audio
+    /// source will push (<see cref="IAudioSource.SampleRate"/>).
+    public string? Start(int sampleRate)
     {
         if (_output is not null)
         {
             return null;
         }
-        Main.Reset();
-        Sub.Reset();
+        Main.Configure(sampleRate);
+        Sub.Configure(sampleRate);
         try
         {
             int mixRate;
@@ -49,7 +51,7 @@ public sealed class AudioPlayback : IDisposable
                 mixRate = device.AudioClient.MixFormat.SampleRate;
             }
 
-            var mixer = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(RemoteAudioStreamClient.SampleRate, 1))
+            var mixer = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1))
             {
                 ReadFully = true,
             };
@@ -57,7 +59,7 @@ public sealed class AudioPlayback : IDisposable
             mixer.AddMixerInput(Sub);
 
             ISampleProvider chain = mixer;
-            if (mixRate != RemoteAudioStreamClient.SampleRate)
+            if (mixRate != sampleRate)
             {
                 chain = new WdlResamplingSampleProvider(chain, mixRate);
             }

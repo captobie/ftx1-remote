@@ -42,6 +42,8 @@ public static class AppSettings
         public string ComPort { get; set; } = "";
         public int BaudRate { get; set; } = 38400;
         public bool AudioEnabled { get; set; } = true;
+        public string LocalAudioDeviceId { get; set; } = "";
+        public string LocalAudioDeviceName { get; set; } = "";
         public bool AudioChannelsSwapped { get; set; }
         public ChannelAudio MainAudio { get; set; } = new();
         public ChannelAudio SubAudio { get; set; } = new();
@@ -158,6 +160,20 @@ public static class AppSettings
             Save();
         }
     }
+
+    /// Local mode's audio input: a Windows capture endpoint ID (stable across
+    /// reboots and replugs into the same port), plus its name for showing it
+    /// while it isn't plugged in.
+    public static void SetLocalAudioDevice(string id, string name)
+    {
+        _cache.LocalAudioDeviceId = id;
+        _cache.LocalAudioDeviceName = name;
+        Save();
+    }
+
+    public static string LocalAudioDeviceId => _cache.LocalAudioDeviceId;
+
+    public static string LocalAudioDeviceName => _cache.LocalAudioDeviceName;
 
     /// Mutate the returned object, then call <see cref="SaveAudio"/>.
     public static ChannelAudio MainAudio => _cache.MainAudio;

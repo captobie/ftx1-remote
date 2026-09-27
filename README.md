@@ -132,7 +132,7 @@ Mac, iOS, and iPadOS targets. The Windows client shares no code with it
   Local mode, to a `rigctld.exe` it launches against a radio on the PC's
   own USB port (hardware-confirmed, 2026-09-27). v1 scope is
   core rig control (VFO A/B, mode, PTT, power, SWR, band) plus Main/Sub
-  audio playback from the Pi (Remote mode); MENU grid, Deep Settings,
+  audio playback (from the Pi, or a local sound-card input); MENU grid, Deep Settings,
   waterfall, and APRS are deferred but not architecturally blocked (direct-to-Pi gives it the live per-item read
   Deep Settings needs, unlike iPad). Build-verified, not yet run against
   real hardware. See `Apps/Windows/README.md`.
