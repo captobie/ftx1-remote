@@ -550,7 +550,18 @@ the user's Windows PC 2026-09-27 (.NET 10 SDK; the .NET 5 SDK that PC had
 first can't target net8.0) and reported working as expected; the
 item-by-item hardware checklist is in `Apps/Windows/README.md`'s "Local
 mode". No WebSocket *server* (this app is
-a leaf client only). C# + WinUI 3,
+a leaf client only).
+
+**The user's Windows test PC** — use these values in any commands given
+for it instead of placeholders: the FTX-1 is on **COM4** at **115200**
+baud; hamlib's binaries are in `C:\Tools\hamlib\bin`; the .NET 10 SDK is
+at `C:\Program Files\dotnet\dotnet.exe` (the bare `dotnet` there was an old
+.NET 5 SDK — call it by full path); the repo clone is under the user's
+OneDrive Documents folder (`...\Documents\ftx1-remote`). So e.g. a
+manual rigctld is `.\rigctld.exe -m 1051 -r COM4 -s 115200 -t 4532 -T
+127.0.0.1 -o`, run from `C:\Tools\hamlib\bin`.
+
+C# + WinUI 3,
 MSIX-packaged, lives in this repo at `Apps/Windows/FTX1RemoteWindows/`
 despite sharing no code with the Swift targets (Swift/SwiftUI isn't viable
 on Windows). v1 scope is core rig control only (VFO A/B, mode, PTT, power,
