@@ -299,6 +299,10 @@ public sealed partial class MainWindow : Window
     {
         var deadline = DateTime.UtcNow + LocalStartupGracePeriod;
         var connected = false;
+        // Separate from `connected`, which a timed-out read resets to force
+        // a fresh socket: with the radio off every read times out, and the
+        // final message must still say rigctld was reached.
+        var reachedRigctld = false;
         Exception? lastError = null;
         while (DateTime.UtcNow < deadline)
         {
@@ -312,6 +316,7 @@ public sealed partial class MainWindow : Window
                 {
                     await client.ConnectAsync(TimeSpan.FromSeconds(1));
                     connected = true;
+                    reachedRigctld = true;
                 }
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                 _ = await client.GetFrequencyAsync(cts.Token);
@@ -330,7 +335,7 @@ public sealed partial class MainWindow : Window
                 await Task.Delay(LocalStartupRetryInterval);
             }
         }
-        throw new RigctldError(WithStderr(connected
+        throw new RigctldError(WithStderr(reachedRigctld
             ? "rigctld is running but the radio isn't answering — check the COM port, baud rate, and that the radio is on"
             : $"couldn't reach rigctld on localhost:{RigctldPort} ({lastError?.Message})"));
     }

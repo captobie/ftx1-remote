@@ -174,6 +174,10 @@ Hardware checklist (user, on the rig, 2026-09-27):
       rigctld`).
 - [x] Closing the window while connected leaves none either.
 - [ ] Radio off → "rigctld is running but the radio isn't answering…".
+      First try (2026-09-27) failed correctly but said "couldn't reach
+      rigctld … (The operation was canceled)": each timed-out read
+      reset the connected flag, so the final message picked the wrong
+      branch. Fixed; re-test.
 - [ ] An already-running rigctld is adopted and survives Disconnect.
 - [ ] PTT keys the rig.
 
