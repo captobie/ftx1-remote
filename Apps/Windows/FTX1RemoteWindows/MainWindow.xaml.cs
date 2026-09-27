@@ -47,6 +47,11 @@ public sealed partial class MainWindow : Window
     /// command.
     private bool _suppressSelectionEvents;
 
+    /// Same idea for the power slider: the poll moving it to the rig's
+    /// current level used to fire ValueChanged and send that level straight
+    /// back ("L RFPOWER") every second.
+    private bool _suppressPowerEvents;
+
     private RigState _lastState = new();
 
     /// Upper bound of the SQL sliders, which show `SquelchRange - threshold`
@@ -642,7 +647,9 @@ public sealed partial class MainWindow : Window
             if (level is { } l)
             {
                 _lastState.PowerLevel = l;
+                _suppressPowerEvents = true;
                 PowerSlider.Value = l * 100;
+                _suppressPowerEvents = false;
             }
         }
         catch (Exception ex)
@@ -831,7 +838,7 @@ public sealed partial class MainWindow : Window
 
     private async void PowerSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
-        if (_client is null)
+        if (_suppressPowerEvents || _client is null)
         {
             return;
         }
