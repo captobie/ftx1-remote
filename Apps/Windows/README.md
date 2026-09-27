@@ -223,6 +223,37 @@ Core rig control only:
 - Connect/disconnect + live connection-state indicator (with the
   unreachable-vs-down distinction above)
 
+## Transmit gate (Enable Transmit, 2026-09-27)
+
+Port of the Mac's safety cutoff (`HubService.transmitEnabled` + the
+out-of-band check in `HubService.send`). `Services/TransmitGate.cs` is the
+one check every transmit-capable action must pass: PTT on, MOX on, CW
+MESSAGE play, ANT TUNE start (same set as the Mac's `isTransmitCapable`;
+only PTT has a control here so far — the other three must call
+`TransmitGate.BlockReason` when they're ported). Blocked while Enable
+Transmit is off, or while the Main VFO is outside a `BandPlan` band
+(including before the first frequency read). The off direction is never
+gated.
+
+- The "Enable Transmit" switch sits next to PTT, applies at once, and is
+  persisted in `settings.json` (`TransmitEnabled`, default on so older
+  settings files keep working).
+- Switching it off sends PTT off and MOX off ("MX0") straight away,
+  unconditionally, rather than only if the last poll saw them on.
+- The PTT button is disabled (dimmed) while blocked, with the reason as
+  its tooltip — except while it's checked, so the unkey click always
+  works. The click handler checks the gate again.
+- Not done, same as the Mac: nothing unkeys a TX started elsewhere (front
+  panel, WSJT-X through the same rigctld) while the switch is already off.
+
+Hardware checklist (not yet run):
+
+- [ ] Switch off → PTT dimmed, tooltip "Transmit disabled"; on → PTT works.
+- [ ] Key PTT, then switch off → the rig unkeys at once.
+- [ ] Tune outside a band (e.g. 15.000 MHz) → PTT dimmed with the
+      out-of-band tooltip.
+- [ ] Setting survives an app restart.
+
 ## Audio (Main/Sub playback)
 
 Two sources behind one interface (`Services/IAudioSource.cs`), picked by

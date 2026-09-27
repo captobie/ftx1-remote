@@ -42,6 +42,7 @@ public static class AppSettings
         public string ComPort { get; set; } = "";
         public int BaudRate { get; set; } = 38400;
         public bool AudioEnabled { get; set; } = true;
+        public bool TransmitEnabled { get; set; } = true;
         public string LocalAudioDeviceId { get; set; } = "";
         public string LocalAudioDeviceName { get; set; } = "";
         public string AudioOutputDeviceId { get; set; } = "";
@@ -111,6 +112,20 @@ public static class AppSettings
         set
         {
             _cache.AudioEnabled = value;
+            Save();
+        }
+    }
+
+    /// The Enable Transmit safety cutoff — see TransmitGate. Defaults to on
+    /// (an existing settings file has no key for it), same as the Mac's
+    /// RigctldSettings.transmitEnabled, so upgrading doesn't silently stop
+    /// PTT working.
+    public static bool TransmitEnabled
+    {
+        get => _cache.TransmitEnabled;
+        set
+        {
+            _cache.TransmitEnabled = value;
             Save();
         }
     }

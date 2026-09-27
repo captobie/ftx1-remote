@@ -572,7 +572,10 @@ input, tested against a local fake Pi and the real rig's USB audio; swap trackin
 the Mac the same day, which also fixed the Windows ⇄ to send raw "SV"
 instead of hamlib's "V"/VS; the Pi still serves one audio client at a time, so the Windows app
 shows "waiting" while the Mac has the stream; see the README's "Audio"
-section). MENU grid, Deep Settings, waterfall, and APRS decode are
+section). The Mac's Enable Transmit gate was ported 2026-09-27
+(`Services/TransmitGate.cs`, build-verified, not yet hardware-tested):
+any future transmit-capable control (MOX, CW MESSAGE play, ANT TUNE) must
+pass `TransmitGate.BlockReason` before keying. MENU grid, Deep Settings, waterfall, and APRS decode are
 deferred but not architecturally blocked (direct-to-Pi means this app,
 unlike iPad, actually has the live per-item-read capability Deep Settings
 needs). Full plan, protocol/model porting notes, and open items:

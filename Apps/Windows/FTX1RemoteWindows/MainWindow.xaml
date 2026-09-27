@@ -98,6 +98,11 @@
                     <ComboBox x:Name="BandComboBox" Width="100" SelectionChanged="BandComboBox_SelectionChanged" />
                 </StackPanel>
 
+                <!-- Safety cutoff, applies at once; see TransmitGate. -->
+                <ToggleSwitch x:Name="TransmitEnabledSwitch" Header="Enable Transmit" OnContent="On" OffContent="Off"
+                              Toggled="TransmitEnabledSwitch_Toggled"
+                              ToolTipService.ToolTip="When off, PTT (and MOX, antenna tuning and CW MESSAGE playback, once this app has them) is blocked. Switching it off while transmitting unkeys the rig at once." />
+
                 <StackPanel Spacing="4">
                     <TextBlock Text="PTT" FontWeight="SemiBold" />
                     <ToggleButton x:Name="PttToggle" Content="TX" Click="PttToggle_Click" />

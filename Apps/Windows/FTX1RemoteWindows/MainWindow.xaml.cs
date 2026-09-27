@@ -192,6 +192,9 @@ public sealed partial class MainWindow : Window
         _subPlayer = new ChannelPlayer((float)subAudio.Volume, (float)subAudio.SquelchThreshold, subAudio.Muted);
         _playback = new AudioPlayback(_mainPlayer, _subPlayer);
 
+        TransmitEnabledSwitch.IsOn = AppSettings.TransmitEnabled;
+        UpdateTransmitControls();
+
         _suppressAudioEvents = true;
         AudioSwitch.IsOn = AppSettings.AudioEnabled;
         MainMuteToggle.IsChecked = mainAudio.Muted;
@@ -706,6 +709,8 @@ public sealed partial class MainWindow : Window
         {
             Debug.WriteLine($"poll: getLevel(SWR) failed: {ex.Message}");
         }
+
+        UpdateTransmitControls();
     }
 
     private void SetComboSelection(ComboBox box, string? tagText)
@@ -848,14 +853,88 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        var on = PttToggle.IsChecked == true;
+        // Checked here as well as by disabling the button: a click can land
+        // before the button's state catches up (same as the Mac, where
+        // HubService.send re-checks what the PTT button already shows).
+        if (on && TransmitGate.BlockReason(TransmitAction.PttOn, AppSettings.TransmitEnabled, _lastState.FrequencyHz) is { } reason)
+        {
+            Debug.WriteLine($"transmit-gate: blocked PTT on ({reason}) at {_lastState.FrequencyHz} Hz");
+            PttToggle.IsChecked = false;
+            StatusText.Text = reason;
+            UpdateTransmitControls();
+            return;
+        }
         try
         {
-            await _client.SetPttAsync(PttToggle.IsChecked == true);
+            await _client.SetPttAsync(on);
         }
         catch (Exception ex)
         {
             StatusText.Text = $"Set PTT failed: {ex.Message}";
         }
+    }
+
+    /// Enable Transmit, applied at once and persisted. Switching it off
+    /// mid-transmission unkeys the rig rather than only blocking the next
+    /// key-up — the Mac's HubService.transmitEnabled didSet.
+    private async void TransmitEnabledSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        var enabled = TransmitEnabledSwitch.IsOn;
+        // Also fires when the constructor loads the saved value.
+        if (enabled == AppSettings.TransmitEnabled)
+        {
+            return;
+        }
+        AppSettings.TransmitEnabled = enabled;
+        UpdateTransmitControls();
+        if (!enabled)
+        {
+            await ForceUnkeyAsync();
+        }
+    }
+
+    /// Sends PTT off and MOX off unconditionally rather than only when the
+    /// last poll saw them on (the Mac checks rigState first): the poll is up
+    /// to a second stale, and unkeying an idle rig is a no-op. rigctld
+    /// serializes commands, so this lands after any key-up already in flight.
+    private async Task ForceUnkeyAsync()
+    {
+        if (_client is not { } client)
+        {
+            return;
+        }
+        Debug.WriteLine("transmit-gate: transmit disabled — forcing PTT and MOX off");
+        try
+        {
+            await client.SetPttAsync(false);
+            PttToggle.IsChecked = false;
+            _lastState.Ptt = false;
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Unkey failed — check the rig: {ex.Message}";
+        }
+        try
+        {
+            await client.SetMoxAsync(false);
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"MOX off failed — check the rig: {ex.Message}";
+        }
+        UpdateTransmitControls();
+    }
+
+    /// Enables PTT only while TransmitGate allows keying, like the Mac's
+    /// canTransmit (disabled controls are dimmed by WinUI itself). The
+    /// exception is while it's checked: that click is the unkey, which must
+    /// never be locked out — e.g. after tuning out of band mid-transmission.
+    private void UpdateTransmitControls()
+    {
+        var reason = TransmitGate.BlockReason(TransmitAction.PttOn, AppSettings.TransmitEnabled, _lastState.FrequencyHz);
+        PttToggle.IsEnabled = reason is null || PttToggle.IsChecked == true;
+        ToolTipService.SetToolTip(PttToggle, reason);
     }
 
     /// Keyboard changes (arrow keys, Home/End) send at once; pointer drags

@@ -161,6 +161,13 @@ public sealed class RigctldClient : IAsyncDisposable
         _ = await SendAsync($"T {CurrentVfoArg} {(on ? 1 : 0)}", cancellationToken).ConfigureAwait(false);
     }
 
+    /// Raw CAT "MX" (MOX), same as CommandQueue.swift's .setMox. Set-only,
+    /// no reply. Only the off direction is used so far (the force-unkey
+    /// when Enable Transmit is switched off); an "on" caller must pass
+    /// TransmitGate first.
+    public Task SetMoxAsync(bool on, CancellationToken cancellationToken = default) =>
+        SendRawFireAndForgetAsync(on ? "MX1" : "MX0", cancellationToken);
+
     /// Reads a rigctld level (e.g. "SWR", "RFPOWER_METER_WATTS",
     /// "RFPOWER"). Returns null rather than throwing when the rig/backend
     /// doesn't support the requested level — rigctld reports that as an
