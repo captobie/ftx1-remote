@@ -166,18 +166,18 @@ WSJT-X on the same PC can share the radio by pointing its "Hamlib NET
 rigctl" at `localhost:4532` — or start rigctld yourself and this app adopts
 it.
 
-Hardware checklist (user, on the rig, 2026-09-27):
+Hardware checklist (user, on the rig, 2026-09-27) — all passed:
 
 - [x] Builds (.NET 10 SDK) and connects with the right COM port.
 - [x] Wrong COM port → "Connect failed: …" error.
 - [x] Disconnect leaves no `rigctld.exe` running (`tasklist | findstr
       rigctld`).
 - [x] Closing the window while connected leaves none either.
-- [ ] Radio off → "rigctld is running but the radio isn't answering…".
+- [x] Radio off → "rigctld is running but the radio isn't answering…".
       First try (2026-09-27) failed correctly but said "couldn't reach
       rigctld … (The operation was canceled)": each timed-out read
       reset the connected flag, so the final message picked the wrong
-      branch. Fixed; re-test.
+      branch. Fixed, and re-tested correct.
 - [x] An already-running rigctld is adopted ("Connected to
       already-running rigctld on localhost:4532") and still runs after
       Disconnect. The first try failed only because the radio was still
@@ -185,7 +185,7 @@ Hardware checklist (user, on the rig, 2026-09-27):
       killed it and spawned its own — by design, same as the Mac, though
       killing a user-started rigctld whose radio is merely off is
       debatable.
-- [ ] PTT keys the rig.
+- [x] PTT keys the rig.
 
 ## v1 scope
 

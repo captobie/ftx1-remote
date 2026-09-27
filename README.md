@@ -130,7 +130,7 @@ Mac, iOS, and iPadOS targets. The Windows client shares no code with it
   talks directly to the Pi's rigctld and `ftx1-audiostream.py` — never
   through the Mac hub, and the Mac doesn't need to be running — or, in its
   Local mode, to a `rigctld.exe` it launches against a radio on the PC's
-  own USB port (built and run on Windows, 2026-09-27). v1 scope is
+  own USB port (hardware-confirmed, 2026-09-27). v1 scope is
   core rig control only (VFO A/B, mode, PTT, power, SWR, band); MENU grid,
   Deep Settings, waterfall/audio, and APRS are deferred but not
   architecturally blocked (direct-to-Pi gives it the live per-item read

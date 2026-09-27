@@ -547,9 +547,10 @@ the Mac's `connectionMode`): the radio's USB on the Windows PC, driven by a
 `Services/RigctldProcessController.cs`, a port of the Mac's — still
 rigctld-only, never CAT over the serial port directly. Built and run on
 the user's Windows PC 2026-09-27 (.NET 10 SDK; the .NET 5 SDK that PC had
-first can't target net8.0) and reported working as expected; the
-item-by-item hardware checklist is in `Apps/Windows/README.md`'s "Local
-mode". No WebSocket *server* (this app is
+first can't target net8.0) and hardware-confirmed by the user the
+same day: every item of `Apps/Windows/README.md`'s "Local mode" checklist
+passed (connect, wrong-port and radio-off errors, rigctld cleanup on
+Disconnect/close, adopting a user-started rigctld, PTT). No WebSocket *server* (this app is
 a leaf client only).
 
 **The user's Windows test PC** — use these values in any commands given
@@ -1192,7 +1193,7 @@ WebSDR differences are in their own bullet at the end.
 - `Apps/Windows/` — Windows app (C# + WinUI 3, Remote direct to the
   Pi, or Local via a spawned `rigctld.exe`). `FTX1RemoteWindows/` has a
   build-verified v1 skeleton (core rig control only; Local mode added
-  after, built and run on the user's PC 2026-09-27) — see `Apps/Windows/README.md` for the full plan, porting
+  after, hardware-confirmed on the user's PC 2026-09-27) — see `Apps/Windows/README.md` for the full plan, porting
   notes, and the "Windows app" section above. Not built via `xcodebuild`/
   `swift build` like the other `Apps/*` targets — use `dotnet build`
   from within `Apps/Windows/FTX1RemoteWindows/` instead.
