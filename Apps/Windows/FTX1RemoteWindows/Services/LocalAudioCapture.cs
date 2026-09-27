@@ -79,16 +79,16 @@ public sealed class LocalAudioCapture : IAudioSource
         return result;
     }
 
-    /// True when the default output device is the same audio adapter as
-    /// <paramref name="captureDeviceId"/> — for the FTX-1's codec, playing
+    /// True when <paramref name="renderDeviceId"/> is the same audio adapter
+    /// as <paramref name="captureDeviceId"/> — for the FTX-1's codec, playing
     /// there would feed the rig's own TX audio input.
-    public static bool DefaultOutputIsSameAdapter(string captureDeviceId)
+    public static bool IsSameAdapter(string captureDeviceId, string renderDeviceId)
     {
         try
         {
             using var enumerator = new MMDeviceEnumerator();
             using var capture = enumerator.GetDevice(captureDeviceId);
-            using var render = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            using var render = enumerator.GetDevice(renderDeviceId);
             return string.Equals(capture.DeviceFriendlyName, render.DeviceFriendlyName, StringComparison.Ordinal);
         }
         catch

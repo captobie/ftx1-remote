@@ -67,6 +67,19 @@ public sealed partial class MainWindow : Window
     private bool _suppressAudioInputEvents;
     private readonly DispatcherQueueTimer _audioStatusTimer;
     private string? _playbackError;
+    /// Set while the feedback guard is holding playback back (Local mode:
+    /// Windows' default output is the radio's own codec). Windows makes a
+    /// freshly plugged USB audio device the default output, so this happens
+    /// after every replug of the radio; the status timer rechecks every
+    /// <see cref="PlaybackRecheckTicks"/> ticks and starts playback once the
+    /// default output is something else.
+    private string? _playbackBlockedForDeviceId;
+    private int _playbackRecheckCountdown;
+    /// Informational playback note (e.g. the chosen output is unplugged and
+    /// Windows' default is used instead), shown after the link state.
+    private string? _playbackNote;
+    private bool _suppressAudioOutputEvents;
+    private const int PlaybackRecheckTicks = 8;
 
     /// Suppresses the audio controls' change handlers while the constructor
     /// loads saved values into them.
@@ -94,9 +107,14 @@ public sealed partial class MainWindow : Window
 
         PiHostBox.Text = AppSettings.PiHost;
         RigctldPathBox.Text = AppSettings.RigctldPath;
-        ComPortComboBox.Text = AppSettings.ComPort;
         RefreshComPorts();
+        // Not in the constructor directly: WinUI 3's editable ComboBox drops
+        // a Text set before its template is applied, which left the box
+        // blank (showing only its "COM3" placeholder) on every launch — and
+        // Connect then saved that blank as the COM port.
+        ComPortComboBox.Loaded += (_, _) => ShowComPort(AppSettings.ComPort);
         RefreshAudioInputs();
+        RefreshAudioOutputs();
         foreach (var rate in BaudRates)
         {
             BaudRateComboBox.Items.Add(new ComboBoxItem { Content = rate.ToString(), Tag = rate });
@@ -162,7 +180,11 @@ public sealed partial class MainWindow : Window
 
         _audioStatusTimer = DispatcherQueue.CreateTimer();
         _audioStatusTimer.Interval = TimeSpan.FromMilliseconds(250);
-        _audioStatusTimer.Tick += (_, _) => UpdateAudioStatus();
+        _audioStatusTimer.Tick += (_, _) =>
+        {
+            RecheckBlockedPlayback();
+            UpdateAudioStatus();
+        };
 
         // Don't leave a rigctld we spawned running after the window closes
         // (an adopted one is left alone — see RigctldProcessController).
@@ -224,7 +246,7 @@ public sealed partial class MainWindow : Window
     /// plugged in yet can still be typed.
     private void RefreshComPorts()
     {
-        var typed = ComPortComboBox.Text;
+        var typed = CurrentComPort();
         var ports = new List<string>();
         try
         {
@@ -251,7 +273,38 @@ public sealed partial class MainWindow : Window
         {
             ComPortComboBox.Items.Add(port);
         }
-        ComPortComboBox.Text = typed;
+        ShowComPort(typed);
+    }
+
+    /// Puts a port in the box by selecting its list entry — adding one if
+    /// the port isn't currently listed (not plugged in yet, or hidden by a
+    /// COM-number clash), so it still shows. Setting an editable
+    /// ComboBox's Text programmatically doesn't reliably display in WinUI 3
+    /// (and Items.Clear() wipes it), so selection is the only path used.
+    private void ShowComPort(string port)
+    {
+        port = port.Trim();
+        if (port.Length == 0)
+        {
+            ComPortComboBox.SelectedIndex = -1;
+            return;
+        }
+        var match = ComPortComboBox.Items.OfType<string>()
+            .FirstOrDefault(p => string.Equals(p, port, StringComparison.OrdinalIgnoreCase));
+        if (match is null)
+        {
+            match = port.ToUpperInvariant();
+            ComPortComboBox.Items.Add(match);
+        }
+        ComPortComboBox.SelectedItem = match;
+    }
+
+    /// What the box shows: typed text, or the selected entry if the text
+    /// hasn't caught up with a selection yet.
+    private string CurrentComPort()
+    {
+        var text = ComPortComboBox.Text?.Trim() ?? "";
+        return text.Length > 0 ? text : (ComPortComboBox.SelectedItem as string ?? "");
     }
 
     private static int ComPortNumber(string port) =>
@@ -298,13 +351,13 @@ public sealed partial class MainWindow : Window
         {
             host = LocalHost;
             AppSettings.RigctldPath = RigctldPathBox.Text.Trim().Trim('"');
-            AppSettings.ComPort = ComPortComboBox.Text.Trim().ToUpperInvariant();
+            AppSettings.ComPort = CurrentComPort().ToUpperInvariant();
             if (BaudRateComboBox.SelectedItem is ComboBoxItem { Tag: int baud })
             {
                 AppSettings.BaudRate = baud;
             }
             RigctldPathBox.Text = AppSettings.RigctldPath;
-            ComPortComboBox.Text = AppSettings.ComPort;
+            ShowComPort(AppSettings.ComPort);
             description = $"{AppSettings.ComPort} @ {AppSettings.BaudRate} via local rigctld";
         }
 
@@ -817,7 +870,6 @@ public sealed partial class MainWindow : Window
         }
 
         IAudioSource source;
-        var playbackAllowed = true;
         if (_connectedMode == ConnectionMode.Remote)
         {
             source = new RemoteAudioStreamClient(_connectedHost, Route);
@@ -842,22 +894,120 @@ public sealed partial class MainWindow : Window
                 UpdateAudioStatus();
                 return;
             }
-            // Playing to the radio's own USB codec would feed its TX audio
-            // input (and with VOX or DATA-mode keying, could transmit it).
-            if (LocalAudioCapture.DefaultOutputIsSameAdapter(deviceId))
-            {
-                playbackAllowed = false;
-                _playbackError = "Windows' default output is the radio's own USB audio, which would feed its transmit input — pick your speakers as the default output device";
-            }
         }
 
-        if (playbackAllowed)
-        {
-            _playbackError = _playback.Start(source.SampleRate);
-        }
         _audioSource = source;
+        StartPlayback();
         source.Start();
         _audioStatusTimer.Start();
+        UpdateAudioStatus();
+    }
+
+    /// (Re)starts playback for the running source on the device chosen under
+    /// "Out". In Local mode, first applies the feedback guard: playing to
+    /// the radio's own USB codec would feed its TX audio input (and with VOX
+    /// or DATA-mode keying, could transmit it).
+    private void StartPlayback()
+    {
+        if (_audioSource is not { } source)
+        {
+            return;
+        }
+        _playback.Stop();
+        _playbackBlockedForDeviceId = null;
+        _playbackError = null;
+        _playbackNote = null;
+
+        var chosenId = AppSettings.AudioOutputDeviceId;
+        var outputId = AudioPlayback.ResolveOutputId(chosenId);
+        var usingDefault = chosenId.Length == 0 || outputId != chosenId;
+        if (chosenId.Length > 0 && usingDefault)
+        {
+            _playbackNote = $"\"{AppSettings.AudioOutputDeviceName}\" isn't connected, playing on Windows' default output";
+        }
+
+        var captureId = AppSettings.LocalAudioDeviceId;
+        if (_connectedMode == ConnectionMode.Local && captureId.Length > 0 && outputId is not null
+            && LocalAudioCapture.IsSameAdapter(captureId, outputId))
+        {
+            _playbackBlockedForDeviceId = captureId;
+            _playbackRecheckCountdown = PlaybackRecheckTicks;
+            _playbackError = usingDefault
+                ? "Windows' default output is the radio's own USB audio, which would feed its transmit input — pick your speakers under \"Out\" (or as Windows' default; Windows switches to the radio's audio when it's plugged in). Playback starts by itself once the default changes"
+                : "the output chosen under \"Out\" is the radio's own USB audio, which would feed its transmit input — pick your speakers there";
+            return;
+        }
+        _playbackError = _playback.Start(source.SampleRate, outputId);
+    }
+
+    /// Starts playback once the feedback guard's reason has gone away. The
+    /// check lists audio endpoints, so it runs every couple of seconds, not
+    /// on every status tick. WasapiOut stays on the device it opened, so a
+    /// default switch *to* the radio mid-session can't redirect playback.
+    private void RecheckBlockedPlayback()
+    {
+        if (_playbackBlockedForDeviceId is not { } deviceId || _audioSource is null)
+        {
+            return;
+        }
+        if (--_playbackRecheckCountdown > 0)
+        {
+            return;
+        }
+        _playbackRecheckCountdown = PlaybackRecheckTicks;
+        if (AudioPlayback.ResolveOutputId(AppSettings.AudioOutputDeviceId) is { } outputId
+            && LocalAudioCapture.IsSameAdapter(deviceId, outputId))
+        {
+            return;
+        }
+        Debug.WriteLine("audio-playback: output is no longer the radio — starting playback");
+        StartPlayback();
+    }
+
+    private void AudioOutputComboBox_DropDownOpened(object sender, object e) => RefreshAudioOutputs();
+
+    /// "Windows default" first, then the active output devices. A saved
+    /// device that isn't plugged in stays listed, marked, like Audio in.
+    private void RefreshAudioOutputs()
+    {
+        _suppressAudioOutputEvents = true;
+        var savedId = AppSettings.AudioOutputDeviceId;
+        AudioOutputComboBox.Items.Clear();
+        var defaultItem = new ComboBoxItem { Content = "Windows default", Tag = "" };
+        AudioOutputComboBox.Items.Add(defaultItem);
+        ComboBoxItem selected = defaultItem;
+        foreach (var (id, name) in AudioPlayback.ListOutputDevices())
+        {
+            var item = new ComboBoxItem { Content = name, Tag = id };
+            AudioOutputComboBox.Items.Add(item);
+            if (id == savedId)
+            {
+                selected = item;
+            }
+        }
+        if (savedId.Length > 0 && ReferenceEquals(selected, defaultItem))
+        {
+            selected = new ComboBoxItem { Content = $"{AppSettings.AudioOutputDeviceName} (not connected)", Tag = savedId };
+            AudioOutputComboBox.Items.Add(selected);
+        }
+        AudioOutputComboBox.SelectedItem = selected;
+        _suppressAudioOutputEvents = false;
+    }
+
+    /// Takes effect at once: only playback restarts, the audio source keeps
+    /// running.
+    private void AudioOutputComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressAudioOutputEvents || AudioOutputComboBox.SelectedItem is not ComboBoxItem { Tag: string id } item)
+        {
+            return;
+        }
+        if (id == AppSettings.AudioOutputDeviceId)
+        {
+            return;
+        }
+        AppSettings.SetAudioOutputDevice(id, id.Length == 0 ? "" : (string)item.Content);
+        StartPlayback();
         UpdateAudioStatus();
     }
 
@@ -865,6 +1015,7 @@ public sealed partial class MainWindow : Window
     {
         var source = _audioSource;
         _audioSource = null;
+        _playbackBlockedForDeviceId = null;
         _audioStatusTimer.Stop();
         if (source is not null)
         {
@@ -872,6 +1023,7 @@ public sealed partial class MainWindow : Window
         }
         _playback.Stop();
         _playbackError = null;
+        _playbackNote = null;
         _audioSetupError = null;
         UpdateAudioStatus();
     }
@@ -963,6 +1115,10 @@ public sealed partial class MainWindow : Window
         {
             text += $" · no audio output: {_playbackError}";
             color = Colors.Firebrick;
+        }
+        else if (_playbackNote is not null)
+        {
+            text += $" · {_playbackNote}";
         }
         AudioStateText.Text = text;
         AudioStateText.Foreground = new SolidColorBrush(color);

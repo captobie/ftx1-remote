@@ -131,6 +131,13 @@
                     <ToggleSwitch x:Name="AudioSwitch" Header="Audio" OnContent="On" OffContent="Off"
                                   Toggled="AudioSwitch_Toggled"
                                   ToolTipService.ToolTip="The Pi streams audio to one client at a time. Turn this off to let the Mac have it." />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Out" FontSize="12" />
+                        <ComboBox x:Name="AudioOutputComboBox" Width="300"
+                                  DropDownOpened="AudioOutputComboBox_DropDownOpened"
+                                  SelectionChanged="AudioOutputComboBox_SelectionChanged"
+                                  ToolTipService.ToolTip="Where the radio's audio plays. Picking your speakers here keeps it there even when Windows switches its default output (e.g. to the radio when it's plugged in)." />
+                    </StackPanel>
                     <StackPanel VerticalAlignment="Center" Spacing="2">
                         <TextBlock x:Name="AudioStateText" Text="Not connected" Foreground="Gray" />
                         <TextBlock x:Name="AudioLevelsText" Text="" FontFamily="Consolas" FontSize="12" Foreground="Gray" />

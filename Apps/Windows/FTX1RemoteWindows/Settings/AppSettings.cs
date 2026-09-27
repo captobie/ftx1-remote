@@ -44,6 +44,8 @@ public static class AppSettings
         public bool AudioEnabled { get; set; } = true;
         public string LocalAudioDeviceId { get; set; } = "";
         public string LocalAudioDeviceName { get; set; } = "";
+        public string AudioOutputDeviceId { get; set; } = "";
+        public string AudioOutputDeviceName { get; set; } = "";
         public bool AudioChannelsSwapped { get; set; }
         public ChannelAudio MainAudio { get; set; } = new();
         public ChannelAudio SubAudio { get; set; } = new();
@@ -172,6 +174,18 @@ public static class AppSettings
     }
 
     public static string LocalAudioDeviceId => _cache.LocalAudioDeviceId;
+
+    /// Playback output device ("" = Windows' default output), both modes.
+    public static void SetAudioOutputDevice(string id, string name)
+    {
+        _cache.AudioOutputDeviceId = id;
+        _cache.AudioOutputDeviceName = name;
+        Save();
+    }
+
+    public static string AudioOutputDeviceId => _cache.AudioOutputDeviceId;
+
+    public static string AudioOutputDeviceName => _cache.AudioOutputDeviceName;
 
     public static string LocalAudioDeviceName => _cache.LocalAudioDeviceName;
 

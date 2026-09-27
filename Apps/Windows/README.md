@@ -166,8 +166,25 @@ failure.
   lines (e.g. `rig_open: error = IO error`).
 - A spawned rigctld is killed on Disconnect and when the window closes. If
   it exits on its own mid-session, the app disconnects and shows why.
+  Stopping the app any other way (Ctrl+C on `dotnet run`, Task Manager)
+  skips that and leaves it running; the next Connect adopts it.
 - Not ported: the Mac's separate PTT-port option (`RigctldSettings.pttPort`,
   itself unconfirmed on hardware); PTT goes over CAT on the main port.
+- COM port box: the saved port is shown by *selecting* it in the list
+  (added to the list if it isn't currently there), once the box has
+  loaded. Setting an editable ComboBox's `Text` from code doesn't display
+  in WinUI 3, which left the box blank on every launch (only the "COM3"
+  placeholder showing) and made Connect save an empty port (fixed
+  2026-09-27).
+- **COM number clash on the test PC (2026-09-27)**: the list comes from
+  `HKLM\HARDWARE\DEVICEMAP\SERIALCOMM`, which holds one entry per COM
+  name. A Bluetooth serial link took COM4, the CP2105 Enhanced (CAT) port
+  also numbered COM4 failed to start (Device Manager: code 31), and no
+  listed port could reach the radio — COM3–5 were Bluetooth, COM6 is the
+  CP2105 *Standard* port, which doesn't carry CAT. Fixed by renumbering the
+  Enhanced port to COM7 in Device Manager (Port Settings → Advanced) and
+  replugging. If every port fails to connect, check Device Manager for a
+  warning on the Enhanced port first.
 
 WSJT-X on the same PC can share the radio by pointing its "Hamlib NET
 rigctl" at `localhost:4532` — or start rigctld yourself and this app adopts
@@ -229,8 +246,12 @@ downstream (squelch, swap routing, playback, levels) is shared.
   device or a capture error shows "Audio input unavailable" and retries
   every 3 s; a microphone-privacy denial says which Windows setting to
   turn on. A mono device gives Main only and says so. **Feedback guard**:
-  if Windows' default output is the same adapter as the input (the rig's
-  own codec), playback is refused — it would feed the rig's TX audio input.
+  if the output playback would use (the "Out" choice, or Windows' default)
+  is the same adapter as the input (the rig's own codec), playback is
+  refused — it would feed the rig's TX audio input. Windows makes a freshly
+  plugged USB audio device the default output, so with "Windows default"
+  this happens after every replug of the radio; while blocked, the app
+  rechecks every 2 s and starts playback once the output isn't the radio.
   Tested 2026-09-27 against the real rig's audio with the fake rigctld
   (so CAT never touched the radio): capture at 48 kHz, playback reaching
   the output device, the missing-device message and picker entry. Sub read
@@ -257,9 +278,16 @@ downstream (squelch, swap routing, playback, levels) is shared.
   quieting-dip squelch (`Services/SquelchGate.cs`, a straight port of
   `SquelchGate.swift`), volume, and mute, with ~10 ms gain ramps.
 - `Services/AudioPlayback.cs`: mixes both channels into one NAudio
-  `WasapiOut` (shared mode, default output device), resampled to the
-  device's mix rate with NAudio's WDL resampler. Both channels play
-  centered, like the Mac.
+  `WasapiOut` (shared mode), resampled to the device's mix rate with
+  NAudio's WDL resampler. Both channels play centered, like the Mac. The
+  device is the Audio row's **Out** picker (both modes): "Windows default"
+  or a specific output, saved by endpoint ID. A chosen device that isn't
+  plugged in stays listed as "(not connected)" and playback falls back to
+  the default output with a note. Changing it restarts only playback, not
+  the audio source. Playback stays on the device it opened even if Windows'
+  default changes mid-session. Tested 2026-09-27 (by which endpoint held
+  the app's audio session): default, a specific device, the radio's own
+  output (refused), an unplugged device (fallback), and live switching.
 - UI: under the mode row there's MAIN and SUB, each with Mute, VOL, SQL
   (inverted, same 0-0.05 range as the Mac's) and a squelch-open light, plus
   the link state and per-channel RMS (a quick L/R separation check).
@@ -293,7 +321,6 @@ persisted state on relaunch, an unanswered raw command not wedging the
 poll loop), not yet on the rig.
 
 Not done yet:
-- Output device picker (always the default device).
 - Local mode: no automatic check that the input device is really the
   rig's (it only pre-selects by name).
 - Waterfall/oscilloscope from the same samples (the chunking already
