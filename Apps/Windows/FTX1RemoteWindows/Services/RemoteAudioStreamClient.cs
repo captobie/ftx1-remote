@@ -23,7 +23,9 @@ public enum AudioLinkPhase
     Streaming,
 }
 
-public readonly record struct AudioLinkStatus(AudioLinkPhase Phase, string? Detail, float MainRms, float SubRms);
+/// Levels are per physical channel; which one is Main depends on swap
+/// tracking (see AudioChannelSwapTracker).
+public readonly record struct AudioLinkStatus(AudioLinkPhase Phase, string? Detail, float LeftRms, float RightRms);
 
 /// C# port of Apps/Mac/FTX1RemoteMac/RemoteAudioStreamClient.swift: connects
 /// to Pi/ftx1-audiostream.py on :8532 and delivers the rig's audio as two

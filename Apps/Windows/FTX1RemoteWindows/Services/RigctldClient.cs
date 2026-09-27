@@ -209,11 +209,86 @@ public sealed class RigctldClient : IAsyncDisposable
         }
     }
 
-    public async Task SwapActiveVfoAsync(CancellationToken cancellationToken = default)
+    /// Swaps the MAIN-side and SUB-side VFO contents, like the rig's
+    /// front-panel swap button, via the raw CAT "SV" (SWAP VFO) command,
+    /// ported from RigctldClient.swift's swapActiveVFO(). This used to send
+    /// hamlib's "V <other VFO>", but that maps to the CAT manual's "VS" (VFO
+    /// SELECT) on this rig, which changes which side is *active* instead of
+    /// swapping the two (confirmed on hardware 2026-09-17, see the Swift
+    /// doc comment). Set-only, no reply.
+    public Task SwapActiveVfoAsync(CancellationToken cancellationToken = default) =>
+        SendRawFireAndForgetAsync("SV", cancellationToken);
+
+    /// Raw CAT passthrough via rigctld's "W" command, for FTX-1 settings
+    /// hamlib has no verb for. Port of RigctldClient.swift's
+    /// sendRawCommand: "W <cmd>; ;" returns the rig's own reply (e.g.
+    /// "FR00;"), terminated by "\n" or "\0" depending on hamlib's internal
+    /// ";" counting, so both are accepted. If the rig doesn't answer,
+    /// rigctld writes nothing back at all, so the wait is bounded by
+    /// <paramref name="timeout"/> (default 1 s, the Swift client's value).
+    /// On timeout the connection is reset, because a read abandoned
+    /// mid-flight would leave a late reply in the stream for the next
+    /// command. The next call then works again, or fails with the real
+    /// reason if the Pi is gone.
+    public async Task<string> SendRawCommandAsync(string cmd, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
-        var currentVfo = await SendAsync("v", cancellationToken).ConfigureAwait(false);
-        var otherVfo = currentVfo == "Sub" ? "Main" : "Sub";
-        _ = await SendAsync($"V {otherVfo}", cancellationToken).ConfigureAwait(false);
+        await _roundTripLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await WriteAsync($"W {cmd}; ;", cancellationToken).ConfigureAwait(false);
+            using var timeoutCts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(1));
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+            try
+            {
+                return await ReadLineAsync(linked.Token, acceptNul: true).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                Disconnect();
+                try
+                {
+                    await ConnectAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                }
+                catch (RigctldError)
+                {
+                }
+                throw new RigctldError($"No reply to raw command {cmd}");
+            }
+        }
+        finally
+        {
+            _roundTripLock.Release();
+        }
+    }
+
+    /// For Set-only raw commands the rig doesn't answer (e.g. "SV"). Any
+    /// stray bytes that come back anyway are dropped by the next
+    /// WriteAsync.
+    public async Task SendRawFireAndForgetAsync(string cmd, CancellationToken cancellationToken = default)
+    {
+        await _roundTripLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await WriteAsync($"W {cmd}; ;", cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _roundTripLock.Release();
+        }
+    }
+
+    /// Reads a "<CMD><digits>;" reply as an int, e.g. "FR" -> "FR01;" -> 1.
+    /// Returns null if the reply isn't for this command. Same shape as the
+    /// Swift client's getRawInt.
+    public async Task<int?> GetRawIntAsync(string cmd, CancellationToken cancellationToken = default)
+    {
+        var reply = await SendRawCommandAsync(cmd, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!reply.StartsWith(cmd, StringComparison.Ordinal))
+        {
+            return null;
+        }
+        var digits = new string(reply.Skip(cmd.Length).TakeWhile(char.IsAsciiDigit).ToArray());
+        return int.TryParse(digits, out var value) ? value : null;
     }
 
     private async Task WriteAsync(string command, CancellationToken cancellationToken)
@@ -222,20 +297,26 @@ public sealed class RigctldClient : IAsyncDisposable
         {
             throw new RigctldError("Not connected");
         }
+        // Every ordinary round trip reads its whole reply before releasing
+        // the lock, so anything still buffered now is stale, e.g. from a
+        // fire-and-forget raw command. Drop it, as RigctldClient.swift's
+        // write() does.
+        _readBuffer.Clear();
         var bytes = Encoding.UTF8.GetBytes(command + "\n");
         await _stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
     }
 
     private readonly byte[] _recvBuffer = new byte[4096];
 
-    private async Task<string> ReadLineAsync(CancellationToken cancellationToken)
+    private async Task<string> ReadLineAsync(CancellationToken cancellationToken, bool acceptNul = false)
     {
         while (true)
         {
-            var newlineIndex = _readBuffer.ToString().IndexOf('\n');
+            var buffered = _readBuffer.ToString();
+            var newlineIndex = acceptNul ? buffered.IndexOfAny(['\n', '\0']) : buffered.IndexOf('\n');
             if (newlineIndex >= 0)
             {
-                var line = _readBuffer.ToString(0, newlineIndex).TrimEnd('\r');
+                var line = buffered[..newlineIndex].TrimEnd('\r');
                 _readBuffer.Remove(0, newlineIndex + 1);
                 return line.Trim();
             }

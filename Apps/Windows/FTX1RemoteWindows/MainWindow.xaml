@@ -63,8 +63,14 @@
                     </StackPanel>
                 </StackPanel>
 
-                <Button Grid.Column="1" x:Name="SwapVfoButton" Content="⇄" VerticalAlignment="Center"
-                        Click="SwapVfoButton_Click" ToolTipService.ToolTip="Swap active VFO" />
+                <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                    <Button x:Name="SwapVfoButton" Content="⇄" HorizontalAlignment="Center"
+                            Click="SwapVfoButton_Click" ToolTipService.ToolTip="Swap Main and Sub (the rig's SV command)" />
+                    <!-- Manual override for audio swap tracking; checked while L/R are swapped. -->
+                    <ToggleButton x:Name="AudioSwapToggle" HorizontalAlignment="Center" Click="AudioSwapToggle_Click">
+                        <FontIcon Glyph="&#xE767;" FontSize="14" />
+                    </ToggleButton>
+                </StackPanel>
 
                 <StackPanel Grid.Column="2" Spacing="4">
                     <TextBlock Text="VFO B" FontWeight="SemiBold" />

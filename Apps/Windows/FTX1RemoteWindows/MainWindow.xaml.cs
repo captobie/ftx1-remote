@@ -65,6 +65,22 @@ public sealed partial class MainWindow : Window
     /// loads saved values into them.
     private bool _suppressAudioEvents;
 
+    /// L/R audio vs. Main/Sub role parity — see AudioChannelSwapTracker.
+    private readonly AudioChannelSwapTracker _swapTracker;
+    /// Copy of _swapTracker.Swapped for the audio receive thread.
+    private volatile bool _audioChannelsSwapped;
+    /// Bumped by every app command that moves a VFO. A poll that saw one
+    /// land mid-cycle has a mix of before/after values, so it skips swap
+    /// tracking rather than risk reading the app's own swap as a
+    /// front-panel one (the Mac's commandGeneration, same reason).
+    private int _commandGeneration;
+    /// "FR" (FUNCTION RX): false dual receive, true single, null not read
+    /// yet. Read every <see cref="SlowPollEvery"/> polls.
+    private bool? _singleReceive;
+    private int _pollCount;
+    private const int SlowPollEvery = 5;
+    private bool _pollInFlight;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -106,6 +122,19 @@ public sealed partial class MainWindow : Window
                     await DisconnectAsync(message);
                 }
             });
+
+        _swapTracker = new AudioChannelSwapTracker(AppSettings.AudioChannelsSwapped);
+        _audioChannelsSwapped = _swapTracker.Swapped;
+        AudioSwapToggle.IsChecked = _swapTracker.Swapped;
+        UpdateAudioSwapTooltip();
+        _swapTracker.Changed += reason =>
+        {
+            _audioChannelsSwapped = _swapTracker.Swapped;
+            AppSettings.AudioChannelsSwapped = _swapTracker.Swapped;
+            AudioSwapToggle.IsChecked = _swapTracker.Swapped;
+            UpdateAudioSwapTooltip();
+            Debug.WriteLine($"audio-routing: swapped={_swapTracker.Swapped} ({reason}) main {_lastState.FrequencyHz} sub {_lastState.SecondaryFrequencyHz}");
+        };
 
         var mainAudio = AppSettings.MainAudio;
         var subAudio = AppSettings.SubAudio;
@@ -324,6 +353,10 @@ public sealed partial class MainWindow : Window
             {
                 StartAudio(host);
             }
+            else
+            {
+                UpdateAudioStatus();
+            }
             await PollOnceAsync();
         }
         catch (Exception ex)
@@ -434,14 +467,34 @@ public sealed partial class MainWindow : Window
     /// caught it during real-hardware validation on 2026-09-07.
     private async Task PollOnceAsync()
     {
-        if (_client is not { } client)
+        if (_client is not { } client || _pollInFlight)
         {
             return;
         }
+        // Over Tailscale a poll can outlast the 1 s tick; overlapping polls
+        // would interleave their reads and confuse swap tracking.
+        _pollInFlight = true;
+        try
+        {
+            await PollFieldsAsync(client);
+        }
+        finally
+        {
+            _pollInFlight = false;
+        }
+    }
+
+    private async Task PollFieldsAsync(RigctldClient client)
+    {
+        var generationAtStart = _commandGeneration;
+        long? polledMain = null;
+        long? polledSub = null;
+        int? vfoMemoryRaw = null;
 
         try
         {
             var hz = await client.GetFrequencyAsync();
+            polledMain = hz;
             _lastState.FrequencyHz = hz;
             FrequencyAText.Text = FormatHz(hz);
             var band = BandPlan.BandContaining(hz);
@@ -455,12 +508,51 @@ public sealed partial class MainWindow : Window
         try
         {
             var hz = await client.GetSecondaryFrequencyAsync();
+            polledSub = hz;
             _lastState.SecondaryFrequencyHz = hz;
             FrequencyBText.Text = FormatHz(hz);
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"poll: getSecondaryFrequency failed: {ex.Message}");
+        }
+
+        // "VM0": 0 = VFO mode, 11 = Memory mode (RigState.swift's
+        // VFOMemoryMode). Only needed for swap tracking here.
+        try
+        {
+            vfoMemoryRaw = await client.GetRawIntAsync("VM0");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"poll: VM0 failed: {ex.Message}");
+        }
+
+        if (_pollCount++ % SlowPollEvery == 0)
+        {
+            try
+            {
+                if (await client.GetRawIntAsync("FR") is { } fr)
+                {
+                    var single = fr == 1;
+                    if (single != _singleReceive)
+                    {
+                        Debug.WriteLine($"audio-routing: FR reply {fr} — {(single ? "single" : "dual")} receive");
+                    }
+                    _singleReceive = single;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"poll: FR failed: {ex.Message}");
+            }
+        }
+
+        if (polledMain is { } main && generationAtStart == _commandGeneration)
+        {
+            // A failed VM0 read counts as "not VFO mode" (drops the
+            // baseline), same as the Mac.
+            _swapTracker.OnPoll(main, polledSub, inVfoMode: vfoMemoryRaw == 0);
         }
 
         try
@@ -559,6 +651,8 @@ public sealed partial class MainWindow : Window
             StatusText.Text = "Enter a frequency in Hz.";
             return;
         }
+        _commandGeneration++;
+        _swapTracker.ResetBaseline();
         try
         {
             await _client.SetFrequencyAsync(hz);
@@ -576,14 +670,40 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        _commandGeneration++;
         try
         {
             await _client.SwapActiveVfoAsync();
+            _swapTracker.OnAppSwap(_singleReceive, _lastState.FrequencyHz, _lastState.SecondaryFrequencyHz);
+            if (_singleReceive == true)
+            {
+                Debug.WriteLine($"audio-routing: app swap in single-receive display — audio channels left as is (swapped={_swapTracker.Swapped})");
+            }
+            // Show the swap now rather than on the next poll.
+            if (_lastState.SecondaryFrequencyHz is { } sub)
+            {
+                (_lastState.FrequencyHz, _lastState.SecondaryFrequencyHz) = (sub, _lastState.FrequencyHz);
+                FrequencyAText.Text = FormatHz(_lastState.FrequencyHz);
+                FrequencyBText.Text = FormatHz(_lastState.SecondaryFrequencyHz.Value);
+            }
         }
         catch (Exception ex)
         {
             StatusText.Text = $"Swap VFO failed: {ex.Message}";
         }
+    }
+
+    private void AudioSwapToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _swapTracker.Toggle();
+        AudioSwapToggle.IsChecked = _swapTracker.Swapped;
+    }
+
+    private void UpdateAudioSwapTooltip()
+    {
+        ToolTipService.SetToolTip(AudioSwapToggle, _swapTracker.Swapped
+            ? "Audio channels are swapped relative to the rig's default (L=Main, R=Sub). Click to swap back."
+            : "Swap which audio channel plays as Main and Sub — use if the audio doesn't match the VFO it's under.");
     }
 
     private async void ModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -622,6 +742,8 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        _commandGeneration++;
+        _swapTracker.ResetBaseline();
         try
         {
             await _client.SetFrequencyAsync(band.DefaultFrequencyHz);
@@ -676,10 +798,13 @@ public sealed partial class MainWindow : Window
             return;
         }
         _playbackError = _playback.Start();
-        _audioClient = new RemoteAudioStreamClient(host, (main, sub) =>
+        // The stream's channels are physical L/R; after a Main/Sub swap they
+        // go to the opposite roles (see AudioChannelSwapTracker).
+        _audioClient = new RemoteAudioStreamClient(host, (left, right) =>
         {
-            _mainPlayer.Push(main);
-            _subPlayer.Push(sub);
+            var swapped = _audioChannelsSwapped;
+            _mainPlayer.Push(swapped ? right : left);
+            _subPlayer.Push(swapped ? left : right);
         });
         _audioClient.Start();
         _audioStatusTimer.Start();
@@ -735,7 +860,10 @@ public sealed partial class MainWindow : Window
         var streaming = status.Phase == AudioLinkPhase.Streaming;
         // Raw per-channel levels — the quickest check that Main (L) and Sub
         // (R) really are separate, like the Mac's "stereo check" log line.
-        AudioLevelsText.Text = streaming ? $"RMS  Main {status.MainRms:F3}   Sub {status.SubRms:F3}" : "";
+        var (mainRms, subRms) = _audioChannelsSwapped ? (status.RightRms, status.LeftRms) : (status.LeftRms, status.RightRms);
+        AudioLevelsText.Text = streaming
+            ? $"RMS  Main {mainRms:F3}   Sub {subRms:F3}{(_audioChannelsSwapped ? "   (L/R swapped)" : "")}"
+            : "";
         var open = new SolidColorBrush(Colors.LimeGreen);
         MainSquelchLed.Fill = streaming && _mainPlayer.IsSquelchOpen ? open : gray;
         SubSquelchLed.Fill = streaming && _subPlayer.IsSquelchOpen ? open : gray;

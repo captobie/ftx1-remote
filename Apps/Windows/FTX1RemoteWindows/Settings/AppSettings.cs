@@ -42,6 +42,7 @@ public static class AppSettings
         public string ComPort { get; set; } = "";
         public int BaudRate { get; set; } = 38400;
         public bool AudioEnabled { get; set; } = true;
+        public bool AudioChannelsSwapped { get; set; }
         public ChannelAudio MainAudio { get; set; } = new();
         public ChannelAudio SubAudio { get; set; } = new();
     }
@@ -142,6 +143,18 @@ public static class AppSettings
         set
         {
             _cache.BaudRate = value;
+            Save();
+        }
+    }
+
+    /// See AudioChannelSwapTracker. Persisted because the rig keeps its
+    /// state across app launches, so the last known parity is the best guess.
+    public static bool AudioChannelsSwapped
+    {
+        get => _cache.AudioChannelsSwapped;
+        set
+        {
+            _cache.AudioChannelsSwapped = value;
             Save();
         }
     }

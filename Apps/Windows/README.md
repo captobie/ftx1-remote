@@ -244,11 +244,31 @@ doc comment).
   says so. Local audio would need a PC sound-card capture (the Mac's
   `.local` tap) and isn't built yet.
 
+**Swap tracking (2026-09-27)**: after a Main/Sub swap, the rig's L/R audio
+stays with the physical receiver (see root `CLAUDE.md`'s "Swap tracking").
+`Services/AudioChannelSwapTracker.cs` ports the Mac's logic. The flag flips
+on the app's ⇄ (except in single-receive display, read from raw "FR" every
+5th poll), when the polled Main/Sub frequencies exchange (a front-panel
+swap; only in VFO mode, from raw "VM0" each poll), or with the speaker
+toggle under ⇄ (the manual override, highlighted while swapped). When
+swapped, L goes to the SUB player and R to MAIN. The flag is persisted, as
+on the Mac. A poll that saw an app VFO command land mid-cycle skips
+tracking (`_commandGeneration`, like the Mac's `commandGeneration`), and
+polls no longer overlap when one outlasts the 1 s tick.
+
+This also fixed ⇄ itself: it sent hamlib `V <other VFO>`, which this rig
+maps to "VS" (VFO SELECT, changes the active side), not a swap. That's the
+same mistake the Mac fixed on 2026-09-17. It now sends raw "SV".
+`RigctldClient` gained the raw CAT passthrough this needs
+(`SendRawCommandAsync`/`SendRawFireAndForgetAsync`/`GetRawIntAsync`,
+ported from the Swift client: `W <cmd>; ;`, reply terminated by `\n` or
+`\0`, 1 s timeout followed by a reconnect, and stale bytes dropped before
+each write). Tested against the fake Pi (app swap, no double flip on the
+following polls, front-panel swap, both in single-receive, manual override,
+persisted state on relaunch, an unanswered raw command not wedging the
+poll loop), not yet on the rig.
+
 Not done yet:
-- **Swap tracking**: after a Main/Sub swap, the rig's L/R audio stays with
-  the physical receiver (see root `CLAUDE.md`'s "Swap tracking"). The Mac
-  follows this with `audioChannelsSwapped` plus a heuristic; this app
-  doesn't yet, so after a swap the MAIN/SUB audio labels are backwards.
 - Output device picker (always the default device).
 - Waterfall/oscilloscope from the same samples (the chunking already
   matches the Mac's 2048-sample FFT size).
