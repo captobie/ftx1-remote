@@ -11,6 +11,12 @@ this session has no radio/Tailscale access. Still missing: app icon/MSIX
 packaging (see "Open items"), and everything in "Explicitly deferred"
 below.
 
+Update (2026-09-27): **Local (direct USB) connection mode added**, the
+Windows counterpart of the Mac's `.local` mode — see "Local mode" below.
+Written without a Windows machine or .NET SDK at hand, so it is **not yet
+build-verified**, let alone run against the radio; build it and run the
+checklist under "Local mode" before relying on it.
+
 **Toolchain note for whoever picks this up next:** the .NET SDK (10.0.400)
 is installed on this machine at `C:\Program Files\dotnet` but isn't on
 `PATH` in either PowerShell or Git Bash — invoke it by full path, add it to
@@ -20,11 +26,13 @@ regardless.
 ## What this is
 
 A Windows app with the same *kind* of functionality as the Mac app
-(`Apps/Mac/FTX1RemoteMac/`), but remote-only: it talks to the Raspberry Pi
-directly (rigctld for control, `ftx1-audiostream.py` for audio — see repo
-root `CLAUDE.md`'s "Remote rigctld (Option A)" section and `Pi/README.md`
-for the Pi side), never to a locally-attached radio, and never through the
-Mac. The repo root [`README.md`](../../README.md) also summarizes this app
+(`Apps/Mac/FTX1RemoteMac/`). It started remote-only: it talks to the
+Raspberry Pi directly (rigctld for control, `ftx1-audiostream.py` for audio
+— see repo root `CLAUDE.md`'s "Remote rigctld (Option A)" section and
+`Pi/README.md` for the Pi side), never through the Mac. Since 2026-09-27 it
+can also drive a radio plugged into the Windows PC's own USB port, by
+launching hamlib's `rigctld.exe` locally — same Local/Remote split as the
+Mac (see "Local mode" below). The repo root [`README.md`](../../README.md) also summarizes this app
 in its Architecture section — this file is the detailed plan/status.
 
 ## Why direct-to-Pi, not through the Mac hub
@@ -42,19 +50,23 @@ Mac's hub, like iOS/iPad. Rejected because:
   direct rigctld link *can*, later, the same way the Mac's `HubService`
   does today.
 
-So architecturally this app is closest to the Mac running permanently in
-`.remote` mode, minus the two things that mode doesn't need:
+So architecturally this app is closest to the Mac's own local/remote
+split, minus:
 
-- No `RigctldProcessController` equivalent — the Pi's `rigctld.service` is
-  always-on; this app never spawns, adopts, or kills anything.
+- In Remote mode, no process management — the Pi's `rigctld.service` is
+  always-on; this app never spawns, adopts, or kills anything there. (Local
+  mode does, see below.)
 - No WebSocket *server* — this app is a leaf client, nothing connects
   downstream of it. (The Mac, Windows, and iOS/iPad apps end up as three
   independent consumers of the Pi; the Mac is no longer in the loop for
   Windows sessions at all.)
 
 ```
-Windows app  ──TCP:4532 (rigctld text protocol)──►  Pi (rigctld.service)
-             ──TCP:8532 (raw PCM, phase 2+)──────►  Pi (ftx1-audiostream.py)
+Remote:  Windows app  ──TCP:4532 (rigctld text protocol)──►  Pi (rigctld.service)
+                      ──TCP:8532 (raw PCM, phase 2+)──────►  Pi (ftx1-audiostream.py)
+
+Local:   Windows app  ──TCP 127.0.0.1:4532──►  rigctld.exe (spawned or adopted)
+                                                   └──COMx──►  FTX-1 (USB)
 ```
 
 ## Tech stack
@@ -85,11 +97,21 @@ Windows app  ──TCP:4532 (rigctld text protocol)──►  Pi (rigctld.servic
 
 ## Settings
 
-One field: Pi hostname (Tailscale MagicDNS, e.g. `ftx1-pi`) — port fixed at
-4532, not user-configurable, matching `RigctldSettings.remoteHost`
-(`Apps/Mac/FTX1RemoteMac/RigctldSettings.swift`). No local/remote mode
-picker — this app is remote-only by definition, so there's nothing to pick.
-Persist via `ApplicationData.Current.LocalSettings` (available for free
+A "Radio:" mode picker (Remote / Local, `AppSettings.ConnectionMode`,
+defaulting to Remote so a pre-Local settings file behaves as before), then:
+
+- **Remote**: Pi hostname (Tailscale MagicDNS, e.g. `ftx1-pi`) — port fixed
+  at 4532, not user-configurable, matching `RigctldSettings.remoteHost`
+  (`Apps/Mac/FTX1RemoteMac/RigctldSettings.swift`).
+- **Local**: path to `rigctld.exe` (with a Browse button; no default, since
+  hamlib's installer uses a version-numbered folder), COM port (editable
+  drop-down listing the ports in `HKLM\HARDWARE\DEVICEMAP\SERIALCOMM`,
+  refreshed each time it opens), and baud rate (default 38400). The hamlib
+  model number (1051) is stored but not shown.
+
+Unlike the Mac, switching mode doesn't need a relaunch — this app builds a
+fresh `RigctldClient` on every Connect — but the settings are locked while
+connected. Persist via `ApplicationData.Current.LocalSettings` (available for free
 once MSIX-packaged).
 
 ## Reconnect / connection-state UI
@@ -108,6 +130,40 @@ information to tell them apart yet. Design the Windows connection-error
 type with that split from the start — a TCP-connect-level failure is a
 different case from a TCP-connected-but-malformed-or-absent-CAT-reply
 failure.
+
+## Local mode
+
+`Services/RigctldProcessController.cs` is a port of the Mac's
+`RigctldProcessController.swift`, same behavior:
+
+- On Connect it probes `127.0.0.1:4532`. A responsive rigctld is
+  **adopted** and left running on Disconnect/exit (WSJT-X or another client
+  may be using it — its COM port/baud rate are whatever it was started
+  with). One that accepts the connection but doesn't answer is treated as
+  stale and killed. Windows has no port→PID lookup without P/Invoke, so
+  this kills processes *named* `rigctld`, unlike the Mac's `lsof` check.
+- Otherwise it spawns `rigctld.exe -m 1051 -r COMx -s <baud> -t 4532
+  -T 127.0.0.1 -o -C timeout=300,retry=0` (the Mac's arguments, same
+  reasons — see its comments) with no console window, stderr captured.
+- A spawned rigctld gets a 10 s grace period to open the port. Connect only
+  succeeds once a frequency read works: hamlib 4.x's rigctld keeps listening
+  even when it couldn't open the rig, so "port open" alone would show
+  Connected with nothing updating. Failures quote rigctld's last stderr
+  lines (e.g. `rig_open: error = IO error`).
+- A spawned rigctld is killed on Disconnect and when the window closes. If
+  it exits on its own mid-session, the app disconnects and shows why.
+- Not ported: the Mac's separate PTT-port option (`RigctldSettings.pttPort`,
+  itself unconfirmed on hardware); PTT goes over CAT on the main port.
+
+WSJT-X on the same PC can share the radio by pointing its "Hamlib NET
+rigctl" at `localhost:4532` — or start rigctld yourself and this app adopts
+it.
+
+Hardware checklist (not yet done): build; connect with the right COM port
+(first of the FTX-1's two CP210x ports, usually — the Enhanced one);
+wrong COM port / radio off gives a readable error; Disconnect and window
+close leave no `rigctld.exe` in Task Manager; an already-running rigctld is
+adopted and survives Disconnect; PTT keys the rig.
 
 ## v1 scope
 
@@ -181,6 +237,7 @@ Apps/Windows/FTX1RemoteWindows/
     RigState.cs                 v1 subset of RigState.swift's fields
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
+    RigctldProcessController.cs  Local mode: spawns/adopts rigctld.exe (port of the Mac's)
   Settings/
-    AppSettings.cs                Pi hostname, file-based (see its doc comment on why not LocalSettings yet)
+    AppSettings.cs                connection mode, Pi hostname, Local rigctld settings; file-based (see its doc comment on why not LocalSettings yet)
 ```

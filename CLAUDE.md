@@ -538,13 +538,17 @@ re-architecture.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
-A Windows app with the same kind of functionality as the Mac app, but
-remote-only: talks directly to the Pi (rigctld + `ftx1-audiostream.py`),
-never to a locally-attached radio, and never through the Mac's WebSocket
-hub — the Mac is not required to be running. Architecturally closest to the
-Mac permanently in `.remote` mode, minus `RigctldProcessController`
-(nothing to spawn — the Pi's `rigctld.service` is always-on) and minus the
-WebSocket *server* (this app is a leaf client only). C# + WinUI 3,
+A Windows app with the same kind of functionality as the Mac app. Talks
+directly to the Pi (rigctld + `ftx1-audiostream.py`), never through the
+Mac's WebSocket hub — the Mac is not required to be running. Since
+2026-09-27 it also has a Local mode (a "Radio:" Remote/Local picker, like
+the Mac's `connectionMode`): the radio's USB on the Windows PC, driven by a
+`rigctld.exe` the app spawns or adopts on `127.0.0.1:4532` via
+`Services/RigctldProcessController.cs`, a port of the Mac's — still
+rigctld-only, never CAT over the serial port directly. Written without a
+Windows toolchain; not yet build-verified or hardware-tested (checklist in
+`Apps/Windows/README.md`'s "Local mode"). No WebSocket *server* (this app is
+a leaf client only). C# + WinUI 3,
 MSIX-packaged, lives in this repo at `Apps/Windows/FTX1RemoteWindows/`
 despite sharing no code with the Swift targets (Swift/SwiftUI isn't viable
 on Windows). v1 scope is core rig control only (VFO A/B, mode, PTT, power,
@@ -1172,9 +1176,10 @@ WebSDR differences are in their own bullet at the end.
   opening `DeepSettingsView` — see the `RigController`/Deep Settings note
   above for why, and don't wire them up without first adding the wire-
   protocol read/response mechanism that unblocks it.
-- `Apps/Windows/` — Windows app (C# + WinUI 3, remote-only, direct to the
-  Pi). `FTX1RemoteWindows/` has a build-verified v1 skeleton (core rig
-  control only) — see `Apps/Windows/README.md` for the full plan, porting
+- `Apps/Windows/` — Windows app (C# + WinUI 3, Remote direct to the
+  Pi, or Local via a spawned `rigctld.exe`). `FTX1RemoteWindows/` has a
+  build-verified v1 skeleton (core rig control only; Local mode added
+  after, not yet build-verified) — see `Apps/Windows/README.md` for the full plan, porting
   notes, and the "Windows app" section above. Not built via `xcodebuild`/
   `swift build` like the other `Apps/*` targets — use `dotnet build`
   from within `Apps/Windows/FTX1RemoteWindows/` instead.

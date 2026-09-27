@@ -125,10 +125,12 @@ Mac, iOS, and iPadOS targets. The Windows client shares no code with it
   no API exists) to show the callsign currently transmitting and the linked
   YSF reflector name for C4FM/YSF traffic relayed through it, since no CAT
   command exposes either.
-- **Windows app is a separate, remote-only client**
+- **Windows app is a separate client**
   (`Apps/Windows/FTX1RemoteWindows/`, C# + WinUI 3, MSIX-packaged) that
   talks directly to the Pi's rigctld and `ftx1-audiostream.py` — never
-  through the Mac hub, and the Mac doesn't need to be running. v1 scope is
+  through the Mac hub, and the Mac doesn't need to be running — or, in its
+  Local mode, to a `rigctld.exe` it launches against a radio on the PC's
+  own USB port (not yet build-verified). v1 scope is
   core rig control only (VFO A/B, mode, PTT, power, SWR, band); MENU grid,
   Deep Settings, waterfall/audio, and APRS are deferred but not
   architecturally blocked (direct-to-Pi gives it the live per-item read
@@ -190,7 +192,8 @@ way the rest of this layout is.
 
 `Apps/Windows/FTX1RemoteWindows/` (C# + WinUI 3) shares no code with
 `FTX1Core` but is architecturally closest to the Mac permanently in
-`.remote` mode, minus process management and the WebSocket server. See
+`.remote` mode (plus a Local mode that spawns/adopts `rigctld.exe`, like
+the Mac's `.local`), minus the WebSocket server. See
 `Apps/Windows/README.md`.
 
 `Pi/` holds the deployable Pi-side pieces (`ftx1-audiostream.py` + its
