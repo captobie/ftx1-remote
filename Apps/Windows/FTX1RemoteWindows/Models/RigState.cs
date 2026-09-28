@@ -67,4 +67,21 @@ public sealed class RigState
     public int? VoxGain { get; set; }
     /// "VD" in milliseconds (decoded from its 00-33 code, see RigDelayCode).
     public int? VoxDelayMs { get; set; }
+
+    // MENU grid, CW page.
+
+    /// "ML1" MONI level, 0-100, 0 = OFF.
+    public int? MoniLevel { get; set; }
+    /// "KR" electronic keyer.
+    public bool? KeyerEnabled { get; set; }
+    /// "BI" break-in.
+    public bool? BreakIn { get; set; }
+    /// "KS", 4-60 WPM.
+    public int? CwSpeedWpm { get; set; }
+    /// "KP" in Hz, 300-1050 (decoded from its 00-75 code: 300 + 10 × code).
+    public int? CwPitchHz { get; set; }
+    /// "SD" in milliseconds (same 00-33 code as "VD", see RigDelayCode).
+    public int? BkDelayMs { get; set; }
+    /// "CS" CW spot tone.
+    public bool? CwSpot { get; set; }
 }

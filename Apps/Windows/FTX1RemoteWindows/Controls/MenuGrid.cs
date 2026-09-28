@@ -15,8 +15,14 @@ namespace FTX1RemoteWindows.Controls;
 /// 7×4 buttons mirroring the FTX-1's own MENU pages, each wired to the raw
 /// CAT command the Mac already uses (CommandQueue.swift for the writes,
 /// HubService.refreshSlowTier for the reads), sent straight to rigctld.
-/// Only page 1 (SSB) is ported so far; CW and FM/C4FM follow as their own
-/// steps, so the page-nav button is a disabled placeholder for now.
+/// Pages 1 (SSB) and 2 (CW) are ported so far; FM/C4FM follows as its own
+/// step, so its tab and CW's "▶ FM" button are disabled placeholders.
+///
+/// Only the page on screen is read in the slow poll tier, and switching
+/// pages reads the new one at once — so the tier doesn't grow with every
+/// page. The Mac reads all pages every tier; nothing here depends on a
+/// hidden page's values (Enable Transmit's force-unkey sends MOX off
+/// unconditionally).
 ///
 /// Built in code rather than XAML: every cell is a label plus a CAT
 /// mapping, and keeping the two side by side is easier to check against
@@ -27,6 +33,13 @@ namespace FTX1RemoteWindows.Controls;
 /// wide numeric ranges open a flyout stepper (the Mac's popover Stepper),
 /// which sends on every step. RF POWER's flyout is a slider that sends on
 /// release, like the main window's power slider.
+public enum MenuPage
+{
+    Ssb,
+    Cw,
+    Fm,
+}
+
 public sealed class MenuGrid : UserControl
 {
     private const int Columns = 7;
@@ -44,6 +57,13 @@ public sealed class MenuGrid : UserControl
     private readonly List<Action> _refreshers = [];
 
     private RigctldClient? _client;
+
+    private readonly SelectorBar _pageBar = new();
+    private MenuPage _page = MenuPage.Ssb;
+    /// Keeps the poll's read and a page switch's read from running at
+    /// once; a request that arrives mid-read runs when that one finishes.
+    private bool _refreshInFlight;
+    private bool _refreshPending;
 
     /// Bumped before and after every command. A slow-tier read that saw it
     /// change was racing that command, so it's thrown away rather than
@@ -69,8 +89,64 @@ public sealed class MenuGrid : UserControl
         {
             _grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
-        Content = _grid;
-        BuildSsbPage();
+        // The Mac's segmented page picker. FM isn't ported yet.
+        foreach (var (page, name) in new[] { (MenuPage.Ssb, "SSB"), (MenuPage.Cw, "CW"), (MenuPage.Fm, "FM/C4FM") })
+        {
+            var item = new SelectorBarItem { Text = name, Tag = page, IsEnabled = page != MenuPage.Fm };
+            if (page == MenuPage.Fm)
+            {
+                ToolTipService.SetToolTip(item, "The FM/C4FM page isn't ported to Windows yet");
+            }
+            _pageBar.Items.Add(item);
+        }
+        _pageBar.SelectedItem = _pageBar.Items[0];
+        _pageBar.SelectionChanged += (_, _) =>
+        {
+            if (_pageBar.SelectedItem is { Tag: MenuPage page })
+            {
+                ShowPage(page);
+            }
+        };
+        Content = new StackPanel { Spacing = 8, Children = { _pageBar, _grid } };
+        BuildPage();
+    }
+
+    /// Rebuilds the cells for <paramref name="page"/> and reads its
+    /// settings now rather than waiting for the next slow tier. Reached
+    /// from both the page bar and the ◀/▶ buttons, which keep each other
+    /// in step.
+    private void ShowPage(MenuPage page)
+    {
+        if (page == _page)
+        {
+            return;
+        }
+        _page = page;
+        if (_pageBar.Items.FirstOrDefault(i => i.Tag is MenuPage p && p == page) is { } item
+            && !ReferenceEquals(_pageBar.SelectedItem, item))
+        {
+            _pageBar.SelectedItem = item;
+        }
+        BuildPage();
+        if (_client is { } client)
+        {
+            _ = RefreshFromRigAsync(client);
+        }
+    }
+
+    private void BuildPage()
+    {
+        _grid.Children.Clear();
+        _refreshers.Clear();
+        switch (_page)
+        {
+            case MenuPage.Ssb:
+                BuildSsbPage();
+                break;
+            case MenuPage.Cw:
+                BuildCwPage();
+                break;
+        }
         RefreshLabels();
     }
 
@@ -111,6 +187,13 @@ public sealed class MenuGrid : UserControl
         _state.VoxEnabled = null;
         _state.VoxGain = null;
         _state.VoxDelayMs = null;
+        _state.MoniLevel = null;
+        _state.KeyerEnabled = null;
+        _state.BreakIn = null;
+        _state.CwSpeedWpm = null;
+        _state.CwPitchHz = null;
+        _state.BkDelayMs = null;
+        _state.CwSpot = null;
         RefreshLabels();
     }
 
@@ -264,21 +347,141 @@ public sealed class MenuGrid : UserControl
                 }
             });
 
-        // 28: "▶ CW" page nav on the rig and the Mac.
-        var next = AddCell(28, "▶", () => "CW", colorize: false);
-        next.IsEnabled = false;
-        ToolTipService.SetToolTip(next, "The CW page isn't ported to Windows yet");
+        AddNav(28, "▶", MenuPage.Cw);
     }
 
-    /// Reads every SSB-page setting, one best-effort read each (a failure
-    /// keeps the last value), then applies them all at once — unless a
-    /// command landed meanwhile, in which case the whole snapshot is
-    /// dropped (see _commandGeneration). Called from MainWindow's slow poll
-    /// tier; same reads as HubService.refreshSlowTier.
+    // CW page (page 2/3). Items 3-7, 15-18 and 23-27 have no function on
+    // this page on the rig and are left empty (the Mac's hiddenCWItems).
+
+    private void BuildCwPage()
+    {
+        AddCell(1, "PAGE 2/3", () => "CW");
+
+        // "ML1" is MONI's level; "ML0" (its on/off) isn't used — a level of
+        // 0 already means off on the rig, so 0 shows as OFF.
+        AddStepper(2, "MONI LEVEL", () => OffOrNumber(_state.MoniLevel),
+            current: () => _state.MoniLevel ?? 50, min: 0, max: 100, step: 1,
+            valueLabel: v => OffOrNumber((int)v),
+            set: v => Send("MONI LEVEL", () => _state.MoniLevel = (int)v, c => c.SetRawIntAsync("ML1", (int)v, 3)));
+
+        AddToggle(8, "KEYER", () => _state.KeyerEnabled, on =>
+            Send("KEYER", () => _state.KeyerEnabled = on, c => c.SetRawBoolAsync("KR", on)));
+
+        AddToggle(9, "BK-IN", () => _state.BreakIn, on =>
+            Send("BK-IN", () => _state.BreakIn = on, c => c.SetRawBoolAsync("BI", on)));
+
+        AddStepper(10, "CW SPEED", () => _state.CwSpeedWpm is { } wpm ? $"{wpm} WPM" : "—",
+            current: () => _state.CwSpeedWpm ?? 20, min: 4, max: 60, step: 1,
+            valueLabel: v => $"{v:0} WPM",
+            set: v => Send("CW SPEED", () => _state.CwSpeedWpm = (int)v, c => c.SetRawIntAsync("KS", (int)v, 3)));
+
+        // "KP" is 00-75: 10 Hz steps above 300 Hz.
+        AddStepper(11, "CW PITCH", () => _state.CwPitchHz is { } hz ? $"{hz} Hz" : "—",
+            current: () => _state.CwPitchHz ?? 700, min: 300, max: 1050, step: 10,
+            valueLabel: v => $"{v:0} Hz",
+            set: v => Send("CW PITCH", () => _state.CwPitchHz = (int)v, c => c.SetRawIntAsync("KP", ((int)v - 300) / 10, 2)));
+
+        // "SD" uses the same 00-33 code as VOX DELAY's "VD".
+        AddStepper(12, "BK-DELAY", () => _state.BkDelayMs is { } ms ? $"{ms} ms" : "—",
+            current: () => RigDelayCode.Code(_state.BkDelayMs ?? 300) ?? 6, min: 0, max: RigDelayCode.MaxCode, step: 1,
+            valueLabel: code => $"{RigDelayCode.Milliseconds((int)code)} ms",
+            set: code =>
+            {
+                if (RigDelayCode.Milliseconds((int)code) is { } ms)
+                {
+                    Send("BK-DELAY", () => _state.BkDelayMs = ms, c => c.SetRawIntAsync("SD", (int)code, 2));
+                }
+            });
+
+        // Momentary: "ZI0" zero-ins the MAIN side. Receive-only, so not
+        // transmit-gated (nor is it on the Mac).
+        var zin = AddCell(13, "ZIN", () => "PUSH");
+        zin.Click += (_, _) => Send("ZIN", () => { }, c => c.SendRawFireAndForgetAsync("ZI0"));
+
+        AddToggle(14, "CW SPOT", () => _state.CwSpot, on =>
+            Send("CW SPOT", () => _state.CwSpot = on, c => c.SetRawBoolAsync("CS", on)));
+
+        // CW MESSAGE memory: wired on the Mac but unreliable there, so it's
+        // a disabled placeholder on both. Its play ("KY1") must pass
+        // TransmitGate's PlayCwMessage check if it's ever enabled.
+        AddDisabled(19, "MESSAGE");
+
+        // On the Mac these play back and record the app's own captured
+        // audio (AudioRecorder, Recordings window); this app has no
+        // recorder yet.
+        AddDisabled(20, "PLAY", "Recording playback isn't built on Windows yet");
+        AddDisabled(21, "RECORD", "Audio recording isn't built on Windows yet");
+
+        AddNav(22, "◀", MenuPage.Ssb);
+        AddNav(28, "▶", MenuPage.Fm);
+    }
+
+    /// Reads the settings of the page on screen, one best-effort read each
+    /// (a failure keeps the last value), then applies them all at once —
+    /// unless a command landed or the page changed meanwhile, in which case
+    /// the snapshot is dropped (see _commandGeneration). Called from
+    /// MainWindow's slow poll tier and on a page switch; same reads as
+    /// HubService.refreshSlowTier.
     public async Task RefreshFromRigAsync(RigctldClient client)
     {
-        var generationAtStart = _commandGeneration;
+        if (_refreshInFlight)
+        {
+            _refreshPending = true;
+            return;
+        }
+        _refreshInFlight = true;
+        try
+        {
+            do
+            {
+                _refreshPending = false;
+                var generationAtStart = _commandGeneration;
+                var pageAtStart = _page;
+                var apply = pageAtStart switch
+                {
+                    MenuPage.Ssb => await ReadSsbPageAsync(client),
+                    MenuPage.Cw => await ReadCwPageAsync(client),
+                    _ => null,
+                };
+                if (apply is not null && generationAtStart == _commandGeneration
+                    && pageAtStart == _page && ReferenceEquals(client, _client))
+                {
+                    apply();
+                    RefreshLabels();
+                }
+            }
+            while (_refreshPending && ReferenceEquals(client, _client));
+        }
+        finally
+        {
+            _refreshInFlight = false;
+        }
+    }
 
+    private async Task<Action> ReadCwPageAsync(RigctldClient client)
+    {
+        var moniLevel = await ReadOrNull(() => client.GetRawIntAsync("ML1"));
+        var keyer = await ReadOrNull(() => client.GetRawBoolAsync("KR"));
+        var breakIn = await ReadOrNull(() => client.GetRawBoolAsync("BI"));
+        var speed = await ReadOrNull(() => client.GetRawIntAsync("KS"));
+        var pitchCode = await ReadOrNull(() => client.GetRawIntAsync("KP"));
+        var delayCode = await ReadOrNull(() => client.GetRawIntAsync("SD"));
+        var spot = await ReadOrNull(() => client.GetRawBoolAsync("CS"));
+
+        return () =>
+        {
+            _state.MoniLevel = moniLevel ?? _state.MoniLevel;
+            _state.KeyerEnabled = keyer ?? _state.KeyerEnabled;
+            _state.BreakIn = breakIn ?? _state.BreakIn;
+            _state.CwSpeedWpm = speed ?? _state.CwSpeedWpm;
+            _state.CwPitchHz = pitchCode is { } p ? 300 + p * 10 : _state.CwPitchHz;
+            _state.BkDelayMs = delayCode is { } code ? RigDelayCode.Milliseconds(code) ?? _state.BkDelayMs : _state.BkDelayMs;
+            _state.CwSpot = spot ?? _state.CwSpot;
+        };
+    }
+
+    private async Task<Action> ReadSsbPageAsync(RigctldClient client)
+    {
         var displaySettings = await ReadOrNull(() => client.GetDisplaySettingsAsync());
         var displayLevel = await ReadOrNull(() => client.GetSpectrumScopeLevelAsync());
         var displayPeak = await ReadOrNull(() => client.GetRawDigitAsync("SS01"));
@@ -309,33 +512,30 @@ public sealed class MenuGrid : UserControl
         var voxGain = await ReadOrNull(() => client.GetRawIntAsync("VG"));
         var voxDelayCode = await ReadOrNull(() => client.GetRawIntAsync("VD"));
 
-        if (generationAtStart != _commandGeneration || !ReferenceEquals(client, _client))
+        return () =>
         {
-            return;
-        }
-
-        _state.DisplayContrast = displaySettings?.Contrast ?? _state.DisplayContrast;
-        _state.DisplayDimmer = displaySettings?.Brightness ?? _state.DisplayDimmer;
-        _state.DisplayLevel = displayLevel ?? _state.DisplayLevel;
-        _state.DisplayPeak = displayPeak ?? _state.DisplayPeak;
-        _state.DisplayMarker = displayMarker ?? _state.DisplayMarker;
-        _state.MoxEnabled = mox ?? _state.MoxEnabled;
-        _state.AttEnabled = att ?? _state.AttEnabled;
-        _state.PreampMode = preamp ?? _state.PreampMode;
-        _state.DnfEnabled = dnf ?? _state.DnfEnabled;
-        _state.AgcMode = agc ?? _state.AgcMode;
-        _state.MicEqEnabled = micEq ?? _state.MicEqEnabled;
-        _state.ProcLevel = procLevel ?? _state.ProcLevel;
-        _state.TunerEnabled = tuner ?? _state.TunerEnabled;
-        _state.NbLevel = nbLevel ?? _state.NbLevel;
-        _state.DnrLevel = dnrLevel ?? _state.DnrLevel;
-        _state.AntSelect = int.TryParse(antSelectRaw, out var ant) ? ant : _state.AntSelect;
-        _state.MicGain = micGain ?? _state.MicGain;
-        _state.AmcLevel = amcLevel ?? _state.AmcLevel;
-        _state.VoxEnabled = vox ?? _state.VoxEnabled;
-        _state.VoxGain = voxGain ?? _state.VoxGain;
-        _state.VoxDelayMs = voxDelayCode is { } code ? RigDelayCode.Milliseconds(code) ?? _state.VoxDelayMs : _state.VoxDelayMs;
-        RefreshLabels();
+            _state.DisplayContrast = displaySettings?.Contrast ?? _state.DisplayContrast;
+            _state.DisplayDimmer = displaySettings?.Brightness ?? _state.DisplayDimmer;
+            _state.DisplayLevel = displayLevel ?? _state.DisplayLevel;
+            _state.DisplayPeak = displayPeak ?? _state.DisplayPeak;
+            _state.DisplayMarker = displayMarker ?? _state.DisplayMarker;
+            _state.MoxEnabled = mox ?? _state.MoxEnabled;
+            _state.AttEnabled = att ?? _state.AttEnabled;
+            _state.PreampMode = preamp ?? _state.PreampMode;
+            _state.DnfEnabled = dnf ?? _state.DnfEnabled;
+            _state.AgcMode = agc ?? _state.AgcMode;
+            _state.MicEqEnabled = micEq ?? _state.MicEqEnabled;
+            _state.ProcLevel = procLevel ?? _state.ProcLevel;
+            _state.TunerEnabled = tuner ?? _state.TunerEnabled;
+            _state.NbLevel = nbLevel ?? _state.NbLevel;
+            _state.DnrLevel = dnrLevel ?? _state.DnrLevel;
+            _state.AntSelect = int.TryParse(antSelectRaw, out var ant) ? ant : _state.AntSelect;
+            _state.MicGain = micGain ?? _state.MicGain;
+            _state.AmcLevel = amcLevel ?? _state.AmcLevel;
+            _state.VoxEnabled = vox ?? _state.VoxEnabled;
+            _state.VoxGain = voxGain ?? _state.VoxGain;
+            _state.VoxDelayMs = voxDelayCode is { } code ? RigDelayCode.Milliseconds(code) ?? _state.VoxDelayMs : _state.VoxDelayMs;
+        };
     }
 
     private static async Task<T?> ReadOrNull<T>(Func<Task<T?>> read) where T : struct
@@ -588,11 +788,31 @@ public sealed class MenuGrid : UserControl
         _refreshers.Add(Update);
     }
 
-    /// Known rig label, but not wired (no CAT command, or deprioritized).
-    private void AddDisabled(int item, string top)
+    /// Known rig label, but not wired (no CAT command, deprioritized, or not
+    /// built on Windows yet — say which in <paramref name="tooltip"/>).
+    private void AddDisabled(int item, string top, string? tooltip = null)
     {
         var button = AddCell(item, top, () => "—", colorize: false);
         button.IsEnabled = false;
+        if (tooltip is not null)
+        {
+            ToolTipService.SetToolTip(button, tooltip);
+        }
+    }
+
+    /// Page nav (22 = previous, 28 = next), labelled with the target page
+    /// like the Mac's. Disabled for a page that isn't ported yet.
+    private void AddNav(int item, string arrow, MenuPage target)
+    {
+        var name = target switch { MenuPage.Ssb => "SSB", MenuPage.Cw => "CW", _ => "FM" };
+        var button = AddCell(item, arrow, () => name, colorize: false);
+        if (target == MenuPage.Fm)
+        {
+            button.IsEnabled = false;
+            ToolTipService.SetToolTip(button, "The FM/C4FM page isn't ported to Windows yet");
+            return;
+        }
+        button.Click += (_, _) => ShowPage(target);
     }
 
     // Labels, same text as MenuPageView's.
@@ -601,7 +821,7 @@ public sealed class MenuGrid : UserControl
 
     private static string IntLabel(int? value) => value?.ToString() ?? "—";
 
-    /// PROC LEVEL/NB/DNR read 0 as "OFF".
+    /// PROC LEVEL/NB/DNR/MONI LEVEL read 0 as "OFF".
     private static string OffOrNumber(int? value) => value switch { null => "—", 0 => "OFF", _ => value.Value.ToString() };
 
     private static string DisplayLevelLabel(double? db) =>

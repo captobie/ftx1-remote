@@ -264,7 +264,7 @@ Hardware checklist (not yet run):
 - [ ] Hold PTT → keys, button red "TRANSMITTING"; release → unkeys. Also
       release outside the button/window, and a quick tap.
 
-## MENU grid (2026-09-28, SSB page)
+## MENU grid (2026-09-28, SSB and CW pages)
 
 Port of `Sources/FTX1Core/UI/MenuPageView.swift`, one page at a time.
 `Controls/MenuGrid.cs` is a code-built `UserControl` (7×4 `Button`s, the
@@ -272,7 +272,11 @@ rig's own item numbers) hosted under the audio row; the window now scrolls
 so it fits a smaller window. Each button sends the same raw CAT command the
 Mac's `CommandQueue.swift` does, straight to rigctld, and the page's
 settings are read in the slow poll tier (every 5th poll, ~5 s) with the
-same reads as `HubService.refreshSlowTier`. New `RigctldClient` helpers
+same reads as `HubService.refreshSlowTier` — but only the page on screen,
+and a page switch reads the new page at once (the Mac reads every page
+every tier; this keeps the tier from growing as pages are added). Pages
+are picked from a tab bar above the grid (the Mac's segmented picker) or
+the ◀/▶ buttons (22/28), which keep each other in step. New `RigctldClient` helpers
 mirror the Swift ones: `GetRawBool`/`SetRawBool`/`SetRawInt`/
 `GetRawDigit`/`SetRawPackedDigit`, the "SS04" signed dB pair, "AC" tuner
 read, "DA" triple, and `GetMenuItem`/`SetMenuItem` ("EX").
@@ -289,14 +293,22 @@ read, "DA" triple, and `GetMenuItem`/`SetMenuItem` ("EX").
   unrecognized (this app's `RigMode` has no C4FM): the rig doesn't answer
   them in C4FM and each miss costs a 1 s timeout plus a reconnect.
 - Values are cleared on each Connect; the grid is disabled while
-  disconnected. D-COLOR and TXW are disabled placeholders, 17 is empty, and
-  28 (▶ CW) is disabled until the CW page is ported.
+  disconnected. SSB: D-COLOR and TXW are disabled placeholders, 17 is
+  empty. CW: MESSAGE is a disabled placeholder (as on the Mac, where it
+  was unreliable; its play must pass `TransmitGate` if it's ever enabled),
+  and PLAY/RECORD are too, since this app has no audio recorder yet (on
+  the Mac they record the app's own audio and open the Recordings window).
+  CW's empty items (3-7, 15-18, 23-27) are left out. The FM/C4FM tab and
+  CW's ▶ FM are disabled until that page is ported.
 - Checked against a fake rigctld (logs every line, answers raw reads in the
   FTX-1's reply shapes): every read parses, and every write matched the
   Mac's bytes — e.g. `RA00`, `PA02`, `GT00` (from AUTO's read-back 6),
   `SS0130000`, `SS04+04.5`, `AC100`, `AC103`, `EX0307040`, `PR11`, `MX1`,
   `NL0004`, `RL004`, `VD11`, and `DA00091512` with the other two "DA"
-  fields preserved. RF POWER's slider wasn't driven by that test.
+  fields preserved. RF POWER's slider wasn't driven by that test. CW, same
+  test: `ML1061`, `KR0`, `BI1`, `KS021`, `KP41`/`KP42` (700 → 710 → 720 Hz),
+  `SD05` (300 → 250 ms), `ZI0`, `CS1`, and each page switch read only the
+  new page's settings, straight away.
 
 Hardware checklist, SSB page (not yet run):
 
@@ -316,6 +328,20 @@ Hardware checklist, SSB page (not yet run):
       is on unkeys.
 - [ ] Switch to C4FM: AGC/MIC EQ keep their last values and polling
       doesn't stall or reconnect.
+
+Hardware checklist, CW page (not yet run):
+
+- [ ] ▶ CW (or the CW tab) shows the rig's CW values within a second or
+      two, not after the next ~5 s poll; ◀ SSB goes back the same way.
+- [ ] KEYER, BK-IN and CW SPOT change the rig; front-panel changes show
+      up here within ~5 s.
+- [ ] CW SPEED 4-60 WPM; CW PITCH 300-1050 Hz in 10 Hz steps; both match
+      the rig's display.
+- [ ] BK-DELAY steps 30, 50, 100 … 250, 300, 400 ms, matching the rig.
+- [ ] MONI LEVEL 0 shows OFF and the rig's monitor is off at 0.
+- [ ] ZIN zero-ins the MAIN side on a CW signal.
+- [ ] MESSAGE, PLAY and RECORD are disabled, PLAY/RECORD with a "not built
+      on Windows yet" tooltip.
 
 ## Audio (Main/Sub playback)
 
@@ -441,8 +467,8 @@ the next one starts.
    sent straight to rigctld the way the Mac does. This copies command logic
    that already works; it doesn't need new reverse-engineering. Its MOX,
    ANT TUNE and CW MESSAGE play buttons must go through `TransmitGate`
-   (step 1). Page 1 (SSB) done 2026-09-28, build- and fake-rigctld-
-   verified, not yet hardware-tested (see "MENU grid" above); CW, then
+   (step 1). Pages 1 (SSB) and 2 (CW) done 2026-09-28, build- and
+   fake-rigctld-verified, not yet hardware-tested (see "MENU grid" above);
    FM/C4FM next.
 4. **Graphical S-meter.** The same analog meter the Mac and iPad draw
    (`UI/SMeterView.swift`). The plan called this replacing a text-only
@@ -520,7 +546,7 @@ Apps/Windows/FTX1RemoteWindows/
   App.xaml(.cs)               standard WinUI 3 application entry point
   MainWindow.xaml(.cs)        v1 core-rig-control UI + 1s poll loop + audio controls
   Controls/
-    MenuGrid.cs                  MENU grid (port of MenuPageView.swift), SSB page so far
+    MenuGrid.cs                  MENU grid (port of MenuPageView.swift), SSB and CW pages so far
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift

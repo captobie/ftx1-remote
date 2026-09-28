@@ -583,8 +583,9 @@ any future transmit-capable control (MOX, CW MESSAGE play, ANT TUNE) must
 pass `TransmitGate.BlockReason` before keying. The order for the rest of
 the Mac-parity work is the "Mac parity plan" section of
 `Apps/Windows/README.md` (steps 1–2 done; step 3, the MENU grid, is
-going page by page in `Controls/MenuGrid.cs` — SSB done 2026-09-28, not yet
-hardware-tested). Deep Settings, waterfall, and APRS decode are
+going page by page in `Controls/MenuGrid.cs` — SSB and CW done 2026-09-28,
+not yet hardware-tested; CW's PLAY/RECORD are placeholders until the app
+has an audio recorder). Deep Settings, waterfall, and APRS decode are
 deferred but not architecturally blocked (direct-to-Pi means this app,
 unlike iPad, actually has the live per-item-read capability Deep Settings
 needs). Full plan, protocol/model porting notes, and open items:
