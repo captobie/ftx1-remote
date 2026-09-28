@@ -524,7 +524,9 @@ re-architecture.
     are unobservable; Memory mode included since 2026-09-28 — it used to
     reset the baseline too, which missed every front-panel swap between a
     VFO and a memory channel, and the rig was confirmed on the Windows app
-    to keep L/R with the physical receiver for those as well), and (3) a manual override
+    to keep L/R with the physical receiver for those as well; the fix is
+    rig-confirmed on Windows by the user the same day, the Mac's copy not
+    yet built or tested), and (3) a manual override
     button (speaker icon next to the swap button, orange while swapped).
     The rig exposes no readout of the true mapping, hence the heuristic and
     the override; a swap made while the app wasn't running is why the flag
