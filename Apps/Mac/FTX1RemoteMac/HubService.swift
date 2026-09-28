@@ -1204,13 +1204,13 @@ final class HubService: ObservableObject {
     /// last pair where they differed. Called from `refreshFastTier` with the
     /// freshly-read values, before they're published. `sub` is `nil` when
     /// that read failed — then there's nothing to compare, and the baseline
-    /// is left alone. Anything but plain VFO mode resets the baseline: in
-    /// Memory mode "Main" is a channel's frequency, not a VFO's.
-    private func trackExternalSwap(main: Int, sub: Int?, inVFOMode: Bool) {
-        guard inVFOMode else {
-            lastDistinctFrequencies = nil
-            return
-        }
+    /// is left alone. Runs in Memory mode too: a swap between a VFO and a
+    /// memory channel keeps the L/R audio with the physical receiver just
+    /// like a VFO↔VFO one (hardware-confirmed 2026-09-28), and it used to
+    /// be skipped here, leaving Main playing the other side's audio.
+    /// Stepping memory channels changes only Main, so it can't look like
+    /// an exchange of both values.
+    private func trackExternalSwap(main: Int, sub: Int?) {
         guard let sub, sub != main else { return }
         if let last = lastDistinctFrequencies, main == last.sub, sub == last.main {
             setAudioChannelsSwapped(!audioChannelsSwapped, reason: "front-panel swap detected (\(last.main)/\(last.sub) → \(main)/\(sub) Hz)")
@@ -1527,11 +1527,7 @@ final class HubService: ObservableObject {
 
         // Must run before the new values are published: compares them to the
         // baseline from previous polls (see `trackExternalSwap`).
-        trackExternalSwap(
-            main: frequencyHz,
-            sub: secondaryFrequencyHz,
-            inVFOMode: vfoMemoryModeRaw.map(VFOMemoryMode.init(rawP2:)) == .vfo && rigState.vfoMemoryMode == .vfo
-        )
+        trackExternalSwap(main: frequencyHz, sub: secondaryFrequencyHz)
 
         let aprsActive = APRSSettings.isActive(atFrequencyHz: frequencyHz)
         // Read back as `nil` once 5 seconds have passed since the last

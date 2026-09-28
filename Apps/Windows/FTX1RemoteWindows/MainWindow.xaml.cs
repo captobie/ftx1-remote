@@ -128,9 +128,9 @@ public sealed partial class MainWindow : Window
     /// PollOnceAsync; null when none is running.
     private DateTime? _pollStartedAt;
     private DateTime _lastStuckLog;
-    /// Last logged (Main, Sub, VM0) poll result — the poll log line is
+    /// Last logged (Main, Sub) poll result — the poll log line is
     /// written only when it changes, so a 500 ms poll doesn't flood app.log.
-    private (long?, long?, int?) _lastLoggedPoll;
+    private (long?, long?) _lastLoggedPoll;
     /// 10 × the 500 ms poll keeps the slow tier at ~5 s, where it was
     /// when the poll ran every second.
     private const int SlowPollEvery = 10;
@@ -654,7 +654,6 @@ public sealed partial class MainWindow : Window
         var generationAtStart = _commandGeneration;
         long? polledMain = null;
         long? polledSub = null;
-        int? vfoMemoryRaw = null;
 
         try
         {
@@ -682,17 +681,6 @@ public sealed partial class MainWindow : Window
             AppLog.Write($"poll: getSecondaryFrequency failed: {ex.Message}");
         }
 
-        // "VM0": 0 = VFO mode, 11 = Memory mode (RigState.swift's
-        // VFOMemoryMode). Only needed for swap tracking here.
-        try
-        {
-            vfoMemoryRaw = await client.GetRawIntAsync("VM0");
-        }
-        catch (Exception ex)
-        {
-            AppLog.Write($"poll: VM0 failed: {ex.Message}");
-        }
-
         var slowTier = _pollCount++ % SlowPollEvery == 0;
         if (slowTier)
         {
@@ -715,17 +703,15 @@ public sealed partial class MainWindow : Window
         }
 
         var generationChanged = generationAtStart != _commandGeneration;
-        if ((polledMain, polledSub, vfoMemoryRaw) != _lastLoggedPoll)
+        if ((polledMain, polledSub) != _lastLoggedPoll)
         {
-            _lastLoggedPoll = (polledMain, polledSub, vfoMemoryRaw);
-            AppLog.Write($"poll: main={polledMain?.ToString() ?? "failed"} sub={polledSub?.ToString() ?? "failed"} VM0={vfoMemoryRaw?.ToString() ?? "failed"}{(generationChanged ? " (command mid-poll, swap tracking skipped)" : "")} swapped={_swapTracker.Swapped}");
+            _lastLoggedPoll = (polledMain, polledSub);
+            AppLog.Write($"poll: main={polledMain?.ToString() ?? "failed"} sub={polledSub?.ToString() ?? "failed"}{(generationChanged ? " (command mid-poll, swap tracking skipped)" : "")} swapped={_swapTracker.Swapped}");
         }
 
         if (polledMain is { } main && !generationChanged)
         {
-            // A failed VM0 read counts as "not VFO mode" (drops the
-            // baseline), same as the Mac.
-            _swapTracker.OnPoll(main, polledSub, inVfoMode: vfoMemoryRaw == 0);
+            _swapTracker.OnPoll(main, polledSub);
         }
 
         try

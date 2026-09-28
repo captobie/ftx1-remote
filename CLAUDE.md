@@ -520,8 +520,11 @@ re-architecture.
     flips on (1) `applyOptimistically(.swapActiveVFO)`, (2)
     `trackExternalSwap`, a heuristic for front-panel swaps: both polled
     frequencies exchange at once relative to the last pair where they
-    differed (baseline reset by app tuning commands and Memory-mode polls;
-    equal-frequency swaps are unobservable), and (3) a manual override
+    differed (baseline reset by app tuning commands; equal-frequency swaps
+    are unobservable; Memory mode included since 2026-09-28 — it used to
+    reset the baseline too, which missed every front-panel swap between a
+    VFO and a memory channel, and the rig was confirmed on the Windows app
+    to keep L/R with the physical receiver for those as well), and (3) a manual override
     button (speaker icon next to the swap button, orange while swapped).
     The rig exposes no readout of the true mapping, hence the heuristic and
     the override; a swap made while the app wasn't running is why the flag

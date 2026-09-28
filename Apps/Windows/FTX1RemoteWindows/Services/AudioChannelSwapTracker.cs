@@ -15,7 +15,8 @@ namespace FTX1RemoteWindows.Services;
 ///      doesn't move the audio there, though a front-panel swap does).
 ///   2. <see cref="OnPoll"/>: both polled frequencies exchanged relative to
 ///      the last pair where they differed, with no app command in between
-///      — a front-panel swap. Equal-frequency swaps can't be seen.
+///      — a front-panel swap. Equal-frequency swaps can't be seen. Runs
+///      in Memory mode too (see <see cref="OnPoll"/>).
 ///   3. <see cref="Toggle"/>: the manual override, for when the tracked
 ///      state has drifted (e.g. a swap made while the app wasn't running).
 /// Persisted by the caller for that last reason.
@@ -56,19 +57,19 @@ public sealed class AudioChannelSwapTracker
 
     /// Call once per poll with that poll's freshly read values.
     /// <paramref name="sub"/> is null when its read failed (baseline kept).
-    /// Outside plain VFO mode the baseline is dropped: in Memory mode "Main"
-    /// is a channel's frequency, not a VFO's.
+    ///
+    /// Not limited to VFO mode: a swap between a VFO and a memory channel
+    /// keeps the L/R audio with the physical receiver just like a VFO↔VFO
+    /// one (hardware-confirmed 2026-09-28 — until then this skipped Memory
+    /// mode, same as the Mac, and Main kept playing the memory channel's
+    /// audio after every front-panel swap). Stepping memory channels changes
+    /// only Main, so it can't look like an exchange of both values.
     ///
     /// A poll that straddles a front-panel swap reads one side before and
     /// one after, which always gives an *equal* pair (new Main = old Sub),
     /// so it's ignored and the next full poll catches the swap.
-    public void OnPoll(long main, long? sub, bool inVfoMode)
+    public void OnPoll(long main, long? sub)
     {
-        if (!inVfoMode)
-        {
-            _lastDistinct = null;
-            return;
-        }
         if (sub is not { } s || s == main)
         {
             return;
