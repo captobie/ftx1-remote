@@ -8,9 +8,10 @@ namespace FTX1RemoteWindows.Services;
 /// gated: the unkey direction must always get through, including the
 /// force-unkey when Enable Transmit is switched off.
 ///
-/// Only PttOn has a control in this app today. The other three are listed
-/// so the MOX, CW MESSAGE and ANT TUNE controls, when they're ported, go
-/// through the same check instead of each inventing their own.
+/// PTT, and the MENU grid's MOX and ANT TUNE (SSB page), use this today.
+/// PlayCwMessage is listed so CW MESSAGE, if it's ever enabled (it's a
+/// disabled placeholder on the Mac), goes through the same check instead of
+/// inventing its own.
 public enum TransmitAction
 {
     PttOn,

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using FTX1RemoteWindows.Controls;
 using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Services;
 using FTX1RemoteWindows.Settings;
@@ -15,8 +16,8 @@ namespace FTX1RemoteWindows;
 
 /// v1 core-rig-control window: VFO A/B, mode, PTT, power, SWR, band — see
 /// Apps/Windows/README.md's "v1 scope" — plus Main/Sub audio playback from
-/// the Pi's :8532 stream. No MENU grid / Deep Settings / waterfall / APRS
-/// here yet, all deliberately deferred.
+/// the Pi's :8532 stream, and the MENU grid (Controls/MenuGrid.cs; SSB page
+/// so far). No Deep Settings / waterfall / APRS here yet.
 public sealed partial class MainWindow : Window
 {
     /// rigctld's port — fixed in both modes: the Pi's rigctld.service
@@ -64,7 +65,11 @@ public sealed partial class MainWindow : Window
     private DateTime _powerHoldUntil;
     private static readonly TimeSpan PowerHoldAfterSend = TimeSpan.FromSeconds(2);
 
-    private RigState _lastState = new();
+    private readonly RigState _lastState = new();
+
+    /// The MENU grid; shares _lastState, and its settings are read in the
+    /// slow poll tier.
+    private readonly MenuGrid _menuGrid;
 
     /// Upper bound of the SQL sliders, which show `SquelchRange - threshold`
     /// so that further right = tighter — same inversion and range as the
@@ -131,6 +136,19 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        _menuGrid = new MenuGrid(_lastState) { Client = null };
+        _menuGrid.StatusMessage += message => StatusText.Text = message;
+        _menuGrid.PowerLevelSent += level =>
+        {
+            // Same hold as the main slider's own sends, so a poll that read
+            // the old level can't flick either control back.
+            _powerHoldUntil = DateTime.UtcNow + PowerHoldAfterSend;
+            _suppressPowerEvents = true;
+            PowerSlider.Value = level * 100;
+            _suppressPowerEvents = false;
+        };
+        MenuGridHost.Child = _menuGrid;
 
         PiHostBox.Text = AppSettings.PiHost;
         RigctldPathBox.Text = AppSettings.RigctldPath;
@@ -441,6 +459,10 @@ public sealed partial class MainWindow : Window
                 await client.ConnectAsync();
             }
             _client = client;
+            _menuGrid.ClearState();
+            _menuGrid.Client = client;
+            // Run the slow tier (FR, MENU grid) on the first poll.
+            _pollCount = 0;
             ConnectionStateText.Text = $"Connected to {description}";
             ConnectionStateText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green);
             ConnectButton.Content = "Disconnect";
@@ -542,6 +564,7 @@ public sealed partial class MainWindow : Window
         await StopAudioAsync();
         var client = _client;
         _client = null;
+        _menuGrid.Client = null;
         if (client is not null)
         {
             await client.DisposeAsync();
@@ -627,7 +650,8 @@ public sealed partial class MainWindow : Window
             Debug.WriteLine($"poll: VM0 failed: {ex.Message}");
         }
 
-        if (_pollCount++ % SlowPollEvery == 0)
+        var slowTier = _pollCount++ % SlowPollEvery == 0;
+        if (slowTier)
         {
             try
             {
@@ -678,12 +702,11 @@ public sealed partial class MainWindow : Window
         try
         {
             var level = await client.GetLevelAsync("RFPOWER");
-            if (level is { } l)
-            {
-                _lastState.PowerLevel = l;
-            }
+            // Held like the slider, so the MENU grid's RF POWER label
+            // doesn't flick back to a level read just before a send landed.
             if (level is { } shown && !_powerDragging && DateTime.UtcNow >= _powerHoldUntil)
             {
+                _lastState.PowerLevel = shown;
                 _suppressPowerEvents = true;
                 PowerSlider.Value = shown * 100;
                 _suppressPowerEvents = false;
@@ -722,6 +745,15 @@ public sealed partial class MainWindow : Window
             Debug.WriteLine($"poll: getLevel(SWR) failed: {ex.Message}");
         }
 
+        // Last, so its C4FM check sees this poll's mode. Each read is
+        // best-effort inside.
+        if (slowTier)
+        {
+            await _menuGrid.RefreshFromRigAsync(client);
+        }
+
+        // Also refreshes the MENU grid (RF POWER, and the MOX/ANT TUNE gate
+        // follows the new frequency).
         UpdateTransmitControls();
     }
 
@@ -1018,6 +1050,7 @@ public sealed partial class MainWindow : Window
             PttText.ClearValue(TextBlock.ForegroundProperty);
         }
         ToolTipService.SetToolTip(PttButton, reason ?? "Hold to transmit");
+        _menuGrid.RefreshLabels();
     }
 
     /// Keyboard changes (arrow keys, Home/End) send at once; pointer drags
@@ -1053,6 +1086,8 @@ public sealed partial class MainWindow : Window
             return;
         }
         _powerHoldUntil = DateTime.UtcNow + PowerHoldAfterSend;
+        _lastState.PowerLevel = sliderValue / 100.0;
+        _menuGrid.RefreshLabels();
         try
         {
             await _client.SetPowerLevelAsync(sliderValue / 100.0);

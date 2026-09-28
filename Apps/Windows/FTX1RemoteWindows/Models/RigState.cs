@@ -1,10 +1,9 @@
 namespace FTX1RemoteWindows.Models;
 
-/// v1 subset of Sources/FTX1Core/RigState/RigState.swift's ~40-field
-/// struct — just what core rig control needs (VFO A/B, mode, PTT, power,
-/// SWR, band). The rest (CW/menu/display/APRS state) is out of v1 scope;
-/// add fields here only as the corresponding feature actually gets built,
-/// per Apps/Windows/README.md's deferred-features list.
+/// Subset of Sources/FTX1Core/RigState/RigState.swift's struct: core rig
+/// control (VFO A/B, mode, PTT, power, SWR, band) plus the MENU grid pages
+/// ported so far. Add fields here only as the corresponding feature
+/// actually gets built, per Apps/Windows/README.md's Mac parity plan.
 public sealed class RigState
 {
     public long FrequencyHz { get; set; }
@@ -21,4 +20,51 @@ public sealed class RigState
     /// The RFPOWER *setting* (0.0-1.0, relative), not the metered output —
     /// that's PowerWatts. Same distinction as RigState.swift's powerLevel.
     public double? PowerLevel { get; set; }
+
+    // MENU grid, SSB page (Controls/MenuGrid.cs). Raw CAT settings, null
+    // until first read; same names and encodings as RigState.swift.
+
+    /// "SS04" spectrum scope level, -30.0 to +30.0 dB.
+    public double? DisplayLevel { get; set; }
+    /// "SS01" peak hold, 0-4 (shown LV1-LV5).
+    public int? DisplayPeak { get; set; }
+    /// "SS02" marker.
+    public bool? DisplayMarker { get; set; }
+    /// "DA" P2, 0-20.
+    public int? DisplayContrast { get; set; }
+    /// "DA" P3 (TFT brightness), 0-20.
+    public int? DisplayDimmer { get; set; }
+    /// "MX".
+    public bool? MoxEnabled { get; set; }
+    /// "RA0".
+    public bool? AttEnabled { get; set; }
+    /// "PA0": 0 IPO, 1 AMP1, 2 AMP2.
+    public int? PreampMode { get; set; }
+    /// "BC0" auto notch.
+    public bool? DnfEnabled { get; set; }
+    /// "GT0" as read: 0 OFF, 1 FAST, 2 MID, 3 SLOW, 4-6 AUTO (the read side
+    /// reports AUTO's sub-states; the set side takes 0-4 only).
+    public int? AgcMode { get; set; }
+    /// "PR1" parametric mic EQ (plain 0/1, not the manual's 1/2).
+    public bool? MicEqEnabled { get; set; }
+    /// "PL", 0-100, 0 = OFF.
+    public int? ProcLevel { get; set; }
+    /// "AC" P3.
+    public bool? TunerEnabled { get; set; }
+    /// "NL0", 0-10, 0 = OFF.
+    public int? NbLevel { get; set; }
+    /// "RL0", 0-10, 0 = OFF.
+    public int? DnrLevel { get; set; }
+    /// "EX030704" HF ANT SELECT: 0 ANT1, 1 ANT2.
+    public int? AntSelect { get; set; }
+    /// "MG", 0-100.
+    public int? MicGain { get; set; }
+    /// "AO", 1-100.
+    public int? AmcLevel { get; set; }
+    /// "VX".
+    public bool? VoxEnabled { get; set; }
+    /// "VG", 0-100.
+    public int? VoxGain { get; set; }
+    /// "VD" in milliseconds (decoded from its 00-33 code, see RigDelayCode).
+    public int? VoxDelayMs { get; set; }
 }

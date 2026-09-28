@@ -229,8 +229,8 @@ Port of the Mac's safety cutoff (`HubService.transmitEnabled` + the
 out-of-band check in `HubService.send`). `Services/TransmitGate.cs` is the
 one check every transmit-capable action must pass: PTT on, MOX on, CW
 MESSAGE play, ANT TUNE start (same set as the Mac's `isTransmitCapable`;
-only PTT has a control here so far — the other three must call
-`TransmitGate.BlockReason` when they're ported). Blocked while Enable
+PTT and the MENU grid's MOX and ANT TUNE use it so far — CW MESSAGE play
+must call `TransmitGate.BlockReason` too if it's ever enabled). Blocked while Enable
 Transmit is off, or while the Main VFO is outside a `BandPlan` band
 (including before the first frequency read). The off direction is never
 gated.
@@ -263,6 +263,59 @@ Hardware checklist (not yet run):
 - [ ] Setting survives an app restart.
 - [ ] Hold PTT → keys, button red "TRANSMITTING"; release → unkeys. Also
       release outside the button/window, and a quick tap.
+
+## MENU grid (2026-09-28, SSB page)
+
+Port of `Sources/FTX1Core/UI/MenuPageView.swift`, one page at a time.
+`Controls/MenuGrid.cs` is a code-built `UserControl` (7×4 `Button`s, the
+rig's own item numbers) hosted under the audio row; the window now scrolls
+so it fits a smaller window. Each button sends the same raw CAT command the
+Mac's `CommandQueue.swift` does, straight to rigctld, and the page's
+settings are read in the slow poll tier (every 5th poll, ~5 s) with the
+same reads as `HubService.refreshSlowTier`. New `RigctldClient` helpers
+mirror the Swift ones: `GetRawBool`/`SetRawBool`/`SetRawInt`/
+`GetRawDigit`/`SetRawPackedDigit`, the "SS04" signed dB pair, "AC" tuner
+read, "DA" triple, and `GetMenuItem`/`SetMenuItem` ("EX").
+
+- Button kinds as on the Mac: toggles flip on a tap, small choice sets
+  cycle on a tap, numeric ranges open a flyout stepper (− value +, sends
+  on every step, hold to repeat), RF POWER a flyout slider that sends on
+  release. A set updates the button at once and bumps a command generation;
+  a slow-tier read that overlapped a set is discarded, like the Mac's.
+- MOX and ANT TUNE go through `TransmitGate` (disabled while it would
+  block, and checked again on click). MOX stays clickable while on, so it
+  can always be turned off.
+- AGC/MIC EQ ("GT0"/"PR1") aren't read while the mode reads back as
+  unrecognized (this app's `RigMode` has no C4FM): the rig doesn't answer
+  them in C4FM and each miss costs a 1 s timeout plus a reconnect.
+- Values are cleared on each Connect; the grid is disabled while
+  disconnected. D-COLOR and TXW are disabled placeholders, 17 is empty, and
+  28 (▶ CW) is disabled until the CW page is ported.
+- Checked against a fake rigctld (logs every line, answers raw reads in the
+  FTX-1's reply shapes): every read parses, and every write matched the
+  Mac's bytes — e.g. `RA00`, `PA02`, `GT00` (from AUTO's read-back 6),
+  `SS0130000`, `SS04+04.5`, `AC100`, `AC103`, `EX0307040`, `PR11`, `MX1`,
+  `NL0004`, `RL004`, `VD11`, and `DA00091512` with the other two "DA"
+  fields preserved. RF POWER's slider wasn't driven by that test.
+
+Hardware checklist, SSB page (not yet run):
+
+- [ ] Every button shows the rig's current value within ~5 s of Connect
+      (compare with the rig's MENU page 1).
+- [ ] Each toggle/cycle changes the rig and the button, and changing it
+      on the rig's front panel shows up here within ~5 s.
+- [ ] D-LEVEL steps in 0.5 dB, including below 0 (e.g. −0.5, sent as
+      `SS04-00.5`); D-CONTRAST/DIMMER don't disturb each other.
+- [ ] AGC shows AUTO while the rig is in AUTO, and tapping it from AUTO
+      goes to OFF.
+- [ ] VOX DELAY steps 30, 50, 100 … 250, 300, 400 ms, matching the rig.
+- [ ] RF POWER flyout slider sets power on release; the main power slider
+      follows (and vice versa).
+- [ ] MOX and ANT TUNE: disabled with Enable Transmit off or out of band;
+      MOX on keys, MOX off unkeys; switching Enable Transmit off while MOX
+      is on unkeys.
+- [ ] Switch to C4FM: AGC/MIC EQ keep their last values and polling
+      doesn't stall or reconnect.
 
 ## Audio (Main/Sub playback)
 
@@ -383,11 +436,14 @@ the next one starts.
 2. **PTT press-and-hold — done** (`89c5aa8`, build-verified, not yet
    hardware-tested). PTT is momentary, like the Mac and iPad, instead of a
    click toggle.
-3. **The 28-item MENU grid.** Port the CAT mappings `MenuPageView.swift`/
-   `RigState.swift` already use to C#, sent straight to rigctld the way the
-   Mac does. This copies command logic that already works; it doesn't
-   need new reverse-engineering. Its MOX, ANT TUNE and CW MESSAGE play
-   buttons must go through `TransmitGate` (step 1).
+3. **The 28-item MENU grid — in progress, one page per change.** Port the
+   CAT mappings `MenuPageView.swift`/`RigState.swift` already use to C#,
+   sent straight to rigctld the way the Mac does. This copies command logic
+   that already works; it doesn't need new reverse-engineering. Its MOX,
+   ANT TUNE and CW MESSAGE play buttons must go through `TransmitGate`
+   (step 1). Page 1 (SSB) done 2026-09-28, build- and fake-rigctld-
+   verified, not yet hardware-tested (see "MENU grid" above); CW, then
+   FM/C4FM next.
 4. **Graphical S-meter.** The same analog meter the Mac and iPad draw
    (`UI/SMeterView.swift`). The plan called this replacing a text-only
    S-meter, but this app has no S-meter readout yet (only power out and
@@ -416,7 +472,7 @@ the next one starts.
 
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
-- **MENU grid** (`UI/MenuPageView.swift` port) and **Deep Settings**
+- **Deep Settings**
   (`MenuSettings/DeepSettingsCatalog.swift` port) — Deep Settings is
   actually *feasible* here, unlike on iPad, because this app has the same
   direct per-item-read capability the Mac's `HubService.readMenuItem` has
@@ -463,10 +519,13 @@ Apps/Windows/FTX1RemoteWindows/
   app.manifest               DPI-awareness manifest (unpackaged apps need this)
   App.xaml(.cs)               standard WinUI 3 application entry point
   MainWindow.xaml(.cs)        v1 core-rig-control UI + 1s poll loop + audio controls
+  Controls/
+    MenuGrid.cs                  MENU grid (port of MenuPageView.swift), SSB page so far
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
-    RigState.cs                 v1 subset of RigState.swift's fields
+    RigState.cs                 subset of RigState.swift's fields (core + MENU grid pages)
+    RigDelayCode.cs             "SD"/"VD" 00-33 delay code ↔ ms
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
     RigctldProcessController.cs  Local mode: spawns/adopts rigctld.exe (port of the Mac's)

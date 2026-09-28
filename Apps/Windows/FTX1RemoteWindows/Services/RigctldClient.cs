@@ -162,8 +162,8 @@ public sealed class RigctldClient : IAsyncDisposable
     }
 
     /// Raw CAT "MX" (MOX), same as CommandQueue.swift's .setMox. Set-only,
-    /// no reply. Only the off direction is used so far (the force-unkey
-    /// when Enable Transmit is switched off); an "on" caller must pass
+    /// no reply. Used by the force-unkey when Enable Transmit is switched
+    /// off and by the MENU grid's MOX button; an "on" caller must pass
     /// TransmitGate first.
     public Task SetMoxAsync(bool on, CancellationToken cancellationToken = default) =>
         SendRawFireAndForgetAsync(on ? "MX1" : "MX0", cancellationToken);
@@ -297,6 +297,128 @@ public sealed class RigctldClient : IAsyncDisposable
         var digits = new string(reply.Skip(cmd.Length).TakeWhile(char.IsAsciiDigit).ToArray());
         return int.TryParse(digits, out var value) ? value : null;
     }
+
+    /// Reads a "<CMD><0|1>;" on/off setting, e.g. "VX" -> "VX1;" -> true.
+    /// Looks only at the first character after the prefix, so it must not
+    /// be used for on/off states carried in a multi-digit field (the Swift
+    /// client's getRawBool, same trap noted in the repo's CLAUDE.md).
+    public async Task<bool?> GetRawBoolAsync(string cmd, CancellationToken cancellationToken = default)
+    {
+        var reply = await SendRawCommandAsync(cmd, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!reply.StartsWith(cmd, StringComparison.Ordinal) || reply.Length <= cmd.Length)
+        {
+            return null;
+        }
+        return reply[cmd.Length] switch
+        {
+            '1' => true,
+            '0' => false,
+            _ => null,
+        };
+    }
+
+    public Task SetRawBoolAsync(string cmd, bool on, CancellationToken cancellationToken = default) =>
+        SendRawFireAndForgetAsync($"{cmd}{(on ? 1 : 0)}", cancellationToken);
+
+    /// "<CMD><value zero-padded to digits>;", e.g. ("MG", 50, 3) -> "MG050".
+    public Task SetRawIntAsync(string cmd, int value, int digits, CancellationToken cancellationToken = default) =>
+        SendRawFireAndForgetAsync(cmd + value.ToString().PadLeft(digits, '0'), cancellationToken);
+
+    /// The first digit after the prefix only, for replies that pack several
+    /// fields together (e.g. "SS01" PEAK answers "SS01" + P3..P7) — the
+    /// Swift client's getRawDigit.
+    public async Task<int?> GetRawDigitAsync(string cmd, CancellationToken cancellationToken = default)
+    {
+        var reply = await SendRawCommandAsync(cmd, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!reply.StartsWith(cmd, StringComparison.Ordinal) || reply.Length <= cmd.Length || !char.IsAsciiDigit(reply[cmd.Length]))
+        {
+            return null;
+        }
+        return reply[cmd.Length] - '0';
+    }
+
+    /// One digit followed by the fixed "0" fields the manual documents after
+    /// it, e.g. ("SS01", 2, 4) -> "SS0120000" — the Swift client's
+    /// setRawPackedDigit.
+    public Task SetRawPackedDigitAsync(string cmd, int digit, int trailingZeros, CancellationToken cancellationToken = default) =>
+        SendRawFireAndForgetAsync($"{cmd}{digit}{new string('0', trailingZeros)}", cancellationToken);
+
+    /// "SS" LEVEL (P2=4): a signed "+15.0"-style value, -30.0 to +30.0 dB.
+    /// Only the leading sign/digit/"." run is parsed, so the reply's own ";"
+    /// terminator can't break it (the bug the Swift getSpectrumScopeLevel's
+    /// doc comment describes).
+    public async Task<double?> GetSpectrumScopeLevelAsync(CancellationToken cancellationToken = default)
+    {
+        var reply = await SendRawCommandAsync("SS04", cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!reply.StartsWith("SS04", StringComparison.Ordinal))
+        {
+            return null;
+        }
+        var value = new string(reply.Skip(4).TakeWhile(c => char.IsAsciiDigit(c) || c is '.' or '+' or '-').ToArray());
+        return double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var db) ? db : null;
+    }
+
+    /// Always an explicit sign plus a zero-padded "XX.X" magnitude, e.g.
+    /// -8.5 -> "SS04-08.5". Invariant culture so a comma-decimal locale
+    /// can't send "08,5".
+    public Task SetSpectrumScopeLevelAsync(double db, CancellationToken cancellationToken = default)
+    {
+        var sign = db < 0 ? "-" : "+";
+        var magnitude = Math.Abs(db).ToString("00.0", System.Globalization.CultureInfo.InvariantCulture);
+        return SendRawFireAndForgetAsync($"SS04{sign}{magnitude}", cancellationToken);
+    }
+
+    /// Tuner on/off: P3 of "AC"'s answer ("AC" + P1 + P2 + P3). The read
+    /// takes no parameters, unlike the set ("AC10x") — see the Swift
+    /// getTunerEnabled.
+    public async Task<bool?> GetTunerEnabledAsync(CancellationToken cancellationToken = default)
+    {
+        var reply = await SendRawCommandAsync("AC", cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!reply.StartsWith("AC", StringComparison.Ordinal) || reply.Length < 5)
+        {
+            return null;
+        }
+        return reply[4] == '1';
+    }
+
+    /// "DA" (DIMMER): fixed "00", then contrast, TFT brightness (the MENU
+    /// grid's DIMMER) and LED brightness, two digits each.
+    public async Task<(int Contrast, int Brightness, int LedBrightness)?> GetDisplaySettingsAsync(CancellationToken cancellationToken = default)
+    {
+        var reply = await SendRawCommandAsync("DA", cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!reply.StartsWith("DA", StringComparison.Ordinal))
+        {
+            return null;
+        }
+        var digits = new string(reply.Skip(2).TakeWhile(char.IsAsciiDigit).ToArray());
+        if (digits.Length < 8)
+        {
+            return null;
+        }
+        return (int.Parse(digits[2..4]), int.Parse(digits[4..6]), int.Parse(digits[6..8]));
+    }
+
+    /// "DA" can only be set as a whole triple — callers changing one field
+    /// read the other two first (CommandQueue.swift's .setDisplayContrast).
+    public Task SetDisplaySettingsAsync(int contrast, int brightness, int ledBrightness, CancellationToken cancellationToken = default) =>
+        SendRawFireAndForgetAsync($"DA00{contrast:00}{brightness:00}{ledBrightness:00}", cancellationToken);
+
+    /// One "EX" (MENU) item addressed by P1/P2/P3, returning its raw P4 —
+    /// the Swift getMenuItem. Used here for the fixed-address items with no
+    /// mnemonic of their own (HF ANT SELECT); Deep Settings will use it too.
+    public async Task<string?> GetMenuItemAsync(int p1, int p2, int p3, CancellationToken cancellationToken = default)
+    {
+        var prefix = $"EX{p1:00}{p2:00}{p3:00}";
+        var reply = await SendRawCommandAsync(prefix, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!reply.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+        return reply[prefix.Length..].TrimEnd(';');
+    }
+
+    public Task SetMenuItemAsync(int p1, int p2, int p3, string rawValue, CancellationToken cancellationToken = default) =>
+        SendRawFireAndForgetAsync($"EX{p1:00}{p2:00}{p3:00}{rawValue}", cancellationToken);
 
     private async Task WriteAsync(string command, CancellationToken cancellationToken)
     {
