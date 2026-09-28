@@ -124,7 +124,9 @@ public sealed partial class MainWindow : Window
     /// yet. Read every <see cref="SlowPollEvery"/> polls.
     private bool? _singleReceive;
     private int _pollCount;
-    private const int SlowPollEvery = 5;
+    /// 10 × the 500 ms poll keeps the slow tier at ~5 s, where it was
+    /// when the poll ran every second.
+    private const int SlowPollEvery = 10;
     private bool _pollInFlight;
 
     /// True from a press on the PTT button until its release (or capture
@@ -194,7 +196,8 @@ public sealed partial class MainWindow : Window
         PowerSlider.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(PowerSlider_PointerDone), true);
 
         _pollTimer = DispatcherQueue.CreateTimer();
-        _pollTimer.Interval = TimeSpan.FromSeconds(1);
+        // 500 ms, the Mac's fast-tier default, so the S-meters move live.
+        _pollTimer.Interval = TimeSpan.FromMilliseconds(500);
         _pollTimer.Tick += async (_, _) => await PollOnceAsync();
 
         // Mid-session only: during Connect, ConnectToFreshRigctldAsync
@@ -602,7 +605,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
-        // Over Tailscale a poll can outlast the 1 s tick; overlapping polls
+        // Over Tailscale a poll can outlast the 500 ms tick; overlapping polls
         // would interleave their reads and confuse swap tracking.
         _pollInFlight = true;
         try

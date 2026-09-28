@@ -513,8 +513,10 @@ the next one starts.
    while transmitting — the Mac's refreshFastTier set. Clicking a meter
    opens the METER picker (PO/COMP/ALC/VDD/ID/SWR, remembered per side in
    settings.json); the Sub needle stays on the S scale during TX, as on
-   the Mac. The meters update at this app's 1 s poll, vs. the Mac's
-   500 ms fast tier. To check on the rig: the needle against the rig's
+   the Mac. The poll went from 1 s to 500 ms (the Mac's fast-tier
+   default) the same day so the needles move live, with the slow tier
+   kept at ~5 s (every 10th poll) — performance over Tailscale still to
+   be evaluated by the user. To check on the rig: the needle against the rig's
    own meter on a strong signal (the RM2 table is hamlib's FT-991 one),
    and PO/SWR while transmitting into a dummy load.
 5. **V/M memory toggle and channel stepping.** The memory-mode toggle, get/
@@ -586,7 +588,7 @@ Apps/Windows/FTX1RemoteWindows/
   FTX1RemoteWindows.csproj   unpackaged WinUI 3, net8.0-windows10.0.19041.0
   app.manifest               DPI-awareness manifest (unpackaged apps need this)
   App.xaml(.cs)               standard WinUI 3 application entry point
-  MainWindow.xaml(.cs)        v1 core-rig-control UI + 1s poll loop + audio controls
+  MainWindow.xaml(.cs)        v1 core-rig-control UI + 500 ms poll loop + audio controls
   Controls/
     MenuGrid.cs                  MENU grid (port of MenuPageView.swift), all three pages
     SMeter.cs                    analog S/TX meter (port of SMeterView.swift) + METER picker
