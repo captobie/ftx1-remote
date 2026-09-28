@@ -264,7 +264,7 @@ Hardware checklist (not yet run):
 - [ ] Hold PTT → keys, button red "TRANSMITTING"; release → unkeys. Also
       release outside the button/window, and a quick tap.
 
-## MENU grid (2026-09-28, SSB and CW pages)
+## MENU grid (2026-09-28, all three pages)
 
 Port of `Sources/FTX1Core/UI/MenuPageView.swift`, one page at a time.
 `Controls/MenuGrid.cs` is a code-built `UserControl` (7×4 `Button`s, the
@@ -298,8 +298,19 @@ read, "DA" triple, and `GetMenuItem`/`SetMenuItem` ("EX").
   was unreliable; its play must pass `TransmitGate` if it's ever enabled),
   and PLAY/RECORD are too, since this app has no audio recorder yet (on
   the Mac they record the app's own audio and open the Recordings window).
-  CW's empty items (3-7, 15-18, 23-27) are left out. The FM/C4FM tab and
-  CW's ▶ FM are disabled until that page is ported.
+  CW's empty items (3-7, 15-18, 23-27) are left out.
+- FM/C4FM: RPT SHIFT ("OS0"), BEACON (Table 3 "EX" 07/01/01 — an APRS item
+  but a plain rig setting, so it's wired), CH STEP ("EX" 03/06/06), SQL
+  TYPE ("CT0"), TONE FREQ/DCS ("CN00"/"CN01", indexes into
+  `Models/RigToneTables.cs`' 50-tone and 104-code tables), and HOME. The
+  rig's HOME channels aren't reachable over CAT, so HOME tunes Main to the
+  current band group's home frequency itself (`HomeBand`), through the
+  same path as the Set button so swap tracking resets; it uses the factory
+  frequencies until the Settings step adds the Mac's per-band editor.
+  Placeholders: APRS S.LIST/M.LIST (need APRS decoding), the six Deep
+  Settings buttons 23-28 ("SOON", as on iPad, until step 8), and DTMF,
+  T-CALL, REV, DG-ID TX/RX, HRI MODE and BCN-TX (no CAT path; disabled on
+  the Mac too). 4, 5, 16 and 17 are left out.
 - Checked against a fake rigctld (logs every line, answers raw reads in the
   FTX-1's reply shapes): every read parses, and every write matched the
   Mac's bytes — e.g. `RA00`, `PA02`, `GT00` (from AUTO's read-back 6),
@@ -308,7 +319,9 @@ read, "DA" triple, and `GetMenuItem`/`SetMenuItem` ("EX").
   fields preserved. RF POWER's slider wasn't driven by that test. CW, same
   test: `ML1061`, `KR0`, `BI1`, `KS021`, `KP41`/`KP42` (700 → 710 → 720 Hz),
   `SD05` (300 → 250 ms), `ZI0`, `CS1`, and each page switch read only the
-  new page's settings, straight away.
+  new page's settings, straight away. FM, same test: `OS01`, `EX0701011`,
+  `EX0306063`, `CT02`, `CN00013`, `CN01001`/`CN01002`, and HOME sent
+  `F currVFO 29600000` from 14.074 MHz (HF group).
 
 Hardware checklist, SSB page (not yet run):
 
@@ -342,6 +355,17 @@ Hardware checklist, CW page (not yet run):
 - [ ] ZIN zero-ins the MAIN side on a CW signal.
 - [ ] MESSAGE, PLAY and RECORD are disabled, PLAY/RECORD with a "not built
       on Windows yet" tooltip.
+
+Hardware checklist, FM/C4FM page (not yet run):
+
+- [ ] RPT SHIFT, SQL TYPE, BEACON and CH STEP cycle through every value
+      and match the rig's display (RPT SHIFT/SQL TYPE only work in FM).
+- [ ] TONE FREQ and DCS step through the tables and match the rig
+      (e.g. 100.0 → 103.5 Hz; 023 → 025).
+- [ ] HOME from 2 m goes to 146.520 MHz, from HF to 29.600 MHz; between
+      groups (e.g. 40 MHz) it does nothing.
+- [ ] All placeholders are disabled, APRS S.LIST/M.LIST and the six
+      "SOON" buttons with their "not built/ported yet" tooltips.
 
 ## Audio (Main/Sub playback)
 
@@ -467,9 +491,11 @@ the next one starts.
    sent straight to rigctld the way the Mac does. This copies command logic
    that already works; it doesn't need new reverse-engineering. Its MOX,
    ANT TUNE and CW MESSAGE play buttons must go through `TransmitGate`
-   (step 1). Pages 1 (SSB) and 2 (CW) done 2026-09-28, build- and
-   fake-rigctld-verified, not yet hardware-tested (see "MENU grid" above);
-   FM/C4FM next.
+   (step 1). All three pages done 2026-09-28, build- and
+   fake-rigctld-verified, not yet hardware-tested (see "MENU grid" above).
+   Left as placeholders for later steps: CW's PLAY/RECORD (audio
+   recorder), FM's APRS S.LIST/M.LIST (APRS decoding), FM's Deep Settings
+   buttons (step 8), and HOME's per-band frequencies (step 7).
 4. **Graphical S-meter.** The same analog meter the Mac and iPad draw
    (`UI/SMeterView.swift`). The plan called this replacing a text-only
    S-meter, but this app has no S-meter readout yet (only power out and
@@ -546,12 +572,13 @@ Apps/Windows/FTX1RemoteWindows/
   App.xaml(.cs)               standard WinUI 3 application entry point
   MainWindow.xaml(.cs)        v1 core-rig-control UI + 1s poll loop + audio controls
   Controls/
-    MenuGrid.cs                  MENU grid (port of MenuPageView.swift), SSB and CW pages so far
+    MenuGrid.cs                  MENU grid (port of MenuPageView.swift), all three pages
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
     RigState.cs                 subset of RigState.swift's fields (core + MENU grid pages)
     RigDelayCode.cs             "SD"/"VD" 00-33 delay code ↔ ms
+    RigToneTables.cs            CTCSS/DCS tables ("CN" indexes) and HOME band groups
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
     RigctldProcessController.cs  Local mode: spawns/adopts rigctld.exe (port of the Mac's)

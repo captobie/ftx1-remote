@@ -16,8 +16,8 @@ namespace FTX1RemoteWindows;
 
 /// v1 core-rig-control window: VFO A/B, mode, PTT, power, SWR, band — see
 /// Apps/Windows/README.md's "v1 scope" — plus Main/Sub audio playback from
-/// the Pi's :8532 stream, and the MENU grid (Controls/MenuGrid.cs; SSB page
-/// so far). No Deep Settings / waterfall / APRS here yet.
+/// the Pi's :8532 stream, and the MENU grid (Controls/MenuGrid.cs). No Deep
+/// Settings / waterfall / APRS here yet.
 public sealed partial class MainWindow : Window
 {
     /// rigctld's port — fixed in both modes: the Pi's rigctld.service
@@ -148,6 +148,7 @@ public sealed partial class MainWindow : Window
             PowerSlider.Value = level * 100;
             _suppressPowerEvents = false;
         };
+        _menuGrid.FrequencyRequested += async hz => await SetMainFrequencyAsync(hz);
         MenuGridHost.Child = _menuGrid;
 
         PiHostBox.Text = AppSettings.PiHost;
@@ -788,11 +789,23 @@ public sealed partial class MainWindow : Window
             StatusText.Text = "Enter a frequency in Hz.";
             return;
         }
+        await SetMainFrequencyAsync(hz);
+    }
+
+    /// Tunes the Main VFO: the Set button and the MENU grid's HOME. An app
+    /// tune resets swap tracking's baseline, so it isn't mistaken for a
+    /// front-panel swap.
+    private async Task SetMainFrequencyAsync(long hz)
+    {
+        if (_client is not { } client)
+        {
+            return;
+        }
         _commandGeneration++;
         _swapTracker.ResetBaseline();
         try
         {
-            await _client.SetFrequencyAsync(hz);
+            await client.SetFrequencyAsync(hz);
             StatusText.Text = "";
         }
         catch (Exception ex)

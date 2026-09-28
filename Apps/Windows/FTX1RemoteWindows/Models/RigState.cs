@@ -84,4 +84,19 @@ public sealed class RigState
     public int? BkDelayMs { get; set; }
     /// "CS" CW spot tone.
     public bool? CwSpot { get; set; }
+
+    // MENU grid, FM/C4FM page.
+
+    /// "OS0": 0 SIMPLEX, 1 +, 2 -, 3 ARS.
+    public int? RepeaterShiftMode { get; set; }
+    /// "EX070101" APRS BEACON TYPE: 0 OFF, 1 AUTO, 2 SMART.
+    public int? AprsBeaconType { get; set; }
+    /// "EX030606" FM CH STEP: 0-5 = 5, 6.25, 10, 12.5, 20, 25 kHz.
+    public int? FmChannelStep { get; set; }
+    /// "CT0": 0 OFF, 1 ENC, 2 TSQ, 3 DCS, 4 PR FREQ, 5 REV TONE.
+    public int? SquelchType { get; set; }
+    /// "CN00" index into RigCtcssTone.AllValuesHz (0-49).
+    public int? CtcssToneIndex { get; set; }
+    /// "CN01" index into RigDcsCode.AllValues (0-103).
+    public int? DcsCodeIndex { get; set; }
 }

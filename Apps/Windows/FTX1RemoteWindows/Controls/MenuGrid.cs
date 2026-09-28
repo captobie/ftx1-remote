@@ -15,8 +15,10 @@ namespace FTX1RemoteWindows.Controls;
 /// 7×4 buttons mirroring the FTX-1's own MENU pages, each wired to the raw
 /// CAT command the Mac already uses (CommandQueue.swift for the writes,
 /// HubService.refreshSlowTier for the reads), sent straight to rigctld.
-/// Pages 1 (SSB) and 2 (CW) are ported so far; FM/C4FM follows as its own
-/// step, so its tab and CW's "▶ FM" button are disabled placeholders.
+/// All three pages (SSB, CW, FM/C4FM) are ported. Buttons that need
+/// features this app doesn't have yet are disabled placeholders: CW's
+/// PLAY/RECORD (audio recorder), FM's APRS S.LIST/M.LIST (APRS decoding)
+/// and FM's six Deep Settings buttons (step 8 of the parity plan).
 ///
 /// Only the page on screen is read in the slow poll tier, and switching
 /// pages reads the new one at once — so the tier doesn't grow with every
@@ -78,6 +80,10 @@ public sealed class MenuGrid : UserControl
     /// slider can move and hold like it does for its own sends.
     public event Action<double>? PowerLevelSent;
 
+    /// HOME wants the Main VFO tuned here. MainWindow owns frequency sets,
+    /// since each one also has to reset VFO swap tracking.
+    public event Action<long>? FrequencyRequested;
+
     public MenuGrid(RigState state)
     {
         _state = state;
@@ -89,15 +95,10 @@ public sealed class MenuGrid : UserControl
         {
             _grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
-        // The Mac's segmented page picker. FM isn't ported yet.
+        // The Mac's segmented page picker.
         foreach (var (page, name) in new[] { (MenuPage.Ssb, "SSB"), (MenuPage.Cw, "CW"), (MenuPage.Fm, "FM/C4FM") })
         {
-            var item = new SelectorBarItem { Text = name, Tag = page, IsEnabled = page != MenuPage.Fm };
-            if (page == MenuPage.Fm)
-            {
-                ToolTipService.SetToolTip(item, "The FM/C4FM page isn't ported to Windows yet");
-            }
-            _pageBar.Items.Add(item);
+            _pageBar.Items.Add(new SelectorBarItem { Text = name, Tag = page });
         }
         _pageBar.SelectedItem = _pageBar.Items[0];
         _pageBar.SelectionChanged += (_, _) =>
@@ -145,6 +146,9 @@ public sealed class MenuGrid : UserControl
                 break;
             case MenuPage.Cw:
                 BuildCwPage();
+                break;
+            case MenuPage.Fm:
+                BuildFmPage();
                 break;
         }
         RefreshLabels();
@@ -194,6 +198,12 @@ public sealed class MenuGrid : UserControl
         _state.CwPitchHz = null;
         _state.BkDelayMs = null;
         _state.CwSpot = null;
+        _state.RepeaterShiftMode = null;
+        _state.AprsBeaconType = null;
+        _state.FmChannelStep = null;
+        _state.SquelchType = null;
+        _state.CtcssToneIndex = null;
+        _state.DcsCodeIndex = null;
         RefreshLabels();
     }
 
@@ -416,6 +426,99 @@ public sealed class MenuGrid : UserControl
         AddNav(28, "▶", MenuPage.Fm);
     }
 
+    // FM/C4FM page (page 3/3). Items 4, 5, 16 and 17 have no function on
+    // this page on the rig and are left empty (the Mac's hiddenFMItems).
+
+    private void BuildFmPage()
+    {
+        AddCell(1, "PAGE 3/3", () => "FM");
+
+        // Opens a DTMF entry screen on the rig — no CAT path to it, and
+        // sending DTMF transmits. A single word on the rig, like HOME.
+        AddWord(2, "DTMF", enabled: false);
+
+        // No CAT command anywhere for these (manual, Table 3, hamlib); see
+        // MenuPageView's doc comment.
+        AddDisabled(3, "T-CALL");
+
+        // "OS0": fixed MAIN-side P1.
+        AddCycle(6, "RPT SHIFT", () => RepeaterShiftLabel(_state.RepeaterShiftMode), () =>
+        {
+            var next = ((_state.RepeaterShiftMode ?? 0) + 1) % 4;
+            Send("RPT SHIFT", () => _state.RepeaterShiftMode = next, c => c.SetRawIntAsync("OS0", next, 1));
+        });
+
+        AddDisabled(7, "REV");
+        AddDisabled(8, "DG-ID TX");
+        AddDisabled(9, "DG-ID RX");
+        AddDisabled(10, "HRI MODE");
+
+        // The station/message lists come from the Mac's own APRS decoder
+        // (off the audio); this app doesn't decode APRS yet.
+        AddDisabledPair(11, "APRS", "S.LIST", "APRS decoding isn't built on Windows yet");
+        AddDisabledPair(12, "APRS", "M.LIST", "APRS decoding isn't built on Windows yet");
+
+        // A plain rig setting over CAT (Table 3's BEACON TYPE, "EX" 07/01/01),
+        // so it works without APRS decoding.
+        AddCycle(13, "BEACON", () => _state.AprsBeaconType switch { 0 => "OFF", 1 => "AUTO", 2 => "SMART", _ => "—" }, () =>
+        {
+            var next = ((_state.AprsBeaconType ?? 0) + 1) % 3;
+            Send("BEACON", () => _state.AprsBeaconType = next, c => c.SetMenuItemAsync(7, 1, 1, next.ToString()));
+        });
+
+        // Momentary "send beacon now": no mnemonic and no Table 3 entry, and
+        // it transmits, so the Mac never probed for one either.
+        AddDisabled(14, "BCN-TX");
+
+        // Table 3's FM CH STEP, "EX" 03/06/06.
+        AddCycle(15, "CH STEP", () => FmChannelStepLabel(_state.FmChannelStep), () =>
+        {
+            var next = ((_state.FmChannelStep ?? 0) + 1) % 6;
+            Send("CH STEP", () => _state.FmChannelStep = next, c => c.SetMenuItemAsync(3, 6, 6, next.ToString()));
+        });
+
+        // "CT0": fixed MAIN-side P1.
+        AddCycle(18, "SQL TYPE", () => SqlTypeLabel(_state.SquelchType), () =>
+        {
+            var next = ((_state.SquelchType ?? 0) + 1) % 6;
+            Send("SQL TYPE", () => _state.SquelchType = next, c => c.SetRawIntAsync("CT0", next, 1));
+        });
+
+        // "CN00"/"CN01" take an index into the tone/code table. Defaults
+        // while unread are the Mac's: 100.0 Hz (index 12) and 023.
+        AddStepper(19, "TONE FREQ", () => ToneLabel(_state.CtcssToneIndex),
+            current: () => _state.CtcssToneIndex ?? 12, min: 0, max: RigCtcssTone.AllValuesHz.Length - 1, step: 1,
+            valueLabel: i => ToneLabel((int)i),
+            set: i => Send("TONE FREQ", () => _state.CtcssToneIndex = (int)i, c => c.SetRawIntAsync("CN00", (int)i, 3)));
+
+        AddStepper(20, "DCS", () => RigDcsCode.Code(_state.DcsCodeIndex ?? -1) ?? "—",
+            current: () => _state.DcsCodeIndex ?? 0, min: 0, max: RigDcsCode.AllValues.Length - 1, step: 1,
+            valueLabel: i => RigDcsCode.Code((int)i) ?? "—",
+            set: i => Send("DCS", () => _state.DcsCodeIndex = (int)i, c => c.SetRawIntAsync("CN01", (int)i, 3)));
+
+        // No CAT for the rig's own HOME channels: tunes to the current band
+        // group's HOME frequency instead (see HomeBand). Does nothing
+        // between groups.
+        var home = AddWord(21, "HOME", enabled: true);
+        home.Click += (_, _) =>
+        {
+            if (HomeBand.Containing(_state.FrequencyHz) is { } band)
+            {
+                FrequencyRequested?.Invoke(band.FrequencyHz);
+            }
+        };
+
+        AddNav(22, "◀", MenuPage.Cw);
+
+        // The rig's page-3 bottom row opens the SET-mode (Deep Settings)
+        // screens — not ported yet (parity plan step 8). "SOON", like iPad.
+        var deepSettings = new[] { "RADIO", "CW", "OPERATION", "DISPLAY", "EXTENSION", "APRS" };
+        for (var i = 0; i < deepSettings.Length; i++)
+        {
+            AddDisabledPair(23 + i, deepSettings[i], "SOON", "Deep Settings aren't ported to Windows yet");
+        }
+    }
+
     /// Reads the settings of the page on screen, one best-effort read each
     /// (a failure keeps the last value), then applies them all at once —
     /// unless a command landed or the page changed meanwhile, in which case
@@ -441,6 +544,7 @@ public sealed class MenuGrid : UserControl
                 {
                     MenuPage.Ssb => await ReadSsbPageAsync(client),
                     MenuPage.Cw => await ReadCwPageAsync(client),
+                    MenuPage.Fm => await ReadFmPageAsync(client),
                     _ => null,
                 };
                 if (apply is not null && generationAtStart == _commandGeneration
@@ -477,6 +581,27 @@ public sealed class MenuGrid : UserControl
             _state.CwPitchHz = pitchCode is { } p ? 300 + p * 10 : _state.CwPitchHz;
             _state.BkDelayMs = delayCode is { } code ? RigDelayCode.Milliseconds(code) ?? _state.BkDelayMs : _state.BkDelayMs;
             _state.CwSpot = spot ?? _state.CwSpot;
+        };
+    }
+
+    private async Task<Action> ReadFmPageAsync(RigctldClient client)
+    {
+        // "OS0"/"CT0" answers are read as one digit, like the Mac's.
+        var repeaterShift = await ReadOrNull(() => client.GetRawDigitAsync("OS0"));
+        var beaconRaw = await ReadStringOrNull(() => client.GetMenuItemAsync(7, 1, 1));
+        var channelStepRaw = await ReadStringOrNull(() => client.GetMenuItemAsync(3, 6, 6));
+        var squelchType = await ReadOrNull(() => client.GetRawDigitAsync("CT0"));
+        var toneIndex = await ReadOrNull(() => client.GetRawIntAsync("CN00"));
+        var dcsIndex = await ReadOrNull(() => client.GetRawIntAsync("CN01"));
+
+        return () =>
+        {
+            _state.RepeaterShiftMode = repeaterShift ?? _state.RepeaterShiftMode;
+            _state.AprsBeaconType = int.TryParse(beaconRaw, out var beacon) ? beacon : _state.AprsBeaconType;
+            _state.FmChannelStep = int.TryParse(channelStepRaw, out var step) ? step : _state.FmChannelStep;
+            _state.SquelchType = squelchType ?? _state.SquelchType;
+            _state.CtcssToneIndex = toneIndex ?? _state.CtcssToneIndex;
+            _state.DcsCodeIndex = dcsIndex ?? _state.DcsCodeIndex;
         };
     }
 
@@ -801,18 +926,38 @@ public sealed class MenuGrid : UserControl
     }
 
     /// Page nav (22 = previous, 28 = next), labelled with the target page
-    /// like the Mac's. Disabled for a page that isn't ported yet.
+    /// like the Mac's.
     private void AddNav(int item, string arrow, MenuPage target)
     {
         var name = target switch { MenuPage.Ssb => "SSB", MenuPage.Cw => "CW", _ => "FM" };
         var button = AddCell(item, arrow, () => name, colorize: false);
-        if (target == MenuPage.Fm)
-        {
-            button.IsEnabled = false;
-            ToolTipService.SetToolTip(button, "The FM/C4FM page isn't ported to Windows yet");
-            return;
-        }
         button.Click += (_, _) => ShowPage(target);
+    }
+
+    /// A disabled button whose two lines are both label words ("APRS" /
+    /// "S.LIST"), not a name and a value, so both are caption-sized — the
+    /// Mac's disabledPlaceholderButtonEqualSize.
+    private void AddDisabledPair(int item, string top, string bottom, string tooltip)
+    {
+        var button = AddCell(item, top, () => bottom, colorize: false);
+        if (button.Content is StackPanel { Children: [_, TextBlock bottomText] })
+        {
+            bottomText.FontFamily = FontFamily.XamlAutoFontFamily;
+            bottomText.FontSize = 11;
+        }
+        button.IsEnabled = false;
+        ToolTipService.SetToolTip(button, tooltip);
+    }
+
+    /// A button whose rig label is one word (HOME, DTMF), centered at the
+    /// value line's size in the normal text color — the Mac's
+    /// singleWordButton. An empty top line keeps it the same height as the
+    /// two-line buttons.
+    private Button AddWord(int item, string word, bool enabled)
+    {
+        var button = AddCell(item, " ", () => word, colorize: false);
+        button.IsEnabled = enabled;
+        return button;
     }
 
     // Labels, same text as MenuPageView's.
@@ -828,6 +973,42 @@ public sealed class MenuGrid : UserControl
         db is { } v ? v.ToString("+0.0;-0.0;+0.0", System.Globalization.CultureInfo.InvariantCulture) + " dB" : "—";
 
     private static string RfPowerLabel(double? level) => level is { } l ? $"{Math.Round(l * 100):0}W" : "—";
+
+    private static string RepeaterShiftLabel(int? mode) => mode switch
+    {
+        0 => "SIMPLEX",
+        1 => "+",
+        2 => "-",
+        3 => "ARS",
+        _ => "—",
+    };
+
+    private static string FmChannelStepLabel(int? step) => step switch
+    {
+        0 => "5 kHz",
+        1 => "6.25 kHz",
+        2 => "10 kHz",
+        3 => "12.5 kHz",
+        4 => "20 kHz",
+        5 => "25 kHz",
+        _ => "—",
+    };
+
+    private static string SqlTypeLabel(int? mode) => mode switch
+    {
+        0 => "OFF",
+        1 => "ENC",
+        2 => "TSQ",
+        3 => "DCS",
+        4 => "PR FREQ",
+        5 => "REV TONE",
+        _ => "—",
+    };
+
+    private static string ToneLabel(int? index) =>
+        index is { } i && RigCtcssTone.Hertz(i) is { } hz
+            ? hz.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " Hz"
+            : "—";
 
     private static string PreampLabel(int? mode) => mode switch { 0 => "IPO", 1 => "AMP1", 2 => "AMP2", _ => "—" };
 
