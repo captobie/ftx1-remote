@@ -322,8 +322,12 @@ read, "DA" triple, and `GetMenuItem`/`SetMenuItem` ("EX").
   new page's settings, straight away. FM, same test: `OS01`, `EX0701011`,
   `EX0306063`, `CT02`, `CN00013`, `CN01001`/`CN01002`, and HOME sent
   `F currVFO 29600000` from 14.074 MHz (HF group).
+- **Spot-tested on the rig by the user, 2026-09-28: all three pages, every
+  item tried worked.** A spot test, not a run through every line of the
+  checklists below, so their boxes are left unticked; they're what to
+  check if a specific item ever misbehaves.
 
-Hardware checklist, SSB page (not yet run):
+Hardware checklist, SSB page:
 
 - [ ] Every button shows the rig's current value within ~5 s of Connect
       (compare with the rig's MENU page 1).
@@ -342,7 +346,7 @@ Hardware checklist, SSB page (not yet run):
 - [ ] Switch to C4FM: AGC/MIC EQ keep their last values and polling
       doesn't stall or reconnect.
 
-Hardware checklist, CW page (not yet run):
+Hardware checklist, CW page:
 
 - [ ] ▶ CW (or the CW tab) shows the rig's CW values within a second or
       two, not after the next ~5 s poll; ◀ SSB goes back the same way.
@@ -356,7 +360,7 @@ Hardware checklist, CW page (not yet run):
 - [ ] MESSAGE, PLAY and RECORD are disabled, PLAY/RECORD with a "not built
       on Windows yet" tooltip.
 
-Hardware checklist, FM/C4FM page (not yet run):
+Hardware checklist, FM/C4FM page:
 
 - [ ] RPT SHIFT, SQL TYPE, BEACON and CH STEP cycle through every value
       and match the rig's display (RPT SHIFT/SQL TYPE only work in FM).
@@ -486,13 +490,14 @@ the next one starts.
 2. **PTT press-and-hold — done** (`89c5aa8`, build-verified, not yet
    hardware-tested). PTT is momentary, like the Mac and iPad, instead of a
    click toggle.
-3. **The 28-item MENU grid — in progress, one page per change.** Port the
+3. **The 28-item MENU grid — done.** Port the
    CAT mappings `MenuPageView.swift`/`RigState.swift` already use to C#,
    sent straight to rigctld the way the Mac does. This copies command logic
    that already works; it doesn't need new reverse-engineering. Its MOX,
    ANT TUNE and CW MESSAGE play buttons must go through `TransmitGate`
-   (step 1). All three pages done 2026-09-28, build- and
-   fake-rigctld-verified, not yet hardware-tested (see "MENU grid" above).
+   (step 1). All three pages done 2026-09-28 (`ed9a7e6`, `d0eac20`,
+   `f511da3`), checked against a fake rigctld and spot-tested on the rig
+   by the user the same day, all working (see "MENU grid" above).
    Left as placeholders for later steps: CW's PLAY/RECORD (audio
    recorder), FM's APRS S.LIST/M.LIST (APRS decoding), FM's Deep Settings
    buttons (step 8), and HOME's per-band frequencies (step 7).
