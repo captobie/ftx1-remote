@@ -671,7 +671,7 @@ public sealed class MenuGrid : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"menu-grid: read failed: {ex.Message}");
+            AppLog.Write($"menu-grid: read failed: {ex.Message}");
             return null;
         }
     }
@@ -684,7 +684,7 @@ public sealed class MenuGrid : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"menu-grid: read failed: {ex.Message}");
+            AppLog.Write($"menu-grid: read failed: {ex.Message}");
             return null;
         }
     }
@@ -727,7 +727,7 @@ public sealed class MenuGrid : UserControl
             var on = !(_state.MoxEnabled ?? false);
             if (on && GateReason(TransmitAction.MoxOn) is { } reason)
             {
-                Debug.WriteLine($"transmit-gate: blocked MOX on ({reason}) at {_state.FrequencyHz} Hz");
+                AppLog.Write($"transmit-gate: blocked MOX on ({reason}) at {_state.FrequencyHz} Hz");
                 StatusMessage?.Invoke(reason);
                 return;
             }
@@ -750,7 +750,7 @@ public sealed class MenuGrid : UserControl
         {
             if (GateReason(TransmitAction.TriggerAntennaTune) is { } reason)
             {
-                Debug.WriteLine($"transmit-gate: blocked ANT TUNE ({reason}) at {_state.FrequencyHz} Hz");
+                AppLog.Write($"transmit-gate: blocked ANT TUNE ({reason}) at {_state.FrequencyHz} Hz");
                 StatusMessage?.Invoke(reason);
                 return;
             }

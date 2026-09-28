@@ -39,6 +39,11 @@ public sealed class RigctldClient : IAsyncDisposable
     /// reasoning as RigctldClient.swift's roundTripBusy/roundTripWaiters.
     private readonly SemaphoreSlim _roundTripLock = new(1, 1);
 
+    /// The last command written and when (UTC) — for MainWindow's stuck-poll
+    /// watchdog, which logs them when a round trip never completes.
+    public string LastCommand { get; private set; } = "";
+    public DateTime LastCommandAt { get; private set; }
+
     public RigctldClient(string host, int port = 4532)
     {
         _host = host;
@@ -251,13 +256,15 @@ public sealed class RigctldClient : IAsyncDisposable
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
+                AppLog.Write($"rigctld: no reply to raw {cmd} within {(timeout ?? TimeSpan.FromSeconds(1)).TotalSeconds:F1} s, reconnecting");
                 Disconnect();
                 try
                 {
                     await ConnectAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
-                catch (RigctldError)
+                catch (RigctldError ex)
                 {
+                    AppLog.Write($"rigctld: reconnect failed: {ex.Message}");
                 }
                 throw new RigctldError($"No reply to raw command {cmd}");
             }
@@ -446,6 +453,8 @@ public sealed class RigctldClient : IAsyncDisposable
         // fire-and-forget raw command. Drop it, as RigctldClient.swift's
         // write() does.
         _readBuffer.Clear();
+        LastCommand = command;
+        LastCommandAt = DateTime.UtcNow;
         var bytes = Encoding.UTF8.GetBytes(command + "\n");
         await _stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
     }

@@ -166,7 +166,7 @@ public sealed class RemoteAudioStreamClient : IAudioSource
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"remote-audio: {ex.Message}");
+                AppLog.Write($"remote-audio: {ex.Message}");
                 lock (_statusLock)
                 {
                     // A drop after we'd connected is a stream ending, not
@@ -226,7 +226,7 @@ public sealed class RemoteAudioStreamClient : IAudioSource
             _lastDataTicks = Stopwatch.GetTimestamp();
             _detail = null;
         }
-        Debug.WriteLine($"remote-audio: connected to {_host}:{_port}");
+        AppLog.Write($"remote-audio: connected to {_host}:{_port}");
 
         await using var stream = client.GetStream();
         var readBuffer = new byte[8192];

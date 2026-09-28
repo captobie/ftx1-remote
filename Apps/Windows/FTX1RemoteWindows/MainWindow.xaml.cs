@@ -124,6 +124,13 @@ public sealed partial class MainWindow : Window
     /// yet. Read every <see cref="SlowPollEvery"/> polls.
     private bool? _singleReceive;
     private int _pollCount;
+    /// When the in-flight poll started, for the stuck-poll watchdog in
+    /// PollOnceAsync; null when none is running.
+    private DateTime? _pollStartedAt;
+    private DateTime _lastStuckLog;
+    /// Last logged (Main, Sub, VM0) poll result — the poll log line is
+    /// written only when it changes, so a 500 ms poll doesn't flood app.log.
+    private (long?, long?, int?) _lastLoggedPoll;
     /// 10 × the 500 ms poll keeps the slow tier at ~5 s, where it was
     /// when the poll ran every second.
     private const int SlowPollEvery = 10;
@@ -142,6 +149,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        AppLog.Write($"app: started ({AppSettings.ConnectionMode} mode, audio swapped={AppSettings.AudioChannelsSwapped})");
 
         _menuGrid = new MenuGrid(_lastState) { Client = null };
         _menuGrid.StatusMessage += message => StatusText.Text = message;
@@ -221,7 +229,7 @@ public sealed partial class MainWindow : Window
             AppSettings.AudioChannelsSwapped = _swapTracker.Swapped;
             AudioSwapToggle.IsChecked = _swapTracker.Swapped;
             UpdateAudioSwapTooltip();
-            Debug.WriteLine($"audio-routing: swapped={_swapTracker.Swapped} ({reason}) main {_lastState.FrequencyHz} sub {_lastState.SecondaryFrequencyHz}");
+            AppLog.Write($"audio-routing: swapped={_swapTracker.Swapped} ({reason}) main {_lastState.FrequencyHz} sub {_lastState.SecondaryFrequencyHz}");
         };
 
         var mainAudio = AppSettings.MainAudio;
@@ -331,7 +339,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"COM port enumeration failed: {ex.Message}");
+            AppLog.Write($"COM port enumeration failed: {ex.Message}");
         }
         ports.Sort((a, b) => ComPortNumber(a).CompareTo(ComPortNumber(b)));
 
@@ -474,6 +482,7 @@ public sealed partial class MainWindow : Window
             // Run the slow tier (FR, MENU grid) on the first poll.
             _pollCount = 0;
             ConnectionStateText.Text = $"Connected to {description}";
+            AppLog.Write($"connection: connected to {description} ({mode}); audio swapped={_swapTracker.Swapped}");
             ConnectionStateText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green);
             ConnectButton.Content = "Disconnect";
             _connectedMode = mode;
@@ -497,6 +506,7 @@ public sealed partial class MainWindow : Window
             ConnectionStateText.Text = "Disconnected";
             ConnectionStateText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray);
             StatusText.Text = $"Connect failed: {ex.Message}";
+            AppLog.Write($"connection: connect failed: {ex.Message}");
         }
         finally
         {
@@ -569,6 +579,7 @@ public sealed partial class MainWindow : Window
     /// exits underneath a session.
     private async Task DisconnectAsync(string? reason)
     {
+        AppLog.Write($"connection: disconnecting{(reason is null ? "" : $" — {reason}")}");
         _pollTimer.Stop();
         UnkeyBeforeDisconnect();
         await StopAudioAsync();
@@ -601,20 +612,40 @@ public sealed partial class MainWindow : Window
     /// caught it during real-hardware validation on 2026-09-07.
     private async Task PollOnceAsync()
     {
-        if (_client is not { } client || _pollInFlight)
+        if (_client is not { } client)
         {
+            return;
+        }
+        if (_pollInFlight)
+        {
+            // Watchdog: a poll that never finishes blocks every later poll
+            // and every command (they share the client's round-trip lock),
+            // so say where it's stuck, every 5 s while it lasts.
+            if (_pollStartedAt is { } started && DateTime.UtcNow - started > TimeSpan.FromSeconds(5)
+                && DateTime.UtcNow - _lastStuckLog > TimeSpan.FromSeconds(5))
+            {
+                _lastStuckLog = DateTime.UtcNow;
+                AppLog.Write($"poll: stuck for {(DateTime.UtcNow - started).TotalSeconds:F0} s; last rigctld command '{client.LastCommand}' sent {(DateTime.UtcNow - client.LastCommandAt).TotalSeconds:F1} s ago");
+            }
             return;
         }
         // Over Tailscale a poll can outlast the 500 ms tick; overlapping polls
         // would interleave their reads and confuse swap tracking.
         _pollInFlight = true;
+        _pollStartedAt = DateTime.UtcNow;
         try
         {
             await PollFieldsAsync(client);
         }
         finally
         {
+            var took = DateTime.UtcNow - _pollStartedAt.Value;
+            if (took > TimeSpan.FromSeconds(2))
+            {
+                AppLog.Write($"poll: took {took.TotalSeconds:F1} s");
+            }
             _pollInFlight = false;
+            _pollStartedAt = null;
         }
     }
 
@@ -636,7 +667,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"poll: getFrequency failed: {ex.Message}");
+            AppLog.Write($"poll: getFrequency failed: {ex.Message}");
         }
 
         try
@@ -648,7 +679,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"poll: getSecondaryFrequency failed: {ex.Message}");
+            AppLog.Write($"poll: getSecondaryFrequency failed: {ex.Message}");
         }
 
         // "VM0": 0 = VFO mode, 11 = Memory mode (RigState.swift's
@@ -659,7 +690,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"poll: VM0 failed: {ex.Message}");
+            AppLog.Write($"poll: VM0 failed: {ex.Message}");
         }
 
         var slowTier = _pollCount++ % SlowPollEvery == 0;
@@ -672,18 +703,25 @@ public sealed partial class MainWindow : Window
                     var single = fr == 1;
                     if (single != _singleReceive)
                     {
-                        Debug.WriteLine($"audio-routing: FR reply {fr} — {(single ? "single" : "dual")} receive");
+                        AppLog.Write($"audio-routing: FR reply {fr} — {(single ? "single" : "dual")} receive");
                     }
                     _singleReceive = single;
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"poll: FR failed: {ex.Message}");
+                AppLog.Write($"poll: FR failed: {ex.Message}");
             }
         }
 
-        if (polledMain is { } main && generationAtStart == _commandGeneration)
+        var generationChanged = generationAtStart != _commandGeneration;
+        if ((polledMain, polledSub, vfoMemoryRaw) != _lastLoggedPoll)
+        {
+            _lastLoggedPoll = (polledMain, polledSub, vfoMemoryRaw);
+            AppLog.Write($"poll: main={polledMain?.ToString() ?? "failed"} sub={polledSub?.ToString() ?? "failed"} VM0={vfoMemoryRaw?.ToString() ?? "failed"}{(generationChanged ? " (command mid-poll, swap tracking skipped)" : "")} swapped={_swapTracker.Swapped}");
+        }
+
+        if (polledMain is { } main && !generationChanged)
         {
             // A failed VM0 read counts as "not VFO mode" (drops the
             // baseline), same as the Mac.
@@ -698,7 +736,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"poll: getMode failed: {ex.Message}");
+            AppLog.Write($"poll: getMode failed: {ex.Message}");
         }
 
         try
@@ -708,7 +746,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"poll: getPtt failed: {ex.Message}");
+            AppLog.Write($"poll: getPtt failed: {ex.Message}");
         }
 
         try
@@ -726,7 +764,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"poll: getLevel(RFPOWER) failed: {ex.Message}");
+            AppLog.Write($"poll: getLevel(RFPOWER) failed: {ex.Message}");
         }
 
         // The meters use only this poll's readings (null on failure, so the
@@ -745,7 +783,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"poll: getLevel(RFPOWER_METER_WATTS) failed: {ex.Message}");
+            AppLog.Write($"poll: getLevel(RFPOWER_METER_WATTS) failed: {ex.Message}");
         }
 
         try
@@ -760,7 +798,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"poll: getLevel(SWR) failed: {ex.Message}");
+            AppLog.Write($"poll: getLevel(SWR) failed: {ex.Message}");
         }
 
         await PollMetersAsync(client, polledWatts, polledSwr);
@@ -792,7 +830,7 @@ public sealed partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"poll: {what} failed: {ex.Message}");
+                AppLog.Write($"poll: {what} failed: {ex.Message}");
                 return null;
             }
         }
@@ -876,13 +914,15 @@ public sealed partial class MainWindow : Window
             return;
         }
         _commandGeneration++;
+        AppLog.Write($"swap: ⇄ clicked (main {_lastState.FrequencyHz}, sub {_lastState.SecondaryFrequencyHz}, single receive {_singleReceive?.ToString() ?? "unknown"}, poll in flight {_pollInFlight})");
         try
         {
             await _client.SwapActiveVfoAsync();
+            AppLog.Write("swap: SV sent");
             _swapTracker.OnAppSwap(_singleReceive, _lastState.FrequencyHz, _lastState.SecondaryFrequencyHz);
             if (_singleReceive == true)
             {
-                Debug.WriteLine($"audio-routing: app swap in single-receive display — audio channels left as is (swapped={_swapTracker.Swapped})");
+                AppLog.Write($"audio-routing: app swap in single-receive display — audio channels left as is (swapped={_swapTracker.Swapped})");
             }
             // Show the swap now rather than on the next poll.
             if (_lastState.SecondaryFrequencyHz is { } sub)
@@ -895,11 +935,13 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             StatusText.Text = $"Swap VFO failed: {ex.Message}";
+            AppLog.Write($"swap: SV failed: {ex.Message}");
         }
     }
 
     private void AudioSwapToggle_Click(object sender, RoutedEventArgs e)
     {
+        AppLog.Write("audio-routing: speaker override clicked");
         _swapTracker.Toggle();
         AudioSwapToggle.IsChecked = _swapTracker.Swapped;
     }
@@ -980,7 +1022,7 @@ public sealed partial class MainWindow : Window
         // where HubService.send re-checks what the PTT button already shows.
         if (TransmitGate.BlockReason(TransmitAction.PttOn, AppSettings.TransmitEnabled, _lastState.FrequencyHz) is { } reason)
         {
-            Debug.WriteLine($"transmit-gate: blocked PTT on ({reason}) at {_lastState.FrequencyHz} Hz");
+            AppLog.Write($"transmit-gate: blocked PTT on ({reason}) at {_lastState.FrequencyHz} Hz");
             StatusText.Text = reason;
             return;
         }
@@ -1042,7 +1084,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"ptt: unkey before disconnect failed: {ex.Message}");
+            AppLog.Write($"ptt: unkey before disconnect failed: {ex.Message}");
         }
     }
 
@@ -1075,7 +1117,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
-        Debug.WriteLine("transmit-gate: transmit disabled — forcing PTT and MOX off");
+        AppLog.Write("transmit-gate: transmit disabled — forcing PTT and MOX off");
         try
         {
             await client.SetPttAsync(false);
@@ -1210,7 +1252,7 @@ public sealed partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"local-audio: can't open {deviceId}: {ex.Message}");
+                AppLog.Write($"local-audio: can't open {deviceId}: {ex.Message}");
                 _audioSetupError = $"\"{AppSettings.LocalAudioDeviceName}\" isn't available — is the radio plugged in and on? Pick it again under \"Audio in\" once it is.";
                 UpdateAudioStatus();
                 return;
@@ -1281,7 +1323,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
-        Debug.WriteLine("audio-playback: output is no longer the radio — starting playback");
+        AppLog.Write("audio-playback: output is no longer the radio — starting playback");
         StartPlayback();
     }
 

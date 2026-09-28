@@ -74,7 +74,7 @@ public sealed class LocalAudioCapture : IAudioSource
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"local-audio: device enumeration failed: {ex.Message}");
+            AppLog.Write($"local-audio: device enumeration failed: {ex.Message}");
         }
         return result;
     }
@@ -172,7 +172,7 @@ public sealed class LocalAudioCapture : IAudioSource
             {
                 return;
             }
-            Debug.WriteLine($"local-audio: capture stopped: {error}");
+            AppLog.Write($"local-audio: capture stopped: {error}");
             lock (_statusLock)
             {
                 _phase = AudioLinkPhase.DeviceUnavailable;
@@ -249,7 +249,7 @@ public sealed class LocalAudioCapture : IAudioSource
             _capturing = true;
             _lastDataTicks = Stopwatch.GetTimestamp();
         }
-        Debug.WriteLine($"local-audio: capturing {device.FriendlyName} {format}");
+        AppLog.Write($"local-audio: capturing {device.FriendlyName} {format}");
 
         using (token.Register(() => stopped.TrySetResult(null)))
         {

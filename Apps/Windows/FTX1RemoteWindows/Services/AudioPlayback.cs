@@ -38,7 +38,7 @@ public sealed class AudioPlayback : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"audio-playback: device enumeration failed: {ex.Message}");
+            AppLog.Write($"audio-playback: device enumeration failed: {ex.Message}");
         }
         return result;
     }
@@ -129,12 +129,12 @@ public sealed class AudioPlayback : IDisposable
             output.Init(chain);
             output.Play();
             _output = output;
-            Debug.WriteLine($"audio-playback: started on {_device.FriendlyName}, mix rate {mixRate} Hz");
+            AppLog.Write($"audio-playback: started on {_device.FriendlyName}, mix rate {mixRate} Hz");
             return null;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"audio-playback: start failed: {ex}");
+            AppLog.Write($"audio-playback: start failed: {ex}");
             Stop();
             return ex.Message;
         }
