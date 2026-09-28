@@ -12,6 +12,16 @@ public sealed class RigState
     public double? PowerWatts { get; set; }
     public double? Swr { get; set; }
     public bool Ptt { get; set; }
+
+    /// Main's signal strength in dB relative to S9 (hamlib's STRENGTH).
+    /// Unlike the text fields, a failed read clears it, so the meter falls
+    /// to rest instead of freezing — same as the Mac.
+    public double? SmeterDb { get; set; }
+    /// Sub's, from raw "RM2" via SMeterScale.StrengthDb — hamlib's STRENGTH
+    /// only reads the active side.
+    public double? SubSmeterDb { get; set; }
+    /// COMP/ALC/ID/VDD, read only while transmitting.
+    public TxMeterReadings? TxMeters { get; set; }
     public DateTimeOffset LastUpdated { get; set; } = DateTimeOffset.Now;
 
     /// The other VFO's frequency — see RigctldClient.GetSecondaryFrequencyAsync().

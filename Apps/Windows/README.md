@@ -501,11 +501,22 @@ the next one starts.
    Left as placeholders for later steps: CW's PLAY/RECORD (audio
    recorder), FM's APRS S.LIST/M.LIST (APRS decoding), FM's Deep Settings
    buttons (step 8), and HOME's per-band frequencies (step 7).
-4. **Graphical S-meter.** The same analog meter the Mac and iPad draw
-   (`UI/SMeterView.swift`). The plan called this replacing a text-only
-   S-meter, but this app has no S-meter readout yet (only power out and
-   SWR as text), so the signal-strength read is new here too, not just
-   drawing.
+4. **Graphical S-meter — done** (2026-09-28, build-verified and checked
+   against a fake rigctld, not yet hardware-tested). The same analog meter
+   the Mac and iPad draw (`UI/SMeterView.swift`), one under each VFO like
+   the Mac's layout: `Controls/SMeter.cs` draws it with plain XAML shapes
+   in SMeterView's 280×120 design space (no Win2D), and
+   `Models/MeterScale.cs` ports `SMeterScale`/`MeterSelection` with the
+   same anchors. The reads are new here (this app had only power out and
+   SWR as text): Main from hamlib's STRENGTH, Sub from raw "RM2" (STRENGTH
+   only reads the active side), COMP/ALC/ID/VDD from raw "RM3/4/7/8" only
+   while transmitting — the Mac's refreshFastTier set. Clicking a meter
+   opens the METER picker (PO/COMP/ALC/VDD/ID/SWR, remembered per side in
+   settings.json); the Sub needle stays on the S scale during TX, as on
+   the Mac. The meters update at this app's 1 s poll, vs. the Mac's
+   500 ms fast tier. To check on the rig: the needle against the rig's
+   own meter on a strong signal (the RM2 table is hamlib's FT-991 one),
+   and PO/SWR while transmitting into a dummy load.
 5. **V/M memory toggle and channel stepping.** The memory-mode toggle, get/
    set/step of the channel number, and the channel tag. The Mac has these;
    iPad doesn't have the button wired yet, so Windows can get ahead here.
@@ -578,12 +589,14 @@ Apps/Windows/FTX1RemoteWindows/
   MainWindow.xaml(.cs)        v1 core-rig-control UI + 1s poll loop + audio controls
   Controls/
     MenuGrid.cs                  MENU grid (port of MenuPageView.swift), all three pages
+    SMeter.cs                    analog S/TX meter (port of SMeterView.swift) + METER picker
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
     RigState.cs                 subset of RigState.swift's fields (core + MENU grid pages)
     RigDelayCode.cs             "SD"/"VD" 00-33 delay code ↔ ms
     RigToneTables.cs            CTCSS/DCS tables ("CN" indexes) and HOME band groups
+    MeterScale.cs               needle mapping + METER selection — SMeterView.swift's SMeterScale, MeterSelection.swift
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
     RigctldProcessController.cs  Local mode: spawns/adopts rigctld.exe (port of the Mac's)

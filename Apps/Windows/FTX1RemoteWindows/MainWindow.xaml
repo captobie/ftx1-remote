@@ -66,6 +66,9 @@
                 <StackPanel Grid.Column="0" Spacing="4">
                     <TextBlock Text="VFO A (active)" FontWeight="SemiBold" />
                     <TextBlock x:Name="FrequencyAText" Text="—" FontSize="28" FontFamily="Consolas" />
+                    <!-- Analog meter (Controls/SMeter.cs), added in code; the
+                         frequency entry sits below it so Main's and Sub's meters line up. -->
+                    <Border x:Name="MainMeterHost" Width="280" HorizontalAlignment="Left" Margin="0,4,0,0" />
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBox x:Name="FrequencyEntryBox" Width="140" PlaceholderText="Hz" />
                         <Button x:Name="SetFrequencyButton" Content="Set" Click="SetFrequencyButton_Click" />
@@ -84,6 +87,7 @@
                 <StackPanel Grid.Column="2" Spacing="4">
                     <TextBlock Text="VFO B" FontWeight="SemiBold" />
                     <TextBlock x:Name="FrequencyBText" Text="—" FontSize="28" FontFamily="Consolas" />
+                    <Border x:Name="SubMeterHost" Width="280" HorizontalAlignment="Left" Margin="0,4,0,0" />
                 </StackPanel>
             </Grid>
         </Border>

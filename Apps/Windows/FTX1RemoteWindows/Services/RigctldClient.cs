@@ -298,6 +298,21 @@ public sealed class RigctldClient : IAsyncDisposable
         return int.TryParse(digits, out var value) ? value : null;
     }
 
+    /// Raw "RM" (READ METER): P1 picks the meter (1 S main, 2 S sub, 3 COMP,
+    /// 4 ALC, 5 PO, 6 SWR, 7 IDD, 8 VDD), and the reply's next three digits
+    /// are its 0-255 value. Port of the Swift client's getMeterReading.
+    public async Task<int?> GetMeterReadingAsync(int p1, CancellationToken cancellationToken = default)
+    {
+        var cmd = $"RM{p1}";
+        var reply = await SendRawCommandAsync(cmd, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!reply.StartsWith(cmd, StringComparison.Ordinal))
+        {
+            return null;
+        }
+        var digits = new string(reply.Skip(cmd.Length).Take(3).TakeWhile(char.IsAsciiDigit).ToArray());
+        return int.TryParse(digits, out var value) ? value : null;
+    }
+
     /// Reads a "<CMD><0|1>;" on/off setting, e.g. "VX" -> "VX1;" -> true.
     /// Looks only at the first character after the prefix, so it must not
     /// be used for on/off states carried in a multi-digit field (the Swift

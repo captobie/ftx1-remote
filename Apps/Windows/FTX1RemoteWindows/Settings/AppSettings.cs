@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FTX1RemoteWindows.Models;
 
 namespace FTX1RemoteWindows.Settings;
 
@@ -50,6 +51,8 @@ public static class AppSettings
         public bool AudioChannelsSwapped { get; set; }
         public ChannelAudio MainAudio { get; set; } = new();
         public ChannelAudio SubAudio { get; set; } = new();
+        public MeterSelection MainMeterSelection { get; set; } = MeterSelection.Po;
+        public MeterSelection SubMeterSelection { get; set; } = MeterSelection.Po;
     }
 
     /// One receiver's playback settings. SquelchThreshold is SquelchGate's
@@ -203,6 +206,29 @@ public static class AppSettings
     public static string AudioOutputDeviceName => _cache.AudioOutputDeviceName;
 
     public static string LocalAudioDeviceName => _cache.LocalAudioDeviceName;
+
+    /// What each S-meter's lower scale shows while transmitting (see
+    /// Controls/SMeter). PO by default, like the rig; Main and Sub are
+    /// remembered separately, like the Mac's MeterSettings.key/subKey.
+    public static MeterSelection MainMeterSelection
+    {
+        get => _cache.MainMeterSelection;
+        set
+        {
+            _cache.MainMeterSelection = value;
+            Save();
+        }
+    }
+
+    public static MeterSelection SubMeterSelection
+    {
+        get => _cache.SubMeterSelection;
+        set
+        {
+            _cache.SubMeterSelection = value;
+            Save();
+        }
+    }
 
     /// Mutate the returned object, then call <see cref="SaveAudio"/>.
     public static ChannelAudio MainAudio => _cache.MainAudio;

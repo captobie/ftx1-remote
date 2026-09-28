@@ -71,6 +71,10 @@ public sealed partial class MainWindow : Window
     /// slow poll tier.
     private readonly MenuGrid _menuGrid;
 
+    /// The analog meters under each VFO (Controls/SMeter.cs), fed every poll.
+    private readonly SMeter _mainMeter = new(isSub: false);
+    private readonly SMeter _subMeter = new(isSub: true);
+
     /// Upper bound of the SQL sliders, which show `SquelchRange - threshold`
     /// so that further right = tighter — same inversion and range as the
     /// Mac's ContentView.squelchDisplayRange.
@@ -150,6 +154,8 @@ public sealed partial class MainWindow : Window
         };
         _menuGrid.FrequencyRequested += async hz => await SetMainFrequencyAsync(hz);
         MenuGridHost.Child = _menuGrid;
+        MainMeterHost.Child = _mainMeter;
+        SubMeterHost.Child = _subMeter;
 
         PiHostBox.Text = AppSettings.PiHost;
         RigctldPathBox.Text = AppSettings.RigctldPath;
@@ -566,6 +572,8 @@ public sealed partial class MainWindow : Window
         var client = _client;
         _client = null;
         _menuGrid.Client = null;
+        _mainMeter.Reset();
+        _subMeter.Reset();
         if (client is not null)
         {
             await client.DisposeAsync();
@@ -718,9 +726,14 @@ public sealed partial class MainWindow : Window
             Debug.WriteLine($"poll: getLevel(RFPOWER) failed: {ex.Message}");
         }
 
+        // The meters use only this poll's readings (null on failure, so the
+        // needle rests); the text fields keep their last value.
+        double? polledWatts = null;
+        double? polledSwr = null;
         try
         {
             var watts = await client.GetLevelAsync("RFPOWER_METER_WATTS");
+            polledWatts = watts;
             if (watts is { } w)
             {
                 _lastState.PowerWatts = w;
@@ -735,6 +748,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var swr = await client.GetLevelAsync("SWR");
+            polledSwr = swr;
             if (swr is { } s)
             {
                 _lastState.Swr = s;
@@ -746,6 +760,8 @@ public sealed partial class MainWindow : Window
             Debug.WriteLine($"poll: getLevel(SWR) failed: {ex.Message}");
         }
 
+        await PollMetersAsync(client, polledWatts, polledSwr);
+
         // Last, so its C4FM check sees this poll's mode. Each read is
         // best-effort inside.
         if (slowTier)
@@ -756,6 +772,42 @@ public sealed partial class MainWindow : Window
         // Also refreshes the MENU grid (RF POWER, and the MOX/ANT TUNE gate
         // follows the new frequency).
         UpdateTransmitControls();
+    }
+
+    /// S-meter reads, same as the Mac's refreshFastTier: Main from hamlib's
+    /// STRENGTH, Sub from raw "RM2" (STRENGTH only reads the active side),
+    /// and COMP/ALC/ID/VDD from raw "RM" only while transmitting — four
+    /// extra round trips aren't worth paying in RX. Nothing is carried
+    /// forward on failure: a live meter should fall to rest, not freeze.
+    private async Task PollMetersAsync(RigctldClient client, double? powerWatts, double? swr)
+    {
+        async Task<T?> Try<T>(string what, Func<Task<T?>> read) where T : struct
+        {
+            try
+            {
+                return await read();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"poll: {what} failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        _lastState.SmeterDb = await Try("getLevel(STRENGTH)", () => client.GetLevelAsync("STRENGTH"));
+        var subRaw = await Try("RM2", () => client.GetMeterReadingAsync(2));
+        _lastState.SubSmeterDb = subRaw is { } raw ? SMeterScale.StrengthDb(raw) : null;
+        _lastState.TxMeters = _lastState.Ptt
+            ? new TxMeterReadings(
+                Comp: await Try("RM3", () => client.GetMeterReadingAsync(3)),
+                Alc: await Try("RM4", () => client.GetMeterReadingAsync(4)),
+                Idd: await Try("RM7", () => client.GetMeterReadingAsync(7)),
+                Vdd: await Try("RM8", () => client.GetMeterReadingAsync(8)))
+            : null;
+
+        var readings = new MeterReadings(powerWatts, swr, _lastState.TxMeters);
+        _mainMeter.Update(_lastState.SmeterDb, readings, _lastState.Ptt);
+        _subMeter.Update(_lastState.SubSmeterDb, readings, _lastState.Ptt);
     }
 
     private void SetComboSelection(ComboBox box, string? tagText)
