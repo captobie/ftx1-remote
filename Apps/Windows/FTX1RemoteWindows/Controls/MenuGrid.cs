@@ -618,10 +618,11 @@ public sealed class MenuGrid : UserControl
         // "GT0"/"PR1" get no reply at all in C4FM, and each unanswered read
         // costs the 1 s timeout plus a reconnect. The Mac skips them in
         // C4FM; this app's RigMode has no C4FM (it reads back as null), so
-        // they're skipped whenever the mode isn't one we recognize.
+        // they're skipped whenever the mode isn't one we recognize, or the
+        // raw "MD0" read (RigState.MainIsC4fm) says C4FM.
         int? agc = null;
         bool? micEq = null;
-        if (_state.Mode is not null)
+        if (_state.Mode is not null && _state.MainIsC4fm != true)
         {
             agc = await ReadOrNull(() => client.GetRawIntAsync("GT0"));
             micEq = await ReadOrNull(() => client.GetRawBoolAsync("PR1"));

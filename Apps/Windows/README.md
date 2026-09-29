@@ -555,9 +555,24 @@ the next one starts.
    (per-read timing in the log would find it). Not yet checked on the rig:
    ▲/▼ at the ends of the programmed channels and across empty ones, and
    the button exiting from a 5 MHz or PMS sub-mode.
-6. **C4FM callsign display.** Port the WPSD hotspot-page scrape (an HTTP
-   GET and parse, no CAT or rigctld involved) that the Mac and iPad use to
-   show the active C4FM callsign and reflector.
+6. **C4FM callsign display — done** (2026-09-29, build-verified and the
+   HTML parsers checked against sample markup; not yet tried against the
+   real hotspot or rig). `Services/WpsdCallsignMonitor.cs` ports the Mac's
+   `WPSDCallsignMonitor`: `caller_details_table.php` every 3 s for the live
+   caller (Src "Net" + a live "TX" cell) and `repeaterinfo.php` every 30 s
+   for the linked YSF reflector, the Mac's default intervals (fixed here
+   until step 7's Settings), 10 s HTTP timeout, a failed fetch leaves the
+   display alone. A checkbox + hotspot address under the connection bar
+   (settings.json `WpsdEnabled`/`WpsdHost`, applied on the next poll, no
+   reconnect). It runs only while either side is in C4FM, and each VFO
+   shows the caller and reflector under its frequency only while that side
+   is. C4FM comes from raw "MD0"/"MD1" (P2 "H"/"I"), read in the slow tier
+   (~5 s) since hamlib's "m" can't report it; the same flag now also skips
+   the MENU grid's GT0/PR1 in C4FM and clears the Mode box instead of
+   leaving the last analog mode showing. "MD0"/"MD1" assume Main is the
+   active side (VFO A), as the rest of this app does. To check on the rig:
+   a caller appearing and clearing on Main and on Sub, the reflector, and
+   that turning the checkbox off or leaving C4FM clears both.
 7. **Full Settings UI.** Give it the Mac's tab layout: rigctld connection
    (host, model, serial port, baud), per-band home frequency, Appearance,
    plus Audio and APRS tabs as placeholders until those features exist.
@@ -637,6 +652,7 @@ Apps/Windows/FTX1RemoteWindows/
     ChannelPlayer.cs             per-receiver jitter buffer + squelch/volume/mute
     SquelchGate.cs               port of SquelchGate.swift
     AudioPlayback.cs             NAudio WASAPI output mixing Main + Sub
+    WpsdCallsignMonitor.cs       C4FM caller/reflector from a WPSD hotspot (port of WPSDCallsignMonitor.swift)
   Settings/
     AppSettings.cs                connection mode, Pi hostname, Local rigctld settings, audio settings; file-based (see its doc comment on why not LocalSettings yet)
 ```

@@ -54,6 +54,18 @@ public sealed class RigState
     public bool InVfoMode => VfoMemoryRaw == 0;
     public bool InMemoryMode => VfoMemoryRaw == 11;
 
+    // C4FM, from raw "MD0"/"MD1" (RigctldClient.IsC4fmAsync), and what the
+    // WPSD hotspot says about it (Services/WpsdCallsignMonitor.cs) —
+    // RigState.swift's c4fmCallsign/c4fmReflector. Null until read.
+
+    public bool? MainIsC4fm { get; set; }
+    public bool? SubIsC4fm { get; set; }
+    /// The station transmitting through the hotspot right now; null when
+    /// nobody is, or the lookup is off.
+    public string? C4fmCallsign { get; set; }
+    /// The YSF reflector the hotspot is linked to.
+    public string? C4fmReflector { get; set; }
+
     // MENU grid, SSB page (Controls/MenuGrid.cs). Raw CAT settings, null
     // until first read; same names and encodings as RigState.swift.
 

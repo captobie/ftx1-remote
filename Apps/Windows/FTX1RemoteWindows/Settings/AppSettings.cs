@@ -53,6 +53,8 @@ public static class AppSettings
         public ChannelAudio SubAudio { get; set; } = new();
         public MeterSelection MainMeterSelection { get; set; } = MeterSelection.Po;
         public MeterSelection SubMeterSelection { get; set; } = MeterSelection.Po;
+        public bool WpsdEnabled { get; set; }
+        public string WpsdHost { get; set; } = "";
     }
 
     /// One receiver's playback settings. SquelchThreshold is SquelchGate's
@@ -226,6 +228,30 @@ public static class AppSettings
         set
         {
             _cache.SubMeterSelection = value;
+            Save();
+        }
+    }
+
+    /// The WPSD hotspot callsign lookup (Services/WpsdCallsignMonitor.cs),
+    /// the Mac's WPSDSettings: off by default, and an empty host keeps it
+    /// off either way. The host is an IP or hostname, optionally with a
+    /// port (e.g. "192.168.1.50" or "pi-star.local:8080").
+    public static bool WpsdEnabled
+    {
+        get => _cache.WpsdEnabled;
+        set
+        {
+            _cache.WpsdEnabled = value;
+            Save();
+        }
+    }
+
+    public static string WpsdHost
+    {
+        get => _cache.WpsdHost;
+        set
+        {
+            _cache.WpsdHost = value;
             Save();
         }
     }

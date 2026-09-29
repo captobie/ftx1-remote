@@ -52,6 +52,15 @@
                           SelectionChanged="AudioInputComboBox_SelectionChanged"
                           ToolTipService.ToolTip="The FTX-1's USB audio as a Windows recording device (usually &quot;Microphone (USB Audio Device)&quot;)" />
             </StackPanel>
+
+            <!-- Both modes, and stays enabled while connected: applied on the next poll. -->
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <CheckBox x:Name="WpsdEnabledCheckBox" Content="Show received C4FM callsign (via WPSD)"
+                          Click="WpsdEnabledCheckBox_Click"
+                          ToolTipService.ToolTip="While a VFO is in C4FM, show who's transmitting through your WPSD hotspot and the YSF reflector it's linked to, read from the hotspot's dashboard." />
+                <TextBox x:Name="WpsdHostBox" Width="220" PlaceholderText="Hotspot address (e.g. 192.168.1.50)"
+                         LostFocus="WpsdHostBox_LostFocus" KeyDown="WpsdHostBox_KeyDown" />
+            </StackPanel>
         </StackPanel>
 
         <!-- VFO A/B -->
@@ -71,6 +80,13 @@
                         <TextBlock x:Name="MemoryChannelAText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
                     </StackPanel>
                     <TextBlock x:Name="FrequencyAText" Text="—" FontSize="28" FontFamily="Consolas" />
+                    <!-- C4FM caller + reflector from the WPSD hotspot, only while
+                         this side is in C4FM. Height reserved so the meter below
+                         doesn't jump when a caller appears. -->
+                    <StackPanel Orientation="Horizontal" Spacing="12" Height="26">
+                        <TextBlock x:Name="C4fmCallsignAText" FontSize="18" FontWeight="SemiBold" Foreground="DodgerBlue" VerticalAlignment="Center" />
+                        <TextBlock x:Name="C4fmReflectorAText" Foreground="Gray" VerticalAlignment="Center" />
+                    </StackPanel>
                     <!-- Analog meter (Controls/SMeter.cs), added in code; the
                          frequency entry sits below it so Main's and Sub's meters line up. -->
                     <Border x:Name="MainMeterHost" Width="280" HorizontalAlignment="Left" Margin="0,4,0,0" />
@@ -113,6 +129,10 @@
                         <TextBlock x:Name="MemoryChannelBText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
                     </StackPanel>
                     <TextBlock x:Name="FrequencyBText" Text="—" FontSize="28" FontFamily="Consolas" />
+                    <StackPanel Orientation="Horizontal" Spacing="12" Height="26">
+                        <TextBlock x:Name="C4fmCallsignBText" FontSize="18" FontWeight="SemiBold" Foreground="DodgerBlue" VerticalAlignment="Center" />
+                        <TextBlock x:Name="C4fmReflectorBText" Foreground="Gray" VerticalAlignment="Center" />
+                    </StackPanel>
                     <Border x:Name="SubMeterHost" Width="280" HorizontalAlignment="Left" Margin="0,4,0,0" />
                 </StackPanel>
             </Grid>

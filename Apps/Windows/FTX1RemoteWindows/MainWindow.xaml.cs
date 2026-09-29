@@ -124,6 +124,9 @@ public sealed partial class MainWindow : Window
     /// yet. Read every <see cref="SlowPollEvery"/> polls.
     private bool? _singleReceive;
     private int _pollCount;
+    /// C4FM caller/reflector lookup, started and stopped by
+    /// UpdateWpsdMonitorState as settings and the rig's modes change.
+    private readonly WpsdCallsignMonitor _wpsdMonitor = new();
     /// When the in-flight poll started, for the stuck-poll watchdog in
     /// PollOnceAsync; null when none is running.
     private DateTime? _pollStartedAt;
@@ -185,6 +188,35 @@ public sealed partial class MainWindow : Window
 
         PiHostBox.Text = AppSettings.PiHost;
         RigctldPathBox.Text = AppSettings.RigctldPath;
+        WpsdEnabledCheckBox.IsChecked = AppSettings.WpsdEnabled;
+        WpsdHostBox.Text = AppSettings.WpsdHost;
+        _wpsdMonitor.CallsignUpdated += callsign => DispatcherQueue.TryEnqueue(() =>
+        {
+            // A late reply after Stop() must not bring a caller back.
+            if (!_wpsdActive)
+            {
+                return;
+            }
+            if (callsign != _lastState.C4fmCallsign)
+            {
+                AppLog.Write($"wpsd: caller {callsign ?? "none"}");
+            }
+            _lastState.C4fmCallsign = callsign;
+            UpdateC4fmDisplay();
+        });
+        _wpsdMonitor.ReflectorUpdated += reflector => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!_wpsdActive)
+            {
+                return;
+            }
+            if (reflector != _lastState.C4fmReflector)
+            {
+                AppLog.Write($"wpsd: reflector {reflector ?? "none"}");
+            }
+            _lastState.C4fmReflector = reflector;
+            UpdateC4fmDisplay();
+        });
         RefreshComPorts();
         // Not in the constructor directly: WinUI 3's editable ComboBox drops
         // a Text set before its template is applied, which left the box
@@ -289,6 +321,7 @@ public sealed partial class MainWindow : Window
             _pollTimer.Stop();
             UnkeyBeforeDisconnect();
             _audioStatusTimer.Stop();
+            _wpsdMonitor.Stop();
             _playback.Stop();
             _ = _audioSource?.StopAsync();
             _client?.Disconnect();
@@ -502,6 +535,7 @@ public sealed partial class MainWindow : Window
             _menuGrid.ClearState();
             _menuGrid.Client = client;
             ClearMemoryState();
+            ClearC4fmState();
             // Run the slow tier (FR, MENU grid) on the first poll.
             _pollCount = 0;
             ConnectionStateText.Text = $"Connected to {description}";
@@ -612,6 +646,7 @@ public sealed partial class MainWindow : Window
         _mainMeter.Reset();
         _subMeter.Reset();
         ClearMemoryState();
+        ClearC4fmState();
         if (client is not null)
         {
             await client.DisposeAsync();
@@ -729,6 +764,22 @@ public sealed partial class MainWindow : Window
             {
                 AppLog.Write($"poll: FR failed: {ex.Message}");
             }
+
+            // Slow tier: modes rarely change, and a C4FM switch only has to
+            // start the WPSD lookup and skip the MENU grid's GT0/PR1 (which
+            // go unanswered in C4FM). Main's fast-tier mode read also clears
+            // MainIsC4fm as soon as it reads a mode this app knows.
+            _lastState.MainIsC4fm = await ReadC4fmAsync(client, sub: false) ?? _lastState.MainIsC4fm;
+            _lastState.SubIsC4fm = await ReadC4fmAsync(client, sub: true) ?? _lastState.SubIsC4fm;
+            if (_lastState.MainIsC4fm == true && _lastState.Mode is not null)
+            {
+                // hamlib's mode read fails in C4FM, which left the last
+                // analog mode showing.
+                _lastState.Mode = null;
+                _suppressSelectionEvents = true;
+                ModeComboBox.SelectedItem = null;
+                _suppressSelectionEvents = false;
+            }
         }
 
         var generationChanged = generationAtStart != _commandGeneration;
@@ -755,6 +806,10 @@ public sealed partial class MainWindow : Window
             var mode = await client.GetModeAsync();
             _lastState.Mode = mode;
             SetComboSelection(ModeComboBox, mode?.DisplayName());
+            if (mode is not null)
+            {
+                _lastState.MainIsC4fm = false;
+            }
         }
         catch (Exception ex)
         {
@@ -839,9 +894,112 @@ public sealed partial class MainWindow : Window
             await _menuGrid.RefreshFromRigAsync(client);
         }
 
+        UpdateWpsdMonitorState();
+
         // Also refreshes the MENU grid (RF POWER, and the MOX/ANT TUNE gate
         // follows the new frequency).
         UpdateTransmitControls();
+    }
+
+    private static async Task<bool?> ReadC4fmAsync(RigctldClient client, bool sub)
+    {
+        try
+        {
+            return await client.IsC4fmAsync(sub);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"poll: {(sub ? "MD1" : "MD0")} failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// True while the WPSD lookup is meant to be running; its updates are
+    /// dropped otherwise, so a reply already in flight when it stopped
+    /// can't bring a caller back.
+    private bool _wpsdActive;
+
+    /// Starts/stops the WPSD lookup to match the settings and the rig — on
+    /// every poll, like the Mac's updateWPSDMonitorState, so the checkbox,
+    /// host and a mode change all take effect without reconnecting. Runs
+    /// while either side is in C4FM: there's one hotspot, whichever VFO
+    /// happens to be listening to it. Start/Stop are no-ops when already
+    /// in that state.
+    private void UpdateWpsdMonitorState()
+    {
+        var host = AppSettings.WpsdHost;
+        if (IsConnected && AppSettings.WpsdEnabled && host.Length > 0
+            && (_lastState.MainIsC4fm == true || _lastState.SubIsC4fm == true))
+        {
+            _wpsdActive = true;
+            _wpsdMonitor.Start(host);
+        }
+        else
+        {
+            _wpsdActive = false;
+            _wpsdMonitor.Stop();
+            _lastState.C4fmCallsign = null;
+            _lastState.C4fmReflector = null;
+        }
+        UpdateC4fmDisplay();
+    }
+
+    /// A new session starts from unread, like ClearMemoryState.
+    private void ClearC4fmState()
+    {
+        _lastState.MainIsC4fm = null;
+        _lastState.SubIsC4fm = null;
+        UpdateWpsdMonitorState();
+    }
+
+    /// Each side shows the caller and reflector only while it's in C4FM,
+    /// like the Mac's VFODisplayBox call sites.
+    private void UpdateC4fmDisplay()
+    {
+        var mainC4fm = _lastState.MainIsC4fm == true;
+        var subC4fm = _lastState.SubIsC4fm == true;
+        C4fmCallsignAText.Text = mainC4fm ? _lastState.C4fmCallsign ?? "" : "";
+        C4fmReflectorAText.Text = mainC4fm ? _lastState.C4fmReflector ?? "" : "";
+        C4fmCallsignBText.Text = subC4fm ? _lastState.C4fmCallsign ?? "" : "";
+        C4fmReflectorBText.Text = subC4fm ? _lastState.C4fmReflector ?? "" : "";
+    }
+
+    private void WpsdEnabledCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        AppSettings.WpsdEnabled = WpsdEnabledCheckBox.IsChecked == true;
+        UpdateWpsdMonitorState();
+    }
+
+    private void WpsdHostBox_LostFocus(object sender, RoutedEventArgs e) => SaveWpsdHost();
+
+    private void WpsdHostBox_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            SaveWpsdHost();
+        }
+    }
+
+    /// Stripped of a pasted "http://" and trailing "/", since the monitor
+    /// builds the URL itself.
+    private void SaveWpsdHost()
+    {
+        var host = WpsdHostBox.Text.Trim();
+        if (host.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            host = host["http://".Length..];
+        }
+        host = host.TrimEnd('/');
+        WpsdHostBox.Text = host;
+        if (host == AppSettings.WpsdHost)
+        {
+            return;
+        }
+        AppSettings.WpsdHost = host;
+        // A different hotspot: don't keep showing the old one's caller.
+        _lastState.C4fmCallsign = null;
+        _lastState.C4fmReflector = null;
+        UpdateWpsdMonitorState();
     }
 
     /// S-meter reads, same as the Mac's refreshFastTier: Main from hamlib's

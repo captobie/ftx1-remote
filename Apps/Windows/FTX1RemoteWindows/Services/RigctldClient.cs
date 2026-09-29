@@ -362,6 +362,22 @@ public sealed class RigctldClient : IAsyncDisposable
         return int.TryParse(digits, out var value) ? value : null;
     }
 
+    /// Whether a receiver (false MAIN, true SUB) is in C4FM, from raw
+    /// "MD0"/"MD1": P2 "H"/"I" are C4FM (RigState.swift's
+    /// RigMode(catModeCode:)). hamlib's "m" can't tell — it answers "RPRT -8"
+    /// in C4FM — and this app's RigMode has no C4FM. Null if the reply
+    /// isn't an "MD" one.
+    public async Task<bool?> IsC4fmAsync(bool sub, CancellationToken cancellationToken = default)
+    {
+        var cmd = sub ? "MD1" : "MD0";
+        var reply = await SendRawCommandAsync(cmd, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!reply.StartsWith(cmd, StringComparison.Ordinal) || reply.Length <= cmd.Length)
+        {
+            return null;
+        }
+        return reply[cmd.Length] is 'H' or 'I';
+    }
+
     /// Reads a "<CMD><0|1>;" on/off setting, e.g. "VX" -> "VX1;" -> true.
     /// Looks only at the first character after the prefix, so it must not
     /// be used for on/off states carried in a multi-digit field (the Swift
