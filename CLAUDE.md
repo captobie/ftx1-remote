@@ -652,6 +652,15 @@ those targets.
   checks start automatically on launch, gated by Sparkle's own first-run
   permission prompt, not app code) alongside `hub`, matching the existing
   "AppDelegate owns the long-lived services" shape.
+- **Settings → Updates tab (2026-09-29)**: "Automatically check for
+  updates" and "Automatically download and install updates" checkboxes
+  (`UpdaterSettingsViewModel`, a KVO bridge like `CheckForUpdatesViewModel`,
+  so they follow Sparkle's own prompts too) plus a Check for Updates…
+  button. Sparkle stores both settings itself, with no app-side storage. Automatic checks
+  default to on via `SUEnableAutomaticChecks = YES` in
+  `FTX1RemoteMac-Info.plist`, which also skips Sparkle's first-run
+  permission prompt; an install that already answered that prompt keeps
+  its saved choice. Auto-download defaults to off.
 - **Done since scaffolding, 2026-09-22** (see chat history for the full
   walkthrough): `generate_keys` run, real public key
   (`Xu1kV/OxMn0Yx53Wslwdo7zjYDUyiOqjK1a84j33YSk=`) is in

@@ -1,5 +1,6 @@
 import AppKit
 import FTX1Core
+import Sparkle
 import SwiftUI
 
 /// App settings, presented via the standard macOS `Settings` scene (app
@@ -16,6 +17,8 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var hub: HubService
+
+    let updater: SPUUpdater
 
     @State private var connectionMode = RigctldSettings.connectionMode
     @State private var remoteHost = RigctldSettings.remoteHost
@@ -59,6 +62,8 @@ struct SettingsView: View {
                     .tabItem { Text("Polling") }
                 AppearanceSettingsTab()
                     .tabItem { Text("Appearance") }
+                UpdatesSettingsTab(updater: updater)
+                    .tabItem { Text("Updates") }
             }
 
             HStack {
@@ -525,7 +530,39 @@ private struct AppearanceSettingsTab: View {
     }
 }
 
+/// Sparkle's automatic-update preferences — see `UpdaterSettingsViewModel`.
+/// Applies instantly like the other non-rigctld tabs; Sparkle stores the
+/// values itself.
+private struct UpdatesSettingsTab: View {
+    @StateObject private var viewModel: UpdaterSettingsViewModel
+    private let updater: SPUUpdater
+
+    init(updater: SPUUpdater) {
+        self.updater = updater
+        _viewModel = StateObject(wrappedValue: UpdaterSettingsViewModel(updater: updater))
+    }
+
+    var body: some View {
+        Form {
+            Toggle("Automatically check for updates", isOn: Binding(
+                get: { viewModel.automaticallyChecksForUpdates },
+                set: { viewModel.setAutomaticallyChecksForUpdates($0) }
+            ))
+            Toggle("Automatically download and install updates", isOn: Binding(
+                get: { viewModel.automaticallyDownloadsUpdates },
+                set: { viewModel.setAutomaticallyDownloadsUpdates($0) }
+            ))
+            .disabled(!viewModel.allowsAutomaticUpdates)
+
+            CheckForUpdatesView(updater: updater)
+        }
+        .padding(.top, 8)
+    }
+}
+
 #Preview {
-    SettingsView()
+    SettingsView(updater: SPUStandardUpdaterController(
+        startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil
+    ).updater)
         .environmentObject(HubService())
 }

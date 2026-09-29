@@ -100,7 +100,7 @@ struct FTX1RemoteMacApp: App {
         // this scene type is what puts it in the app menu (⌘,) instead,
         // matching standard Mac app conventions.
         Settings {
-            SettingsView()
+            SettingsView(updater: appDelegate.updaterController.updater)
                 .environmentObject(appDelegate.hub)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }

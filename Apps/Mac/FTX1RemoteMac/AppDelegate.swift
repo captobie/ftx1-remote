@@ -9,8 +9,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let hub: HubService
 
     /// `startingUpdater: true` starts Sparkle's automatic background check
-    /// on launch (interval/opt-in governed by its own first-run permission
-    /// prompt, not app code); the "Check for Updates…" menu item
+    /// on launch. Automatic checks default to on via `SUEnableAutomaticChecks`
+    /// in `FTX1RemoteMac-Info.plist` (which also skips Sparkle's first-run
+    /// permission prompt); Settings → Updates (`UpdaterSettingsViewModel`)
+    /// toggles it per Mac. The "Check for Updates…" menu item
     /// (`CheckForUpdatesView`) drives the same `updater` for manual checks.
     let updaterController = SPUStandardUpdaterController(
         startingUpdater: true,
