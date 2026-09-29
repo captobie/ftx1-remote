@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using FTX1RemoteWindows.Settings;
 
 namespace FTX1RemoteWindows.Services;
 
@@ -16,12 +17,12 @@ namespace FTX1RemoteWindows.Services;
 /// Mac's doc comment for the measurements).
 public sealed class WpsdCallsignMonitor
 {
-    /// The Mac's defaults (Settings → Polling there). Slower than the
-    /// dashboard's own ~1 s cadence: the hotspot (a Pi Zero 2 W) spends
-    /// ~0.7-3.3 s of PHP per request. Not user-adjustable here until the
-    /// Settings UI (parity plan step 7).
-    private static readonly TimeSpan CallerInterval = TimeSpan.FromSeconds(3);
-    private static readonly TimeSpan ReflectorInterval = TimeSpan.FromSeconds(30);
+    /// Settings → Polling, read before each wait so a change applies from
+    /// the next fetch. Defaults 3 s / 30 s, the Mac's: slower than the
+    /// dashboard's own ~1 s cadence, since the hotspot (a Pi Zero 2 W)
+    /// spends ~0.7-3.3 s of PHP per request.
+    private static TimeSpan CallerInterval => TimeSpan.FromSeconds(AppSettings.WpsdCallerSeconds);
+    private static TimeSpan ReflectorInterval => TimeSpan.FromSeconds(AppSettings.WpsdReflectorSeconds);
 
     /// Null = a successful fetch found no live caller.
     public event Action<string?>? CallsignUpdated;
@@ -47,8 +48,8 @@ public sealed class WpsdCallsignMonitor
         AppLog.Write($"wpsd: polling {host}");
         var cts = new CancellationTokenSource();
         _cts = cts;
-        _ = RunLoopAsync(() => PollCallerAsync(host, cts.Token), CallerInterval, cts.Token);
-        _ = RunLoopAsync(() => PollReflectorAsync(host, cts.Token), ReflectorInterval, cts.Token);
+        _ = RunLoopAsync(() => PollCallerAsync(host, cts.Token), () => CallerInterval, cts.Token);
+        _ = RunLoopAsync(() => PollReflectorAsync(host, cts.Token), () => ReflectorInterval, cts.Token);
     }
 
     public void Stop()
@@ -64,14 +65,14 @@ public sealed class WpsdCallsignMonitor
         _currentHost = null;
     }
 
-    private static async Task RunLoopAsync(Func<Task> poll, TimeSpan interval, CancellationToken token)
+    private static async Task RunLoopAsync(Func<Task> poll, Func<TimeSpan> interval, CancellationToken token)
     {
         while (!token.IsCancellationRequested)
         {
             await poll().ConfigureAwait(false);
             try
             {
-                await Task.Delay(interval, token).ConfigureAwait(false);
+                await Task.Delay(interval(), token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

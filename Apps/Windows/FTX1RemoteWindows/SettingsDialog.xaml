@@ -1,0 +1,135 @@
+<ContentDialog
+    x:Class="FTX1RemoteWindows.SettingsDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Settings"
+    PrimaryButtonText="Save"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary"
+    PrimaryButtonClick="SaveButton_Click">
+
+    <!-- The Mac's Settings tabs (SettingsView.swift), minus Station and
+         Updates (nothing here uses a callsign/grid yet, and there's no
+         Sparkle on Windows). Everything applies on Save; Cancel discards
+         every tab, unlike the Mac, where only the rigctld tab waits. -->
+    <Grid Width="620" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="420" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <SelectorBar x:Name="TabBar" SelectionChanged="TabBar_SelectionChanged">
+            <SelectorBarItem Text="rigctld" Tag="Rigctld" IsSelected="True" />
+            <SelectorBarItem Text="Audio" Tag="Audio" />
+            <SelectorBarItem Text="C4FM" Tag="C4fm" />
+            <SelectorBarItem Text="APRS" Tag="Aprs" />
+            <SelectorBarItem Text="Home Freq" Tag="Home" />
+            <SelectorBarItem Text="Polling" Tag="Polling" />
+            <SelectorBarItem Text="Appearance" Tag="Appearance" />
+        </SelectorBar>
+
+        <ScrollViewer Grid.Row="1" Padding="0,0,16,0">
+            <Grid>
+                <!-- rigctld -->
+                <StackPanel x:Name="RigctldTab" Spacing="12">
+                    <TextBlock x:Name="ConnectedNote" Visibility="Collapsed" TextWrapping="Wrap" Foreground="DarkOrange"
+                               Text="Disconnect to change the connection settings." />
+                    <ComboBox x:Name="ConnectionModeComboBox" Header="Connection" Width="260" HorizontalAlignment="Left"
+                              SelectionChanged="ConnectionModeComboBox_SelectionChanged">
+                        <ComboBoxItem Content="Remote (Pi over Tailscale)" Tag="Remote" />
+                        <ComboBoxItem Content="Local (USB on this PC)" Tag="Local" />
+                    </ComboBox>
+
+                    <StackPanel x:Name="RemoteSettingsPanel" Spacing="12">
+                        <TextBox x:Name="PiHostBox" Header="Pi hostname" Width="320" HorizontalAlignment="Left"
+                                 PlaceholderText="e.g. ftx1-pi (Tailscale MagicDNS name)" />
+                        <TextBlock Text="rigctld on the Pi, port 4532." Foreground="Gray" FontSize="12" />
+                    </StackPanel>
+
+                    <StackPanel x:Name="LocalSettingsPanel" Spacing="12" Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="RigctldPathBox" Header="rigctld.exe" Width="440" HorizontalAlignment="Left"
+                                     PlaceholderText="C:\Program Files\hamlib-w64-4.7\bin\rigctld.exe" />
+                            <Button x:Name="BrowseRigctldButton" Content="Browse…" VerticalAlignment="Bottom"
+                                    Click="BrowseRigctldButton_Click" />
+                        </StackPanel>
+                        <NumberBox x:Name="ModelNumberBox" Header="Model number" Width="160" HorizontalAlignment="Left"
+                                   Minimum="1" Maximum="99999" SmallChange="1" LargeChange="1"
+                                   ToolTipService.ToolTip="hamlib's rig model — 1051 is the FTX-1" />
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <ComboBox x:Name="ComPortComboBox" Header="COM port" Width="140" HorizontalAlignment="Left" IsEditable="True"
+                                      PlaceholderText="COM3" DropDownOpened="ComPortComboBox_DropDownOpened"
+                                      ToolTipService.ToolTip="The FTX-1's CAT port (the Enhanced COM port of its CP210x pair)" />
+                            <ComboBox x:Name="BaudRateComboBox" Header="Baud rate" Width="140" HorizontalAlignment="Left" />
+                        </StackPanel>
+                        <TextBlock Text="rigctld is started on 127.0.0.1:4532 (or an already-running one is used), so WSJT-X's &quot;Hamlib NET rigctl&quot; can share it."
+                                   Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Audio -->
+                <StackPanel x:Name="AudioTab" Spacing="12" Visibility="Collapsed">
+                    <ComboBox x:Name="AudioInputComboBox" Header="Input device (Local mode)" Width="440" HorizontalAlignment="Left"
+                              PlaceholderText="The radio's USB audio input" DropDownOpened="AudioInputComboBox_DropDownOpened"
+                              ToolTipService.ToolTip="The FTX-1's USB audio as a Windows recording device (usually &quot;Microphone (USB Audio Device)&quot;)" />
+                    <TextBlock Text="In Remote mode the audio comes from the Pi's stream (port 8532) instead."
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
+                    <ComboBox x:Name="AudioOutputComboBox" Header="Output device" Width="440" HorizontalAlignment="Left"
+                              DropDownOpened="AudioOutputComboBox_DropDownOpened"
+                              ToolTipService.ToolTip="Where the radio's audio plays. Picking your speakers here keeps it there even when Windows switches its default output (e.g. to the radio when it's plugged in)." />
+                    <TextBlock Text="A change applies on Save, also while connected."
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <!-- C4FM -->
+                <StackPanel x:Name="C4fmTab" Spacing="12" Visibility="Collapsed">
+                    <CheckBox x:Name="WpsdEnabledCheckBox" Content="Show received callsign (via WPSD)" />
+                    <TextBox x:Name="WpsdHostBox" Header="Hotspot address" Width="320" HorizontalAlignment="Left"
+                             PlaceholderText="e.g. 192.168.1.50" />
+                    <TextBlock Text="While a VFO is in C4FM, shows who's transmitting through your WPSD hotspot and the YSF reflector it's linked to, read from the hotspot's dashboard."
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <!-- APRS: placeholder, like the MENU grid's S.LIST/M.LIST. -->
+                <StackPanel x:Name="AprsTab" Spacing="12" Visibility="Collapsed">
+                    <TextBlock TextWrapping="Wrap"
+                               Text="APRS decoding isn't in the Windows app yet. Its settings (frequency, tolerance, history size) will be here once it is." />
+                </StackPanel>
+
+                <!-- Home Freq: rows added in code, one per HomeBand. -->
+                <StackPanel x:Name="HomeTab" Spacing="12" Visibility="Collapsed">
+                    <TextBlock Text="The FM page's HOME button tunes to the frequency for the band group Main is in (the rig's own HOME channels can't be read over CAT)."
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
+                    <StackPanel x:Name="HomeFieldsPanel" Spacing="8" />
+                </StackPanel>
+
+                <!-- Polling -->
+                <StackPanel x:Name="PollingTab" Spacing="12" Visibility="Collapsed">
+                    <TextBlock Text="Radio (rigctld)" FontWeight="SemiBold" />
+                    <NumberBox x:Name="PollIntervalBox" Header="VFO / meters interval (ms)" Width="220" HorizontalAlignment="Left"
+                               SpinButtonPlacementMode="Inline" SmallChange="50" LargeChange="500" />
+                    <NumberBox x:Name="SlowPollEveryBox" Header="Menu settings: read every N polls" Width="220" HorizontalAlignment="Left"
+                               SpinButtonPlacementMode="Inline" SmallChange="1" LargeChange="5" />
+                    <TextBlock Text="A shorter interval updates the VFO display and meters faster; reading menu settings more often picks up front-panel changes sooner. Over the Pi link a poll takes about half a second, so an interval below that has no further effect."
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
+                    <TextBlock Text="WPSD hotspot" FontWeight="SemiBold" Margin="0,8,0,0" />
+                    <NumberBox x:Name="WpsdCallerBox" Header="Caller lookup every (s)" Width="220" HorizontalAlignment="Left"
+                               SpinButtonPlacementMode="Inline" SmallChange="1" LargeChange="5" />
+                    <NumberBox x:Name="WpsdReflectorBox" Header="Reflector lookup every (s)" Width="220" HorizontalAlignment="Left"
+                               SpinButtonPlacementMode="Inline" SmallChange="5" LargeChange="30" />
+                    <Button Content="Restore Defaults" Click="RestorePollingDefaults_Click" />
+                </StackPanel>
+
+                <!-- Appearance -->
+                <StackPanel x:Name="AppearanceTab" Spacing="12" Visibility="Collapsed">
+                    <RadioButtons x:Name="ThemeRadioButtons" Header="Theme" MaxColumns="3" />
+                    <ComboBox x:Name="ButtonValueColorComboBox" Header="Button value color" Width="200" HorizontalAlignment="Left"
+                              ToolTipService.ToolTip="The color of each MENU grid button's current setting" />
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="2" x:Name="ErrorText" Foreground="Firebrick" TextWrapping="Wrap" />
+    </Grid>
+</ContentDialog>

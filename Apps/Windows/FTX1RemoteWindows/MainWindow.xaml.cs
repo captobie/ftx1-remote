@@ -9,7 +9,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
-using Windows.Storage.Pickers;
 using Microsoft.UI.Xaml.Media;
 
 namespace FTX1RemoteWindows;
@@ -36,8 +35,6 @@ public sealed partial class MainWindow : Window
     /// adopted rigctld get a single attempt, same as before.
     private static readonly TimeSpan LocalStartupGracePeriod = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan LocalStartupRetryInterval = TimeSpan.FromMilliseconds(250);
-
-    private static readonly int[] BaudRates = [4800, 9600, 19200, 38400, 115200];
 
     private RigctldClient? _client;
     private readonly RigctldProcessController _rigctldProcess = new();
@@ -90,7 +87,6 @@ public sealed partial class MainWindow : Window
     /// guard, ...), shown instead of a link state.
     private string? _audioSetupError;
     private string _connectedHost = "";
-    private bool _suppressAudioInputEvents;
     private readonly DispatcherQueueTimer _audioStatusTimer;
     private string? _playbackError;
     /// Set while the feedback guard is holding playback back (Local mode:
@@ -104,7 +100,6 @@ public sealed partial class MainWindow : Window
     /// Informational playback note (e.g. the chosen output is unplugged and
     /// Windows' default is used instead), shown after the link state.
     private string? _playbackNote;
-    private bool _suppressAudioOutputEvents;
     private const int PlaybackRecheckTicks = 8;
 
     /// Suppresses the audio controls' change handlers while the constructor
@@ -121,7 +116,7 @@ public sealed partial class MainWindow : Window
     /// front-panel one (the Mac's commandGeneration, same reason).
     private int _commandGeneration;
     /// "FR" (FUNCTION RX): false dual receive, true single, null not read
-    /// yet. Read every <see cref="SlowPollEvery"/> polls.
+    /// yet. Read in the slow tier.
     private bool? _singleReceive;
     private int _pollCount;
     /// C4FM caller/reflector lookup, started and stopped by
@@ -134,9 +129,6 @@ public sealed partial class MainWindow : Window
     /// Last logged (Main, Sub) poll result — the poll log line is
     /// written only when it changes, so a 500 ms poll doesn't flood app.log.
     private (long?, long?) _lastLoggedPoll;
-    /// 10 × the 500 ms poll keeps the slow tier at ~5 s, where it was
-    /// when the poll ran every second.
-    private const int SlowPollEvery = 10;
     private bool _pollInFlight;
 
     /// Main's frequency/mode as last polled in plain VFO mode — frozen once
@@ -186,10 +178,8 @@ public sealed partial class MainWindow : Window
         MainMeterHost.Child = _mainMeter;
         SubMeterHost.Child = _subMeter;
 
-        PiHostBox.Text = AppSettings.PiHost;
-        RigctldPathBox.Text = AppSettings.RigctldPath;
-        WpsdEnabledCheckBox.IsChecked = AppSettings.WpsdEnabled;
-        WpsdHostBox.Text = AppSettings.WpsdHost;
+        ApplyAppearance();
+        ShowDisconnected();
         _wpsdMonitor.CallsignUpdated += callsign => DispatcherQueue.TryEnqueue(() =>
         {
             // A late reply after Stop() must not bring a caller back.
@@ -217,22 +207,6 @@ public sealed partial class MainWindow : Window
             _lastState.C4fmReflector = reflector;
             UpdateC4fmDisplay();
         });
-        RefreshComPorts();
-        // Not in the constructor directly: WinUI 3's editable ComboBox drops
-        // a Text set before its template is applied, which left the box
-        // blank (showing only its "COM3" placeholder) on every launch — and
-        // Connect then saved that blank as the COM port.
-        ComPortComboBox.Loaded += (_, _) => ShowComPort(AppSettings.ComPort);
-        RefreshAudioInputs();
-        RefreshAudioOutputs();
-        foreach (var rate in BaudRates)
-        {
-            BaudRateComboBox.Items.Add(new ComboBoxItem { Content = rate.ToString(), Tag = rate });
-        }
-        BaudRateComboBox.SelectedIndex = Math.Max(0, Array.IndexOf(BaudRates, AppSettings.BaudRate));
-        ConnectionModeComboBox.SelectedIndex = AppSettings.ConnectionMode == ConnectionMode.Local ? 1 : 0;
-        UpdateModePanels();
-
         _suppressSelectionEvents = true;
         foreach (RigMode mode in Enum.GetValues<RigMode>())
         {
@@ -252,8 +226,9 @@ public sealed partial class MainWindow : Window
         PowerSlider.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(PowerSlider_PointerDone), true);
 
         _pollTimer = DispatcherQueue.CreateTimer();
-        // 500 ms, the Mac's fast-tier default, so the S-meters move live.
-        _pollTimer.Interval = TimeSpan.FromMilliseconds(500);
+        // Settings → Polling; 500 ms by default, the Mac's fast-tier
+        // default, so the S-meters move live.
+        _pollTimer.Interval = TimeSpan.FromMilliseconds(AppSettings.PollIntervalMs);
         _pollTimer.Tick += async (_, _) => await PollOnceAsync();
 
         // Mid-session only: during Connect, ConnectToFreshRigctldAsync
@@ -333,124 +308,80 @@ public sealed partial class MainWindow : Window
     private bool IsConnected => _client is not null;
 
     /// The mode of the current session (set on a successful Connect) — the
-    /// picker itself is locked while connected, but this is what audio
-    /// gating reads.
+    /// Settings rigctld tab is locked while connected, but this is what
+    /// audio gating reads.
     private ConnectionMode _connectedMode;
 
-    private ConnectionMode SelectedMode =>
-        ConnectionModeComboBox.SelectedItem is ComboBoxItem { Tag: "Local" } ? ConnectionMode.Local : ConnectionMode.Remote;
-
-    private void ConnectionModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    /// The connection bar while disconnected: which connection Connect
+    /// will use, now that its settings live in the Settings dialog.
+    private void ShowDisconnected()
     {
-        UpdateModePanels();
+        ConnectionStateText.Text = AppSettings.ConnectionMode == ConnectionMode.Local
+            ? $"Disconnected · Local, {(AppSettings.ComPort.Length > 0 ? AppSettings.ComPort : "no COM port set")} @ {AppSettings.BaudRate}"
+            : $"Disconnected · Remote, {(AppSettings.PiHost.Length > 0 ? AppSettings.PiHost : "no Pi host set")}";
+        ConnectionStateText.Foreground = new SolidColorBrush(Colors.Gray);
     }
 
-    private void UpdateModePanels()
+    private async void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        var local = SelectedMode == ConnectionMode.Local;
-        LocalSettingsPanel.Visibility = local ? Visibility.Visible : Visibility.Collapsed;
-        RemoteSettingsPanel.Visibility = local ? Visibility.Collapsed : Visibility.Visible;
-    }
-
-    /// Enables/disables the connection settings together — changing mode,
-    /// host, COM port etc. mid-session would leave the UI describing a
-    /// connection that isn't the one in use.
-    private void SetConnectionSettingsEnabled(bool enabled)
-    {
-        ConnectionModeComboBox.IsEnabled = enabled;
-        PiHostBox.IsEnabled = enabled;
-        RigctldPathBox.IsEnabled = enabled;
-        BrowseRigctldButton.IsEnabled = enabled;
-        ComPortComboBox.IsEnabled = enabled;
-        BaudRateComboBox.IsEnabled = enabled;
-    }
-
-    private void ComPortComboBox_DropDownOpened(object sender, object e)
-    {
-        RefreshComPorts();
-    }
-
-    /// Lists the COM ports Windows currently knows about, straight from the
-    /// registry key SerialPort.GetPortNames() reads (so no System.IO.Ports
-    /// package just for this). The box stays editable, so a port that isn't
-    /// plugged in yet can still be typed.
-    private void RefreshComPorts()
-    {
-        var typed = CurrentComPort();
-        var ports = new List<string>();
+        var dialog = new SettingsDialog(this, IsConnected);
+        SettingsButton.IsEnabled = false;
         try
         {
-            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"HARDWARE\DEVICEMAP\SERIALCOMM");
-            if (key is not null)
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary)
             {
-                foreach (var name in key.GetValueNames())
-                {
-                    if (key.GetValue(name) is string port)
-                    {
-                        ports.Add(port);
-                    }
-                }
+                return;
             }
         }
-        catch (Exception ex)
+        finally
         {
-            AppLog.Write($"COM port enumeration failed: {ex.Message}");
+            SettingsButton.IsEnabled = true;
         }
-        ports.Sort((a, b) => ComPortNumber(a).CompareTo(ComPortNumber(b)));
-
-        ComPortComboBox.Items.Clear();
-        foreach (var port in ports.Distinct())
-        {
-            ComPortComboBox.Items.Add(port);
-        }
-        ShowComPort(typed);
+        await ApplySettingsAsync(dialog);
     }
 
-    /// Puts a port in the box by selecting its list entry — adding one if
-    /// the port isn't currently listed (not plugged in yet, or hidden by a
-    /// COM-number clash), so it still shows. Setting an editable
-    /// ComboBox's Text programmatically doesn't reliably display in WinUI 3
-    /// (and Items.Clear() wipes it), so selection is the only path used.
-    private void ShowComPort(string port)
+    /// Applies what Save changed. The connection settings apply on the
+    /// next Connect (the dialog locks them while connected); everything
+    /// else takes effect now.
+    private async Task ApplySettingsAsync(SettingsDialog dialog)
     {
-        port = port.Trim();
-        if (port.Length == 0)
+        AppLog.Write($"settings: saved ({AppSettings.ConnectionMode} mode, poll {AppSettings.PollIntervalMs} ms, slow tier every {AppSettings.SlowPollEvery})");
+        if (!IsConnected)
         {
-            ComPortComboBox.SelectedIndex = -1;
-            return;
+            ShowDisconnected();
         }
-        var match = ComPortComboBox.Items.OfType<string>()
-            .FirstOrDefault(p => string.Equals(p, port, StringComparison.OrdinalIgnoreCase));
-        if (match is null)
+        ApplyAppearance();
+        _pollTimer.Interval = TimeSpan.FromMilliseconds(AppSettings.PollIntervalMs);
+
+        if (dialog.WpsdHostChanged)
         {
-            match = port.ToUpperInvariant();
-            ComPortComboBox.Items.Add(match);
+            // A different hotspot: don't keep showing the old one's caller.
+            _lastState.C4fmCallsign = null;
+            _lastState.C4fmReflector = null;
         }
-        ComPortComboBox.SelectedItem = match;
+        // Restarted so new lookup intervals don't wait out an old delay.
+        _wpsdMonitor.Stop();
+        UpdateWpsdMonitorState();
+
+        if (dialog.AudioInputChanged && IsConnected && _connectedMode == ConnectionMode.Local && AudioSwitch.IsOn)
+        {
+            await StopAudioAsync();
+            StartAudio();
+        }
+        else if (dialog.AudioOutputChanged)
+        {
+            // Only playback restarts; the audio source keeps running.
+            StartPlayback();
+            UpdateAudioStatus();
+        }
     }
 
-    /// What the box shows: typed text, or the selected entry if the text
-    /// hasn't caught up with a selection yet.
-    private string CurrentComPort()
+    /// Settings → Appearance: the theme (on the window's root, so every
+    /// control follows) and the MENU grid's value color.
+    private void ApplyAppearance()
     {
-        var text = ComPortComboBox.Text?.Trim() ?? "";
-        return text.Length > 0 ? text : (ComPortComboBox.SelectedItem as string ?? "");
-    }
-
-    private static int ComPortNumber(string port) =>
-        port.StartsWith("COM", StringComparison.OrdinalIgnoreCase) && int.TryParse(port.AsSpan(3), out var n) ? n : int.MaxValue;
-
-    private async void BrowseRigctldButton_Click(object sender, RoutedEventArgs e)
-    {
-        var picker = new FileOpenPicker();
-        // Unpackaged WinUI 3 pickers need the owning window's HWND.
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
-        picker.FileTypeFilter.Add(".exe");
-        var file = await picker.PickSingleFileAsync();
-        if (file is not null)
-        {
-            RigctldPathBox.Text = file.Path;
-        }
+        RootScrollViewer.RequestedTheme = AppSettings.Theme.ElementTheme();
+        _menuGrid.ValueColor = AppSettings.ButtonValueColor.Color();
     }
 
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -461,38 +392,31 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var mode = SelectedMode;
-        AppSettings.ConnectionMode = mode;
-
+        var mode = AppSettings.ConnectionMode;
         string host;
         string description;
         if (mode == ConnectionMode.Remote)
         {
-            host = PiHostBox.Text.Trim();
+            host = AppSettings.PiHost;
             if (host.Length == 0)
             {
-                StatusText.Text = "Enter the Pi's Tailscale hostname first.";
+                StatusText.Text = "Set the Pi's Tailscale hostname in Settings first.";
                 return;
             }
-            AppSettings.PiHost = host;
             description = $"{host}:{RigctldPort}";
         }
         else
         {
             host = LocalHost;
-            AppSettings.RigctldPath = RigctldPathBox.Text.Trim().Trim('"');
-            AppSettings.ComPort = CurrentComPort().ToUpperInvariant();
-            if (BaudRateComboBox.SelectedItem is ComboBoxItem { Tag: int baud })
+            if (AppSettings.RigctldPath.Length == 0 || AppSettings.ComPort.Length == 0)
             {
-                AppSettings.BaudRate = baud;
+                StatusText.Text = "Set rigctld.exe and the COM port in Settings first.";
+                return;
             }
-            RigctldPathBox.Text = AppSettings.RigctldPath;
-            ShowComPort(AppSettings.ComPort);
             description = $"{AppSettings.ComPort} @ {AppSettings.BaudRate} via local rigctld";
         }
 
         ConnectButton.IsEnabled = false;
-        SetConnectionSettingsEnabled(false);
         ConnectionStateText.Text = mode == ConnectionMode.Local ? "Starting rigctld…" : "Connecting…";
         ConnectionStateText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Orange);
         StatusText.Text = "";
@@ -559,9 +483,7 @@ public sealed partial class MainWindow : Window
         {
             await client.DisposeAsync();
             _rigctldProcess.Stop();
-            SetConnectionSettingsEnabled(true);
-            ConnectionStateText.Text = "Disconnected";
-            ConnectionStateText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray);
+            ShowDisconnected();
             StatusText.Text = $"Connect failed: {ex.Message}";
             AppLog.Write($"connection: connect failed: {ex.Message}");
         }
@@ -652,9 +574,7 @@ public sealed partial class MainWindow : Window
             await client.DisposeAsync();
         }
         _rigctldProcess.Stop();
-        SetConnectionSettingsEnabled(true);
-        ConnectionStateText.Text = "Disconnected";
-        ConnectionStateText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray);
+        ShowDisconnected();
         ConnectButton.Content = "Connect";
         if (reason is not null)
         {
@@ -745,7 +665,7 @@ public sealed partial class MainWindow : Window
         var mainMemory = await ReadMemoryStateAsync(client, sub: false);
         var subMemory = await ReadMemoryStateAsync(client, sub: true);
 
-        var slowTier = _pollCount++ % SlowPollEvery == 0;
+        var slowTier = _pollCount++ % AppSettings.SlowPollEvery == 0;
         if (slowTier)
         {
             try
@@ -962,44 +882,6 @@ public sealed partial class MainWindow : Window
         C4fmReflectorAText.Text = mainC4fm ? _lastState.C4fmReflector ?? "" : "";
         C4fmCallsignBText.Text = subC4fm ? _lastState.C4fmCallsign ?? "" : "";
         C4fmReflectorBText.Text = subC4fm ? _lastState.C4fmReflector ?? "" : "";
-    }
-
-    private void WpsdEnabledCheckBox_Click(object sender, RoutedEventArgs e)
-    {
-        AppSettings.WpsdEnabled = WpsdEnabledCheckBox.IsChecked == true;
-        UpdateWpsdMonitorState();
-    }
-
-    private void WpsdHostBox_LostFocus(object sender, RoutedEventArgs e) => SaveWpsdHost();
-
-    private void WpsdHostBox_KeyDown(object sender, KeyRoutedEventArgs e)
-    {
-        if (e.Key == Windows.System.VirtualKey.Enter)
-        {
-            SaveWpsdHost();
-        }
-    }
-
-    /// Stripped of a pasted "http://" and trailing "/", since the monitor
-    /// builds the URL itself.
-    private void SaveWpsdHost()
-    {
-        var host = WpsdHostBox.Text.Trim();
-        if (host.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-        {
-            host = host["http://".Length..];
-        }
-        host = host.TrimEnd('/');
-        WpsdHostBox.Text = host;
-        if (host == AppSettings.WpsdHost)
-        {
-            return;
-        }
-        AppSettings.WpsdHost = host;
-        // A different hotspot: don't keep showing the old one's caller.
-        _lastState.C4fmCallsign = null;
-        _lastState.C4fmReflector = null;
-        UpdateWpsdMonitorState();
     }
 
     /// S-meter reads, same as the Mac's refreshFastTier: Main from hamlib's
@@ -1610,7 +1492,7 @@ public sealed partial class MainWindow : Window
     /// :8532 stream in Remote mode, the chosen input device in Local mode.
     /// Runs only while the rig link is up — each source has its own retry
     /// loop, but its lifetime follows Connect/Disconnect, the Audio switch
-    /// and (Local) the Audio in picker.
+    /// and (Local) the input device chosen in Settings → Audio.
     private void StartAudio()
     {
         if (_audioSource is not null)
@@ -1638,7 +1520,19 @@ public sealed partial class MainWindow : Window
             var deviceId = AppSettings.LocalAudioDeviceId;
             if (deviceId.Length == 0)
             {
-                _audioSetupError = "Choose the radio's audio input under \"Audio in\".";
+                // Nothing chosen yet: the only "USB Audio" input, if there's
+                // exactly one, is the FTX-1's codec's usual name.
+                var usb = LocalAudioCapture.ListDevices()
+                    .Where(d => d.Name.Contains("USB Audio", StringComparison.OrdinalIgnoreCase)).ToList();
+                if (usb.Count == 1)
+                {
+                    AppSettings.SetLocalAudioDevice(usb[0].Id, usb[0].Name);
+                    deviceId = usb[0].Id;
+                }
+            }
+            if (deviceId.Length == 0)
+            {
+                _audioSetupError = "Choose the radio's audio input in Settings → Audio.";
                 UpdateAudioStatus();
                 return;
             }
@@ -1649,7 +1543,7 @@ public sealed partial class MainWindow : Window
             catch (Exception ex)
             {
                 AppLog.Write($"local-audio: can't open {deviceId}: {ex.Message}");
-                _audioSetupError = $"\"{AppSettings.LocalAudioDeviceName}\" isn't available — is the radio plugged in and on? Pick it again under \"Audio in\" once it is.";
+                _audioSetupError = $"\"{AppSettings.LocalAudioDeviceName}\" isn't available — is the radio plugged in and on? Pick it again in Settings → Audio once it is.";
                 UpdateAudioStatus();
                 return;
             }
@@ -1662,8 +1556,8 @@ public sealed partial class MainWindow : Window
         UpdateAudioStatus();
     }
 
-    /// (Re)starts playback for the running source on the device chosen under
-    /// "Out". In Local mode, first applies the feedback guard: playing to
+    /// (Re)starts playback for the running source on the output device
+    /// chosen in Settings → Audio. In Local mode, first applies the feedback guard: playing to
     /// the radio's own USB codec would feed its TX audio input (and with VOX
     /// or DATA-mode keying, could transmit it).
     private void StartPlayback()
@@ -1692,8 +1586,8 @@ public sealed partial class MainWindow : Window
             _playbackBlockedForDeviceId = captureId;
             _playbackRecheckCountdown = PlaybackRecheckTicks;
             _playbackError = usingDefault
-                ? "Windows' default output is the radio's own USB audio, which would feed its transmit input — pick your speakers under \"Out\" (or as Windows' default; Windows switches to the radio's audio when it's plugged in). Playback starts by itself once the default changes"
-                : "the output chosen under \"Out\" is the radio's own USB audio, which would feed its transmit input — pick your speakers there";
+                ? "Windows' default output is the radio's own USB audio, which would feed its transmit input — pick your speakers in Settings → Audio (or as Windows' default; Windows switches to the radio's audio when it's plugged in). Playback starts by itself once the default changes"
+                : "the output chosen in Settings → Audio is the radio's own USB audio, which would feed its transmit input — pick your speakers there";
             return;
         }
         _playbackError = _playback.Start(source.SampleRate, outputId);
@@ -1723,53 +1617,6 @@ public sealed partial class MainWindow : Window
         StartPlayback();
     }
 
-    private void AudioOutputComboBox_DropDownOpened(object sender, object e) => RefreshAudioOutputs();
-
-    /// "Windows default" first, then the active output devices. A saved
-    /// device that isn't plugged in stays listed, marked, like Audio in.
-    private void RefreshAudioOutputs()
-    {
-        _suppressAudioOutputEvents = true;
-        var savedId = AppSettings.AudioOutputDeviceId;
-        AudioOutputComboBox.Items.Clear();
-        var defaultItem = new ComboBoxItem { Content = "Windows default", Tag = "" };
-        AudioOutputComboBox.Items.Add(defaultItem);
-        ComboBoxItem selected = defaultItem;
-        foreach (var (id, name) in AudioPlayback.ListOutputDevices())
-        {
-            var item = new ComboBoxItem { Content = name, Tag = id };
-            AudioOutputComboBox.Items.Add(item);
-            if (id == savedId)
-            {
-                selected = item;
-            }
-        }
-        if (savedId.Length > 0 && ReferenceEquals(selected, defaultItem))
-        {
-            selected = new ComboBoxItem { Content = $"{AppSettings.AudioOutputDeviceName} (not connected)", Tag = savedId };
-            AudioOutputComboBox.Items.Add(selected);
-        }
-        AudioOutputComboBox.SelectedItem = selected;
-        _suppressAudioOutputEvents = false;
-    }
-
-    /// Takes effect at once: only playback restarts, the audio source keeps
-    /// running.
-    private void AudioOutputComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_suppressAudioOutputEvents || AudioOutputComboBox.SelectedItem is not ComboBoxItem { Tag: string id } item)
-        {
-            return;
-        }
-        if (id == AppSettings.AudioOutputDeviceId)
-        {
-            return;
-        }
-        AppSettings.SetAudioOutputDevice(id, id.Length == 0 ? "" : (string)item.Content);
-        StartPlayback();
-        UpdateAudioStatus();
-    }
-
     private async Task StopAudioAsync()
     {
         var source = _audioSource;
@@ -1785,64 +1632,6 @@ public sealed partial class MainWindow : Window
         _playbackNote = null;
         _audioSetupError = null;
         UpdateAudioStatus();
-    }
-
-    private void AudioInputComboBox_DropDownOpened(object sender, object e) => RefreshAudioInputs();
-
-    /// Lists the active recording devices. A saved device that isn't
-    /// plugged in stays listed (marked) so the selection isn't silently
-    /// lost. With nothing saved yet, pre-selects the only "USB Audio"
-    /// input if there's exactly one — the FTX-1's codec's usual name.
-    private void RefreshAudioInputs()
-    {
-        _suppressAudioInputEvents = true;
-        var devices = LocalAudioCapture.ListDevices();
-        var savedId = AppSettings.LocalAudioDeviceId;
-        AudioInputComboBox.Items.Clear();
-        ComboBoxItem? selected = null;
-        foreach (var (id, name) in devices)
-        {
-            var item = new ComboBoxItem { Content = name, Tag = id };
-            AudioInputComboBox.Items.Add(item);
-            if (id == savedId)
-            {
-                selected = item;
-            }
-        }
-        if (selected is null && savedId.Length > 0)
-        {
-            selected = new ComboBoxItem { Content = $"{AppSettings.LocalAudioDeviceName} (not connected)", Tag = savedId };
-            AudioInputComboBox.Items.Add(selected);
-        }
-        if (selected is null && savedId.Length == 0)
-        {
-            var usb = devices.Where(d => d.Name.Contains("USB Audio", StringComparison.OrdinalIgnoreCase)).ToList();
-            if (usb.Count == 1)
-            {
-                AppSettings.SetLocalAudioDevice(usb[0].Id, usb[0].Name);
-                selected = AudioInputComboBox.Items.OfType<ComboBoxItem>().First(i => (string)i.Tag == usb[0].Id);
-            }
-        }
-        AudioInputComboBox.SelectedItem = selected;
-        _suppressAudioInputEvents = false;
-    }
-
-    private async void AudioInputComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_suppressAudioInputEvents || AudioInputComboBox.SelectedItem is not ComboBoxItem { Tag: string id } item)
-        {
-            return;
-        }
-        if (id == AppSettings.LocalAudioDeviceId)
-        {
-            return;
-        }
-        AppSettings.SetLocalAudioDevice(id, (string)item.Content);
-        if (IsConnected && _connectedMode == ConnectionMode.Local && AudioSwitch.IsOn)
-        {
-            await StopAudioAsync();
-            StartAudio();
-        }
     }
 
     private void UpdateAudioStatus()

@@ -111,21 +111,57 @@ Local:   Windows app  ──TCP 127.0.0.1:4532──►  rigctld.exe (spawned or
 
 ## Settings
 
-A "Radio:" mode picker (Remote / Local, `AppSettings.ConnectionMode`,
-defaulting to Remote so a pre-Local settings file behaves as before), then:
+`SettingsDialog.xaml(.cs)`, opened by the **Settings** button next to
+Connect: a `ContentDialog` with the Mac's tabs (`SettingsView.swift`) along
+a `SelectorBar`. Stored in `settings.json` (`Settings/AppSettings.cs`).
+Unlike the Mac, where only the rigctld tab waits for Done, nothing is
+written until **Save**, and Cancel discards every tab. What Save changed is
+applied at once, also while connected, except the rigctld tab (below).
 
-- **Remote**: Pi hostname (Tailscale MagicDNS, e.g. `ftx1-pi`) — port fixed
-  at 4532, not user-configurable, matching `RigctldSettings.remoteHost`
-  (`Apps/Mac/FTX1RemoteMac/RigctldSettings.swift`).
-- **Local**: path to `rigctld.exe` (with a Browse button; no default, since
-  hamlib's installer uses a version-numbered folder), COM port (editable
-  drop-down listing the ports in `HKLM\HARDWARE\DEVICEMAP\SERIALCOMM`,
-  refreshed each time it opens), and baud rate (default 38400). The hamlib
-  model number (1051) is stored but not shown.
+- **rigctld**: Connection (Remote / Local, `AppSettings.ConnectionMode`,
+  defaulting to Remote so a pre-Local settings file behaves as before), then
+  - **Remote**: Pi hostname (Tailscale MagicDNS, e.g. `ftx1-pi`) — port
+    fixed at 4532, not user-configurable, matching
+    `RigctldSettings.remoteHost` (`Apps/Mac/FTX1RemoteMac/
+    RigctldSettings.swift`).
+  - **Local**: path to `rigctld.exe` (with a Browse button; no default,
+    since hamlib's installer uses a version-numbered folder), hamlib model
+    number (1051, the FTX-1), COM port (editable drop-down listing the
+    ports in `HKLM\HARDWARE\DEVICEMAP\SERIALCOMM`, refreshed each time it
+    opens), and baud rate (default 38400; 4800–115200, plus a hand-set
+    value from settings.json).
 
-Unlike the Mac, switching mode doesn't need a relaunch — this app builds a
-fresh `RigctldClient` on every Connect — but the settings are locked while
-connected. Persist via `ApplicationData.Current.LocalSettings` (available for free
+  Unlike the Mac, switching mode doesn't need a relaunch — this app builds
+  a fresh `RigctldClient` on every Connect — but the tab is read-only while
+  connected. The connection bar says which connection Connect will use
+  ("Disconnected · Remote, ftx1pi"); Connect with no Pi host (Remote), or
+  no rigctld.exe or COM port (Local), points at Settings instead.
+- **Audio**: the Local-mode input device and the playback output device
+  (see "Audio" below). The Audio on/off switch and the MAIN/SUB mute,
+  VOL and SQL stay in the main window.
+- **C4FM**: the WPSD hotspot callsign lookup (on/off + hotspot address; a
+  pasted "http://" and trailing "/" are stripped).
+- **APRS**: a placeholder until APRS decoding is ported.
+- **Home Freq**: the MENU grid HOME button's frequency per band group
+  (`HomeBand`, `AppSettings.HomeFrequencyHz`), in MHz. Must lie inside
+  its group; empty restores the factory frequency, and only frequencies
+  that differ from the factory one are stored.
+- **Polling**: the poll interval (default 500 ms, 100–5000), how often the
+  slow tier runs (every 10th poll, 1–60 — the Mac spreads its slow reads
+  over every tick instead, so its setting is "reads per tick"), and the
+  WPSD caller/reflector lookup intervals (3 s / 30 s, the Mac's defaults
+  and ranges), with Restore Defaults. Every value is clamped on read, so a
+  hand-edited 0 in settings.json can't make a loop spin.
+- **Appearance**: Theme (Auto / Light / Dark, set on the window's root
+  element) and the MENU grid's button value color (the Mac's eight;
+  `Settings/Appearance.cs`).
+- Not ported: the Mac's Station tab (nothing here uses a callsign or grid
+  yet) and Updates (Sparkle is Mac-only).
+- No Ctrl+, shortcut: WinUI 3 crashed at startup (in Microsoft.UI.Xaml.dll)
+  with a `KeyboardAccelerator` on VK_OEM_COMMA (188), which isn't a
+  defined `VirtualKey` value.
+
+Persist via `ApplicationData.Current.LocalSettings` (available for free
 once MSIX-packaged).
 
 ## Reconnect / connection-state UI
@@ -305,8 +341,8 @@ read, "DA" triple, and `GetMenuItem`/`SetMenuItem` ("EX").
   `Models/RigToneTables.cs`' 50-tone and 104-code tables), and HOME. The
   rig's HOME channels aren't reachable over CAT, so HOME tunes Main to the
   current band group's home frequency itself (`HomeBand`), through the
-  same path as the Set button so swap tracking resets; it uses the factory
-  frequencies until the Settings step adds the Mac's per-band editor.
+  same path as the Set button so swap tracking resets; the frequencies are
+  set in Settings → Home Freq (factory defaults until changed).
   Placeholders: APRS S.LIST/M.LIST (need APRS decoding), the six Deep
   Settings buttons 23-28 ("SOON", as on iPad, until step 8), and DTMF,
   T-CALL, REV, DG-ID TX/RX, HRI MODE and BCN-TX (no CAT path; disabled on
@@ -384,17 +420,17 @@ downstream (squelch, swap routing, playback, levels) is shared.
   Int16 LE, 44100 Hz, Main on the left channel and Sub on the right, no
   framing (see that script's doc comment).
 - **Local** (`Services/LocalAudioCapture.cs`): NAudio `WasapiCapture`
-  (shared mode) on the input chosen under **Audio in** in the Local
-  settings row, at the device's own rate (48 kHz for the FTX-1's codec on
+  (shared mode) on the input chosen in **Settings → Audio**, at the
+  device's own rate (48 kHz for the FTX-1's codec on
   the test PC, which shows up as "Microphone (2- USB Audio Device)"). The
-  picker lists active recording devices; with nothing saved it pre-selects
-  the only one named "USB Audio", if there's exactly one. It stays enabled
-  while connected (a change restarts capture), and a saved device that
-  isn't plugged in stays listed as "(not connected)". A missing/removed
+  picker lists active recording devices; with nothing saved, Settings
+  pre-selects (and Connect uses) the only one named "USB Audio", if there's
+  exactly one. Saving another device while connected restarts capture, and
+  a saved device that isn't plugged in stays listed as "(not connected)". A missing/removed
   device or a capture error shows "Audio input unavailable" and retries
   every 3 s; a microphone-privacy denial says which Windows setting to
   turn on. A mono device gives Main only and says so. **Feedback guard**:
-  if the output playback would use (the "Out" choice, or Windows' default)
+  if the output playback would use (the Settings output choice, or Windows' default)
   is the same adapter as the input (the rig's own codec), playback is
   refused — it would feed the rig's TX audio input. Windows makes a freshly
   plugged USB audio device the default output, so with "Windows default"
@@ -428,7 +464,7 @@ downstream (squelch, swap routing, playback, levels) is shared.
 - `Services/AudioPlayback.cs`: mixes both channels into one NAudio
   `WasapiOut` (shared mode), resampled to the device's mix rate with
   NAudio's WDL resampler. Both channels play centered, like the Mac. The
-  device is the Audio row's **Out** picker (both modes): "Windows default"
+  device is **Settings → Audio**'s output picker (both modes): "Windows default"
   or a specific output, saved by endpoint ID. A chosen device that isn't
   plugged in stays listed as "(not connected)" and playback falls back to
   the default output with a note. Changing it restarts only playback, not
@@ -500,7 +536,7 @@ the next one starts.
    by the user the same day, all working (see "MENU grid" above).
    Left as placeholders for later steps: CW's PLAY/RECORD (audio
    recorder), FM's APRS S.LIST/M.LIST (APRS decoding), FM's Deep Settings
-   buttons (step 8), and HOME's per-band frequencies (step 7).
+   buttons (step 8). HOME's per-band frequencies came with step 7.
 4. **Graphical S-meter — done** (2026-09-28, build-verified and checked
    against a fake rigctld, not yet hardware-tested). The same analog meter
    the Mac and iPad draw (`UI/SMeterView.swift`), one under each VFO like
@@ -559,23 +595,29 @@ the next one starts.
    hotspot and rig by the user the same day, working as expected). `Services/WpsdCallsignMonitor.cs` ports the Mac's
    `WPSDCallsignMonitor`: `caller_details_table.php` every 3 s for the live
    caller (Src "Net" + a live "TX" cell) and `repeaterinfo.php` every 30 s
-   for the linked YSF reflector, the Mac's default intervals (fixed here
-   until step 7's Settings), 10 s HTTP timeout, a failed fetch leaves the
-   display alone. A checkbox + hotspot address under the connection bar
-   (settings.json `WpsdEnabled`/`WpsdHost`, applied on the next poll, no
-   reconnect). It runs only while either side is in C4FM, and each VFO
+   for the linked YSF reflector, the Mac's default intervals (adjustable in
+   Settings → Polling since step 7), 10 s HTTP timeout, a failed fetch
+   leaves the display alone. On/off + hotspot address in Settings → C4FM
+   since step 7, under the connection bar before that (settings.json
+   `WpsdEnabled`/`WpsdHost`, applied at once, no reconnect). It runs only while either side is in C4FM, and each VFO
    shows the caller and reflector under its frequency only while that side
    is. C4FM comes from raw "MD0"/"MD1" (P2 "H"/"I"), read in the slow tier
    (~5 s) since hamlib's "m" can't report it; the same flag now also skips
    the MENU grid's GT0/PR1 in C4FM and clears the Mode box instead of
    leaving the last analog mode showing. "MD0"/"MD1" assume Main is the
    active side (VFO A), as the rest of this app does.
-7. **Full Settings UI.** Give it the Mac's tab layout: rigctld connection
-   (host, model, serial port, baud), per-band home frequency, Appearance,
-   plus Audio and APRS tabs as placeholders until those features exist.
-   The plan's "Pi host only" starting point is out of date: the main
-   window already has the Local-mode fields (rigctld path, COM port, baud)
-   and the audio device pickers, which would move into Settings.
+7. **Settings UI — done** (2026-09-29, build-verified; the dialog was
+   opened, every tab shown and a Save applied, driven through UI
+   Automation on the test PC while disconnected; not yet used against the
+   rig). A Settings dialog with the Mac's tabs — see "Settings" above:
+   rigctld (mode, Pi host, rigctld.exe, model, COM port, baud), Audio
+   (input/output devices), C4FM (WPSD), APRS (placeholder), Home Freq,
+   Polling, Appearance. The connection fields, audio device pickers and
+   WPSD row moved there out of the main window, whose connection bar is now
+   Connect, the state line and Settings. To check on the rig: Connect in
+   both modes after setting them only in the dialog, HOME with an edited
+   frequency, a poll interval change taking effect while connected, and
+   Save with a new output device mid-session.
 8. **Deep Settings (the 341-item catalog).** Port `DeepSettingsCatalog`'s
    table-driven EX P1/P2/P3 passthrough to C#, straight to rigctld. This is
    what talking to rigctld directly (not through the Mac's hub) pays for:
@@ -631,7 +673,8 @@ Apps/Windows/FTX1RemoteWindows/
   FTX1RemoteWindows.csproj   unpackaged WinUI 3, net8.0-windows10.0.19041.0
   app.manifest               DPI-awareness manifest (unpackaged apps need this)
   App.xaml(.cs)               standard WinUI 3 application entry point
-  MainWindow.xaml(.cs)        v1 core-rig-control UI + 500 ms poll loop + audio controls
+  MainWindow.xaml(.cs)        v1 core-rig-control UI + poll loop + audio controls
+  SettingsDialog.xaml(.cs)    Settings dialog (the Mac's SettingsView tabs)
   Controls/
     MenuGrid.cs                  MENU grid (port of MenuPageView.swift), all three pages
     SMeter.cs                    analog S/TX meter (port of SMeterView.swift) + METER picker
@@ -651,5 +694,6 @@ Apps/Windows/FTX1RemoteWindows/
     AudioPlayback.cs             NAudio WASAPI output mixing Main + Sub
     WpsdCallsignMonitor.cs       C4FM caller/reflector from a WPSD hotspot (port of WPSDCallsignMonitor.swift)
   Settings/
-    AppSettings.cs                connection mode, Pi hostname, Local rigctld settings, audio settings; file-based (see its doc comment on why not LocalSettings yet)
+    AppSettings.cs                every setting (connection, audio, WPSD, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
+    Appearance.cs                 AppTheme / ButtonValueColor (ports of the FTX1Core Appearance enums)
 ```

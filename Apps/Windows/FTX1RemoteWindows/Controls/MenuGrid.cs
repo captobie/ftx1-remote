@@ -47,10 +47,10 @@ public sealed class MenuGrid : UserControl
     private const int Columns = 7;
     private const int Rows = 4;
 
-    /// The rig's own MENU display shows setting values in orange — the
-    /// Mac's default ButtonValueColor (not configurable here yet; that's
-    /// part of the Settings step).
-    private static readonly Brush ValueBrush = new SolidColorBrush(Colors.Orange);
+    /// Shared by every value line, so Settings → Appearance recolors them
+    /// all by changing its Color (see ValueColor). Orange by default, like
+    /// the rig's own MENU display.
+    private readonly SolidColorBrush _valueBrush = new(AppSettings.ButtonValueColor.Color());
     private static readonly FontFamily ValueFont = new("Consolas");
 
     private readonly RigState _state;
@@ -72,6 +72,13 @@ public sealed class MenuGrid : UserControl
     /// overwriting the optimistic value with a stale one — the Mac's
     /// commandGeneration check in refreshSlowTier.
     private int _commandGeneration;
+
+    /// The value lines' color (Settings → Appearance → Button Value Color).
+    public Windows.UI.Color ValueColor
+    {
+        get => _valueBrush.Color;
+        set => _valueBrush.Color = value;
+    }
 
     /// A command or read failed; MainWindow shows it on its status line.
     public event Action<string>? StatusMessage;
@@ -497,14 +504,15 @@ public sealed class MenuGrid : UserControl
             set: i => Send("DCS", () => _state.DcsCodeIndex = (int)i, c => c.SetRawIntAsync("CN01", (int)i, 3)));
 
         // No CAT for the rig's own HOME channels: tunes to the current band
-        // group's HOME frequency instead (see HomeBand). Does nothing
+        // group's HOME frequency instead (see HomeBand; editable in
+        // Settings → Home Freq). Does nothing
         // between groups.
         var home = AddWord(21, "HOME", enabled: true);
         home.Click += (_, _) =>
         {
             if (HomeBand.Containing(_state.FrequencyHz) is { } band)
             {
-                FrequencyRequested?.Invoke(band.FrequencyHz);
+                FrequencyRequested?.Invoke(AppSettings.HomeFrequencyHz(band));
             }
         };
 
@@ -837,7 +845,7 @@ public sealed class MenuGrid : UserControl
         var bottomText = new TextBlock { FontFamily = ValueFont, FontSize = 15, HorizontalAlignment = HorizontalAlignment.Center };
         if (colorize)
         {
-            bottomText.Foreground = ValueBrush;
+            bottomText.Foreground = _valueBrush;
         }
         var button = new Button
         {

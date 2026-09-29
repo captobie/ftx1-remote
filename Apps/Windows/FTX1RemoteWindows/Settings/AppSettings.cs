@@ -55,7 +55,35 @@ public static class AppSettings
         public MeterSelection SubMeterSelection { get; set; } = MeterSelection.Po;
         public bool WpsdEnabled { get; set; }
         public string WpsdHost { get; set; } = "";
+        public int PollIntervalMs { get; set; } = PollIntervalMsSetting.Default;
+        public int SlowPollEvery { get; set; } = SlowPollEverySetting.Default;
+        public int WpsdCallerSeconds { get; set; } = WpsdCallerSecondsSetting.Default;
+        public int WpsdReflectorSeconds { get; set; } = WpsdReflectorSecondsSetting.Default;
+        /// Keyed by HomeBand.Name; a missing band uses its factory frequency.
+        public Dictionary<string, long> HomeFrequencies { get; set; } = new();
+        public AppTheme Theme { get; set; } = AppTheme.System;
+        public ButtonValueColor ButtonValueColor { get; set; } = ButtonValueColor.Orange;
     }
+
+    /// One Polling-tab value: its default and allowed range. Every getter
+    /// clamps, so a hand-edited 0 in settings.json can't turn a loop into a
+    /// tight spin against rigctld or the hotspot (the Mac's
+    /// PollingSettings.Setting, same reason).
+    public readonly record struct IntSetting(int Default, int Min, int Max)
+    {
+        public int Clamp(int value) => Math.Clamp(value, Min, Max);
+    }
+
+    /// Poll tick interval — the Mac's fast-tier default and range.
+    public static readonly IntSetting PollIntervalMsSetting = new(500, 100, 5_000);
+    /// The slow tier (FR, C4FM, MENU grid) runs on every Nth poll: 10 × 500
+    /// ms keeps it at ~5 s. The Mac spreads its slow reads over every tick
+    /// instead ("reads per tick"); this app still reads the whole slow tier
+    /// at once, so its setting stays "every N polls".
+    public static readonly IntSetting SlowPollEverySetting = new(10, 1, 60);
+    /// The Mac's WPSD lookup defaults and ranges.
+    public static readonly IntSetting WpsdCallerSecondsSetting = new(3, 1, 60);
+    public static readonly IntSetting WpsdReflectorSecondsSetting = new(30, 5, 600);
 
     /// One receiver's playback settings. SquelchThreshold is SquelchGate's
     /// raw threshold (RMS at or below which a chunk counts as a quieting
@@ -252,6 +280,88 @@ public static class AppSettings
         set
         {
             _cache.WpsdHost = value;
+            Save();
+        }
+    }
+
+    public static int PollIntervalMs
+    {
+        get => PollIntervalMsSetting.Clamp(_cache.PollIntervalMs);
+        set
+        {
+            _cache.PollIntervalMs = PollIntervalMsSetting.Clamp(value);
+            Save();
+        }
+    }
+
+    public static int SlowPollEvery
+    {
+        get => SlowPollEverySetting.Clamp(_cache.SlowPollEvery);
+        set
+        {
+            _cache.SlowPollEvery = SlowPollEverySetting.Clamp(value);
+            Save();
+        }
+    }
+
+    /// Read by WpsdCallsignMonitor before each wait, so a change applies
+    /// from the next fetch.
+    public static int WpsdCallerSeconds
+    {
+        get => WpsdCallerSecondsSetting.Clamp(_cache.WpsdCallerSeconds);
+        set
+        {
+            _cache.WpsdCallerSeconds = WpsdCallerSecondsSetting.Clamp(value);
+            Save();
+        }
+    }
+
+    public static int WpsdReflectorSeconds
+    {
+        get => WpsdReflectorSecondsSetting.Clamp(_cache.WpsdReflectorSeconds);
+        set
+        {
+            _cache.WpsdReflectorSeconds = WpsdReflectorSecondsSetting.Clamp(value);
+            Save();
+        }
+    }
+
+    /// The MENU grid HOME button's frequency for a band group — the Mac's
+    /// HomeFrequencySettings. The factory frequency until one is saved.
+    public static long HomeFrequencyHz(HomeBand band) =>
+        _cache.HomeFrequencies.TryGetValue(band.Name, out var hz) && hz > 0 ? hz : band.FrequencyHz;
+
+    /// Saving a band's factory frequency drops its entry, so a later change
+    /// to the factory table still reaches it.
+    public static void SetHomeFrequencyHz(HomeBand band, long hz)
+    {
+        if (hz == band.FrequencyHz)
+        {
+            _cache.HomeFrequencies.Remove(band.Name);
+        }
+        else
+        {
+            _cache.HomeFrequencies[band.Name] = hz;
+        }
+        Save();
+    }
+
+    public static AppTheme Theme
+    {
+        get => _cache.Theme;
+        set
+        {
+            _cache.Theme = value;
+            Save();
+        }
+    }
+
+    public static ButtonValueColor ButtonValueColor
+    {
+        get => _cache.ButtonValueColor;
+        set
+        {
+            _cache.ButtonValueColor = value;
             Save();
         }
     }

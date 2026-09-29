@@ -44,9 +44,10 @@ public static class RigDcsCode
 
 /// Port of HomeFrequency.swift's HomeBand: the rig's five HOME band groups.
 /// The rig's own HOME channels can't be read or recalled over CAT, so the
-/// MENU grid's HOME button tunes to the group's frequency itself. The Mac
-/// lets these be edited in Settings (HomeFrequencySettings); until this
-/// app's Settings step, they're the factory defaults (Advance Manual p.27).
+/// MENU grid's HOME button tunes to the group's frequency itself.
+/// FrequencyHz is the factory default (Advance Manual p.27); the frequency
+/// actually used is AppSettings.HomeFrequencyHz, editable in Settings →
+/// Home Freq like the Mac's HomeFrequencySettings.
 public sealed record HomeBand(string Name, long LowHz, long HighHz, long FrequencyHz)
 {
     public static readonly HomeBand[] All =

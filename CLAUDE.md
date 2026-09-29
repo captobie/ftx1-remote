@@ -628,7 +628,14 @@ the same day; hamlib-verb reads there now time out after 3 s, since a
 C4FM memory channel's "RPRT -8" mode reply once hung the whole client;
 step 6, the WPSD C4FM callsign/reflector display, 2026-09-29, tested
 against the real hotspot by the user the same day, with C4FM read from
-raw "MD0"/"MD1").
+raw "MD0"/"MD1"; step 7, a Settings dialog with the Mac's tabs
+(`SettingsDialog.xaml`: connection, audio devices, WPSD, HOME
+frequencies, polling, appearance — the connection/audio/WPSD fields moved
+out of the main window), 2026-09-29, UI-tested through UI Automation
+while disconnected, not yet on the rig. The .csproj has to be named when
+building (`dotnet build FTX1RemoteWindows.csproj -r win-x64
+--self-contained`) since Visual Studio added a `.slnx` next to it, and
+a solution build rejects `-r`).
 Deep Settings, waterfall, and APRS decode are
 deferred but not architecturally blocked (direct-to-Pi means this app,
 unlike iPad, actually has the live per-item-read capability Deep Settings

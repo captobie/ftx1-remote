@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- Scrolls so a window smaller than the MENU grid needs still reaches everything. -->
-    <ScrollViewer>
+    <ScrollViewer x:Name="RootScrollViewer" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
     <Grid Padding="16" RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -15,52 +15,18 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Connection bar: mode picker, then either the Pi host (Remote)
-             or the rigctld launch settings (Local), then Connect. -->
-        <StackPanel Grid.Row="0" Spacing="8">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Text="Radio:" VerticalAlignment="Center" />
-                <ComboBox x:Name="ConnectionModeComboBox" Width="200"
-                          SelectionChanged="ConnectionModeComboBox_SelectionChanged">
-                    <ComboBoxItem Content="Remote (Pi over Tailscale)" Tag="Remote" />
-                    <ComboBoxItem Content="Local (USB on this PC)" Tag="Local" />
-                </ComboBox>
-                <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click" />
-                <TextBlock x:Name="ConnectionStateText" Text="Disconnected" VerticalAlignment="Center" Foreground="Gray" />
-            </StackPanel>
-
-            <StackPanel x:Name="RemoteSettingsPanel" Orientation="Horizontal" Spacing="8">
-                <TextBlock Text="Pi host:" VerticalAlignment="Center" />
-                <TextBox x:Name="PiHostBox" Width="220" PlaceholderText="ftx1-pi (Tailscale MagicDNS name)" />
-            </StackPanel>
-
-            <StackPanel x:Name="LocalSettingsPanel" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
-                <TextBlock Text="rigctld.exe:" VerticalAlignment="Center" />
-                <TextBox x:Name="RigctldPathBox" Width="320"
-                         PlaceholderText="C:\Program Files\hamlib-w64-4.7\bin\rigctld.exe" />
-                <Button x:Name="BrowseRigctldButton" Content="Browse…" Click="BrowseRigctldButton_Click" />
-                <TextBlock Text="COM port:" VerticalAlignment="Center" Margin="8,0,0,0" />
-                <ComboBox x:Name="ComPortComboBox" Width="110" IsEditable="True" PlaceholderText="COM3"
-                          DropDownOpened="ComPortComboBox_DropDownOpened"
-                          ToolTipService.ToolTip="The FTX-1's CAT port (the Enhanced COM port of its CP210x pair)" />
-                <TextBlock Text="Baud:" VerticalAlignment="Center" Margin="8,0,0,0" />
-                <ComboBox x:Name="BaudRateComboBox" Width="110" />
-                <!-- Stays enabled while connected: picking another input restarts capture. -->
-                <TextBlock Text="Audio in:" VerticalAlignment="Center" Margin="8,0,0,0" />
-                <ComboBox x:Name="AudioInputComboBox" Width="280" PlaceholderText="The radio's USB audio input"
-                          DropDownOpened="AudioInputComboBox_DropDownOpened"
-                          SelectionChanged="AudioInputComboBox_SelectionChanged"
-                          ToolTipService.ToolTip="The FTX-1's USB audio as a Windows recording device (usually &quot;Microphone (USB Audio Device)&quot;)" />
-            </StackPanel>
-
-            <!-- Both modes, and stays enabled while connected: applied on the next poll. -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <CheckBox x:Name="WpsdEnabledCheckBox" Content="Show received C4FM callsign (via WPSD)"
-                          Click="WpsdEnabledCheckBox_Click"
-                          ToolTipService.ToolTip="While a VFO is in C4FM, show who's transmitting through your WPSD hotspot and the YSF reflector it's linked to, read from the hotspot's dashboard." />
-                <TextBox x:Name="WpsdHostBox" Width="220" PlaceholderText="Hotspot address (e.g. 192.168.1.50)"
-                         LostFocus="WpsdHostBox_LostFocus" KeyDown="WpsdHostBox_KeyDown" />
-            </StackPanel>
+        <!-- Connection bar. The connection itself (mode, Pi host, Local
+             rigctld/COM port/baud) is set in Settings. -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+            <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click" />
+            <TextBlock x:Name="ConnectionStateText" Text="Disconnected" VerticalAlignment="Center" Foreground="Gray" />
+            <Button x:Name="SettingsButton" Click="SettingsButton_Click" Margin="16,0,0,0"
+                    AutomationProperties.Name="Settings" ToolTipService.ToolTip="Settings">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE713;" FontSize="14" />
+                    <TextBlock Text="Settings" />
+                </StackPanel>
+            </Button>
         </StackPanel>
 
         <!-- VFO A/B -->
@@ -201,13 +167,6 @@
                     <ToggleSwitch x:Name="AudioSwitch" Header="Audio" OnContent="On" OffContent="Off"
                                   Toggled="AudioSwitch_Toggled"
                                   ToolTipService.ToolTip="The Pi streams audio to one client at a time. Turn this off to let the Mac have it." />
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Out" FontSize="12" />
-                        <ComboBox x:Name="AudioOutputComboBox" Width="300"
-                                  DropDownOpened="AudioOutputComboBox_DropDownOpened"
-                                  SelectionChanged="AudioOutputComboBox_SelectionChanged"
-                                  ToolTipService.ToolTip="Where the radio's audio plays. Picking your speakers here keeps it there even when Windows switches its default output (e.g. to the radio when it's plugged in)." />
-                    </StackPanel>
                     <StackPanel VerticalAlignment="Center" Spacing="2">
                         <TextBlock x:Name="AudioStateText" Text="Not connected" Foreground="Gray" />
                         <TextBlock x:Name="AudioLevelsText" Text="" FontFamily="Consolas" FontSize="12" Foreground="Gray" />
