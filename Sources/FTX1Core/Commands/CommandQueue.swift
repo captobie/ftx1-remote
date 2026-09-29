@@ -78,6 +78,11 @@ public actor CommandQueue {
     /// that default, kept here to match `RigctldClient`'s get-side calls.
     private static let currentVFOArg = "currVFO"
 
+    /// How many channels `.stepSubMemoryChannel` tries past a blank one
+    /// (per direction, plus the same again when wrapping) before giving up.
+    /// Each try is one set + one read round trip.
+    private static let subMemoryStepScanLimit = 30
+
     private func apply(_ command: RigCommand) async throws {
         switch command {
         case .setFrequency(let hz):
@@ -415,6 +420,37 @@ public actor CommandQueue {
             // this with a read-modify-write via "MC0" instead (read the
             // current channel, clamp ±1, setRawInt("MC0", ..., digits: 5)).
             try await rigctld.sendRawFireAndForget(up ? "CH0" : "CH1")
+        case .setSubMemoryChannel(let channel):
+            // Same as .setMemoryChannel with P1 = 1 (SUB-side); "MC1"
+            // reads are hardware-confirmed to address SUB (see
+            // RigState.subMemoryChannel).
+            try await rigctld.setRawInt("MC1", channel, digits: 5)
+        case .stepSubMemoryChannel(let up):
+            // "CH" has no side selector, so SUB steps through "MC1" instead.
+            // The rig ignores an "MC" set to a blank channel (user-
+            // confirmed 2026-09-29: no change, no error), so each candidate
+            // is set and read back, moving on until one sticks — that's
+            // what skips blanks. A rejected set leaves the rig where it
+            // was, so giving up after `Self.subMemoryStepScanLimit`
+            // candidates is harmless.
+            guard let current = try await rigctld.getRawInt("MC1") else { throw RigctldError.badResponse }
+            let range = RigState.memoryChannelRange
+            let step = up ? 1 : -1
+            var candidates = Array(sequence(first: current + step) { $0 + step }
+                .prefix { range.contains($0) }
+                .prefix(Self.subMemoryStepScanLimit))
+            // Stepping up past the last programmed channel wraps to the
+            // first, like the rig's own knob — channels are normally filled
+            // from 1, so scanning up from 1 finds it within the limit.
+            // (Down from the first programmed channel doesn't wrap: the
+            // last one could be anywhere up to 999.)
+            if up {
+                candidates += range.prefix { $0 < current }.prefix(Self.subMemoryStepScanLimit)
+            }
+            for candidate in candidates {
+                try await rigctld.setRawInt("MC1", candidate, digits: 5)
+                if try await rigctld.getRawInt("MC1") == candidate { break }
+            }
         }
     }
 }

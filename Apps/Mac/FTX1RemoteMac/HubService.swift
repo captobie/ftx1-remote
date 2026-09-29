@@ -753,7 +753,8 @@ final class HubService: ObservableObject {
              .setAMCLevel, .setVox, .setVoxGain, .setVoxDelay, .setDNF, .setAGC, .setMicEQ,
              .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow, .setFilterSide, .setAntSelect, .setTXW, .setTXSide, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
-             .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel:
+             .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel,
+             .setSubMemoryChannel, .stepSubMemoryChannel:
             return false
         }
     }
@@ -890,23 +891,14 @@ final class HubService: ObservableObject {
         case .setVFOMemoryMode(let memory):
             rigState.vfoMemoryMode = memory ? .memory : .vfo
             if memory { Task { await refreshAfterEnteringMemory() } }
-        case .setMemoryChannel(let channel):
-            rigState.memoryChannel = channel
-            // Cleared rather than left stale — the new channel's tag isn't
-            // known until the next poll's getMemoryChannelTag(channel:)
-            // read, and showing the *previous* channel's tag against the
-            // new number would be actively misleading.
-            rigState.memoryChannelTag = nil
-        case .stepMemoryChannel(let up):
-            // Optimistic ±1, clamped defensively since the real rig's wrap
-            // behavior at the ends of the populated range isn't hardware-
-            // confirmed yet (see RigCommand.stepMemoryChannel) — a genuine
-            // mismatch self-corrects at the next poll, same as any other
-            // optimistic value here.
-            if rigState.vfoMemoryMode == .memory, let current = rigState.memoryChannel {
-                rigState.memoryChannel = max(1, min(99, current + (up ? 1 : -1)))
-                rigState.memoryChannelTag = nil
-            }
+        case .setMemoryChannel, .stepMemoryChannel:
+            // No optimistic value: the rig ignores a blank channel (and
+            // "CH" skips them), so the requested/±1 number would show a
+            // channel the rig never went to. The command has already been
+            // applied by the time this runs, so read back what it did.
+            Task { await refreshMemoryChannel(sub: false) }
+        case .setSubMemoryChannel, .stepSubMemoryChannel:
+            Task { await refreshMemoryChannel(sub: true) }
         // Momentary triggers, and CW MESSAGE record/select/play (whose
         // `cwMessageStatus` doesn't map 1:1 from any single command — see
         // RigState.cwMessageStatus) have no direct optimistic value; left
@@ -958,6 +950,25 @@ final class HubService: ObservableObject {
             await server.broadcast(rigState)
             return
         }
+    }
+
+    /// Reads one side's memory channel and tag right after a channel
+    /// command lands, instead of guessing — see `applyOptimistically`.
+    /// Also the only prompt update SUB gets, whose "MC1" is otherwise read
+    /// only in the slow tier.
+    private func refreshMemoryChannel(sub: Bool) async {
+        guard let channel = try? await rigctld.getRawInt(sub ? "MC1" : "MC0") else { return }
+        let tag = try? await rigctld.getMemoryChannelTag(channel: channel)
+        guard (sub ? rigState.subVfoMemoryMode : rigState.vfoMemoryMode) == .memory else { return }
+        commandGeneration += 1
+        if sub {
+            rigState.subMemoryChannel = channel
+            rigState.subMemoryChannelTag = tag
+        } else {
+            rigState.memoryChannel = channel
+            rigState.memoryChannelTag = tag
+        }
+        await server.broadcast(rigState)
     }
 
     /// Fast path after a NARROW write: the rig re-filters to the mode's

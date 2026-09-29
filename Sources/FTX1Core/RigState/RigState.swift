@@ -339,12 +339,18 @@ public struct RigState: Codable, Equatable, Sendable {
     /// MEMORY CHANNEL) CAT command's P2 field, P1 fixed to MAIN-side. See
     /// `VFOMemoryMode`.
     public var vfoMemoryMode: VFOMemoryMode?
-    /// Currently-selected MAIN-side memory channel, 1-99 — the FTX-1's raw
+    /// Currently-selected MAIN-side memory channel (see
+    /// `memoryChannelRange`) — the FTX-1's raw
     /// "MC" (MEMORY CHANNEL) CAT command's P2 field, P1 fixed to MAIN-side.
     /// Only meaningful while `vfoMemoryMode == .memory`; nil otherwise
     /// (including while in VFO mode, rather than holding onto a stale
     /// channel number from the last time memory mode was active).
     public var memoryChannel: Int?
+    /// The regular memory channels "MC" can select. The CAT manual's "MC"
+    /// entry says 00001-00099, but its own "MR"/"MW"/"MZ" entries say
+    /// 00001-00999, and the user's rig has 278 channels programmed — so
+    /// the "MC" text is another manual error.
+    public static let memoryChannelRange = 1...999
     /// `memoryChannel`'s user-assigned TAG (name), if it has one — the
     /// FTX-1's raw "MT" CAT command. Same "nil rather than stale" contract
     /// as `memoryChannel`: only meaningful alongside a non-nil

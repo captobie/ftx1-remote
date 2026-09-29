@@ -60,7 +60,7 @@ public struct MemoryChannelEntryView: View {
     }
 
     private func commitText() {
-        guard let channel = Int(text), (1...99).contains(channel) else { return }
+        guard let channel = Int(text), RigState.memoryChannelRange.contains(channel) else { return }
         onSetChannel(channel)
         dismiss()
     }

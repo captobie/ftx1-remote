@@ -37,10 +37,9 @@ public struct VFODisplayBox: View {
     /// leaves the display read-only — used for VFO B, which has no
     /// corresponding `RigCommand` to write back through today.
     let onSetFrequency: ((Int) -> Void)?
-    /// VFO-vs-memory mode (see `RigState.vfoMemoryMode`). `nil` (the
-    /// default) behaves exactly as before this existed — plain VFO
-    /// display/tap-to-set-frequency. Only VFO A wires this up today; VFO B
-    /// leaves it `nil`.
+    /// VFO-vs-memory mode (see `RigState.vfoMemoryMode`/
+    /// `subVfoMemoryMode`). `nil` (the default) behaves exactly as before
+    /// this existed — plain VFO display/tap-to-set-frequency.
     let vfoMemoryMode: VFOMemoryMode?
     /// Currently-selected memory channel, shown on the top line alongside
     /// `mode` and passed through to the memory popover — see
@@ -95,6 +94,20 @@ public struct VFODisplayBox: View {
     /// the plain frequency-entry one.
     private var isMemoryMode: Bool {
         vfoMemoryMode == .memory && onSetMemoryChannel != nil && onStepMemoryChannel != nil
+    }
+
+    /// Whether this VFO is in anything other than plain VFO mode (Memory,
+    /// or one of the rig's other channel modes — see `VFOMemoryMode.other`).
+    /// The frequency-entry popover is never offered then: the rig rejects
+    /// a frequency write outside VFO mode, and the tap belongs to the
+    /// memory-channel popover (or does nothing when there isn't one).
+    private var isOutsideVFOMode: Bool {
+        guard let vfoMemoryMode else { return false }
+        return vfoMemoryMode != .vfo
+    }
+
+    private var canEdit: Bool {
+        isMemoryMode || (onSetFrequency != nil && !isOutsideVFOMode)
     }
 
     /// The memory-channel tag's text ("CH 11 K7RPT") while in Memory mode,
@@ -172,7 +185,7 @@ public struct VFODisplayBox: View {
                     .fixedSize()
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        guard onSetFrequency != nil || isMemoryMode else { return }
+                        guard canEdit else { return }
                         isEditing = true
                     }
                     .popover(isPresented: $isEditing) {
@@ -182,7 +195,7 @@ public struct VFODisplayBox: View {
                                 onSetChannel: onSetMemoryChannel,
                                 onStep: onStepMemoryChannel
                             )
-                        } else if let onSetFrequency {
+                        } else if !isOutsideVFOMode, let onSetFrequency {
                             FrequencyEntryView(currentHz: frequencyHz ?? 0, onSetFrequency: onSetFrequency)
                         }
                     }

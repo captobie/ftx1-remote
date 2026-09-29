@@ -256,7 +256,7 @@ public enum RigCommand: Sendable, Equatable {
     /// state is preferred over a blind toggle command). Maps to the FTX-1's
     /// raw "VM" CAT command, P1 fixed to MAIN-side.
     case setVFOMemoryMode(memory: Bool)
-    /// Directly selects a MAIN-side memory channel (1-99) — see
+    /// Directly selects a MAIN-side memory channel (`RigState.memoryChannelRange`) — see
     /// `RigState.memoryChannel`. Maps to the FTX-1's raw "MC" CAT command,
     /// P1 fixed to MAIN-side.
     case setMemoryChannel(Int)
@@ -267,6 +267,14 @@ public enum RigCommand: Sendable, Equatable {
     /// concerns, not something the client should assume). Maps to the
     /// FTX-1's raw "CH" CAT command.
     case stepMemoryChannel(up: Bool)
+    /// SUB-side counterpart of `setMemoryChannel` — see
+    /// `RigState.subMemoryChannel`. Maps to the FTX-1's raw "MC" CAT
+    /// command with P1 = 1 (SUB-side).
+    case setSubMemoryChannel(Int)
+    /// SUB-side counterpart of `stepMemoryChannel`. "CH" has no MAIN/SUB
+    /// selector, so this steps "MC1" instead, skipping blank channels —
+    /// see `CommandQueue`.
+    case stepSubMemoryChannel(up: Bool)
 
     /// Wire payload for `.setMenuItem`, the one case here with more than a
     /// single associated value.
@@ -345,6 +353,8 @@ public enum RigCommand: Sendable, Equatable {
         case setVFOMemoryMode = "set_vfo_memory_mode"
         case setMemoryChannel = "set_memory_channel"
         case stepMemoryChannel = "step_memory_channel"
+        case setSubMemoryChannel = "set_sub_memory_channel"
+        case stepSubMemoryChannel = "step_sub_memory_channel"
     }
 }
 
@@ -478,6 +488,10 @@ extension RigCommand: Codable {
             self = .setMemoryChannel(try container.decode(Int.self, forKey: .value))
         case .stepMemoryChannel:
             self = .stepMemoryChannel(up: try container.decode(Bool.self, forKey: .value))
+        case .setSubMemoryChannel:
+            self = .setSubMemoryChannel(try container.decode(Int.self, forKey: .value))
+        case .stepSubMemoryChannel:
+            self = .stepSubMemoryChannel(up: try container.decode(Bool.self, forKey: .value))
         }
     }
 
@@ -666,6 +680,12 @@ extension RigCommand: Codable {
             try container.encode(channel, forKey: .value)
         case .stepMemoryChannel(let up):
             try container.encode(CommandName.stepMemoryChannel, forKey: .cmd)
+            try container.encode(up, forKey: .value)
+        case .setSubMemoryChannel(let channel):
+            try container.encode(CommandName.setSubMemoryChannel, forKey: .cmd)
+            try container.encode(channel, forKey: .value)
+        case .stepSubMemoryChannel(let up):
+            try container.encode(CommandName.stepSubMemoryChannel, forKey: .cmd)
             try container.encode(up, forKey: .value)
         }
     }
