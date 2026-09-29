@@ -545,6 +545,17 @@ re-architecture.
     "audio-routing". **Still unverified**: that the mapping really is a simple parity flipped by each
     swap; that `VS` (active-side select) doesn't move the audio; and how
     the rig routes audio in single-VFO display while swapped.
+    **V/M after a swap (2026-09-29, rig-confirmed by the user the same day)**:
+    `HubService.lastVFOState` (Main's last VFO-mode frequency/mode,
+    replayed after `.setVFOMemoryMode(memory: false)`) is now cleared by
+    both the app swap (`applyOptimistically(.swapActiveVFO)`, including
+    single-receive display, where `SV` still exchanges the VFOs even though
+    the audio isn't flipped) and a `trackExternalSwap` detection — not by
+    the manual audio override. Before, after a swap the replay put the
+    *other* receiver's VFO on Main (found on the Windows app: a C4FM memory
+    channel swapped onto Main, then V/M tried to restore Sub's old CW
+    frequency). Leaving Memory then sends a bare "VM000" until the next
+    VFO-mode poll relearns it.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 

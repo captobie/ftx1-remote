@@ -312,7 +312,11 @@ final class HubService: ObservableObject {
     /// the VFO itself, the hub remembers the VFO and puts it back
     /// explicitly. `nil` until the first VFO-mode poll completes (e.g. the
     /// app launched with the rig already in Memory mode), in which case
-    /// the exit falls back to a bare "VM000".
+    /// the exit falls back to a bare "VM000". Also reset to `nil` by a
+    /// Main/Sub swap (the app's `SV` or a detected front-panel one): the
+    /// remembered VFO then belongs to the receiver that's now Sub, and
+    /// replaying it would put the other receiver's frequency on Main
+    /// (found on the Windows app, 2026-09-29).
     private var lastVFOState: (hz: Int, mode: RigMode)?
 
     /// Both read live from `PollingSettings` (Settings → Polling), so an
@@ -832,6 +836,11 @@ final class HubService: ObservableObject {
             } else {
                 lastDistinctFrequencies = nil
             }
+            // Main now holds the other receiver's contents, so the
+            // remembered VFO is the wrong one to restore — even in
+            // single-receive display, where the audio isn't flipped above
+            // but `SV` still exchanges the VFOs. See `lastVFOState`.
+            lastVFOState = nil
         case .setMode(let mode): rigState.mode = mode
         case .setPTT(let on): rigState.ptt = on
         case .setBand: break // resolved into .setFrequency before reaching CommandQueue — see send(_:)
@@ -1236,6 +1245,9 @@ final class HubService: ObservableObject {
             setAudioChannelsSwapped(!audioChannelsSwapped, reason: "front-panel swap detected (\(last.main)/\(last.sub) → \(main)/\(sub) Hz)")
             let selectedSide = rigState.activeFilterSide
             Task { await refreshFilterState(side: selectedSide, afterDelay: .milliseconds(400)) }
+            // Same as the app swap in `applyOptimistically`. If the new
+            // Main is in VFO mode, this same poll relearns it right after.
+            lastVFOState = nil
         }
         lastDistinctFrequencies = (main, sub)
     }
