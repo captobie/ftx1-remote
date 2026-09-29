@@ -146,6 +146,12 @@ public sealed partial class MainWindow : Window
     /// restored then.
     private (long Hz, RigMode? Mode)? _lastVfoState;
 
+    /// Memory channels 1-999 (RigState.swift's memoryChannelRange): the CAT
+    /// manual's "MC" entry says 99, but its MR/MW/MZ entries say 999, and
+    /// the user's rig has 278 programmed.
+    private const int MinMemoryChannel = 1;
+    private const int MaxMemoryChannel = 999;
+
     /// True from a press on the PTT button until its release (or capture
     /// loss). Every release sends PTT off, even when the press was blocked
     /// from keying — same as the Mac's DragGesture onEnded — so pressing
@@ -1136,18 +1142,16 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
-        if (!int.TryParse(MemoryChannelEntryBox.Text.Trim(), out var channel) || channel is < 1 or > 99)
+        if (!int.TryParse(MemoryChannelEntryBox.Text.Trim(), out var channel) || channel is < MinMemoryChannel or > MaxMemoryChannel)
         {
-            StatusText.Text = "Enter a memory channel from 1 to 99.";
+            StatusText.Text = $"Enter a memory channel from {MinMemoryChannel} to {MaxMemoryChannel}.";
             return;
         }
         _commandGeneration++;
         _swapTracker.ResetBaseline();
-        // The new channel's tag isn't known until the next poll; the old
-        // one against the new number would be wrong.
-        _lastState.MemoryChannel = channel;
-        _lastState.MemoryChannelTag = null;
-        UpdateMemoryDisplay();
+        // No optimistic channel number: the rig ignores a set to a blank
+        // channel, so the next poll's read-back is the only true value
+        // (the Mac dropped its optimistic value for the same reason).
         try
         {
             await client.SetMemoryChannelAsync(channel);
@@ -1164,9 +1168,10 @@ public sealed partial class MainWindow : Window
 
     private async void MemoryChannelDownButton_Click(object sender, RoutedEventArgs e) => await StepMemoryChannelAsync(up: false);
 
-    /// The rig resolves what up/down means ("CH"; its wrap and empty-channel
-    /// behavior aren't confirmed yet), so the optimistic ±1 is only a
-    /// placeholder until the next poll, same as the Mac.
+    /// The rig resolves what up/down means ("CH"; its wrap and blank-channel
+    /// behavior aren't confirmed yet), so nothing is shown until the next
+    /// poll reads the channel back — a guessed ±1 could be a blank channel
+    /// the rig skipped.
     private async Task StepMemoryChannelAsync(bool up)
     {
         if (_client is not { } client)
@@ -1175,12 +1180,6 @@ public sealed partial class MainWindow : Window
         }
         _commandGeneration++;
         _swapTracker.ResetBaseline();
-        if (_lastState.InMemoryMode && _lastState.MemoryChannel is { } current)
-        {
-            _lastState.MemoryChannel = Math.Clamp(current + (up ? 1 : -1), 1, 99);
-            _lastState.MemoryChannelTag = null;
-            UpdateMemoryDisplay();
-        }
         try
         {
             await client.StepMemoryChannelAsync(up);

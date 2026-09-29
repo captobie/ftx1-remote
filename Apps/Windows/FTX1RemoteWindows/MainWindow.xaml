@@ -81,7 +81,7 @@
                     <!-- Replaces the frequency entry in Memory mode, like the Mac's
                          MemoryChannelEntryView (the rig rejects "FA" there anyway). -->
                     <StackPanel x:Name="MemoryChannelEntryPanel" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
-                        <TextBox x:Name="MemoryChannelEntryBox" Width="80" PlaceholderText="Ch 1-99" />
+                        <TextBox x:Name="MemoryChannelEntryBox" Width="100" PlaceholderText="Ch 1-999" />
                         <Button x:Name="SetMemoryChannelButton" Content="Set" Click="SetMemoryChannelButton_Click" />
                         <Button x:Name="MemoryChannelDownButton" Click="MemoryChannelDownButton_Click"
                                 AutomationProperties.Name="Previous channel" ToolTipService.ToolTip="Previous channel">

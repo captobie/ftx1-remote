@@ -529,7 +529,11 @@ the next one starts.
    a channel box + Set + ▼/▲ in place of the frequency entry. Same CAT as
    the Mac: "VM0"/"VM1" every poll, "MC"/"MT" only while that side is in
    Memory (so +2 round trips per poll in VFO mode, up to +6 in Memory);
-   set with "MC0" (5 digits), step with "CH0" up / "CH1" down. The toggle
+   set with "MC0" (5 digits, channels 1–999 like the Mac since
+   `adaf51a`: the manual's "MC" entry says 99, its MR/MW/MZ say 999),
+   step with "CH0" up / "CH1" down. No guessed channel number after a set
+   or step, also like the Mac: the rig ignores a set to a blank channel,
+   so the display waits for the poll's read-back. The toggle
    is the Mac's explicit read-then-set, compared against plain VFO so any
    sub-mode exits to VFO (the Mac's 2026-09-17 fix). Entering Memory
    re-writes "MC0" immediately before "VM011" — here both under one client
