@@ -555,9 +555,8 @@ the next one starts.
    (per-read timing in the log would find it). Not yet checked on the rig:
    ▲/▼ at the ends of the programmed channels and across empty ones, and
    the button exiting from a 5 MHz or PMS sub-mode.
-6. **C4FM callsign display — done** (2026-09-29, build-verified and the
-   HTML parsers checked against sample markup; not yet tried against the
-   real hotspot or rig). `Services/WpsdCallsignMonitor.cs` ports the Mac's
+6. **C4FM callsign display — done** (2026-09-29, tested against the real
+   hotspot and rig by the user the same day, working as expected). `Services/WpsdCallsignMonitor.cs` ports the Mac's
    `WPSDCallsignMonitor`: `caller_details_table.php` every 3 s for the live
    caller (Src "Net" + a live "TX" cell) and `repeaterinfo.php` every 30 s
    for the linked YSF reflector, the Mac's default intervals (fixed here
@@ -570,9 +569,7 @@ the next one starts.
    (~5 s) since hamlib's "m" can't report it; the same flag now also skips
    the MENU grid's GT0/PR1 in C4FM and clears the Mode box instead of
    leaving the last analog mode showing. "MD0"/"MD1" assume Main is the
-   active side (VFO A), as the rest of this app does. To check on the rig:
-   a caller appearing and clearing on Main and on Sub, the reflector, and
-   that turning the checkbox off or leaving C4FM clears both.
+   active side (VFO A), as the rest of this app does.
 7. **Full Settings UI.** Give it the Mac's tab layout: rigctld connection
    (host, model, serial port, baud), per-band home frequency, Appearance,
    plus Audio and APRS tabs as placeholders until those features exist.

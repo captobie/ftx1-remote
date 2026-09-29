@@ -626,8 +626,9 @@ against a fake rigctld only, not yet on the rig; step 5, the V/M memory
 toggle + channel set/step/tag, 2026-09-29, tested on the rig by the user
 the same day; hamlib-verb reads there now time out after 3 s, since a
 C4FM memory channel's "RPRT -8" mode reply once hung the whole client;
-step 6, the WPSD C4FM callsign/reflector display, 2026-09-29,
-build-verified only, with C4FM read from raw "MD0"/"MD1").
+step 6, the WPSD C4FM callsign/reflector display, 2026-09-29, tested
+against the real hotspot by the user the same day, with C4FM read from
+raw "MD0"/"MD1").
 Deep Settings, waterfall, and APRS decode are
 deferred but not architecturally blocked (direct-to-Pi means this app,
 unlike iPad, actually has the live per-item-read capability Deep Settings
