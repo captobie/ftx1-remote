@@ -17,8 +17,9 @@ namespace FTX1RemoteWindows.Controls;
 /// HubService.refreshSlowTier for the reads), sent straight to rigctld.
 /// All three pages (SSB, CW, FM/C4FM) are ported. Buttons that need
 /// features this app doesn't have yet are disabled placeholders: CW's
-/// PLAY/RECORD (audio recorder), FM's APRS S.LIST/M.LIST (APRS decoding)
-/// and FM's six Deep Settings buttons (step 8 of the parity plan).
+/// PLAY/RECORD (audio recorder) and FM's APRS S.LIST/M.LIST (APRS
+/// decoding). FM's bottom row opens the Deep Settings screens
+/// (DeepSettingsDialog).
 ///
 /// Only the page on screen is read in the slow poll tier, and switching
 /// pages reads the new one at once — so the tier doesn't grow with every
@@ -170,6 +171,10 @@ public sealed class MenuGrid : UserControl
         {
             _client = value;
             IsEnabled = value is not null;
+            if (value is null)
+            {
+                _deepSettings?.Hide();
+            }
         }
     }
 
@@ -519,12 +524,43 @@ public sealed class MenuGrid : UserControl
         AddNav(22, "◀", MenuPage.Cw);
 
         // The rig's page-3 bottom row opens the SET-mode (Deep Settings)
-        // screens — not ported yet (parity plan step 8). "SOON", like iPad.
-        var deepSettings = new[] { "RADIO", "CW", "OPERATION", "DISPLAY", "EXTENSION", "APRS" };
-        for (var i = 0; i < deepSettings.Length; i++)
+        // screens. APRS spans Table 3's categories 6-8 (SETTING/BEACON/
+        // FILTER), like the rig's button and the Mac's.
+        AddDeepSettings(23, "RADIO", [1]);
+        AddDeepSettings(24, "CW", [2]);
+        AddDeepSettings(25, "OPERATION", [3]);
+        AddDeepSettings(26, "DISPLAY", [4]);
+        AddDeepSettings(27, "EXTENSION", [5]);
+        AddDeepSettings(28, "APRS", [6, 7, 8]);
+    }
+
+    /// The Deep Settings screen that's open, so a disconnect can close it.
+    private DeepSettingsDialog? _deepSettings;
+
+    private void AddDeepSettings(int item, string name, int[] p1s)
+    {
+        var button = AddPair(item, name, "SETTING");
+        button.Click += async (_, _) =>
         {
-            AddDisabledPair(23 + i, deepSettings[i], "SOON", "Deep Settings aren't ported to Windows yet");
-        }
+            if (_client is not { } client || _deepSettings is not null)
+            {
+                return;
+            }
+            _deepSettings = new DeepSettingsDialog(XamlRoot, ActualTheme, $"{name} SETTING", p1s, client);
+            try
+            {
+                await _deepSettings.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                // Only one ContentDialog can be open per window.
+                StatusMessage?.Invoke($"Deep Settings: {ex.Message}");
+            }
+            finally
+            {
+                _deepSettings = null;
+            }
+        };
     }
 
     /// Reads the settings of the page on screen, one best-effort read each
@@ -948,14 +984,21 @@ public sealed class MenuGrid : UserControl
     /// Mac's disabledPlaceholderButtonEqualSize.
     private void AddDisabledPair(int item, string top, string bottom, string tooltip)
     {
+        var button = AddPair(item, top, bottom);
+        button.IsEnabled = false;
+        ToolTipService.SetToolTip(button, tooltip);
+    }
+
+    /// Two caption-sized label words (the Mac's equal-size buttons).
+    private Button AddPair(int item, string top, string bottom)
+    {
         var button = AddCell(item, top, () => bottom, colorize: false);
         if (button.Content is StackPanel { Children: [_, TextBlock bottomText] })
         {
             bottomText.FontFamily = FontFamily.XamlAutoFontFamily;
             bottomText.FontSize = 11;
         }
-        button.IsEnabled = false;
-        ToolTipService.SetToolTip(button, tooltip);
+        return button;
     }
 
     /// A button whose rig label is one word (HOME, DTMF), centered at the

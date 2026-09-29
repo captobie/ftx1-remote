@@ -594,12 +594,12 @@ Disconnect/close, adopting a user-started rigctld, PTT). No WebSocket *server* (
 a leaf client only).
 
 **The user's Windows test PC** — use these values in any commands given
-for it instead of placeholders: the FTX-1 is on **COM4** at **115200**
+for it instead of placeholders: the FTX-1 is on **COM7** (COM4 before 2026-09-28) at **115200**
 baud; hamlib's binaries are in `C:\Tools\hamlib\bin`; the .NET 10 SDK is
 at `C:\Program Files\dotnet\dotnet.exe` (the bare `dotnet` there was an old
 .NET 5 SDK — call it by full path); the repo clone is under the user's
 OneDrive Documents folder (`...\Documents\ftx1-remote`). So e.g. a
-manual rigctld is `.\rigctld.exe -m 1051 -r COM4 -s 115200 -t 4532 -T
+manual rigctld is `.\rigctld.exe -m 1051 -r COM7 -s 115200 -t 4532 -T
 127.0.0.1 -o`, run from `C:\Tools\hamlib\bin`.
 
 C# + WinUI 3,
@@ -617,10 +617,10 @@ section). The Mac's Enable Transmit gate was ported 2026-09-27
 any future transmit-capable control (MOX, CW MESSAGE play, ANT TUNE) must
 pass `TransmitGate.BlockReason` before keying. The order for the rest of
 the Mac-parity work is the "Mac parity plan" section of
-`Apps/Windows/README.md` (steps 1–4 done; step 3, the MENU grid, has all
+`Apps/Windows/README.md` (all eight steps done; step 3, the MENU grid, has all
 three pages in `Controls/MenuGrid.cs` as of 2026-09-28, spot-tested on the
-rig by the user the same day, all working — CW's PLAY/RECORD, FM's APRS S.LIST/M.LIST and FM's Deep
-Settings buttons are placeholders until those features exist; step 4, the
+rig by the user the same day, all working — CW's PLAY/RECORD and FM's
+APRS S.LIST/M.LIST are placeholders until those features exist; step 4, the
 analog Main/Sub meters in `Controls/SMeter.cs`, 2026-09-28, checked
 against a fake rigctld only, not yet on the rig; step 5, the V/M memory
 toggle + channel set/step/tag, 2026-09-29, tested on the rig by the user
@@ -632,14 +632,20 @@ raw "MD0"/"MD1"; step 7, a Settings dialog with the Mac's tabs
 (`SettingsDialog.xaml`: connection, audio devices, WPSD, HOME
 frequencies, polling, appearance — the connection/audio/WPSD fields moved
 out of the main window), 2026-09-29, UI-tested through UI Automation
-while disconnected, not yet on the rig. The .csproj has to be named when
+while disconnected, not yet on the rig; step 8, Deep Settings, 2026-09-29
+— `Models/DeepSettingsCatalog.cs` is `DeepSettingsCatalog.swift`
+translated by script and checked item-for-item against it (the Swift file
+stays the source of truth: copy any hardware correction made there), and
+`Controls/DeepSettingsDialog.cs` is the Mac's `DeepSettingsView`, opened
+from the FM page's bottom row; checked against a fake rigctld through UI
+Automation, not yet on the rig. The .csproj has to be named when
 building (`dotnet build FTX1RemoteWindows.csproj -r win-x64
 --self-contained`) since Visual Studio added a `.slnx` next to it, and
-a solution build rejects `-r`).
-Deep Settings, waterfall, and APRS decode are
-deferred but not architecturally blocked (direct-to-Pi means this app,
-unlike iPad, actually has the live per-item-read capability Deep Settings
-needs). Full plan, protocol/model porting notes, and open items:
+a solution build rejects `-r`; Visual Studio's own builds land in
+`bin\x64\Debug\…`, the CLI's in `bin\Debug\…`, so launch the one just
+built).
+Waterfall and APRS decode are deferred but not architecturally blocked.
+Full plan, protocol/model porting notes, and open items:
 `Apps/Windows/README.md`. `Apps/Windows/FTX1RemoteWindows/` has a
 build-verified (`dotnet build -r win-x64 --self-contained`, not yet
 run against real hardware) unpackaged WinUI 3 skeleton covering the full

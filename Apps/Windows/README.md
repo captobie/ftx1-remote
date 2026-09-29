@@ -61,8 +61,8 @@ Mac's hub, like iOS/iPad. Rejected because:
   has no request/response mechanism, only fire-and-forget `RigCommand` and
   one-way `RigStatePush` — a WebSocket client can never support Deep
   Settings (see `RigController.supportsDeepSettings`'s doc comment). A
-  direct rigctld link *can*, later, the same way the Mac's `HubService`
-  does today.
+  direct rigctld link can, the same way the Mac's `HubService` does
+  (done in parity plan step 8).
 
 So architecturally this app is closest to the Mac's own local/remote
 split, minus:
@@ -343,8 +343,8 @@ read, "DA" triple, and `GetMenuItem`/`SetMenuItem` ("EX").
   current band group's home frequency itself (`HomeBand`), through the
   same path as the Set button so swap tracking resets; the frequencies are
   set in Settings → Home Freq (factory defaults until changed).
-  Placeholders: APRS S.LIST/M.LIST (need APRS decoding), the six Deep
-  Settings buttons 23-28 ("SOON", as on iPad, until step 8), and DTMF,
+  Buttons 23-28 open the Deep Settings screens (step 8 of the parity
+  plan). Placeholders: APRS S.LIST/M.LIST (need APRS decoding), and DTMF,
   T-CALL, REV, DG-ID TX/RX, HRI MODE and BCN-TX (no CAT path; disabled on
   the Mac too). 4, 5, 16 and 17 are left out.
 - Checked against a fake rigctld (logs every line, answers raw reads in the
@@ -535,8 +535,9 @@ the next one starts.
    `f511da3`), checked against a fake rigctld and spot-tested on the rig
    by the user the same day, all working (see "MENU grid" above).
    Left as placeholders for later steps: CW's PLAY/RECORD (audio
-   recorder), FM's APRS S.LIST/M.LIST (APRS decoding), FM's Deep Settings
-   buttons (step 8). HOME's per-band frequencies came with step 7.
+   recorder) and FM's APRS S.LIST/M.LIST (APRS decoding). FM's Deep
+   Settings buttons came with step 8, HOME's per-band frequencies with
+   step 7.
 4. **Graphical S-meter — done** (2026-09-28, build-verified and checked
    against a fake rigctld, not yet hardware-tested). The same analog meter
    the Mac and iPad draw (`UI/SMeterView.swift`), one under each VFO like
@@ -618,20 +619,41 @@ the next one starts.
    both modes after setting them only in the dialog, HOME with an edited
    frequency, a poll interval change taking effect while connected, and
    Save with a new output device mid-session.
-8. **Deep Settings (the 341-item catalog).** Port `DeepSettingsCatalog`'s
-   table-driven EX P1/P2/P3 passthrough to C#, straight to rigctld. This is
-   what talking to rigctld directly (not through the Mac's hub) pays for:
-   iPad can't have it until the wire protocol gets request/response, but
-   this app doesn't need to wait. The biggest item, so it goes last, once
-   steps 3–6 have proven the direct-rigctld command patterns.
+8. **Deep Settings (the 341-item catalog) — done** (2026-09-29, checked
+   against a fake rigctld through UI Automation; not yet used on the rig).
+   What talking to rigctld directly pays for: iPad can't have it until the
+   wire protocol gets request/response. FM's bottom-row buttons (RADIO, CW,
+   OPERATION, DISPLAY, EXTENSION, APRS SETTING) open
+   `Controls/DeepSettingsDialog.cs`, the Mac's `DeepSettingsView`: tabs
+   (P2) on the left, the tab's items (P3) as rows, each with an editor
+   picked from its type — toggle switch, drop-down, spin box (clamped and
+   snapped to the item's step) or text box. APRS spans categories 6-8,
+   like the rig's button. `Models/DeepSettingsCatalog.cs` is
+   `DeepSettingsCatalog.swift` translated mechanically (a script, not
+   retyped), and a dump of all 341 items was compared against the Swift
+   source: addresses, labels, types, digits, ranges and case lists all
+   match. The Swift file stays the source of truth, so a hardware
+   correction there needs copying here.
+   Same CAT as the Mac: showing a tab reads each item with "EX" P1P2P3
+   (here one after another, so rows fill in top to bottom; "—" until
+   read, and a count of items that didn't answer); a change sends "EX"
+   P1P2P3 + P4 at once. Differences from the Mac: text fields send on
+   Enter or when they lose focus, not on every keystroke; momentary items
+   (resets, SD card, calibration, firmware update) are neither read nor
+   sent (the Mac reads them, then shows them disabled); a value missing
+   from an item's list shows as "(raw)" in the drop-down instead of a
+   blank. Disconnecting closes the screen. On the fake rigctld these writes
+   matched the expected bytes: `EX010101-04`/`-03` (AF TREBLE −5 → −3 dB),
+   `EX0101040040` (AGC FAST 20 → 40 ms), `EX0101100` (HCUT SLOPE),
+   `EX0106020` (LOCATION SERVICE off), `EX010328123A` (DTMF MEMORY 1),
+   and opening SD CARD read only INFORMATIONS. To check on the rig: a few
+   values against the rig's own SET-mode screens (reads), one reversible
+   change of each editor kind, the time to fill a long tab (MODE FM, 37
+   items) over Tailscale, and that the MENU grid's CH STEP/BEACON/ANT
+   follow a change made here on their next slow-tier read.
 
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
-- **Deep Settings**
-  (`MenuSettings/DeepSettingsCatalog.swift` port) — Deep Settings is
-  actually *feasible* here, unlike on iPad, because this app has the same
-  direct per-item-read capability the Mac's `HubService.readMenuItem` has
-  (see "Why direct-to-Pi" above). Not a blocked feature, just not v1.
 - **Waterfall/oscilloscope** — an FFT over the Main samples the audio
   client already delivers (see "Audio" above), drawn with a WinUI 3
   `CanvasControl`/Win2D waterfall.
@@ -678,6 +700,7 @@ Apps/Windows/FTX1RemoteWindows/
   Controls/
     MenuGrid.cs                  MENU grid (port of MenuPageView.swift), all three pages
     SMeter.cs                    analog S/TX meter (port of SMeterView.swift) + METER picker
+    DeepSettingsDialog.cs        Deep Settings screens (port of DeepSettingsView.swift)
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
@@ -685,6 +708,7 @@ Apps/Windows/FTX1RemoteWindows/
     RigDelayCode.cs             "SD"/"VD" 00-33 delay code ↔ ms
     RigToneTables.cs            CTCSS/DCS tables ("CN" indexes) and HOME band groups
     MeterScale.cs               needle mapping + METER selection — SMeterView.swift's SMeterScale, MeterSelection.swift
+    DeepSettingsCatalog.cs      the 341 "EX" items — MenuSettings/DeepSettingsCatalog.swift, translated mechanically
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
     RigctldProcessController.cs  Local mode: spawns/adopts rigctld.exe (port of the Mac's)
