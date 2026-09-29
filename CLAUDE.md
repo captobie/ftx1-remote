@@ -592,7 +592,11 @@ three pages in `Controls/MenuGrid.cs` as of 2026-09-28, spot-tested on the
 rig by the user the same day, all working — CW's PLAY/RECORD, FM's APRS S.LIST/M.LIST and FM's Deep
 Settings buttons are placeholders until those features exist; step 4, the
 analog Main/Sub meters in `Controls/SMeter.cs`, 2026-09-28, checked
-against a fake rigctld only, not yet on the rig). Deep Settings, waterfall, and APRS decode are
+against a fake rigctld only, not yet on the rig; step 5, the V/M memory
+toggle + channel set/step/tag, 2026-09-29, tested on the rig by the user
+the same day; hamlib-verb reads there now time out after 3 s, since a
+C4FM memory channel's "RPRT -8" mode reply once hung the whole client).
+Deep Settings, waterfall, and APRS decode are
 deferred but not architecturally blocked (direct-to-Pi means this app,
 unlike iPad, actually has the live per-item-read capability Deep Settings
 needs). Full plan, protocol/model porting notes, and open items:

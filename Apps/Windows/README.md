@@ -519,11 +519,38 @@ the next one starts.
    be evaluated by the user. To check on the rig: the needle against the rig's
    own meter on a strong signal (the RM2 table is hamlib's FT-991 one),
    and PO/SWR while transmitting into a dummy load.
-5. **V/M memory toggle and channel stepping.** The memory-mode toggle, get/
-   set/step of the channel number, and the channel tag. The Mac has these;
-   iPad doesn't have the button wired yet, so Windows can get ahead here.
-   Reuse the Mac's read-then-set toggle that fixed its "backwards toggle"
-   bug.
+5. **V/M memory toggle and channel stepping — done** (2026-09-29,
+   checked against a fake rigctld that models the rig's quirks, then
+   tested on the rig by the user the same day: V/M both ways, swapping a
+   memory channel onto Main and back). A V/M toggle button under the ⇄/audio
+   buttons (checked whenever Main isn't in plain VFO mode), a "CH n TAG"
+   label beside each VFO heading ("VM nn" for the rig's other VM
+   sub-modes: PMS, 5 MHz band, EMG...), and, while Main is in Memory mode,
+   a channel box + Set + ▼/▲ in place of the frequency entry. Same CAT as
+   the Mac: "VM0"/"VM1" every poll, "MC"/"MT" only while that side is in
+   Memory (so +2 round trips per poll in VFO mode, up to +6 in Memory);
+   set with "MC0" (5 digits), step with "CH0" up / "CH1" down. The toggle
+   is the Mac's explicit read-then-set, compared against plain VFO so any
+   sub-mode exits to VFO (the Mac's 2026-09-17 fix). Entering Memory
+   re-writes "MC0" immediately before "VM011" — here both under one client
+   lock hold, so a poll read can't slip between them. Leaving it sends
+   "VM000" and then restores the last VFO-mode frequency and mode
+   (`_lastVfoState`, the Mac's `lastVFOState`); mode is skipped in C4FM,
+   which this app's RigMode can't represent, and the exit is a bare
+   "VM000" if the session started in Memory mode, or after a swap (⇄ or a
+   detected front-panel swap): the remembered VFO then belongs to the
+   other receiver. Sub is display-only, as on the Mac.
+   The first rig test froze the app: with a C4FM memory channel on Main,
+   hamlib answers "m currVFO" with a single "RPRT -8" line, and the client
+   waited for a second line with no timeout, holding the round-trip lock
+   so every later command queued behind it. Hamlib-verb reads now time out
+   after 3 s (with the raw reads' reconnect), and an "RPRT" first line
+   fails the read at once. Still open: with Main on that C4FM channel each
+   poll takes ~2.5 s instead of ~0.5 s, without any read failing. Some
+   read after the mode read answers slowly there, not yet identified
+   (per-read timing in the log would find it). Not yet checked on the rig:
+   ▲/▼ at the ends of the programmed channels and across empty ones, and
+   the button exiting from a 5 MHz or PMS sub-mode.
 6. **C4FM callsign display.** Port the WPSD hotspot-page scrape (an HTTP
    GET and parse, no CAT or rigctld involved) that the Mac and iPad use to
    show the active C4FM callsign and reflector.
@@ -595,7 +622,7 @@ Apps/Windows/FTX1RemoteWindows/
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
-    RigState.cs                 subset of RigState.swift's fields (core + MENU grid pages)
+    RigState.cs                 subset of RigState.swift's fields (core + MENU grid pages + V/M memory)
     RigDelayCode.cs             "SD"/"VD" 00-33 delay code ↔ ms
     RigToneTables.cs            CTCSS/DCS tables ("CN" indexes) and HOME band groups
     MeterScale.cs               needle mapping + METER selection — SMeterView.swift's SMeterScale, MeterSelection.swift

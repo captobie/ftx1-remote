@@ -31,6 +31,29 @@ public sealed class RigState
     /// that's PowerWatts. Same distinction as RigState.swift's powerLevel.
     public double? PowerLevel { get; set; }
 
+    // V/M memory mode (RigState.swift's vfoMemoryMode/memoryChannel/
+    // memoryChannelTag and their sub* counterparts).
+
+    /// Main's raw "VM0" P2: 0 VFO, 11 Memory, anything else one of the rig's
+    /// other sub-modes (PMS, 5 MHz band, EMG...). Null until read.
+    public int? VfoMemoryRaw { get; set; }
+    /// "MC0", only while Main is in plain Memory mode; null otherwise
+    /// rather than a stale number from the last time it was.
+    public int? MemoryChannel { get; set; }
+    /// "MT" for MemoryChannel; null when untagged or not in Memory mode.
+    public string? MemoryChannelTag { get; set; }
+    /// Sub's "VM1"/"MC1"/"MT", display-only like the Mac.
+    public int? SubVfoMemoryRaw { get; set; }
+    public int? SubMemoryChannel { get; set; }
+    public string? SubMemoryChannelTag { get; set; }
+
+    /// Plain VFO mode. The V/M toggle compares against this, not "is
+    /// Memory": in the rig's other sub-modes a "not Memory" test would
+    /// keep re-entering Memory instead of ever leaving (the Mac's
+    /// 2026-09-17 5 MHz band-memory bug).
+    public bool InVfoMode => VfoMemoryRaw == 0;
+    public bool InMemoryMode => VfoMemoryRaw == 11;
+
     // MENU grid, SSB page (Controls/MenuGrid.cs). Raw CAT settings, null
     // until first read; same names and encodings as RigState.swift.
 

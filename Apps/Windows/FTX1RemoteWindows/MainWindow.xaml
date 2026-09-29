@@ -64,14 +64,33 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Spacing="4">
-                    <TextBlock Text="VFO A (active)" FontWeight="SemiBold" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="VFO A (active)" FontWeight="SemiBold" />
+                        <!-- "CH n TAG" while in Memory mode, "VM nn" in the other
+                             sub-modes, hidden in VFO mode. -->
+                        <TextBlock x:Name="MemoryChannelAText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
+                    </StackPanel>
                     <TextBlock x:Name="FrequencyAText" Text="—" FontSize="28" FontFamily="Consolas" />
                     <!-- Analog meter (Controls/SMeter.cs), added in code; the
                          frequency entry sits below it so Main's and Sub's meters line up. -->
                     <Border x:Name="MainMeterHost" Width="280" HorizontalAlignment="Left" Margin="0,4,0,0" />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
+                    <StackPanel x:Name="FrequencyEntryPanel" Orientation="Horizontal" Spacing="8">
                         <TextBox x:Name="FrequencyEntryBox" Width="140" PlaceholderText="Hz" />
                         <Button x:Name="SetFrequencyButton" Content="Set" Click="SetFrequencyButton_Click" />
+                    </StackPanel>
+                    <!-- Replaces the frequency entry in Memory mode, like the Mac's
+                         MemoryChannelEntryView (the rig rejects "FA" there anyway). -->
+                    <StackPanel x:Name="MemoryChannelEntryPanel" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                        <TextBox x:Name="MemoryChannelEntryBox" Width="80" PlaceholderText="Ch 1-99" />
+                        <Button x:Name="SetMemoryChannelButton" Content="Set" Click="SetMemoryChannelButton_Click" />
+                        <Button x:Name="MemoryChannelDownButton" Click="MemoryChannelDownButton_Click"
+                                AutomationProperties.Name="Previous channel" ToolTipService.ToolTip="Previous channel">
+                            <FontIcon Glyph="&#xE70D;" FontSize="12" />
+                        </Button>
+                        <Button x:Name="MemoryChannelUpButton" Click="MemoryChannelUpButton_Click"
+                                AutomationProperties.Name="Next channel" ToolTipService.ToolTip="Next channel">
+                            <FontIcon Glyph="&#xE70E;" FontSize="12" />
+                        </Button>
                     </StackPanel>
                 </StackPanel>
 
@@ -82,10 +101,17 @@
                     <ToggleButton x:Name="AudioSwapToggle" HorizontalAlignment="Center" Click="AudioSwapToggle_Click">
                         <FontIcon Glyph="&#xE767;" FontSize="14" />
                     </ToggleButton>
+                    <!-- Main's VFO/Memory mode; checked whenever it isn't plain VFO. -->
+                    <ToggleButton x:Name="VfoMemoryToggle" Content="V/M" HorizontalAlignment="Center"
+                                  Click="VfoMemoryToggle_Click"
+                                  ToolTipService.ToolTip="Switch VFO A between VFO and Memory mode (the rig's V/M)" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Spacing="4">
-                    <TextBlock Text="VFO B" FontWeight="SemiBold" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="VFO B" FontWeight="SemiBold" />
+                        <TextBlock x:Name="MemoryChannelBText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
+                    </StackPanel>
                     <TextBlock x:Name="FrequencyBText" Text="—" FontSize="28" FontFamily="Consolas" />
                     <Border x:Name="SubMeterHost" Width="280" HorizontalAlignment="Left" Margin="0,4,0,0" />
                 </StackPanel>

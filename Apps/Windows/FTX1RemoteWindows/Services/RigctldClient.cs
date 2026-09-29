@@ -90,6 +90,14 @@ public sealed class RigctldClient : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
+    /// How long a hamlib-verb reply may take before the round trip is
+    /// abandoned. Longer than raw CAT's 1 s: these go through hamlib's own
+    /// retries, over Tailscale in Remote mode. Without it, one reply that
+    /// never comes held the round-trip lock forever and every later
+    /// command queued behind it (2026-09-29: "m currVFO" on a memory
+    /// channel after a swap).
+    private static readonly TimeSpan ReplyTimeout = TimeSpan.FromSeconds(3);
+
     /// Sends a raw rigctld command (e.g. "f currVFO") and returns the
     /// single-line reply.
     public async Task<string> SendAsync(string command, CancellationToken cancellationToken = default)
@@ -98,7 +106,7 @@ public sealed class RigctldClient : IAsyncDisposable
         try
         {
             await WriteAsync(command, cancellationToken).ConfigureAwait(false);
-            return await ReadLineAsync(cancellationToken).ConfigureAwait(false);
+            return await ReadReplyLineAsync(command, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -106,8 +114,10 @@ public sealed class RigctldClient : IAsyncDisposable
         }
     }
 
-    /// Sends a command that always returns a fixed number of lines (e.g.
-    /// "m currVFO" -> mode + passband).
+    /// Sends a command that returns a fixed number of lines on success (e.g.
+    /// "m currVFO" -> mode + passband). A failure comes back as a single
+    /// "RPRT -n" line instead, which is thrown rather than waiting for the
+    /// lines that will never follow.
     private async Task<string[]> QueryAsync(string command, int lines, CancellationToken cancellationToken)
     {
         await _roundTripLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -117,13 +127,45 @@ public sealed class RigctldClient : IAsyncDisposable
             var result = new string[lines];
             for (var i = 0; i < lines; i++)
             {
-                result[i] = await ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                result[i] = await ReadReplyLineAsync(command, cancellationToken).ConfigureAwait(false);
+                if (i == 0 && lines > 1 && result[0].StartsWith("RPRT ", StringComparison.Ordinal))
+                {
+                    throw new RigctldError($"'{command}' failed: {result[0]}");
+                }
             }
             return result;
         }
         finally
         {
             _roundTripLock.Release();
+        }
+    }
+
+    /// One reply line, bounded by ReplyTimeout. On timeout the connection
+    /// is reset, since a late reply would otherwise be read as the answer
+    /// to the next command — same recovery as SendRawCommandAsync. Caller
+    /// holds the round-trip lock.
+    private async Task<string> ReadReplyLineAsync(string command, CancellationToken cancellationToken)
+    {
+        using var timeoutCts = new CancellationTokenSource(ReplyTimeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        try
+        {
+            return await ReadLineAsync(linked.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            AppLog.Write($"rigctld: no reply to '{command}' within {ReplyTimeout.TotalSeconds:F0} s, reconnecting");
+            Disconnect();
+            try
+            {
+                await ConnectAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            catch (RigctldError ex)
+            {
+                AppLog.Write($"rigctld: reconnect failed: {ex.Message}");
+            }
+            throw new RigctldError($"No reply to '{command}'");
         }
     }
 
@@ -441,6 +483,79 @@ public sealed class RigctldClient : IAsyncDisposable
 
     public Task SetMenuItemAsync(int p1, int p2, int p3, string rawValue, CancellationToken cancellationToken = default) =>
         SendRawFireAndForgetAsync($"EX{p1:00}{p2:00}{p3:00}{rawValue}", cancellationToken);
+
+    /// "VM" (VFO / MEMORY CHANNEL) P2 for Main (P1 0) or Sub (P1 1): 00 VFO,
+    /// 11 Memory, other values the rig's PMS/5 MHz/EMG sub-modes — see
+    /// RigState.swift's VFOMemoryMode.
+    public Task<int?> GetVfoMemoryModeAsync(bool sub, CancellationToken cancellationToken = default) =>
+        GetRawIntAsync(sub ? "VM1" : "VM0", cancellationToken);
+
+    /// Main's VFO/Memory switch — CommandQueue.swift's .setVFOMemoryMode.
+    /// Entering Memory mode only takes effect if "MC0" is written right
+    /// before "VM011", even with the channel it already holds (found by
+    /// live probing on the rig, undocumented), so the tracked channel
+    /// (1 if none) is re-asserted first. Leaving it has no such
+    /// precondition, but leaves Main parked on the channel's frequency/mode
+    /// — the caller restores the VFO afterwards (MainWindow.SetVfoMemoryModeAsync).
+    public async Task SetVfoMemoryModeAsync(bool memory, CancellationToken cancellationToken = default)
+    {
+        if (!memory)
+        {
+            await SetRawIntAsync("VM0", 0, digits: 2, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+        int channel;
+        try
+        {
+            channel = await GetRawIntAsync("MC0", cancellationToken).ConfigureAwait(false) ?? 1;
+        }
+        catch (RigctldError)
+        {
+            channel = 1;
+        }
+        // Both writes under one lock hold, so a poll read can't land
+        // between them and break "immediately before".
+        await _roundTripLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await WriteAsync($"W MC0{channel:00000}; ;", cancellationToken).ConfigureAwait(false);
+            await WriteAsync("W VM011; ;", cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _roundTripLock.Release();
+        }
+    }
+
+    /// "MC" (MEMORY CHANNEL) for Main (P1 0) or Sub (P1 1): the 5-digit
+    /// channel number. Readable in VFO mode too (the channel Memory mode
+    /// would recall).
+    public Task<int?> GetMemoryChannelAsync(bool sub, CancellationToken cancellationToken = default) =>
+        GetRawIntAsync(sub ? "MC1" : "MC0", cancellationToken);
+
+    public Task SetMemoryChannelAsync(int channel, CancellationToken cancellationToken = default) =>
+        SetRawIntAsync("MC0", channel, digits: 5, cancellationToken);
+
+    /// "CH" (CHANNEL UP/DOWN): CH0 up, CH1 down. It documents no MAIN/SUB
+    /// selector; the Mac sends the same thing (CommandQueue.swift's
+    /// .stepMemoryChannel).
+    public Task StepMemoryChannelAsync(bool up, CancellationToken cancellationToken = default) =>
+        SendRawFireAndForgetAsync(up ? "CH0" : "CH1", cancellationToken);
+
+    /// A channel's TAG (name, up to 12 characters) via "MT" + 5-digit
+    /// channel, whose reply pads it with spaces. Null for an untagged
+    /// channel — the Swift getMemoryChannelTag.
+    public async Task<string?> GetMemoryChannelTagAsync(int channel, CancellationToken cancellationToken = default)
+    {
+        var prefix = $"MT{channel:00000}";
+        var reply = await SendRawCommandAsync(prefix, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!reply.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+        var tag = reply[prefix.Length..].TrimEnd(';').Trim();
+        return tag.Length == 0 ? null : tag;
+    }
 
     private async Task WriteAsync(string command, CancellationToken cancellationToken)
     {

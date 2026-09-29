@@ -136,6 +136,16 @@ public sealed partial class MainWindow : Window
     private const int SlowPollEvery = 10;
     private bool _pollInFlight;
 
+    /// Main's frequency/mode as last polled in plain VFO mode — frozen once
+    /// Memory mode is entered, and put back after leaving it: "VM000" sent
+    /// over CAT leaves Main parked on the memory channel's values, and the
+    /// rig exposes no read of its parked VFO (the Mac's
+    /// HubService.lastVFOState, which has the full story). Null until a
+    /// VFO-mode poll completes; the exit is then a bare "VM000". Mode is
+    /// null in C4FM (this app's RigMode has none), so only the frequency is
+    /// restored then.
+    private (long Hz, RigMode? Mode)? _lastVfoState;
+
     /// True from a press on the PTT button until its release (or capture
     /// loss). Every release sends PTT off, even when the press was blocked
     /// from keying — same as the Mac's DragGesture onEnded — so pressing
@@ -225,6 +235,12 @@ public sealed partial class MainWindow : Window
         UpdateAudioSwapTooltip();
         _swapTracker.Changed += reason =>
         {
+            // A front-panel swap puts the other receiver on Main, so the
+            // remembered VFO isn't Main's any more (see SwapVfoButton_Click).
+            if (reason.StartsWith("front-panel", StringComparison.Ordinal))
+            {
+                _lastVfoState = null;
+            }
             _audioChannelsSwapped = _swapTracker.Swapped;
             AppSettings.AudioChannelsSwapped = _swapTracker.Swapped;
             AudioSwapToggle.IsChecked = _swapTracker.Swapped;
@@ -479,6 +495,7 @@ public sealed partial class MainWindow : Window
             _client = client;
             _menuGrid.ClearState();
             _menuGrid.Client = client;
+            ClearMemoryState();
             // Run the slow tier (FR, MENU grid) on the first poll.
             _pollCount = 0;
             ConnectionStateText.Text = $"Connected to {description}";
@@ -588,6 +605,7 @@ public sealed partial class MainWindow : Window
         _menuGrid.Client = null;
         _mainMeter.Reset();
         _subMeter.Reset();
+        ClearMemoryState();
         if (client is not null)
         {
             await client.DisposeAsync();
@@ -681,6 +699,11 @@ public sealed partial class MainWindow : Window
             AppLog.Write($"poll: getSecondaryFrequency failed: {ex.Message}");
         }
 
+        // Fast tier, like the Mac's refreshFastTier, so _lastVfoState never
+        // pairs a frequency with a stale VFO/Memory reading.
+        var mainMemory = await ReadMemoryStateAsync(client, sub: false);
+        var subMemory = await ReadMemoryStateAsync(client, sub: true);
+
         var slowTier = _pollCount++ % SlowPollEvery == 0;
         if (slowTier)
         {
@@ -714,6 +737,13 @@ public sealed partial class MainWindow : Window
             _swapTracker.OnPoll(main, polledSub);
         }
 
+        // A V/M or channel command that landed mid-poll already set these
+        // optimistically; this poll's reads may predate it.
+        if (!generationChanged)
+        {
+            ApplyMemoryState(mainMemory, subMemory);
+        }
+
         try
         {
             var mode = await client.GetModeAsync();
@@ -723,6 +753,13 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             AppLog.Write($"poll: getMode failed: {ex.Message}");
+        }
+
+        // Only from a genuine VFO-mode snapshot — in Memory mode Main's
+        // frequency/mode are the channel's, not the VFO's.
+        if (_lastState.InVfoMode && polledMain is { } vfoHz && generationAtStart == _commandGeneration)
+        {
+            _lastVfoState = (vfoHz, _lastState.Mode);
         }
 
         try
@@ -900,6 +937,11 @@ public sealed partial class MainWindow : Window
             return;
         }
         _commandGeneration++;
+        // The remembered VFO belonged to the receiver that's now Sub:
+        // restoring it after V/M would put the other receiver's frequency
+        // and mode on Main. Re-learned at the next VFO-mode poll; until
+        // then leaving Memory is a bare "VM000".
+        _lastVfoState = null;
         AppLog.Write($"swap: ⇄ clicked (main {_lastState.FrequencyHz}, sub {_lastState.SecondaryFrequencyHz}, single receive {_singleReceive?.ToString() ?? "unknown"}, poll in flight {_pollInFlight})");
         try
         {
@@ -937,6 +979,217 @@ public sealed partial class MainWindow : Window
         ToolTipService.SetToolTip(AudioSwapToggle, _swapTracker.Swapped
             ? "Audio channels are swapped relative to the rig's default (L=Main, R=Sub). Click to swap back."
             : "Swap which audio channel plays as Main and Sub — use if the audio doesn't match the VFO it's under.");
+    }
+
+    // V/M memory mode (parity plan step 5)
+
+    /// One side's VFO/Memory reading: "VM", then "MC" and "MT" only while
+    /// in plain Memory mode (two extra round trips only when they mean
+    /// something, as on the Mac). Null when "VM" itself failed, so the
+    /// last known state is kept rather than blanked by one bad reply.
+    private static async Task<(int Raw, int? Channel, string? Tag)?> ReadMemoryStateAsync(RigctldClient client, bool sub)
+    {
+        var p1 = sub ? 1 : 0;
+        int raw;
+        try
+        {
+            if (await client.GetVfoMemoryModeAsync(sub) is not { } value)
+            {
+                return null;
+            }
+            raw = value;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"poll: VM{p1} failed: {ex.Message}");
+            return null;
+        }
+        if (raw != 11)
+        {
+            return (raw, null, null);
+        }
+        int? channel = null;
+        string? tag = null;
+        try
+        {
+            channel = await client.GetMemoryChannelAsync(sub);
+            if (channel is { } c)
+            {
+                tag = await client.GetMemoryChannelTagAsync(c);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"poll: MC{p1}/MT failed: {ex.Message}");
+        }
+        return (raw, channel, tag);
+    }
+
+    private void ApplyMemoryState((int Raw, int? Channel, string? Tag)? main, (int Raw, int? Channel, string? Tag)? sub)
+    {
+        if (main is { } m)
+        {
+            if (m.Raw != _lastState.VfoMemoryRaw)
+            {
+                AppLog.Write($"memory: VM0 {_lastState.VfoMemoryRaw?.ToString() ?? "unread"} -> {m.Raw}");
+            }
+            _lastState.VfoMemoryRaw = m.Raw;
+            _lastState.MemoryChannel = m.Channel;
+            _lastState.MemoryChannelTag = m.Tag;
+        }
+        if (sub is { } s)
+        {
+            _lastState.SubVfoMemoryRaw = s.Raw;
+            _lastState.SubMemoryChannel = s.Channel;
+            _lastState.SubMemoryChannelTag = s.Tag;
+        }
+        UpdateMemoryDisplay();
+    }
+
+    /// A new session starts from unread: the rig may have been changed
+    /// from its front panel (or by another app) in between.
+    private void ClearMemoryState()
+    {
+        _lastState.VfoMemoryRaw = null;
+        _lastState.MemoryChannel = null;
+        _lastState.MemoryChannelTag = null;
+        _lastState.SubVfoMemoryRaw = null;
+        _lastState.SubMemoryChannel = null;
+        _lastState.SubMemoryChannelTag = null;
+        _lastVfoState = null;
+        UpdateMemoryDisplay();
+    }
+
+    private void UpdateMemoryDisplay()
+    {
+        ShowMemoryLabel(MemoryChannelAText, _lastState.VfoMemoryRaw, _lastState.MemoryChannel, _lastState.MemoryChannelTag);
+        ShowMemoryLabel(MemoryChannelBText, _lastState.SubVfoMemoryRaw, _lastState.SubMemoryChannel, _lastState.SubMemoryChannelTag);
+        VfoMemoryToggle.IsChecked = _lastState.VfoMemoryRaw is { } raw && raw != 0;
+        var memory = _lastState.InMemoryMode;
+        MemoryChannelEntryPanel.Visibility = memory ? Visibility.Visible : Visibility.Collapsed;
+        FrequencyEntryPanel.Visibility = memory ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// "CH n TAG" in Memory mode (the Mac's VFODisplayBox label), "VM nn"
+    /// in the rig's other sub-modes, which the Mac doesn't label — shown
+    /// here so a checked V/M button with no channel isn't a mystery.
+    private static void ShowMemoryLabel(TextBlock label, int? raw, int? channel, string? tag)
+    {
+        string? text = raw switch
+        {
+            null or 0 => null,
+            11 => channel is { } c ? (tag is null ? $"CH {c}" : $"CH {c} {tag}") : "MEM",
+            { } other => $"VM {other:00}",
+        };
+        label.Text = text ?? "";
+        label.Visibility = text is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// Explicit set, not a blind toggle: reads the current mode and sends
+    /// the opposite (the project's rule since the "PR"/MIC EQ backwards-
+    /// toggle bug). Compared against plain VFO, not Memory — see
+    /// RigState.InVfoMode — so any sub-mode exits to VFO.
+    private async void VfoMemoryToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (_client is not { } client)
+        {
+            UpdateMemoryDisplay();
+            return;
+        }
+        var enterMemory = _lastState.InVfoMode;
+        var restore = enterMemory ? null : _lastVfoState;
+        _commandGeneration++;
+        _swapTracker.ResetBaseline();
+        AppLog.Write($"memory: V/M clicked (VM0 {_lastState.VfoMemoryRaw?.ToString() ?? "unread"}) — {(enterMemory ? "entering Memory" : $"leaving to VFO, restoring {restore?.Hz.ToString() ?? "nothing"} {restore?.Mode?.DisplayName() ?? ""}")}");
+
+        _lastState.VfoMemoryRaw = enterMemory ? 11 : 0;
+        _lastState.MemoryChannel = null;
+        _lastState.MemoryChannelTag = null;
+        UpdateMemoryDisplay();
+        try
+        {
+            await client.SetVfoMemoryModeAsync(enterMemory);
+            // In this order: the rig rejects "FA" while still in Memory
+            // mode, and the client serializes commands.
+            if (restore is { } last)
+            {
+                await client.SetFrequencyAsync(last.Hz);
+                if (last.Mode is { } mode)
+                {
+                    await client.SetModeAsync(mode);
+                }
+                _lastState.FrequencyHz = last.Hz;
+                FrequencyAText.Text = FormatHz(last.Hz);
+            }
+            StatusText.Text = "";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"V/M failed: {ex.Message}";
+            AppLog.Write($"memory: V/M failed: {ex.Message}");
+        }
+    }
+
+    private async void SetMemoryChannelButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_client is not { } client)
+        {
+            return;
+        }
+        if (!int.TryParse(MemoryChannelEntryBox.Text.Trim(), out var channel) || channel is < 1 or > 99)
+        {
+            StatusText.Text = "Enter a memory channel from 1 to 99.";
+            return;
+        }
+        _commandGeneration++;
+        _swapTracker.ResetBaseline();
+        // The new channel's tag isn't known until the next poll; the old
+        // one against the new number would be wrong.
+        _lastState.MemoryChannel = channel;
+        _lastState.MemoryChannelTag = null;
+        UpdateMemoryDisplay();
+        try
+        {
+            await client.SetMemoryChannelAsync(channel);
+            MemoryChannelEntryBox.Text = "";
+            StatusText.Text = "";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Set memory channel failed: {ex.Message}";
+        }
+    }
+
+    private async void MemoryChannelUpButton_Click(object sender, RoutedEventArgs e) => await StepMemoryChannelAsync(up: true);
+
+    private async void MemoryChannelDownButton_Click(object sender, RoutedEventArgs e) => await StepMemoryChannelAsync(up: false);
+
+    /// The rig resolves what up/down means ("CH"; its wrap and empty-channel
+    /// behavior aren't confirmed yet), so the optimistic ±1 is only a
+    /// placeholder until the next poll, same as the Mac.
+    private async Task StepMemoryChannelAsync(bool up)
+    {
+        if (_client is not { } client)
+        {
+            return;
+        }
+        _commandGeneration++;
+        _swapTracker.ResetBaseline();
+        if (_lastState.InMemoryMode && _lastState.MemoryChannel is { } current)
+        {
+            _lastState.MemoryChannel = Math.Clamp(current + (up ? 1 : -1), 1, 99);
+            _lastState.MemoryChannelTag = null;
+            UpdateMemoryDisplay();
+        }
+        try
+        {
+            await client.StepMemoryChannelAsync(up);
+            StatusText.Text = "";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Memory channel step failed: {ex.Message}";
+        }
     }
 
     private async void ModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
