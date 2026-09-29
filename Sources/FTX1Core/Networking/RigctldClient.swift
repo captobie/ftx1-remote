@@ -131,55 +131,121 @@ public actor RigctldClient {
     /// this write+read pair completes atomically with respect to every
     /// other round trip on this client, regardless of which caller
     /// (CommandQueue, HubService's poll loop, ...) issued it.
+    ///
+    /// The reply wait is bounded by `hamlibReplyTimeout` — see there.
     public func send(_ command: String) async throws -> String {
         await acquireRoundTrip()
         defer { releaseRoundTrip() }
         Self.catLogger.debug("-> \(command, privacy: .public)")
         try await write(command)
-        let result = try await readLine()
+        let result = try await withReplyTimeout(command, hamlibReplyTimeout, error: .replyTimedOut) {
+            try await self.readLine()
+        }
         Self.catLogger.debug("<- \(command, privacy: .public) : \(result, privacy: .public)")
         return result
     }
 
-    /// Sends a command that returns a known fixed number of lines back
-    /// (e.g. "m" for get_mode, which replies with mode + passband on
-    /// separate lines).
-    public func query(_ command: String, lines: Int) async throws -> [String] {
-        await acquireRoundTrip()
-        defer { releaseRoundTrip() }
-        Self.catLogger.debug("-> \(command, privacy: .public)")
-        try await write(command)
-        var result: [String] = []
-        for _ in 0..<lines {
-            result.append(try await readLine())
-        }
-        Self.catLogger.debug("<- \(command, privacy: .public) : \(result.joined(separator: "|"), privacy: .public)")
-        return result
-    }
+    /// Hamlib verbs (`send`/`queryOrError`) had no reply timeout at all,
+    /// only raw CAT did: a reply that never came (rigctld wedged, or the
+    /// Pi dropping off Tailscale without closing the TCP connection) held
+    /// the round-trip lock forever, queueing every later command (V/M,
+    /// swap, PTT) behind it. That happened on the Windows app (2026-09-29)
+    /// with a 2-line read that got a 1-line "RPRT -8"; `queryOrError`
+    /// already covers that shape here, this covers silence. 5 s rather
+    /// than raw CAT's 1 s: the Pi's rigctld may run hamlib's default
+    /// serial timeout/retry (1000 ms × 3), which can take ~4 s to answer a
+    /// failing verb, and timing out on a reply that's still coming costs a
+    /// reconnect. Local mode's rigctld runs `timeout=300,retry=0`, so the
+    /// slack is free there.
+    private let hamlibReplyTimeout: Duration = .seconds(5)
 
-    /// Like `query(_:lines:)`, but for commands that are only sometimes
-    /// reliable (e.g. `getSecondaryMode()` below, which errors consistently
-    /// on this rig today but may not on every rig/backend). rigctld's get
-    /// commands never prepend "RPRT" on success — only a failure replaces
-    /// the whole expected multi-line reply with a single "RPRT -N" line —
-    /// so checking for that prefix on the first line tells us not to block
-    /// waiting for lines that will never arrive.
+    /// For commands that reply with a known number of lines (e.g. "m" for
+    /// get_mode: mode + passband). rigctld's get commands never prepend
+    /// "RPRT" on success — only a failure replaces the whole expected
+    /// multi-line reply with a single "RPRT -N" line — so checking for
+    /// that prefix on each line tells us not to block waiting for lines
+    /// that will never arrive. Every multi-line read must go through this;
+    /// there's deliberately no variant without the check.
     private func queryOrError(_ command: String, lines: Int) async throws -> [String] {
         await acquireRoundTrip()
         defer { releaseRoundTrip() }
         Self.catLogger.debug("-> \(command, privacy: .public)")
         try await write(command)
-        var result: [String] = []
-        for _ in 0..<lines {
-            let line = try await readLine()
-            if line.hasPrefix("RPRT") {
-                Self.catLogger.debug("<- \(command, privacy: .public) : \(line, privacy: .public) (error)")
-                throw RigctldError.badResponse
+        let result = try await withReplyTimeout(command, hamlibReplyTimeout, error: .replyTimedOut) {
+            var result: [String] = []
+            for _ in 0..<lines {
+                let line = try await self.readLine()
+                if line.hasPrefix("RPRT") {
+                    Self.catLogger.debug("<- \(command, privacy: .public) : \(line, privacy: .public) (error)")
+                    throw RigctldError.badResponse
+                }
+                result.append(line)
             }
-            result.append(line)
+            return result
         }
         Self.catLogger.debug("<- \(command, privacy: .public) : \(result.joined(separator: "|"), privacy: .public)")
         return result
+    }
+
+    /// Runs `read` (the reply half of a round trip, called with the
+    /// round-trip lock already held) with a time limit. On expiry, or any
+    /// other failure of `read`, cancels the connection so the pending
+    /// `readLine()` resolves instead of leaking, then reconnects right
+    /// away, so one unanswered command costs only its own field rather
+    /// than a full disconnect — see `sendRawCommand` for why that matters
+    /// ("GT0" goes unanswered every poll in C4FM). A late reply can't leak
+    /// into a later read: it would arrive on the old, cancelled connection.
+    /// If the rig or network is really gone, the reconnect fails too and
+    /// the next call surfaces that normally.
+    private func withReplyTimeout<T: Sendable>(
+        _ command: String,
+        _ timeout: Duration,
+        error timeoutError: RigctldError,
+        _ read: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await read() }
+            group.addTask {
+                try await Task.sleep(for: timeout)
+                throw timeoutError
+            }
+            do {
+                let result = try await group.next()!
+                group.cancelAll()
+                return result
+            } catch let error as RigctldError where error == timeoutError {
+                // See connect()'s comment: cancelling the connection before
+                // this closure returns is what actually unsticks the losing
+                // readLine() — group.cancelAll() alone only marks it
+                // cancelled.
+                // Raw CAT stays at debug: some commands go unanswered every
+                // poll in normal use (see `sendRawCommand`). A silent
+                // hamlib verb isn't routine, so it's visible by default.
+                if timeoutError == .rawCommandTimedOut {
+                    Self.catLogger.debug("<- \(command, privacy: .public) : (no reply in \(String(describing: timeout), privacy: .public)) — reconnecting")
+                } else {
+                    Self.catLogger.notice("<- \(command, privacy: .public) : (no reply in \(String(describing: timeout), privacy: .public)) — reconnecting")
+                }
+                disconnect()
+                try? await connect()
+                group.cancelAll()
+                throw error
+            } catch let error as RigctldError {
+                // `read` itself failed, so it's finished: an error reply
+                // ("RPRT -N" where lines were expected) leaves the
+                // connection fine, and `.connectionLost`/`.notConnected`
+                // are the hub's to recover from — reconnecting here would
+                // reopen a link the hub just closed on purpose.
+                group.cancelAll()
+                throw error
+            } catch {
+                // Task cancellation: `read` may still be waiting, and the
+                // group can't return until it finishes.
+                disconnect()
+                group.cancelAll()
+                throw error
+            }
+        }
     }
 
     /// rigctld is launched with `-o` (see `RigctldProcessController`), which
@@ -384,51 +450,31 @@ public actor RigctldClient {
         defer { releaseRoundTrip() }
         Self.catLogger.debug("-> \(cmd, privacy: .public)")
         try await write("W \(cmd); ;")
-
-        return try await withThrowingTaskGroup(of: String.self) { group in
-            group.addTask { try await self.readLine(terminators: [0, UInt8(ascii: "\n")]) }
-            group.addTask {
-                try await Task.sleep(for: timeout)
-                throw RigctldError.rawCommandTimedOut
-            }
-            do {
-                let result = try await group.next()!
-                group.cancelAll()
-                Self.catLogger.debug("<- \(cmd, privacy: .public) : \(result, privacy: .public)")
-                return result
-            } catch {
-                // See connect()'s identical comment above: cancelling here,
-                // before this closure returns, is what actually unsticks
-                // the losing readLine() — group.cancelAll() alone only
-                // marks it cancelled, it doesn't force a continuation
-                // waiting on an NWConnection callback to resume.
-                //
-                // A single unanswered raw command isn't always the rare
-                // "genuinely wedged" case this was written for — confirmed
-                // against real hardware that "GT0" (AGC), which this rig
-                // answers fine in SSB/CW, gets no reply at all while the
-                // active VFO is in C4FM (AGC doesn't apply to digital
-                // voice). That makes it a routine, every-poll-cycle
-                // occurrence in C4FM, not a one-off: disconnecting and
-                // leaving this actor connectionless made every cycle force
-                // a full reconnect (visible disconnect + audio-engine
-                // restart) roughly every 5s. Reconnecting immediately here
-                // — instead of just disconnecting and letting a later,
-                // unrelated call discover `notConnected` — keeps that
-                // routine failure confined to this one best-effort field;
-                // its caller already treats a thrown error here as
-                // optional (see e.g. `getRawInt`/`getRawBool`'s `try?`
-                // callers). If the rig is genuinely gone rather than just
-                // not answering this one command, this reconnect attempt
-                // fails too and the next hard read (e.g. `getFrequency()`)
-                // surfaces that normally.
-                Self.catLogger.debug("<- \(cmd, privacy: .public) : (no reply, \(String(describing: error), privacy: .public))")
-                disconnect()
-                try? await connect()
-                group.cancelAll()
-                throw error
-            }
+        // On timeout, `withReplyTimeout` reconnects right away, because a
+        // single unanswered raw command isn't always the rare
+        // "genuinely wedged" case this was written for — confirmed
+        // against real hardware that "GT0" (AGC), which this rig
+        // answers fine in SSB/CW, gets no reply at all while the
+        // active VFO is in C4FM (AGC doesn't apply to digital
+        // voice). That makes it a routine, every-poll-cycle
+        // occurrence in C4FM, not a one-off: disconnecting and
+        // leaving this actor connectionless made every cycle force
+        // a full reconnect (visible disconnect + audio-engine
+        // restart) roughly every 5s. Reconnecting immediately here
+        // — instead of just disconnecting and letting a later,
+        // unrelated call discover `notConnected` — keeps that
+        // routine failure confined to this one best-effort field;
+        // its caller already treats a thrown error here as
+        // optional (see e.g. `getRawInt`/`getRawBool`'s `try?`
+        // callers). If the rig is genuinely gone rather than just
+        // not answering this one command, this reconnect attempt
+        // fails too and the next hard read (e.g. `getFrequency()`)
+        // surfaces that normally.
+        let result = try await withReplyTimeout(cmd, timeout, error: .rawCommandTimedOut) {
+            try await self.readLine(terminators: [0, UInt8(ascii: "\n")])
         }
+        Self.catLogger.debug("<- \(cmd, privacy: .public) : \(result, privacy: .public)")
+        return result
     }
 
     /// Reads a boolean on/off CAT setting of the form the FTX-1 manual
@@ -898,7 +944,11 @@ public actor RigctldClient {
                 // above: an OS-level receive error (not RigctldClient's own
                 // `.badResponse`, which means "read fine, just an empty
                 // frame") means this connection is gone, not just slow.
-                disconnect()
+                // Only if it's still the current one: after a reply
+                // timeout, `withReplyTimeout` cancels this connection and
+                // reconnects, and this read's cancellation error can land
+                // after the new connection is up.
+                if self.connection === connection { disconnect() }
                 throw RigctldError.connectionLost
             }
             readBuffer.append(chunk)
@@ -933,6 +983,9 @@ public enum RigctldError: Error, Equatable {
     case badResponse
     case connectTimedOut
     case rawCommandTimedOut
+    /// A hamlib verb (`send`/`queryOrError`) got no reply within
+    /// `hamlibReplyTimeout`; the client has already reconnected.
+    case replyTimedOut
     /// The underlying transport failed (e.g. the peer reset the TCP
     /// connection) — distinct from `.badResponse`/`.rawCommandTimedOut`,
     /// which mean the connection is fine but the rig gave a bad or slow

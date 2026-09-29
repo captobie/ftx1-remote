@@ -216,6 +216,25 @@ re-architecture.
   Pi/Tailscale-unreachable UI distinction above, and the rest of the
   validation-plan checklist (WSJT-X coexistence, soak testing, timeout
   re-tuning under sustained real-network conditions).
+- **Hamlib-verb reply timeout (2026-09-29, rig-confirmed by the user the same
+  day, incl. recovery from a Pi rigctld stop/start)**: `RigctldClient.send`/`queryOrError` had no reply timeout
+  (only raw CAT did), so a silent rigctld — or the Pi dropping off
+  Tailscale without closing the TCP connection — held the round-trip lock
+  forever and queued every later command behind it (hit on Windows with a
+  2-line read answered by a 1-line "RPRT -8"; the Mac already routed every
+  multi-line read through `queryOrError`, and the unused, unchecked
+  `query(_:lines:)` is gone). Both now share `sendRawCommand`'s
+  bounded read (`withReplyTimeout`: cancel, reconnect at once, throw) with
+  `hamlibReplyTimeout` = 5 s — longer than Windows' 3 s because the Pi's
+  rigctld may run hamlib's default 1000 ms × 3 retries, and cutting off a
+  reply that's still coming costs a reconnect. Only a timeout reconnects:
+  an error reply, `.connectionLost` or `.notConnected` are rethrown as
+  before, so the hub's own reconnect handling is unchanged. A hamlib
+  timeout logs at notice ("rawcat" category, "no reply in 5.0 seconds —
+  reconnecting"); raw-CAT ones stay at debug, since e.g. "GT0" goes
+  unanswered every poll in C4FM. `readLine` now only tears down the
+  connection it was reading from, so the cancelled read's late error
+  can't close the freshly reconnected one.
 - **Audio-over-Pi (2026-09-07)**: implemented and hardware-confirmed
   working — waterfall/oscilloscope, iPad relay, and Mac-local playback all
   functioning against the real Pi. In `.remote` mode, `AudioCaptureEngine`
