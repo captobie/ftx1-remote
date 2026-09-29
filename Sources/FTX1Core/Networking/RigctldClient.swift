@@ -38,7 +38,12 @@ public actor RigctldClient {
     private var roundTripBusy = false
     private var roundTripWaiters: [CheckedContinuation<Void, Never>] = []
 
+    /// Round trips started since connect-or-launch — read by `HubService`'s
+    /// "poll-timing" log to count how many CAT reads each poll pass costs.
+    public private(set) var roundTripCount = 0
+
     private func acquireRoundTrip() async {
+        roundTripCount += 1
         if !roundTripBusy {
             roundTripBusy = true
             return
@@ -243,6 +248,35 @@ public actor RigctldClient {
     public func isSecondaryModeC4FM() async throws -> Bool {
         let currentVFO = try await send("v")
         return try await isC4FM(p1: currentVFO == "Sub" ? "0" : "1")
+    }
+
+    /// The active VFO as hamlib names it on this rig — "Main" or "Sub".
+    /// Lets a caller that needs it for several reads (the poll's fast
+    /// tier) ask once instead of once per read, the way
+    /// `getSecondaryFrequency()`/`isActiveModeC4FM()` etc. each do.
+    public func getActiveVFO() async throws -> String {
+        try await send("v")
+    }
+
+    /// `f <vfo>` for a VFO the caller already resolved ("Main"/"Sub") —
+    /// the body of `getSecondaryFrequency()` without its own `v` read.
+    public func getFrequency(ofVFO vfo: String) async throws -> Int {
+        let freqLine = try await send("f \(vfo)")
+        guard let hz = Int(freqLine) else { throw RigctldError.badResponse }
+        return hz
+    }
+
+    /// Raw CAT "MD<p1>" (0 MAIN, 1 SUB): the P2 mode character, or nil if
+    /// the reply doesn't have the expected shape. One round trip that
+    /// covers what hamlib's "m" plus the C4FM fallback above take two or
+    /// three for — see `RigMode(catModeCode:)` for the decoding, and
+    /// `isActiveModeC4FM()` for why hamlib's own mode read can't be relied
+    /// on for C4FM or after a swap.
+    public func getModeCode(p1: Int) async throws -> Character? {
+        let prefix = "MD\(p1)"
+        let reply = try await sendRawCommand(prefix)
+        guard reply.hasPrefix(prefix) else { return nil }
+        return reply.dropFirst(prefix.count).first
     }
 
     private func isC4FM(p1: String) async throws -> Bool {

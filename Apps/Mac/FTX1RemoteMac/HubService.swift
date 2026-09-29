@@ -262,27 +262,36 @@ final class HubService: ObservableObject {
     /// look like an exchange.
     private var lastDistinctFrequencies: (main: Int, sub: Int)?
     private static let audioRoutingLogger = Logger(subsystem: "com.ftx1remote.mac", category: "audio-routing")
+    /// Debug-level: per-pass duration and CAT read count of the poll loop,
+    /// plus the gap between VFO publishes — the numbers to compare when
+    /// tuning poll responsiveness (`/usr/bin/log stream --level debug
+    /// --predicate 'category == "poll-timing"'`).
+    private static let pollTimingLogger = Logger(subsystem: "com.ftx1remote.mac", category: "poll-timing")
+    private var lastFastPublish: ContinuousClock.Instant?
 
     /// Bumped by `applyOptimistically` every time a command lands.
-    /// `refreshFastTier`/`refreshSlowTier` (the two halves the poll cycle is
-    /// split into — see their doc comments) each check this before and after
-    /// their own sequential reads to detect whether a command was
-    /// optimistically applied mid-cycle — see their use below for why that
-    /// matters.
+    /// `refreshFastTier` and each slow-tier step (`runSlowTierSteps`) check
+    /// this before and after their own sequential reads to detect whether a
+    /// command was optimistically applied mid-read — see their use below
+    /// for why that matters.
     private var commandGeneration = 0
 
-    /// Counts fast-tier poll ticks so `pollLoop()` runs `refreshSlowTier()`
-    /// only every `slowTierInterval`th tick instead of every tick.
-    private var slowTierTickCounter = 0
-    /// User-adjustable (Settings → Polling), default 6 — ~3s at the default
-    /// 500ms `pollInterval`. The slow tier only needs to
-    /// catch external (front-panel) menu changes or correct a mispredicted
-    /// optimistic value — changes made through the app already show up
-    /// instantly via `applyOptimistically` — so trading a few seconds of
-    /// staleness on menu/settings fields is an acceptable price for them no
-    /// longer sharing a path with the VFO display (see `refreshFastTier`'s
-    /// doc comment).
-    private var slowTierInterval: Int { PollingSettings.slowTierEvery.value }
+    /// Where `runSlowTierSteps` resumes: the slow tier is spread over the
+    /// fast ticks a few reads at a time instead of running as one block
+    /// (see `pollLoop()`).
+    private var slowTierCursor = 0
+    /// User-adjustable (Settings → Polling), default 6: the slow-tier
+    /// reads each fast tick adds, so a full slow cycle (~50 reads) takes
+    /// ~8 ticks. The slow tier only needs to catch external (front-panel)
+    /// menu changes or correct a mispredicted optimistic value — changes
+    /// made through the app already show up instantly via
+    /// `applyOptimistically` — so a few seconds of staleness there is an
+    /// acceptable price for never delaying the VFO display.
+    private var slowTierReadsPerTick: Int { PollingSettings.slowReadsPerTick.value }
+    /// Least idle time between poll ticks when a tick overruns
+    /// `pollInterval` (it does, over the Pi link): leaves rigctld a gap for
+    /// other clients (WSJT-X) instead of polling back to back.
+    private let minimumPollGap: Duration = .milliseconds(50)
 
     /// The Main-side frequency/mode most recently polled while the rig was
     /// in VFO (not Memory) mode — refreshed every poll tick in VFO mode,
@@ -697,10 +706,10 @@ final class HubService: ObservableObject {
     /// Freshly reads the current "SH" WIDTH index directly (bypassing the
     /// poll cycle entirely) and records it for `band`, if leaving one.
     ///
-    /// This exists because relying on `refreshSlowTier()`'s periodic read to
+    /// This exists because relying on the slow tier's periodic read to
     /// have already captured the right value — the way frequency/mode are
     /// captured on every fast-tier tick (~500ms) — doesn't work for width:
-    /// the slow tier only runs every `slowTierInterval`th tick (~3s), so a
+    /// the slow tier only comes round every several seconds, so a
     /// band switch that follows a manual width change within that window
     /// left `BandMemory` holding nothing (or a stale value) for the band
     /// being left, and `.setBand`'s restore had no correct width to replay.
@@ -768,7 +777,7 @@ final class HubService: ObservableObject {
     /// 2026-09-13, since until then only the regular poll tiers and
     /// `refreshAfterEnteringMemory()` ever called `server.broadcast`, so an
     /// iPad/remote client saw an app-triggered change only once the next
-    /// poll tick republished it, up to `slowTierInterval` ticks later for a
+    /// poll tick republished it, up to a full slow cycle later for a
     /// slow-tier field). Without this function at all, the UI has no way to
     /// reflect a change until that poll pickup — during which a control
     /// bound straight to `rigState` would visibly snap back to the
@@ -1329,27 +1338,43 @@ final class HubService: ObservableObject {
         }
     }
 
+    /// One tick = the fast tier, then the next `slowTierReadsPerTick`
+    /// slow-tier reads, then whatever is left of `pollInterval` (at least
+    /// `minimumPollGap`). Until 2026-09-29 the whole slow tier (~48 reads,
+    /// ~2.8s over the Pi link) ran as one block every 6th tick and the
+    /// full `pollInterval` was slept *after* each tick: measured on the rig
+    /// that meant a VFO update every ~1.9s, and a ~4.7s freeze whenever the
+    /// slow tier ran. Spreading it keeps each tick short and even.
     private func pollLoop() async throws {
-        // Prime the slow tier so it runs right after the first fast tick of
-        // every (re)connection instead of waiting out a full interval.
-        // Measured on real hardware 2026-09-13 (rawcat log): fast ticks land
-        // ~1.5s apart (roughly a dozen reads plus `pollInterval`), so the
-        // first slow tier otherwise started ~8s after connect and finished
-        // ~10s in — every menu/settings field (filter width, NB, DNR, AGC,
-        // VOX...) sat at "—" for those 10s, which read as the app not
-        // reading them at all. Priming costs one ~2s slow tier up front
-        // and brings that to ~3s. Also right on a reconnect: anything
+        // Run one complete slow cycle right after the first fast tick of
+        // every (re)connection instead of waiting for it to trickle in.
+        // Without this every menu/settings field (filter width, NB, DNR,
+        // AGC, VOX...) sits at "—" for a full slow cycle, which reads as the
+        // app not reading them at all. Also right on a reconnect: anything
         // could have changed while the link was down.
-        slowTierTickCounter = slowTierInterval
+        var primeSlowTier = true
         while !Task.isCancelled {
-            try await refreshFastTier()
-            slowTierTickCounter += 1
-            if slowTierTickCounter >= slowTierInterval {
-                slowTierTickCounter = 0
-                try await refreshSlowTier()
+            let tickStart = ContinuousClock.now
+            try await timed("fast") { try await refreshFastTier() }
+            if primeSlowTier {
+                primeSlowTier = false
+                slowTierCursor = 0
+                await timed("slow prime") { await runSlowTierSteps(readBudget: nil) }
+            } else {
+                await timed("slow") { await runSlowTierSteps(readBudget: slowTierReadsPerTick) }
             }
-            try await Task.sleep(for: pollInterval)
+            let elapsed = ContinuousClock.now - tickStart
+            try await Task.sleep(for: max(pollInterval - elapsed, minimumPollGap))
         }
+    }
+
+    private func timed(_ label: String, _ body: () async throws -> Void) async rethrows {
+        let start = ContinuousClock.now
+        let readsBefore = await rigctld.roundTripCount
+        try await body()
+        let ms = (ContinuousClock.now - start).milliseconds
+        let reads = await rigctld.roundTripCount - readsBefore
+        Self.pollTimingLogger.debug("\(label, privacy: .public) \(ms, privacy: .public) ms, \(reads, privacy: .public) reads")
     }
 
     /// Fast, VFO-critical half of the poll cycle — runs every `pollInterval`
@@ -1358,7 +1383,7 @@ final class HubService: ObservableObject {
     /// ideas) because that cycle published only at its very end: a frequency
     /// change made on the rig's own front panel was captured in this
     /// function's very first read, but sat unpublished behind ~two dozen
-    /// menu/settings reads (now `refreshSlowTier()`) that only change on a
+    /// menu/settings reads (now `slowTierSteps()`) that only change on a
     /// button press — routinely adding a second or more of visible lag, far
     /// worse in C4FM where two of those reads (`"GT0"`/`"PR1"`) time out and
     /// force a reconnect every cycle. This tier covers just what changes
@@ -1411,31 +1436,25 @@ final class HubService: ObservableObject {
         } catch {
             frequencyHz = rigState.frequencyHz
         }
-        // Best-effort like the secondary-VFO mode read below: this rig's
-        // hamlib backend returns a protocol error (RPRT -8) for "get mode"
-        // while the active VFO is in C4FM, rather than a parseable string.
-        // A hard `try` here would abort this whole tier before it ever
-        // reaches PTT or the secondary VFO — and propagate up into a
-        // connection-failure/reconnect loop — every time the active VFO
-        // sits in C4FM.
-        let modeName = try? await rigctld.getMode().mode
-        // hamlib's mode read has no mapping for this rig's two raw C4FM
-        // codes (see RigctldClient.isActiveModeC4FM) and fails outright
-        // rather than returning a string while genuinely in C4FM — but
-        // "genuinely" is the catch: `.swapActiveVFO`'s physical Main/Sub
-        // content exchange isn't a hamlib-native set call, so it's
-        // invisible to hamlib's own response cache, the exact same gap
-        // `getFrequency()` was fixed for (see that doc comment). Confirmed
-        // on real hardware 2026-09-17: after swapping C4FM onto a VFO
-        // that had hamlib-cached a plain-mode success from before the
-        // swap, "m currVFO"/"m <VFO>" kept returning that stale non-error
-        // string instead of erroring RPRT-8, so gating this check on
-        // `modeName == nil` never ran it and the mode stuck on the wrong
-        // value. Always checking (not just on failure) and letting a
-        // genuine raw C4FM hit override a stale hamlib string fixes it —
-        // costs two extra round trips every tick instead of only on
-        // error, but correctness here matters more than that.
-        let isC4FM = (try? await rigctld.isActiveModeC4FM()) ?? false
+        // The active side ("Main"/"Sub"), read once per tick for the mode
+        // and secondary-VFO reads below — each of those used to send its
+        // own `v` (four per tick). Best-effort: without it the Sub-side
+        // reads are skipped (kept at their last value) and the mode is
+        // read from MAIN, which "FA" above always addresses anyway.
+        let activeVFO = try? await rigctld.getActiveVFO()
+        let activeIsSub = activeVFO == "Sub"
+        // Raw "MD" rather than hamlib's "m": one round trip instead of the
+        // three ("m", `v`, "MD") this took while hamlib's read needed the
+        // raw C4FM fallback. That fallback ran every tick, not just on
+        // error, because hamlib's mode answer goes stale after a swap (a
+        // raw "SV" hamlib never sees) — confirmed on real hardware
+        // 2026-09-17, see `RigctldClient.isActiveModeC4FM()`. Reading "MD"
+        // alone has neither problem. Codes `RigMode(catModeCode:)` doesn't
+        // map (CW-L, DATA-L, FM-N, ...) keep the last known mode, as the
+        // unmapped hamlib names did before; so does a failed read.
+        let activeMode = (try? await rigctld.getModeCode(p1: activeIsSub ? 1 : 0))
+            .flatMap { $0 }
+            .flatMap(RigMode.init(catModeCode:))
         // Best-effort, same reasoning as the mode read above: a single
         // dropped byte on the USB-serial link (real, occasional occurrence
         // on actual RF hardware, and rigctld is tuned with retry=0 to fail
@@ -1443,9 +1462,9 @@ final class HubService: ObservableObject {
         // RigctldProcessController) shouldn't tear down the whole
         // connection and force a reconnect any more than a raw-CAT field
         // hiccuping should. Falls back to the last known state, like the
-        // raw-CAT fields in `refreshSlowTier()`.
+        // raw-CAT fields in `slowTierSteps()`.
         let ptt = try? await rigctld.getPTT()
-        // Best-effort like the raw CAT reads in `refreshSlowTier()`, but
+        // Best-effort like the raw CAT reads in `slowTierSteps()`, but
         // deliberately NOT carried forward from the previous poll on
         // failure: a live meter should fall to rest, not freeze on a stale
         // reading (e.g. during TX, when the rig has no RX strength to
@@ -1467,11 +1486,16 @@ final class HubService: ObservableObject {
             )
         }
         let subSmeterDb = (try? await rigctld.getMeterReading(2)).flatMap { $0 }.map(SMeterScale.strengthDb(forRaw:))
-        let secondaryFrequencyHz = try? await rigctld.getSecondaryFrequency()
-        let secondaryModeName = try? await rigctld.getSecondaryMode()
-        // Same staleness gap as the primary mode read above — see `isC4FM`
-        // — always checked, not just on failure.
-        let isSecondaryC4FM = (try? await rigctld.isSecondaryModeC4FM()) ?? false
+        // The side that isn't active, addressed with the `v` read above
+        // (see `RigctldClient.getSecondaryFrequency()` for why `f <VFO>`).
+        var secondaryFrequencyHz: Int?
+        var secondaryMode: RigMode?
+        if let activeVFO {
+            secondaryFrequencyHz = try? await rigctld.getFrequency(ofVFO: activeIsSub ? "Main" : "Sub")
+            secondaryMode = (try? await rigctld.getModeCode(p1: activeIsSub ? 0 : 1))
+                .flatMap { $0 }
+                .flatMap(RigMode.init(catModeCode:))
+        }
         // "VM0" reads VFO-vs-memory mode with its fixed MAIN-side P1 baked
         // in — see RigState.vfoMemoryMode. Only bother reading the memory
         // channel itself while actually in Memory mode, to avoid a wasted
@@ -1485,13 +1509,6 @@ final class HubService: ObservableObject {
         var memoryChannelTag: String?
         if let memoryChannel {
             memoryChannelTag = try? await rigctld.getMemoryChannelTag(channel: memoryChannel)
-        }
-        // SUB-side equivalents (P1 = 1), same "only while relevant" reads.
-        let subVfoMemoryModeRaw = try? await rigctld.getRawInt("VM1")
-        let subMemoryChannel = (subVfoMemoryModeRaw == 11) ? (try? await rigctld.getRawInt("MC1")) : nil
-        var subMemoryChannelTag: String?
-        if let subMemoryChannel {
-            subMemoryChannelTag = try? await rigctld.getMemoryChannelTag(channel: subMemoryChannel)
         }
 
         // Every field above has an optimistic-set counterpart in
@@ -1518,7 +1535,9 @@ final class HubService: ObservableObject {
             // `defaultMode` on selection by design (see `.setBand` above),
             // so there's no "last mode" worth remembering there — only ham
             // bands, where the operator's mode choice should persist.
-            if let mode = modeName.flatMap(RigMode.init(rawValue:)) {
+            // C4FM excluded: hamlib's mode read (which this used to come
+            // from) never reported it, so it was never remembered per band.
+            if let mode = activeMode, mode != .c4fm {
                 BandMemory.recordMode(mode, forBand: band.name)
             }
         } else if let segment {
@@ -1545,14 +1564,14 @@ final class HubService: ObservableObject {
         }
 
         rigState.frequencyHz = frequencyHz
-        rigState.mode = isC4FM ? .c4fm : (modeName.flatMap(RigMode.init(rawValue:)) ?? rigState.mode)
+        rigState.mode = activeMode ?? rigState.mode
         rigState.band = bandOrSegmentName
         rigState.powerWatts = powerWatts
         rigState.swr = swr
         rigState.ptt = ptt ?? rigState.ptt
         rigState.lastUpdated = Date()
         rigState.secondaryFrequencyHz = secondaryFrequencyHz ?? rigState.secondaryFrequencyHz
-        rigState.secondaryMode = isSecondaryC4FM ? .c4fm : (secondaryModeName.flatMap(RigMode.init(rawValue:)) ?? rigState.secondaryMode)
+        rigState.secondaryMode = secondaryMode ?? rigState.secondaryMode
         rigState.powerLevel = powerLevel
         rigState.smeterDb = smeterDb
         rigState.txMeters = txMeters
@@ -1567,9 +1586,6 @@ final class HubService: ObservableObject {
         // stale channel number from the last time it was active.
         rigState.memoryChannel = memoryChannel
         rigState.memoryChannelTag = memoryChannelTag
-        rigState.subVfoMemoryMode = subVfoMemoryModeRaw.map(VFOMemoryMode.init(rawP2:)) ?? rigState.subVfoMemoryMode
-        rigState.subMemoryChannel = subMemoryChannel
-        rigState.subMemoryChannelTag = subMemoryChannelTag
 
         // Only while genuinely in VFO mode — never from a Memory-mode
         // snapshot, whose frequency/mode are the channel's, not the VFO's.
@@ -1577,204 +1593,216 @@ final class HubService: ObservableObject {
             lastVFOState = (rigState.frequencyHz, rigState.mode)
         }
         updateWPSDMonitorState()
+        let now = ContinuousClock.now
+        if let lastFastPublish {
+            Self.pollTimingLogger.debug("vfo publish gap \((now - lastFastPublish).milliseconds, privacy: .public) ms")
+        }
+        lastFastPublish = now
         await server.broadcast(rigState)
     }
 
-    /// Slow, menu/settings half of the poll cycle — runs only every
-    /// `slowTierInterval`th tick (see `pollLoop()`), covering the roughly
-    /// two dozen raw-CAT/menu fields that only change on a button press
-    /// (front panel or app). See `refreshFastTier`'s doc comment for why
-    /// the cycle is split this way.
-    private func refreshSlowTier() async throws {
-        let generationAtStart = commandGeneration
-        // The receiver the filter fields are for, captured with the
-        // generation: a side switch bumps `commandGeneration`, so if it
-        // changes mid-cycle the guard below discards the whole cycle.
-        let filterSideAtStart = rigState.activeFilterSide
-        let filterModeAtStart = rigState.filterMode
-        // Best-effort: these go through rigctld's raw CAT passthrough (see
-        // RigctldClient.sendRawCommand), not hamlib's own func/level
-        // abstraction, so a hiccup (e.g. hamlib's internal serial read
-        // timing out before the rig replies) shouldn't take down the main
-        // poll loop any more than a secondary-VFO read failing should.
-        let breakIn = try? await rigctld.getRawBool("BI")
-        let keyerEnabled = try? await rigctld.getRawBool("KR")
-        let cwSpeedWpm = try? await rigctld.getRawInt("KS")
-        // "KP" reports pitch as 00-75 steps above a 300Hz floor, not Hz
-        // directly — see RigState.cwPitchHz.
-        let cwPitchStep = try? await rigctld.getRawInt("KP")
-        // "SD" reports delay as a non-linear 00-33 code, not milliseconds
-        // directly — see RigDelayCode.
-        let bkDelayCode = try? await rigctld.getRawInt("SD")
-        let cwSpot = try? await rigctld.getRawBool("CS")
-        // "ML1" reads MONI level specifically — "ML0" would read MONI
-        // on/off instead, since both share the "ML" mnemonic under a P1
-        // sub-selector. See RigState.moniLevel.
-        let moniLevel = try? await rigctld.getRawInt("ML1")
-        let cwMessageStatusRaw = try? await rigctld.getCWMessageStatus()
-        let moxEnabled = try? await rigctld.getRawBool("MX")
-        // "FR" (FUNCTION RX): 00 dual receive, 01 single — see
-        // RigState.singleReceive.
-        let receiveModeRaw = try? await rigctld.getRawInt("FR")
-        let attEnabled = try? await rigctld.getRawBool("RA0")
-        let preampMode = try? await rigctld.getRawInt("PA0")
-        let tunerEnabled = try? await rigctld.getTunerEnabled()
-        let displaySettings = try? await rigctld.getDisplaySettings()
-        let displayLevel = try? await rigctld.getSpectrumScopeLevel()
-        // "SS01"/"SS02" address PEAK/MARKER's fixed P1/P2 prefix — see
-        // RigctldClient.getRawDigit() for why a plain getRawInt/getRawBool
-        // wouldn't parse these correctly.
-        let displayPeak = try? await rigctld.getRawDigit("SS01")
-        let displayMarker = try? await rigctld.getRawBool("SS02")
-        let micGain = try? await rigctld.getRawInt("MG")
-        let amcLevel = try? await rigctld.getRawInt("AO")
-        let voxEnabled = try? await rigctld.getRawBool("VX")
-        let voxGain = try? await rigctld.getRawInt("VG")
-        // "VD" reports delay as the same non-linear 00-33 code as "SD" — see
-        // RigDelayCode.
-        let voxDelayCode = try? await rigctld.getRawInt("VD")
-        // "BC0" reads AUTO NOTCH (DNF) with its fixed MAIN-side P1 baked in,
-        // same shape as "RA0"/"MX" above.
-        let dnfEnabled = try? await rigctld.getRawBool("BC0")
-        // "GT0" reads AGC with its fixed MAIN-side P1 baked in — unlike the
-        // Set side (0-4 only), the Answer's value digit can come back 0-6;
-        // see RigState.agcMode for why that's still fine to store as-is.
-        // "GT0"/"PR1" get no reply at all while the active VFO is in C4FM
-        // (AGC/mic EQ don't apply to digital voice), confirmed on real
-        // hardware — each attempt costs `sendRawCommand`'s full 1s timeout
-        // plus a reconnect (see its catch path), so skip both outright
-        // instead of paying that tax every slow-tier cycle. `rigState.mode`
-        // is fresh as of the fast tier that always runs immediately before
-        // this one.
-        let agcMode: Int?
-        let micEQEnabled: Bool?
-        if rigState.mode == .c4fm {
-            agcMode = nil
-            micEQEnabled = nil
-        } else {
+    /// One slow-tier read: performs its CAT read(s) and returns what
+    /// publishes the result into `rigState`. Split this way so the runner
+    /// can guard each read on its own (see `runSlowTierSteps`).
+    private typealias SlowTierStep = () async -> () -> Void
+
+    /// A step for the common shape: a best-effort read whose value, when
+    /// there is one, is written to one field. A failed read (nil) keeps
+    /// the last known value.
+    private func slowStep<T>(_ read: @escaping () async -> T?, _ apply: @escaping (T) -> Void) -> SlowTierStep {
+        {
+            let value = await read()
+            return { if let value { apply(value) } }
+        }
+    }
+
+    /// Slow, menu/settings half of the poll cycle: the roughly two dozen
+    /// raw-CAT/menu fields that only change on a button press (front panel
+    /// or app), plus the SUB side's memory channel. See `refreshFastTier`'s
+    /// doc comment for why the cycle is split this way, and `pollLoop()`
+    /// for how these steps are spread over the fast ticks.
+    ///
+    /// Best-effort throughout: these go through rigctld's raw CAT
+    /// passthrough (see RigctldClient.sendRawCommand), not hamlib's own
+    /// func/level abstraction, so a hiccup (e.g. hamlib's internal serial
+    /// read timing out before the rig replies) shouldn't take down the poll
+    /// loop any more than a secondary-VFO read failing should.
+    private func slowTierSteps() -> [SlowTierStep] {
+        [
+            slowStep({ try? await self.rigctld.getRawBool("BI") }) { self.rigState.breakIn = $0 },
+            slowStep({ try? await self.rigctld.getRawBool("KR") }) { self.rigState.keyerEnabled = $0 },
+            slowStep({ try? await self.rigctld.getRawInt("KS") }) { self.rigState.cwSpeedWpm = $0 },
+            // "KP" reports pitch as 00-75 steps above a 300Hz floor, not Hz
+            // directly — see RigState.cwPitchHz.
+            slowStep({ try? await self.rigctld.getRawInt("KP") }) { self.rigState.cwPitchHz = 300 + $0 * 10 },
+            // "SD" reports delay as a non-linear 00-33 code, not
+            // milliseconds directly — see RigDelayCode.
+            slowStep({ (try? await self.rigctld.getRawInt("SD")).flatMap(RigDelayCode.milliseconds(forCode:)) }) { self.rigState.bkDelayMs = $0 },
+            slowStep({ try? await self.rigctld.getRawBool("CS") }) { self.rigState.cwSpot = $0 },
+            // "ML1" reads MONI level specifically — "ML0" would read MONI
+            // on/off instead, since both share the "ML" mnemonic under a P1
+            // sub-selector. See RigState.moniLevel.
+            slowStep({ try? await self.rigctld.getRawInt("ML1") }) { self.rigState.moniLevel = $0 },
+            slowStep({ (try? await self.rigctld.getCWMessageStatus()).flatMap(CWMessageStatus.init(rawValue:)) }) { self.rigState.cwMessageStatus = $0 },
+            slowStep({ try? await self.rigctld.getRawBool("MX") }) { self.rigState.moxEnabled = $0 },
+            // "FR" (FUNCTION RX): 00 dual receive, 01 single — see
+            // RigState.singleReceive.
+            slowStep({ try? await self.rigctld.getRawInt("FR") }) { receiveModeRaw in
+                let single = receiveModeRaw == 1
+                if single != self.rigState.singleReceive {
+                    Self.audioRoutingLogger.notice("FR reply \(receiveModeRaw, privacy: .public) — \(single ? "single" : "dual", privacy: .public) receive")
+                }
+                self.rigState.singleReceive = single
+                // The Sub receiver isn't shown in single-receive display: if
+                // the rig went there while SUB was selected, fall back to
+                // MAIN through the normal path (queue, field clear, re-read).
+                if single, self.rigState.activeFilterSide == .sub {
+                    Self.audioRoutingLogger.notice("single-receive display while SUB filter selected — falling back to MAIN")
+                    self.send(.setFilterSide(.main))
+                }
+            },
+            slowStep({ try? await self.rigctld.getRawBool("RA0") }) { self.rigState.attEnabled = $0 },
+            slowStep({ try? await self.rigctld.getRawInt("PA0") }) { self.rigState.preampMode = $0 },
+            slowStep({ try? await self.rigctld.getTunerEnabled() }) { self.rigState.tunerEnabled = $0 },
+            slowStep({ try? await self.rigctld.getDisplaySettings() }) {
+                self.rigState.displayContrast = $0.contrast
+                self.rigState.displayDimmer = $0.brightness
+            },
+            slowStep({ try? await self.rigctld.getSpectrumScopeLevel() }) { self.rigState.displayLevel = $0 },
+            // "SS01"/"SS02" address PEAK/MARKER's fixed P1/P2 prefix — see
+            // RigctldClient.getRawDigit() for why a plain getRawInt/
+            // getRawBool wouldn't parse these correctly.
+            slowStep({ try? await self.rigctld.getRawDigit("SS01") }) { self.rigState.displayPeak = $0 },
+            slowStep({ try? await self.rigctld.getRawBool("SS02") }) { self.rigState.displayMarker = $0 },
+            slowStep({ try? await self.rigctld.getRawInt("MG") }) { self.rigState.micGain = $0 },
+            slowStep({ try? await self.rigctld.getRawInt("AO") }) { self.rigState.amcLevel = $0 },
+            slowStep({ try? await self.rigctld.getRawBool("VX") }) { self.rigState.voxEnabled = $0 },
+            slowStep({ try? await self.rigctld.getRawInt("VG") }) { self.rigState.voxGain = $0 },
+            // "VD" reports delay as the same non-linear 00-33 code as "SD" —
+            // see RigDelayCode.
+            slowStep({ (try? await self.rigctld.getRawInt("VD")).flatMap(RigDelayCode.milliseconds(forCode:)) }) { self.rigState.voxDelayMs = $0 },
+            // "BC0" reads AUTO NOTCH (DNF) with its fixed MAIN-side P1 baked
+            // in, same shape as "RA0"/"MX" above.
+            slowStep({ try? await self.rigctld.getRawBool("BC0") }) { self.rigState.dnfEnabled = $0 },
+            // "GT0"/"PR1" get no reply at all while the active VFO is in
+            // C4FM (AGC/mic EQ don't apply to digital voice), confirmed on
+            // real hardware — each attempt costs `sendRawCommand`'s full 1s
+            // timeout plus a reconnect (see its catch path), so both are
+            // skipped outright then (the field keeps its last value).
+            // `rigState.mode` is fresh from the fast tier.
+            //
             // "GT0" reads AGC with its fixed MAIN-side P1 baked in — unlike
             // the Set side (0-4 only), the Answer's value digit can come
             // back 0-6; see RigState.agcMode for why that's still fine to
             // store as-is.
-            agcMode = try? await rigctld.getRawInt("GT0")
+            slowStep({ self.rigState.mode == .c4fm ? nil : try? await self.rigctld.getRawInt("GT0") }) { self.rigState.agcMode = $0 },
             // "PR1" reads MIC EQ with its fixed P1=1 (Parametric Microphone
             // Equalizer) baked in — plain getRawBool now that its P2 is
             // confirmed to be an ordinary 0/1, not the manual's claimed 1/2
             // (see CommandQueue's .setMicEQ case for how that was confirmed).
-            micEQEnabled = try? await rigctld.getRawBool("PR1")
-        }
-        let procLevel = try? await rigctld.getRawInt("PL")
-        // "NL0"/"RL0" read NOISE BLANKER LEVEL/NOISE REDUCTION LEVEL (DNR)
-        // with their fixed MAIN-side P1 baked in, same shape as "PA0"/"GT0"
-        // above.
-        let nbLevel = try? await rigctld.getRawInt("NL0")
-        let dnrLevel = try? await rigctld.getRawInt("RL0")
-        let filterSnapshot = await readFilterState(side: filterSideAtStart, mode: filterModeAtStart)
-        // No dedicated mnemonic for HF ANT SELECT — reads through the same
-        // generic "EX" passthrough Deep Settings uses, just at this one
-        // fixed address (see RigState.antSelect/RigCommand.setAntSelect).
-        let antSelectRaw = try? await rigctld.getMenuItem(p1: 3, p2: 7, p3: 4)
-        let antSelect = antSelectRaw.flatMap(Int.init)
-        let txwEnabled = try? await rigctld.getRawBool("TS")
-        // "ST" reads SPLIT with no P1 selector at all, same bare-boolean
-        // shape as "TS" above — see RigState.splitEnabled.
-        let splitEnabled = try? await rigctld.getRawBool("ST")
-        // "FT" reads the TX side (0 MAIN, 1 SUB), a bare digit like "ST".
-        let txSideRaw = try? await rigctld.getRawDigit("FT")
-        // "CT0" reads SQL TYPE with its fixed MAIN-side P1 baked in, same
-        // shape as "GT0"/"BC0" above.
-        let squelchType = try? await rigctld.getRawDigit("CT0")
-        // "CN00"/"CN01" read the current CTCSS tone index / DCS code index
-        // with their fixed MAIN-side P1 and CTCSS-vs-DCS P2 baked in — these
-        // are indices into RigCTCSSTone/RigDCSCode's fixed tables, not Hz/
-        // codes directly, same non-linear-code reasoning as "SD"/"VD" above.
-        let ctcssToneIndex = try? await rigctld.getRawInt("CN00")
-        let dcsCodeIndex = try? await rigctld.getRawInt("CN01")
-        // "OS0" reads OFFSET/REPEATER SHIFT with its fixed MAIN-side P1
-        // baked in, same shape as "CT0" above. The manual notes "OS" only
-        // activates in an FM mode — best-effort like every other raw field.
-        let repeaterShiftMode = try? await rigctld.getRawDigit("OS0")
-        // No dedicated mnemonic for BEACON TYPE — reads through the same
-        // generic "EX" passthrough Deep Settings uses, just at this one
-        // fixed address (see RigState.aprsBeaconType/RigCommand.
-        // setAPRSBeaconType).
-        let aprsBeaconTypeRaw = try? await rigctld.getMenuItem(p1: 7, p2: 1, p3: 1)
-        let aprsBeaconType = aprsBeaconTypeRaw.flatMap(Int.init)
-        // No dedicated mnemonic for FM CH STEP either — same generic "EX"
-        // passthrough reasoning as aprsBeaconType above.
-        let fmChannelStepRaw = try? await rigctld.getMenuItem(p1: 3, p2: 6, p3: 6)
-        let fmChannelStep = fmChannelStepRaw.flatMap(Int.init)
+            slowStep({ self.rigState.mode == .c4fm ? nil : try? await self.rigctld.getRawBool("PR1") }) { self.rigState.micEQEnabled = $0 },
+            slowStep({ try? await self.rigctld.getRawInt("PL") }) { self.rigState.procLevel = $0 },
+            // "NL0"/"RL0" read NOISE BLANKER LEVEL/NOISE REDUCTION LEVEL
+            // (DNR) with their fixed MAIN-side P1 baked in, same shape as
+            // "PA0"/"GT0" above.
+            slowStep({ try? await self.rigctld.getRawInt("NL0") }) { self.rigState.nbLevel = $0 },
+            slowStep({ try? await self.rigctld.getRawInt("RL0") }) { self.rigState.dnrLevel = $0 },
+            // The filter fields, for the receiver selected when the read
+            // starts (~10 reads in one step). A side switch bumps
+            // `commandGeneration`, so a switch mid-read discards the result.
+            {
+                let side = self.rigState.activeFilterSide
+                let mode = self.rigState.filterMode
+                let snapshot = await self.readFilterState(side: side, mode: mode)
+                return { self.applyFilterSnapshot(snapshot, mode: mode) }
+            },
+            // No dedicated mnemonic for HF ANT SELECT — reads through the
+            // same generic "EX" passthrough Deep Settings uses, just at this
+            // one fixed address (see RigState.antSelect/RigCommand.
+            // setAntSelect).
+            slowStep({ (try? await self.rigctld.getMenuItem(p1: 3, p2: 7, p3: 4)).flatMap(Int.init) }) { self.rigState.antSelect = $0 },
+            slowStep({ try? await self.rigctld.getRawBool("TS") }) { self.rigState.txwEnabled = $0 },
+            // "ST" reads SPLIT with no P1 selector at all, same bare-boolean
+            // shape as "TS" above — see RigState.splitEnabled.
+            slowStep({ try? await self.rigctld.getRawBool("ST") }) { self.rigState.splitEnabled = $0 },
+            // "FT" reads the TX side (0 MAIN, 1 SUB), a bare digit like "ST".
+            slowStep({ (try? await self.rigctld.getRawDigit("FT")).flatMap(FilterSide.init(rawValue:)) }) { self.rigState.txSide = $0 },
+            // "CT0" reads SQL TYPE with its fixed MAIN-side P1 baked in, same
+            // shape as "GT0"/"BC0" above.
+            slowStep({ try? await self.rigctld.getRawDigit("CT0") }) { self.rigState.squelchType = $0 },
+            // "CN00"/"CN01" read the current CTCSS tone index / DCS code
+            // index with their fixed MAIN-side P1 and CTCSS-vs-DCS P2 baked
+            // in — these are indices into RigCTCSSTone/RigDCSCode's fixed
+            // tables, not Hz/codes directly, same non-linear-code reasoning
+            // as "SD"/"VD" above.
+            slowStep({ try? await self.rigctld.getRawInt("CN00") }) { self.rigState.ctcssToneIndex = $0 },
+            slowStep({ try? await self.rigctld.getRawInt("CN01") }) { self.rigState.dcsCodeIndex = $0 },
+            // "OS0" reads OFFSET/REPEATER SHIFT with its fixed MAIN-side P1
+            // baked in, same shape as "CT0" above. The manual notes "OS" only
+            // activates in an FM mode — best-effort like every other raw
+            // field.
+            slowStep({ try? await self.rigctld.getRawDigit("OS0") }) { self.rigState.repeaterShiftMode = $0 },
+            // No dedicated mnemonic for BEACON TYPE — reads through the same
+            // generic "EX" passthrough Deep Settings uses, just at this one
+            // fixed address (see RigState.aprsBeaconType/RigCommand.
+            // setAPRSBeaconType).
+            slowStep({ (try? await self.rigctld.getMenuItem(p1: 7, p2: 1, p3: 1)).flatMap(Int.init) }) { self.rigState.aprsBeaconType = $0 },
+            // No dedicated mnemonic for FM CH STEP either — same generic
+            // "EX" passthrough reasoning as aprsBeaconType above.
+            slowStep({ (try? await self.rigctld.getMenuItem(p1: 3, p2: 6, p3: 6)).flatMap(Int.init) }) { self.rigState.fmChannelStep = $0 },
+            // SUB side's VFO/Memory mode and memory channel ("VM1"/"MC1",
+            // display-only), moved here from the fast tier 2026-09-29 to
+            // keep that tier short. MAIN's "VM0" stays in the fast tier —
+            // see its comment there.
+            {
+                let modeRaw = try? await self.rigctld.getRawInt("VM1")
+                let channel = (modeRaw == 11) ? (try? await self.rigctld.getRawInt("MC1")) : nil
+                var tag: String?
+                if let channel {
+                    tag = try? await self.rigctld.getMemoryChannelTag(channel: channel)
+                }
+                return {
+                    self.rigState.subVfoMemoryMode = modeRaw.map(VFOMemoryMode.init(rawP2:)) ?? self.rigState.subVfoMemoryMode
+                    // No fallback for these two: they go back to nil out of
+                    // Memory mode rather than hold a stale channel.
+                    self.rigState.subMemoryChannel = channel
+                    self.rigState.subMemoryChannelTag = tag
+                }
+            },
+        ]
+    }
 
-        // Every field above has an optimistic-set counterpart in
-        // applyOptimistically (all the menu toggles/levels). If a command
-        // landed while this tier's sequential reads were still in flight,
-        // every value captured after that point is racing the optimistic
-        // update, and the raw-CAT fields' `?? rigState.field` fallback below
-        // only guards a *failed* read — not a *stale-but-successful* one —
-        // so it wouldn't catch this. Bail out of the whole tier rather than
-        // publish a partially-stale snapshot; the next slow-tier tick starts
-        // only after the command has already landed, so it reads the true
-        // value without racing.
-        guard commandGeneration == generationAtStart else { return }
-
-        rigState.breakIn = breakIn ?? rigState.breakIn
-        rigState.keyerEnabled = keyerEnabled ?? rigState.keyerEnabled
-        rigState.cwSpeedWpm = cwSpeedWpm ?? rigState.cwSpeedWpm
-        rigState.cwPitchHz = cwPitchStep.map { 300 + $0 * 10 } ?? rigState.cwPitchHz
-        rigState.bkDelayMs = (bkDelayCode.flatMap(RigDelayCode.milliseconds(forCode:))) ?? rigState.bkDelayMs
-        rigState.cwSpot = cwSpot ?? rigState.cwSpot
-        rigState.moniLevel = moniLevel ?? rigState.moniLevel
-        rigState.cwMessageStatus = cwMessageStatusRaw.flatMap(CWMessageStatus.init(rawValue:)) ?? rigState.cwMessageStatus
-        rigState.moxEnabled = moxEnabled ?? rigState.moxEnabled
-        if let receiveModeRaw {
-            let single = receiveModeRaw == 1
-            if single != rigState.singleReceive {
-                Self.audioRoutingLogger.notice("FR reply \(receiveModeRaw, privacy: .public) — \(single ? "single" : "dual", privacy: .public) receive")
+    /// Runs slow-tier steps from `slowTierCursor` until at least
+    /// `readBudget` CAT round trips have been spent (one step can take
+    /// several), or — with a nil budget — one complete cycle. Broadcasts
+    /// once afterwards if anything was published.
+    ///
+    /// Each step's result is published only if no command landed via
+    /// `applyOptimistically` while *that step's* read was in flight: every
+    /// field here has an optimistic-set counterpart, and the `?? last`
+    /// fallback only guards a *failed* read, not a stale-but-successful
+    /// one. A discarded step is simply re-read next cycle. (The old
+    /// single-block slow tier discarded its whole ~3s snapshot on any
+    /// command, which kept settings from refreshing at all while, say, a
+    /// slider was being dragged.)
+    private func runSlowTierSteps(readBudget: Int?) async {
+        let steps = slowTierSteps()
+        let readsAtStart = await rigctld.roundTripCount
+        var published = false
+        for _ in 0..<steps.count {
+            let generation = commandGeneration
+            let publish = await steps[slowTierCursor % steps.count]()
+            if commandGeneration == generation {
+                publish()
+                published = true
             }
-            rigState.singleReceive = single
+            slowTierCursor = (slowTierCursor + 1) % steps.count
+            if let readBudget, await rigctld.roundTripCount - readsAtStart >= readBudget {
+                break
+            }
         }
-        rigState.attEnabled = attEnabled ?? rigState.attEnabled
-        rigState.preampMode = preampMode ?? rigState.preampMode
-        rigState.tunerEnabled = tunerEnabled ?? rigState.tunerEnabled
-        rigState.displayContrast = (displaySettings.map { $0.contrast }) ?? rigState.displayContrast
-        rigState.displayDimmer = (displaySettings.map { $0.brightness }) ?? rigState.displayDimmer
-        rigState.displayLevel = displayLevel ?? rigState.displayLevel
-        rigState.displayPeak = displayPeak ?? rigState.displayPeak
-        rigState.displayMarker = displayMarker ?? rigState.displayMarker
-        rigState.micGain = micGain ?? rigState.micGain
-        rigState.amcLevel = amcLevel ?? rigState.amcLevel
-        rigState.voxEnabled = voxEnabled ?? rigState.voxEnabled
-        rigState.voxGain = voxGain ?? rigState.voxGain
-        rigState.voxDelayMs = (voxDelayCode.flatMap(RigDelayCode.milliseconds(forCode:))) ?? rigState.voxDelayMs
-        rigState.dnfEnabled = dnfEnabled ?? rigState.dnfEnabled
-        // `agcMode`/`micEQEnabled` are nil (not a failed read) whenever this
-        // tier skipped them for being in C4FM — falls back to the last known
-        // value either way, same as a genuine read failure would.
-        rigState.agcMode = agcMode ?? rigState.agcMode
-        rigState.micEQEnabled = micEQEnabled ?? rigState.micEQEnabled
-        rigState.procLevel = procLevel ?? rigState.procLevel
-        rigState.nbLevel = nbLevel ?? rigState.nbLevel
-        rigState.dnrLevel = dnrLevel ?? rigState.dnrLevel
-        applyFilterSnapshot(filterSnapshot, mode: filterModeAtStart)
-        rigState.antSelect = antSelect ?? rigState.antSelect
-        rigState.txwEnabled = txwEnabled ?? rigState.txwEnabled
-        rigState.splitEnabled = splitEnabled ?? rigState.splitEnabled
-        rigState.txSide = txSideRaw.flatMap(FilterSide.init(rawValue:)) ?? rigState.txSide
-        rigState.squelchType = squelchType ?? rigState.squelchType
-        rigState.ctcssToneIndex = ctcssToneIndex ?? rigState.ctcssToneIndex
-        rigState.dcsCodeIndex = dcsCodeIndex ?? rigState.dcsCodeIndex
-        rigState.repeaterShiftMode = repeaterShiftMode ?? rigState.repeaterShiftMode
-        rigState.aprsBeaconType = aprsBeaconType ?? rigState.aprsBeaconType
-        rigState.fmChannelStep = fmChannelStep ?? rigState.fmChannelStep
-
-        await server.broadcast(rigState)
-
-        // The Sub receiver isn't shown in single-receive display: if the rig
-        // went there while SUB was selected, fall back to MAIN through the
-        // normal path (queue, field clear, re-read).
-        if rigState.singleReceive == true, rigState.activeFilterSide == .sub {
-            Self.audioRoutingLogger.notice("single-receive display while SUB filter selected — falling back to MAIN")
-            send(.setFilterSide(.main))
+        if published {
+            await server.broadcast(rigState)
         }
     }
 
@@ -1797,5 +1825,12 @@ final class HubService: ObservableObject {
             return
         }
         wpsdMonitor.start(host: WPSDSettings.host)
+    }
+}
+
+private extension Duration {
+    var milliseconds: Int {
+        let (seconds, attoseconds) = components
+        return Int(seconds) * 1000 + Int(attoseconds / 1_000_000_000_000_000)
     }
 }

@@ -418,7 +418,7 @@ private struct HomeFrequencyField: View {
 /// Defaults" is the way back if a tuned value makes things worse.
 private struct PollingSettingsTab: View {
     @AppStorage(PollingSettings.fastPollMilliseconds.key) private var fastPollMs = PollingSettings.fastPollMilliseconds.defaultValue
-    @AppStorage(PollingSettings.slowTierEvery.key) private var slowTierEvery = PollingSettings.slowTierEvery.defaultValue
+    @AppStorage(PollingSettings.slowReadsPerTick.key) private var slowReadsPerTick = PollingSettings.slowReadsPerTick.defaultValue
     @AppStorage(PollingSettings.reconnectDelaySeconds.key) private var reconnectSeconds = PollingSettings.reconnectDelaySeconds.defaultValue
     @AppStorage(PollingSettings.wpsdCallerSeconds.key) private var wpsdCallerSeconds = PollingSettings.wpsdCallerSeconds.defaultValue
     @AppStorage(PollingSettings.wpsdReflectorSeconds.key) private var wpsdReflectorSeconds = PollingSettings.wpsdReflectorSeconds.defaultValue
@@ -428,15 +428,15 @@ private struct PollingSettingsTab: View {
         Form {
             Section("Radio (rigctld)") {
                 Stepper(value: $fastPollMs, in: PollingSettings.fastPollMilliseconds.range, step: 50) {
-                    Text("VFO / meters pause: \(fastPollMs) ms")
+                    Text("VFO / meters interval: \(fastPollMs) ms")
                 }
-                Stepper(value: $slowTierEvery, in: PollingSettings.slowTierEvery.range) {
-                    Text("Menu settings: every \(slowTierEvery) VFO poll\(slowTierEvery == 1 ? "" : "s")")
+                Stepper(value: $slowReadsPerTick, in: PollingSettings.slowReadsPerTick.range) {
+                    Text("Menu settings: \(slowReadsPerTick) read\(slowReadsPerTick == 1 ? "" : "s") per VFO poll")
                 }
                 Stepper(value: $reconnectSeconds, in: PollingSettings.reconnectDelaySeconds.range) {
                     Text("Reconnect delay: \(reconnectSeconds) s")
                 }
-                Text("Lower values update the display faster but put more load on the CAT link; each VFO poll also takes about a second of reads on top of the pause.")
+                Text("Lower interval / fewer menu reads update the VFO display faster; more menu reads pick up front-panel setting changes sooner. Over the Pi link a VFO poll plus its menu reads takes about a second, so an interval below that has no further effect.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -465,7 +465,7 @@ private struct PollingSettingsTab: View {
 
     private var isAtDefaults: Bool {
         fastPollMs == PollingSettings.fastPollMilliseconds.defaultValue
-            && slowTierEvery == PollingSettings.slowTierEvery.defaultValue
+            && slowReadsPerTick == PollingSettings.slowReadsPerTick.defaultValue
             && reconnectSeconds == PollingSettings.reconnectDelaySeconds.defaultValue
             && wpsdCallerSeconds == PollingSettings.wpsdCallerSeconds.defaultValue
             && wpsdReflectorSeconds == PollingSettings.wpsdReflectorSeconds.defaultValue
@@ -477,7 +477,7 @@ private struct PollingSettingsTab: View {
     private func restoreDefaults() {
         PollingSettings.restoreDefaults()
         fastPollMs = PollingSettings.fastPollMilliseconds.defaultValue
-        slowTierEvery = PollingSettings.slowTierEvery.defaultValue
+        slowReadsPerTick = PollingSettings.slowReadsPerTick.defaultValue
         reconnectSeconds = PollingSettings.reconnectDelaySeconds.defaultValue
         wpsdCallerSeconds = PollingSettings.wpsdCallerSeconds.defaultValue
         wpsdReflectorSeconds = PollingSettings.wpsdReflectorSeconds.defaultValue

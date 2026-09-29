@@ -25,14 +25,15 @@ enum PollingSettings {
         }
     }
 
-    /// Fast tier (VFO, mode, S-meter/SWR, PTT) — the delay between the end
-    /// of one fast-tier pass and the start of the next, not the whole
-    /// cycle: each pass itself takes roughly a second of sequential CAT
-    /// reads on top of this.
+    /// Poll tick interval, start to start: each tick is the fast tier (VFO,
+    /// mode, S-meter/SWR, PTT) plus `slowReadsPerTick` menu reads. Over the
+    /// Pi link a tick takes longer than this default by itself, and the
+    /// loop then only pauses a short fixed gap (see `HubService.pollLoop`).
     static let fastPollMilliseconds = Setting(key: "polling.fastPollMs", defaultValue: 500, range: 100...5_000)
-    /// Slow tier (menu/settings fields) runs once every this many fast-tier
-    /// passes.
-    static let slowTierEvery = Setting(key: "polling.slowTierEvery", defaultValue: 6, range: 1...60)
+    /// Slow-tier (menu/settings) reads added to each tick; a full slow
+    /// cycle is ~50 reads. Replaced "polling.slowTierEvery" (run the whole
+    /// slow tier every N ticks) 2026-09-29.
+    static let slowReadsPerTick = Setting(key: "polling.slowReadsPerTick", defaultValue: 6, range: 1...60)
     /// Wait before retrying after the rigctld connection fails.
     static let reconnectDelaySeconds = Setting(key: "polling.reconnectDelaySeconds", defaultValue: 3, range: 1...60)
     /// WPSD live-caller lookup — see `WPSDCallsignMonitor` for why this
@@ -41,7 +42,7 @@ enum PollingSettings {
     /// WPSD linked-reflector lookup.
     static let wpsdReflectorSeconds = Setting(key: "polling.wpsdReflectorSeconds", defaultValue: 30, range: 5...600)
 
-    static let all = [fastPollMilliseconds, slowTierEvery, reconnectDelaySeconds, wpsdCallerSeconds, wpsdReflectorSeconds]
+    static let all = [fastPollMilliseconds, slowReadsPerTick, reconnectDelaySeconds, wpsdCallerSeconds, wpsdReflectorSeconds]
 
     static func restoreDefaults() {
         for setting in all {

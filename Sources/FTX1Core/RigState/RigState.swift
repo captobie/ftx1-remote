@@ -674,6 +674,29 @@ public enum RigMode: String, Codable, Sendable, CaseIterable, Hashable {
         default: rawValue
         }
     }
+
+    /// Decodes the P2 mode character of a raw CAT "MD" answer (the CAT
+    /// manual's OPERATING MODE table). Mirrors what hamlib's own mode read
+    /// reported for each code, so switching the poll from hamlib's "m" to
+    /// raw "MD" changes nothing visible: codes hamlib reports under a name
+    /// this enum has no case for (CW-L → CWR, RTTY-U → RTTYR, DATA-L →
+    /// PKTLSB, FM-N → FMN, AM-N → AMN, PSK, DATA-FM-N) return nil, so the
+    /// caller keeps its last known mode exactly as before. C4FM-DN/-VW,
+    /// which hamlib can't read at all, map to `.c4fm`.
+    public init?(catModeCode code: Character) {
+        switch code {
+        case "1": self = .lsb
+        case "2": self = .usb
+        case "3": self = .cw
+        case "4": self = .fm
+        case "5": self = .am
+        case "6": self = .rtty
+        case "A": self = .dataFM
+        case "C": self = .dataUSB
+        case "H", "I": self = .c4fm
+        default: return nil
+        }
+    }
 }
 
 public extension RigState {
