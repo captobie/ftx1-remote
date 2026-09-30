@@ -30,78 +30,125 @@
             </Button>
         </StackPanel>
 
-        <!-- MAIN / SUB VFOs -->
+        <!-- MAIN / SUB VFOs, with the waterfall/oscilloscope between them —
+             the Mac's layout, mirrored (MAIN left, SUB right): three equal
+             columns, each VFO in a black box like the Mac's VFODisplayBox
+             (green border while that receiver is shown; SUB's goes gray in
+             single-receive display), the meters below the boxes and the scope
+             between the meters. -->
         <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12">
-            <Grid ColumnSpacing="24">
+            <Grid ColumnSpacing="16" RowSpacing="10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-                <StackPanel Grid.Column="0" Spacing="4">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="MAIN" FontWeight="SemiBold" />
-                        <!-- "CH n TAG" while in Memory mode, "VM nn" in the other
-                             sub-modes, hidden in VFO mode. -->
-                        <TextBlock x:Name="MemoryChannelAText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
+                <Border Grid.Row="0" Grid.Column="0" x:Name="MainVfoBox" RequestedTheme="Dark"
+                        Background="Black" BorderBrush="#B300FF00" BorderThickness="1.5" CornerRadius="8" Padding="14,10">
+                    <StackPanel Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock Text="MAIN" FontWeight="SemiBold" />
+                            <!-- "CH n TAG" while in Memory mode, "VM nn" in the other
+                                 sub-modes, hidden in VFO mode. -->
+                            <TextBlock x:Name="MemoryChannelAText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
+                        </StackPanel>
+                        <TextBlock x:Name="FrequencyAText" Text="—" FontSize="28" FontFamily="Consolas" />
+                        <!-- C4FM caller + reflector from the WPSD hotspot, only while
+                             this side is in C4FM. Height reserved so the box doesn't
+                             jump when a caller appears. -->
+                        <StackPanel Orientation="Horizontal" Spacing="12" Height="26">
+                            <TextBlock x:Name="C4fmCallsignAText" FontSize="18" FontWeight="SemiBold" Foreground="DodgerBlue" VerticalAlignment="Center" />
+                            <TextBlock x:Name="C4fmReflectorAText" Foreground="Gray" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <!-- In the box, like the Mac's FrequencyEntryView. -->
+                        <StackPanel x:Name="FrequencyEntryPanel" Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="FrequencyEntryBox" Width="140" PlaceholderText="Hz" />
+                            <Button x:Name="SetFrequencyButton" Content="Set" Click="SetFrequencyButton_Click" />
+                        </StackPanel>
+                        <!-- Replaces the frequency entry in Memory mode, like the Mac's
+                             MemoryChannelEntryView (the rig rejects "FA" there anyway). -->
+                        <StackPanel x:Name="MemoryChannelEntryPanel" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                            <TextBox x:Name="MemoryChannelEntryBox" Width="100" PlaceholderText="Ch 1-999" />
+                            <Button x:Name="SetMemoryChannelButton" Content="Set" Click="SetMemoryChannelButton_Click" />
+                            <Button x:Name="MemoryChannelDownButton" Click="MemoryChannelDownButton_Click"
+                                    AutomationProperties.Name="Previous channel" ToolTipService.ToolTip="Previous channel">
+                                <FontIcon Glyph="&#xE70D;" FontSize="12" />
+                            </Button>
+                            <Button x:Name="MemoryChannelUpButton" Click="MemoryChannelUpButton_Click"
+                                    AutomationProperties.Name="Next channel" ToolTipService.ToolTip="Next channel">
+                                <FontIcon Glyph="&#xE70E;" FontSize="12" />
+                            </Button>
+                        </StackPanel>
                     </StackPanel>
-                    <TextBlock x:Name="FrequencyAText" Text="—" FontSize="28" FontFamily="Consolas" />
-                    <!-- C4FM caller + reflector from the WPSD hotspot, only while
-                         this side is in C4FM. Height reserved so the meter below
-                         doesn't jump when a caller appears. -->
-                    <StackPanel Orientation="Horizontal" Spacing="12" Height="26">
-                        <TextBlock x:Name="C4fmCallsignAText" FontSize="18" FontWeight="SemiBold" Foreground="DodgerBlue" VerticalAlignment="Center" />
-                        <TextBlock x:Name="C4fmReflectorAText" Foreground="Gray" VerticalAlignment="Center" />
+                </Border>
+
+                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                        <Button x:Name="SwapVfoButton" Content="⇄"
+                                Click="SwapVfoButton_Click" ToolTipService.ToolTip="Swap Main and Sub (the rig's SV command)" />
+                        <!-- Manual override for audio swap tracking; checked while L/R are swapped. -->
+                        <ToggleButton x:Name="AudioSwapToggle" Click="AudioSwapToggle_Click">
+                            <FontIcon Glyph="&#xE767;" FontSize="14" />
+                        </ToggleButton>
+                        <!-- Main's VFO/Memory mode; checked whenever it isn't plain VFO. -->
+                        <ToggleButton x:Name="VfoMemoryToggle" Content="V/M"
+                                      Click="VfoMemoryToggle_Click"
+                                      ToolTipService.ToolTip="Switch MAIN between VFO and Memory mode (the rig's V/M)" />
                     </StackPanel>
-                    <!-- Analog meter (Controls/SMeter.cs), added in code; the
-                         frequency entry sits below it so Main's and Sub's meters line up. -->
-                    <Border x:Name="MainMeterHost" Width="280" HorizontalAlignment="Left" Margin="0,4,0,0" />
-                    <StackPanel x:Name="FrequencyEntryPanel" Orientation="Horizontal" Spacing="8">
-                        <TextBox x:Name="FrequencyEntryBox" Width="140" PlaceholderText="Hz" />
-                        <Button x:Name="SetFrequencyButton" Content="Set" Click="SetFrequencyButton_Click" />
+                    <!-- What the scope below shows (the Mac's scope mode buttons). -->
+                    <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                        <ToggleButton x:Name="ScopeWaterfallButton" Content="Waterfall" Tag="Waterfall" Click="ScopeModeButton_Click" />
+                        <ToggleButton x:Name="ScopeOscilloscopeButton" Content="Oscilloscope" Tag="Oscilloscope" Click="ScopeModeButton_Click" />
+                        <ToggleButton x:Name="ScopeOffButton" Content="Off" Tag="Off" Click="ScopeModeButton_Click"
+                                      ToolTipService.ToolTip="Stops the FFT too (and the Filter display's spectrum); audio keeps playing" />
                     </StackPanel>
-                    <!-- Replaces the frequency entry in Memory mode, like the Mac's
-                         MemoryChannelEntryView (the rig rejects "FA" there anyway). -->
-                    <StackPanel x:Name="MemoryChannelEntryPanel" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
-                        <TextBox x:Name="MemoryChannelEntryBox" Width="100" PlaceholderText="Ch 1-999" />
-                        <Button x:Name="SetMemoryChannelButton" Content="Set" Click="SetMemoryChannelButton_Click" />
-                        <Button x:Name="MemoryChannelDownButton" Click="MemoryChannelDownButton_Click"
-                                AutomationProperties.Name="Previous channel" ToolTipService.ToolTip="Previous channel">
-                            <FontIcon Glyph="&#xE70D;" FontSize="12" />
+                </StackPanel>
+
+                <Border Grid.Row="0" Grid.Column="2" x:Name="SubVfoBox" RequestedTheme="Dark"
+                        Background="Black" BorderBrush="#B300FF00" BorderThickness="1.5" CornerRadius="8" Padding="14,10">
+                    <StackPanel Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock Text="SUB" FontWeight="SemiBold" />
+                            <TextBlock x:Name="MemoryChannelBText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
+                        </StackPanel>
+                        <TextBlock x:Name="FrequencyBText" Text="—" FontSize="28" FontFamily="Consolas" />
+                        <StackPanel Orientation="Horizontal" Spacing="12" Height="26">
+                            <TextBlock x:Name="C4fmCallsignBText" FontSize="18" FontWeight="SemiBold" Foreground="DodgerBlue" VerticalAlignment="Center" />
+                            <TextBlock x:Name="C4fmReflectorBText" Foreground="Gray" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Analog meters (Controls/SMeter.cs), added in code, under their boxes. -->
+                <Border Grid.Row="1" Grid.Column="0" x:Name="MainMeterHost" Width="280" HorizontalAlignment="Center" VerticalAlignment="Top" />
+
+                <!-- Zoom arrows for whichever display is showing, then the scope
+                     (Controls/ScopeDisplay.cs, added in code), as tall as the meters. -->
+                <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="8" Height="120" VerticalAlignment="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel x:Name="ScopeZoomPanel" Spacing="4" VerticalAlignment="Center" Width="40">
+                        <Button x:Name="ScopeZoomInButton" HorizontalAlignment="Stretch" Click="ScopeZoomButton_Click" Tag="up"
+                                AutomationProperties.Name="Zoom in" ToolTipService.ToolTip="Zoom in">
+                            <FontIcon Glyph="&#xE70E;" FontSize="10" />
                         </Button>
-                        <Button x:Name="MemoryChannelUpButton" Click="MemoryChannelUpButton_Click"
-                                AutomationProperties.Name="Next channel" ToolTipService.ToolTip="Next channel">
-                            <FontIcon Glyph="&#xE70E;" FontSize="12" />
+                        <TextBlock x:Name="ScopeZoomText" Text="1.0x" FontSize="11" FontFamily="Consolas" Foreground="Gray" HorizontalAlignment="Center" />
+                        <Button x:Name="ScopeZoomOutButton" HorizontalAlignment="Stretch" Click="ScopeZoomButton_Click" Tag="down"
+                                AutomationProperties.Name="Zoom out" ToolTipService.ToolTip="Zoom out">
+                            <FontIcon Glyph="&#xE70D;" FontSize="10" />
                         </Button>
                     </StackPanel>
-                </StackPanel>
+                    <Border Grid.Column="1" x:Name="ScopeHost" />
+                </Grid>
 
-                <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-                    <Button x:Name="SwapVfoButton" Content="⇄" HorizontalAlignment="Center"
-                            Click="SwapVfoButton_Click" ToolTipService.ToolTip="Swap Main and Sub (the rig's SV command)" />
-                    <!-- Manual override for audio swap tracking; checked while L/R are swapped. -->
-                    <ToggleButton x:Name="AudioSwapToggle" HorizontalAlignment="Center" Click="AudioSwapToggle_Click">
-                        <FontIcon Glyph="&#xE767;" FontSize="14" />
-                    </ToggleButton>
-                    <!-- Main's VFO/Memory mode; checked whenever it isn't plain VFO. -->
-                    <ToggleButton x:Name="VfoMemoryToggle" Content="V/M" HorizontalAlignment="Center"
-                                  Click="VfoMemoryToggle_Click"
-                                  ToolTipService.ToolTip="Switch MAIN between VFO and Memory mode (the rig's V/M)" />
-                </StackPanel>
-
-                <StackPanel Grid.Column="2" Spacing="4">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="SUB" FontWeight="SemiBold" />
-                        <TextBlock x:Name="MemoryChannelBText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
-                    </StackPanel>
-                    <TextBlock x:Name="FrequencyBText" Text="—" FontSize="28" FontFamily="Consolas" />
-                    <StackPanel Orientation="Horizontal" Spacing="12" Height="26">
-                        <TextBlock x:Name="C4fmCallsignBText" FontSize="18" FontWeight="SemiBold" Foreground="DodgerBlue" VerticalAlignment="Center" />
-                        <TextBlock x:Name="C4fmReflectorBText" Foreground="Gray" VerticalAlignment="Center" />
-                    </StackPanel>
-                    <Border x:Name="SubMeterHost" Width="280" HorizontalAlignment="Left" Margin="0,4,0,0" />
-                </StackPanel>
+                <Border Grid.Row="1" Grid.Column="2" x:Name="SubMeterHost" Width="280" HorizontalAlignment="Center" VerticalAlignment="Top" />
             </Grid>
         </Border>
 

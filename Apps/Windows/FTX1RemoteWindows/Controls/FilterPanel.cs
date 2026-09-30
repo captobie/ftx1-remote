@@ -35,9 +35,8 @@ namespace FTX1RemoteWindows.Controls;
 /// across SHIFT's range would otherwise queue ~120 writes. Placing the
 /// notch or contour/APF while it's off also turns it on (frequency first).
 ///
-/// The display draws the passband shape only: the Mac overlays a live
-/// audio spectrum from its FFT, which this app doesn't have yet (the
-/// waterfall is deferred — see Apps/Windows/README.md).
+/// The display overlays the live audio spectrum from ScopeProcessor (via
+/// MainWindow's SetSpectrum) while the scope display is on, as on the Mac.
 ///
 /// Built in code like MenuGrid.
 public sealed class FilterPanel : UserControl
@@ -593,6 +592,10 @@ public sealed class FilterPanel : UserControl
         _display.Update(new FilterPassbandModel(_state), isActive: _client is not null);
     }
 
+    /// The live spectrum for the display (see FilterDisplay.UpdateSpectrum):
+    /// Main's, or Sub's while SUB is selected — MainWindow picks.
+    public void SetSpectrum(float[] spectrum) => _display.UpdateSpectrum(spectrum);
+
     private static TextBlock Caption(string text) => new() { Text = text, VerticalAlignment = VerticalAlignment.Center };
 
     private static TextBlock ValueLabel(double minWidth) => new()
@@ -769,10 +772,14 @@ public sealed class FilterPanel : UserControl
 /// The Filter Function Display (the Mac's FilterDisplayView): passband
 /// trapezoid (WIDTH/SHIFT), the notch as a narrow cut, contour as a rounded
 /// dip, APF as a peak, the per-mode top markers (P / M S / C / the SSB
-/// bandwidth dot) and mode/width captions, on a fixed 0-4000 Hz span. Plain
-/// XAML shapes in the Mac's 240×64 box, redrawn from a FilterPassbandModel
-/// on every update (a few shapes, only when the state is refreshed). Dims
-/// while disconnected, like the Mac's isActive.
+/// bandwidth dot) and mode/width captions, on a fixed 0-4000 Hz span, over
+/// the live audio spectrum (dim everywhere, bright inside the passband)
+/// while the scope display is on. Plain XAML shapes in the Mac's 240×64
+/// box: the shape layer is redrawn from a FilterPassbandModel when the
+/// state changes, the spectrum layer beneath it on every audio frame. The
+/// bright part is clipped to the passband's flat top (a rectangle — WinUI
+/// clips only to rectangles), so the skirts stay dim. Dims while
+/// disconnected, like the Mac's isActive.
 internal sealed class FilterDisplay : UserControl
 {
     private const double W = 240;
@@ -784,6 +791,9 @@ internal sealed class FilterDisplay : UserControl
     private static readonly FontFamily CaptionFont = new("Consolas");
 
     private readonly Canvas _canvas = new() { Width = W, Height = H };
+    private readonly Canvas _spectrumCanvas = new() { Width = W, Height = H };
+    private readonly Polygon _spectrumDim = new() { Fill = Tint(Colors.LimeGreen, 0.22) };
+    private readonly Polygon _spectrumBright = new() { Fill = Tint(Colors.LimeGreen, 0.7) };
 
     public FilterDisplay()
     {
@@ -796,9 +806,13 @@ internal sealed class FilterDisplay : UserControl
             BorderBrush = new SolidColorBrush(Color.FromArgb(102, 128, 128, 128)),
             BorderThickness = new Thickness(1.5),
             VerticalAlignment = VerticalAlignment.Center,
-            Child = _canvas,
+            Child = new Grid { Children = { _spectrumCanvas, _canvas } },
         };
         _canvas.Clip = new RectangleGeometry { Rect = new Rect(0, 0, W, H) };
+        _spectrumCanvas.Clip = new RectangleGeometry { Rect = new Rect(0, 0, W, H) };
+        _spectrumCanvas.Children.Add(_spectrumDim);
+        _spectrumCanvas.Children.Add(_spectrumBright);
+        _spectrumBright.Clip = new RectangleGeometry { Rect = new Rect(0, 0, 0, 0) };
         ToolTipService.SetToolTip(this, "Filter function display: passband (WIDTH/SHIFT), notch, contour/APF");
         AutomationProperties.SetName(this, "Filter function display");
     }
@@ -809,11 +823,13 @@ internal sealed class FilterDisplay : UserControl
         var children = _canvas.Children;
         children.Clear();
 
+        _spectrumBright.Clip = new RectangleGeometry { Rect = new Rect(0, 0, 0, 0) };
         if (model.Passband is { } band)
         {
             var lo = FilterPassbandModel.X(band.Low, W);
             var hi = FilterPassbandModel.X(band.High, W);
             var skirt = W * 0.04;
+            _spectrumBright.Clip = new RectangleGeometry { Rect = new Rect(lo, 0, hi - lo, H) };
             children.Add(new Polygon
             {
                 Points =
@@ -893,6 +909,31 @@ internal sealed class FilterDisplay : UserControl
 
         children.Add(Caption(model.ModeName, TextAlignment.Left));
         children.Add(Caption(model.WidthLabel, TextAlignment.Right));
+    }
+
+    /// Normalized 0-1 bins across the 0-4 kHz span; empty for none (scope
+    /// Off, no audio, disconnected).
+    public void UpdateSpectrum(float[] spectrum)
+    {
+        var points = new PointCollection();
+        if (spectrum.Length > 1)
+        {
+            var usable = (Baseline - Top) * 0.75;
+            var step = W / (spectrum.Length - 1);
+            points.Add(new Point(0, Baseline));
+            for (var i = 0; i < spectrum.Length; i++)
+            {
+                points.Add(new Point(i * step, Baseline - Math.Clamp(spectrum[i], 0, 1) * usable));
+            }
+            points.Add(new Point(W, Baseline));
+        }
+        _spectrumDim.Points = points;
+        // A PointCollection can't be shared between two shapes.
+        _spectrumBright.Points = new PointCollection();
+        foreach (var p in points)
+        {
+            _spectrumBright.Points.Add(p);
+        }
     }
 
     private static TextBlock Caption(string text, TextAlignment alignment)

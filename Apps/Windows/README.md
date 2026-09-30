@@ -507,8 +507,7 @@ poll loop), not yet on the rig.
 Not done yet:
 - Local mode: no automatic check that the input device is really the
   rig's (it only pre-selects by name).
-- Waterfall/oscilloscope from the same samples (the chunking already
-  matches the Mac's 2048-sample FFT size).
+- (The waterfall/oscilloscope came with parity plan step 10.)
 
 ## Mac parity plan (2026-09-27)
 
@@ -668,21 +667,49 @@ the next one starts.
    display ("FR"), with a fall back to MAIN. Sub's mode now comes from
    "MD1" in the slow tier (and on each SUB read) — it used to be read only
    for C4FM. Sliders send on release, or at once for keyboard changes.
-   Differences from the Mac: the display draws the shape only, with no
-   audio spectrum behind it (no FFT here yet, see "Explicitly deferred");
-   there's no per-band width memory, since this app has no `BandMemory`.
+   Difference from the Mac: there's no per-band width memory, since this
+   app has no `BandMemory`. (The display's audio spectrum came with step
+   10.)
    On the fake rigctld these writes matched: `SH0016` (narrower from
    2700 Hz), `IS00+0000` (center), `BP00001` (notch on), `NA01`,
    `CO120000` (APF off on SUB), `SH1011` (wider on SUB), `BP11123`
    (notch to 1230 Hz on SUB). To check on the rig: each control against
    the rig's own filter display on both receivers, N/W in SSB and AM, and
    CONTOUR ↔ APF when switching to and from CW.
+10. **Waterfall/oscilloscope — done** (2026-09-30, checked against a fake
+   Pi audio stream of test tones through UI Automation; not yet on real
+   rig audio). Between the two meters, as on the Mac: Waterfall /
+   Oscilloscope / Off buttons under ⇄ / speaker / V/M, zoom arrows beside
+   the box. `Services/ScopeProcessor.cs` is the DSP half of the Mac's
+   `AudioCaptureEngine`: one 2048-point FFT per 2048-sample chunk (both
+   audio sources already chunk that way), Hann window, power in dB scaled
+   like vDSP's so the −70 dB auto-gain floor means the same, peak-hold-
+   and-decay auto-gain with the Mac's constants; a waterfall row (256
+   columns over 0–4 kHz — the Mac's spans 0–Nyquist, ~22 kHz, and leaves
+   most of its width dark; user decision), a 256-point trace, and the 0–4 kHz spectrum for the Filter Function Display (Sub's
+   own, with its own auto-gain, while SUB is the filter side). It runs on
+   the audio thread from the same routed Main/Sub chunks playback gets, so
+   it follows a swap. `Controls/ScopeDisplay.cs` draws it: a persistent
+   256×150 BGRA buffer scrolled one row per frame into a `WriteableBitmap`,
+   and the trace as a `Polyline` in the box's own pixels; frames reach the
+   UI through one coalesced dispatcher item at a time. The Filter display
+   now shows the spectrum (dim everywhere, bright inside the passband —
+   clipped to the passband's flat top, since WinUI clips only to
+   rectangles). Off skips the FFT entirely and blanks both. The mode is
+   saved (`ScopeDisplayMode` in settings.json); the zooms (0.25–4×) aren't,
+   as on the Mac. The VFO section now follows the Mac's layout, mirrored:
+   three equal columns — MAIN, the scope, SUB — with each VFO's readout
+   (and MAIN's frequency/channel entry) in a black box with a green
+   border like the Mac's `VFODisplayBox` (SUB's goes gray in
+   single-receive display), the meters under the boxes and the scope
+   between the meters, as tall as they are.
+   Debug build on the test PC: ~9% of one core with the waterfall on, ~5%
+   with it Off (polling + audio). To check on the rig: the waterfall and
+   spectrum against the rig's own scope on a busy band, in both Remote
+   and Local mode.
 
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
-- **Waterfall/oscilloscope** — an FFT over the Main samples the audio
-  client already delivers (see "Audio" above), drawn with a WinUI 3
-  `CanvasControl`/Win2D waterfall.
 - **APRS decode** — the AFSK/AX.25 stack (`APRS/AFSKDemodulator.swift`,
   `AX25Frame.swift`, `APRSPacket.swift`) is the most DSP-heavy piece to
   port; leave until audio capture itself is working.
@@ -728,6 +755,7 @@ Apps/Windows/FTX1RemoteWindows/
     SMeter.cs                    analog S/TX meter (port of SMeterView.swift) + METER picker
     DeepSettingsDialog.cs        Deep Settings screens (port of DeepSettingsView.swift)
     FilterPanel.cs               Filter rows + Filter Function Display (ports of the Filter-row views in FTX1Core/UI)
+    ScopeDisplay.cs              waterfall/oscilloscope box (port of ScopeDisplayView.swift + AudioCaptureEngine's drawing)
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
@@ -745,6 +773,7 @@ Apps/Windows/FTX1RemoteWindows/
     SquelchGate.cs               port of SquelchGate.swift
     AudioPlayback.cs             NAudio WASAPI output mixing Main + Sub
     WpsdCallsignMonitor.cs       C4FM caller/reflector from a WPSD hotspot (port of WPSDCallsignMonitor.swift)
+    ScopeProcessor.cs            FFT + auto-gain for the scope and filter spectrum (AudioCaptureEngine's DSP)
   Settings/
     AppSettings.cs                every setting (connection, audio, WPSD, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
     Appearance.cs                 AppTheme / ButtonValueColor (ports of the FTX1Core Appearance enums)

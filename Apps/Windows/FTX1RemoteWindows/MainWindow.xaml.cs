@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using FTX1RemoteWindows.Controls;
 using FTX1RemoteWindows.Models;
@@ -71,6 +72,27 @@ public sealed partial class MainWindow : Window
     /// The Filter rows (WIDTH, SHIFT, CONTOUR/APF, N/W, NOTCH, MAIN/SUB and
     /// the display); shares _lastState, read in the slow poll tier.
     private readonly FilterPanel _filterPanel;
+
+    /// The waterfall/oscilloscope between the meters (Controls/
+    /// ScopeDisplay.cs), fed by _scopeProcessor from the audio thread.
+    private readonly ScopeDisplay _scope = new();
+    private readonly ScopeProcessor _scopeProcessor;
+    /// Frames from the audio thread, drained on the UI thread. One drain is
+    /// queued at a time (_scopeDrainPending), so a busy UI thread gets a
+    /// batch of rows rather than a backlog of dispatcher items.
+    private readonly ConcurrentQueue<ScopeFrame> _scopeFrames = new();
+    private volatile float[]? _latestSubSpectrum;
+    private int _scopeDrainPending;
+    /// The running audio source's rate, for the FFT's Hz-per-bin.
+    private volatile int _audioSampleRate;
+    private ScopeDisplayMode _scopeMode;
+    /// Not persisted, like the Mac's HubService.waterfallZoom/
+    /// oscilloscopeZoom: 0.25-4x in steps of 1.25x.
+    private float _waterfallZoom = 1;
+    private float _oscilloscopeZoom = 1;
+    private const float MinScopeZoom = 0.25f;
+    private const float MaxScopeZoom = 4;
+    private const float ScopeZoomStep = 1.25f;
 
     /// The analog meters under each VFO (Controls/SMeter.cs), fed every poll.
     private readonly SMeter _mainMeter = new(isSub: false);
@@ -182,6 +204,19 @@ public sealed partial class MainWindow : Window
         _filterPanel = new FilterPanel(_lastState);
         _filterPanel.StatusMessage += message => StatusText.Text = message;
         FilterPanelHost.Child = _filterPanel;
+        ScopeHost.Child = _scope;
+        _scopeProcessor = new ScopeProcessor(
+            frame =>
+            {
+                _scopeFrames.Enqueue(frame);
+                ScheduleScopeDrain();
+            },
+            spectrum =>
+            {
+                _latestSubSpectrum = spectrum;
+                ScheduleScopeDrain();
+            });
+        SetScopeMode(AppSettings.ScopeDisplayMode);
         MainMeterHost.Child = _mainMeter;
         SubMeterHost.Child = _subMeter;
 
@@ -476,6 +511,7 @@ public sealed partial class MainWindow : Window
             ConnectionStateText.Text = $"Connected to {description}";
             AppLog.Write($"connection: connected to {description} ({mode}); audio swapped={_swapTracker.Swapped}");
             ConnectionStateText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green);
+            _scope.SetActive(true);
             ConnectButton.Content = "Disconnect";
             _connectedMode = mode;
             _connectedHost = host;
@@ -577,6 +613,7 @@ public sealed partial class MainWindow : Window
         _client = null;
         _menuGrid.Client = null;
         _filterPanel.Client = null;
+        _scope.SetActive(false);
         _mainMeter.Reset();
         _subMeter.Reset();
         ClearMemoryState();
@@ -691,6 +728,8 @@ public sealed partial class MainWindow : Window
                     }
                     _singleReceive = single;
                     _filterPanel.SingleReceive = single;
+                    // The Mac's VFODisplayBox: SUB's border goes gray while it isn't shown.
+                    SubVfoBox.BorderBrush = new SolidColorBrush(single ? Windows.UI.Color.FromArgb(102, 128, 128, 128) : Windows.UI.Color.FromArgb(179, 0, 255, 0));
                 }
             }
             catch (Exception ex)
@@ -1532,6 +1571,121 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    // Waterfall / oscilloscope
+
+    /// Queues one UI-thread drain unless one is already pending.
+    private void ScheduleScopeDrain()
+    {
+        if (Interlocked.Exchange(ref _scopeDrainPending, 1) == 0)
+        {
+            DispatcherQueue.TryEnqueue(DrainScope);
+        }
+    }
+
+    /// Shows every row that arrived since the last drain (so the waterfall
+    /// keeps its speed), the newest trace, and the Filter display's
+    /// spectrum — Main's, or Sub's while SUB is the selected filter side
+    /// (the Mac's FilterDisplayHost). Frames that land after audio stopped
+    /// are dropped.
+    private void DrainScope()
+    {
+        Interlocked.Exchange(ref _scopeDrainPending, 0);
+        ScopeFrame? latest = null;
+        while (_scopeFrames.TryDequeue(out var frame))
+        {
+            latest = frame;
+            if (_audioSource is not null && _scopeMode != ScopeDisplayMode.Off)
+            {
+                _scope.Show(frame);
+            }
+        }
+        var sub = _lastState.FilterSide == FilterSide.Sub;
+        _scopeProcessor.SubSpectrumEnabled = sub && _scopeMode != ScopeDisplayMode.Off;
+        if (!sub)
+        {
+            _latestSubSpectrum = null;
+        }
+        if (_audioSource is null || _scopeMode == ScopeDisplayMode.Off)
+        {
+            return;
+        }
+        if (sub)
+        {
+            _filterPanel.SetSpectrum(_latestSubSpectrum ?? []);
+        }
+        else if (latest is not null)
+        {
+            _filterPanel.SetSpectrum(latest.Spectrum);
+        }
+    }
+
+    private void ClearScope()
+    {
+        _scopeFrames.Clear();
+        _latestSubSpectrum = null;
+        _scope.Clear();
+        _filterPanel.SetSpectrum([]);
+    }
+
+    private void ScopeModeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string tag } && Enum.TryParse<ScopeDisplayMode>(tag, out var mode))
+        {
+            SetScopeMode(mode);
+            AppSettings.ScopeDisplayMode = mode;
+        }
+    }
+
+    /// Off also stops the FFT (ScopeProcessor.DisplayEnabled), as on the
+    /// Mac; playback is unaffected.
+    private void SetScopeMode(ScopeDisplayMode mode)
+    {
+        _scopeMode = mode;
+        _scopeProcessor.DisplayEnabled = mode != ScopeDisplayMode.Off;
+        _scope.Mode = mode;
+        ScopeWaterfallButton.IsChecked = mode == ScopeDisplayMode.Waterfall;
+        ScopeOscilloscopeButton.IsChecked = mode == ScopeDisplayMode.Oscilloscope;
+        ScopeOffButton.IsChecked = mode == ScopeDisplayMode.Off;
+        if (mode == ScopeDisplayMode.Off)
+        {
+            ClearScope();
+        }
+        UpdateScopeZoomControls();
+    }
+
+    /// One pair of arrows for whichever display is showing; the two zooms
+    /// are separate settings. Dimmed and inert while Off.
+    private void ScopeZoomButton_Click(object sender, RoutedEventArgs e)
+    {
+        var factor = sender is FrameworkElement { Tag: "up" } ? ScopeZoomStep : 1 / ScopeZoomStep;
+        switch (_scopeMode)
+        {
+            case ScopeDisplayMode.Waterfall:
+                _waterfallZoom = Math.Clamp(_waterfallZoom * factor, MinScopeZoom, MaxScopeZoom);
+                _scopeProcessor.WaterfallZoom = _waterfallZoom;
+                break;
+            case ScopeDisplayMode.Oscilloscope:
+                _oscilloscopeZoom = Math.Clamp(_oscilloscopeZoom * factor, MinScopeZoom, MaxScopeZoom);
+                _scopeProcessor.OscilloscopeZoom = _oscilloscopeZoom;
+                break;
+        }
+        UpdateScopeZoomControls();
+    }
+
+    private void UpdateScopeZoomControls()
+    {
+        var off = _scopeMode == ScopeDisplayMode.Off;
+        ScopeZoomPanel.Opacity = off ? 0.3 : 1;
+        ScopeZoomInButton.IsEnabled = !off;
+        ScopeZoomOutButton.IsEnabled = !off;
+        ScopeZoomText.Text = _scopeMode switch
+        {
+            ScopeDisplayMode.Waterfall => $"{_waterfallZoom:0.0}x",
+            ScopeDisplayMode.Oscilloscope => $"{_oscilloscopeZoom:0.0}x",
+            _ => "—",
+        };
+    }
+
     // Audio (Pi :8532)
 
     /// Starts the session's audio source and playback together: the Pi's
@@ -1552,8 +1706,12 @@ public sealed partial class MainWindow : Window
         void Route(float[] left, float[] right)
         {
             var swapped = _audioChannelsSwapped;
-            _mainPlayer.Push(swapped ? right : left);
-            _subPlayer.Push(swapped ? left : right);
+            var main = swapped ? right : left;
+            var sub = swapped ? left : right;
+            _mainPlayer.Push(main);
+            _subPlayer.Push(sub);
+            // Same routed channels, so the waterfall follows a swap too.
+            _scopeProcessor.Process(main, sub, _audioSampleRate);
         }
 
         IAudioSource source;
@@ -1596,6 +1754,7 @@ public sealed partial class MainWindow : Window
         }
 
         _audioSource = source;
+        _audioSampleRate = source.SampleRate;
         StartPlayback();
         source.Start();
         _audioStatusTimer.Start();
@@ -1673,6 +1832,7 @@ public sealed partial class MainWindow : Window
         {
             await source.StopAsync();
         }
+        ClearScope();
         _playback.Stop();
         _playbackError = null;
         _playbackNote = null;

@@ -64,7 +64,7 @@ public sealed class RemoteAudioStreamClient : IAudioSource
     private readonly int _port;
     /// Samples per channel handed to <see cref="_onSamples"/> at a time —
     /// 2048 matches the Mac's AudioCaptureEngine.fftSize / chunk size, so a
-    /// future waterfall here sees the same chunking.
+    /// waterfall here (ScopeProcessor) sees the same chunking.
     private readonly int _samplesPerChunk;
     /// Invoked on the receive thread, not the UI thread — keep it cheap.
     private readonly Action<float[], float[]> _onSamples;

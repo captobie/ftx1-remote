@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FTX1RemoteWindows.Models;
+using FTX1RemoteWindows.Services;
 
 namespace FTX1RemoteWindows.Settings;
 
@@ -63,6 +64,7 @@ public static class AppSettings
         public Dictionary<string, long> HomeFrequencies { get; set; } = new();
         public AppTheme Theme { get; set; } = AppTheme.System;
         public ButtonValueColor ButtonValueColor { get; set; } = ButtonValueColor.Orange;
+        public ScopeDisplayMode ScopeDisplayMode { get; set; } = ScopeDisplayMode.Waterfall;
     }
 
     /// One Polling-tab value: its default and allowed range. Every getter
@@ -362,6 +364,18 @@ public static class AppSettings
         set
         {
             _cache.ButtonValueColor = value;
+            Save();
+        }
+    }
+
+    /// The waterfall/oscilloscope column's mode (the Mac's ScopeDisplayMode
+    /// @AppStorage).
+    public static ScopeDisplayMode ScopeDisplayMode
+    {
+        get => _cache.ScopeDisplayMode;
+        set
+        {
+            _cache.ScopeDisplayMode = value;
             Save();
         }
     }

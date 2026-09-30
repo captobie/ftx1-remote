@@ -617,7 +617,7 @@ section). The Mac's Enable Transmit gate was ported 2026-09-27
 any future transmit-capable control (MOX, CW MESSAGE play, ANT TUNE) must
 pass `TransmitGate.BlockReason` before keying. The order for the rest of
 the Mac-parity work is the "Mac parity plan" section of
-`Apps/Windows/README.md` (all nine steps done; step 3, the MENU grid, has all
+`Apps/Windows/README.md` (all ten steps done; step 3, the MENU grid, has all
 three pages in `Controls/MenuGrid.cs` as of 2026-09-28, spot-tested on the
 rig by the user the same day, all working — CW's PLAY/RECORD and FM's
 APRS S.LIST/M.LIST are placeholders until those features exist; step 4, the
@@ -641,14 +641,18 @@ from the FM page's bottom row; checked against a fake rigctld through UI
 Automation, not yet on the rig; step 9, the Filter rows, 2026-09-30 —
 `Controls/FilterPanel.cs` + `Models/FilterModels.cs`, the Mac's WIDTH/
 SHIFT/CONTOUR-APF/N/W/NOTCH, MAIN/SUB selector and Filter Function
-Display (shape only, no spectrum), checked against a fake rigctld
-through UI Automation, not yet on the rig. The .csproj has to be named when
+Display, checked against a fake rigctld through UI Automation, not yet
+on the rig; step 10, the waterfall/oscilloscope, 2026-09-30 —
+`Services/ScopeProcessor.cs` (the Mac's `AudioCaptureEngine` DSP, same
+constants) + `Controls/ScopeDisplay.cs`, between the meters, also feeding
+the Filter display's spectrum, checked against a fake Pi audio stream,
+not yet on real rig audio). The .csproj has to be named when
 building (`dotnet build FTX1RemoteWindows.csproj -r win-x64
 --self-contained`) since Visual Studio added a `.slnx` next to it, and
 a solution build rejects `-r`; Visual Studio's own builds land in
 `bin\x64\Debug\…`, the CLI's in `bin\Debug\…`, so launch the one just
 built).
-Waterfall and APRS decode are deferred but not architecturally blocked.
+APRS decode is deferred but not architecturally blocked.
 Full plan, protocol/model porting notes, and open items:
 `Apps/Windows/README.md`. `Apps/Windows/FTX1RemoteWindows/` has a
 build-verified (`dotnet build -r win-x64 --self-contained`, not yet
