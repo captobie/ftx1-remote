@@ -702,7 +702,11 @@ the next one starts.
    (and MAIN's frequency/channel entry) in a black box with a green
    border like the Mac's `VFODisplayBox` (SUB's goes gray in
    single-receive display), the meters under the boxes and the scope
-   between the meters, as tall as they are.
+   between the meters, as tall as they are. Each receiver's Mute / SQL /
+   VOL (and squelch-open dot) sit right of its meter, the Mac's
+   `channelControls`, instead of in the Audio box, which keeps only the
+   on/off switch and link status. The meters are the Mac's 190 px wide,
+   shrinking in a narrow window so the controls keep 140 px.
    Debug build on the test PC: ~9% of one core with the waterfall on, ~5%
    with it Off (polling + audio). To check on the rig: the waterfall and
    spectrum against the rig's own scope on a busy band, in both Remote

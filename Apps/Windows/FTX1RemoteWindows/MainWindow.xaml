@@ -124,17 +124,57 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Analog meters (Controls/SMeter.cs), added in code, under their boxes. -->
-                <Border Grid.Row="1" Grid.Column="0" x:Name="MainMeterHost" Width="280" HorizontalAlignment="Center" VerticalAlignment="Top" />
-
-                <!-- Zoom arrows for whichever display is showing, then the scope
-                     (Controls/ScopeDisplay.cs, added in code), as tall as the meters. -->
-                <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="8" Height="120" VerticalAlignment="Top">
+                <!-- MAIN's analog meter (Controls/SMeter.cs, added in code) with its
+                     Mute / SQL / VOL to the right — the Mac's channelControls. SQL is inverted like the Mac's: further right
+                     = tighter. The dot is the squelch-open light. -->
+                <!-- The meter is up to 190 px wide but shrinks in a narrow window (its
+                     Viewbox keeps the aspect) so the sliders stay usable — sized in
+                     code from this grid's width (ChannelGrid_SizeChanged). -->
+                <Grid Grid.Row="1" Grid.Column="0" x:Name="MainChannelGrid" ColumnSpacing="10" VerticalAlignment="Top"
+                      SizeChanged="ChannelGrid_SizeChanged">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <StackPanel x:Name="ScopeZoomPanel" Spacing="4" VerticalAlignment="Center" Width="40">
+                    <Border x:Name="MainMeterHost" Width="190" VerticalAlignment="Top" />
+                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                        <ToggleButton x:Name="MainMuteToggle" Content="Mute" Click="MainMuteToggle_Click" HorizontalAlignment="Stretch"
+                                      AutomationProperties.Name="Mute MAIN" />
+                        <Grid ColumnSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="SQL" FontSize="11" Foreground="Gray" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" x:Name="MainSquelchSlider" Minimum="0" Maximum="0.05" StepFrequency="0.001"
+                                    ValueChanged="MainSquelchSlider_ValueChanged" IsThumbToolTipEnabled="False"
+                                    AutomationProperties.Name="MAIN squelch" />
+                            <Ellipse Grid.Column="2" x:Name="MainSquelchLed" Width="8" Height="8" Fill="Gray" VerticalAlignment="Center"
+                                     ToolTipService.ToolTip="Squelch open" />
+                        </Grid>
+                        <Grid ColumnSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="VOL" FontSize="11" Foreground="Gray" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" x:Name="MainVolumeSlider" Minimum="0" Maximum="1" StepFrequency="0.01"
+                                    ValueChanged="MainVolumeSlider_ValueChanged"
+                                    AutomationProperties.Name="MAIN volume" />
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Zoom arrows for whichever display is showing, then the scope
+                     (Controls/ScopeDisplay.cs, added in code), as tall as the meters. -->
+                <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="8" Height="81" VerticalAlignment="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel x:Name="ScopeZoomPanel" Spacing="2" VerticalAlignment="Center" Width="40">
                         <Button x:Name="ScopeZoomInButton" HorizontalAlignment="Stretch" Click="ScopeZoomButton_Click" Tag="up"
                                 AutomationProperties.Name="Zoom in" ToolTipService.ToolTip="Zoom in">
                             <FontIcon Glyph="&#xE70E;" FontSize="10" />
@@ -148,7 +188,48 @@
                     <Border Grid.Column="1" x:Name="ScopeHost" />
                 </Grid>
 
-                <Border Grid.Row="1" Grid.Column="2" x:Name="SubMeterHost" Width="280" HorizontalAlignment="Center" VerticalAlignment="Top" />
+                <!-- SUB's analog meter (Controls/SMeter.cs, added in code) with its
+                     Mute / SQL / VOL to the right — the Mac's channelControls. SQL is inverted like the Mac's: further right
+                     = tighter. The dot is the squelch-open light. -->
+                <!-- The meter is up to 190 px wide but shrinks in a narrow window (its
+                     Viewbox keeps the aspect) so the sliders stay usable — sized in
+                     code from this grid's width (ChannelGrid_SizeChanged). -->
+                <Grid Grid.Row="1" Grid.Column="2" x:Name="SubChannelGrid" ColumnSpacing="10" VerticalAlignment="Top"
+                      SizeChanged="ChannelGrid_SizeChanged">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border x:Name="SubMeterHost" Width="190" VerticalAlignment="Top" />
+                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                        <ToggleButton x:Name="SubMuteToggle" Content="Mute" Click="SubMuteToggle_Click" HorizontalAlignment="Stretch"
+                                      AutomationProperties.Name="Mute SUB" />
+                        <Grid ColumnSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="SQL" FontSize="11" Foreground="Gray" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" x:Name="SubSquelchSlider" Minimum="0" Maximum="0.05" StepFrequency="0.001"
+                                    ValueChanged="SubSquelchSlider_ValueChanged" IsThumbToolTipEnabled="False"
+                                    AutomationProperties.Name="SUB squelch" />
+                            <Ellipse Grid.Column="2" x:Name="SubSquelchLed" Width="8" Height="8" Fill="Gray" VerticalAlignment="Center"
+                                     ToolTipService.ToolTip="Squelch open" />
+                        </Grid>
+                        <Grid ColumnSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="VOL" FontSize="11" Foreground="Gray" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" x:Name="SubVolumeSlider" Minimum="0" Maximum="1" StepFrequency="0.01"
+                                    ValueChanged="SubVolumeSlider_ValueChanged"
+                                    AutomationProperties.Name="SUB volume" />
+                        </Grid>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 
@@ -209,9 +290,8 @@
         <Border Grid.Row="3" x:Name="FilterPanelHost" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" />
 
         <!--
-          Audio (Pi :8532). Main left / Sub right, matching the MAIN/SUB VFO row
-          above (the Mac's audio row is Sub-then-Main because its VFO boxes
-          are). SQL is inverted like the Mac's: further right = tighter.
+          Audio (Pi :8532): on/off and the link status. Each receiver's
+          Mute / SQL / VOL sit beside its meter in the VFO section above.
         -->
         <Border Grid.Row="4" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12">
             <StackPanel Spacing="8">
@@ -224,47 +304,6 @@
                         <TextBlock x:Name="AudioLevelsText" Text="" FontFamily="Consolas" FontSize="12" Foreground="Gray" />
                     </StackPanel>
                 </StackPanel>
-
-                <Grid ColumnSpacing="32">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="MAIN" FontWeight="SemiBold" VerticalAlignment="Center" Width="40" />
-                        <ToggleButton x:Name="MainMuteToggle" Content="Mute" Click="MainMuteToggle_Click" VerticalAlignment="Center" />
-                        <StackPanel Width="140">
-                            <TextBlock Text="VOL" FontSize="12" />
-                            <Slider x:Name="MainVolumeSlider" Minimum="0" Maximum="1" StepFrequency="0.01"
-                                    ValueChanged="MainVolumeSlider_ValueChanged" />
-                        </StackPanel>
-                        <StackPanel Width="140">
-                            <TextBlock Text="SQL" FontSize="12" />
-                            <Slider x:Name="MainSquelchSlider" Minimum="0" Maximum="0.05" StepFrequency="0.001"
-                                    ValueChanged="MainSquelchSlider_ValueChanged" IsThumbToolTipEnabled="False" />
-                        </StackPanel>
-                        <Ellipse x:Name="MainSquelchLed" Width="10" Height="10" Fill="Gray" VerticalAlignment="Center"
-                                 ToolTipService.ToolTip="Squelch open" />
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="SUB" FontWeight="SemiBold" VerticalAlignment="Center" Width="40" />
-                        <ToggleButton x:Name="SubMuteToggle" Content="Mute" Click="SubMuteToggle_Click" VerticalAlignment="Center" />
-                        <StackPanel Width="140">
-                            <TextBlock Text="VOL" FontSize="12" />
-                            <Slider x:Name="SubVolumeSlider" Minimum="0" Maximum="1" StepFrequency="0.01"
-                                    ValueChanged="SubVolumeSlider_ValueChanged" />
-                        </StackPanel>
-                        <StackPanel Width="140">
-                            <TextBlock Text="SQL" FontSize="12" />
-                            <Slider x:Name="SubSquelchSlider" Minimum="0" Maximum="0.05" StepFrequency="0.001"
-                                    ValueChanged="SubSquelchSlider_ValueChanged" IsThumbToolTipEnabled="False" />
-                        </StackPanel>
-                        <Ellipse x:Name="SubSquelchLed" Width="10" Height="10" Fill="Gray" VerticalAlignment="Center"
-                                 ToolTipService.ToolTip="Squelch open" />
-                    </StackPanel>
-                </Grid>
             </StackPanel>
         </Border>
 

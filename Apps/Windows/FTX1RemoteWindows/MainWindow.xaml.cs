@@ -1571,6 +1571,17 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// Each meter is 190 px wide (the Mac's meterWidth) when there's room,
+    /// and gives way to its Mute / SQL / VOL column in a narrow window, which
+    /// keeps at least 140 px. Grid star sizing with Min/MaxWidth didn't hold
+    /// that minimum, hence the explicit sizing.
+    private void ChannelGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        const double maxMeter = 190, minMeter = 110, minControls = 140, spacing = 10;
+        var host = ReferenceEquals(sender, MainChannelGrid) ? MainMeterHost : SubMeterHost;
+        host.Width = Math.Clamp(e.NewSize.Width - spacing - minControls, minMeter, maxMeter);
+    }
+
     // Waterfall / oscilloscope
 
     /// Queues one UI-thread drain unless one is already pending.
