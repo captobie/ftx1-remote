@@ -2,7 +2,7 @@ import Combine
 import Foundation
 
 /// Owns the current session's decoded FT8 spots — what `FT8ListView` (the
-/// Digital → FT8 window) displays. Fed by `FT8DecodeCoordinator`'s output,
+/// Tools → FT8 window) displays. Fed by `FT8DecodeCoordinator`'s output,
 /// which always arrives on the main actor (same contract as
 /// `APRSDecoder`'s callbacks), so this itself doesn't need to be an actor.
 ///
@@ -38,7 +38,7 @@ final class FT8Store: ObservableObject {
         cycleStatus = status
     }
 
-    /// Called when the Digital/FT8 window closes — clears the display but
+    /// Called when the Tools/FT8 window closes — clears the display but
     /// not any future persisted history, since there isn't one (see above).
     func clear() {
         spots = []

@@ -824,7 +824,7 @@ those targets.
 First digital mode, built with more (FT4 most likely next) explicitly in
 mind. Mac-only, like the waterfall — audio-derived, and the iOS/iPadOS
 targets don't need the extra C dependency this pulls in. Opened via a new
-top-level **Digital** menu bar item (`CommandMenu`, a genuine sibling of
+top-level **Tools** menu bar item (named **Digital** until 2026-09-30) (`CommandMenu`, a genuine sibling of
 File/Edit/View — not nested under an existing menu the way the APRS
 submenu is) → **FT8**, which opens its own `Window(id: "ft8")`, same
 pattern as the APRS windows.
@@ -869,7 +869,7 @@ pattern as the APRS windows.
     (1920 at 12000 Hz) samples per call — `FT8DecodeCoordinator` buffers
     resampled audio and slices off exact blocks, remainder carried to the
     next `ingest` call.
-- **Decode trigger: tied to the Digital/FT8 window's lifecycle, not
+- **Decode trigger: tied to the Tools/FT8 window's lifecycle, not
   always-on.** Unlike `APRSDecoder` (always running, gated by VFO
   frequency matching one configured APRS frequency), FT8 has no single
   fixed frequency to gate on — `FT8DecodeCoordinator.start()`/`stop()` are
@@ -928,7 +928,7 @@ pattern as the APRS windows.
 
 ## WebSDR follow (KiwiSDR 2026-09-24, classic WebSDR 2026-09-25)
 
-Digital → **WebSDR** opens `Window(id: "websdr-follow")` (Mac-only): an
+Tools → **WebSDR** opens `Window(id: "websdr-follow")` (Mac-only): an
 embedded KiwiSDR or classic WebSDR (`KiwiWebView`, a `WKWebView`
 `NSViewRepresentable`, despite the name) that retunes to follow the rig's
 Main VFO, and (click-to-tune, "Tune rig") tunes the rig when the user tunes

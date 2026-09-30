@@ -1,7 +1,7 @@
 import FTX1Core
 import SwiftUI
 
-/// The Digital menu's "FT8" item opens this in its own window (`ft8`,
+/// The Tools menu's "FT8" item opens this in its own window (`ft8`,
 /// declared in `FTX1RemoteMacApp`), same pattern as the APRS S.LIST/M.LIST
 /// windows. Unlike those, decoding is tied to this view's own lifecycle —
 /// `.onAppear`/`.onDisappear` are the start/stop switch (see

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Digital menu's "WebSDR" item opens this in its own window
+/// The Tools menu's "WebSDR" item opens this in its own window
 /// (`websdr-follow`, declared in `FTX1RemoteMacApp`): an embedded KiwiSDR
 /// or classic WebSDR that retunes to follow the rig. Mac-only — see `WebSDRFollowModel` for
 /// how it follows rig state and what's deliberately left for v1.1.

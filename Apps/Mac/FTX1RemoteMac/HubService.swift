@@ -215,7 +215,7 @@ final class HubService: ObservableObject {
     /// unconditionally — `ingest(samples:sampleRate:)` drops audio on its
     /// own whenever `isRunning` is false, and `isRunning` only becomes true
     /// between `startFT8Decoding()`/`stopFT8Decoding()`, called from the
-    /// Digital/FT8 window's lifecycle, not from `start()`/`init` here. See
+    /// Tools/FT8 window's lifecycle, not from `start()`/`init` here. See
     /// `FT8DecodeCoordinator`'s doc comment for why FT8 can't reuse APRS's
     /// always-on frequency-gate pattern.
     private let ft8Coordinator = FT8DecodeCoordinator()
@@ -529,14 +529,14 @@ final class HubService: ObservableObject {
         Task { [server] in await server.stop() }
     }
 
-    /// Called from the Digital/FT8 window's `.onAppear` — decoding runs
+    /// Called from the Tools/FT8 window's `.onAppear` — decoding runs
     /// only while that window is open (see `FT8DecodeCoordinator`'s doc
     /// comment for why FT8 can't reuse APRS's always-on gate).
     func startFT8Decoding() {
         ft8Coordinator.start()
     }
 
-    /// Called from the Digital/FT8 window's `.onDisappear`, and as a safety
+    /// Called from the Tools/FT8 window's `.onDisappear`, and as a safety
     /// net from `stop()` in case the app quits with that window still open.
     func stopFT8Decoding() {
         ft8Coordinator.stop()

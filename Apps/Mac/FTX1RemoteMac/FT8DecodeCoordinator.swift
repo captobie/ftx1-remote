@@ -12,7 +12,7 @@ import os
 /// Unlike `APRSDecoder` (always-on, gated by VFO frequency match against a
 /// single configured APRS frequency), FT8 has no one fixed frequency to
 /// gate on — decoding here only runs between `start()` and `stop()`, called
-/// from the Digital/FT8 window's lifecycle. `ingest(samples:sampleRate:)`
+/// from the Tools/FT8 window's lifecycle. `ingest(samples:sampleRate:)`
 /// drops audio cheaply when not running.
 ///
 /// Owns a private serial queue for all decode work, same shape as

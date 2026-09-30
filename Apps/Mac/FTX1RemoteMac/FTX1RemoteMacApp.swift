@@ -33,10 +33,10 @@ struct FTX1RemoteMacApp: App {
                 }
             }
             // A top-level menu (CommandMenu), not nested under an existing
-            // one (CommandGroup) like APRS above — first of what's meant to
-            // grow into more than one digital mode (FT4, etc.), each its
+            // one (CommandGroup) like APRS above — holds the digital modes (FT8,
+            // FT4 later, etc.) and other tools like WebSDR, each its
             // own sibling Button/Window here.
-            CommandMenu("Digital") {
+            CommandMenu("Tools") {
                 Button("FT8") {
                     openWindow(id: "ft8")
                 }
@@ -69,7 +69,7 @@ struct FTX1RemoteMacApp: App {
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
 
-        // Digital → FT8 (Digital menu above). Injects `hub` itself, not just
+        // Tools → FT8 (Tools menu above). Injects `hub` itself, not just
         // `hub.ft8Store` (unlike the APRS windows, which only need the
         // store) — `FT8ListView` calls `hub.startFT8Decoding()`/
         // `stopFT8Decoding()` from its own onAppear/onDisappear.
@@ -80,7 +80,7 @@ struct FTX1RemoteMacApp: App {
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
 
-        // Digital → WebSDR. Passes `hub` in directly rather than via the
+        // Tools → WebSDR. Passes `hub` in directly rather than via the
         // environment — `WebSDRFollowView` needs it in `init` to build its
         // `@StateObject` model, which subscribes to `hub.$rigState`.
         Window("WebSDR", id: "websdr-follow") {
