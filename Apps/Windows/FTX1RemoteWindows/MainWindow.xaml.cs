@@ -68,6 +68,10 @@ public sealed partial class MainWindow : Window
     /// slow poll tier.
     private readonly MenuGrid _menuGrid;
 
+    /// The Filter rows (WIDTH, SHIFT, CONTOUR/APF, N/W, NOTCH, MAIN/SUB and
+    /// the display); shares _lastState, read in the slow poll tier.
+    private readonly FilterPanel _filterPanel;
+
     /// The analog meters under each VFO (Controls/SMeter.cs), fed every poll.
     private readonly SMeter _mainMeter = new(isSub: false);
     private readonly SMeter _subMeter = new(isSub: true);
@@ -175,6 +179,9 @@ public sealed partial class MainWindow : Window
         };
         _menuGrid.FrequencyRequested += async hz => await SetMainFrequencyAsync(hz);
         MenuGridHost.Child = _menuGrid;
+        _filterPanel = new FilterPanel(_lastState);
+        _filterPanel.StatusMessage += message => StatusText.Text = message;
+        FilterPanelHost.Child = _filterPanel;
         MainMeterHost.Child = _mainMeter;
         SubMeterHost.Child = _subMeter;
 
@@ -249,10 +256,12 @@ public sealed partial class MainWindow : Window
         _swapTracker.Changed += reason =>
         {
             // A front-panel swap puts the other receiver on Main, so the
-            // remembered VFO isn't Main's any more (see SwapVfoButton_Click).
+            // remembered VFO isn't Main's any more (see SwapVfoButton_Click),
+            // and the selected filter side may now hold other values.
             if (reason.StartsWith("front-panel", StringComparison.Ordinal))
             {
                 _lastVfoState = null;
+                _filterPanel.RequestRefresh(TimeSpan.FromMilliseconds(400));
             }
             _audioChannelsSwapped = _swapTracker.Swapped;
             AppSettings.AudioChannelsSwapped = _swapTracker.Swapped;
@@ -458,6 +467,8 @@ public sealed partial class MainWindow : Window
             _client = client;
             _menuGrid.ClearState();
             _menuGrid.Client = client;
+            _filterPanel.ClearState();
+            _filterPanel.Client = client;
             ClearMemoryState();
             ClearC4fmState();
             // Run the slow tier (FR, MENU grid) on the first poll.
@@ -565,6 +576,7 @@ public sealed partial class MainWindow : Window
         var client = _client;
         _client = null;
         _menuGrid.Client = null;
+        _filterPanel.Client = null;
         _mainMeter.Reset();
         _subMeter.Reset();
         ClearMemoryState();
@@ -678,6 +690,7 @@ public sealed partial class MainWindow : Window
                         AppLog.Write($"audio-routing: FR reply {fr} — {(single ? "single" : "dual")} receive");
                     }
                     _singleReceive = single;
+                    _filterPanel.SingleReceive = single;
                 }
             }
             catch (Exception ex)
@@ -690,7 +703,13 @@ public sealed partial class MainWindow : Window
             // go unanswered in C4FM). Main's fast-tier mode read also clears
             // MainIsC4fm as soon as it reads a mode this app knows.
             _lastState.MainIsC4fm = await ReadC4fmAsync(client, sub: false) ?? _lastState.MainIsC4fm;
-            _lastState.SubIsC4fm = await ReadC4fmAsync(client, sub: true) ?? _lastState.SubIsC4fm;
+            // Sub's whole mode, not just C4FM: the filter controls need it
+            // while SUB is selected (hamlib's "m" only reads the active side).
+            if (await ReadModeCodeAsync(client, sub: true) is { } subCode)
+            {
+                _lastState.SubIsC4fm = subCode is 'H' or 'I';
+                _lastState.SubMode = RigModeExtensions.FromCatModeCode(subCode) ?? _lastState.SubMode;
+            }
             if (_lastState.MainIsC4fm == true && _lastState.Mode is not null)
             {
                 // hamlib's mode read fails in C4FM, which left the last
@@ -812,7 +831,11 @@ public sealed partial class MainWindow : Window
         if (slowTier)
         {
             await _menuGrid.RefreshFromRigAsync(client);
+            await _filterPanel.RefreshFromRigAsync(client);
         }
+        // Main's mode may have changed (fast tier), which changes which
+        // filter controls apply.
+        _filterPanel.RefreshUI();
 
         UpdateWpsdMonitorState();
 
@@ -826,6 +849,19 @@ public sealed partial class MainWindow : Window
         try
         {
             return await client.IsC4fmAsync(sub);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"poll: {(sub ? "MD1" : "MD0")} failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static async Task<char?> ReadModeCodeAsync(RigctldClient client, bool sub)
+    {
+        try
+        {
+            return await client.GetModeCodeAsync(sub);
         }
         catch (Exception ex)
         {
@@ -1005,6 +1041,16 @@ public sealed partial class MainWindow : Window
                 FrequencyAText.Text = FormatHz(_lastState.FrequencyHz);
                 FrequencyBText.Text = FormatHz(_lastState.SecondaryFrequencyHz.Value);
             }
+            // The modes swap too, so the filter controls match their
+            // receivers until the polls confirm; then re-read the selected
+            // side's filter, which now holds the other VFO's settings or not.
+            if (_lastState.SubMode is { } subMode)
+            {
+                (_lastState.Mode, _lastState.SubMode) = (subMode, _lastState.Mode);
+            }
+            (_lastState.MainIsC4fm, _lastState.SubIsC4fm) = (_lastState.SubIsC4fm, _lastState.MainIsC4fm);
+            _filterPanel.RefreshUI();
+            _filterPanel.RequestRefresh(TimeSpan.FromMilliseconds(400));
         }
         catch (Exception ex)
         {

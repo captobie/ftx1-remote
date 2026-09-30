@@ -12,6 +12,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -156,12 +157,16 @@
             </StackPanel>
         </Border>
 
+        <!-- Filter rows (Controls/FilterPanel.cs), added in code: WIDTH/SHIFT,
+             CONTOUR-or-APF/N/W/NOTCH, the MAIN/SUB selector and the display. -->
+        <Border Grid.Row="3" x:Name="FilterPanelHost" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" />
+
         <!--
           Audio (Pi :8532). Main left / Sub right, matching the VFO A/B row
           above (the Mac's audio row is Sub-then-Main because its VFO boxes
           are). SQL is inverted like the Mac's: further right = tighter.
         -->
-        <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12">
+        <Border Grid.Row="4" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12">
             <StackPanel Spacing="8">
                 <StackPanel Orientation="Horizontal" Spacing="12">
                     <ToggleSwitch x:Name="AudioSwitch" Header="Audio" OnContent="On" OffContent="Off"
@@ -217,9 +222,9 @@
         </Border>
 
         <!-- MENU grid (Controls/MenuGrid.cs), added in code. -->
-        <Border Grid.Row="4" x:Name="MenuGridHost" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" />
+        <Border Grid.Row="5" x:Name="MenuGridHost" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" />
 
-        <TextBlock Grid.Row="5" x:Name="StatusText" Text="" Foreground="Firebrick" TextWrapping="Wrap" VerticalAlignment="Bottom" />
+        <TextBlock Grid.Row="6" x:Name="StatusText" Text="" Foreground="Firebrick" TextWrapping="Wrap" VerticalAlignment="Bottom" />
     </Grid>
     </ScrollViewer>
 </Window>

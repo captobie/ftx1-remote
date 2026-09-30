@@ -144,4 +144,48 @@ public sealed class RigState
     public int? CtcssToneIndex { get; set; }
     /// "CN01" index into RigDcsCode.AllValues (0-103).
     public int? DcsCodeIndex { get; set; }
+
+    // Filter row (Controls/FilterPanel.cs), RigState.swift's filter fields.
+
+    /// Sub's mode from raw "MD1" (hamlib's "m" only reads the active side);
+    /// null until read or for a code this RigMode has no case for.
+    public RigMode? SubMode { get; set; }
+
+    /// The receiver the ten filter fields below hold values for and the
+    /// filter controls address. A switch clears them until the new side's
+    /// values are read.
+    public FilterSide FilterSide { get; set; } = FilterSide.Main;
+    /// "SH<side>" raw WIDTH index, 0-23 — the Hz depends on the mode, see
+    /// FilterWidthTable.
+    public int? FilterWidthIndex { get; set; }
+    /// "IS<side>0", -1200..1200 Hz.
+    public int? IfShiftHz { get; set; }
+    /// "BP<side>0" manual notch (a 3-digit on/off field).
+    public bool? NotchEnabled { get; set; }
+    /// "BP<side>1", 10-3200 Hz.
+    public int? NotchHz { get; set; }
+    /// "CO<side>0".
+    public bool? ContourEnabled { get; set; }
+    /// "CO<side>1", 10-3200 Hz.
+    public int? ContourHz { get; set; }
+    /// "CO<side>2", CW only.
+    public bool? ApfEnabled { get; set; }
+    /// "CO<side>3", offset from the CW pitch, -250..250 Hz.
+    public int? ApfHz { get; set; }
+    /// "NA<side>".
+    public bool? NarrowEnabled { get; set; }
+    /// The mode's NAR WIDTH preset in Hz (see NarrowWidthPreset); null in
+    /// modes without one.
+    public int? NarrowWidthHz { get; set; }
+
+    public FilterSide ActiveFilterSide => FilterSide;
+
+    /// The mode of the receiver the filter controls address; null in C4FM
+    /// or before it's known (no IF filter to show). Every filter control
+    /// gates on this, not Mode.
+    public RigMode? FilterMode => FilterModeFor(FilterSide);
+
+    public RigMode? FilterModeFor(FilterSide side) => side == FilterSide.Sub
+        ? (SubIsC4fm == true ? null : SubMode)
+        : (MainIsC4fm == true ? null : Mode);
 }

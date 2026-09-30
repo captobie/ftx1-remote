@@ -62,4 +62,21 @@ public static class RigModeExtensions
         "FM-D" => RigMode.DataFm,
         _ => null,
     };
+
+    /// Decodes a raw "MD" reply's P2 character — RigState.swift's
+    /// RigMode(catModeCode:). Codes hamlib reports under a name this enum
+    /// lacks (CW-L, RTTY-U, DATA-L, FM-N, AM-N, PSK, DATA-FM-N) and C4FM
+    /// ("H"/"I", see RigctldClient.IsC4fmAsync) return null.
+    public static RigMode? FromCatModeCode(char code) => code switch
+    {
+        '1' => RigMode.Lsb,
+        '2' => RigMode.Usb,
+        '3' => RigMode.Cw,
+        '4' => RigMode.Fm,
+        '5' => RigMode.Am,
+        '6' => RigMode.Rtty,
+        'A' => RigMode.DataFm,
+        'C' => RigMode.DataUsb,
+        _ => null,
+    };
 }

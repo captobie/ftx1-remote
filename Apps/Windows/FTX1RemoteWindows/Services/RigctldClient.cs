@@ -367,7 +367,13 @@ public sealed class RigctldClient : IAsyncDisposable
     /// RigMode(catModeCode:)). hamlib's "m" can't tell — it answers "RPRT -8"
     /// in C4FM — and this app's RigMode has no C4FM. Null if the reply
     /// isn't an "MD" one.
-    public async Task<bool?> IsC4fmAsync(bool sub, CancellationToken cancellationToken = default)
+    public async Task<bool?> IsC4fmAsync(bool sub, CancellationToken cancellationToken = default) =>
+        await GetModeCodeAsync(sub, cancellationToken).ConfigureAwait(false) is { } code ? code is 'H' or 'I' : null;
+
+    /// The P2 mode character of raw "MD0"/"MD1" (the Swift getModeCode),
+    /// decoded by RigModeExtensions.FromCatModeCode. Null if the reply isn't
+    /// an "MD" one.
+    public async Task<char?> GetModeCodeAsync(bool sub, CancellationToken cancellationToken = default)
     {
         var cmd = sub ? "MD1" : "MD0";
         var reply = await SendRawCommandAsync(cmd, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -375,8 +381,28 @@ public sealed class RigctldClient : IAsyncDisposable
         {
             return null;
         }
-        return reply[cmd.Length] is 'H' or 'I';
+        return reply[cmd.Length];
     }
+
+    /// IF SHIFT, "IS<p1>0" + sign + 4-digit magnitude ("IS00-0240;") —
+    /// signed, so GetRawIntAsync can't parse it. The Swift getIFShiftHz.
+    public async Task<int?> GetIFShiftHzAsync(int p1, CancellationToken cancellationToken = default)
+    {
+        var reply = await SendRawCommandAsync($"IS{p1}", cancellationToken: cancellationToken).ConfigureAwait(false);
+        var prefix = $"IS{p1}0";
+        if (!reply.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+        var value = new string(reply.Skip(prefix.Length).TakeWhile(c => char.IsAsciiDigit(c) || c is '+' or '-').ToArray());
+        return int.TryParse(value, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var hz) ? hz : null;
+    }
+
+    /// Always an explicit sign and a zero-padded 4-digit magnitude:
+    /// "IS00+0240", "IS00-1200", "IS00+0000". Pass a value already on the
+    /// 20 Hz grid (IFShift.Snapped).
+    public Task SetIFShiftHzAsync(int p1, int hz, CancellationToken cancellationToken = default) =>
+        SendRawFireAndForgetAsync($"IS{p1}0{(hz < 0 ? "-" : "+")}{Math.Abs(hz):0000}", cancellationToken);
 
     /// Reads a "<CMD><0|1>;" on/off setting, e.g. "VX" -> "VX1;" -> true.
     /// Looks only at the first character after the prefix, so it must not

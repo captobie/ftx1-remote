@@ -651,6 +651,32 @@ the next one starts.
    change of each editor kind, the time to fill a long tab (MODE FM, 37
    items) over Tailscale, and that the MENU grid's CH STEP/BEACON/ANT
    follow a change made here on their next slow-tier read.
+9. **Filter rows — done** (2026-09-30, checked against a fake rigctld
+   through UI Automation; not yet used on the rig). The Mac's two Filter
+   rows under Mode/Band, in `Controls/FilterPanel.cs`: WIDTH (picker +
+   narrower/wider) and SHIFT (slider + center) on the first; CONTOUR or
+   APF (APF in CW), N/W and NOTCH on the second; then the MAIN/SUB
+   selector and the Filter Function Display. `Models/FilterModels.cs`
+   ports `FilterWidthTable`, `IFShift`, `IFNotch`, `IFContour`,
+   `NarrowWidthPreset` and `FilterPassbandModel` (a null mode stands for
+   the Swift C4FM/unknown). Same CAT as the Mac, with the selected side as
+   P1: "SH", "IS", "BP" (3-digit fields), "CO" (4-digit), "NA", plus the
+   mode's NAR WIDTH "EX" item for the display, and "KP" in CW. The
+   selected side is read in the slow tier; a MAIN/SUB switch clears and
+   re-reads at once, as do ⇄ and a detected front-panel swap; N/W re-reads
+   the width right behind the write. SUB is disabled in single-receive
+   display ("FR"), with a fall back to MAIN. Sub's mode now comes from
+   "MD1" in the slow tier (and on each SUB read) — it used to be read only
+   for C4FM. Sliders send on release, or at once for keyboard changes.
+   Differences from the Mac: the display draws the shape only, with no
+   audio spectrum behind it (no FFT here yet, see "Explicitly deferred");
+   there's no per-band width memory, since this app has no `BandMemory`.
+   On the fake rigctld these writes matched: `SH0016` (narrower from
+   2700 Hz), `IS00+0000` (center), `BP00001` (notch on), `NA01`,
+   `CO120000` (APF off on SUB), `SH1011` (wider on SUB), `BP11123`
+   (notch to 1230 Hz on SUB). To check on the rig: each control against
+   the rig's own filter display on both receivers, N/W in SSB and AM, and
+   CONTOUR ↔ APF when switching to and from CW.
 
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
@@ -701,14 +727,16 @@ Apps/Windows/FTX1RemoteWindows/
     MenuGrid.cs                  MENU grid (port of MenuPageView.swift), all three pages
     SMeter.cs                    analog S/TX meter (port of SMeterView.swift) + METER picker
     DeepSettingsDialog.cs        Deep Settings screens (port of DeepSettingsView.swift)
+    FilterPanel.cs               Filter rows + Filter Function Display (ports of the Filter-row views in FTX1Core/UI)
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
-    RigState.cs                 subset of RigState.swift's fields (core + MENU grid pages + V/M memory)
+    RigState.cs                 subset of RigState.swift's fields (core + MENU grid pages + V/M memory + filter)
     RigDelayCode.cs             "SD"/"VD" 00-33 delay code ↔ ms
     RigToneTables.cs            CTCSS/DCS tables ("CN" indexes) and HOME band groups
     MeterScale.cs               needle mapping + METER selection — SMeterView.swift's SMeterScale, MeterSelection.swift
     DeepSettingsCatalog.cs      the 341 "EX" items — MenuSettings/DeepSettingsCatalog.swift, translated mechanically
+    FilterModels.cs             filter value spaces + display geometry — FilterWidthTable/IFShift/IFNotch/IFContour/FilterPassbandModel.swift, NarrowWidthPreset.swift
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
     RigctldProcessController.cs  Local mode: spawns/adopts rigctld.exe (port of the Mac's)
