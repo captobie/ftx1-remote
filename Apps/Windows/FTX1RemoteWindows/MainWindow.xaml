@@ -30,7 +30,7 @@
             </Button>
         </StackPanel>
 
-        <!-- VFO A/B -->
+        <!-- MAIN / SUB VFOs -->
         <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12">
             <Grid ColumnSpacing="24">
                 <Grid.ColumnDefinitions>
@@ -41,7 +41,7 @@
 
                 <StackPanel Grid.Column="0" Spacing="4">
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="VFO A (active)" FontWeight="SemiBold" />
+                        <TextBlock Text="MAIN" FontWeight="SemiBold" />
                         <!-- "CH n TAG" while in Memory mode, "VM nn" in the other
                              sub-modes, hidden in VFO mode. -->
                         <TextBlock x:Name="MemoryChannelAText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
@@ -87,12 +87,12 @@
                     <!-- Main's VFO/Memory mode; checked whenever it isn't plain VFO. -->
                     <ToggleButton x:Name="VfoMemoryToggle" Content="V/M" HorizontalAlignment="Center"
                                   Click="VfoMemoryToggle_Click"
-                                  ToolTipService.ToolTip="Switch VFO A between VFO and Memory mode (the rig's V/M)" />
+                                  ToolTipService.ToolTip="Switch MAIN between VFO and Memory mode (the rig's V/M)" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Spacing="4">
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="VFO B" FontWeight="SemiBold" />
+                        <TextBlock Text="SUB" FontWeight="SemiBold" />
                         <TextBlock x:Name="MemoryChannelBText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
                     </StackPanel>
                     <TextBlock x:Name="FrequencyBText" Text="—" FontSize="28" FontFamily="Consolas" />
@@ -162,7 +162,7 @@
         <Border Grid.Row="3" x:Name="FilterPanelHost" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" />
 
         <!--
-          Audio (Pi :8532). Main left / Sub right, matching the VFO A/B row
+          Audio (Pi :8532). Main left / Sub right, matching the MAIN/SUB VFO row
           above (the Mac's audio row is Sub-then-Main because its VFO boxes
           are). SQL is inverted like the Mac's: further right = tighter.
         -->
