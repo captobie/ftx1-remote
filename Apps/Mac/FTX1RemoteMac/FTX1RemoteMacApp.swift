@@ -18,25 +18,22 @@ struct FTX1RemoteMacApp: App {
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(updater: appDelegate.updaterController.updater)
             }
-            CommandGroup(after: .toolbar) {
+            // A top-level menu (CommandMenu), not nested under an existing
+            // one — holds APRS, the digital modes (FT8, FT4 later, etc.) and
+            // other tools like WebSDR, each its own sibling Button/Window here.
+            CommandMenu("Tools") {
                 Menu("APRS") {
-                    Button("Station List") {
+                    Button("List") {
                         openWindow(id: "aprs-stations")
                     }
-                    Button("Message List") {
+                    Button("Messages") {
                         openWindow(id: "aprs-messages")
                     }
-                    Divider()
                     Button("Map") {
                         openWindow(id: "aprs-map")
                     }
                 }
-            }
-            // A top-level menu (CommandMenu), not nested under an existing
-            // one (CommandGroup) like APRS above — holds the digital modes (FT8,
-            // FT4 later, etc.) and other tools like WebSDR, each its
-            // own sibling Button/Window here.
-            CommandMenu("Tools") {
+                Divider()
                 Button("FT8") {
                     openWindow(id: "ft8")
                 }
@@ -60,7 +57,7 @@ struct FTX1RemoteMacApp: App {
                 .environmentObject(appDelegate.hub.aprsStore)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
-        // Opened via the View menu's "APRS Map" command above, not from
+        // Opened via Tools → APRS → Map above, not from
         // MenuPageView — unlike S.LIST/M.LIST, a map isn't currently one
         // of the FM/C4FM page's numbered menu buttons.
         Window("APRS Map", id: "aprs-map") {

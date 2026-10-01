@@ -829,8 +829,8 @@ First digital mode, built with more (FT4 most likely next) explicitly in
 mind. Mac-only, like the waterfall — audio-derived, and the iOS/iPadOS
 targets don't need the extra C dependency this pulls in. Opened via a new
 top-level **Tools** menu bar item (named **Digital** until 2026-09-30) (`CommandMenu`, a genuine sibling of
-File/Edit/View — not nested under an existing menu the way the APRS
-submenu is) → **FT8**, which opens its own `Window(id: "ft8")`, same
+File/Edit/View; since 2026-10-01 it also holds the APRS List/Messages/Map
+submenu, moved there from the View menu) → **FT8**, which opens its own `Window(id: "ft8")`, same
 pattern as the APRS windows.
 
 - **Decode engine: vendored `kgoba/ft8_lib` (MIT) + kissfft (BSD-3-Clause)

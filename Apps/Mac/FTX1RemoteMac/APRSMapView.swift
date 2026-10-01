@@ -3,7 +3,7 @@ import MapKit
 import SwiftUI
 
 /// Plots decoded APRS position reports (`APRSStore.stations`) on an Apple
-/// Maps view. Opened from the View menu (`FTX1RemoteMacApp`'s `.commands`)
+/// Maps view. Opened from Tools → APRS → Map (`FTX1RemoteMacApp`'s `.commands`)
 /// into its own window (`aprs-map`), same pattern as the S.LIST/M.LIST
 /// windows.
 struct APRSMapView: View {
