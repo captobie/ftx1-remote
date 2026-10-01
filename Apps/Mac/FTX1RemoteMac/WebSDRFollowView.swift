@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The Tools menu's "WebSDR" item opens this in its own window
-/// (`websdr-follow`, declared in `FTX1RemoteMacApp`): an embedded KiwiSDR
-/// or classic WebSDR that retunes to follow the rig. Mac-only — see `WebSDRFollowModel` for
+/// (`websdr-follow`, declared in `FTX1RemoteMacApp`): an embedded KiwiSDR,
+/// classic WebSDR or OpenWebRX that retunes to follow the rig. Mac-only — see `WebSDRFollowModel` for
 /// how it follows rig state and what's deliberately left for v1.1.
 struct WebSDRFollowView: View {
     @StateObject private var model: WebSDRFollowModel
@@ -112,8 +112,9 @@ struct WebSDRFollowView: View {
         } else {
             Button("Record", systemImage: "record.circle", action: model.toggleRecording)
                 .labelStyle(.titleAndIcon)
-                .disabled(!model.isConnected)
-                .help(model.isConnected ? "Record the WebSDR's audio" : "Connect to a station to record")
+                .disabled(!model.isConnected || !model.canRecord)
+                .help(!model.canRecord ? "OpenWebRX has no recorder of its own to record with"
+                      : model.isConnected ? "Record the WebSDR's audio" : "Connect to a station to record")
         }
     }
 
@@ -124,7 +125,7 @@ struct WebSDRFollowView: View {
                     .labelStyle(.titleAndIcon)
                     .help("Choose a public KiwiSDR or WebSDR")
                 favoritesMenu
-                TextField("KiwiSDR or WebSDR host:port", text: $hostDraft)
+                TextField("KiwiSDR, WebSDR or OpenWebRX host:port", text: $hostDraft)
                     .textFieldStyle(.roundedBorder)
                     .fontDesign(.monospaced)
                     .frame(maxWidth: 360)
@@ -172,7 +173,7 @@ struct WebSDRFollowView: View {
                     ContentUnavailableView(
                         "Not Connected",
                         systemImage: "antenna.radiowaves.left.and.right.slash",
-                        description: Text("Pick a station or enter a KiwiSDR or WebSDR host:port, then press Connect.")
+                        description: Text("Pick a station or enter a KiwiSDR, WebSDR or OpenWebRX host:port, then press Connect.")
                     )
                 }
             }

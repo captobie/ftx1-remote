@@ -943,10 +943,10 @@ pattern as the APRS windows.
   check `.remote`/Pi audio timing specifically) — same shape as every
   other CAT/audio feature's hardware-validation step in this project.
 
-## WebSDR follow (KiwiSDR 2026-09-24, classic WebSDR 2026-09-25)
+## WebSDR follow (KiwiSDR 2026-09-24, classic WebSDR 2026-09-25, OpenWebRX 2026-10-01)
 
 Tools → **WebSDR** opens `Window(id: "websdr-follow")` (Mac-only): an
-embedded KiwiSDR or classic WebSDR (`KiwiWebView`, a `WKWebView`
+embedded KiwiSDR, classic WebSDR or OpenWebRX (`KiwiWebView`, a `WKWebView`
 `NSViewRepresentable`, despite the name) that retunes to follow the rig's
 Main VFO, and (click-to-tune, "Tune rig") tunes the rig when the user tunes
 in the page. Most bullets below were written for the Kiwi; the classic
@@ -1152,6 +1152,49 @@ WebSDR differences are in their own bullet at the end.
     Some skins (Maasbree) keep the standard element IDs but hide the
     checkbox behind their own Mute button, which then won't reflect the
     app's mute state visually.
+- **OpenWebRX (2026-10-01, `OpenWebRXURLBuilder`, `SDRPlatform.
+  openWebRX`)**: for the operator's own receiver — an RTL-SDR (R820T,
+  ~24–1766 MHz, so VHF/UHF only, no HF) on a second Pi, `raspberrypi`
+  (100.104.255.14, Pi 4B), running the official `jketterl/openwebrx:stable`
+  (v1.2.2) in Docker: Compose file in `~/openwebrx` on that Pi (not
+  `/opt/stacks`, which is root-owned), UI at `http://raspberrypi:8073`,
+  admin user created by the user. Not part of this repo. Everything below
+  was checked against that server's own `receiver.js`/`owrx/*.py`:
+  - Loaded once, **without** a `#freq=` hash, then always tuned in place
+    (`SDRPageBridge.retuneInPlace` → the demodulator panel's `setMode` +
+    the demodulator's `set_offset_frequency`). The page ignores a hash
+    outside the profile the SDR is currently on, and the profile is shared
+    server state, so `pageDidLoad` always retunes an OpenWebRX after load.
+  - **Profiles**: a frequency outside the current profile switches to the
+    first one covering it via the page's own list box +
+    `sdr_profile_changed()`, then retries until the page's restarted
+    demodulator has the new center (≤15 s). Profile ids come from the list
+    box, ranges from `status.json` (center ± samp_rate/2), joined on
+    "<SDR name> <profile name>" — the same string the server builds both
+    from. `status.json` lists every *enabled* SDR, present or not, so a
+    stock config's placeholder Airspy/SDRplay show up as HF coverage the
+    server can't tune (the retune then times out and the status line says
+    so). Remove placeholders in the OpenWebRX settings.
+  - **WebKit reloads on hash changes**: OpenWebRX writes its tuning into
+    `location.hash` on every change, and this WebKit (macOS 27) turns that
+    fragment navigation into a full reload in a new web process ("Process
+    swap due to EnhancedSecurity change" in Console) — every tune in the
+    page reconnected it and dropped the window's Mute. `KiwiWebView`
+    cancels OpenWebRX navigations that differ from the current URL only by
+    the hash; the page works the same, its URL just isn't updated.
+  - Mute is the page's `toggleMute()` (state = the button's `muted` class),
+    no URL parameter. Click-to-tune reads `center_freq + offset` and the
+    modulation (`readTuning`); reads are ignored while an in-place retune
+    (incl. a profile switch) is running. Rig FM ↔ `nfm`; WFM, digital voice
+    and DRM have no rig equivalent. **No Record**: OpenWebRX has no recorder
+    of its own (`SDRPlatform.supportsRecording`), so the button is
+    disabled. No public directory either — the Stations sheet is still
+    KiwiSDR/WebSDR only; type the host or use a favorite.
+  - Tested in the built app 2026-10-01 against the real server with the
+    rig connected on 2m: platform detection + learned name/ranges, follow
+    in place (145.075 FM), profile switch on reconnect (70cm → 2m), Mute,
+    in-page tuning without reload, Disconnect freeing the client slot;
+    click-to-tune rig-confirmed by the user the same day.
 
 ## Structure
 

@@ -1,11 +1,12 @@
 import FTX1Core
 import Foundation
 
-/// Which receiver software a WebSDR-window host runs: a KiwiSDR, or a
-/// classic WebSDR (PA3FWM's software, the servers listed on websdr.org).
-/// The two differ in how they're tuned (`?f=` + page reload vs. `?tune=` +
-/// the page's own `setfreqtune()` in place), in their mode names, and in
-/// the page functions `SDRPageBridge` calls.
+/// Which receiver software a WebSDR-window host runs: a KiwiSDR, a classic
+/// WebSDR (PA3FWM's software, the servers listed on websdr.org), or an
+/// OpenWebRX (in practice the operator's own, e.g. an RTL-SDR on a Pi).
+/// They differ in how they're tuned (a Kiwi by `?f=` + page reload, the
+/// other two in place through the page's own functions), in their mode
+/// names, and in the page functions `SDRPageBridge` calls.
 ///
 /// Stored per station (`WebSDRFavorite.platform`). A host typed by hand has
 /// no platform until its page has loaded once — it's loaded as a Kiwi
@@ -14,19 +15,30 @@ import Foundation
 nonisolated enum SDRPlatform: String, Codable, Sendable, CaseIterable {
     case kiwiSDR
     case webSDR
+    case openWebRX
 
     var displayName: String {
         switch self {
         case .kiwiSDR: "KiwiSDR"
         case .webSDR: "WebSDR"
+        case .openWebRX: "OpenWebRX"
         }
     }
+
+    /// Loaded once per connection and then retuned through the page's own
+    /// functions (`SDRPageBridge.retuneInPlace`); a Kiwi reloads instead.
+    var retunesInPlace: Bool { self != .kiwiSDR }
+
+    /// Whether the page has a recorder of its own for Record to drive.
+    /// OpenWebRX (checked in v1.2.2's `receiver.js`) has none.
+    var supportsRecording: Bool { self != .openWebRX }
 
     /// The page's mode token for a rig mode, or nil to tune frequency only.
     func modeToken(for mode: RigMode) -> String? {
         switch self {
         case .kiwiSDR: KiwiSDRURLBuilder.modeToken(for: mode)
         case .webSDR: WebSDRURLBuilder.modeToken(for: mode)
+        case .openWebRX: OpenWebRXURLBuilder.modeToken(for: mode)
         }
     }
 
@@ -36,6 +48,7 @@ nonisolated enum SDRPlatform: String, Codable, Sendable, CaseIterable {
         switch self {
         case .kiwiSDR: KiwiSDRURLBuilder.modeFamily(ofKiwiMode: pageMode)
         case .webSDR: WebSDRURLBuilder.modeFamily(ofWebSDRMode: pageMode)
+        case .openWebRX: OpenWebRXURLBuilder.modeFamily(ofOpenWebRXMode: pageMode)
         }
     }
 
@@ -54,7 +67,7 @@ nonisolated enum SDRPlatform: String, Codable, Sendable, CaseIterable {
     }
 
     /// `bands`: the station's receive ranges, or nil when unknown (a WebSDR
-    /// not loaded yet), which skips the range check.
+    /// or OpenWebRX not loaded yet), which skips the range check.
     func retune(hostPort: String, frequencyHz: Int, mode: RigMode,
                 bands: [ClosedRange<Int>]?) -> KiwiSDRURLBuilder.Result {
         switch self {
@@ -63,6 +76,8 @@ nonisolated enum SDRPlatform: String, Codable, Sendable, CaseIterable {
                                      bands: bands ?? KiwiSDRURLBuilder.defaultBands)
         case .webSDR:
             WebSDRURLBuilder.retune(hostPort: hostPort, frequencyHz: frequencyHz, mode: mode, bands: bands)
+        case .openWebRX:
+            OpenWebRXURLBuilder.retune(hostPort: hostPort, frequencyHz: frequencyHz, mode: mode, bands: bands)
         }
     }
 }

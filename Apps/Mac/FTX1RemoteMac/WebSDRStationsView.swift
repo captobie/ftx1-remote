@@ -19,7 +19,9 @@ struct WebSDRStationsView: View {
     var body: some View {
         VStack(spacing: 0) {
             Picker("Stations", selection: $tab) {
-                ForEach(SDRPlatform.allCases, id: \.self) { platform in
+                // OpenWebRX has no public directory to browse — its host
+                // (in practice the operator's own) is typed or a favorite.
+                ForEach([SDRPlatform.kiwiSDR, .webSDR], id: \.self) { platform in
                     Text(platform.displayName).tag(platform)
                 }
             }
@@ -36,7 +38,7 @@ struct WebSDRStationsView: View {
                                      favoriteIDs: favoriteIDs,
                                      onToggleFavorite: onToggleFavorite,
                                      onChoose: onChooseKiwi)
-            case .webSDR:
+            case .webSDR, .openWebRX:
                 WebSDROrgTab(onChoose: onChooseWebSDR)
             }
         }

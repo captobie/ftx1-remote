@@ -84,7 +84,35 @@ struct KiwiWebView: NSViewRepresentable {
         /// make.
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
+            if Self.isOpenWebRXHashUpdate(navigationAction, in: webView, platform: pageBridge.platform) {
+                decisionHandler(.cancel)
+                return
+            }
             decisionHandler(navigationAction.shouldPerformDownload ? .download : .allow)
+        }
+
+        /// OpenWebRX writes its tuning into `location.hash` on every change
+        /// (`DemodulatorPanel.updateHash`). That should be a same-document
+        /// navigation, but this app's WebKit (macOS 27) turns it into a full
+        /// reload in a fresh web process ("Process swap due to
+        /// EnhancedSecurity change" in Console, 2026-10-01) — every tune in the
+        /// page would reconnect it, restart its audio and lose the window's
+        /// Mute. Nothing here reads that hash (the app loads OpenWebRX
+        /// without one and reads its tuning from the page's globals), so the
+        /// page's hash-only navigations are cancelled; the page carries on
+        /// with its URL just not updated.
+        private static func isOpenWebRXHashUpdate(_ action: WKNavigationAction, in webView: WKWebView,
+                                                  platform: SDRPlatform) -> Bool {
+            guard platform == .openWebRX, action.targetFrame?.isMainFrame == true,
+                  let target = action.request.url, target.fragment != nil,
+                  let current = webView.url
+            else { return false }
+            func withoutFragment(_ url: URL) -> URL? {
+                var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                components?.fragment = nil
+                return components?.url
+            }
+            return withoutFragment(target) == withoutFragment(current)
         }
 
         func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {

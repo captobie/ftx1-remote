@@ -4,14 +4,19 @@ import os
 
 /// The WebSDR window's calls into the receiver page — only ever the page's
 /// *own* functions and globals, nothing patched or injected. `platform`
-/// picks which page's (KiwiSDR or classic WebSDR); `WebSDRFollowModel` sets
-/// it for each load, and `detectPlatform()` corrects it once the page is up.
+/// picks which page's (KiwiSDR, classic WebSDR or OpenWebRX);
+/// `WebSDRFollowModel` sets it for each load, and `detectPlatform()`
+/// corrects it once the page is up.
 /// - its audio recorder, for Record (files the WAVs it saves into the app's
 ///   Recordings folder, `AudioRecorder.recordingsDirectory`);
 /// - its mute, for the window's Mute button;
 /// - its tuning globals, read-only, for click-to-tune (`readTuning`);
 /// - WebSDR only: its `setfreqtune()` to retune in place, and its
 ///   `bandinfo` for the station's receive ranges.
+/// - OpenWebRX only: its demodulator panel to retune in place, its profile
+///   list box (`sdr_profile_changed()`, what choosing a profile there does)
+///   to switch profiles, and its `status.json` for each profile's range.
+///   OpenWebRX has no recorder, so Record isn't offered for it.
 ///
 /// **Why the page's own recorder** (user decision, 2026-09-24): both pages
 /// have one. The Kiwi's is `toggle_or_set_rec(set)`, the same function as
@@ -60,6 +65,7 @@ final class SDRPageBridge {
         (function() {
           if (typeof setfreqtune === 'function' && typeof bandinfo !== 'undefined') return 'webSDR';
           if (typeof kiwi === 'object') return 'kiwiSDR';
+          if (typeof sdr_profile_changed === 'function' && typeof Modes === 'object') return 'openWebRX';
           return null;
         })()
         """
@@ -71,8 +77,13 @@ final class SDRPageBridge {
     }
 
     /// A WebSDR's receive ranges, in Hz, from its own `bandinfo` (each band
-    /// is `centerfreq ± samplerate/2`, in kHz). nil on a Kiwi or on failure.
+    /// is `centerfreq ± samplerate/2`, in kHz); an OpenWebRX's from its
+    /// profiles (`readOpenWebRXProfiles`). nil on a Kiwi or on failure.
     func readBands() async -> [ClosedRange<Int>]? {
+        if platform == .openWebRX {
+            await readOpenWebRXProfiles()
+            return openWebRXProfiles.isEmpty ? nil : openWebRXProfiles.map(\.range)
+        }
         guard platform == .webSDR else { return nil }
         let js = """
         (function() {
@@ -93,19 +104,30 @@ final class SDRPageBridge {
 
     /// The page's `<title>`, as a station name. Some WebSDR skins put the
     /// title in literal quotes ("\"WebSDR 2.1 Low at …\""), so those go too.
+    /// An OpenWebRX's title is the same on every server, so its receiver
+    /// name (from `readBands`) is used instead.
     func pageTitle() async -> String? {
+        if platform == .openWebRX { return openWebRXReceiverName }
         let title = try? await webView?.evaluateJavaScript("document.title") as? String
         return title?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'")))
     }
 
-    /// WebSDR only: retunes the loaded page through its own `setfreqtune()`
-    /// — no reload, no reconnect. `value` is `WebSDRURLBuilder.tuneValue`'s
-    /// "7074.00usb". Returns false if the page isn't a WebSDR page.
+    /// Retunes the loaded page without a reload or reconnect: a WebSDR
+    /// through its own `setfreqtune()`, an OpenWebRX through
+    /// `retuneOpenWebRX`. Returns false if the page isn't one of those, or
+    /// didn't take the tuning.
     @discardableResult
-    func retuneInPlace(_ value: String) async -> Bool {
-        guard platform == .webSDR,
-              let literal = Self.jsStringLiteral(value)
-        else { return false }
+    func retuneInPlace(frequencyHz: Int, modeToken: String?) async -> Bool {
+        switch platform {
+        case .kiwiSDR: return false
+        case .webSDR: return await retuneWebSDR(WebSDRURLBuilder.tuneValue(frequencyHz: frequencyHz, modeToken: modeToken))
+        case .openWebRX: return await retuneOpenWebRX(frequencyHz: frequencyHz, modulation: modeToken)
+        }
+    }
+
+    /// `value` is `WebSDRURLBuilder.tuneValue`'s "7074.00usb".
+    private func retuneWebSDR(_ value: String) async -> Bool {
+        guard let literal = Self.jsStringLiteral(value) else { return false }
         let js = """
         (function() {
           if (typeof setfreqtune !== 'function') return false;
@@ -114,6 +136,118 @@ final class SDRPageBridge {
         })()
         """
         return (try? await webView?.evaluateJavaScript(js) as? Bool) == true
+    }
+
+    // MARK: OpenWebRX profiles
+
+    /// An OpenWebRX profile the page can switch to: its list box value
+    /// ("sdr_id|profile_id") and the range it covers.
+    struct OpenWebRXProfile: Equatable {
+        let id: String
+        let range: ClosedRange<Int>
+    }
+
+    /// The loaded OpenWebRX's profiles, in its own order; read on each page
+    /// load by `readBands`. Empty on other platforms.
+    private(set) var openWebRXProfiles: [OpenWebRXProfile] = []
+    private var openWebRXReceiverName: String?
+
+    /// Joins the page's profile list box (id + "<SDR name> <profile name>",
+    /// the only place the ids are) with its `status.json` (names + center
+    /// frequency and sample rate, the only place the ranges are) — both
+    /// built from the same names server-side (`owrx/sdr.py`). The list box
+    /// is filled from the WebSocket, so this waits for it (≤10 s).
+    ///
+    /// `status.json` lists every *enabled* SDR whether or not its hardware
+    /// is present — a stock config's placeholder Airspy/SDRplay entries
+    /// show up as HF coverage the server can't actually tune.
+    private func readOpenWebRXProfiles() async {
+        openWebRXProfiles = []
+        openWebRXReceiverName = nil
+        let js = """
+        for (let i = 0; i < 40 && !$('#openwebrx-sdr-profiles-listbox option').length; i++) {
+          await new Promise(function(r) { setTimeout(r, 250); });
+        }
+        const response = await fetch('status.json', {cache: 'no-store'});
+        const status = await response.json();
+        const byName = {};
+        status.sdrs.forEach(function(s) {
+          s.profiles.forEach(function(p) { byName[s.name + ' ' + p.name] = p; });
+        });
+        const profiles = [];
+        $('#openwebrx-sdr-profiles-listbox option').each(function() {
+          const p = byName[$(this).text()];
+          if (p) profiles.push([this.value, Math.max(0, Math.round(p.center_freq - p.sample_rate / 2)),
+                                Math.round(p.center_freq + p.sample_rate / 2)]);
+        });
+        return [status.receiver && status.receiver.name || '', profiles];
+        """
+        guard let webView,
+              let result = try? await webView.callAsyncJavaScript(js, contentWorld: .page) as? [Any],
+              result.count == 2,
+              let rows = result[1] as? [[Any]]
+        else {
+            Self.logger.error("couldn't read the OpenWebRX profiles")
+            return
+        }
+        openWebRXProfiles = rows.compactMap { row in
+            guard row.count == 3, let id = row[0] as? String,
+                  let lo = (row[1] as? NSNumber)?.intValue, let hi = (row[2] as? NSNumber)?.intValue, lo <= hi
+            else { return nil }
+            return OpenWebRXProfile(id: id, range: lo...hi)
+        }
+        // A stock config's receiver name is the placeholder "[Callsign]".
+        if let name = result[0] as? String, !name.isEmpty, !name.hasPrefix("[") {
+            openWebRXReceiverName = name
+        }
+    }
+
+    /// Tunes the page's demodulator to `frequencyHz` (and `modulation`, when
+    /// given) — `DemodulatorPanel.setMode` and the demodulator's
+    /// `set_offset_frequency`, what its mode buttons and frequency field do.
+    /// A frequency outside the profile the SDR is on first switches to the
+    /// first profile that covers it, the way choosing it in the page's list
+    /// box does; the page then gets a new center frequency over its
+    /// WebSocket and restarts its demodulator, so this retries (≤15 s)
+    /// until the new profile is in place. While that restart is pending
+    /// (`centerFreqTimeout`), `panel.center_freq` is still the old one, so
+    /// the frequency can't be set against the wrong center.
+    ///
+    /// Note a profile switch retunes the SDR for every listener of that
+    /// server — fine for the operator's own receiver, which is what this is
+    /// for.
+    private func retuneOpenWebRX(frequencyHz: Int, modulation: String?) async -> Bool {
+        let profile = openWebRXProfiles.first { $0.range.contains(frequencyHz) }?.id
+        let js = """
+        var panel = $('#openwebrx-panel-receiver').demodulatorPanel();
+        if (!panel || !panel.getDemodulator() || !panel.center_freq || panel.centerFreqTimeout) return 'waiting';
+        if (Math.abs(f - panel.center_freq) > bandwidth / 2) {
+          if (!profile) return 'outside';
+          if (currentprofile.toString() !== profile) {
+            $('#openwebrx-sdr-profiles-listbox').val(profile);
+            sdr_profile_changed();
+          }
+          return 'waiting';
+        }
+        if (mod) panel.setMode(mod);
+        panel.getDemodulator().set_offset_frequency(f - panel.center_freq);
+        return 'done';
+        """
+        let arguments: [String: Any] = ["f": frequencyHz, "mod": modulation ?? NSNull(), "profile": profile ?? NSNull()]
+        for _ in 0..<60 {
+            if Task.isCancelled { return false }
+            guard let webView else { return false }
+            let result = try? await webView.callAsyncJavaScript(js, arguments: arguments, contentWorld: .page) as? String
+            switch result {
+            case "done": return true
+            case "outside":
+                Self.logger.notice("OpenWebRX has no profile covering \(frequencyHz) Hz")
+                return false
+            default: try? await Task.sleep(for: .milliseconds(250))
+            }
+        }
+        Self.logger.error("OpenWebRX retune to \(frequencyHz) Hz timed out")
+        return false
     }
 
     private static func jsStringLiteral(_ s: String) -> String? {
@@ -161,6 +295,8 @@ final class SDRPageBridge {
               return [nominalfreq().toFixed(2), String(mode)];
             })()
             """
+        case .openWebRX:
+            return false
         }
         for _ in 0..<120 {
             if Task.isCancelled { return false }
@@ -211,6 +347,8 @@ final class SDRPageBridge {
               return 'stopped';
             })()
             """
+        case .openWebRX:
+            return nil
         }
         guard let result = try? await webView.evaluateJavaScript(js) as? String, result == "stopped" else {
             return nil
@@ -240,6 +378,9 @@ final class SDRPageBridge {
     ///   audio start applies whatever the checkbox says — so this waits for
     ///   `bodyonload` to have run (`did_read_settings`, set in it) and sets
     ///   the checkbox, calling `setmute()` too if audio is already running.
+    /// - OpenWebRX: its `toggleMute()` (its speaker button; the button's
+    ///   `muted` class is its state). No URL parameter either; it waits for
+    ///   the button and the audio engine to exist.
     func setPageMuted(_ muted: Bool) async {
         let flag = muted ? 1 : 0
         let js: String
@@ -259,6 +400,15 @@ final class SDRPageBridge {
               if (!cb || typeof setmute !== 'function' || typeof did_read_settings === 'undefined' || !did_read_settings) return 'waiting';
               cb.checked = \(muted ? "true" : "false");
               if (soundapplet) setmute(\(flag));
+              return 'done';
+            })()
+            """
+        case .openWebRX:
+            js = """
+            (function() {
+              var bt = $('.openwebrx-mute-button');
+              if (!bt.length || typeof toggleMute !== 'function' || typeof audioEngine === 'undefined' || !audioEngine) return 'waiting';
+              if (bt.hasClass('muted') !== \(muted ? "true" : "false")) toggleMute();
               return 'done';
             })()
             """
@@ -285,6 +435,10 @@ final class SDRPageBridge {
     /// - WebSDR: `nominalfreq()` (kHz; the CW offset already accounted for)
     ///   and `mode`. nil until `allloadeddone` (its audio start), by which
     ///   point `?tune=` has long been applied.
+    /// - OpenWebRX: its demodulator's offset plus the panel's center
+    ///   frequency, and its modulation (a digimode reports the one under
+    ///   it). nil while there's no demodulator or a profile switch is still
+    ///   restarting it.
     func readTuning() async -> (frequencyHz: Int, mode: String)? {
         let js: String
         switch platform {
@@ -302,6 +456,16 @@ final class SDRPageBridge {
             (function() {
               if (typeof allloadeddone === 'undefined' || !allloadeddone || typeof nominalfreq !== 'function') return null;
               return [nominalfreq() * 1000, String(mode)];
+            })()
+            """
+        case .openWebRX:
+            js = """
+            (function() {
+              if (typeof $ !== 'function') return null;
+              var panel = $('#openwebrx-panel-receiver').demodulatorPanel();
+              var demod = panel && panel.getDemodulator();
+              if (!demod || !panel.center_freq || panel.centerFreqTimeout) return null;
+              return [panel.center_freq + demod.get_offset_frequency(), String(demod.get_modulation())];
             })()
             """
         }
