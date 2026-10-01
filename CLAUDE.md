@@ -430,6 +430,19 @@ re-architecture.
     so both Mac's and iPad's `ContentView` SUB `VFODisplayBox` call sites
     just needed the same `aprsSubActive ? aprsSubLastCallsign : nil`
     pattern Main's MAIN box already used.
+  - **APRS list search + filters (2026-10-01, Mac-only, tested in the
+    built app against saved history, not live traffic)**: both list
+    windows have a toolbar `.searchable` field (Stations: callsign +
+    comment; Messages: from/to/text) and a Filter menu beside the Source
+    picker — a heard/received-within window (`APRSHeardWindow`) on both,
+    "With Position Only" on Stations, and on Messages "Addressed to
+    <callsign>" (any SSID of `StationSettings.callsign`, disabled while
+    unset), Hide Bulletins (`BLN…` addressees) and Hide Telemetry
+    Definitions (`PARM.`/`UNIT.`/`EQNS.`/`BITS.` text — most of the real
+    message history turned out to be these). The shared bits (time
+    windows, matching, the Source picker) are in `APRSListFilter.swift`.
+    Filter state is per-window `@State`, not persisted; the time window is
+    only re-checked when the list re-renders (on a new packet).
   - **Local mode Main/Sub parity (2026-09-18, hardware-confirmed)**:
     `.local` mode's `AVAudioEngine` tap now extracts a genuine Sub channel
     too, same as `.remote` already did — `process(buffer:bitmap:gain:)`
