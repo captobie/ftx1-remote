@@ -1186,10 +1186,22 @@ WebSDR differences are in their own bullet at the end.
     no URL parameter. Click-to-tune reads `center_freq + offset` and the
     modulation (`readTuning`); reads are ignored while an in-place retune
     (incl. a profile switch) is running. Rig FM ↔ `nfm`; WFM, digital voice
-    and DRM have no rig equivalent. **No Record**: OpenWebRX has no recorder
-    of its own (`SDRPlatform.supportsRecording`), so the button is
-    disabled. No public directory either — the Stations sheet is still
-    KiwiSDR/WebSDR only; type the host or use a favorite.
+    and DRM have no rig equivalent. No public directory — the Stations
+    sheet is still KiwiSDR/WebSDR only; type the host or use a favorite.
+  - **Record is app-side (2026-10-01)**, since OpenWebRX has no recorder of
+    its own — the one place the window adds code to a page (user-approved
+    plan; additive only, nothing patched): `SDRPageBridge.start()` connects
+    a `ScriptProcessorNode` to the page's `audioEngine.audioNode` (decoded
+    audio, *before* its volume/mute `gainNode`, so Mute doesn't silence a
+    recording), which posts base64 Int16 blocks to the `ftx1SDRAudio`
+    message handler `KiwiWebView` registers; `SDRAudioFileWriter` writes
+    them as 16-bit mono WAV at the page's `AudioContext` rate (48 kHz,
+    ~5.6 MB/min; not decimated, WFM needs it). The rest of the recording
+    flow (timer, one file per retune, save on Disconnect/close) is the
+    shared one. Tested in the built app: WFM broadcast recorded while
+    Muted (real program audio, not noise), saved on Stop and on
+    Disconnect; one file per retune rig-confirmed by the user the same
+    day.
   - Tested in the built app 2026-10-01 against the real server with the
     rig connected on 2m: platform detection + learned name/ranges, follow
     in place (145.075 FM), profile switch on reconnect (70cm → 2m), Mute,

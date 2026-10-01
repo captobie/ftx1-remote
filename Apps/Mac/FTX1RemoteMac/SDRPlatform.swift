@@ -29,10 +29,6 @@ nonisolated enum SDRPlatform: String, Codable, Sendable, CaseIterable {
     /// functions (`SDRPageBridge.retuneInPlace`); a Kiwi reloads instead.
     var retunesInPlace: Bool { self != .kiwiSDR }
 
-    /// Whether the page has a recorder of its own for Record to drive.
-    /// OpenWebRX (checked in v1.2.2's `receiver.js`) has none.
-    var supportsRecording: Bool { self != .openWebRX }
-
     /// The page's mode token for a rig mode, or nil to tune frequency only.
     func modeToken(for mode: RigMode) -> String? {
         switch self {

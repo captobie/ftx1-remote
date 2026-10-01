@@ -16,7 +16,13 @@ import os
 /// - OpenWebRX only: its demodulator panel to retune in place, its profile
 ///   list box (`sdr_profile_changed()`, what choosing a profile there does)
 ///   to switch profiles, and its `status.json` for each profile's range.
-///   OpenWebRX has no recorder, so Record isn't offered for it.
+///
+/// **OpenWebRX recording is the one exception to "nothing injected"**: it
+/// has no recorder of its own, so `start()` adds one Web Audio node of the
+/// app's own (`startOpenWebRXTap`), connected to the page's existing
+/// `audioEngine.audioNode` alongside its volume/mute gain, which posts the
+/// audio to the app (`receiveTapAudio`) for `SDRAudioFileWriter`. Additive
+/// only — nothing in the page is replaced or patched.
 ///
 /// **Why the page's own recorder** (user decision, 2026-09-24): both pages
 /// have one. The Kiwi's is `toggle_or_set_rec(set)`, the same function as
@@ -296,7 +302,7 @@ final class SDRPageBridge {
             })()
             """
         case .openWebRX:
-            return false
+            js = Self.openWebRXTapScript
         }
         for _ in 0..<120 {
             if Task.isCancelled { return false }
@@ -304,6 +310,7 @@ final class SDRPageBridge {
                 segmentStart = Date()
                 let label = Self.label(kHz: result[0], mode: result[1]) ?? fallbackLabel
                 segmentLabel = label.isEmpty ? platform.displayName : label + " " + platform.displayName
+                if platform == .openWebRX { tapWriter = SDRAudioFileWriter(url: uniqueRecordingURL()) }
                 Self.logger.info("recording started: \(self.segmentLabel, privacy: .public)")
                 return true
             }
@@ -348,7 +355,7 @@ final class SDRPageBridge {
             })()
             """
         case .openWebRX:
-            return nil
+            return await stopOpenWebRXTap()
         }
         guard let result = try? await webView.evaluateJavaScript(js) as? String, result == "stopped" else {
             return nil
@@ -363,6 +370,91 @@ final class SDRPageBridge {
                 pending.resume(returning: nil)
             }
         }
+    }
+
+    // MARK: OpenWebRX recording (app-side tap)
+
+    /// The message handler `KiwiWebView` registers for the tap's audio.
+    static let tapMessageHandlerName = "ftx1SDRAudio"
+
+    /// The file the current OpenWebRX recording goes to; nil while not
+    /// recording one (late chunks after a stop are dropped).
+    private var tapWriter: SDRAudioFileWriter?
+
+    /// Installs the tap once the page's audio is running (its AudioWorklet
+    /// node exists and the context isn't suspended) and returns the page's
+    /// tuning for the file name, like the other platforms' start scripts;
+    /// null until then. A `ScriptProcessorNode` on the page's own
+    /// `AudioContext`, fed from `audioEngine.audioNode` — the decoded,
+    /// resampled audio, before the page's volume/mute `gainNode`, so muting
+    /// doesn't silence a recording (same as a Kiwi's). Its output is zeroed
+    /// and only connected onward because WebKit doesn't run an unconnected
+    /// processor; nothing extra is heard. Each 4096-frame block is posted as
+    /// base64 little-endian Int16 with the context's rate. A tap left over
+    /// from an earlier start is removed first.
+    private static let openWebRXTapScript = """
+    (function() {
+      if (typeof audioEngine === 'undefined' || !audioEngine || !audioEngine.audioNode || !audioEngine.audioContext
+          || audioEngine.audioContext.state !== 'running' || typeof $ !== 'function'
+          || !window.webkit || !window.webkit.messageHandlers || !window.webkit.messageHandlers.\(tapMessageHandlerName)) return null;
+      var ctx = audioEngine.audioContext;
+      if (window.ftx1RecorderTap) {
+        try { audioEngine.audioNode.disconnect(window.ftx1RecorderTap); } catch (e) {}
+        try { window.ftx1RecorderTap.disconnect(); } catch (e) {}
+        window.ftx1RecorderTap = null;
+      }
+      var tap = ctx.createScriptProcessor(4096, 1, 1);
+      tap.onaudioprocess = function(e) {
+        e.outputBuffer.getChannelData(0).fill(0);
+        var input = e.inputBuffer.getChannelData(0);
+        var pcm = new Int16Array(input.length);
+        for (var i = 0; i < input.length; i++) {
+          var v = Math.max(-1, Math.min(1, input[i]));
+          pcm[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
+        }
+        var bytes = new Uint8Array(pcm.buffer), bin = '';
+        for (var j = 0; j < bytes.length; j += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(j, j + 0x8000));
+        window.webkit.messageHandlers.\(tapMessageHandlerName).postMessage({rate: ctx.sampleRate, pcm: btoa(bin)});
+      };
+      audioEngine.audioNode.connect(tap);
+      tap.connect(ctx.destination);
+      window.ftx1RecorderTap = tap;
+      var panel = $('#openwebrx-panel-receiver').demodulatorPanel();
+      var demod = panel && panel.getDemodulator();
+      if (!demod || !panel.center_freq) return ['', ''];
+      return [((panel.center_freq + demod.get_offset_frequency()) / 1000).toFixed(2), String(demod.get_modulation())];
+    })()
+    """
+
+    /// A tap block from the page (`KiwiWebView`'s message handler).
+    func receiveTapAudio(_ body: Any) {
+        guard platform == .openWebRX, let tapWriter,
+              let message = body as? [String: Any],
+              let rate = (message["rate"] as? NSNumber)?.doubleValue,
+              let encoded = message["pcm"] as? String,
+              let pcm = Data(base64Encoded: encoded)
+        else { return }
+        tapWriter.append(pcm: pcm, sampleRate: rate)
+    }
+
+    /// Removes the tap (if the page is still there) and closes the file.
+    private func stopOpenWebRXTap() async -> URL? {
+        guard let writer = tapWriter else { return nil }
+        tapWriter = nil
+        _ = try? await webView?.evaluateJavaScript("""
+        (function() {
+          var tap = window.ftx1RecorderTap;
+          if (!tap) return 'idle';
+          try { audioEngine.audioNode.disconnect(tap); } catch (e) {}
+          try { tap.disconnect(); } catch (e) {}
+          tap.onaudioprocess = null;
+          window.ftx1RecorderTap = null;
+          return 'stopped';
+        })()
+        """)
+        let saved = await writer.finish()
+        Self.logger.info("recording saved: \(saved?.lastPathComponent ?? "nothing", privacy: .public)")
+        return saved
     }
 
     // MARK: Mute
@@ -481,13 +573,18 @@ final class SDRPageBridge {
     /// Where the page's saved WAV goes: Recordings, named like the app's
     /// own recordings, uniquified if the name is taken.
     func destinationURL() -> URL {
+        let url = uniqueRecordingURL()
+        pendingDestination = url
+        return url
+    }
+
+    private func uniqueRecordingURL() -> URL {
         var url = AudioRecorder.newRecordingURL(label: segmentLabel, date: segmentStart)
         var n = 2
         while FileManager.default.fileExists(atPath: url.path) {
             url = AudioRecorder.newRecordingURL(label: "\(segmentLabel) \(n)", date: segmentStart)
             n += 1
         }
-        pendingDestination = url
         return url
     }
 

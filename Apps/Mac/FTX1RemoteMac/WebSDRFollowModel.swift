@@ -461,10 +461,6 @@ final class WebSDRFollowModel: ObservableObject {
         tunedTarget = nil
     }
 
-    /// Whether Record is offered: the current host's page has a recorder of
-    /// its own (not OpenWebRX — see `SDRPlatform.supportsRecording`).
-    var canRecord: Bool { currentPlatform.supportsRecording }
-
     func toggleRecording() {
         if isRecording {
             endRecording()
@@ -473,7 +469,7 @@ final class WebSDRFollowModel: ObservableObject {
                 self?.noteSaved(url)
             }
         } else {
-            guard isConnected, pageRequest != nil, canRecord else { return }
+            guard isConnected, pageRequest != nil else { return }
             isRecording = true
             recordingNote = nil
             startSegment()

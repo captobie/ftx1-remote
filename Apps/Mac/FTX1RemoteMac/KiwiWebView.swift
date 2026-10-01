@@ -27,6 +27,11 @@ struct KiwiWebView: NSViewRepresentable {
         // data store keeps the Kiwi's own localStorage — its saved
         // name/callsign, `last_mode`, `last_zoom`, volume — across reloads.
         configuration.mediaTypesRequiringUserActionForPlayback = []
+        // The OpenWebRX recorder's tap posts its audio here (see
+        // `SDRPageBridge.receiveTapAudio`). The controller retains its
+        // handlers strongly, hence the weak relay.
+        configuration.userContentController.add(TapAudioRelay(pageBridge: pageBridge),
+                                                name: SDRPageBridge.tapMessageHandlerName)
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         pageBridge.webView = webView
@@ -50,6 +55,8 @@ struct KiwiWebView: NSViewRepresentable {
     /// unloaded now and can't keep a session or audio running.
     static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.navigationDelegate = nil
+        webView.configuration.userContentController
+            .removeScriptMessageHandler(forName: SDRPageBridge.tapMessageHandlerName)
         unloadKiwi(webView)
     }
 
@@ -58,6 +65,21 @@ struct KiwiWebView: NSViewRepresentable {
     private static func unloadKiwi(_ webView: WKWebView) {
         webView.stopLoading()
         webView.load(URLRequest(url: URL(string: "about:blank")!))
+    }
+
+    /// Forwards the OpenWebRX tap's audio blocks to the bridge without the
+    /// content controller keeping the bridge alive.
+    private final class TapAudioRelay: NSObject, WKScriptMessageHandler {
+        weak var pageBridge: SDRPageBridge?
+
+        init(pageBridge: SDRPageBridge) {
+            self.pageBridge = pageBridge
+        }
+
+        func userContentController(_ userContentController: WKUserContentController,
+                                   didReceive message: WKScriptMessage) {
+            pageBridge?.receiveTapAudio(message.body)
+        }
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKDownloadDelegate {

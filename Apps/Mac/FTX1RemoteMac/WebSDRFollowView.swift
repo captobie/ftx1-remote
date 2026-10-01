@@ -112,9 +112,8 @@ struct WebSDRFollowView: View {
         } else {
             Button("Record", systemImage: "record.circle", action: model.toggleRecording)
                 .labelStyle(.titleAndIcon)
-                .disabled(!model.isConnected || !model.canRecord)
-                .help(!model.canRecord ? "OpenWebRX has no recorder of its own to record with"
-                      : model.isConnected ? "Record the WebSDR's audio" : "Connect to a station to record")
+                .disabled(!model.isConnected)
+                .help(model.isConnected ? "Record the WebSDR's audio" : "Connect to a station to record")
         }
     }
 
