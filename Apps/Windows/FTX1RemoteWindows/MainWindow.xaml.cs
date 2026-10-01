@@ -16,8 +16,9 @@ namespace FTX1RemoteWindows;
 
 /// v1 core-rig-control window: VFO A/B, mode, PTT, power, SWR, band — see
 /// Apps/Windows/README.md's "v1 scope" — plus Main/Sub audio playback from
-/// the Pi's :8532 stream, and the MENU grid (Controls/MenuGrid.cs). No Deep
-/// Settings / waterfall / APRS here yet.
+/// the Pi's :8532 stream, the MENU grid (Controls/MenuGrid.cs), Deep
+/// Settings, the Filter rows, the waterfall/oscilloscope and APRS decoding
+/// (Services/AprsDecoder.cs, lists in Controls/AprsListWindow.cs).
 public sealed partial class MainWindow : Window
 {
     /// rigctld's port — fixed in both modes: the Pi's rigctld.service
@@ -93,6 +94,30 @@ public sealed partial class MainWindow : Window
     private const float MinScopeZoom = 0.25f;
     private const float MaxScopeZoom = 4;
     private const float ScopeZoomStep = 1.25f;
+
+    /// APRS decoding, one decoder per receiver (the Mac's aprsDecoder/
+    /// aprsDecoderSub), fed from the audio thread while that receiver's VFO
+    /// is on the APRS frequency; both feed the one shared history.
+    private readonly AprsDecoder _aprsMainDecoder = new("main");
+    private readonly AprsDecoder _aprsSubDecoder = new("sub");
+    private readonly AprsStore _aprsStore = new();
+    /// The open S.LIST/M.LIST windows, at most one of each.
+    private readonly Dictionary<AprsListKind, AprsListWindow> _aprsWindows = [];
+    /// Each VFO's last polled frequency, for the audio thread's APRS gate
+    /// (0 = unknown). Written by the poll, read with Volatile on the audio
+    /// thread.
+    private long _aprsMainGateHz;
+    private long _aprsSubGateHz;
+    /// Last gate state per receiver (audio thread), so only opening and
+    /// closing get logged.
+    private bool _aprsMainGateOpen;
+    private bool _aprsSubGateOpen;
+    /// The most recently decoded station on each receiver and when, shown
+    /// in that VFO's box for 5 s — the Mac's aprsLastCallsignHeard/
+    /// aprsLastCallsignHeardSub.
+    private (string Callsign, DateTime At)? _aprsMainLastHeard;
+    private (string Callsign, DateTime At)? _aprsSubLastHeard;
+    private static readonly TimeSpan AprsCallsignShownFor = TimeSpan.FromSeconds(5);
 
     /// The analog meters under each VFO (Controls/SMeter.cs), fed every poll.
     private readonly SMeter _mainMeter = new(isSub: false);
@@ -200,6 +225,7 @@ public sealed partial class MainWindow : Window
             _suppressPowerEvents = false;
         };
         _menuGrid.FrequencyRequested += async hz => await SetMainFrequencyAsync(hz);
+        _menuGrid.AprsListRequested += ShowAprsList;
         MenuGridHost.Child = _menuGrid;
         _filterPanel = new FilterPanel(_lastState);
         _filterPanel.StatusMessage += message => StatusText.Text = message;
@@ -219,6 +245,9 @@ public sealed partial class MainWindow : Window
         SetScopeMode(AppSettings.ScopeDisplayMode);
         MainMeterHost.Child = _mainMeter;
         SubMeterHost.Child = _subMeter;
+
+        WireAprsDecoder(_aprsMainDecoder, AprsSource.Main);
+        WireAprsDecoder(_aprsSubDecoder, AprsSource.Sub);
 
         ApplyAppearance();
         ShowDisconnected();
@@ -346,6 +375,12 @@ public sealed partial class MainWindow : Window
             _client?.Disconnect();
             _client = null;
             _rigctldProcess.Stop();
+            _aprsMainDecoder.Dispose();
+            _aprsSubDecoder.Dispose();
+            foreach (var window in _aprsWindows.Values.ToList())
+            {
+                window.Close();
+            }
         };
     }
 
@@ -403,6 +438,13 @@ public sealed partial class MainWindow : Window
             _lastState.C4fmCallsign = null;
             _lastState.C4fmReflector = null;
         }
+        if (dialog.AprsClearHistory)
+        {
+            AppLog.Write("aprs-store: history cleared");
+            _aprsStore.ClearHistory();
+        }
+        _aprsStore.ApplyLimits();
+
         // Restarted so new lookup intervals don't wait out an old delay.
         _wpsdMonitor.Stop();
         UpdateWpsdMonitorState();
@@ -426,6 +468,10 @@ public sealed partial class MainWindow : Window
     {
         RootScrollViewer.RequestedTheme = AppSettings.Theme.ElementTheme();
         _menuGrid.ValueColor = AppSettings.ButtonValueColor.Color();
+        foreach (var window in _aprsWindows.Values)
+        {
+            window.ApplyTheme();
+        }
     }
 
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -617,6 +663,8 @@ public sealed partial class MainWindow : Window
         _mainMeter.Reset();
         _subMeter.Reset();
         ClearMemoryState();
+        Volatile.Write(ref _aprsMainGateHz, 0);
+        Volatile.Write(ref _aprsSubGateHz, 0);
         ClearC4fmState();
         if (client is not null)
         {
@@ -688,6 +736,7 @@ public sealed partial class MainWindow : Window
             var hz = await client.GetFrequencyAsync();
             polledMain = hz;
             _lastState.FrequencyHz = hz;
+            Volatile.Write(ref _aprsMainGateHz, hz);
             FrequencyAText.Text = FormatHz(hz);
             var band = BandPlan.BandContaining(hz);
             SetComboSelection(BandComboBox, band?.Name);
@@ -702,6 +751,7 @@ public sealed partial class MainWindow : Window
             var hz = await client.GetSecondaryFrequencyAsync();
             polledSub = hz;
             _lastState.SecondaryFrequencyHz = hz;
+            Volatile.Write(ref _aprsSubGateHz, hz);
             FrequencyBText.Text = FormatHz(hz);
         }
         catch (Exception ex)
@@ -947,16 +997,37 @@ public sealed partial class MainWindow : Window
         UpdateWpsdMonitorState();
     }
 
-    /// Each side shows the caller and reflector only while it's in C4FM,
-    /// like the Mac's VFODisplayBox call sites.
+    /// The callsign line under each frequency, like the Mac's VFODisplayBox
+    /// call sites: in C4FM the WPSD caller and reflector; otherwise, while
+    /// that VFO is on the APRS frequency, "APRS" in the reflector's slot and
+    /// the last station decoded on that receiver for 5 s. Re-run every poll,
+    /// which is what lets the APRS callsign expire.
     private void UpdateC4fmDisplay()
     {
-        var mainC4fm = _lastState.MainIsC4fm == true;
-        var subC4fm = _lastState.SubIsC4fm == true;
-        C4fmCallsignAText.Text = mainC4fm ? _lastState.C4fmCallsign ?? "" : "";
-        C4fmReflectorAText.Text = mainC4fm ? _lastState.C4fmReflector ?? "" : "";
-        C4fmCallsignBText.Text = subC4fm ? _lastState.C4fmCallsign ?? "" : "";
-        C4fmReflectorBText.Text = subC4fm ? _lastState.C4fmReflector ?? "" : "";
+        ShowCallsignLine(C4fmCallsignAText, C4fmReflectorAText, _lastState.MainIsC4fm == true,
+            AppSettings.IsAprsActive(IsConnected ? _lastState.FrequencyHz : null), _aprsMainLastHeard);
+        ShowCallsignLine(C4fmCallsignBText, C4fmReflectorBText, _lastState.SubIsC4fm == true,
+            AppSettings.IsAprsActive(IsConnected ? _lastState.SecondaryFrequencyHz : null), _aprsSubLastHeard);
+    }
+
+    private void ShowCallsignLine(TextBlock callsign, TextBlock reflector, bool c4fm, bool aprsActive,
+        (string Callsign, DateTime At)? aprsLastHeard)
+    {
+        if (c4fm)
+        {
+            callsign.Text = _lastState.C4fmCallsign ?? "";
+            reflector.Text = _lastState.C4fmReflector ?? "";
+        }
+        else if (aprsActive)
+        {
+            callsign.Text = aprsLastHeard is { } heard && DateTime.UtcNow - heard.At < AprsCallsignShownFor ? heard.Callsign : "";
+            reflector.Text = "APRS";
+        }
+        else
+        {
+            callsign.Text = "";
+            reflector.Text = "";
+        }
     }
 
     /// S-meter reads, same as the Mac's refreshFastTier: Main from hamlib's
@@ -1697,6 +1768,65 @@ public sealed partial class MainWindow : Window
         };
     }
 
+    // APRS
+
+    /// Hands a decoder's packets to the store (and the VFO box) on the UI
+    /// thread.
+    private void WireAprsDecoder(AprsDecoder decoder, AprsSource source)
+    {
+        decoder.StationHeard += (callsign, latitude, longitude, symbolTable, symbolCode, comment) =>
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                var heard = (callsign, DateTime.UtcNow);
+                if (source == AprsSource.Main)
+                {
+                    _aprsMainLastHeard = heard;
+                }
+                else
+                {
+                    _aprsSubLastHeard = heard;
+                }
+                _aprsStore.RecordStation(callsign, latitude, longitude, symbolTable, symbolCode, comment, DateTimeOffset.Now, source);
+                UpdateC4fmDisplay();
+            });
+        decoder.MessageReceived += (from, to, text, messageId) =>
+            DispatcherQueue.TryEnqueue(() =>
+                _aprsStore.RecordMessage(from, to, text, messageId, DateTimeOffset.Now, source));
+    }
+
+    /// Audio thread: passes one receiver's chunk to its decoder while that
+    /// receiver's VFO is on the APRS frequency, logging each open/close.
+    private void FeedAprs(AprsDecoder decoder, float[] samples, long vfoHz, ref bool wasOpen, string name)
+    {
+        var open = AppSettings.IsAprsActive(vfoHz);
+        if (open != wasOpen)
+        {
+            wasOpen = open;
+            AppLog.Write($"aprs-gate: {name} {(open ? "opened" : "closed")} at {vfoHz} Hz");
+        }
+        if (open)
+        {
+            decoder.Process(samples, _audioSampleRate);
+        }
+    }
+
+    /// S.LIST / M.LIST (and the APRS button): one window of each kind,
+    /// brought to the front if it's already open.
+    private void ShowAprsList(AprsListKind kind)
+    {
+        if (!_aprsWindows.TryGetValue(kind, out var window))
+        {
+            window = new AprsListWindow(kind, _aprsStore);
+            window.Closed += (_, _) => _aprsWindows.Remove(kind);
+            _aprsWindows[kind] = window;
+        }
+        window.Activate();
+    }
+
+    private void AprsStationsMenuItem_Click(object sender, RoutedEventArgs e) => ShowAprsList(AprsListKind.Stations);
+
+    private void AprsMessagesMenuItem_Click(object sender, RoutedEventArgs e) => ShowAprsList(AprsListKind.Messages);
+
     // Audio (Pi :8532)
 
     /// Starts the session's audio source and playback together: the Pi's
@@ -1723,6 +1853,10 @@ public sealed partial class MainWindow : Window
             _subPlayer.Push(sub);
             // Same routed channels, so the waterfall follows a swap too.
             _scopeProcessor.Process(main, sub, _audioSampleRate);
+            // And APRS: each receiver gated on its own VFO, so the Main
+            // decoder always hears whatever Main is tuned to.
+            FeedAprs(_aprsMainDecoder, main, Volatile.Read(ref _aprsMainGateHz), ref _aprsMainGateOpen, "Main");
+            FeedAprs(_aprsSubDecoder, sub, Volatile.Read(ref _aprsSubGateHz), ref _aprsSubGateOpen, "Sub");
         }
 
         IAudioSource source;

@@ -91,10 +91,23 @@
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
 
-                <!-- APRS: placeholder, like the MENU grid's S.LIST/M.LIST. -->
+                <!-- APRS (the Mac's APRSSettingsTab). -->
                 <StackPanel x:Name="AprsTab" Spacing="12" Visibility="Collapsed">
-                    <TextBlock TextWrapping="Wrap"
-                               Text="APRS decoding isn't in the Windows app yet. Its settings (frequency, tolerance, history size) will be here once it is." />
+                    <CheckBox x:Name="AprsEnabledCheckBox" Content="Decode APRS" />
+                    <TextBox x:Name="AprsFrequencyBox" Header="Frequency (MHz)" Width="200" HorizontalAlignment="Left"
+                             PlaceholderText="144.390" />
+                    <NumberBox x:Name="AprsToleranceBox" Header="Tolerance (Hz)" Width="220" HorizontalAlignment="Left"
+                               SpinButtonPlacementMode="Inline" SmallChange="500" LargeChange="5000" />
+                    <TextBlock Text="Each receiver is decoded while its VFO is within the tolerance of this frequency and audio is on — MAIN and SUB separately, so APRS can sit on either one."
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
+                    <NumberBox x:Name="AprsMaxStationsBox" Header="Stations to keep" Width="220" HorizontalAlignment="Left"
+                               SpinButtonPlacementMode="Inline" SmallChange="100" LargeChange="1000" />
+                    <NumberBox x:Name="AprsMaxMessagesBox" Header="Messages to keep" Width="220" HorizontalAlignment="Left"
+                               SpinButtonPlacementMode="Inline" SmallChange="100" LargeChange="1000" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button x:Name="AprsClearHistoryButton" Content="Clear History…" Click="AprsClearHistoryButton_Click" />
+                        <TextBlock x:Name="AprsClearNote" VerticalAlignment="Center" Foreground="Gray" FontSize="12" />
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Home Freq: rows added in code, one per HomeBand. -->

@@ -17,9 +17,9 @@ namespace FTX1RemoteWindows.Controls;
 /// HubService.refreshSlowTier for the reads), sent straight to rigctld.
 /// All three pages (SSB, CW, FM/C4FM) are ported. Buttons that need
 /// features this app doesn't have yet are disabled placeholders: CW's
-/// PLAY/RECORD (audio recorder) and FM's APRS S.LIST/M.LIST (APRS
-/// decoding). FM's bottom row opens the Deep Settings screens
-/// (DeepSettingsDialog).
+/// PLAY/RECORD (audio recorder). FM's APRS S.LIST/M.LIST open the decoded
+/// APRS lists (AprsListWindow, through MainWindow), and its bottom row the
+/// Deep Settings screens (DeepSettingsDialog).
 ///
 /// Only the page on screen is read in the slow poll tier, and switching
 /// pages reads the new one at once — so the tier doesn't grow with every
@@ -91,6 +91,9 @@ public sealed class MenuGrid : UserControl
     /// HOME wants the Main VFO tuned here. MainWindow owns frequency sets,
     /// since each one also has to reset VFO swap tracking.
     public event Action<long>? FrequencyRequested;
+
+    /// S.LIST/M.LIST: MainWindow owns the APRS store and the list windows.
+    public event Action<AprsListKind>? AprsListRequested;
 
     public MenuGrid(RigState state)
     {
@@ -465,10 +468,11 @@ public sealed class MenuGrid : UserControl
         AddDisabled(9, "DG-ID RX");
         AddDisabled(10, "HRI MODE");
 
-        // The station/message lists come from the Mac's own APRS decoder
-        // (off the audio); this app doesn't decode APRS yet.
-        AddDisabledPair(11, "APRS", "S.LIST", "APRS decoding isn't built on Windows yet");
-        AddDisabledPair(12, "APRS", "M.LIST", "APRS decoding isn't built on Windows yet");
+        // The station/message lists come from this app's own APRS decoder
+        // (off the audio, Services/AprsDecoder.cs), as on the Mac — the rig
+        // has no CAT read for its own lists.
+        AddPair(11, "APRS", "S.LIST").Click += (_, _) => AprsListRequested?.Invoke(AprsListKind.Stations);
+        AddPair(12, "APRS", "M.LIST").Click += (_, _) => AprsListRequested?.Invoke(AprsListKind.Messages);
 
         // A plain rig setting over CAT (Table 3's BEACON TYPE, "EX" 07/01/01),
         // so it works without APRS decoding.
@@ -979,17 +983,8 @@ public sealed class MenuGrid : UserControl
         button.Click += (_, _) => ShowPage(target);
     }
 
-    /// A disabled button whose two lines are both label words ("APRS" /
-    /// "S.LIST"), not a name and a value, so both are caption-sized — the
-    /// Mac's disabledPlaceholderButtonEqualSize.
-    private void AddDisabledPair(int item, string top, string bottom, string tooltip)
-    {
-        var button = AddPair(item, top, bottom);
-        button.IsEnabled = false;
-        ToolTipService.SetToolTip(button, tooltip);
-    }
-
-    /// Two caption-sized label words (the Mac's equal-size buttons).
+    /// Two caption-sized label words ("APRS" / "S.LIST"), not a name and a
+    /// value — the Mac's equal-size buttons.
     private Button AddPair(int item, string top, string bottom)
     {
         var button = AddCell(item, top, () => bottom, colorize: false);

@@ -665,7 +665,12 @@ building (`dotnet build FTX1RemoteWindows.csproj -r win-x64
 a solution build rejects `-r`; Visual Studio's own builds land in
 `bin\x64\Debug\…`, the CLI's in `bin\Debug\…`, so launch the one just
 built).
-APRS decode is deferred but not architecturally blocked.
+APRS decode was ported 2026-10-01 (Main + Sub decoders, S.LIST/M.LIST
+windows, Settings → APRS; the Swift `APRS/` files stay the source of truth
+for the DSP, see the README's "APRS decode"), checked against synthetic
+vectors and a fake Pi stream, then rig-tested by the user the same day in
+Remote mode (MAIN and SUB), working well; Local mode not yet rig-tested;
+the Mac's APRS map is not ported.
 Full plan, protocol/model porting notes, and open items:
 `Apps/Windows/README.md`. `Apps/Windows/FTX1RemoteWindows/` has a
 build-verified (`dotnet build -r win-x64 --self-contained`, not yet

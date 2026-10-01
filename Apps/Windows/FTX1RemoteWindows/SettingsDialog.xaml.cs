@@ -27,6 +27,9 @@ public sealed partial class SettingsDialog : ContentDialog
     public bool AudioInputChanged { get; private set; }
     public bool AudioOutputChanged { get; private set; }
     public bool WpsdHostChanged { get; private set; }
+    /// Ticked "Clear History" on the APRS tab; applied on Save, like
+    /// everything else here.
+    public bool AprsClearHistory { get; private set; }
 
     public SettingsDialog(Window owner, bool connected)
     {
@@ -73,6 +76,13 @@ public sealed partial class SettingsDialog : ContentDialog
         // C4FM
         WpsdEnabledCheckBox.IsChecked = AppSettings.WpsdEnabled;
         WpsdHostBox.Text = AppSettings.WpsdHost;
+
+        // APRS
+        AprsEnabledCheckBox.IsChecked = AppSettings.AprsEnabled;
+        AprsFrequencyBox.Text = FormatMHz(AppSettings.AprsFrequencyHz);
+        ConfigureNumberBox(AprsToleranceBox, AppSettings.AprsToleranceHzSetting, AppSettings.AprsToleranceHz);
+        ConfigureNumberBox(AprsMaxStationsBox, AppSettings.AprsMaxStationsSetting, AppSettings.AprsMaxStations);
+        ConfigureNumberBox(AprsMaxMessagesBox, AppSettings.AprsMaxMessagesSetting, AppSettings.AprsMaxMessages);
 
         // Home Freq
         foreach (var band in HomeBand.All)
@@ -164,6 +174,26 @@ public sealed partial class SettingsDialog : ContentDialog
             homeFrequencies.Add((band, hz));
         }
 
+        var aprsFrequencyText = AprsFrequencyBox.Text.Trim();
+        long aprsFrequencyHz = AppSettings.DefaultAprsFrequencyHz;
+        if (aprsFrequencyText.Length > 0)
+        {
+            if (!double.TryParse(aprsFrequencyText, NumberStyles.Float, CultureInfo.InvariantCulture, out var aprsMhz)
+                && !double.TryParse(aprsFrequencyText, NumberStyles.Float, CultureInfo.CurrentCulture, out aprsMhz))
+            {
+                Fail("Aprs", $"\"{aprsFrequencyText}\" isn't a frequency in MHz.");
+                args.Cancel = true;
+                return;
+            }
+            aprsFrequencyHz = (long)Math.Round(aprsMhz * 1_000_000);
+            if (aprsFrequencyHz <= 0)
+            {
+                Fail("Aprs", "The APRS frequency has to be above 0 MHz.");
+                args.Cancel = true;
+                return;
+            }
+        }
+
         if (ConnectionModeComboBox.IsEnabled)
         {
             AppSettings.ConnectionMode = SelectedMode;
@@ -200,6 +230,12 @@ public sealed partial class SettingsDialog : ContentDialog
             AppSettings.WpsdHost = wpsdHost;
             WpsdHostChanged = true;
         }
+
+        AppSettings.AprsEnabled = AprsEnabledCheckBox.IsChecked == true;
+        AppSettings.AprsFrequencyHz = aprsFrequencyHz;
+        AppSettings.AprsToleranceHz = NumberBoxValue(AprsToleranceBox, AppSettings.AprsToleranceHzSetting);
+        AppSettings.AprsMaxStations = NumberBoxValue(AprsMaxStationsBox, AppSettings.AprsMaxStationsSetting);
+        AppSettings.AprsMaxMessages = NumberBoxValue(AprsMaxMessagesBox, AppSettings.AprsMaxMessagesSetting);
 
         foreach (var (band, hz) in homeFrequencies)
         {
@@ -241,6 +277,20 @@ public sealed partial class SettingsDialog : ContentDialog
 
     private static string FormatMHz(long hz) =>
         (hz / 1_000_000.0).ToString("0.000###", CultureInfo.InvariantCulture);
+
+    // APRS tab.
+
+    /// Only one ContentDialog can be open at a time, so instead of the Mac's
+    /// confirmation dialog the button arms the clear and Save carries it out
+    /// (Cancel still backs out); a second click disarms it.
+    private void AprsClearHistoryButton_Click(object sender, RoutedEventArgs e)
+    {
+        AprsClearHistory = !AprsClearHistory;
+        AprsClearHistoryButton.Content = AprsClearHistory ? "Don't Clear" : "Clear History…";
+        AprsClearNote.Text = AprsClearHistory
+            ? "Every decoded station and message will be deleted when you Save."
+            : "";
+    }
 
     // rigctld tab.
 

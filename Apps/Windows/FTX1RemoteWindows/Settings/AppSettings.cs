@@ -65,6 +65,11 @@ public static class AppSettings
         public AppTheme Theme { get; set; } = AppTheme.System;
         public ButtonValueColor ButtonValueColor { get; set; } = ButtonValueColor.Orange;
         public ScopeDisplayMode ScopeDisplayMode { get; set; } = ScopeDisplayMode.Waterfall;
+        public bool AprsEnabled { get; set; }
+        public long AprsFrequencyHz { get; set; } = DefaultAprsFrequencyHz;
+        public int AprsToleranceHz { get; set; } = AprsToleranceHzSetting.Default;
+        public int AprsMaxStations { get; set; } = AprsMaxStationsSetting.Default;
+        public int AprsMaxMessages { get; set; } = AprsMaxMessagesSetting.Default;
     }
 
     /// One Polling-tab value: its default and allowed range. Every getter
@@ -86,6 +91,14 @@ public static class AppSettings
     /// The Mac's WPSD lookup defaults and ranges.
     public static readonly IntSetting WpsdCallerSecondsSetting = new(3, 1, 60);
     public static readonly IntSetting WpsdReflectorSecondsSetting = new(30, 5, 600);
+
+    /// APRS decoding — the Mac's APRSSettings defaults: the US calling
+    /// frequency (144.800 MHz in Europe etc. is a Settings edit), ±5 kHz,
+    /// and 1,000 stations/messages kept before the oldest are dropped.
+    public const long DefaultAprsFrequencyHz = 144_390_000;
+    public static readonly IntSetting AprsToleranceHzSetting = new(5_000, 100, 100_000);
+    public static readonly IntSetting AprsMaxStationsSetting = new(1_000, 10, 100_000);
+    public static readonly IntSetting AprsMaxMessagesSetting = new(1_000, 10, 100_000);
 
     /// One receiver's playback settings. SquelchThreshold is SquelchGate's
     /// raw threshold (RMS at or below which a chunk counts as a quieting
@@ -379,6 +392,65 @@ public static class AppSettings
             Save();
         }
     }
+
+    /// Decode APRS from the audio (Services/AprsDecoder.cs). Off by default,
+    /// like the Mac. Read from the audio thread on every chunk — plain
+    /// field reads, no locking needed for a bool/long/int.
+    public static bool AprsEnabled
+    {
+        get => _cache.AprsEnabled;
+        set
+        {
+            _cache.AprsEnabled = value;
+            Save();
+        }
+    }
+
+    /// A zero/negative value (hand-edited file) falls back to the default.
+    public static long AprsFrequencyHz
+    {
+        get => _cache.AprsFrequencyHz > 0 ? _cache.AprsFrequencyHz : DefaultAprsFrequencyHz;
+        set
+        {
+            _cache.AprsFrequencyHz = value;
+            Save();
+        }
+    }
+
+    public static int AprsToleranceHz
+    {
+        get => AprsToleranceHzSetting.Clamp(_cache.AprsToleranceHz);
+        set
+        {
+            _cache.AprsToleranceHz = AprsToleranceHzSetting.Clamp(value);
+            Save();
+        }
+    }
+
+    public static int AprsMaxStations
+    {
+        get => AprsMaxStationsSetting.Clamp(_cache.AprsMaxStations);
+        set
+        {
+            _cache.AprsMaxStations = AprsMaxStationsSetting.Clamp(value);
+            Save();
+        }
+    }
+
+    public static int AprsMaxMessages
+    {
+        get => AprsMaxMessagesSetting.Clamp(_cache.AprsMaxMessages);
+        set
+        {
+            _cache.AprsMaxMessages = AprsMaxMessagesSetting.Clamp(value);
+            Save();
+        }
+    }
+
+    /// Whether a VFO at this frequency should be decoded: APRS on and within
+    /// the tolerance of the APRS frequency (the Mac's APRSSettings.isActive).
+    public static bool IsAprsActive(long? frequencyHz) =>
+        AprsEnabled && frequencyHz is { } hz and > 0 && Math.Abs(hz - AprsFrequencyHz) <= AprsToleranceHz;
 
     /// Mutate the returned object, then call <see cref="SaveAudio"/>.
     public static ChannelAudio MainAudio => _cache.MainAudio;

@@ -141,7 +141,10 @@ applied at once, also while connected, except the rigctld tab (below).
   VOL and SQL stay in the main window.
 - **C4FM**: the WPSD hotspot callsign lookup (on/off + hotspot address; a
   pasted "http://" and trailing "/" are stripped).
-- **APRS**: a placeholder until APRS decoding is ported.
+- **APRS**: Decode APRS (off by default), frequency (144.390 MHz), tolerance
+  (±5 kHz), stations/messages to keep (1,000 each), and Clear History —
+  armed by its button, carried out on Save (one dialog at a time, so no
+  confirmation box like the Mac's). See "APRS decode" below.
 - **Home Freq**: the MENU grid HOME button's frequency per band group
   (`HomeBand`, `AppSettings.HomeFrequencyHz`), in MHz. Must lie inside
   its group; empty restores the factory frequency, and only frequencies
@@ -344,7 +347,8 @@ read, "DA" triple, and `GetMenuItem`/`SetMenuItem` ("EX").
   same path as the Set button so swap tracking resets; the frequencies are
   set in Settings → Home Freq (factory defaults until changed).
   Buttons 23-28 open the Deep Settings screens (step 8 of the parity
-  plan). Placeholders: APRS S.LIST/M.LIST (need APRS decoding), and DTMF,
+  plan). APRS S.LIST/M.LIST open the decoded lists (see "APRS decode").
+  Placeholders: DTMF,
   T-CALL, REV, DG-ID TX/RX, HRI MODE and BCN-TX (no CAT path; disabled on
   the Mac too). 4, 5, 16 and 17 are left out.
 - Checked against a fake rigctld (logs every line, answers raw reads in the
@@ -404,8 +408,8 @@ Hardware checklist, FM/C4FM page:
       (e.g. 100.0 → 103.5 Hz; 023 → 025).
 - [ ] HOME from 2 m goes to 146.520 MHz, from HF to 29.600 MHz; between
       groups (e.g. 40 MHz) it does nothing.
-- [ ] All placeholders are disabled, APRS S.LIST/M.LIST and the six
-      "SOON" buttons with their "not built/ported yet" tooltips.
+- [ ] All placeholders are disabled, the six "SOON" buttons with
+      their "not built/ported yet" tooltips.
 
 ## Audio (Main/Sub playback)
 
@@ -712,11 +716,56 @@ the next one starts.
    spectrum against the rig's own scope on a busy band, in both Remote
    and Local mode.
 
+## APRS decode (2026-10-01)
+
+The Mac's APRS decoding, ported after the parity plan. Checked with a
+scratch harness running `APRSDecodingTests.swift`'s synthetic cases
+against the C# decoder (all pass: position/message/status frames, 512- and
+2048-sample chunks, 0.3% clock drift + noise, 44.1 kHz), then end to end in
+the built app against a fake Pi (a stand-in rigctld + a 44.1 kHz stereo
+stream with AFSK packets on each channel). Rig-tested by the user
+2026-10-01 on real off-air traffic, MAIN and SUB in Remote mode, working
+well; Local mode not yet tested on the rig.
+
+- `Services/AfskDemodulator.cs`, `Services/Ax25.cs` and
+  `Models/AprsPacket.cs` are `AFSKDemodulator.swift`, `AX25Frame.swift` and
+  `APRSPacket.swift` line for line (same constants: the 0.05 bit-clock
+  damping, the DC blocker, the one-bit EMA), so a tuning change there can
+  be copied here. Same scope too: uncompressed positions, status and
+  messages; Mic-E, compressed positions, objects, weather etc. still land
+  in the station list as a bare "heard".
+- Two `Services/AprsDecoder.cs` instances, Main and Sub (the Mac's
+  `aprsDecoder`/`aprsDecoderSub`), each on its own worker thread, fed the
+  routed Main/Sub chunks from the audio thread (so they follow a swap,
+  like the scope) only while that VFO's last polled frequency is within
+  the tolerance of the APRS frequency. Gate open/close, each decoded
+  frame and a stats heartbeat every ~30 s go to app.log ("aprs-gate:",
+  "aprs-decoder (main|sub):"); the heartbeat's flags vs. CRC/destuff
+  failures tell "no signal" from "corrupt signal", as on the Mac. Needs
+  audio on, Remote or Local.
+- `Services/AprsStore.cs` is the Mac's `APRSStore` + `APRSPersistence`:
+  stations upserted by callsign (Source = the channel that heard it last),
+  every message its own entry, trimmed to the Settings limits, saved after
+  each change to `%LOCALAPPDATA%\FTX1RemoteWindows\aprs-history.json`.
+- `Controls/AprsListWindow.cs`: the S.LIST / M.LIST windows (separate
+  windows, like the Mac's), newest first, with an All/Main/Sub filter and
+  relative "last heard" times (local time on hover). Opened from the
+  MENU grid's FM page or from the **APRS** drop-down in the connection bar,
+  which also works while disconnected (the grid doesn't) — the Mac's
+  View → APRS menu.
+- Each VFO box shows "APRS" in the reflector slot while that VFO is on the
+  APRS frequency, and the last station decoded on that receiver for 5 s
+  (the Mac's `aprsActive`/`aprsLastCallsign`); C4FM's caller display
+  takes precedence.
+- Not ported: the Mac's APRS Map window (MapKit). A Windows map would need
+  WebView2 plus a tile source, which is its own decision.
+
+Still to check on the rig: the same in Local mode (the PC's own sound-card
+input).
+
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
-- **APRS decode** — the AFSK/AX.25 stack (`APRS/AFSKDemodulator.swift`,
-  `AX25Frame.swift`, `APRSPacket.swift`) is the most DSP-heavy piece to
-  port; leave until audio capture itself is working.
+- **APRS map** — see "APRS decode" above.
 
 ## Open items still to settle before/at implementation start
 
@@ -760,6 +809,7 @@ Apps/Windows/FTX1RemoteWindows/
     DeepSettingsDialog.cs        Deep Settings screens (port of DeepSettingsView.swift)
     FilterPanel.cs               Filter rows + Filter Function Display (ports of the Filter-row views in FTX1Core/UI)
     ScopeDisplay.cs              waterfall/oscilloscope box (port of ScopeDisplayView.swift + AudioCaptureEngine's drawing)
+    AprsListWindow.cs            APRS S.LIST / M.LIST windows (ports of APRSStationListView/APRSMessageListView.swift)
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
@@ -769,6 +819,8 @@ Apps/Windows/FTX1RemoteWindows/
     MeterScale.cs               needle mapping + METER selection — SMeterView.swift's SMeterScale, MeterSelection.swift
     DeepSettingsCatalog.cs      the 341 "EX" items — MenuSettings/DeepSettingsCatalog.swift, translated mechanically
     FilterModels.cs             filter value spaces + display geometry — FilterWidthTable/IFShift/IFNotch/IFContour/FilterPassbandModel.swift, NarrowWidthPreset.swift
+    AprsPacket.cs               APRS info-field parser — APRS/APRSPacket.swift
+    AprsModels.cs               AprsStation/AprsMessage/AprsSource — APRS/APRSModels.swift
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
     RigctldProcessController.cs  Local mode: spawns/adopts rigctld.exe (port of the Mac's)
@@ -778,7 +830,11 @@ Apps/Windows/FTX1RemoteWindows/
     AudioPlayback.cs             NAudio WASAPI output mixing Main + Sub
     WpsdCallsignMonitor.cs       C4FM caller/reflector from a WPSD hotspot (port of WPSDCallsignMonitor.swift)
     ScopeProcessor.cs            FFT + auto-gain for the scope and filter spectrum (AudioCaptureEngine's DSP)
+    AfskDemodulator.cs           Bell 202 AFSK demodulator — APRS/AFSKDemodulator.swift
+    Ax25.cs                      AX.25 frame/FCS/frame decoder — APRS/AX25Frame.swift
+    AprsDecoder.cs               per-receiver decode worker (port of the Mac's APRSDecoder.swift)
+    AprsStore.cs                 decoded station/message history + aprs-history.json (APRSStore/APRSPersistence.swift)
   Settings/
-    AppSettings.cs                every setting (connection, audio, WPSD, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
+    AppSettings.cs                every setting (connection, audio, WPSD, APRS, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
     Appearance.cs                 AppTheme / ButtonValueColor (ports of the FTX1Core Appearance enums)
 ```
