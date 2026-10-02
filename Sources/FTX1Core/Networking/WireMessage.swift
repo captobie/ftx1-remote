@@ -70,6 +70,13 @@ public enum RigCommand: Sendable, Equatable {
     /// fixed to 1 (CW MESSAGE Memory, as opposed to 0 for CW TEXT Memory
     /// / typed keyer-memory content, which this app doesn't expose).
     case playCWMessage(channel: Int)
+    /// Starts playback of CW TEXT keyer memory `slot` (1-5), or stops any
+    /// keyer-memory playback with 0. Maps to the FTX-1's raw "KY" with P1
+    /// = 0 (CW TEXT Memory). The CW window's send pane writes the slot
+    /// first (`RigctldClient.writeKeyerMemory`). Transmits only with
+    /// break-in on (rig-confirmed 2026-10-02), and a second play while one
+    /// runs restarts the message.
+    case playCWTextMemory(slot: Int)
     /// MOX (manual transmit) on/off — see `RigState.moxEnabled`. Maps to the
     /// FTX-1's raw "MX" CAT command. Note this actually keys the
     /// transmitter, same as `setPTT`.
@@ -309,6 +316,7 @@ public enum RigCommand: Sendable, Equatable {
         case selectCWMessageChannel = "select_cw_message_channel"
         case setCWMessageRecording = "set_cw_message_recording"
         case playCWMessage = "play_cw_message"
+        case playCWTextMemory = "play_cw_text_memory"
         case setMox = "set_mox"
         case setAtt = "set_att"
         case setPreamp = "set_preamp"
@@ -399,6 +407,8 @@ extension RigCommand: Codable {
             self = .setCWMessageRecording(try container.decode(Bool.self, forKey: .value))
         case .playCWMessage:
             self = .playCWMessage(channel: try container.decode(Int.self, forKey: .value))
+        case .playCWTextMemory:
+            self = .playCWTextMemory(slot: try container.decode(Int.self, forKey: .value))
         case .setMox:
             self = .setMox(try container.decode(Bool.self, forKey: .value))
         case .setAtt:
@@ -550,6 +560,9 @@ extension RigCommand: Codable {
         case .playCWMessage(let channel):
             try container.encode(CommandName.playCWMessage, forKey: .cmd)
             try container.encode(channel, forKey: .value)
+        case .playCWTextMemory(let slot):
+            try container.encode(CommandName.playCWTextMemory, forKey: .cmd)
+            try container.encode(slot, forKey: .value)
         case .setMox(let on):
             try container.encode(CommandName.setMox, forKey: .cmd)
             try container.encode(on, forKey: .value)

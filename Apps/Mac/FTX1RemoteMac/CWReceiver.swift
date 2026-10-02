@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import CWKit
 import Foundation
+import FTX1Core
 import os
 
 /// Which audio the CW decoder listens to. MAIN/SUB are roles, not L/R
@@ -66,6 +67,7 @@ final class CWReceiver: ObservableObject {
                 startNewLine()
             }
             updateWebSDRTap()
+            updateModeHint()
         }
     }
     @Published var toneFrequency: Double { didSet { settingsChanged() } }
@@ -85,6 +87,18 @@ final class CWReceiver: ObservableObject {
     @Published private(set) var neuralUnavailableReason: String?
 
     let meters = CWMeterStore()
+
+    /// The decoder skips audio while the rig transmits (user decision, v2):
+    /// otherwise it decodes the operator's own sidetone, which the send pane
+    /// already shows. Either the rig reports TX, or the send pane is running
+    /// (which covers the lag before the poll sees PTT).
+    @Published private(set) var isPausedForTransmit = false
+    /// The rig's CW pitch (`KP`), for the tone slider's "Rig pitch" button.
+    @Published private(set) var rigPitchHz: Int?
+    /// The selected receiver's mode isn't CW (MAIN/SUB sources only).
+    @Published private(set) var sourceModeIfNotCW: RigMode?
+    private var senderActive = false
+    private var rigInfo = CWRigInfo()
     private let webSDRAudioRouting: WebSDRAudioRouting
     private var muteCancellable: AnyCancellable?
 
@@ -208,7 +222,7 @@ final class CWReceiver: ObservableObject {
     /// every chunk, whether or not the window is open — cheap when it isn't.
     func ingest(samples: [Float], sampleRate: Double, channel source: CWAudioChannel) {
         trackSubAvailability(source)
-        guard isRunning, !isDecodingFile, source == channel else { return }
+        guard isRunning, !isDecodingFile, !isPausedForTransmit, source == channel else { return }
         runner?.submit(samples, sampleRate: sampleRate)
     }
 
@@ -225,6 +239,52 @@ final class CWReceiver: ObservableObject {
         case .webSDR:
             break
         }
+    }
+
+    // MARK: - Rig
+
+    func setSenderActive(_ active: Bool) {
+        senderActive = active
+        updateTransmitPause()
+    }
+
+    /// From `HubService`, whenever TX, the CW pitch or a receiver's mode
+    /// changes.
+    func rigInfoChanged(_ info: CWRigInfo) {
+        rigInfo = info
+        if rigPitchHz != info.pitchHz { rigPitchHz = info.pitchHz }
+        updateTransmitPause()
+        updateModeHint()
+    }
+
+    private func updateTransmitPause() {
+        let paused = senderActive || rigInfo.transmitting
+        guard paused != isPausedForTransmit else { return }
+        isPausedForTransmit = paused
+        // End the character in progress cleanly rather than leave it to
+        // be finished by the first audio after TX.
+        if paused, isRunning, !isDecodingFile {
+            flush()
+            startNewLine()
+        }
+    }
+
+    private func updateModeHint() {
+        let mode: RigMode? = switch channel {
+        case .main: rigInfo.mainMode
+        case .sub: rigInfo.subMode
+        case .webSDR: nil
+        }
+        let hint = mode.flatMap { $0 == .cw || $0 == .unknown ? nil : $0 }
+        if sourceModeIfNotCW != hint { sourceModeIfNotCW = hint }
+    }
+
+    /// Sets the manual tone to the rig's CW pitch: a signal tuned to
+    /// zero beat on the rig sounds at exactly that pitch.
+    func useRigPitch() {
+        guard let rigPitchHz else { return }
+        if autoTune { autoTune = false }
+        toneFrequency = Double(rigPitchHz)
     }
 
     // MARK: - Files
@@ -392,4 +452,13 @@ final class CWMeterStore: ObservableObject {
         signalLevel = 0
         pendingSymbols = ""
     }
+}
+
+/// What `CWReceiver` needs from `RigState`, so `HubService` only forwards
+/// changes to these (not every poll).
+struct CWRigInfo: Equatable {
+    var transmitting = false
+    var pitchHz: Int?
+    var mainMode: RigMode = .unknown
+    var subMode: RigMode?
 }

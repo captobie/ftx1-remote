@@ -3,20 +3,26 @@ import FTX1Core
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Tools → CW (`Window(id: "cw")` in `FTX1RemoteMacApp`). v1 is the
-/// receive pane only. v2 adds a send pane below it (planned: a `VSplitView`
-/// with this pane on top), which is why each pane keeps its own controls in
-/// its own header instead of sharing the window toolbar.
+/// Tools → CW (`Window(id: "cw")` in `FTX1RemoteMacApp`): the receive pane
+/// on top, the send pane (`CWSendPane`, v2) below, in a `VSplitView`. Each
+/// pane keeps its own controls in its own header rather than sharing the
+/// window toolbar.
 ///
 /// Decoding runs only while this window is open (`.onAppear`/
-/// `.onDisappear`), like FT8.
+/// `.onDisappear`), like FT8. Sending doesn't stop when it closes: a
+/// queued line still goes out (Stop is the way to cancel it).
 struct CWWindowView: View {
     @EnvironmentObject private var receiver: CWReceiver
 
     var body: some View {
-        CWReceivePane()
+        VSplitView {
+            CWReceivePane()
+                .frame(minHeight: 240)
+            CWSendPane()
+                .frame(minHeight: 230)
+        }
             .navigationTitle("CW")
-            .frame(minWidth: 640, minHeight: 360)
+            .frame(minWidth: 720, minHeight: 520)
             .onAppear { receiver.start() }
             .onDisappear { receiver.stop() }
             .alert("CW", isPresented: Binding(
@@ -65,14 +71,21 @@ private struct CWReceivePane: View {
 
     /// Why the WebSDR source isn't decoding, when it isn't.
     private var sourceNote: String? {
-        guard receiver.channel == .webSDR, !receiver.isDecodingFile else { return nil }
+        guard !receiver.isDecodingFile else { return nil }
+        if receiver.isPausedForTransmit {
+            return "Paused while transmitting"
+        }
+        if let mode = receiver.sourceModeIfNotCW {
+            return "\(receiver.channel.title) is in \(mode.displayName), not CW — decoding anyway"
+        }
+        guard receiver.channel == .webSDR else { return nil }
         switch receiver.webSDRStatus {
         case .stopped, .capturing:
             return nil
         case .waitingForWebSDR:
             return "Waiting for the WebSDR window's audio — connect it in Tools → WebSDR"
         case .silent:
-            return "WebSDR is silent — unmute its page, or allow FTX1Remote under System Settings → Privacy & Security → Screen & System Audio Recording"
+            return "WebSDR is silent — check that its page is playing, or allow FTX1Remote under System Settings → Privacy & Security → Screen & System Audio Recording"
         case .failed(let message):
             return "Can't capture WebSDR audio: \(message)"
         }
@@ -267,6 +280,13 @@ private struct CWTuningControls: View {
                 Text("\(Int(frequency.wrappedValue.rounded())) Hz")
                     .monospacedDigit()
                     .frame(width: 64, alignment: .trailing)
+                Button("Rig Pitch") {
+                    receiver.useRigPitch()
+                }
+                .controlSize(.small)
+                .disabled(receiver.rigPitchHz == nil)
+                .help(receiver.rigPitchHz.map { "Turn off auto-tune and use the rig's CW pitch, \($0) Hz — where a zero-beat signal sounds" }
+                      ?? "The rig's CW pitch hasn't been read yet")
             }
 
             HStack {

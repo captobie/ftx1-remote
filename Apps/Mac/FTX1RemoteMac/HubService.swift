@@ -161,6 +161,7 @@ final class HubService: ObservableObject {
             RigctldSettings.transmitEnabled = transmitEnabled
             rigState.transmitEnabled = transmitEnabled
             if !transmitEnabled {
+                cwSender.stop()
                 if rigState.ptt { send(.setPTT(false)) }
                 if rigState.moxEnabled == true { send(.setMox(false)) }
             }
@@ -230,6 +231,11 @@ final class HubService: ObservableObject {
     /// Where the WebSDR window's Mute goes while the CW window captures its
     /// audio — see `WebSDRAudioRouting`.
     let webSDRAudioRouting = WebSDRAudioRouting()
+    /// Tools → CW's send pane (keys the rig's CW TEXT keyer memory) — see
+    /// `CWSender`. `lazy` so it can be handed `self`.
+    lazy var cwSender = CWSender(hub: self)
+    /// Feeds `cwReceiver` the TX state and the rig's CW pitch/modes.
+    private var cwRigCancellable: AnyCancellable?
     private let webSocketPort: UInt16
     private let rigctldHost: String
     private let rigctldPort: UInt16
@@ -484,6 +490,13 @@ final class HubService: ObservableObject {
         wpsdMonitor.onReflectorUpdate = { [weak self] reflector in
             self?.rigState.c4fmReflector = reflector
         }
+        cwSender.onActiveChanged = { [weak self] active in
+            self?.cwReceiver.setSenderActive(active)
+        }
+        cwRigCancellable = $rigState
+            .map { CWRigInfo(transmitting: $0.ptt, pitchHz: $0.cwPitchHz, mainMode: $0.mode, subMode: $0.secondaryMode) }
+            .removeDuplicates()
+            .sink { [weak self] info in self?.cwReceiver.rigInfoChanged(info) }
     }
 
     /// App-launch lifecycle: starts the WebSocket server. Independent of
@@ -549,6 +562,25 @@ final class HubService: ObservableObject {
     /// Called from the Tools/FT8 window's `.onAppear` — decoding runs
     /// only while that window is open (see `FT8DecodeCoordinator`'s doc
     /// comment for why FT8 can't reuse APRS's always-on gate).
+    /// CW send pane: writes CW TEXT keyer memory `slot` and returns what
+    /// the rig stored — see `RigctldClient.writeKeyerMemory`. Direct rather
+    /// than through `CommandQueue` because the caller needs the result;
+    /// `RigctldClient` serializes it with every other round trip anyway.
+    func writeCWKeyerMemory(slot: Int, text: String) async throws -> String {
+        try await rigctld.writeKeyerMemory(slot: slot, text: text)
+    }
+
+    /// CW send pane: makes sure keyer memory `slot` is a TEXT memory (CW
+    /// SETTING → KEYER → CW MEMORY 1-5, "EX" 02 02 06-10: 0 TEXT, 1
+    /// MESSAGE); a MESSAGE slot would play recorded audio instead.
+    func ensureCWTextMemory(slot: Int) async throws {
+        let value = try await rigctld.getMenuItem(p1: 2, p2: 2, p3: 5 + slot)
+        if value != "0" {
+            Self.connectionLogger.notice("CW MEMORY \(slot) was \(value ?? "unreadable", privacy: .public); setting it to TEXT")
+            try await rigctld.setMenuItem(p1: 2, p2: 2, p3: 5 + slot, rawValue: "0")
+        }
+    }
+
     func startFT8Decoding() {
         ft8Coordinator.start()
     }
@@ -766,6 +798,7 @@ final class HubService: ObservableObject {
         case .setPTT(let on): return on
         case .setMox(let on): return on
         case .playCWMessage, .triggerAntennaTune: return true
+        case .playCWTextMemory(let slot): return slot != 0
         case .setFrequency, .setSecondaryFrequency, .swapActiveVFO, .setMode, .setBand,
              .setPowerLevel, .setBreakIn, .setKeyer, .setCWSpeed, .setCWPitch, .setBreakInDelay,
              .setCWSpot, .triggerZeroIn, .setMoniLevel, .selectCWMessageChannel,
@@ -930,7 +963,7 @@ final class HubService: ObservableObject {
         // RigState.cwMessageStatus) have no direct optimistic value; left
         // to the next poll, same as before.
         case .triggerZeroIn, .triggerAntennaTune, .selectCWMessageChannel,
-             .setCWMessageRecording, .playCWMessage, .setMenuItem:
+             .setCWMessageRecording, .playCWMessage, .playCWTextMemory, .setMenuItem:
             break
         }
     }

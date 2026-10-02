@@ -958,7 +958,7 @@ pattern as the APRS windows.
   check `.remote`/Pi audio timing specifically) — same shape as every
   other CAT/audio feature's hardware-validation step in this project.
 
-## Digital modes — CW decode (v1, 2026-10-02)
+## Digital modes — CW (decode v1 + send v2, 2026-10-02)
 
 Tools → **CW** opens `Window(id: "cw")` (Mac-only): live CW decoding of the
 rig's MAIN or SUB audio or of the WebSDR window's audio, plus decoding an
@@ -1035,15 +1035,55 @@ vendored here.
   real CW recording decoded through the window matched CWKit's offline
   decode exactly; Clear and the Neural/Classic switch work. **Not yet
   done**: live decoding on the rig (MAIN, SUB, and across a swap).
-- **v2 (planned): a send pane** below the receive pane in the same window
-  (`VSplitView`), which is why the receive pane keeps its controls in its
-  own header rather than the window toolbar, and why sending should be a
-  sibling object to `CWReceiver`, not more state on it. Keying must go
-  through `HubService.send` so the Enable Transmit/amateur-band gate
-  covers it. Also for v2 (deferred from v1 by the user): rig-aware
-  features — seed the tone from the rig's CW pitch setting, and a hint
-  when the rig isn't in CW mode — and decide whether to pause decoding
-  while transmitting (the rig's sidetone would otherwise be decoded).
+- **v2: CW send pane (2026-10-02, tested on the rig into a dummy load by
+  the user)**: `CWSendPane` below the receive pane (`VSplitView`), driven
+  by `CWSender` (a `lazy var` on `HubService`, sibling of `cwReceiver`).
+  Line at a time (Return queues), 6 editable macros (`CWMacro`, JSON in
+  `cw.macros`; `{MYCALL}`/`{MYGRID}` from `StationSettings`, `{CALL}` from
+  the pane's Call field; ⌘1–9), Stop (Esc: "KY00" + drop the queue), the
+  rig's keyer speed (`KS`) and BK-IN, and a log of queued/keying/sent
+  lines. Sending is the rig's own keyer, not real-time keying: each ≤50-
+  character chunk is written to one dedicated CW TEXT keyer memory
+  (`cw.keyerSlot`, default 1 — the user's slots 4/5 hold their own
+  messages; slot 1 is overwritten every send) with
+  `RigctldClient.writeKeyerMemory`, then played with the transmit-gated
+  `RigCommand.playCWTextMemory(slot:)` ("KY0n"). `HubService.
+  ensureCWTextMemory` sets the slot's menu type to TEXT (EX 02 02 05+n)
+  once per session. All user-chosen design decisions (dedicated slot,
+  line-based, macros now, pause decoding on TX).
+  - **Rig facts, probed with `nc` against the Pi's rigctld, 2026-10-02**:
+    `W` splits on whitespace, so the write goes through lowercase `w`
+    (whole line), which then waits out rigctld's timeout (~2 s) for a reply
+    a set never gets — `writeKeyerMemory` follows it with a "KM<n>;" read
+    in the same write and returns once that answers (also confirms what was
+    stored). The rig appends the "}" end marker itself; it keeps exactly 50
+    characters and answers "?;" to more (memory unchanged); it keyed every
+    character in `CWText.allowed` (A-Z 0-9 / ? , . = + - ( ) @ :), so
+    `<BT>`/`<AR>`/`<KN>` are sent as `=`/`+`/`(` (other prosigns as their
+    letters); it **only transmits with BK-IN on** (off: a brief mute, no
+    TX, no sidetone), so the pane blocks sending with "Turn On BK-IN"
+    rather than switch it silently; a second "KY" during playback
+    *restarts* the message, so chunks go strictly one after another;
+    "KY00" stops at once; "KM<n>;" alone is a read, so a slot can't be
+    emptied (" " is the closest). PTT reads 3 throughout keying incl. word
+    gaps, with the odd spurious 0.
+  - **Finish detection** (`CWSender.waitUntilKeyed`): ≥90% of the PARIS-
+    timed duration at the rig's WPM has passed and PTT has read off for
+    ≥1 s; capped at 1.5× + 5 s. Gap between chunks heard as ~1–2 s.
+  - Blocks (queue waits, shown in the pane): not connected, Enable
+    Transmit off, Main not in CW, outside an amateur band, BK-IN off.
+    Turning Enable Transmit off also stops the sender. Closing the window
+    doesn't stop a queued line.
+  - Receive side, same change: decoding pauses while the sender runs or
+    the rig reports TX (`CWReceiver.isPausedForTransmit`, flushes the
+    decoder first); a "Rig Pitch" button sets the manual tone to the rig's
+    CW pitch (`KP`); a note when the selected receiver isn't in CW.
+    `HubService` forwards only `CWRigInfo` changes (TX, pitch, modes).
+  - Verified: line, 66-character line (2 chunks, complete, short pause),
+    Stop mid-line (cut off at once), AGN? macro, `{CALL}` missing refused;
+    `CWText` checked in a scratch harness. Not tried: SUB as the TX side
+    (sending always keys whatever the rig transmits on), WebSDR source
+    while sending.
 
 ## WebSDR follow (KiwiSDR 2026-09-24, classic WebSDR 2026-09-25, OpenWebRX 2026-10-01)
 
@@ -1429,8 +1469,9 @@ WebSDR differences are in their own bullet at the end.
   `RemoteAudioStreamClient`) — Mac-only, see Architecture above. Also owns
   FT8 decoding (`FT8DecodeCoordinator`, `FT8Resampler`, `FT8Store`,
   `FT8Spot`, `FT8ListView`) — see "Digital modes — FT8" above. Also
-  owns CW decoding (`CWReceiver`, `CWWindowView`, `WebSDRAudioTap`, on CWKit) — see "Digital
-  modes — CW decode" above. Dense
+  owns CW decoding and sending (`CWReceiver`, `CWSender`, `CWWindowView`,
+  `CWSendPane`, `WebSDRAudioTap`, on CWKit) — see "Digital
+  modes — CW" above. Dense
   multi-pane UI (`ContentView`: VFO, meters, scope display,
   band/mode selectors all visible at once), `SettingsView` (tabbed sheet:
   rigctld connection config, Audio input device, Station, Polling —

@@ -773,6 +773,43 @@ public actor RigctldClient {
         try await write("W \(cmd); ;")
     }
 
+    /// Writes CW TEXT keyer memory `slot` (1-5) with the FTX-1's "KM" and
+    /// returns what the rig stored (without its "}" end marker, which it
+    /// appends itself). Probed on the real rig, 2026-10-02:
+    ///  - rigctld's `W` splits its arguments on whitespace, so a message
+    ///    with spaces has to go through lowercase `w` (`send_cmd`), which
+    ///    passes the rest of the line through whole.
+    ///  - An accepted write gets no reply, and `w` waits out rigctld's own
+    ///    timeout for one (~2 s against the Pi) before taking the next
+    ///    command. A rejected one (over 50 characters) answers "?;" at once
+    ///    and leaves the memory unchanged.
+    /// So the write is followed by a "KM<slot>;" read in the same `write()`
+    /// (one call, so `write()`'s stale-byte clearing can't eat a fast
+    /// "?;"), and its answer — which arrives only once the write is done —
+    /// both ends the wait and confirms what was stored. `text` must not
+    /// contain ";" or a newline.
+    public func writeKeyerMemory(slot: Int, text: String) async throws -> String {
+        await acquireRoundTrip()
+        defer { releaseRoundTrip() }
+        let read = "KM\(slot)"
+        Self.catLogger.debug("-> \(read, privacy: .public)\(text, privacy: .public) (keyer memory write)")
+        try await write("w \(read)\(text);\nW \(read); ;")
+        let (rejected, reply) = try await withReplyTimeout(read, .seconds(6), error: .rawCommandTimedOut) {
+            var rejected = false
+            while true {
+                let line = try await self.readLine(terminators: [0, UInt8(ascii: "\n")])
+                if line.hasPrefix(read) { return (rejected, line) }
+                if line.hasPrefix("?") { rejected = true }
+            }
+        }
+        Self.catLogger.debug("<- \(read, privacy: .public) : \(reply, privacy: .public)\(rejected ? " (write rejected)" : "", privacy: .public)")
+        if rejected { throw RigctldError.badResponse }
+        var stored = reply.dropFirst(read.count)
+        if stored.hasSuffix(";") { stored.removeLast() }
+        if stored.hasSuffix("}") { stored.removeLast() }
+        return String(stored)
+    }
+
     /// Reads the frequency of whichever VFO isn't currently active, without
     /// switching the rig to it. Two things were tried and rejected before
     /// this:

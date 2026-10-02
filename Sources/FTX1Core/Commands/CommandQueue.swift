@@ -168,6 +168,9 @@ public actor CommandQueue {
             // doesn't expose) — P2 is 0 to stop or 1-5 to start playing
             // that channel.
             try await rigctld.setRawInt("KY1", channel, digits: 1)
+        case .playCWTextMemory(let slot):
+            // Same "KY", P1 = 0: CW TEXT Memory. "KY00" stops.
+            try await rigctld.setRawInt("KY0", slot, digits: 1)
         case .setMox(let on):
             try await rigctld.setRawBool("MX", on)
         case .setAtt(let on):
