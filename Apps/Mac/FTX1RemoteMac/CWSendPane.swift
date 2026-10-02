@@ -77,9 +77,9 @@ struct CWSendPane: View {
 
     private var inputRow: some View {
         HStack(spacing: 8) {
-            TextField("Call", text: $sender.theirCall)
+            TextField("Their call", text: $sender.theirCall)
                 .frame(width: 110)
-                .help("The other station's call, for {CALL} in macros")
+                .help("The station you're working, for {CALL} in macros. Click a callsign in the decoded text to fill it in.")
             TextField("Type a line and press Return to send", text: $line)
                 .font(.system(.body, design: .monospaced))
                 .focused($isLineFocused)
@@ -269,7 +269,7 @@ private struct CWMacroEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("CW Macros").font(.title3.bold())
-            Text("Placeholders: {MYCALL} and {MYGRID} (Settings → Station), {CALL} (the Call field). Prosigns: <BT>, <AR>, <KN>.")
+            Text("Placeholders: {MYCALL} and {MYGRID} (Settings → Station), {CALL} (Their call — click a callsign in the decoded text to fill it in). Prosigns: <BT>, <AR>, <KN>.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
             List {

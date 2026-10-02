@@ -177,7 +177,12 @@ private struct CWDecoderPicker: View {
     }
 }
 
+/// Callsigns in the committed text are links (`CWCallsigns`): clicking one
+/// fills the send pane's Their call. Handled here through `openURL`, so the
+/// custom scheme never reaches the system. The tentative text isn't linked
+/// — it can still change.
 private struct CWDecodedTextView: View {
+    @EnvironmentObject private var sender: CWSender
     let text: String
     /// Newest text, not yet final: shown dimmed after the committed text.
     let tentative: String
@@ -189,7 +194,7 @@ private struct CWDecodedTextView: View {
                     Text("Decoded CW from the selected receiver appears here. Tune to a CW signal, or open a recording.")
                         .foregroundStyle(.secondary)
                 } else {
-                    Text("\(text)\(Text(tentative).foregroundStyle(.tertiary))")
+                    Text("\(linked)\(Text(tentative).foregroundStyle(.tertiary))")
                         .textSelection(.enabled)
                 }
             }
@@ -199,6 +204,22 @@ private struct CWDecodedTextView: View {
         }
         .defaultScrollAnchor(.bottom, for: .sizeChanges)
         .background(Color(nsColor: .textBackgroundColor))
+        .environment(\.openURL, OpenURLAction { url in
+            guard let call = CWCallsigns.call(from: url) else { return .systemAction }
+            sender.theirCall = call
+            return .handled
+        })
+    }
+
+    private var linked: AttributedString {
+        var attributed = AttributedString(text)
+        for range in CWCallsigns.ranges(in: text, excluding: StationSettings.callsign) {
+            guard let attributedRange = Range(range, in: attributed),
+                  let url = CWCallsigns.url(for: text[range]) else { continue }
+            attributed[attributedRange].link = url
+            attributed[attributedRange].underlineStyle = .single
+        }
+        return attributed
     }
 }
 

@@ -493,8 +493,15 @@ final class HubService: ObservableObject {
         cwSender.onActiveChanged = { [weak self] active in
             self?.cwReceiver.setSenderActive(active)
         }
-        cwRigCancellable = $rigState
-            .map { CWRigInfo(transmitting: $0.ptt, pitchHz: $0.cwPitchHz, mainMode: $0.mode, subMode: $0.secondaryMode) }
+        // Modes only while connected: before the first read, `rigState`
+        // holds placeholder values (`mode` is USB).
+        cwRigCancellable = $rigState.combineLatest($connectionState)
+            .map { rig, connection in
+                let connected = connection == .connected
+                return CWRigInfo(transmitting: rig.ptt, pitchHz: rig.cwPitchHz,
+                                 mainMode: connected ? rig.mode : .unknown,
+                                 subMode: connected ? rig.secondaryMode : nil)
+            }
             .removeDuplicates()
             .sink { [weak self] info in self?.cwReceiver.rigInfoChanged(info) }
     }

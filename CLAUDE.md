@@ -1040,7 +1040,7 @@ vendored here.
   by `CWSender` (a `lazy var` on `HubService`, sibling of `cwReceiver`).
   Line at a time (Return queues), 6 editable macros (`CWMacro`, JSON in
   `cw.macros`; `{MYCALL}`/`{MYGRID}` from `StationSettings`, `{CALL}` from
-  the pane's Call field; ⌘1–9), Stop (Esc: "KY00" + drop the queue), the
+  the pane's "Their call" field (session-only, not persisted); ⌘1–9), Stop (Esc: "KY00" + drop the queue), the
   rig's keyer speed (`KS`) and BK-IN, and a log of queued/keying/sent
   lines. Sending is the rig's own keyer, not real-time keying: each ≤50-
   character chunk is written to one dedicated CW TEXT keyer memory
@@ -1078,7 +1078,17 @@ vendored here.
     the rig reports TX (`CWReceiver.isPausedForTransmit`, flushes the
     decoder first); a "Rig Pitch" button sets the manual tone to the rig's
     CW pitch (`KP`); a note when the selected receiver isn't in CW.
-    `HubService` forwards only `CWRigInfo` changes (TX, pitch, modes).
+    `HubService` forwards only `CWRigInfo` changes (TX, pitch, modes —
+    modes only while connected, since `rigState.mode` is a USB placeholder
+    before the first read).
+  - **Click-to-fill (2026-10-02, user-confirmed)**: callsigns in the
+    committed decoded text are underlined links (`CWCallsigns`: 1–2
+    letters / digit+letter / letter+digit, a digit, 1–4 letters, `/`
+    parts judged on the longest — excludes `5NN`, `599`, `73`, Q-codes;
+    the operator's own call isn't linked, nor the tentative text). A click
+    fills Their call through an `OpenURLAction` on the custom
+    `ftx1-cw-call:` scheme, so the system never sees it. Background
+    (computer-use) clicks don't activate these links — test by hand.
   - Verified: line, 66-character line (2 chunks, complete, short pause),
     Stop mid-line (cut off at once), AGN? macro, `{CALL}` missing refused;
     `CWText` checked in a scratch harness. Not tried: SUB as the TX side

@@ -24,7 +24,8 @@ final class CWSender: ObservableObject {
     /// What the rig is doing for the send pane right now, e.g. "Writing
     /// keyer memory…" — nil when idle.
     @Published private(set) var activity: String?
-    /// The other station's call, for `{CALL}` in macros.
+    /// The station being worked ("Their call" in the pane), for `{CALL}` in
+    /// macros; also filled by clicking a callsign in the decoded text.
     @Published var theirCall = ""
     @Published var slot: Int {
         didSet { UserDefaults.standard.set(slot, forKey: DefaultsKey.slot) }
@@ -396,12 +397,12 @@ struct CWMacro: Identifiable, Codable, Equatable {
     }
 
     /// `{MYCALL}`/`{MYGRID}` from Settings → Station, `{CALL}` from the
-    /// pane's Call field.
+    /// pane's Their call field.
     func expanded(myCall: String, myGrid: String, theirCall: String) -> Result<String, Problem> {
         let values: [(String, String, String)] = [
             ("{MYCALL}", myCall, "Your callsign (Settings → Station)"),
             ("{MYGRID}", myGrid, "Your grid square (Settings → Station)"),
-            ("{CALL}", theirCall, "The Call field"),
+            ("{CALL}", theirCall, "Their call"),
         ]
         var result = text
         for (placeholder, value, name) in values where result.uppercased().contains(placeholder) {
