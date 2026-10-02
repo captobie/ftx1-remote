@@ -254,9 +254,9 @@ final class HubService: ObservableObject {
     private static let aprsGateLogger = Logger(subsystem: "com.ftx1remote.mac", category: "aprs-gate")
     /// Diagnostic-only — surfaces exactly what `runConnectionLoop` caught,
     /// since `connectionState`'s `.failed(String)` case (backed by
-    /// `error.localizedDescription`) is not shown anywhere in the UI today,
-    /// and a plain `RigctldError`/`NWError` case with no `LocalizedError`
-    /// conformance produces an unhelpful generic string there anyway.
+    /// `error.localizedDescription`) is not shown anywhere in the UI today
+    /// (`RigctldError` has readable descriptions since 2026-10-02; an
+    /// `NWError` still reads generically).
     /// Check via Console.app (subsystem "com.ftx1remote.mac", category
     /// "connection") regardless of how the app was launched.
     private static let connectionLogger = Logger(subsystem: "com.ftx1remote.mac", category: "connection")

@@ -803,7 +803,7 @@ public actor RigctldClient {
             }
         }
         Self.catLogger.debug("<- \(read, privacy: .public) : \(reply, privacy: .public)\(rejected ? " (write rejected)" : "", privacy: .public)")
-        if rejected { throw RigctldError.badResponse }
+        if rejected { throw RigctldError.keyerMemoryRejected }
         var stored = reply.dropFirst(read.count)
         if stored.hasSuffix(";") { stored.removeLast() }
         if stored.hasSuffix("}") { stored.removeLast() }
@@ -1031,4 +1031,31 @@ public enum RigctldError: Error, Equatable {
     /// this one specifically as fatal, since no amount of retrying a dead
     /// connection will help.
     case connectionLost
+    /// The rig refused a CW keyer memory write ("?;" — over 50 characters,
+    /// or a character it doesn't take); the memory is unchanged. See
+    /// `writeKeyerMemory`.
+    case keyerMemoryRejected
+}
+
+/// Without this, Swift shows these as "The operation couldn't be
+/// completed. (FTX1Core.RigctldError error 3.)" — what the CW send pane
+/// displayed when the Pi lost the rig's USB (2026-10-02). Shown by the CW
+/// send pane; also what `HubService.connectionState`'s `.failed` carries.
+extension RigctldError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .notConnected:
+            "Not connected to rigctld."
+        case .badResponse:
+            "rigctld sent a reply the app didn't expect."
+        case .connectTimedOut:
+            "Couldn't reach rigctld (the connection timed out)."
+        case .rawCommandTimedOut, .replyTimedOut:
+            "rigctld didn't answer in time. If this keeps happening, the rig may be off or its USB connection to the computer running rigctld may have dropped."
+        case .connectionLost:
+            "The connection to rigctld was lost."
+        case .keyerMemoryRejected:
+            "The rig rejected the keyer memory write."
+        }
+    }
 }

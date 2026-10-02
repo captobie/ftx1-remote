@@ -235,6 +235,22 @@ re-architecture.
   unanswered every poll in C4FM. `readLine` now only tears down the
   connection it was reading from, so the cancelled read's late error
   can't close the freshly reconnected one.
+- **Pi under-voltage drops the rig's USB (found 2026-10-02, not fixed —
+  hardware)**: the "sometimes an error" reports traced to the Pi 2B's
+  supply, not the app: `journalctl -k` showed "Undervoltage detected!"
+  and `usb 1-1.2: USB disconnect` (the FTX-1's built-in hub: CP2105 +
+  audio codec) 2–3 times a day since the 2026-09-27 boot, then 13 in a
+  burst that ended in "unable to enumerate USB device"; `vcgencmd
+  get_throttled` = 0x50000. With the rig's USB gone, rigctld still
+  accepts TCP but never answers — so to the app it looks like timeouts
+  (and, in the CW send pane before `RigctldError` got descriptions,
+  "RigctldError error 3" = `rawCommandTimedOut`). Recovery: replug or
+  power-cycle the rig, then restart `rigctld.service`. Fix: a proper
+  5.1 V/2.5 A supply and short cable, or a powered hub for the rig. To
+  check: SSH (`~/.ssh/id_direwolf_monitor`, `captobie@ftx1pi`), then
+  `vcgencmd get_throttled` (want 0x0) and the `journalctl -k` lines
+  above. This is the "rigctld/radio down but the Pi itself is fine" case
+  the planned UI distinction above is about.
 - **Audio-over-Pi (2026-09-07)**: implemented and hardware-confirmed
   working — waterfall/oscilloscope, iPad relay, and Mac-local playback all
   functioning against the real Pi. In `.remote` mode, `AudioCaptureEngine`
