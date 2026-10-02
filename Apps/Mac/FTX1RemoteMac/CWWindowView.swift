@@ -42,7 +42,7 @@ private struct CWReceivePane: View {
         VStack(spacing: 0) {
             header
             Divider()
-            CWSignalStatusBar(meters: receiver.meters, isDecodingFile: receiver.isDecodingFile)
+            CWSignalStatusBar(meters: receiver.meters, isDecodingFile: receiver.isDecodingFile, sourceNote: sourceNote)
             Divider()
             CWDecodedTextView(text: receiver.decodedText, tentative: receiver.tentativeText)
             Divider()
@@ -61,6 +61,21 @@ private struct CWReceivePane: View {
             }
         )
         .fileDialogDefaultDirectory(AudioRecorder.recordingsDirectory)
+    }
+
+    /// Why the WebSDR source isn't decoding, when it isn't.
+    private var sourceNote: String? {
+        guard receiver.channel == .webSDR, !receiver.isDecodingFile else { return nil }
+        switch receiver.webSDRStatus {
+        case .stopped, .capturing:
+            return nil
+        case .waitingForWebSDR:
+            return "Waiting for the WebSDR window's audio — connect it in Tools → WebSDR"
+        case .silent:
+            return "WebSDR is silent — unmute its page, or allow FTX1Remote under System Settings → Privacy & Security → Screen & System Audio Recording"
+        case .failed(let message):
+            return "Can't capture WebSDR audio: \(message)"
+        }
     }
 
     private var header: some View {
@@ -117,7 +132,7 @@ private struct CWChannelPicker: View {
         .pickerStyle(.segmented)
         .labelsHidden()
         .fixedSize()
-        .help(subUnavailableReason ?? "Which receiver's audio to decode")
+        .help(subUnavailableReason ?? "Which audio to decode: the rig's MAIN or SUB receiver, or what the WebSDR window is playing")
     }
 
     private var subUnavailableReason: String? {
@@ -177,6 +192,7 @@ private struct CWDecodedTextView: View {
 private struct CWSignalStatusBar: View {
     @ObservedObject var meters: CWMeterStore
     let isDecodingFile: Bool
+    let sourceNote: String?
 
     var body: some View {
         HStack(spacing: 14) {
@@ -199,6 +215,12 @@ private struct CWSignalStatusBar: View {
             if isDecodingFile {
                 ProgressView().controlSize(.small)
                 Text("Decoding file…").foregroundStyle(.secondary)
+            } else if let sourceNote {
+                Label(sourceNote, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help(sourceNote)
             }
 
             Group {

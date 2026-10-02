@@ -961,7 +961,8 @@ pattern as the APRS windows.
 ## Digital modes — CW decode (v1, 2026-10-02)
 
 Tools → **CW** opens `Window(id: "cw")` (Mac-only): live CW decoding of the
-rig's MAIN or SUB audio, plus decoding an audio file. The decoders come
+rig's MAIN or SUB audio or of the WebSDR window's audio, plus decoding an
+audio file. The decoders come
 from the user's own CWDecode app (`captobie/cwdecode`, public, MIT) — not
 vendored here.
 
@@ -999,6 +1000,26 @@ vendored here.
   listening ends its "decoding" state early — not fixed there yet).
 - SUB is disabled when no Sub audio has arrived for 2 s (mono input) or the
   rig is in single-receive display (`RigState.singleReceive`).
+- **WebSDR source (2026-10-02, tested in the built app against a live
+  Kiwi)**: a third picker segment decodes what the WebSDR window is
+  playing, via `WebSDRAudioTap` (Core Audio process tap + private aggregate
+  device, `CATapDescription(stereoMixdownOfProcesses:)`, `muteBehavior
+  .unmuted`) — chosen over per-page JS taps so it works for KiwiSDR,
+  classic WebSDR and OpenWebRX without injecting anything into Kiwi/WebSDR
+  pages. A `WKWebView` plays audio from WebKit's helper processes
+  (`com.apple.WebKit.GPU`, one per app), not this one; they're found by
+  `responsibility_get_pid_responsible_for_pid` (not in the SDK headers,
+  loaded via `dlsym` — if a macOS update drops it, the source just stays at
+  "waiting") matching our PID, and re-resolved every 2 s so a relaunched
+  helper (or connecting after picking the source) is picked up. Runs only
+  while the CW window is open with WebSDR selected. Needs
+  `NSAudioCaptureUsageDescription` (in `FTX1RemoteMac-Info.plist`) and the
+  user's "System Audio Recording" permission, prompted on first use —
+  denied delivers silence. The tap hears the page's *output*, so the
+  WebSDR window's Mute (the page's own mute) stops decoding; that and a
+  denied permission both show as "WebSDR is silent" (below -80 dBFS for
+  3 s — a muted Kiwi isn't exact zeros). Kiwi page audio arrives at 48 kHz
+  stereo here, mixed to mono. Not tried yet: classic WebSDR, OpenWebRX.
 - **Cost**: CWKit measured at ~7% of a core (neural, Debug/-Onone) and ~1%
   (Release) for 44.1 kHz audio — no vDSP rework needed.
 - **Verified 2026-10-02**: CWKit tests (19, incl. the Python golden checks)
@@ -1400,7 +1421,7 @@ WebSDR differences are in their own bullet at the end.
   `RemoteAudioStreamClient`) — Mac-only, see Architecture above. Also owns
   FT8 decoding (`FT8DecodeCoordinator`, `FT8Resampler`, `FT8Store`,
   `FT8Spot`, `FT8ListView`) — see "Digital modes — FT8" above. Also
-  owns CW decoding (`CWReceiver`, `CWWindowView`, on CWKit) — see "Digital
+  owns CW decoding (`CWReceiver`, `CWWindowView`, `WebSDRAudioTap`, on CWKit) — see "Digital
   modes — CW decode" above. Dense
   multi-pane UI (`ContentView`: VFO, meters, scope display,
   band/mode selectors all visible at once), `SettingsView` (tabbed sheet:

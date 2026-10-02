@@ -4,18 +4,21 @@ import CWKit
 import Foundation
 import os
 
-/// Which receiver's audio the CW decoder listens to. Roles, not L/R
+/// Which audio the CW decoder listens to. MAIN/SUB are roles, not L/R
 /// channels: `AudioCaptureEngine` already swaps the channels to follow a
 /// Main/Sub swap (`HubService.audioChannelsSwapped`), so `.main` is always
-/// the Main VFO's audio.
+/// the Main VFO's audio. `.webSDR` is whatever the WebSDR window is playing
+/// (`WebSDRAudioTap`).
 enum CWAudioChannel: String, CaseIterable {
     case main
     case sub
+    case webSDR
 
     var title: String {
         switch self {
         case .main: "MAIN"
         case .sub: "SUB"
+        case .webSDR: "WebSDR"
         }
     }
 }
@@ -29,6 +32,8 @@ enum CWAudioChannel: String, CaseIterable {
 /// selected and everything while the window is closed, the same "decode
 /// only while the window is open" shape as `FT8DecodeCoordinator`. Decoding
 /// itself runs on `PipelineRunner`'s own serial queue, never the main actor.
+/// The third source, `.webSDR`, comes from `WebSDRAudioTap` (what the
+/// WebSDR window is playing), started only while it's selected.
 ///
 /// Its own `ObservableObject`, a plain `let` on `HubService` (like
 /// `ft8Store`), so text updates never re-render the main window. The
@@ -46,6 +51,9 @@ final class CWReceiver: ObservableObject {
     /// a Pi stream from before stereo capture) never delivers any.
     @Published private(set) var isSubAudioAvailable = false
     @Published var errorMessage: String?
+    /// The WebSDR tap's state while `.webSDR` is the source and the window
+    /// is open; `.stopped` otherwise.
+    @Published private(set) var webSDRStatus = WebSDRAudioTap.Status.stopped
 
     @Published var channel: CWAudioChannel {
         didSet {
@@ -57,6 +65,7 @@ final class CWReceiver: ObservableObject {
                 flush()
                 startNewLine()
             }
+            updateWebSDRTap()
         }
     }
     @Published var toneFrequency: Double { didSet { settingsChanged() } }
@@ -78,6 +87,9 @@ final class CWReceiver: ObservableObject {
     let meters = CWMeterStore()
 
     private var runner: PipelineRunner?
+    /// Created on first use: the tap's permission prompt should only ever
+    /// appear once someone picks the WebSDR source.
+    private var webSDRTap: WebSDRAudioTap?
     private var isRunning = false
     /// `.finished` events still to come from `flush()` calls, as opposed to
     /// the one that ends a file decode. Events arrive in order, so counting
@@ -131,6 +143,7 @@ final class CWReceiver: ObservableObject {
         guard !isRunning else { return }
         makeRunnerIfNeeded()
         isRunning = true
+        updateWebSDRTap()
     }
 
     /// Called when the CW window closes, and from `HubService.stop()` as a
@@ -140,6 +153,26 @@ final class CWReceiver: ObservableObject {
         isRunning = false
         if !isDecodingFile {
             flush()
+        }
+        updateWebSDRTap()
+    }
+
+    /// The tap runs only while the window is open with WebSDR selected.
+    private func updateWebSDRTap() {
+        if isRunning, channel == .webSDR {
+            if webSDRTap == nil {
+                webSDRTap = WebSDRAudioTap(
+                    onSamples: { [weak self] samples, sampleRate in
+                        self?.ingest(samples: samples, sampleRate: sampleRate, channel: .webSDR)
+                    },
+                    onStatus: { [weak self] status in
+                        self?.webSDRStatus = status
+                    }
+                )
+            }
+            webSDRTap?.start()
+        } else {
+            webSDRTap?.stop()
         }
     }
 
@@ -163,6 +196,8 @@ final class CWReceiver: ObservableObject {
             guard isSubAudioAvailable else { return }
             if let lastSubSampleAt, now.timeIntervalSince(lastSubSampleAt) < Self.subAudioTimeout { return }
             isSubAudioAvailable = false
+        case .webSDR:
+            break
         }
     }
 
