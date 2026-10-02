@@ -1,6 +1,15 @@
 {
-  "originHash" : "1493112dffa851f1d8a83e1e4691f6098876796a9a7f9d5781dafb97746aabac",
+  "originHash" : "12ff6f22c052ef2f8ee945e66f2e0c804d7335acec3106e944393c8de482f26f",
   "pins" : [
+    {
+      "identity" : "cwdecode",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/captobie/cwdecode",
+      "state" : {
+        "revision" : "52ea1512e2c93cc6d9d6d30aebc74a829da64bf6",
+        "version" : "0.1.0"
+      }
+    },
     {
       "identity" : "sparkle",
       "kind" : "remoteSourceControl",

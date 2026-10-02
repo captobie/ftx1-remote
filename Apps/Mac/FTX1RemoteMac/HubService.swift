@@ -220,6 +220,13 @@ final class HubService: ObservableObject {
     /// always-on frequency-gate pattern.
     private let ft8Coordinator = FT8DecodeCoordinator()
     let ft8Store = FT8Store()
+
+    /// Tools → CW's decoder. Fed both audio taps unconditionally below; it
+    /// picks the selected receiver itself and drops everything while the
+    /// CW window is closed (`CWWindowView` calls `start()`/`stop()`). A
+    /// plain `let`, like `ft8Store`, so decoded text never re-renders the
+    /// main window.
+    let cwReceiver = CWReceiver()
     private let webSocketPort: UInt16
     private let rigctldHost: String
     private let rigctldPort: UInt16
@@ -401,6 +408,9 @@ final class HubService: ObservableObject {
             // drops this when not recording.
             self.audioRecorder.ingest(samples: samples, sampleRate: sampleRate)
 
+            // Same reasoning again: CW isn't tied to a calling frequency.
+            self.cwReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .main)
+
             let isActive = APRSSettings.isActive(atFrequencyHz: self.rigState.frequencyHz)
             if isActive != self.aprsGateWasActive {
                 self.aprsGateWasActive = isActive
@@ -416,7 +426,7 @@ final class HubService: ObservableObject {
         // now (2026-09-18): relay to mobile clients unconditionally
         // (`broadcastSubAudio` is a cheap no-op with no connections, same
         // as `broadcastAudio`), local playback gated by mute. Still no
-        // FT8/recorder on Sub — those stay Main-only.
+        // FT8/recorder on Sub — those stay Main-only. (CW decodes either.)
         audioCapture.onSubChannelSamples = { [weak self] samples, sampleRate in
             guard let self else { return }
             if let pcm = self.subAudioStreamEncoder.encode(samples: samples, sampleRate: sampleRate) {
@@ -425,6 +435,9 @@ final class HubService: ObservableObject {
                     self.subAudioPlayback.push(pcm: pcm)
                 }
             }
+
+            // Before the APRS gate, like the Main tap's.
+            self.cwReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .sub)
 
             // Same shape as the Main gate above, but against the Sub
             // VFO's frequency (`secondaryFrequencyHz`, `nil`-safe — treated
@@ -524,6 +537,7 @@ final class HubService: ObservableObject {
     func stop() {
         stopRigctld()
         stopFT8Decoding()
+        cwReceiver.stop()
         webSocketServerTask?.cancel()
         webSocketServerTask = nil
         Task { [server] in await server.stop() }

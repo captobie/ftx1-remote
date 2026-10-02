@@ -251,6 +251,10 @@ Its `fft/` subdirectory is [kissfft](https://github.com/mborgerding/kissfft)
 `Tests/FT8KitTests/Resources/` vendors a few of ft8_lib's own reference WAV
 captures + truth-decode files for the reference-vector test.
 
+The Mac app's CW decoder is CWKit from
+[captobie/cwdecode](https://github.com/captobie/cwdecode) (MIT), a Swift
+package dependency — not vendored.
+
 The Windows app uses [NAudio](https://github.com/naudio/NAudio) (MIT, Mark
 Heath) as a NuGet package (`NAudio.Wasapi`) for audio output — not vendored.
 

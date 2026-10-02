@@ -37,6 +37,9 @@ struct FTX1RemoteMacApp: App {
                 Button("FT8") {
                     openWindow(id: "ft8")
                 }
+                Button("CW") {
+                    openWindow(id: "cw")
+                }
                 Divider()
                 Button("WebSDR") {
                     openWindow(id: "websdr-follow")
@@ -74,6 +77,16 @@ struct FTX1RemoteMacApp: App {
             FT8ListView()
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.ft8Store)
+                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+        }
+
+        // Tools → CW. `hub` for the MAIN/SUB picker's single-receive
+        // check, `cwReceiver` for everything else; decoding runs while the
+        // window is open, like FT8.
+        Window("CW", id: "cw") {
+            CWWindowView()
+                .environmentObject(appDelegate.hub)
+                .environmentObject(appDelegate.hub.cwReceiver)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
 

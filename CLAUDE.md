@@ -958,6 +958,64 @@ pattern as the APRS windows.
   check `.remote`/Pi audio timing specifically) — same shape as every
   other CAT/audio feature's hardware-validation step in this project.
 
+## Digital modes — CW decode (v1, 2026-10-02)
+
+Tools → **CW** opens `Window(id: "cw")` (Mac-only): live CW decoding of the
+rig's MAIN or SUB audio, plus decoding an audio file. The decoders come
+from the user's own CWDecode app (`captobie/cwdecode`, public, MIT) — not
+vendored here.
+
+- **CWKit, a Swift package in the cwdecode repo**, is the source of truth
+  (user decision, 2026-10-02, over absorbing or vendoring): the neural
+  decoder (CNN + CTC Core ML model, `CWNet.mlmodelc`) and the classic one
+  (Goertzel + timing rules), with their Python training/export (`ml/`) and
+  golden tests in the same repo. The Mac target depends on it by git URL,
+  `upToNextMinorVersion` from `0.1.0`, wired into the pbxproj the same way
+  as Sparkle (hand-added, then `xcodebuild -resolvePackageDependencies`).
+  To pick up a retrained model or decoder fix: tag a new CWKit release in
+  cwdecode, then bump/resolve here. The model ships *compiled* in the
+  package (`.copy("Resources/CWNet.mlmodelc")`) because SwiftPM compiles an
+  `.mlpackage` resource's inner `model.mlmodel` instead and fails;
+  cwdecode's `export.py` compiles it with `coremlcompiler`. Built Mac app:
+  `Contents/Resources/CWKit_CWKit.bundle/.../CWNet.mlmodelc`.
+- **`CWReceiver`** (`Apps/Mac/FTX1RemoteMac/CWReceiver.swift`) is a plain
+  `let` on `HubService` (like `ft8Store`), fed by *both* audio taps
+  unconditionally (before the APRS gates); it keeps only the selected
+  channel (`CWAudioChannel`, persisted `cw.channel`) and drops everything
+  while the window is closed (`start()`/`stop()` from `CWWindowView`'s
+  onAppear/onDisappear; `HubService.stop()` also calls `stop()`). MAIN/SUB
+  are roles, so they follow swaps via `audioChannelsSwapped` upstream.
+  Decoding runs on CWKit's `PipelineRunner` queue; the Core ML model loads
+  on the first `start()`, not at launch. Per-chunk meters live in a
+  separate `CWMeterStore` (published at most every 0.1 s, key/element
+  changes at once) so they never re-render the decoded text. Settings are
+  `cw.*` UserDefaults keys. Switching channel flushes the decoder and
+  starts a new line.
+- **Open Audio File** (file dialog opens in the Recordings folder) pauses
+  live decoding, decodes into the same text under a "— filename —" header,
+  then live resumes. `pendingFlushes` counts `.finished` events from
+  flushes so only the file's own one ends the file decode (the standalone
+  app clears `isDecodingFile` on any `.finished`, so opening a file while
+  listening ends its "decoding" state early — not fixed there yet).
+- SUB is disabled when no Sub audio has arrived for 2 s (mono input) or the
+  rig is in single-receive display (`RigState.singleReceive`).
+- **Cost**: CWKit measured at ~7% of a core (neural, Debug/-Onone) and ~1%
+  (Release) for 44.1 kHz audio — no vDSP rework needed.
+- **Verified 2026-10-02**: CWKit tests (19, incl. the Python golden checks)
+  via `swift test` in cwdecode; Mac target builds; in the built app, a
+  real CW recording decoded through the window matched CWKit's offline
+  decode exactly; Clear and the Neural/Classic switch work. **Not yet
+  done**: live decoding on the rig (MAIN, SUB, and across a swap).
+- **v2 (planned): a send pane** below the receive pane in the same window
+  (`VSplitView`), which is why the receive pane keeps its controls in its
+  own header rather than the window toolbar, and why sending should be a
+  sibling object to `CWReceiver`, not more state on it. Keying must go
+  through `HubService.send` so the Enable Transmit/amateur-band gate
+  covers it. Also for v2 (deferred from v1 by the user): rig-aware
+  features — seed the tone from the rig's CW pitch setting, and a hint
+  when the rig isn't in CW mode — and decide whether to pause decoding
+  while transmitting (the rig's sidetone would otherwise be decoded).
+
 ## WebSDR follow (KiwiSDR 2026-09-24, classic WebSDR 2026-09-25, OpenWebRX 2026-10-01)
 
 Tools → **WebSDR** opens `Window(id: "websdr-follow")` (Mac-only): an
@@ -1341,7 +1399,9 @@ WebSDR differences are in their own bullet at the end.
   `AudioInputDevice`/`AudioInputSettings`, and — `.remote`-mode only —
   `RemoteAudioStreamClient`) — Mac-only, see Architecture above. Also owns
   FT8 decoding (`FT8DecodeCoordinator`, `FT8Resampler`, `FT8Store`,
-  `FT8Spot`, `FT8ListView`) — see "Digital modes — FT8" above. Dense
+  `FT8Spot`, `FT8ListView`) — see "Digital modes — FT8" above. Also
+  owns CW decoding (`CWReceiver`, `CWWindowView`, on CWKit) — see "Digital
+  modes — CW decode" above. Dense
   multi-pane UI (`ContentView`: VFO, meters, scope display,
   band/mode selectors all visible at once), `SettingsView` (tabbed sheet:
   rigctld connection config, Audio input device, Station, Polling —
