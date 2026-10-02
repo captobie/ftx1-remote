@@ -763,6 +763,58 @@ well; Local mode not yet tested on the rig.
 Still to check on the rig: the same in Local mode (the PC's own sound-card
 input).
 
+## WebSDR window (2026-10-01)
+
+The Mac's Tools → WebSDR (root `CLAUDE.md`'s "WebSDR follow" section), ported
+whole: a KiwiSDR or classic WebSDR in a WebView2 that follows Main's
+frequency/mode, tunes the rig from the page ("Tune rig"), records with the
+page's own recorder, mutes the rig's Main audio while it's audible, mutes
+itself on TX, and has the Stations list (KiwiSDR directory + websdr.org) and
+Favorites. Opened from the **WebSDR** button in the connection bar; works
+while disconnected too (it just has no rig frequency to follow).
+
+- Same logic and decisions as the Mac, file for file:
+  `Services/WebSdrFollowModel.cs` (WebSDRFollowModel), `Services/SdrPageBridge.cs`
+  (SDRPageBridge, with the page JavaScript copied unchanged),
+  `Models/SdrUrls.cs` (SDRPlatform + both URL builders), `Models/SdrStations.cs`
+  (KiwiSDRStation, WebSDRFavorite, Maidenhead), `Services/KiwiSdrDirectory.cs`
+  (same rx.linkfanel.net mirror, 30 min cache, conditional GET; never the
+  websdr.org list, which is shown as the site itself for the same licensing
+  reason as on the Mac). The Swift files stay the source of truth.
+- Rig state comes from MainWindow after every poll (`PushRigStateToWebSdr`),
+  not a second poll; the model drops repeats and debounces 400 ms like the
+  Mac's `$rigState` pipeline. Click-to-tune goes through the same paths as
+  the Set button and the mode picker.
+- WebView2 differences from WKWebView, each found while testing:
+  - one shared environment (`SdrWebViewEnvironment`) with its profile in
+    `%LOCALAPPDATA%\FTX1RemoteWindows\WebView2` and
+    `--autoplay-policy=no-user-gesture-required`, so a Kiwi reload after a
+    retune keeps playing with no click-to-start overlay;
+  - Chromium holds a page's *second* script-made download behind a "download
+    multiple files?" prompt WebView2 never shows, so only the first
+    recording of a page session was saved (the retune split timed out).
+    The window allows `MultipleAutomaticDownloads`, nothing else;
+  - closing the window destroys the web view, so a close while recording is
+    cancelled, the file saved, then the window closed.
+- Recordings go to `%LOCALAPPDATA%\FTX1RemoteWindows\Recordings` with the
+  Mac's file names; there's no Recordings window here yet, so the Mac's
+  Play is a **Recordings** button that opens the folder in Explorer.
+- Manage Favorites reorders with up/down buttons instead of the Mac's drag
+  (a ListView drag-reorder didn't take with a name box in every row).
+- Settings got a **Station** tab with only the grid square, for the
+  KiwiSDR list's distance column.
+- The automatic Main mute is `AppSettings.MainMutedByWebSdr`, lifted at
+  startup if a crash left it set, like the Mac's `mainMutedByWebSDR`.
+
+Tested against a fake rigctld and public receivers (a KiwiSDR and the
+University of Twente WebSDR): follow, click-to-tune (mode buttons and
+frequency steps on both platforms), platform detection and learned
+title/range for a typed WebSDR host, in-place WebSDR retunes, Record with a
+split per retune (three files across two retunes), Mute on TX, the
+automatic Main mute and its crash recovery, the websdr.org pick, Favorites
+(star, menu, rename, reorder), distance sort, and close-while-recording.
+Not yet on the rig.
+
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
 - **APRS map** — see "APRS decode" above.
@@ -810,6 +862,9 @@ Apps/Windows/FTX1RemoteWindows/
     FilterPanel.cs               Filter rows + Filter Function Display (ports of the Filter-row views in FTX1Core/UI)
     ScopeDisplay.cs              waterfall/oscilloscope box (port of ScopeDisplayView.swift + AudioCaptureEngine's drawing)
     AprsListWindow.cs            APRS S.LIST / M.LIST windows (ports of APRSStationListView/APRSMessageListView.swift)
+    WebSdrWindow.cs              WebSDR window (port of WebSDRFollowView.swift + KiwiWebView.swift)
+    WebSdrStationsWindow.cs      Stations window: KiwiSDR table + websdr.org tab (KiwiSDRDirectoryView/WebSDROrgBrowserView.swift)
+    WebSdrFavoritesDialog.cs     Manage Favorites (WebSDRFavoritesView.swift)
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
@@ -821,6 +876,8 @@ Apps/Windows/FTX1RemoteWindows/
     FilterModels.cs             filter value spaces + display geometry — FilterWidthTable/IFShift/IFNotch/IFContour/FilterPassbandModel.swift, NarrowWidthPreset.swift
     AprsPacket.cs               APRS info-field parser — APRS/APRSPacket.swift
     AprsModels.cs               AprsStation/AprsMessage/AprsSource — APRS/APRSModels.swift
+    SdrUrls.cs                  SdrPlatform + KiwiSDR/WebSDR URL builders — SDRPlatform/KiwiSDRURLBuilder/WebSDRURLBuilder.swift
+    SdrStations.cs              KiwiSdrStation, WebSdrFavorite, Maidenhead — KiwiSDRStation/WebSDRFavorite.swift
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
     RigctldProcessController.cs  Local mode: spawns/adopts rigctld.exe (port of the Mac's)
@@ -834,7 +891,11 @@ Apps/Windows/FTX1RemoteWindows/
     Ax25.cs                      AX.25 frame/FCS/frame decoder — APRS/AX25Frame.swift
     AprsDecoder.cs               per-receiver decode worker (port of the Mac's APRSDecoder.swift)
     AprsStore.cs                 decoded station/message history + aprs-history.json (APRSStore/APRSPersistence.swift)
+    WebSdrFollowModel.cs         WebSDR window logic: follow, click-to-tune, record, mute (WebSDRFollowModel.swift)
+    SdrPageBridge.cs             calls into the KiwiSDR/WebSDR page + the shared WebView2 environment (SDRPageBridge.swift)
+    KiwiSdrDirectory.cs          public KiwiSDR list from rx.linkfanel.net, cached (KiwiSDRDirectory.swift)
+    Recordings.cs                Recordings folder + file naming (AudioRecorder.swift's statics)
   Settings/
-    AppSettings.cs                every setting (connection, audio, WPSD, APRS, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
+    AppSettings.cs                every setting (connection, audio, WPSD, APRS, station, WebSDR, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
     Appearance.cs                 AppTheme / ButtonValueColor (ports of the FTX1Core Appearance enums)
 ```

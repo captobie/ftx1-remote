@@ -43,6 +43,14 @@
                     </MenuFlyout>
                 </DropDownButton.Flyout>
             </DropDownButton>
+            <!-- The Mac's Tools → WebSDR: a KiwiSDR/WebSDR that follows the rig. -->
+            <Button x:Name="WebSdrButton" Click="WebSdrButton_Click"
+                    AutomationProperties.Name="WebSDR" ToolTipService.ToolTip="Listen on a KiwiSDR or WebSDR that follows the rig">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE774;" FontSize="14" />
+                    <TextBlock Text="WebSDR" />
+                </StackPanel>
+            </Button>
         </StackPanel>
 
         <!-- MAIN / SUB VFOs, with the waterfall/oscilloscope between them —

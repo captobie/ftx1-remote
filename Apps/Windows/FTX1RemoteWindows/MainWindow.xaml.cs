@@ -18,7 +18,8 @@ namespace FTX1RemoteWindows;
 /// Apps/Windows/README.md's "v1 scope" — plus Main/Sub audio playback from
 /// the Pi's :8532 stream, the MENU grid (Controls/MenuGrid.cs), Deep
 /// Settings, the Filter rows, the waterfall/oscilloscope and APRS decoding
-/// (Services/AprsDecoder.cs, lists in Controls/AprsListWindow.cs).
+/// (Services/AprsDecoder.cs, lists in Controls/AprsListWindow.cs) and the
+/// WebSDR window (Controls/WebSdrWindow.cs).
 public sealed partial class MainWindow : Window
 {
     /// rigctld's port — fixed in both modes: the Pi's rigctld.service
@@ -103,6 +104,9 @@ public sealed partial class MainWindow : Window
     private readonly AprsStore _aprsStore = new();
     /// The open S.LIST/M.LIST windows, at most one of each.
     private readonly Dictionary<AprsListKind, AprsListWindow> _aprsWindows = [];
+    /// The WebSDR window, while open (one at a time, like the Mac's Window
+    /// scene).
+    private WebSdrWindow? _webSdrWindow;
     /// Each VFO's last polled frequency, for the audio thread's APRS gate
     /// (0 = unknown). Written by the poll, read with Volatile on the audio
     /// thread.
@@ -336,6 +340,15 @@ public sealed partial class MainWindow : Window
 
         var mainAudio = AppSettings.MainAudio;
         var subAudio = AppSettings.SubAudio;
+        // The WebSDR window always opens disconnected, so a Main mute it made
+        // can only be left over from a session that ended without closing it
+        // (a crash) — lift it, like the Mac's HubService.init.
+        if (AppSettings.MainMutedByWebSdr)
+        {
+            AppSettings.MainMutedByWebSdr = false;
+            mainAudio.Muted = false;
+            AppSettings.SaveAudio();
+        }
         _mainPlayer = new ChannelPlayer((float)mainAudio.Volume, (float)mainAudio.SquelchThreshold, mainAudio.Muted);
         _subPlayer = new ChannelPlayer((float)subAudio.Volume, (float)subAudio.SquelchThreshold, subAudio.Muted);
         _playback = new AudioPlayback(_mainPlayer, _subPlayer);
@@ -381,6 +394,7 @@ public sealed partial class MainWindow : Window
             {
                 window.Close();
             }
+            _webSdrWindow?.Close();
         };
     }
 
@@ -472,6 +486,7 @@ public sealed partial class MainWindow : Window
         {
             window.ApplyTheme();
         }
+        _webSdrWindow?.ApplyTheme();
     }
 
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -666,6 +681,7 @@ public sealed partial class MainWindow : Window
         Volatile.Write(ref _aprsMainGateHz, 0);
         Volatile.Write(ref _aprsSubGateHz, 0);
         ClearC4fmState();
+        PushRigStateToWebSdr();
         if (client is not null)
         {
             await client.DisposeAsync();
@@ -931,6 +947,8 @@ public sealed partial class MainWindow : Window
         // Also refreshes the MENU grid (RF POWER, and the MOX/ANT TUNE gate
         // follows the new frequency).
         UpdateTransmitControls();
+
+        PushRigStateToWebSdr();
     }
 
     private static async Task<bool?> ReadC4fmAsync(RigctldClient client, bool sub)
@@ -1823,6 +1841,93 @@ public sealed partial class MainWindow : Window
         window.Activate();
     }
 
+    // WebSDR window
+
+    private void WebSdrButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_webSdrWindow is null)
+        {
+            _webSdrWindow = new WebSdrWindow(new WebSdrRigLink
+            {
+                Current = CurrentRigSnapshot,
+                Tune = (hz, mode) => _ = TuneFromWebSdrAsync(hz, mode),
+                SetAudioActive = SetWebSdrAudioActive,
+            });
+            _webSdrWindow.Closed += (_, _) => _webSdrWindow = null;
+            PushRigStateToWebSdr();
+        }
+        _webSdrWindow.Activate();
+    }
+
+    /// Main's frequency is 0 while disconnected (the last session's would
+    /// otherwise linger in _lastState), which the WebSDR window reads as
+    /// "no rig frequency".
+    private RigSnapshot CurrentRigSnapshot() => IsConnected
+        ? new RigSnapshot(_lastState.FrequencyHz, _lastState.MainIsC4fm == true ? null : _lastState.Mode, _lastState.Ptt, _lastState.InMemoryMode)
+        : new RigSnapshot(0, null, false, false);
+
+    /// After every poll and on disconnect — the Mac's WebSDR window
+    /// subscribes to hub.$rigState instead.
+    private void PushRigStateToWebSdr() => _webSdrWindow?.Model.OnRigState(CurrentRigSnapshot());
+
+    /// Click-to-tune from the WebSDR page: the same paths as the Set button
+    /// and the mode picker.
+    private async Task TuneFromWebSdrAsync(long? hz, RigMode? mode)
+    {
+        if (hz is { } frequency)
+        {
+            await SetMainFrequencyAsync(frequency);
+        }
+        if (mode is { } newMode && _client is { } client)
+        {
+            try
+            {
+                await client.SetModeAsync(newMode);
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Set mode failed: {ex.Message}";
+            }
+        }
+    }
+
+    /// Called by the WebSDR window whenever its page becomes audible
+    /// (connected and not muted there) or stops being so, so the rig's Main
+    /// audio and the page's don't play over each other — the Mac's
+    /// HubService.setWebSDRAudioActive. Mutes Main only if it isn't muted
+    /// already, and unmutes it only if this is what muted it
+    /// (AppSettings.MainMutedByWebSdr). Gates playback only, like the Mute
+    /// button — APRS and the scope are unaffected.
+    private void SetWebSdrAudioActive(bool active)
+    {
+        if (active)
+        {
+            if (_mainPlayer.IsMuted)
+            {
+                return;
+            }
+            AppSettings.MainMutedByWebSdr = true;
+            SetMainMuted(true);
+        }
+        else
+        {
+            if (!AppSettings.MainMutedByWebSdr)
+            {
+                return;
+            }
+            AppSettings.MainMutedByWebSdr = false;
+            SetMainMuted(false);
+        }
+    }
+
+    private void SetMainMuted(bool muted)
+    {
+        _mainPlayer.IsMuted = muted;
+        MainMuteToggle.IsChecked = muted;
+        AppSettings.MainAudio.Muted = muted;
+        AppSettings.SaveAudio();
+    }
+
     private void AprsStationsMenuItem_Click(object sender, RoutedEventArgs e) => ShowAprsList(AprsListKind.Stations);
 
     private void AprsMessagesMenuItem_Click(object sender, RoutedEventArgs e) => ShowAprsList(AprsListKind.Messages);
@@ -2058,6 +2163,7 @@ public sealed partial class MainWindow : Window
 
     private void MainMuteToggle_Click(object sender, RoutedEventArgs e)
     {
+        AppSettings.MainMutedByWebSdr = false;  // the user's call from here on
         _mainPlayer.IsMuted = MainMuteToggle.IsChecked == true;
         AppSettings.MainAudio.Muted = _mainPlayer.IsMuted;
         AppSettings.SaveAudio();

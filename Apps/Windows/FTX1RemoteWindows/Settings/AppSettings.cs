@@ -70,6 +70,17 @@ public static class AppSettings
         public int AprsToleranceHz { get; set; } = AprsToleranceHzSetting.Default;
         public int AprsMaxStations { get; set; } = AprsMaxStationsSetting.Default;
         public int AprsMaxMessages { get; set; } = AprsMaxMessagesSetting.Default;
+        public string GridSquare { get; set; } = "";
+        public string WebSdrHostPort { get; set; } = "";
+        public bool WebSdrFollowRig { get; set; } = true;
+        public bool WebSdrTuneRig { get; set; } = true;
+        public bool WebSdrMuted { get; set; }
+        public bool WebSdrMuteOnTransmit { get; set; } = true;
+        public WebSdrFavorite? WebSdrPickedStation { get; set; }
+        public List<WebSdrFavorite> WebSdrFavorites { get; set; } = [];
+        public string? WebSdrDirectoryETag { get; set; }
+        public SdrPlatform WebSdrStationsTab { get; set; } = SdrPlatform.KiwiSdr;
+        public bool MainMutedByWebSdr { get; set; }
     }
 
     /// One Polling-tab value: its default and allowed range. Every getter
@@ -451,6 +462,132 @@ public static class AppSettings
     /// the tolerance of the APRS frequency (the Mac's APRSSettings.isActive).
     public static bool IsAprsActive(long? frequencyHz) =>
         AprsEnabled && frequencyHz is { } hz and > 0 && Math.Abs(hz - AprsFrequencyHz) <= AprsToleranceHz;
+
+    /// The operator's Maidenhead grid square (Settings → Station), the Mac's
+    /// StationSettings.gridSquare. Only the WebSDR Stations window uses it
+    /// so far, to sort KiwiSDRs by distance.
+    public static string GridSquare
+    {
+        get => _cache.GridSquare;
+        set
+        {
+            _cache.GridSquare = value;
+            Save();
+        }
+    }
+
+    // The WebSDR window (Services/WebSdrFollowModel.cs) — the Mac's
+    // WebSDRSettings, same defaults.
+
+    /// The committed host (picked from the directory or Favorites, or typed).
+    public static string WebSdrHostPort
+    {
+        get => _cache.WebSdrHostPort;
+        set
+        {
+            _cache.WebSdrHostPort = value;
+            Save();
+        }
+    }
+
+    public static bool WebSdrFollowRig
+    {
+        get => _cache.WebSdrFollowRig;
+        set
+        {
+            _cache.WebSdrFollowRig = value;
+            Save();
+        }
+    }
+
+    public static bool WebSdrTuneRig
+    {
+        get => _cache.WebSdrTuneRig;
+        set
+        {
+            _cache.WebSdrTuneRig = value;
+            Save();
+        }
+    }
+
+    public static bool WebSdrMuted
+    {
+        get => _cache.WebSdrMuted;
+        set
+        {
+            _cache.WebSdrMuted = value;
+            Save();
+        }
+    }
+
+    public static bool WebSdrMuteOnTransmit
+    {
+        get => _cache.WebSdrMuteOnTransmit;
+        set
+        {
+            _cache.WebSdrMuteOnTransmit = value;
+            Save();
+        }
+    }
+
+    /// The station last picked from the directory or Favorites (host,
+    /// name, location, ranges, platform).
+    public static WebSdrFavorite? WebSdrPickedStation
+    {
+        get => _cache.WebSdrPickedStation;
+        set
+        {
+            _cache.WebSdrPickedStation = value;
+            Save();
+        }
+    }
+
+    /// Saved stations, in the user's order.
+    public static List<WebSdrFavorite> WebSdrFavorites
+    {
+        get => _cache.WebSdrFavorites;
+        set
+        {
+            _cache.WebSdrFavorites = value;
+            Save();
+        }
+    }
+
+    /// The KiwiSDR directory's last ETag, for its conditional GET.
+    public static string? WebSdrDirectoryETag
+    {
+        get => _cache.WebSdrDirectoryETag;
+        set
+        {
+            _cache.WebSdrDirectoryETag = value;
+            Save();
+        }
+    }
+
+    /// The Stations window's last tab.
+    public static SdrPlatform WebSdrStationsTab
+    {
+        get => _cache.WebSdrStationsTab;
+        set
+        {
+            _cache.WebSdrStationsTab = value;
+            Save();
+        }
+    }
+
+    /// Main's audio was muted by the WebSDR window (not by the user) — the
+    /// Mac's mainMutedByWebSDR. Persisted so a crash mid-session can't leave
+    /// Main stuck muted: the WebSDR window always opens disconnected, so
+    /// MainWindow lifts a leftover WebSDR mute at startup.
+    public static bool MainMutedByWebSdr
+    {
+        get => _cache.MainMutedByWebSdr;
+        set
+        {
+            _cache.MainMutedByWebSdr = value;
+            Save();
+        }
+    }
 
     /// Mutate the returned object, then call <see cref="SaveAudio"/>.
     public static ChannelAudio MainAudio => _cache.MainAudio;

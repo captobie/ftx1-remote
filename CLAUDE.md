@@ -671,6 +671,12 @@ for the DSP, see the README's "APRS decode"), checked against synthetic
 vectors and a fake Pi stream, then rig-tested by the user the same day in
 Remote mode (MAIN and SUB), working well; Local mode not yet rig-tested;
 the Mac's APRS map is not ported.
+The WebSDR window was ported 2026-10-01 (`Controls/WebSdrWindow.cs`,
+`Services/WebSdrFollowModel.cs` + `SdrPageBridge.cs`, WebView2): everything
+the Mac's has, checked against a fake rigctld and public KiwiSDR/WebSDR
+servers, not yet on the rig. The Swift WebSDR files stay the source of
+truth; see the README's "WebSDR window" for the WebView2 differences
+(shared environment, the multiple-downloads permission, Recordings folder).
 Full plan, protocol/model porting notes, and open items:
 `Apps/Windows/README.md`. `Apps/Windows/FTX1RemoteWindows/` has a
 build-verified (`dotnet build -r win-x64 --self-contained`, not yet

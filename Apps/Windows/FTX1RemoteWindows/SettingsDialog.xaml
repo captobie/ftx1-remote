@@ -8,9 +8,9 @@
     DefaultButton="Primary"
     PrimaryButtonClick="SaveButton_Click">
 
-    <!-- The Mac's Settings tabs (SettingsView.swift), minus Station and
-         Updates (nothing here uses a callsign/grid yet, and there's no
-         Sparkle on Windows). Everything applies on Save; Cancel discards
+    <!-- The Mac's Settings tabs (SettingsView.swift), minus Updates (no
+         Sparkle on Windows); Station has only the grid square, the one
+         thing here that uses it (the WebSDR station list's distances). Everything applies on Save; Cancel discards
          every tab, unlike the Mac, where only the rigctld tab waits. -->
     <Grid Width="620" RowSpacing="12">
         <Grid.RowDefinitions>
@@ -24,6 +24,7 @@
             <SelectorBarItem Text="Audio" Tag="Audio" />
             <SelectorBarItem Text="C4FM" Tag="C4fm" />
             <SelectorBarItem Text="APRS" Tag="Aprs" />
+            <SelectorBarItem Text="Station" Tag="Station" />
             <SelectorBarItem Text="Home Freq" Tag="Home" />
             <SelectorBarItem Text="Polling" Tag="Polling" />
             <SelectorBarItem Text="Appearance" Tag="Appearance" />
@@ -108,6 +109,14 @@
                         <Button x:Name="AprsClearHistoryButton" Content="Clear History…" Click="AprsClearHistoryButton_Click" />
                         <TextBlock x:Name="AprsClearNote" VerticalAlignment="Center" Foreground="Gray" FontSize="12" />
                     </StackPanel>
+                </StackPanel>
+
+                <!-- Station (the Mac's StationSettings). -->
+                <StackPanel x:Name="StationTab" Spacing="12" Visibility="Collapsed">
+                    <TextBox x:Name="GridSquareBox" Header="Grid square" Width="160" HorizontalAlignment="Left"
+                             PlaceholderText="e.g. FN31pr" MaxLength="8" />
+                    <TextBlock Text="Your Maidenhead locator (4 or 6 characters). The WebSDR window's KiwiSDR list uses it to show each station's distance and sort nearest first."
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- Home Freq: rows added in code, one per HomeBand. -->

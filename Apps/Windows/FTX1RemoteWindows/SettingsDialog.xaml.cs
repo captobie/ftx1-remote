@@ -53,6 +53,7 @@ public sealed partial class SettingsDialog : ContentDialog
         }
         ConnectionModeComboBox.SelectedIndex = AppSettings.ConnectionMode == ConnectionMode.Local ? 1 : 0;
         PiHostBox.Text = AppSettings.PiHost;
+        GridSquareBox.Text = AppSettings.GridSquare;
         RigctldPathBox.Text = AppSettings.RigctldPath;
         ModelNumberBox.Value = AppSettings.ModelNumber;
         RefreshComPorts();
@@ -129,7 +130,7 @@ public sealed partial class SettingsDialog : ContentDialog
         var tabs = new (string Tag, UIElement Panel)[]
         {
             ("Rigctld", RigctldTab), ("Audio", AudioTab), ("C4fm", C4fmTab), ("Aprs", AprsTab),
-            ("Home", HomeTab), ("Polling", PollingTab), ("Appearance", AppearanceTab),
+            ("Station", StationTab), ("Home", HomeTab), ("Polling", PollingTab), ("Appearance", AppearanceTab),
         };
         foreach (var (t, panel) in tabs)
         {
@@ -194,6 +195,14 @@ public sealed partial class SettingsDialog : ContentDialog
             }
         }
 
+        var gridSquare = GridSquareBox.Text.Trim();
+        if (gridSquare.Length > 0 && Maidenhead.Coordinates(gridSquare) is null)
+        {
+            Fail("Station", $"\"{gridSquare}\" isn't a Maidenhead grid square (e.g. FN31 or FN31pr).");
+            args.Cancel = true;
+            return;
+        }
+
         if (ConnectionModeComboBox.IsEnabled)
         {
             AppSettings.ConnectionMode = SelectedMode;
@@ -230,6 +239,10 @@ public sealed partial class SettingsDialog : ContentDialog
             AppSettings.WpsdHost = wpsdHost;
             WpsdHostChanged = true;
         }
+
+        // Stored as the operator writes it (FN31pr); Maidenhead parsing
+        // ignores case.
+        AppSettings.GridSquare = gridSquare;
 
         AppSettings.AprsEnabled = AprsEnabledCheckBox.IsChecked == true;
         AppSettings.AprsFrequencyHz = aprsFrequencyHz;
