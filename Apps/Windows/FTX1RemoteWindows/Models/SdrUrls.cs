@@ -55,11 +55,12 @@ public readonly record struct FrequencyRange(long Low, long High)
 }
 
 /// Which receiver software a WebSDR-window host runs — the Mac's
-/// SDRPlatform: a KiwiSDR, or a classic WebSDR (PA3FWM's software, the
-/// servers listed on websdr.org). The two differ in how they're tuned
-/// (`?f=` + page reload vs. `?tune=` + the page's own `setfreqtune()` in
-/// place), in their mode names, and in the page functions SdrPageBridge
-/// calls.
+/// SDRPlatform: a KiwiSDR, a classic WebSDR (PA3FWM's software, the servers
+/// listed on websdr.org), or an OpenWebRX (in practice the operator's own,
+/// e.g. an RTL-SDR on a Pi). They differ in how they're tuned (a Kiwi by
+/// `?f=` + page reload, the other two in place through the page's own
+/// functions), in their mode names, and in the page functions
+/// SdrPageBridge calls.
 ///
 /// Stored per station (WebSdrFavorite.Platform). A host typed by hand has
 /// no platform until its page has loaded once — it's loaded as a Kiwi
@@ -69,6 +70,7 @@ public enum SdrPlatform
 {
     KiwiSdr,
     WebSdr,
+    OpenWebRx,
 }
 
 /// What a retune comes to: a URL to load, or why not — the Mac's
@@ -84,18 +86,34 @@ public abstract record SdrRetune
 
 public static class SdrPlatformExtensions
 {
-    public static string DisplayName(this SdrPlatform platform) =>
-        platform == SdrPlatform.KiwiSdr ? "KiwiSDR" : "WebSDR";
+    public static string DisplayName(this SdrPlatform platform) => platform switch
+    {
+        SdrPlatform.KiwiSdr => "KiwiSDR",
+        SdrPlatform.WebSdr => "WebSDR",
+        _ => "OpenWebRX",
+    };
+
+    /// Loaded once per connection and then retuned through the page's own
+    /// functions (SdrPageBridge.RetuneInPlaceAsync); a Kiwi reloads instead.
+    public static bool RetunesInPlace(this SdrPlatform platform) => platform != SdrPlatform.KiwiSdr;
 
     /// The page's mode token for a rig mode, or null to tune frequency only.
     /// A null rig mode (C4FM, or not read yet) is frequency only too.
-    public static string? ModeToken(this SdrPlatform platform, RigMode? mode) =>
-        platform == SdrPlatform.KiwiSdr ? KiwiSdrUrlBuilder.ModeToken(mode) : WebSdrUrlBuilder.ModeToken(mode);
+    public static string? ModeToken(this SdrPlatform platform, RigMode? mode) => platform switch
+    {
+        SdrPlatform.KiwiSdr => KiwiSdrUrlBuilder.ModeToken(mode),
+        SdrPlatform.WebSdr => WebSdrUrlBuilder.ModeToken(mode),
+        _ => OpenWebRxUrlBuilder.ModeToken(mode),
+    };
 
     /// A mode as the page reports it, folded to the token ModeToken would
     /// send for it; null when the rig has no equivalent.
-    public static string? ModeFamily(this SdrPlatform platform, string pageMode) =>
-        platform == SdrPlatform.KiwiSdr ? KiwiSdrUrlBuilder.ModeFamily(pageMode) : WebSdrUrlBuilder.ModeFamily(pageMode);
+    public static string? ModeFamily(this SdrPlatform platform, string pageMode) => platform switch
+    {
+        SdrPlatform.KiwiSdr => KiwiSdrUrlBuilder.ModeFamily(pageMode),
+        SdrPlatform.WebSdr => WebSdrUrlBuilder.ModeFamily(pageMode),
+        _ => OpenWebRxUrlBuilder.ModeFamily(pageMode),
+    };
 
     /// The rig mode for a page mode, for click-to-tune, or null to leave the
     /// rig's mode alone: when the page mode has no rig equivalent, when it's
@@ -122,12 +140,14 @@ public static class SdrPlatformExtensions
     }
 
     /// `bands`: the station's receive ranges, or null when unknown (a WebSDR
-    /// not loaded yet), which skips the range check.
+    /// or OpenWebRX not loaded yet), which skips the range check.
     public static SdrRetune Retune(this SdrPlatform platform, string hostPort, long frequencyHz, RigMode? mode,
-                                   IReadOnlyList<FrequencyRange>? bands) =>
-        platform == SdrPlatform.KiwiSdr
-            ? KiwiSdrUrlBuilder.Retune(hostPort, frequencyHz, mode, bands ?? KiwiSdrUrlBuilder.DefaultBands)
-            : WebSdrUrlBuilder.Retune(hostPort, frequencyHz, mode, bands);
+                                   IReadOnlyList<FrequencyRange>? bands) => platform switch
+    {
+        SdrPlatform.KiwiSdr => KiwiSdrUrlBuilder.Retune(hostPort, frequencyHz, mode, bands ?? KiwiSdrUrlBuilder.DefaultBands),
+        SdrPlatform.WebSdr => WebSdrUrlBuilder.Retune(hostPort, frequencyHz, mode, bands),
+        _ => OpenWebRxUrlBuilder.Retune(hostPort, frequencyHz, mode, bands),
+    };
 }
 
 /// Pure URL logic for a KiwiSDR — the Mac's KiwiSDRURLBuilder (see there
@@ -281,5 +301,75 @@ public static class WebSdrUrlBuilder
         }
         var token = ModeToken(mode);
         return new SdrRetune.Tune(baseUrl + "?tune=" + TuneValue(frequencyHz, token), frequencyHz, token);
+    }
+}
+
+/// URL and mode logic for OpenWebRX receivers — the Mac's
+/// OpenWebRXURLBuilder (checked against a live v1.2.2 server's own
+/// `receiver.js`):
+/// - The page reads `#freq=<Hz>,mod=<modulation>` from its URL hash, but
+///   only applies it when the frequency is inside the profile the SDR is
+///   *currently* on. The profile is shared server-side state, so a first
+///   load can land on any profile; WebSdrFollowModel.PageDidLoad therefore
+///   always follows up with an in-place retune
+///   (SdrPageBridge.RetuneInPlaceAsync), which switches the profile when
+///   needed.
+/// - Every later retune is in place too, never a reload. The URL built here
+///   is the retune's identity (WebSdrFollowModel dedups on it) and a
+///   shareable link; the page itself is always loaded without the hash.
+/// - Modulation names are the page's `Modes` list ("usb", "lsb", "cw",
+///   "am", "nfm", "wfm", plus digital voice and digimodes, which report
+///   their underlying modulation).
+public static class OpenWebRxUrlBuilder
+{
+    /// The page's modulation for a rig mode. null = frequency only.
+    public static string? ModeToken(RigMode? mode) => mode switch
+    {
+        RigMode.Usb or RigMode.DataUsb => "usb",
+        RigMode.Lsb => "lsb",
+        RigMode.Cw => "cw",
+        RigMode.Am => "am",
+        RigMode.Fm => "nfm",
+        // C4FM has an OpenWebRX equivalent ("ysf"), but only with the
+        // optional digiham decoder installed; frequency only, like the other
+        // platforms, rather than a mode the page may refuse.
+        _ => null,
+    };
+
+    /// The page's current modulation folded to a ModeToken value; null when
+    /// the rig has no equivalent (WFM, digital voice, DRM).
+    public static string? ModeFamily(string mode) => mode.ToLowerInvariant() switch
+    {
+        "usb" => "usb",
+        "lsb" => "lsb",
+        "cw" => "cw",
+        "am" => "am",
+        "nfm" => "nfm",
+        _ => null,
+    };
+
+    /// `bands` null (not known until the page has loaded once) skips the
+    /// range check — a retune outside every profile then just doesn't move
+    /// the page.
+    public static SdrRetune Retune(string hostPort, long frequencyHz, RigMode? mode, IReadOnlyList<FrequencyRange>? bands)
+    {
+        if (hostPort.Trim().Length == 0)
+        {
+            return new SdrRetune.NoHost();
+        }
+        if (KiwiSdrUrlBuilder.BaseUrl(hostPort) is not { } baseUrl)
+        {
+            return new SdrRetune.InvalidHost();
+        }
+        if (frequencyHz <= 0)
+        {
+            return new SdrRetune.NoFrequency();
+        }
+        if (bands is not null && !bands.Any(b => b.Contains(frequencyHz)))
+        {
+            return new SdrRetune.OutOfRange(frequencyHz, bands);
+        }
+        var token = ModeToken(mode);
+        return new SdrRetune.Tune(baseUrl + "#freq=" + frequencyHz + (token is null ? "" : ",mod=" + token), frequencyHz, token);
     }
 }

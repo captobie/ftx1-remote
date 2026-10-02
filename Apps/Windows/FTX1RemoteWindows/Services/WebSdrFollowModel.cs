@@ -25,10 +25,11 @@ public sealed class WebSdrRigLink
 /// Drives the WebSDR window — a port of the Mac's WebSDRFollowModel, same
 /// logic and decisions (see there and root CLAUDE.md's "WebSDR follow"
 /// section): follows the rig's Main VFO frequency/mode and publishes the
-/// page WebSdrWindow should show — a KiwiSDR, or a classic WebSDR
-/// (SdrPlatform). A Kiwi is retuned by loading a new `?f=` URL; a WebSDR is
-/// loaded once per connection and then retuned in place through its own
-/// `setfreqtune()` (RetuneInPlace), with no reload or reconnect.
+/// page WebSdrWindow should show — a KiwiSDR, a classic WebSDR or an
+/// OpenWebRX (SdrPlatform). A Kiwi is retuned by loading a new `?f=` URL;
+/// the other two are loaded once per connection and then retuned in place
+/// through the page's own functions (RetuneInPlace), with no reload or
+/// reconnect.
 ///
 /// MainWindow pushes the rig state after every poll (OnRigState), the same
 /// values the poll just read rather than a second poll; consecutive
@@ -616,6 +617,7 @@ public sealed class WebSdrFollowModel
         StopTuningPoll();
         _loadCts?.Cancel();
         _loadCts = null;
+        _inPlaceCts?.Cancel();
         _loadedPlatform = null;
         Page = null;
         _tunedTarget = null;
@@ -647,16 +649,19 @@ public sealed class WebSdrFollowModel
 
     /// The platform of the page on screen, once it has loaded and been
     /// checked (SdrPageBridge.DetectPlatformAsync); null while none is, or
-    /// one is still loading. Only a loaded WebSDR page is retuned in place.
+    /// one is still loading. Only a loaded WebSDR or OpenWebRX page is
+    /// retuned in place.
     private SdrPlatform? _loadedPlatform;
     private CancellationTokenSource? _loadCts;
 
     /// The web view finished loading a receiver page: check what it is (a
     /// typed host was loaded as a Kiwi, which may be wrong) and record that,
-    /// apply Mute to a WebSDR (it has no URL parameter for it), and if a
-    /// recording spans the reload (a retune), start the next file. A host
-    /// that turned out to be a WebSDR is then retuned in place to the rig,
-    /// since the `?f=` it was loaded with means nothing to it.
+    /// apply Mute to a WebSDR or OpenWebRX (neither has a URL parameter for
+    /// it), and if a recording spans the reload (a retune), start the next
+    /// file. A host that turned out not to be a Kiwi is then retuned in
+    /// place to the rig, since the `?f=` it was loaded with means nothing to
+    /// it — and an OpenWebRX always is, since it's loaded without a
+    /// frequency (see Issue) and may need a profile switch.
     public void PageDidLoad()
     {
         _loadCts?.Cancel();
@@ -674,7 +679,7 @@ public sealed class WebSdrFollowModel
             if (detected is not null)
             {
                 var bands = await Bridge.ReadBandsAsync();
-                var title = platform == SdrPlatform.WebSdr ? await Bridge.PageTitleAsync() : null;
+                var title = platform != SdrPlatform.KiwiSdr ? await Bridge.PageTitleAsync() : null;
                 if (cts.IsCancellationRequested)
                 {
                     return;
@@ -682,7 +687,7 @@ public sealed class WebSdrFollowModel
                 LearnStation(platform, bands, title);
             }
             StartTuningPoll();
-            if (platform == SdrPlatform.WebSdr && PageShouldBeMuted)
+            if (platform != SdrPlatform.KiwiSdr && PageShouldBeMuted)
             {
                 ApplyPageMute();
             }
@@ -690,7 +695,7 @@ public sealed class WebSdrFollowModel
             {
                 StartSegment();
             }
-            if (platform != expected)
+            if (platform != expected || platform == SdrPlatform.OpenWebRx)
             {
                 _lastIssuedUrl = null;
                 Evaluate();
@@ -753,6 +758,14 @@ public sealed class WebSdrFollowModel
 
     private void PageTuningRead(PageTuning reading)
     {
+        // An in-place retune is moving the page (on an OpenWebRX, through a
+        // profile switch that briefly lands on the profile's own start
+        // frequency); none of that is the user tuning. The baseline is
+        // reset once it's done.
+        if (_retuningInPlace)
+        {
+            return;
+        }
         // The page's first settled tuning is where it was loaded to (the
         // rig's frequency, or the Kiwi's own last one for a bare host page)
         // — never something the user did, so never sent to the rig.
@@ -926,7 +939,7 @@ public sealed class WebSdrFollowModel
         if (KiwiSdrUrlBuilder.BaseUrl(_hostPort) is not { } baseUrl)
         {
             Status = _hostPort.Length == 0
-                ? "Enter a KiwiSDR or WebSDR host:port and press Connect."
+                ? "Enter a KiwiSDR, WebSDR or OpenWebRX host:port and press Connect."
                 : $"“{_hostPort}” isn't a valid host:port.";
             return;
         }
@@ -984,7 +997,7 @@ public sealed class WebSdrFollowModel
                 }
                 else if (forceHostPage || tuneUrl != _lastIssuedUrl)
                 {
-                    Issue(tuneUrl, latest, forceHostPage ? null : WebSdrUrlBuilder.TuneValue(hz, token));
+                    Issue(tuneUrl, latest, forceHostPage ? null : new InPlaceTuning(hz, token));
                     _lastTunedAt = DateTime.Now;
                 }
                 var time = _lastTunedAt.ToString("T");
@@ -1022,13 +1035,24 @@ public sealed class WebSdrFollowModel
     /// in which case that file is saved first (a reload would lose it) and
     /// the load follows; PageDidLoad then starts the next file.
     ///
-    /// `inPlace`: the `setfreqtune()` value for the same tuning. Used
-    /// instead of a load when the page on screen is a loaded WebSDR.
-    private void Issue(string newUrl, FollowTarget? tuned = null, string? inPlace = null)
+    /// `inPlace`: the same tuning, used instead of a load when the page on
+    /// screen is a loaded WebSDR or OpenWebRX.
+    ///
+    /// An OpenWebRX is always loaded without its `#freq=` hash: the page
+    /// ignores a hash outside the profile the SDR happens to be on.
+    /// PageDidLoad tunes it in place instead; a rig change while it's still
+    /// loading is left to that too, rather than starting the load over.
+    private void Issue(string newUrl, FollowTarget? tuned = null, InPlaceTuning? inPlace = null)
     {
-        if (inPlace is not null && tuned is { } target && _loadedPlatform == SdrPlatform.WebSdr && Page is not null && !_reloading)
+        if (inPlace is { } tuning && tuned is { } target && _loadedPlatform?.RetunesInPlace() == true && Page is not null && !_reloading)
         {
-            RetuneInPlace(newUrl, inPlace, target);
+            RetuneInPlace(newUrl, tuning, target);
+            return;
+        }
+        if (inPlace is not null && CurrentPlatform == SdrPlatform.OpenWebRx && Page?.Platform == SdrPlatform.OpenWebRx && _loadedPlatform is null)
+        {
+            _lastIssuedUrl = newUrl;
+            _tunedTarget = tuned;
             return;
         }
         StopTuningPoll();
@@ -1037,7 +1061,12 @@ public sealed class WebSdrFollowModel
         _loadedPlatform = null;
         _pendingInPlace = null;
         _lastIssuedUrl = newUrl;
-        var request = new PageRequest(WithMuteParameter(newUrl), CurrentPlatform,
+        var loadUrl = WithMuteParameter(newUrl);
+        if (CurrentPlatform == SdrPlatform.OpenWebRx && loadUrl.IndexOf('#') is var hash and >= 0)
+        {
+            loadUrl = loadUrl[..hash];
+        }
+        var request = new PageRequest(loadUrl, CurrentPlatform,
                                       (_pendingReload?.Request.Id ?? Page?.Id ?? 0) + 1);
         if (!IsRecording || Page is null)
         {
@@ -1072,27 +1101,34 @@ public sealed class WebSdrFollowModel
         });
     }
 
-    // In-place retune (WebSDR)
+    // In-place retune (WebSDR, OpenWebRX)
 
-    /// The newest WebSDR retune waiting its turn; only the newest survives
-    /// if the rig moves again while a recording is being saved.
-    private (string Value, FollowTarget Tuned)? _pendingInPlace;
+    private readonly record struct InPlaceTuning(long FrequencyHz, string? ModeToken);
+
+    /// The newest in-place retune waiting its turn; only the newest survives
+    /// if the rig moves again while a recording is being saved (or, on an
+    /// OpenWebRX, a profile switch is under way).
+    private (InPlaceTuning Tuning, FollowTarget Tuned)? _pendingInPlace;
     private bool _retuningInPlace;
+    private CancellationTokenSource? _inPlaceCts;
 
-    /// Retunes the loaded WebSDR page through its own `setfreqtune()` — no
-    /// reload. While recording, the current file is saved first and a new
-    /// one started afterwards (one file per frequency, same as a Kiwi
-    /// retune). The click-to-tune baseline is reset so the page reporting
-    /// its new frequency isn't taken for the user tuning it.
-    private void RetuneInPlace(string url, string value, FollowTarget tuned)
+    /// Retunes the loaded WebSDR or OpenWebRX page through its own
+    /// functions (SdrPageBridge.RetuneInPlaceAsync) — no reload. While
+    /// recording, the current file is saved first and a new one started
+    /// afterwards (one file per frequency, same as a Kiwi retune). The
+    /// click-to-tune baseline is reset so the page reporting its new
+    /// frequency isn't taken for the user tuning it.
+    private void RetuneInPlace(string url, InPlaceTuning tuning, FollowTarget tuned)
     {
         _lastIssuedUrl = url;
-        _pendingInPlace = (value, tuned);
+        _pendingInPlace = (tuning, tuned);
         if (_retuningInPlace)
         {
             return;
         }
         _retuningInPlace = true;
+        _inPlaceCts?.Cancel();
+        var cts = _inPlaceCts = new CancellationTokenSource();
         Run(async () =>
         {
             try
@@ -1106,13 +1142,18 @@ public sealed class WebSdrFollowModel
                         SegmentStartedAt = null;
                         NoteSaved(await Bridge.StopAsync());
                     }
-                    if (!IsConnected || _loadedPlatform != SdrPlatform.WebSdr)
+                    if (!IsConnected || _loadedPlatform?.RetunesInPlace() != true)
                     {
                         break;
                     }
                     _pageTuning = null;
                     _handledPageTuning = null;
-                    await Bridge.RetuneInPlaceAsync(next.Value);
+                    var retuned = await Bridge.RetuneInPlaceAsync(next.Tuning.FrequencyHz, next.Tuning.ModeToken, cts.Token);
+                    if (!retuned && _pendingInPlace is null && IsConnected)
+                    {
+                        Status = $"Couldn't retune the {Bridge.Platform.DisplayName()} to {KiwiSdrUrlBuilder.KHzString(next.Tuning.FrequencyHz)} kHz"
+                            + (Bridge.Platform == SdrPlatform.OpenWebRx ? " — its profile switch didn't take (is that SDR connected?)" : "");
+                    }
                     _tunedTarget = next.Tuned;
                     _pageTuning = null;
                     _handledPageTuning = null;

@@ -109,7 +109,7 @@ public sealed class WebSdrFavoritesDialog : ContentDialog
         }
         parts.Add(favorite.BandRanges is { } bands
             ? FrequencyRange.Describe(bands)
-            : favorite.Platform == SdrPlatform.WebSdr ? "range read on next connect" : "0–30 MHz (range unknown)");
+            : favorite.Platform is SdrPlatform.WebSdr or SdrPlatform.OpenWebRx ? "range read on next connect" : "0–30 MHz (range unknown)");
         var details = string.Join(" · ", parts);
         var detailsText = new TextBlock
         {

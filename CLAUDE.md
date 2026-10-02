@@ -677,6 +677,10 @@ the Mac's has, checked against a fake rigctld and public KiwiSDR/WebSDR
 servers, not yet on the rig. The Swift WebSDR files stay the source of
 truth; see the README's "WebSDR window" for the WebView2 differences
 (shared environment, the multiple-downloads permission, Recordings folder).
+OpenWebRX followed 2026-10-02 (profiles, in-place retune, the recorder
+tap), tested against the operator's own server with a fake rigctld, not
+yet on the rig; WebView2 needs no hash-navigation workaround (Chromium
+keeps OpenWebRX's hash updates same-document).
 Full plan, protocol/model porting notes, and open items:
 `Apps/Windows/README.md`. `Apps/Windows/FTX1RemoteWindows/` has a
 build-verified (`dotnet build -r win-x64 --self-contained`, not yet

@@ -13,7 +13,7 @@ using Microsoft.Web.WebView2.Core;
 namespace FTX1RemoteWindows.Controls;
 
 /// The WebSDR window — the Mac's WebSDRFollowView + KiwiWebView: an
-/// embedded KiwiSDR or classic WebSDR (WebView2) that retunes to follow the
+/// embedded KiwiSDR, classic WebSDR or OpenWebRX (WebView2) that retunes to follow the
 /// rig's Main VFO and, with "Tune rig", tunes the rig when the user tunes
 /// in the page. All the logic is in Services/WebSdrFollowModel.cs; this is
 /// the toolbar, the web view and the status line. Its own window rather
@@ -43,7 +43,7 @@ public sealed class WebSdrWindow : Window
 
     private readonly TextBox _hostBox = new()
     {
-        PlaceholderText = "KiwiSDR or WebSDR host:port",
+        PlaceholderText = "KiwiSDR, WebSDR or OpenWebRX host:port",
         FontFamily = new FontFamily("Consolas"),
         Width = 300,
         VerticalAlignment = VerticalAlignment.Center,
@@ -399,6 +399,9 @@ public sealed class WebSdrWindow : Window
         };
         // target=_blank links in the page (a Kiwi's info links etc.) go to
         // the default browser rather than a bare WebView2 popup.
+        // The OpenWebRX recorder's tap posts its audio blocks here (see
+        // SdrPageBridge.ReceiveTapAudio); the bridge ignores anything else.
+        _core.WebMessageReceived += (_, args) => Model.Bridge.ReceiveTapAudio(args.WebMessageAsJson);
         _core.NewWindowRequested += (_, args) =>
         {
             args.Handled = true;
@@ -524,7 +527,7 @@ public sealed class WebSdrWindow : Window
         _notConnectedPanel.Visibility = Model.IsConnected ? Visibility.Collapsed : Visibility.Visible;
         if (!_webViewFailed)
         {
-            _notConnectedHint.Text = "Pick a station or enter a KiwiSDR or WebSDR host:port, then press Connect.";
+            _notConnectedHint.Text = "Pick a station or enter a KiwiSDR, WebSDR or OpenWebRX host:port, then press Connect.";
         }
 
         _statusText.Text = Model.Status;

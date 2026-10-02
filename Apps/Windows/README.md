@@ -815,6 +815,33 @@ automatic Main mute and its crash recovery, the websdr.org pick, Favorites
 (star, menu, rename, reorder), distance sort, and close-while-recording.
 Not yet on the rig.
 
+**OpenWebRX (2026-10-02)**, ported from the Mac's 2026-10-01 commits (root
+`CLAUDE.md`'s OpenWebRX bullet has the server and every decision):
+`SdrPlatform.OpenWebRx` + `OpenWebRxUrlBuilder` in `Models/SdrUrls.cs`, the
+page JavaScript in `SdrPageBridge` (detection, profiles from the list box +
+`status.json`, in-place retune with profile switching, `toggleMute()`,
+tuning reads), the model's always-retune-after-load and no-click-to-tune
+during an in-place retune, and the app-side recorder tap
+(`Services/SdrAudioFileWriter.cs`, 16-bit mono WAV at the page's 48 kHz).
+WebView2 differences:
+- The profile read is async JavaScript. The Mac awaits it with
+  `callAsyncJavaScript`; `ExecuteScriptAsync` doesn't wait for a promise,
+  so the script parks its result in a page global that the bridge polls.
+- The tap posts its blocks with `chrome.webview.postMessage` (a WebKit
+  message handler on the Mac); the window passes `WebMessageReceived` to
+  the bridge.
+- No hash-navigation workaround: the Mac cancels OpenWebRX's `location.hash`
+  updates because its WebKit turns them into full reloads, but Chromium
+  keeps them same-document. Checked: tuning in the page kept the page's Mute,
+  its waterfall history and a single client.
+
+Tested against the operator's own server (`100.104.255.14:8073`, K7CMA) with
+the fake rigctld: detection with the learned name and 14 profile ranges,
+follow in place (145.075 FM), a profile switch (2 m → 70 cm at 438.800 and
+back), Mute, click-to-tune from the waterfall (a WFM mode click correctly
+left the rig's mode alone), and Record while Muted (a 7 s, 48 kHz WAV
+with signal in it). Not yet on the rig.
+
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
 - **APRS map** — see "APRS decode" above.
@@ -876,7 +903,7 @@ Apps/Windows/FTX1RemoteWindows/
     FilterModels.cs             filter value spaces + display geometry — FilterWidthTable/IFShift/IFNotch/IFContour/FilterPassbandModel.swift, NarrowWidthPreset.swift
     AprsPacket.cs               APRS info-field parser — APRS/APRSPacket.swift
     AprsModels.cs               AprsStation/AprsMessage/AprsSource — APRS/APRSModels.swift
-    SdrUrls.cs                  SdrPlatform + KiwiSDR/WebSDR URL builders — SDRPlatform/KiwiSDRURLBuilder/WebSDRURLBuilder.swift
+    SdrUrls.cs                  SdrPlatform + KiwiSDR/WebSDR/OpenWebRX URL builders — SDRPlatform + the three *URLBuilder.swift
     SdrStations.cs              KiwiSdrStation, WebSdrFavorite, Maidenhead — KiwiSDRStation/WebSDRFavorite.swift
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
@@ -895,6 +922,7 @@ Apps/Windows/FTX1RemoteWindows/
     SdrPageBridge.cs             calls into the KiwiSDR/WebSDR page + the shared WebView2 environment (SDRPageBridge.swift)
     KiwiSdrDirectory.cs          public KiwiSDR list from rx.linkfanel.net, cached (KiwiSDRDirectory.swift)
     Recordings.cs                Recordings folder + file naming (AudioRecorder.swift's statics)
+    SdrAudioFileWriter.cs        WAV writer for the OpenWebRX recorder tap (SDRAudioFileWriter.swift)
   Settings/
     AppSettings.cs                every setting (connection, audio, WPSD, APRS, station, WebSDR, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
     Appearance.cs                 AppTheme / ButtonValueColor (ports of the FTX1Core Appearance enums)
