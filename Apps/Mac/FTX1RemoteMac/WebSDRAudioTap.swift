@@ -1,4 +1,5 @@
 import AudioToolbox
+import Combine
 import CoreAudio
 import Darwin
 import Foundation
@@ -16,9 +17,11 @@ import os
 /// and keeping the ones that point at us. That covers every web view in
 /// the app, but the WebSDR window is the only one that plays audio.
 ///
-/// The tap hears the page's *output*, so the WebSDR window's Mute (the
-/// page's own mute) silences decoding too. `muteBehavior = .unmuted`: the
-/// tap never changes what you hear.
+/// The tap hears the page's *output*, so a muted page would silence
+/// decoding too. Instead, while the tap runs, the WebSDR window's Mute is
+/// applied here (`setMuted`, `muteBehavior = .muted`: the tap still gets
+/// the audio, the speakers don't) and the page itself stays unmuted — see
+/// `WebSDRAudioRouting`.
 ///
 /// The first tap triggers macOS's "System Audio Recording" permission
 /// prompt (`NSAudioCaptureUsageDescription`); if it's denied the tap runs
@@ -46,6 +49,8 @@ nonisolated final class WebSDRAudioTap: @unchecked Sendable {
     private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "websdr-audio-tap")
 
     private var isActive = false
+    private var isMuted = false
+    private var tapDescription: CATapDescription?
     private var tappedProcesses: [AudioObjectID] = []
     private var tapID = AudioObjectID(kAudioObjectUnknown)
     private var aggregateID = AudioObjectID(kAudioObjectUnknown)
@@ -89,14 +94,47 @@ nonisolated final class WebSDRAudioTap: @unchecked Sendable {
         }
     }
 
+    /// While stopping, a muted tap is kept a moment longer so the page has
+    /// time to mute itself again before the speakers are released.
     func stop() {
         queue.async { [self] in
             guard isActive else { return }
             isActive = false
             watchdog?.cancel()
             watchdog = nil
-            teardown()
-            setStatus(.stopped)
+            queue.asyncAfter(deadline: .now() + (isMuted ? 0.3 : 0)) { [self] in
+                guard !isActive else { return }
+                teardown()
+                setStatus(.stopped)
+            }
+        }
+    }
+
+    /// Silences (or restores) the tapped audio on the speakers without
+    /// affecting what the tap receives. Takes effect on the running tap, or
+    /// on the next one built.
+    func setMuted(_ muted: Bool) {
+        queue.async { [self] in
+            guard muted != isMuted else { return }
+            isMuted = muted
+            guard let tapDescription, tapID != kAudioObjectUnknown else { return }
+            tapDescription.muteBehavior = muted ? .muted : .unmuted
+            var address = AudioObjectPropertyAddress(mSelector: kAudioTapPropertyDescription,
+                                                     mScope: kAudioObjectPropertyScopeGlobal,
+                                                     mElement: kAudioObjectPropertyElementMain)
+            var reference = tapDescription
+            let status = withUnsafePointer(to: &reference) {
+                AudioObjectSetPropertyData(tapID, &address, 0, nil,
+                                           UInt32(MemoryLayout<CATapDescription>.size), $0)
+            }
+            if status == noErr {
+                Self.logger.info("tap \(muted ? "muted" : "unmuted", privacy: .public)")
+            } else {
+                // Rebuild with the new mute instead.
+                Self.logger.notice("couldn't change the tap's mute (OSStatus \(status)) — rebuilding it")
+                teardown()
+                refresh()
+            }
         }
     }
 
@@ -135,7 +173,8 @@ nonisolated final class WebSDRAudioTap: @unchecked Sendable {
         description.uuid = UUID()
         description.name = "FTX1Remote WebSDR"
         description.isPrivate = true
-        description.muteBehavior = .unmuted
+        description.muteBehavior = isMuted ? .muted : .unmuted
+        tapDescription = description
 
         var tap = AudioObjectID(kAudioObjectUnknown)
         try check(AudioHardwareCreateProcessTap(description, &tap), "create the process tap")
@@ -197,6 +236,7 @@ nonisolated final class WebSDRAudioTap: @unchecked Sendable {
             AudioHardwareDestroyProcessTap(tapID)
             tapID = AudioObjectID(kAudioObjectUnknown)
         }
+        tapDescription = nil
         tappedProcesses = []
         pending.removeAll()
     }
@@ -304,4 +344,19 @@ nonisolated final class WebSDRAudioTap: @unchecked Sendable {
             return responsibleForPID(pid) == me
         }.sorted()
     }
+}
+
+/// Where the WebSDR window's Mute is applied: on the page (the normal case)
+/// or, while the CW window is capturing the WebSDR's audio, on that capture
+/// (`WebSDRAudioTap.setMuted`), since a muted page gives the decoder nothing
+/// to decode. A plain `let` on `HubService`, shared by `WebSDRFollowModel`
+/// (which sets `muteRequested` and mutes the page only while
+/// `!captureActive`) and `CWReceiver` (which sets `captureActive` and mutes
+/// its tap with `muteRequested`).
+final class WebSDRAudioRouting: ObservableObject {
+    /// The WebSDR window wants its audio silenced: its Mute, or Mute on TX
+    /// while transmitting.
+    @Published var muteRequested = false
+    /// The CW window's WebSDR tap is attached to the WebSDR's audio.
+    @Published var captureActive = false
 }

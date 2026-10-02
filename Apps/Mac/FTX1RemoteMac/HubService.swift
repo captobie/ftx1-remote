@@ -223,10 +223,13 @@ final class HubService: ObservableObject {
 
     /// Tools → CW's decoder. Fed both audio taps unconditionally below; it
     /// picks the selected receiver itself and drops everything while the
-    /// CW window is closed (`CWWindowView` calls `start()`/`stop()`). A
-    /// plain `let`, like `ft8Store`, so decoded text never re-renders the
-    /// main window.
-    let cwReceiver = CWReceiver()
+    /// CW window is closed (`CWWindowView` calls `start()`/`stop()`). Its
+    /// own object, like `ft8Store`, so decoded text never re-renders the
+    /// main window (`lazy` only so it can be handed `webSDRAudioRouting`).
+    lazy var cwReceiver = CWReceiver(webSDRAudioRouting: webSDRAudioRouting)
+    /// Where the WebSDR window's Mute goes while the CW window captures its
+    /// audio — see `WebSDRAudioRouting`.
+    let webSDRAudioRouting = WebSDRAudioRouting()
     private let webSocketPort: UInt16
     private let rigctldHost: String
     private let rigctldPort: UInt16

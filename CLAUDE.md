@@ -1015,10 +1015,18 @@ vendored here.
   while the CW window is open with WebSDR selected. Needs
   `NSAudioCaptureUsageDescription` (in `FTX1RemoteMac-Info.plist`) and the
   user's "System Audio Recording" permission, prompted on first use —
-  denied delivers silence. The tap hears the page's *output*, so the
-  WebSDR window's Mute (the page's own mute) stops decoding; that and a
-  denied permission both show as "WebSDR is silent" (below -80 dBFS for
-  3 s — a muted Kiwi isn't exact zeros). Kiwi page audio arrives at 48 kHz
+  denied delivers silence. The tap hears the page's *output*, so while it
+  runs the WebSDR window's Mute (and Mute on TX) is moved off the page and
+  onto the tap (`muteBehavior .muted`: speakers silent, tap still fed) via
+  `WebSDRAudioRouting` (a `let` on `HubService`: `WebSDRFollowModel` sets
+  `muteRequested` and mutes the page only while `!captureActive`;
+  `CWReceiver` sets `captureActive` once the tap is attached — already
+  muted, so there's no audible gap — and clears it before stopping the tap,
+  which holds its mute 0.3 s while the page re-mutes). A muted page or a
+  denied permission shows as "WebSDR is silent" (below -80 dBFS for 3 s —
+  a muted Kiwi isn't exact zeros). Tested 2026-10-02: decoding with the
+  window Muted (Kiwi page's own icon unmuted), and the page re-muting on
+  switching the CW source away. Kiwi page audio arrives at 48 kHz
   stereo here, mixed to mono. Not tried yet: classic WebSDR, OpenWebRX.
 - **Cost**: CWKit measured at ~7% of a core (neural, Debug/-Onone) and ~1%
   (Release) for 44.1 kHz audio — no vDSP rework needed.

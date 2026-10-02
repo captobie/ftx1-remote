@@ -179,11 +179,20 @@ final class WebSDRFollowModel: ObservableObject {
     }
     private var isTransmitting = false
     private var pttCancellable: AnyCancellable?
+    private var captureCancellable: AnyCancellable?
 
-    /// What the page's own mute should be: the user's Mute, or TX while
-    /// Mute on Transmit is on.
+    /// Whether the WebSDR's audio should be silent: the user's Mute, or TX
+    /// while Mute on Transmit is on.
     private var pageShouldBeMuted: Bool {
         isMuted || (muteOnTransmit && isTransmitting)
+    }
+
+    /// What the page's own mute actually is. While the CW window is decoding
+    /// this window's audio, a muted page would leave it nothing to decode,
+    /// so the page stays unmuted and the CW window's capture does the
+    /// muting instead (`WebSDRAudioRouting`).
+    private var pageMuteApplied: Bool {
+        pageShouldBeMuted && !(hub?.webSDRAudioRouting.captureActive ?? false)
     }
 
     func toggleMuted() {
@@ -193,9 +202,12 @@ final class WebSDRFollowModel: ObservableObject {
     }
 
     private func applyPageMute() {
+        if hub?.webSDRAudioRouting.muteRequested != pageShouldBeMuted {
+            hub?.webSDRAudioRouting.muteRequested = pageShouldBeMuted
+        }
         guard pageRequest != nil else { return }
         muteTask?.cancel()
-        let muted = pageShouldBeMuted
+        let muted = pageMuteApplied
         muteTask = Task { [weak self] in await self?.pageBridge.setPageMuted(muted) }
     }
 
@@ -281,6 +293,16 @@ final class WebSDRFollowModel: ObservableObject {
                 let wasMuted = pageShouldBeMuted
                 isTransmitting = ptt
                 if pageShouldBeMuted != wasMuted { applyPageMute() }
+            }
+        // The CW window starting or stopping its capture of this window's
+        // audio moves the mute between the page and that capture.
+        hub.webSDRAudioRouting.muteRequested = pageShouldBeMuted
+        captureCancellable = hub.webSDRAudioRouting.$captureActive
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] _ in
+                // `sink` runs before the property is set; apply after.
+                DispatchQueue.main.async { self?.applyPageMute() }
             }
         pageBridge.onUnexpectedSave = { [weak self] url in
             self?.kiwiEndedRecording(savedTo: url)
@@ -507,7 +529,7 @@ final class WebSDRFollowModel: ObservableObject {
                 learnStation(platform: platform, bands: bands, title: title)
             }
             startTuningPoll()
-            if platform != .kiwiSDR, pageShouldBeMuted { applyPageMute() }
+            if platform != .kiwiSDR, pageMuteApplied { applyPageMute() }
             if isRecording, reloadTask == nil { startSegment() }
             if platform != expected || platform == .openWebRX {
                 lastIssuedURL = nil
@@ -758,7 +780,7 @@ final class WebSDRFollowModel: ObservableObject {
     /// Mute on Transmit on), so a reload comes up muted. Kept out of `lastIssuedURL`, which dedups on the tuning alone
     /// — toggling Mute must not trigger a reload.
     private func withMuteParameter(_ url: URL) -> URL {
-        guard pageShouldBeMuted, currentPlatform == .kiwiSDR,
+        guard pageMuteApplied, currentPlatform == .kiwiSDR,
               var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
         components.queryItems = (components.queryItems ?? []) + [URLQueryItem(name: "mute", value: "1")]
         return components.url ?? url

@@ -85,6 +85,8 @@ final class CWReceiver: ObservableObject {
     @Published private(set) var neuralUnavailableReason: String?
 
     let meters = CWMeterStore()
+    private let webSDRAudioRouting: WebSDRAudioRouting
+    private var muteCancellable: AnyCancellable?
 
     private var runner: PipelineRunner?
     /// Created on first use: the tap's permission prompt should only ever
@@ -111,7 +113,8 @@ final class CWReceiver: ObservableObject {
         static let decoder = "cw.decoder"
     }
 
-    init() {
+    init(webSDRAudioRouting: WebSDRAudioRouting) {
+        self.webSDRAudioRouting = webSDRAudioRouting
         let defaults = UserDefaults.standard
         let fallback = PipelineSettings()
         defaults.register(defaults: [
@@ -126,6 +129,10 @@ final class CWReceiver: ObservableObject {
         squelchDB = defaults.double(forKey: DefaultsKey.squelchDB)
         decoder = DecoderKind(rawValue: defaults.string(forKey: DefaultsKey.decoder) ?? "") ?? .neural
         meters.detectedFrequency = toneFrequency
+        // The WebSDR window's Mute, applied to the tap while it runs.
+        muteCancellable = webSDRAudioRouting.$muteRequested
+            .removeDuplicates()
+            .sink { [weak self] muted in self?.webSDRTap?.setMuted(muted) }
     }
 
     private var settings: PipelineSettings {
@@ -166,13 +173,32 @@ final class CWReceiver: ObservableObject {
                         self?.ingest(samples: samples, sampleRate: sampleRate, channel: .webSDR)
                     },
                     onStatus: { [weak self] status in
-                        self?.webSDRStatus = status
+                        self?.webSDRStatusChanged(status)
                     }
                 )
             }
+            // Before `start()`, so a tap built while muted starts muted.
+            webSDRTap?.setMuted(webSDRAudioRouting.muteRequested)
             webSDRTap?.start()
+            // A quick switch away and back can restart a tap whose status
+            // never changed, so recompute rather than wait for a callback.
+            webSDRStatusChanged(webSDRStatus)
         } else {
+            // The page mutes itself again right away; the tap holds its
+            // own mute a moment longer (see `WebSDRAudioTap.stop()`).
+            webSDRAudioRouting.captureActive = false
             webSDRTap?.stop()
+        }
+    }
+
+    private func webSDRStatusChanged(_ status: WebSDRAudioTap.Status) {
+        webSDRStatus = status
+        // Only once the tap is attached (and so muted, if asked) does the
+        // page unmute: no gap where both are open or both are muted.
+        let attached = status == .capturing || status == .silent
+        let active = attached && isRunning && channel == .webSDR
+        if webSDRAudioRouting.captureActive != active {
+            webSDRAudioRouting.captureActive = active
         }
     }
 
