@@ -44,6 +44,7 @@ public static class AppSettings
         public string ComPort { get; set; } = "";
         public int BaudRate { get; set; } = 38400;
         public bool AudioEnabled { get; set; } = true;
+        public int FrequencyStepHz { get; set; } = 1_000;
         public bool TransmitEnabled { get; set; } = true;
         public string LocalAudioDeviceId { get; set; } = "";
         public string LocalAudioDeviceName { get; set; } = "";
@@ -167,6 +168,18 @@ public static class AppSettings
         set
         {
             _cache.RigctldPath = value;
+            Save();
+        }
+    }
+
+    /// The VFO entry flyout's up/down step (100 Hz, 1 kHz or 10 kHz), kept
+    /// between openings like the Mac's "ui.frequencyStepSize".
+    public static int FrequencyStepHz
+    {
+        get => _cache.FrequencyStepHz is 100 or 1_000 or 10_000 ? _cache.FrequencyStepHz : 1_000;
+        set
+        {
+            _cache.FrequencyStepHz = value;
             Save();
         }
     }

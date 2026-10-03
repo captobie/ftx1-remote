@@ -578,6 +578,41 @@ public sealed class RigctldClient : IAsyncDisposable
     public Task SetMemoryChannelAsync(int channel, CancellationToken cancellationToken = default) =>
         SetRawIntAsync("MC0", channel, digits: 5, cancellationToken);
 
+    public Task SetSubMemoryChannelAsync(int channel, CancellationToken cancellationToken = default) =>
+        SetRawIntAsync("MC1", channel, digits: 5, cancellationToken);
+
+    /// Sub's channel up/down: "CH" has no side selector, so this steps
+    /// through "MC1" like CommandQueue.swift's .stepSubMemoryChannel — the
+    /// rig ignores an "MC" set to a blank channel, so each candidate is set
+    /// and read back until one sticks (that skips blanks). Up wraps past the
+    /// last programmed channel to the first; down doesn't.
+    public async Task StepSubMemoryChannelAsync(bool up, CancellationToken cancellationToken = default)
+    {
+        const int scanLimit = 30;
+        if (await GetRawIntAsync("MC1", cancellationToken).ConfigureAwait(false) is not { } current)
+        {
+            throw new RigctldError("No reply to MC1");
+        }
+        var step = up ? 1 : -1;
+        var candidates = new List<int>();
+        for (var c = current + step; c is >= 1 and <= 999 && candidates.Count < scanLimit; c += step)
+        {
+            candidates.Add(c);
+        }
+        if (up)
+        {
+            candidates.AddRange(Enumerable.Range(1, Math.Max(0, current - 1)).Take(scanLimit));
+        }
+        foreach (var candidate in candidates)
+        {
+            await SetRawIntAsync("MC1", candidate, digits: 5, cancellationToken).ConfigureAwait(false);
+            if (await GetRawIntAsync("MC1", cancellationToken).ConfigureAwait(false) == candidate)
+            {
+                break;
+            }
+        }
+    }
+
     /// "CH" (CHANNEL UP/DOWN): CH0 up, CH1 down. It documents no MAIN/SUB
     /// selector; the Mac sends the same thing (CommandQueue.swift's
     /// .stepMemoryChannel).

@@ -205,12 +205,6 @@ public sealed partial class MainWindow : Window
     /// restored then.
     private (long Hz, RigMode? Mode)? _lastVfoState;
 
-    /// Memory channels 1-999 (RigState.swift's memoryChannelRange): the CAT
-    /// manual's "MC" entry says 99, but its MR/MW/MZ entries say 999, and
-    /// the user's rig has 278 programmed.
-    private const int MinMemoryChannel = 1;
-    private const int MaxMemoryChannel = 999;
-
     /// True from a press on the PTT button until its release (or capture
     /// loss). Every release sends PTT off, even when the press was blocked
     /// from keying — same as the Mac's DragGesture onEnded — so pressing
@@ -224,6 +218,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        InitVfoEntryFlyouts();
         SetInitialWidth();
         AppLog.Write($"app: started ({AppSettings.ConnectionMode} mode, audio swapped={AppSettings.AudioChannelsSwapped}, version {UpdateChecker.CurrentVersionText})");
         if (AppSettings.CheckForUpdatesAtLaunch && Content is FrameworkElement root)
@@ -1176,23 +1171,11 @@ public sealed partial class MainWindow : Window
         _suppressSelectionEvents = false;
     }
 
-    private static string FormatHz(long hz) => hz.ToString("N0") + " Hz";
+    /// MHz in the rig's own grouping: 14.074.000 (MHz.kHz.Hz).
+    private static string FormatHz(long hz) =>
+        $"{hz / 1_000_000}.{hz / 1_000 % 1_000:000}.{hz % 1_000:000} MHz";
 
-    private async void SetFrequencyButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_client is null)
-        {
-            return;
-        }
-        if (!long.TryParse(FrequencyEntryBox.Text.Trim(), out var hz))
-        {
-            StatusText.Text = "Enter a frequency in Hz.";
-            return;
-        }
-        await SetMainFrequencyAsync(hz);
-    }
-
-    /// Tunes the Main VFO: the Set button and the MENU grid's HOME. An app
+    /// Tunes the Main VFO: the VFO entry flyout and the MENU grid's HOME. An app
     /// tune resets swap tracking's baseline, so it isn't mistaken for a
     /// front-panel swap.
     private async Task SetMainFrequencyAsync(long hz)
@@ -1359,9 +1342,6 @@ public sealed partial class MainWindow : Window
         ShowMemoryLabel(MemoryChannelAText, _lastState.VfoMemoryRaw, _lastState.MemoryChannel, _lastState.MemoryChannelTag);
         ShowMemoryLabel(MemoryChannelBText, _lastState.SubVfoMemoryRaw, _lastState.SubMemoryChannel, _lastState.SubMemoryChannelTag);
         VfoMemoryToggle.IsChecked = _lastState.VfoMemoryRaw is { } raw && raw != 0;
-        var memory = _lastState.InMemoryMode;
-        MemoryChannelEntryPanel.Visibility = memory ? Visibility.Visible : Visibility.Collapsed;
-        FrequencyEntryPanel.Visibility = memory ? Visibility.Collapsed : Visibility.Visible;
     }
 
     /// "CH n TAG" in Memory mode (the Mac's VFODisplayBox label), "VM nn"
@@ -1424,43 +1404,65 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void SetMemoryChannelButton_Click(object sender, RoutedEventArgs e)
+    /// The VFO boxes' click-to-enter flyouts (Controls/VfoEntryFlyout.cs),
+    /// the Mac's VFODisplayBox popovers. Frequency entry is offered only in
+    /// plain VFO mode (the rig rejects "FA" elsewhere); Memory mode gets the
+    /// channel entry instead; the rig's other sub-modes get neither.
+    private void InitVfoEntryFlyouts()
+    {
+        _ = new VfoEntryFlyout(FrequencyAText,
+            () => EntryState(_lastState.VfoMemoryRaw, _lastState.FrequencyHz, _lastState.MemoryChannel),
+            SetMainFrequencyAsync,
+            channel => SetMemoryChannelAsync(sub: false, channel),
+            up => StepMemoryChannelAsync(sub: false, up),
+            message => StatusText.Text = message);
+        _ = new VfoEntryFlyout(FrequencyBText,
+            () => EntryState(_lastState.SubVfoMemoryRaw, _lastState.SecondaryFrequencyHz, _lastState.SubMemoryChannel),
+            SetSubFrequencyAsync,
+            channel => SetMemoryChannelAsync(sub: true, channel),
+            up => StepMemoryChannelAsync(sub: true, up),
+            message => StatusText.Text = message);
+    }
+
+    private VfoEntryState EntryState(int? memoryRaw, long? hz, int? channel)
+    {
+        var memory = memoryRaw == 11;
+        var canEdit = IsConnected && hz is not null && (memoryRaw is null or 0 || memory);
+        return new VfoEntryState(canEdit, memory, hz ?? 0, channel);
+    }
+
+    private async Task SetSubFrequencyAsync(long hz)
     {
         if (_client is not { } client)
         {
             return;
         }
-        if (!int.TryParse(MemoryChannelEntryBox.Text.Trim(), out var channel) || channel is < MinMemoryChannel or > MaxMemoryChannel)
+        _commandGeneration++;
+        _swapTracker.ResetBaseline();
+        await client.SetSecondaryFrequencyAsync(hz);
+        StatusText.Text = "";
+    }
+
+    /// No optimistic channel number: the rig ignores a set to a blank
+    /// channel, so the next poll's read-back is the only true value
+    /// (the Mac dropped its optimistic value for the same reason).
+    private async Task SetMemoryChannelAsync(bool sub, int channel)
+    {
+        if (_client is not { } client)
         {
-            StatusText.Text = $"Enter a memory channel from {MinMemoryChannel} to {MaxMemoryChannel}.";
             return;
         }
         _commandGeneration++;
         _swapTracker.ResetBaseline();
-        // No optimistic channel number: the rig ignores a set to a blank
-        // channel, so the next poll's read-back is the only true value
-        // (the Mac dropped its optimistic value for the same reason).
-        try
-        {
-            await client.SetMemoryChannelAsync(channel);
-            MemoryChannelEntryBox.Text = "";
-            StatusText.Text = "";
-        }
-        catch (Exception ex)
-        {
-            StatusText.Text = $"Set memory channel failed: {ex.Message}";
-        }
+        await (sub ? client.SetSubMemoryChannelAsync(channel) : client.SetMemoryChannelAsync(channel));
+        StatusText.Text = "";
     }
-
-    private async void MemoryChannelUpButton_Click(object sender, RoutedEventArgs e) => await StepMemoryChannelAsync(up: true);
-
-    private async void MemoryChannelDownButton_Click(object sender, RoutedEventArgs e) => await StepMemoryChannelAsync(up: false);
 
     /// The rig resolves what up/down means ("CH"; its wrap and blank-channel
     /// behavior aren't confirmed yet), so nothing is shown until the next
     /// poll reads the channel back — a guessed ±1 could be a blank channel
     /// the rig skipped.
-    private async Task StepMemoryChannelAsync(bool up)
+    private async Task StepMemoryChannelAsync(bool sub, bool up)
     {
         if (_client is not { } client)
         {
@@ -1468,15 +1470,8 @@ public sealed partial class MainWindow : Window
         }
         _commandGeneration++;
         _swapTracker.ResetBaseline();
-        try
-        {
-            await client.StepMemoryChannelAsync(up);
-            StatusText.Text = "";
-        }
-        catch (Exception ex)
-        {
-            StatusText.Text = $"Memory channel step failed: {ex.Message}";
-        }
+        await (sub ? client.StepSubMemoryChannelAsync(up) : client.StepMemoryChannelAsync(up));
+        StatusText.Text = "";
     }
 
     private async void ModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
