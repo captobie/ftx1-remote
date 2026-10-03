@@ -223,6 +223,8 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        AppWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));
+        Title = "FTX-1 Remote";
         InitVfoEntryFlyouts();
         SetInitialWidth();
         AppLog.Write($"app: started ({AppSettings.ConnectionMode} mode, audio swapped={AppSettings.AudioChannelsSwapped}, version {UpdateChecker.CurrentVersionText})");

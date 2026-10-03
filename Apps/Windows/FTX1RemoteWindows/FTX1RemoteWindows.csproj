@@ -9,6 +9,7 @@
          update check compares it with "windows-v<version>" GitHub releases. -->
     <Version>0.8</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <Platforms>x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <!--
@@ -48,6 +49,8 @@
 
   <ItemGroup>
     <Content Include="Assets\CWNet.onnx" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Also set on the window at runtime (MainWindow), since WinUI windows don't pick up the exe icon by themselves. -->
+    <Content Include="Assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
