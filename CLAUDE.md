@@ -697,6 +697,15 @@ OpenWebRX followed 2026-10-02 (profiles, in-place retune, the recorder
 tap), tested against the operator's own server with a fake rigctld, not
 yet on the rig; WebView2 needs no hash-navigation workaround (Chromium
 keeps OpenWebRX's hash updates same-document).
+CW decode (receive, classic decoder only) was ported 2026-10-03
+(`Services/CwClassicDecoder.cs` = CWKit's classic decoder translated line
+for line — cwdecode stays the source of truth; `Services/CwReceiver.cs`,
+`Controls/CwWindow.cs`), checked against CWKit's own tests in a harness
+and a fake Pi, not yet on the rig. Next: send pane, neural decoder (ONNX
+export of CWKit's model), WebSDR source. Found while testing: CWKit's
+classic `MorseDecoder` can lock up into "TTTT" after one noise blip learned
+as a dit (Mac too) — see the README's "CW decode" for the repro and a
+candidate fix, to be made in cwdecode first.
 Full plan, protocol/model porting notes, and open items:
 `Apps/Windows/README.md`. `Apps/Windows/FTX1RemoteWindows/` has a
 build-verified (`dotnet build -r win-x64 --self-contained`, not yet

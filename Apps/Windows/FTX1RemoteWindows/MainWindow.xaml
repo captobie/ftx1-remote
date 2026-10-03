@@ -51,6 +51,14 @@
                     <TextBlock Text="WebSDR" />
                 </StackPanel>
             </Button>
+            <!-- The Mac's Tools → CW: decodes the rig's MAIN or SUB audio. -->
+            <Button x:Name="CwButton" Click="CwButton_Click"
+                    AutomationProperties.Name="CW" ToolTipService.ToolTip="Decode CW from the rig's MAIN or SUB audio, or a recording">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE8C1;" FontSize="14" />
+                    <TextBlock Text="CW" />
+                </StackPanel>
+            </Button>
         </StackPanel>
 
         <!-- MAIN / SUB VFOs, with the waterfall/oscilloscope between them —

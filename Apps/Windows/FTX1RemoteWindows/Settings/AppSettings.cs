@@ -76,6 +76,10 @@ public static class AppSettings
         public bool WebSdrTuneRig { get; set; } = true;
         public bool WebSdrMuted { get; set; }
         public bool WebSdrMuteOnTransmit { get; set; } = true;
+        public CwAudioChannel CwChannel { get; set; } = CwAudioChannel.Main;
+        public double CwToneFrequency { get; set; } = 700;
+        public bool CwAutoTune { get; set; } = true;
+        public double CwSquelchDb { get; set; } = 12;
         public WebSdrFavorite? WebSdrPickedStation { get; set; }
         public List<WebSdrFavorite> WebSdrFavorites { get; set; } = [];
         public string? WebSdrDirectoryETag { get; set; }
@@ -587,6 +591,31 @@ public static class AppSettings
             _cache.MainMutedByWebSdr = value;
             Save();
         }
+    }
+
+    /// The CW window's receiver (MAIN/SUB) — the Mac's cw.channel.
+    public static CwAudioChannel CwChannel
+    {
+        get => _cache.CwChannel;
+        set
+        {
+            _cache.CwChannel = value;
+            Save();
+        }
+    }
+
+    /// The CW decoder's manual tone, auto-tune and squelch (the Mac's
+    /// cw.toneFrequency/autoTune/squelchDB, same defaults: CWKit's).
+    public static double CwToneFrequency => _cache.CwToneFrequency;
+    public static bool CwAutoTune => _cache.CwAutoTune;
+    public static double CwSquelchDb => _cache.CwSquelchDb;
+
+    public static void SaveCw(double toneFrequency, bool autoTune, double squelchDb)
+    {
+        _cache.CwToneFrequency = toneFrequency;
+        _cache.CwAutoTune = autoTune;
+        _cache.CwSquelchDb = squelchDb;
+        Save();
     }
 
     /// Mutate the returned object, then call <see cref="SaveAudio"/>.

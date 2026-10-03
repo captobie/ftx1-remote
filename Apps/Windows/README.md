@@ -842,6 +842,60 @@ back), Mute, click-to-tune from the waterfall (a WFM mode click correctly
 left the rig's mode alone), and Record while Muted (a 7 s, 48 kHz WAV
 with signal in it). Not yet on the rig.
 
+## CW decode (2026-10-03)
+
+The Mac's Tools → CW window, receive side, **classic decoder only** —
+step 1 of the CW port (next: the send pane, then the neural decoder via an
+ONNX export of CWKit's model, then WebSDR as a source). Opened from the
+**CW** button in the connection bar.
+
+- `Services/CwClassicDecoder.cs` is CWKit's classic decoder
+  (`captobie/cwdecode`, `Sources/CWKit`: `Goertzel`, `ToneDetector`,
+  `FrequencyTracker`, `MorseCode`, `MorseDecoder`, `DecoderPipeline`)
+  translated line for line, same constants and Float/Double split. CWKit
+  stays the source of truth: copy any decoder fix made there. Checked
+  with a scratch harness running CWKit's `MorseDecoderTests` and
+  `DecoderPipelineTests` cases against the C# code (all pass, same
+  tolerances: 8-45 WPM, Farnsworth, noise, auto-tune from 600 to 860 Hz,
+  44.1 kHz in 256/1000/44100-sample chunks, silence on pure noise).
+- `Services/CwReceiver.cs` is the Mac's `CWReceiver` plus CWKit's
+  `PipelineRunner`: MainWindow's audio routing feeds it both receivers'
+  routed chunks (so MAIN/SUB follow a swap); it keeps the selected one
+  only while the window is open and decodes on its own worker thread.
+  Owned by MainWindow, so the text survives closing the window. Settings
+  persist (`Cw*` in settings.json: receiver, tone, auto-tune, squelch).
+  Decoding pauses (and flushes, starting a new line) while the rig reports
+  TX or the PTT button is held. SUB is unselectable while there's no Sub
+  audio (a mono Local input delivers exact zeros) or in single-receive
+  display. A note says when the selected receiver isn't in CW.
+- `Controls/CwWindow.cs` is the Mac's receive pane: MAIN/SUB, Open Audio
+  File (Media Foundation, so WAV/MP3/M4A/WMA/FLAC; the picker opens in
+  Recordings), Copy (Ctrl+Shift+C), Clear (Ctrl+K), key LED, level, the
+  character being received, tone/SNR/WPM, and Auto-tune/Tone/Rig Pitch/
+  Squelch. Readouts are sampled from the receiver every 30 ms rather than
+  pushed per chunk, so they never touch the text.
+- Not yet: the Neural/Classic picker (Neural needs the model on Windows),
+  clickable callsigns (they fill the send pane, which doesn't exist yet),
+  the WebSDR source.
+- Tested in the built app against a fake Pi (stand-in rigctld + a 44.1 kHz
+  stereo stream with different CW on each channel): MAIN and SUB decode,
+  switching starts a new line, the not-in-CW note, the pause while TX
+  (fake `t` = 3), Rig Pitch ("KP" → 700 Hz, auto-tune off, persisted), and
+  a WAV through the picker (header line, then live resumes). Not yet on
+  the rig.
+- **Known CWKit issue, reproduced here, not fixed (2026-10-03)**: after a
+  strong signal, ~2.4 s into the following silence the signal-peak
+  estimate decays to just above the squelch and a single noise blip
+  (~8 ms) gets through as a mark. `MorseDecoder.learnMark` then takes it as
+  the dit cluster (~86 WPM), and the decoder locks up: every later mark is
+  clamped to 8 × that dit while the dah is pinned at 4.5 × it, so the
+  single-cluster branch can never raise the dit, and everything decodes as
+  "TTTT" until the decoder is reset (channel switch, TX, closing the
+  window). Same code on the Mac. A candidate fix (when the dah estimate
+  exceeds 4.5 dits, raise the dit to dah/4.5 instead of pinning the dah)
+  recovers within one character and passes every CWKit test in the
+  harness; it belongs in cwdecode first, then here.
+
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
 - **APRS map** — see "APRS decode" above.
@@ -892,6 +946,7 @@ Apps/Windows/FTX1RemoteWindows/
     WebSdrWindow.cs              WebSDR window (port of WebSDRFollowView.swift + KiwiWebView.swift)
     WebSdrStationsWindow.cs      Stations window: KiwiSDR table + websdr.org tab (KiwiSDRDirectoryView/WebSDROrgBrowserView.swift)
     WebSdrFavoritesDialog.cs     Manage Favorites (WebSDRFavoritesView.swift)
+    CwWindow.cs                  CW window, receive pane (CWWindowView.swift's CWReceivePane)
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
@@ -923,6 +978,8 @@ Apps/Windows/FTX1RemoteWindows/
     KiwiSdrDirectory.cs          public KiwiSDR list from rx.linkfanel.net, cached (KiwiSDRDirectory.swift)
     Recordings.cs                Recordings folder + file naming (AudioRecorder.swift's statics)
     SdrAudioFileWriter.cs        WAV writer for the OpenWebRX recorder tap (SDRAudioFileWriter.swift)
+    CwClassicDecoder.cs          CWKit's classic CW decoder (captobie/cwdecode DSP/ + Morse/)
+    CwReceiver.cs                CW decode worker + window state (CWReceiver.swift + CWKit's PipelineRunner)
   Settings/
     AppSettings.cs                every setting (connection, audio, WPSD, APRS, station, WebSDR, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
     Appearance.cs                 AppTheme / ButtonValueColor (ports of the FTX1Core Appearance enums)

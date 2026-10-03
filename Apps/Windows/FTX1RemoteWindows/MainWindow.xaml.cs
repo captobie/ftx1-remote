@@ -19,7 +19,8 @@ namespace FTX1RemoteWindows;
 /// the Pi's :8532 stream, the MENU grid (Controls/MenuGrid.cs), Deep
 /// Settings, the Filter rows, the waterfall/oscilloscope and APRS decoding
 /// (Services/AprsDecoder.cs, lists in Controls/AprsListWindow.cs) and the
-/// WebSDR window (Controls/WebSdrWindow.cs).
+/// WebSDR window (Controls/WebSdrWindow.cs) and the CW window
+/// (Controls/CwWindow.cs, decoding in Services/CwReceiver.cs).
 public sealed partial class MainWindow : Window
 {
     /// rigctld's port — fixed in both modes: the Pi's rigctld.service
@@ -107,6 +108,10 @@ public sealed partial class MainWindow : Window
     /// The WebSDR window, while open (one at a time, like the Mac's Window
     /// scene).
     private WebSdrWindow? _webSdrWindow;
+    /// CW decoding (the Mac's HubService.cwReceiver): fed both receivers'
+    /// audio from the audio thread, decoding only while _cwWindow is open.
+    private readonly CwReceiver _cwReceiver;
+    private CwWindow? _cwWindow;
     /// Each VFO's last polled frequency, for the audio thread's APRS gate
     /// (0 = unknown). Written by the poll, read with Volatile on the audio
     /// thread.
@@ -250,6 +255,7 @@ public sealed partial class MainWindow : Window
         MainMeterHost.Child = _mainMeter;
         SubMeterHost.Child = _subMeter;
 
+        _cwReceiver = new CwReceiver(DispatcherQueue);
         WireAprsDecoder(_aprsMainDecoder, AprsSource.Main);
         WireAprsDecoder(_aprsSubDecoder, AprsSource.Sub);
 
@@ -395,6 +401,8 @@ public sealed partial class MainWindow : Window
                 window.Close();
             }
             _webSdrWindow?.Close();
+            _cwWindow?.Close();
+            _cwReceiver.Dispose();
         };
     }
 
@@ -487,6 +495,7 @@ public sealed partial class MainWindow : Window
             window.ApplyTheme();
         }
         _webSdrWindow?.ApplyTheme();
+        _cwWindow?.ApplyTheme();
     }
 
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -682,6 +691,7 @@ public sealed partial class MainWindow : Window
         Volatile.Write(ref _aprsSubGateHz, 0);
         ClearC4fmState();
         PushRigStateToWebSdr();
+        PushRigStateToCw();
         if (client is not null)
         {
             await client.DisposeAsync();
@@ -1598,6 +1608,9 @@ public sealed partial class MainWindow : Window
     /// elsewhere.
     private void UpdateTransmitControls()
     {
+        // The CW decoder pauses during TX, including straight away on a
+        // held PTT press; this also runs after every poll.
+        PushRigStateToCw();
         var keyed = _pttHeld || _lastState.Ptt;
         var reason = TransmitGate.BlockReason(TransmitAction.PttOn, AppSettings.TransmitEnabled, _lastState.FrequencyHz);
         PttButton.Opacity = reason is null || keyed ? 1 : 0.4;
@@ -1859,6 +1872,31 @@ public sealed partial class MainWindow : Window
         _webSdrWindow.Activate();
     }
 
+    // CW window
+
+    private void CwButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cwWindow is null)
+        {
+            _cwWindow = new CwWindow(_cwReceiver, () => IsConnected ? _singleReceive : null);
+            _cwWindow.Closed += (_, _) => _cwWindow = null;
+            PushRigStateToCw();
+        }
+        _cwWindow.Activate();
+    }
+
+    /// From UpdateTransmitControls (every poll and PTT change) and on
+    /// disconnect — the Mac's cwRigCancellable.
+    /// Modes only while connected (the last session's would otherwise
+    /// linger in _lastState); null in C4FM, which has no RigMode here.
+    private void PushRigStateToCw() => _cwReceiver.RigInfoChanged(IsConnected
+        ? new CwRigInfo(
+            _lastState.Ptt || _pttHeld,
+            _lastState.CwPitchHz,
+            _lastState.MainIsC4fm == true ? null : _lastState.Mode,
+            _lastState.SubIsC4fm == true ? null : _lastState.SubMode)
+        : default);
+
     /// Main's frequency is 0 while disconnected (the last session's would
     /// otherwise linger in _lastState), which the WebSDR window reads as
     /// "no rig frequency".
@@ -1962,6 +2000,8 @@ public sealed partial class MainWindow : Window
             // decoder always hears whatever Main is tuned to.
             FeedAprs(_aprsMainDecoder, main, Volatile.Read(ref _aprsMainGateHz), ref _aprsMainGateOpen, "Main");
             FeedAprs(_aprsSubDecoder, sub, Volatile.Read(ref _aprsSubGateHz), ref _aprsSubGateOpen, "Sub");
+            // And CW, which keeps the selected receiver while its window is open.
+            _cwReceiver.Ingest(main, sub, _audioSampleRate);
         }
 
         IAudioSource source;
