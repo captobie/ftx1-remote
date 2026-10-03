@@ -68,5 +68,17 @@
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
   </ItemGroup>
 
+  <!--
+    An unpackaged "dotnet publish" leaves the app's own FTX1RemoteWindows.pri
+    and compiled XAML (*.xbf) out of the publish folder, though the build
+    output has them, and the published exe then dies at startup in
+    Microsoft.UI.Xaml.dll (0xc000027b) loading MainWindow. Copy them over.
+  -->
+  <Target Name="CopyXamlResourcesToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_AppXamlResources Include="$(OutDir)$(AssemblyName).pri;$(OutDir)**\*.xbf" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AppXamlResources)" DestinationFiles="@(_AppXamlResources->'$(PublishDir)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>
