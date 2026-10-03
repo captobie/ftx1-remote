@@ -64,7 +64,7 @@ public sealed class WebSdrWindow : Window
     {
         PlaceholderText = "KiwiSDR, WebSDR or OpenWebRX host:port",
         FontFamily = new FontFamily("Consolas"),
-        Width = 300,
+        MinWidth = 160,
         VerticalAlignment = VerticalAlignment.Center,
     };
     /// The model's host as last mirrored into the box, so a pick replaces
@@ -94,7 +94,10 @@ public sealed class WebSdrWindow : Window
         Model = new WebSdrFollowModel(rig);
         Title = "WebSDR";
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
-        AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(1120 * scale), (int)(760 * scale)));
+        // Wide enough for the one-row toolbar with the host box at full
+        // width, but never wider than the screen (the host box shrinks).
+        var workArea = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Primary).WorkArea;
+        AppWindow.Resize(new Windows.Graphics.SizeInt32(Math.Min((int)(1480 * scale), workArea.Width), Math.Min((int)(760 * scale), workArea.Height)));
 
         _root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -188,11 +191,15 @@ public sealed class WebSdrWindow : Window
 
     private FrameworkElement BuildToolbar()
     {
-        var bar = new Grid { Padding = new Thickness(10), RowSpacing = 8, ColumnSpacing = 12 };
+        // One row: Stations, Favorites, host, star, Connect, the three
+        // toggles, then (right-aligned) Mute, Record, Recordings. The host
+        // box's column is the one that gives when the window is narrow.
+        var bar = new Grid { Padding = new Thickness(10), ColumnSpacing = 8 };
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 300 });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        bar.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        bar.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var stationsButton = new Button();
@@ -221,11 +228,15 @@ public sealed class WebSdrWindow : Window
         };
         _hostBox.TextChanged += (_, _) => Refresh();
         AutomationPropertiesName(_hostBox, "WebSDR host");
-        left.Children.Add(_hostBox);
+        Grid.SetColumn(_hostBox, 1);
+        bar.Children.Add(_hostBox);
+        bar.Children.Add(left);
+
+        var middle = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 
         _starButton.Content = _starIcon;
         _starButton.Click += (_, _) => Model.ToggleFavoriteForCurrentHost(_directory.Stations);
-        left.Children.Add(_starButton);
+        middle.Children.Add(_starButton);
 
         _connectButton.Click += (_, _) =>
         {
@@ -238,8 +249,7 @@ public sealed class WebSdrWindow : Window
                 CommitHostAndConnect();
             }
         };
-        left.Children.Add(_connectButton);
-        bar.Children.Add(left);
+        middle.Children.Add(_connectButton);
 
         var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _muteButton.Click += (_, _) => Model.ToggleMuted();
@@ -254,22 +264,26 @@ public sealed class WebSdrWindow : Window
         ToolTipService.SetToolTip(recordingsButton, "Open the Recordings folder");
         recordingsButton.Click += (_, _) => OpenRecordingsFolder();
         right.Children.Add(recordingsButton);
-        Grid.SetColumn(right, 1);
+        Grid.SetColumn(right, 4);
         bar.Children.Add(right);
 
-        var toggles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20 };
+        var toggles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(8, 0, 0, 0) };
         ToolTipService.SetToolTip(_followBox, "Retune the WebSDR when the rig's Main VFO changes");
         ToolTipService.SetToolTip(_tuneBox, "Tune the rig's Main VFO when you tune in the WebSDR page (click the waterfall, enter a frequency, pick a mode)");
         ToolTipService.SetToolTip(_muteOnTxBox, "Mute the WebSDR while the rig is transmitting");
         _followBox.Click += (_, _) => { if (!_suppressToggles) { Model.FollowRig = _followBox.IsChecked == true; } };
         _tuneBox.Click += (_, _) => { if (!_suppressToggles) { Model.TuneRig = _tuneBox.IsChecked == true; } };
         _muteOnTxBox.Click += (_, _) => { if (!_suppressToggles) { Model.MuteOnTransmit = _muteOnTxBox.IsChecked == true; } };
-        toggles.Children.Add(_followBox);
-        toggles.Children.Add(_tuneBox);
-        toggles.Children.Add(_muteOnTxBox);
-        Grid.SetRow(toggles, 1);
-        Grid.SetColumnSpan(toggles, 2);
-        bar.Children.Add(toggles);
+        foreach (var box in new[] { _followBox, _tuneBox, _muteOnTxBox })
+        {
+            // CheckBox's default MinWidth (120) would spread them out.
+            box.MinWidth = 0;
+            box.VerticalAlignment = VerticalAlignment.Center;
+            toggles.Children.Add(box);
+        }
+        middle.Children.Add(toggles);
+        Grid.SetColumn(middle, 2);
+        bar.Children.Add(middle);
         return bar;
     }
 
