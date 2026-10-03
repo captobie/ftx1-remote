@@ -85,13 +85,11 @@ final class CWSender: ObservableObject {
         return nil
     }
 
-    /// Expands a macro's placeholders and queues it. Returns why not, if so.
-    @discardableResult
-    func send(_ macro: CWMacro) -> String? {
-        switch macro.expanded(myCall: StationSettings.callsign, myGrid: StationSettings.gridSquare, theirCall: theirCall) {
-        case .success(let text): return enqueue(text)
-        case .failure(let problem): return problem.message
-        }
+    /// A macro with its placeholders filled in, for the pane to put in the
+    /// send line (macros don't send directly — user decision 2026-10-03, so
+    /// the text can be edited first).
+    func text(for macro: CWMacro) -> Result<String, CWMacro.Problem> {
+        macro.expanded(myCall: StationSettings.callsign, myGrid: StationSettings.gridSquare, theirCall: theirCall)
     }
 
     /// Stops keying at once and drops everything not yet sent.

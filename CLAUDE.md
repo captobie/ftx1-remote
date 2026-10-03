@@ -1054,7 +1054,11 @@ vendored here.
 - **v2: CW send pane (2026-10-02, tested on the rig into a dummy load by
   the user)**: `CWSendPane` below the receive pane (`VSplitView`), driven
   by `CWSender` (a `lazy var` on `HubService`, sibling of `cwReceiver`).
-  Line at a time (Return queues), 6 editable macros (`CWMacro`, JSON in
+  Line at a time (Return queues), 6 editable macros that fill the send
+  line rather than send (user decision 2026-10-03, so they can be edited
+  first; appended after a space if the line has text; cursor left at the
+  end via `TextField(text:selection:)`, set after focus since macOS
+  selects the whole field on focus) (`CWMacro`, JSON in
   `cw.macros`; `{MYCALL}`/`{MYGRID}` from `StationSettings`, `{CALL}` from
   the pane's "Their call" field (session-only, not persisted); ⌘1–9), Stop (Esc: "KY00" + drop the queue), the
   rig's keyer speed (`KS`) and BK-IN, and a log of queued/keying/sent

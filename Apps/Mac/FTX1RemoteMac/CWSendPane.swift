@@ -2,12 +2,17 @@ import FTX1Core
 import SwiftUI
 
 /// The CW window's send pane (v2): macro buttons, a log of what's queued,
-/// keying and sent, and a line to type into (Return queues it). Driven by
+/// keying and sent, and a line to type into (Return queues it). A macro
+/// fills the line rather than sending, so it can be edited first. Driven by
 /// `CWSender`. Views that read `hub.rigState` are their own small structs
 /// so the rig's polling doesn't re-render the log.
 struct CWSendPane: View {
     @EnvironmentObject private var sender: CWSender
     @State private var line = ""
+    /// Kept so a macro can leave the cursor at the end of the line: macOS
+    /// otherwise selects the whole field on focus, and the next keystroke
+    /// would replace the message.
+    @State private var lineSelection: TextSelection?
     @State private var note: String?
     @State private var isEditingMacros = false
     @FocusState private var isLineFocused: Bool
@@ -64,10 +69,10 @@ struct CWSendPane: View {
         HStack(spacing: 8) {
             ForEach(Array(sender.macros.enumerated()), id: \.element.id) { index, macro in
                 Button(macro.label) {
-                    note = sender.send(macro)
+                    insert(macro)
                 }
                 .modifier(MacroShortcut(index: index))
-                .help(macro.text + (index < 9 ? "  (⌘\(index + 1))" : ""))
+                .help("Put “\(macro.text)” in the send line" + (index < 9 ? "  (⌘\(index + 1))" : ""))
             }
             Spacer()
         }
@@ -80,7 +85,7 @@ struct CWSendPane: View {
             TextField("Their call", text: $sender.theirCall)
                 .frame(width: 110)
                 .help("The station you're working, for {CALL} in macros. Click a callsign in the decoded text to fill it in.")
-            TextField("Type a line and press Return to send", text: $line)
+            TextField("Type a line and press Return to send", text: $line, selection: $lineSelection)
                 .font(.system(.body, design: .monospaced))
                 .focused($isLineFocused)
                 .onSubmit(submit)
@@ -91,6 +96,24 @@ struct CWSendPane: View {
         .textFieldStyle(.roundedBorder)
         .padding(.horizontal)
         .padding(.bottom, 10)
+    }
+
+    /// Adds a macro's text to the send line (after a space if there's
+    /// already something there) and puts the cursor at the end.
+    private func insert(_ macro: CWMacro) {
+        switch sender.text(for: macro) {
+        case .failure(let problem):
+            note = problem.message
+        case .success(let text):
+            let current = line.trimmingCharacters(in: .whitespaces)
+            line = current.isEmpty ? text : current + " " + text
+            note = nil
+            isLineFocused = true
+            // After focus lands, or its select-all would win.
+            DispatchQueue.main.async {
+                lineSelection = TextSelection(insertionPoint: line.endIndex)
+            }
+        }
     }
 
     private func submit() {
