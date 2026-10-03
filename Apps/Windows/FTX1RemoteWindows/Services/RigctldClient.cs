@@ -599,6 +599,83 @@ public sealed class RigctldClient : IAsyncDisposable
         return tag.Length == 0 ? null : tag;
     }
 
+    /// Writes CW TEXT keyer memory <paramref name="slot"/> (1-5) with "KM"
+    /// and returns what the rig stored, without the "}" end marker it
+    /// appends itself — RigctldClient.swift's writeKeyerMemory, whose doc
+    /// comment has what was probed on the rig (2026-10-02): rigctld's "W"
+    /// splits on whitespace, so the write goes through lowercase "w", which
+    /// passes the line whole but then waits out rigctld's own timeout
+    /// (~2 s) for a reply an accepted write never gets; a rejected one (over
+    /// 50 characters) answers "?;" at once. So a "KM&lt;slot&gt;" read goes
+    /// out in the same write, and its answer both ends the wait and
+    /// confirms what was stored. <paramref name="text"/> must not contain
+    /// ";" or a newline.
+    public async Task<string> WriteKeyerMemoryAsync(int slot, string text, CancellationToken cancellationToken = default)
+    {
+        var read = $"KM{slot}";
+        await _roundTripLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await WriteAsync($"w {read}{text};\nW {read}; ;", cancellationToken).ConfigureAwait(false);
+            using var timeoutCts = new CancellationTokenSource(KeyerMemoryWriteTimeout);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+            var rejected = false;
+            string reply;
+            try
+            {
+                while (true)
+                {
+                    var line = await ReadLineAsync(linked.Token, acceptNul: true).ConfigureAwait(false);
+                    if (line.StartsWith(read, StringComparison.Ordinal))
+                    {
+                        reply = line;
+                        break;
+                    }
+                    if (line.StartsWith('?'))
+                    {
+                        rejected = true;
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                AppLog.Write($"rigctld: no reply to keyer memory write {read} within {KeyerMemoryWriteTimeout.TotalSeconds:F0} s, reconnecting");
+                Disconnect();
+                try
+                {
+                    await ConnectAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                }
+                catch (RigctldError ex)
+                {
+                    AppLog.Write($"rigctld: reconnect failed: {ex.Message}");
+                }
+                throw new RigctldError("rigctld didn't answer the keyer memory write in time. If this keeps happening, the rig may be off or its USB connection may have dropped.");
+            }
+            if (rejected)
+            {
+                throw new RigctldError("The rig rejected the keyer memory write.");
+            }
+            var stored = reply[read.Length..];
+            if (stored.EndsWith(';'))
+            {
+                stored = stored[..^1];
+            }
+            if (stored.EndsWith('}'))
+            {
+                stored = stored[..^1];
+            }
+            return stored;
+        }
+        finally
+        {
+            _roundTripLock.Release();
+        }
+    }
+
+    /// The write itself takes ~2 s (see WriteKeyerMemoryAsync), so this is
+    /// the Mac's 6 s, not raw CAT's 1 s.
+    private static readonly TimeSpan KeyerMemoryWriteTimeout = TimeSpan.FromSeconds(6);
+
     private async Task WriteAsync(string command, CancellationToken cancellationToken)
     {
         if (_stream is null)

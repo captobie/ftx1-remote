@@ -54,6 +54,7 @@ public sealed partial class SettingsDialog : ContentDialog
         ConnectionModeComboBox.SelectedIndex = AppSettings.ConnectionMode == ConnectionMode.Local ? 1 : 0;
         PiHostBox.Text = AppSettings.PiHost;
         GridSquareBox.Text = AppSettings.GridSquare;
+        CallsignBox.Text = AppSettings.Callsign;
         RigctldPathBox.Text = AppSettings.RigctldPath;
         ModelNumberBox.Value = AppSettings.ModelNumber;
         RefreshComPorts();
@@ -243,6 +244,7 @@ public sealed partial class SettingsDialog : ContentDialog
         // Stored as the operator writes it (FN31pr); Maidenhead parsing
         // ignores case.
         AppSettings.GridSquare = gridSquare;
+        AppSettings.Callsign = CallsignBox.Text.Trim().ToUpperInvariant();
 
         AppSettings.AprsEnabled = AprsEnabledCheckBox.IsChecked == true;
         AppSettings.AprsFrequencyHz = aprsFrequencyHz;

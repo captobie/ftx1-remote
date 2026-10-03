@@ -610,6 +610,39 @@ public sealed class MenuGrid : UserControl
         }
     }
 
+    /// The CW window's send pane: break-in and keyer speed, through the same
+    /// path as the CW page's BK-IN and CW SPEED buttons (so a slow-tier read
+    /// overlapping the set is dropped, and the buttons follow).
+    public void SetBreakIn(bool on) =>
+        Send("BK-IN", () => _state.BreakIn = on, c => c.SetRawBoolAsync("BI", on));
+
+    public void SetCwSpeed(int wpm) =>
+        Send("CW SPEED", () => _state.CwSpeedWpm = wpm, c => c.SetRawIntAsync("KS", wpm, 3));
+
+    /// Break-in, keyer speed and CW pitch, read for the CW window while it's
+    /// open and the CW page isn't on screen (that page reads them itself).
+    /// Best-effort, dropped if a command landed meanwhile, like
+    /// RefreshFromRigAsync.
+    public async Task RefreshKeyerAsync(RigctldClient client)
+    {
+        if (_page == MenuPage.Cw)
+        {
+            return;
+        }
+        var generationAtStart = _commandGeneration;
+        var breakIn = await ReadOrNull(() => client.GetRawBoolAsync("BI"));
+        var speed = await ReadOrNull(() => client.GetRawIntAsync("KS"));
+        var pitchCode = await ReadOrNull(() => client.GetRawIntAsync("KP"));
+        if (generationAtStart != _commandGeneration || !ReferenceEquals(client, _client))
+        {
+            return;
+        }
+        _state.BreakIn = breakIn ?? _state.BreakIn;
+        _state.CwSpeedWpm = speed ?? _state.CwSpeedWpm;
+        _state.CwPitchHz = pitchCode is { } p ? 300 + p * 10 : _state.CwPitchHz;
+        RefreshLabels();
+    }
+
     private async Task<Action> ReadCwPageAsync(RigctldClient client)
     {
         var moniLevel = await ReadOrNull(() => client.GetRawIntAsync("ML1"));

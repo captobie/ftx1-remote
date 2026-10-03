@@ -6,6 +6,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
@@ -15,22 +16,26 @@ using VirtualKeyModifiers = Windows.System.VirtualKeyModifiers;
 
 namespace FTX1RemoteWindows.Controls;
 
-/// The CW window — the Mac's Tools → CW receive pane (CWWindowView.swift's
-/// CWReceivePane): MAIN/SUB + Open Audio File / Copy / Clear header, the
-/// signal status bar, the decoded text, and the tuning row (auto-tune,
-/// tone, Rig Pitch, squelch). Classic decoder only for now, so there's no
-/// Neural/Classic picker yet; no send pane yet either (the Mac's v2).
+/// The CW window — the Mac's Tools → CW (CWWindowView.swift): the receive
+/// pane on top (MAIN/SUB + Open Audio File / Copy / Clear header, the
+/// signal status bar, the decoded text, and the tuning row: auto-tune,
+/// tone, Rig Pitch, squelch), the send pane below (<see cref="CwSendPane"/>).
+/// Classic decoder only for now, so there's no Neural/Classic picker yet.
+/// Callsigns in the decoded text are links that fill the send pane's Their
+/// call (the Mac's CWCallsigns).
 ///
 /// Decodes only while open, like the Mac's; the text itself lives in
-/// <see cref="CwReceiver"/> (owned by MainWindow), so it's still there when
-/// the window is reopened. Built in code, like the other windows.
+/// <see cref="CwReceiver"/> and the send queue in <see cref="CwSender"/>
+/// (both owned by MainWindow), so they outlive the window: a queued line
+/// still goes out after it closes. Built in code, like the other windows.
 public sealed class CwWindow : Window
 {
     private readonly CwReceiver _receiver;
-    /// Single-receive display ("FR"), from MainWindow; null if not read.
-    private readonly Func<bool?> _singleReceive;
+    private readonly CwWindowLink _link;
+    private readonly CwSendPane _sendPane;
 
     private readonly Grid _root = new();
+    private readonly Grid _receivePane = new();
     private readonly SelectorBar _channelBar = new();
     private readonly SelectorBarItem _mainItem = new() { Text = "MAIN", Tag = CwAudioChannel.Main };
     private readonly SelectorBarItem _subItem = new() { Text = "SUB", Tag = CwAudioChannel.Sub };
@@ -85,22 +90,27 @@ public sealed class CwWindow : Window
     /// handler doesn't write the value straight back.
     private bool _updating;
     private string _shownText = "";
+    /// How much of _shownText is rendered as final inlines: up to its last
+    /// space or newline, so a callsign still being received can't be split.
+    /// The rest is the tail, re-rendered on every change.
+    private int _stableLength;
+    private int _tailInlineCount;
     private CwMeters? _shownMeters;
 
     private static readonly FontFamily MonoFont = new("Consolas");
 
-    public CwWindow(CwReceiver receiver, Func<bool?> singleReceive)
+    public CwWindow(CwReceiver receiver, CwSender sender, CwWindowLink link)
     {
         _receiver = receiver;
-        _singleReceive = singleReceive;
+        _link = link;
         Title = "CW";
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
-        AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(820 * scale), (int)(480 * scale)));
+        AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(860 * scale), (int)(860 * scale)));
 
-        _root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        _root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        _root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        _root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        _receivePane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        _receivePane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        _receivePane.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        _receivePane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         AddRow(BuildHeader(), 0, withDivider: true);
         AddRow(BuildStatusBar(), 1, withDivider: true);
@@ -110,6 +120,21 @@ public sealed class CwWindow : Window
         textHost.Children.Add(_placeholder);
         AddRow(textHost, 2, withDivider: false);
         AddRow(BuildTuningRow(), 3, withDivider: false, dividerAbove: true);
+
+        // Receive above send, like the Mac's VSplitView (no splitter in
+        // WinUI 3 without the Community Toolkit, so fixed proportions).
+        _sendPane = new CwSendPane(sender, link);
+        _root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.1, GridUnitType.Star), MinHeight = 240 });
+        _root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star), MinHeight = 230 });
+        _root.Children.Add(_receivePane);
+        Grid.SetRow(_sendPane, 1);
+        _root.Children.Add(_sendPane);
+        _root.Children.Add(new Rectangle
+        {
+            Height = 2,
+            Fill = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"],
+            VerticalAlignment = VerticalAlignment.Bottom,
+        });
 
         Content = _root;
         ApplyTheme();
@@ -145,6 +170,7 @@ public sealed class CwWindow : Window
         {
             readout.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
         }
+        _sendPane.ApplyTheme();
         _shownMeters = null;
         UpdateMeters();
     }
@@ -152,7 +178,7 @@ public sealed class CwWindow : Window
     private void AddRow(FrameworkElement element, int row, bool withDivider, bool dividerAbove = false)
     {
         Grid.SetRow(element, row);
-        _root.Children.Add(element);
+        _receivePane.Children.Add(element);
         if (withDivider || dividerAbove)
         {
             var divider = new Rectangle
@@ -162,7 +188,7 @@ public sealed class CwWindow : Window
                 VerticalAlignment = dividerAbove ? VerticalAlignment.Top : VerticalAlignment.Bottom,
             };
             Grid.SetRow(divider, row);
-            _root.Children.Add(divider);
+            _receivePane.Children.Add(divider);
         }
     }
 
@@ -303,8 +329,7 @@ public sealed class CwWindow : Window
                 // already at the bottom, so scrolling back to read isn't
                 // yanked away by the next character.
                 var atBottom = _textScroller.VerticalOffset >= _textScroller.ScrollableHeight - 4;
-                _shownText = text;
-                _decodedText.Text = text;
+                RenderText(text);
                 if (atBottom)
                 {
                     _textScroller.UpdateLayout();
@@ -343,6 +368,62 @@ public sealed class CwWindow : Window
         UpdateSubAvailability();
     }
 
+    /// Renders the decoded text with its callsigns as links. Appended text
+    /// (the usual case) only re-renders from the last word break on; a
+    /// cleared or trimmed text renders from scratch.
+    private void RenderText(string text)
+    {
+        var inlines = _decodedText.Inlines;
+        if (_shownText.Length == 0 || !text.StartsWith(_shownText, StringComparison.Ordinal))
+        {
+            inlines.Clear();
+            _stableLength = 0;
+            _tailInlineCount = 0;
+        }
+        for (var i = 0; i < _tailInlineCount; i++)
+        {
+            inlines.RemoveAt(inlines.Count - 1);
+        }
+        var breakAt = text.LastIndexOfAny([' ', '\n']) + 1;
+        if (breakAt > _stableLength)
+        {
+            AppendInlines(text[_stableLength..breakAt]);
+            _stableLength = breakAt;
+        }
+        var before = inlines.Count;
+        AppendInlines(text[_stableLength..]);
+        _tailInlineCount = inlines.Count - before;
+        _shownText = text;
+    }
+
+    private void AppendInlines(string segment)
+    {
+        if (segment.Length == 0)
+        {
+            return;
+        }
+        var inlines = _decodedText.Inlines;
+        var position = 0;
+        foreach (var (start, length) in CwCallsigns.Find(segment, AppSettings.Callsign))
+        {
+            if (start > position)
+            {
+                inlines.Add(new Run { Text = segment[position..start] });
+            }
+            var call = segment.Substring(start, length);
+            var link = new Hyperlink { UnderlineStyle = UnderlineStyle.Single };
+            link.Inlines.Add(new Run { Text = call });
+            ToolTipService.SetToolTip(link, $"Use {call} as Their call");
+            link.Click += (_, _) => _sendPane.FillTheirCall(call);
+            inlines.Add(link);
+            position = start + length;
+        }
+        if (position < segment.Length)
+        {
+            inlines.Add(new Run { Text = segment[position..] });
+        }
+    }
+
     /// Why the decoder isn't decoding normally, when it isn't (the Mac's
     /// sourceNote), or the file-decoding indicator.
     private void UpdateNote()
@@ -377,7 +458,7 @@ public sealed class CwWindow : Window
     {
         string? reason = !_receiver.IsSubAudioAvailable
             ? "No SUB audio: the audio is off, or the input is mono"
-            : _singleReceive() == true
+            : _link.SingleReceive() == true
                 ? "SUB is off: the rig is in single-receive display"
                 : null;
         var enabled = reason is null || _receiver.Channel == CwAudioChannel.Sub;

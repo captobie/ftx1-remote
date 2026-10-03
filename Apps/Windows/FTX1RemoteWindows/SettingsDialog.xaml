@@ -9,8 +9,8 @@
     PrimaryButtonClick="SaveButton_Click">
 
     <!-- The Mac's Settings tabs (SettingsView.swift), minus Updates (no
-         Sparkle on Windows); Station has only the grid square, the one
-         thing here that uses it (the WebSDR station list's distances). Everything applies on Save; Cancel discards
+         Sparkle on Windows); Station has the callsign (CW macros) and
+         grid square (the WebSDR station list's distances, CW macros). Everything applies on Save; Cancel discards
          every tab, unlike the Mac, where only the rigctld tab waits. -->
     <Grid Width="620" RowSpacing="12">
         <Grid.RowDefinitions>
@@ -113,9 +113,13 @@
 
                 <!-- Station (the Mac's StationSettings). -->
                 <StackPanel x:Name="StationTab" Spacing="12" Visibility="Collapsed">
+                    <TextBox x:Name="CallsignBox" Header="Callsign" Width="160" HorizontalAlignment="Left"
+                             PlaceholderText="e.g. W1AW" MaxLength="12" CharacterCasing="Upper" />
+                    <TextBlock Text="Your callsign: {MYCALL} in the CW window's macros. It isn't made clickable in decoded CW."
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                     <TextBox x:Name="GridSquareBox" Header="Grid square" Width="160" HorizontalAlignment="Left"
                              PlaceholderText="e.g. FN31pr" MaxLength="8" />
-                    <TextBlock Text="Your Maidenhead locator (4 or 6 characters). The WebSDR window's KiwiSDR list uses it to show each station's distance and sort nearest first."
+                    <TextBlock Text="Your Maidenhead locator (4 or 6 characters): {MYGRID} in CW macros. The WebSDR window's KiwiSDR list uses it to show each station's distance and sort nearest first."
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
 

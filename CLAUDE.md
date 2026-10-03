@@ -697,11 +697,14 @@ OpenWebRX followed 2026-10-02 (profiles, in-place retune, the recorder
 tap), tested against the operator's own server with a fake rigctld, not
 yet on the rig; WebView2 needs no hash-navigation workaround (Chromium
 keeps OpenWebRX's hash updates same-document).
-CW decode (receive, classic decoder only) was ported 2026-10-03
+The CW window was ported 2026-10-03: decode with the classic decoder only
 (`Services/CwClassicDecoder.cs` = CWKit's classic decoder translated line
 for line — cwdecode stays the source of truth; `Services/CwReceiver.cs`,
 `Controls/CwWindow.cs`), checked against CWKit's own tests in a harness
-and a fake Pi, not yet on the rig. Next: send pane, neural decoder (ONNX
+and a fake Pi; and the send pane (`Services/CwSender.cs`,
+`Controls/CwSendPane.cs`, `RigctldClient.WriteKeyerMemoryAsync`, a
+Callsign field in Settings → Station), checked against a fake rigctld
+that models the keyer. Neither yet on the rig. Next: neural decoder (ONNX
 export of CWKit's model), WebSDR source. Found while testing: CWKit's
 classic `MorseDecoder` can lock up into "TTTT" after one noise blip learned
 as a dit (Mac too) — see the README's "CW decode" for the repro and a

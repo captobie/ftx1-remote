@@ -73,6 +73,7 @@ public sealed class CwReceiver : IDisposable
     // UI thread.
     private readonly StringBuilder _text = new();
     private CwRigInfo _rigInfo;
+    private bool _senderActive;
     private CwAudioChannel _channelSetting;
     private double _toneFrequency;
     private bool _autoTune;
@@ -258,8 +259,9 @@ public sealed class CwReceiver : IDisposable
 
     public int? RigPitchHz => _rigInfo.PitchHz;
 
-    /// The decoder skips audio while the rig transmits (the Mac's v2
-    /// decision): otherwise it decodes the operator's own sidetone.
+    /// The decoder skips audio while the rig transmits or the send pane is
+    /// sending (the Mac's v2 decision): otherwise it decodes the operator's
+    /// own sidetone, which the send pane already shows.
     public bool IsPausedForTransmit => _pausedForTransmit;
 
     /// The selected receiver's mode, when it's known and isn't CW.
@@ -280,18 +282,38 @@ public sealed class CwReceiver : IDisposable
             return;
         }
         _rigInfo = info;
-        if (info.Transmitting != _pausedForTransmit)
-        {
-            _pausedForTransmit = info.Transmitting;
-            // End the character in progress cleanly rather than leave it to
-            // be finished by the first audio after TX.
-            if (info.Transmitting && _running && !_decodingFile)
-            {
-                Enqueue(new FlushWork());
-                StartNewLine();
-            }
-        }
+        UpdateTransmitPause();
         Changed?.Invoke();
+    }
+
+    /// From the send pane's CwSender: true while a line is being sent,
+    /// which covers the lag before the poll sees PTT.
+    public void SetSenderActive(bool active)
+    {
+        if (active == _senderActive)
+        {
+            return;
+        }
+        _senderActive = active;
+        UpdateTransmitPause();
+        Changed?.Invoke();
+    }
+
+    private void UpdateTransmitPause()
+    {
+        var paused = _senderActive || _rigInfo.Transmitting;
+        if (paused == _pausedForTransmit)
+        {
+            return;
+        }
+        _pausedForTransmit = paused;
+        // End the character in progress cleanly rather than leave it to be
+        // finished by the first audio after TX.
+        if (paused && _running && !_decodingFile)
+        {
+            Enqueue(new FlushWork());
+            StartNewLine();
+        }
     }
 
     /// Sets the manual tone to the rig's CW pitch: a signal tuned to zero

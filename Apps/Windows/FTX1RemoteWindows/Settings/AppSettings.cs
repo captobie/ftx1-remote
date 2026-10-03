@@ -71,6 +71,7 @@ public static class AppSettings
         public int AprsMaxStations { get; set; } = AprsMaxStationsSetting.Default;
         public int AprsMaxMessages { get; set; } = AprsMaxMessagesSetting.Default;
         public string GridSquare { get; set; } = "";
+        public string Callsign { get; set; } = "";
         public string WebSdrHostPort { get; set; } = "";
         public bool WebSdrFollowRig { get; set; } = true;
         public bool WebSdrTuneRig { get; set; } = true;
@@ -80,6 +81,8 @@ public static class AppSettings
         public double CwToneFrequency { get; set; } = 700;
         public bool CwAutoTune { get; set; } = true;
         public double CwSquelchDb { get; set; } = 12;
+        public int CwKeyerSlot { get; set; } = 1;
+        public List<CwMacro>? CwMacros { get; set; }
         public WebSdrFavorite? WebSdrPickedStation { get; set; }
         public List<WebSdrFavorite> WebSdrFavorites { get; set; } = [];
         public string? WebSdrDirectoryETag { get; set; }
@@ -480,6 +483,19 @@ public static class AppSettings
         }
     }
 
+    /// The operator's callsign (Settings → Station), the Mac's
+    /// StationSettings.callsign: {MYCALL} in CW macros, and left unlinked in
+    /// the CW window's decoded text.
+    public static string Callsign
+    {
+        get => _cache.Callsign;
+        set
+        {
+            _cache.Callsign = value;
+            Save();
+        }
+    }
+
     // The WebSDR window (Services/WebSdrFollowModel.cs) — the Mac's
     // WebSDRSettings, same defaults.
 
@@ -616,6 +632,30 @@ public static class AppSettings
         _cache.CwAutoTune = autoTune;
         _cache.CwSquelchDb = squelchDb;
         Save();
+    }
+
+    /// The CW TEXT keyer memory the send pane writes to (1-5) — the Mac's
+    /// cw.keyerSlot. Whatever the rig holds there gets overwritten.
+    public static int CwKeyerSlot
+    {
+        get => _cache.CwKeyerSlot is >= 1 and <= 5 ? _cache.CwKeyerSlot : 1;
+        set
+        {
+            _cache.CwKeyerSlot = value;
+            Save();
+        }
+    }
+
+    /// The send pane's macro buttons (the Mac's cw.macros); the defaults
+    /// until edited.
+    public static List<CwMacro> CwMacros
+    {
+        get => _cache.CwMacros ?? CwMacro.Defaults();
+        set
+        {
+            _cache.CwMacros = value;
+            Save();
+        }
     }
 
     /// Mutate the returned object, then call <see cref="SaveAudio"/>.

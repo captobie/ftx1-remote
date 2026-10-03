@@ -111,6 +111,9 @@ public sealed partial class MainWindow : Window
     /// CW decoding (the Mac's HubService.cwReceiver): fed both receivers'
     /// audio from the audio thread, decoding only while _cwWindow is open.
     private readonly CwReceiver _cwReceiver;
+    /// The CW window's send pane (the Mac's HubService.cwSender); keeps
+    /// sending a queued line when the window closes.
+    private readonly CwSender _cwSender;
     private CwWindow? _cwWindow;
     /// Each VFO's last polled frequency, for the audio thread's APRS gate
     /// (0 = unknown). Written by the poll, read with Volatile on the audio
@@ -256,6 +259,14 @@ public sealed partial class MainWindow : Window
         SubMeterHost.Child = _subMeter;
 
         _cwReceiver = new CwReceiver(DispatcherQueue);
+        _cwSender = new CwSender(new CwRigLink
+        {
+            Client = () => _client,
+            BlockReason = CwSendBlockReason,
+            SpeedWpm = () => _lastState.CwSpeedWpm,
+            Ptt = () => _lastState.Ptt,
+        });
+        _cwSender.ActiveChanged += _cwReceiver.SetSenderActive;
         WireAprsDecoder(_aprsMainDecoder, AprsSource.Main);
         WireAprsDecoder(_aprsSubDecoder, AprsSource.Sub);
 
@@ -580,6 +591,7 @@ public sealed partial class MainWindow : Window
             _pollCount = 0;
             ConnectionStateText.Text = $"Connected to {description}";
             AppLog.Write($"connection: connected to {description} ({mode}); audio swapped={_swapTracker.Swapped}");
+            _cwSender.OnConnected();
             ConnectionStateText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green);
             _scope.SetActive(true);
             ConnectButton.Content = "Disconnect";
@@ -947,6 +959,12 @@ public sealed partial class MainWindow : Window
         {
             await _menuGrid.RefreshFromRigAsync(client);
             await _filterPanel.RefreshFromRigAsync(client);
+            // The CW window's speed/BK-IN/pitch, unless the CW page has
+            // just read them.
+            if (_cwWindow is not null)
+            {
+                await _menuGrid.RefreshKeyerAsync(client);
+            }
         }
         // Main's mode may have changed (fast tier), which changes which
         // filter controls apply.
@@ -1565,6 +1583,8 @@ public sealed partial class MainWindow : Window
         UpdateTransmitControls();
         if (!enabled)
         {
+            // As on the Mac, turning transmit off also stops the CW sender.
+            _cwSender.Stop();
             await ForceUnkeyAsync();
         }
     }
@@ -1609,8 +1629,10 @@ public sealed partial class MainWindow : Window
     private void UpdateTransmitControls()
     {
         // The CW decoder pauses during TX, including straight away on a
-        // held PTT press; this also runs after every poll.
+        // held PTT press; this also runs after every poll, which is what
+        // the CW sender's finish detection reads PTT from.
         PushRigStateToCw();
+        _cwSender.OnPtt(_lastState.Ptt);
         var keyed = _pttHeld || _lastState.Ptt;
         var reason = TransmitGate.BlockReason(TransmitAction.PttOn, AppSettings.TransmitEnabled, _lastState.FrequencyHz);
         PttButton.Opacity = reason is null || keyed ? 1 : 0.4;
@@ -1878,11 +1900,50 @@ public sealed partial class MainWindow : Window
     {
         if (_cwWindow is null)
         {
-            _cwWindow = new CwWindow(_cwReceiver, () => IsConnected ? _singleReceive : null);
+            _cwWindow = new CwWindow(_cwReceiver, _cwSender, new CwWindowLink
+            {
+                SingleReceive = () => IsConnected ? _singleReceive : null,
+                BreakIn = () => IsConnected ? _lastState.BreakIn : null,
+                SetBreakIn = _menuGrid.SetBreakIn,
+                SetSpeed = _menuGrid.SetCwSpeed,
+            });
             _cwWindow.Closed += (_, _) => _cwWindow = null;
             PushRigStateToCw();
+            // Speed/BK-IN/pitch now rather than at the next slow poll.
+            if (_client is { } client)
+            {
+                _ = _menuGrid.RefreshKeyerAsync(client);
+            }
         }
         _cwWindow.Activate();
+    }
+
+    /// Why the CW send pane can't key the rig right now (the Mac's
+    /// CWSender.blockReason): checked before every chunk, and the queue
+    /// waits while there's a reason. The transmit gate is TransmitGate's.
+    private CwSendBlock? CwSendBlockReason()
+    {
+        if (!IsConnected)
+        {
+            return CwSendBlock.NotConnected;
+        }
+        if (TransmitGate.BlockReason(TransmitAction.PlayCwTextMemory, AppSettings.TransmitEnabled, _lastState.FrequencyHz) is { } reason)
+        {
+            return CwSendBlock.TransmitBlocked(reason);
+        }
+        if (_lastState.MainIsC4fm == true)
+        {
+            return CwSendBlock.NotCw("C4FM");
+        }
+        if (_lastState.Mode != RigMode.Cw)
+        {
+            return CwSendBlock.NotCw(_lastState.Mode?.DisplayName() ?? "an unknown mode");
+        }
+        if (_lastState.BreakIn == false)
+        {
+            return CwSendBlock.BreakInOff;
+        }
+        return null;
     }
 
     /// From UpdateTransmitControls (every poll and PTT change) and on

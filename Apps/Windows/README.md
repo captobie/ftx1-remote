@@ -842,12 +842,12 @@ back), Mute, click-to-tune from the waterfall (a WFM mode click correctly
 left the rig's mode alone), and Record while Muted (a 7 s, 48 kHz WAV
 with signal in it). Not yet on the rig.
 
-## CW decode (2026-10-03)
+## CW window (decode + send, 2026-10-03)
 
-The Mac's Tools → CW window, receive side, **classic decoder only** —
-step 1 of the CW port (next: the send pane, then the neural decoder via an
-ONNX export of CWKit's model, then WebSDR as a source). Opened from the
-**CW** button in the connection bar.
+The Mac's Tools → CW window: the receive pane with the **classic decoder
+only** (step 1 of the CW port) and the send pane (step 2). Still to come:
+the neural decoder via an ONNX export of CWKit's model, then WebSDR as a
+source. Opened from the **CW** button in the connection bar.
 
 - `Services/CwClassicDecoder.cs` is CWKit's classic decoder
   (`captobie/cwdecode`, `Sources/CWKit`: `Goertzel`, `ToneDetector`,
@@ -874,9 +874,8 @@ ONNX export of CWKit's model, then WebSDR as a source). Opened from the
   character being received, tone/SNR/WPM, and Auto-tune/Tone/Rig Pitch/
   Squelch. Readouts are sampled from the receiver every 30 ms rather than
   pushed per chunk, so they never touch the text.
-- Not yet: the Neural/Classic picker (Neural needs the model on Windows),
-  clickable callsigns (they fill the send pane, which doesn't exist yet),
-  the WebSDR source.
+- Not yet: the Neural/Classic picker (Neural needs the model on Windows)
+  and the WebSDR source.
 - Tested in the built app against a fake Pi (stand-in rigctld + a 44.1 kHz
   stereo stream with different CW on each channel): MAIN and SUB decode,
   switching starts a new line, the not-in-CW note, the pause while TX
@@ -895,6 +894,55 @@ ONNX export of CWKit's model, then WebSDR as a source). Opened from the
   exceeds 4.5 dits, raise the dit to dah/4.5 instead of pinning the dah)
   recovers within one character and passes every CWKit test in the
   harness; it belongs in cwdecode first, then here.
+
+Send pane (step 2), the Mac's `CWSendPane`/`CWSender` (its doc comments
+and CLAUDE.md's "v2: CW send pane" have the rig facts this relies on):
+
+- `Services/CwSender.cs`: lines are keyed by the rig's own keyer through
+  one CW TEXT keyer memory (default slot 1, Memory 1-5 picker, persisted;
+  whatever is stored there is overwritten). Each ≤50-character chunk is
+  written with `RigctldClient.WriteKeyerMemoryAsync` (lowercase `w KM<n>…;`
+  plus a `KM<n>` read in the same write, since `w` waits ~2 s for a reply
+  an accepted write never gets; "?;" = rejected), then played with "KY0n"
+  behind `TransmitGate` (`TransmitAction.PlayCwTextMemory`). The slot's
+  CW MEMORY menu item ("EX" 02 02 05+n) is set to TEXT once per
+  connection. Finish detection as on the Mac: ≥90% of the PARIS duration
+  at the rig's WPM and PTT off for ≥1 s, capped at 1.5× + 5 s. Stop (Esc)
+  sends "KY00" (never gated) and drops the queue; turning Enable Transmit
+  off stops it too. Owned by MainWindow, so closing the window doesn't
+  stop a queued line.
+- Sending waits (shown in the status line) while the rig isn't connected,
+  transmit is blocked (Enable Transmit, out of band), Main isn't in CW
+  (C4FM included), or BK-IN is off ("Turn On BK-IN" button) — the rig only
+  keys its memory with BK-IN on. The decoder pauses while a line is being
+  sent (`CwReceiver.SetSenderActive`) as well as during TX.
+- `Controls/CwSendPane.cs`: keyer speed −/+ and BK-IN (through the MENU
+  grid's own send path, `MenuGrid.SetCwSpeed`/`SetBreakIn`, so the CW page
+  follows), the slot, Macros… / Clear / Stop, the macro buttons (Ctrl+1–9;
+  a macro fills the send line, it doesn't send — the Mac's 2026-10-03
+  decision), the log (queued, keying with chunk n/m, sent, stopped,
+  failed, and characters left out), the status line, Their call and the
+  send line (Enter queues). Text prep is the Mac's `CWText`: uppercase,
+  `<BT>`/`<AR>`/`<KN>` → `=`/`+`/`(`, anything the keyer can't send
+  dropped and listed.
+- Macros: `{MYCALL}`/`{MYGRID}` from Settings → Station (a **Callsign**
+  field was added there for this; the grid square was already there),
+  `{CALL}` from Their call; edited in a dialog (label, text, reorder,
+  remove, add, Restore Defaults), saved as `CwMacros` in settings.json.
+- Callsigns in the decoded text are links (the Mac's `CWCallsigns`, same
+  pattern; your own call isn't linked); a click fills Their call. The text
+  is rendered incrementally from the last word break, so a growing text
+  doesn't rebuild every link.
+- While the CW window is open, the slow tier also reads BI/KS/KP for it
+  (`MenuGrid.RefreshKeyerAsync`) unless the CW page is on screen.
+- Tested in the built app against a fake rigctld that models the keyer
+  (2 s silent `w` writes, "?;" over 50 characters, `KY0n` keying for the
+  PARIS time with PTT reading 3, "KY00"): BK-IN-off block and Turn On
+  BK-IN, the MESSAGE→TEXT slot fix, a 67-character line as two chunks
+  (1/2, 2/2), lines sent in order, Stop mid-line, `<BT>` mapping and a
+  dropped "É", a macro refused for an empty callsign, AGN? filling the
+  line, and clicking a decoded W1AW filling Their call. Not yet on the
+  rig.
 
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
@@ -946,7 +994,8 @@ Apps/Windows/FTX1RemoteWindows/
     WebSdrWindow.cs              WebSDR window (port of WebSDRFollowView.swift + KiwiWebView.swift)
     WebSdrStationsWindow.cs      Stations window: KiwiSDR table + websdr.org tab (KiwiSDRDirectoryView/WebSDROrgBrowserView.swift)
     WebSdrFavoritesDialog.cs     Manage Favorites (WebSDRFavoritesView.swift)
-    CwWindow.cs                  CW window, receive pane (CWWindowView.swift's CWReceivePane)
+    CwWindow.cs                  CW window + receive pane (CWWindowView.swift)
+    CwSendPane.cs                CW send pane + macro editor (CWSendPane.swift)
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
@@ -980,7 +1029,8 @@ Apps/Windows/FTX1RemoteWindows/
     SdrAudioFileWriter.cs        WAV writer for the OpenWebRX recorder tap (SDRAudioFileWriter.swift)
     CwClassicDecoder.cs          CWKit's classic CW decoder (captobie/cwdecode DSP/ + Morse/)
     CwReceiver.cs                CW decode worker + window state (CWReceiver.swift + CWKit's PipelineRunner)
+    CwSender.cs                  CW send queue via the rig's keyer memory, CwText, macros, callsign finder (CWSender/CWCallsigns.swift)
   Settings/
-    AppSettings.cs                every setting (connection, audio, WPSD, APRS, station, WebSDR, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
+    AppSettings.cs                every setting (connection, audio, WPSD, APRS, station, WebSDR, CW, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
     Appearance.cs                 AppTheme / ButtonValueColor (ports of the FTX1Core Appearance enums)
 ```
