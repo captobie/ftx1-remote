@@ -705,10 +705,7 @@ and a fake Pi; and the send pane (`Services/CwSender.cs`,
 `Controls/CwSendPane.cs`, `RigctldClient.WriteKeyerMemoryAsync`, a
 Callsign field in Settings → Station), checked against a fake rigctld
 that models the keyer. Neither yet on the rig. Next: neural decoder (ONNX
-export of CWKit's model), WebSDR source. Found while testing: CWKit's
-classic `MorseDecoder` can lock up into "TTTT" after one noise blip learned
-as a dit (Mac too) — see the README's "CW decode" for the repro and a
-candidate fix, to be made in cwdecode first.
+export of CWKit's model), WebSDR source.
 Full plan, protocol/model porting notes, and open items:
 `Apps/Windows/README.md`. `Apps/Windows/FTX1RemoteWindows/` has a
 build-verified (`dotnet build -r win-x64 --self-contained`, not yet

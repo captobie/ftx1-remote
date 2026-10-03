@@ -882,18 +882,6 @@ source. Opened from the **CW** button in the connection bar.
   (fake `t` = 3), Rig Pitch ("KP" → 700 Hz, auto-tune off, persisted), and
   a WAV through the picker (header line, then live resumes). Not yet on
   the rig.
-- **Known CWKit issue, reproduced here, not fixed (2026-10-03)**: after a
-  strong signal, ~2.4 s into the following silence the signal-peak
-  estimate decays to just above the squelch and a single noise blip
-  (~8 ms) gets through as a mark. `MorseDecoder.learnMark` then takes it as
-  the dit cluster (~86 WPM), and the decoder locks up: every later mark is
-  clamped to 8 × that dit while the dah is pinned at 4.5 × it, so the
-  single-cluster branch can never raise the dit, and everything decodes as
-  "TTTT" until the decoder is reset (channel switch, TX, closing the
-  window). Same code on the Mac. A candidate fix (when the dah estimate
-  exceeds 4.5 dits, raise the dit to dah/4.5 instead of pinning the dah)
-  recovers within one character and passes every CWKit test in the
-  harness; it belongs in cwdecode first, then here.
 
 Send pane (step 2), the Mac's `CWSendPane`/`CWSender` (its doc comments
 and CLAUDE.md's "v2: CW send pane" have the rig facts this relies on):

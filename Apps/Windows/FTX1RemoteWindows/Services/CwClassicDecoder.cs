@@ -438,7 +438,15 @@ internal sealed class MorseDecoder
                 DahDuration = mean;
             }
         }
-        DahDuration = Math.Min(Math.Max(DahDuration, 2 * DitDuration), 4.5 * DitDuration);
+        // A dah far longer than 3 dits means the dit estimate is too short (a
+        // noise blip learned as a dit, or a sudden slowdown). Pinning the dah
+        // instead would lock in the bad dit, because the 8-dit clamp above
+        // keeps real dits out of the history.
+        if (DahDuration > 4.5 * DitDuration)
+        {
+            DitDuration = DahDuration / 4.5;
+        }
+        DahDuration = Math.Max(DahDuration, 2 * DitDuration);
     }
 
     private void LearnGap(double gap)
