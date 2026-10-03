@@ -1163,6 +1163,45 @@ looks for the newest non-draft, non-prerelease tag `windows-v<version>`
 `.csproj`'s `<Version>` (kept equal to the Mac's) shows its notes and a
 Download button that opens the release page. "Check for updates when the app
 starts" (default on) does the same silently at launch, with a dialog only if
-there's an update. To publish: bump `<Version>`, build, zip the output, and
-`gh release create windows-v<version>` with the zip attached. Build-verified
-only; not yet run against a real Windows release.
+there's an update. Build-verified only; the first real Windows release
+(`windows-v0.8`) exists now, but nothing older has checked against it yet.
+
+## Releasing
+
+The release is a zip of the `dotnet publish` folder: unpackaged and
+self-contained (.NET + Windows App SDK included), so no installer and nothing
+else to install. Users unzip it anywhere and run `FTX1RemoteWindows.exe`.
+It isn't code-signed, so SmartScreen warns on first run ("More info → Run
+anyway"). Local mode still needs hamlib's `rigctld.exe` on the PC.
+
+1. Bump `<Version>` in `FTX1RemoteWindows.csproj` (kept equal to the Mac's),
+   commit and push — the update checker compares against this.
+2. Publish to an empty folder, so no stale files end up in the zip. The
+   `.csproj`'s `CopyXamlResourcesToPublish` target copies the app's `.pri`
+   and `.xbf` files, which `dotnet publish` leaves out (without them the exe
+   dies silently at startup, 0xc000027b in `Microsoft.UI.Xaml.dll`):
+
+   ```powershell
+   Remove-Item -Recurse -Force C:\Tools\FTX1Remote-release
+   & "C:\Program Files\dotnet\dotnet.exe" publish FTX1RemoteWindows.csproj -c Release -r win-x64 --self-contained -o C:\Tools\FTX1Remote-release
+   ```
+
+   Run `C:\Tools\FTX1Remote-release\FTX1RemoteWindows.exe` once to check it
+   opens.
+3. Zip it:
+
+   ```powershell
+   Compress-Archive -Path C:\Tools\FTX1Remote-release\* -DestinationPath C:\Tools\FTX1Remote-Windows-<version>-x64.zip -Force
+   ```
+
+4. Create the release (GitHub CLI, installed at `C:\Program Files\GitHub
+   CLI\gh.exe` on the user's PC). The tag must be `windows-v<version>`, and
+   `--latest=false` keeps the Mac's release as the repo's "Latest" (Sparkle
+   doesn't use that badge, but the releases page does):
+
+   ```powershell
+   gh release create windows-v<version> C:\Tools\FTX1Remote-Windows-<version>-x64.zip --repo captobie/ftx1-remote --target main --title "Windows <version>" --notes "..." --latest=false
+   ```
+
+   Write the notes by hand (what changed, plus the install/SmartScreen/
+   rigctld lines from `windows-v0.8`'s notes). The update dialog shows them.
