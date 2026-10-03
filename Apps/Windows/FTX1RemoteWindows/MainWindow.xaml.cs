@@ -258,7 +258,9 @@ public sealed partial class MainWindow : Window
         MainMeterHost.Child = _mainMeter;
         SubMeterHost.Child = _subMeter;
 
-        _cwReceiver = new CwReceiver(DispatcherQueue);
+        _cwReceiver = new CwReceiver(DispatcherQueue, () => _webSdrWindow is { } webSdr
+            ? new WebSdrState(webSdr.BrowserProcessId, webSdr.Model.IsConnected, webSdr.Model.IsMuted)
+            : null);
         _cwSender = new CwSender(new CwRigLink
         {
             Client = () => _client,

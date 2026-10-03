@@ -40,6 +40,7 @@ public sealed class CwWindow : Window
     private readonly SelectorBar _channelBar = new();
     private readonly SelectorBarItem _mainItem = new() { Text = "MAIN", Tag = CwAudioChannel.Main };
     private readonly SelectorBarItem _subItem = new() { Text = "SUB", Tag = CwAudioChannel.Sub };
+    private readonly SelectorBarItem _webSdrItem = new() { Text = "WebSDR", Tag = CwAudioChannel.WebSdr };
     private readonly SelectorBar _decoderBar = new();
     private readonly SelectorBarItem _neuralItem = new() { Text = "Neural", Tag = CwDecoderKind.Neural };
     private readonly SelectorBarItem _classicItem = new() { Text = "Classic", Tag = CwDecoderKind.Classic };
@@ -207,6 +208,8 @@ public sealed class CwWindow : Window
 
         _channelBar.Items.Add(_mainItem);
         _channelBar.Items.Add(_subItem);
+        _channelBar.Items.Add(_webSdrItem);
+        ToolTipService.SetToolTip(_webSdrItem, "Decode what the WebSDR window is playing");
         _channelBar.SelectionChanged += (bar, _) =>
         {
             if (_updating || bar.SelectedItem?.Tag is not CwAudioChannel channel)
@@ -364,7 +367,12 @@ public sealed class CwWindow : Window
             _copyButton.IsEnabled = _clearButton.IsEnabled = text.Length > 0;
             _openButton.IsEnabled = !_receiver.IsDecodingFile;
 
-            var selected = _receiver.Channel == CwAudioChannel.Main ? _mainItem : _subItem;
+            var selected = _receiver.Channel switch
+            {
+                CwAudioChannel.Main => _mainItem,
+                CwAudioChannel.Sub => _subItem,
+                _ => _webSdrItem,
+            };
             if (!selected.IsSelected)
             {
                 selected.IsSelected = true;
@@ -485,6 +493,10 @@ public sealed class CwWindow : Window
         {
             note = "Paused while transmitting";
         }
+        else if (_receiver.Channel == CwAudioChannel.WebSdr)
+        {
+            note = WebSdrNote();
+        }
         else if (_receiver.SourceModeIfNotCw is { } mode)
         {
             note = $"{(_receiver.Channel == CwAudioChannel.Main ? "MAIN" : "SUB")} is in {mode.DisplayName()}, not CW — decoding anyway";
@@ -495,6 +507,31 @@ public sealed class CwWindow : Window
         }
         _noteText.Text = note ?? "";
         ToolTipService.SetToolTip(_noteText, note);
+    }
+
+    /// Why the WebSDR source isn't decoding, when it isn't. Windows can't
+    /// capture a muted WebSDR (see WebSdrAudioTap), so a muted window is
+    /// called out before the generic "silent".
+    private string? WebSdrNote()
+    {
+        if (_receiver.WebSdr is not { } webSdr)
+        {
+            return "Open the WebSDR window (WebSDR button) and connect it to decode what it plays";
+        }
+        if (!webSdr.Connected)
+        {
+            return "Connect the WebSDR window to decode what it plays";
+        }
+        return _receiver.WebSdrPhase switch
+        {
+            WebSdrTapPhase.Failed => $"Can't capture the WebSDR's audio: {_receiver.WebSdrFailure}",
+            // Only once the capture has gone quiet: a page the window's Mute
+            // doesn't reach would still be decoding.
+            WebSdrTapPhase.Silent when webSdr.Muted => "The WebSDR is muted — unmute it to decode (Windows can't capture it while muted)",
+            WebSdrTapPhase.Silent => "The WebSDR is silent — check that its page is playing",
+            WebSdrTapPhase.WaitingForWebSdr => "Waiting for the WebSDR window's audio",
+            _ => null,
+        };
     }
 
     /// SUB is unselectable with no Sub audio (mono input) or in

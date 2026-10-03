@@ -28,6 +28,25 @@ public sealed class WebSdrWindow : Window
 {
     public WebSdrFollowModel Model { get; }
 
+    /// The WebView2 browser process, whose process tree plays the page's
+    /// audio (the CW window's WebSDR source captures it); null until the web
+    /// view has started. UI thread.
+    public uint? BrowserProcessId
+    {
+        get
+        {
+            try
+            {
+                return _core?.BrowserProcessId;
+            }
+            catch (Exception)
+            {
+                // The browser process went away under us.
+                return null;
+            }
+        }
+    }
+
     /// Owned here (not per Stations window) so reopening it shows the
     /// already-loaded list; its disk cache outlives the window anyway.
     private readonly KiwiSdrDirectory _directory = new();

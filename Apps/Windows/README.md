@@ -844,10 +844,10 @@ with signal in it). Not yet on the rig.
 
 ## CW window (decode + send, 2026-10-03)
 
-The Mac's Tools → CW window: the receive pane with the classic decoder
-(step 1 of the CW port), the send pane (step 2) and the neural decoder
-(step 3). Still to come: WebSDR as a source. Opened from the **CW** button
-in the connection bar.
+The Mac's Tools → CW window, all of it: the receive pane with the classic
+decoder (step 1 of the CW port), the send pane (step 2), the neural
+decoder (step 3) and the WebSDR window as a third source (step 4). Opened
+from the **CW** button in the connection bar.
 
 - `Services/CwClassicDecoder.cs` is CWKit's classic decoder
   (`captobie/cwdecode`, `Sources/CWKit`: `Goertzel`, `ToneDetector`,
@@ -874,7 +874,34 @@ in the connection bar.
   character being received, tone/SNR/WPM, and Auto-tune/Tone/Rig Pitch/
   Squelch. Readouts are sampled from the receiver every 30 ms rather than
   pushed per chunk, so they never touch the text.
-- Not yet: the WebSDR source.
+- **WebSDR source (step 4)**: MAIN / SUB / **WebSDR** decodes what the
+  WebSDR window is playing, through `Services/WebSdrAudioTap.cs` —
+  Windows' process-loopback capture (Windows 10 2004+ / 11) of the
+  WebView2 browser process and its children, where Chromium's audio
+  service runs, so it works for KiwiSDR, classic WebSDR and OpenWebRX
+  alike and nothing is added to their pages (the Mac's Core Audio process
+  tap, same idea). It never hears this app's own audio (the rig's
+  playback). `ActivateAudioInterfaceAsync` is the one piece of interop;
+  the rest is NAudio's `AudioClient`. 48 kHz float stereo, mixed to mono,
+  2048-frame chunks. Runs only while the CW window is open with WebSDR
+  selected; the WebSDR window's browser process and connected/muted state
+  are re-read every 2 s, so opening or reconnecting it is picked up.
+- **Unlike the Mac, a muted WebSDR can't be decoded** (user decision,
+  2026-10-03): Windows has no "silent on the speakers, still captured"
+  mute — tested: muting the process's audio session, or setting its volume
+  to 0, gives the capture exact zeros, and the page's own mute does the
+  same. So the WebSDR has to be audible, and the window's Mute stays on
+  the page (no routing like the Mac's `WebSDRAudioRouting`). Mute on TX
+  makes no difference, since decoding pauses during TX anyway. The notes:
+  "Open the WebSDR window…", "Connect the WebSDR window…", "The WebSDR is
+  muted — unmute it to decode…" (only once the capture has gone silent,
+  so a page the Mute doesn't reach can't contradict it), "The WebSDR is
+  silent…" (below −80 dBFS for 3 s), and capture failures.
+- Tested in the built app with a local page playing CW through Web Audio,
+  loaded in the WebSDR window: it captured the WebView2 tree and decoded
+  "CQ CQ DE W1AW W1AW K" with the neural decoder (SNR 51 dB); every note
+  above (silent page, muted, disconnected, window closed). Not yet tried
+  against a real KiwiSDR/WebSDR/OpenWebRX or on the rig.
 - Tested in the built app against a fake Pi (stand-in rigctld + a 44.1 kHz
   stereo stream with different CW on each channel): MAIN and SUB decode,
   switching starts a new line, the not-in-CW note, the pause while TX
@@ -1071,6 +1098,7 @@ Apps/Windows/FTX1RemoteWindows/
     CwNeuralDecoder.cs           CWKit's neural CW decoder: spectrogram, resampler, streaming CTC, ONNX model, pipeline (Neural/)
     CwReceiver.cs                CW decode worker + window state (CWReceiver.swift + CWKit's PipelineRunner)
     CwSender.cs                  CW send queue via the rig's keyer memory, CwText, macros, callsign finder (CWSender/CWCallsigns.swift)
+    WebSdrAudioTap.cs            process-loopback capture of the WebSDR window's audio for the CW window (WebSDRAudioTap.swift)
   Assets/
     CWNet.onnx                    CWKit's neural CW model, converted by ../Tools/cwnet_to_onnx.py
   Settings/

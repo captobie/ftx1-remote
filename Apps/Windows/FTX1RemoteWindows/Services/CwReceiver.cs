@@ -10,12 +10,13 @@ namespace FTX1RemoteWindows.Services;
 
 /// Which audio the CW decoder listens to. MAIN/SUB are roles, not L/R
 /// channels: MainWindow's audio routing already swaps the channels to
-/// follow a Main/Sub swap, so Main is always the Main VFO's audio. (The
-/// Mac's third source, the WebSDR window's audio, isn't ported.)
+/// follow a Main/Sub swap, so Main is always the Main VFO's audio. WebSdr
+/// is whatever the WebSDR window is playing (WebSdrAudioTap).
 public enum CwAudioChannel
 {
     Main,
     Sub,
+    WebSdr,
 }
 
 /// What the receiver needs from the rig, so MainWindow only forwards
@@ -39,6 +40,11 @@ public readonly record struct CwRigInfo(bool Transmitting, int? PitchHz, RigMode
 /// everything else (text, settings, state) lives on the UI thread, and the
 /// worker's results are marshaled there in order. Owned by MainWindow, not
 /// the window, so the decoded text survives closing and reopening it.
+///
+/// The third source, WebSDR, comes from <see cref="WebSdrAudioTap"/>,
+/// started only while the window is open with WebSDR selected; the WebSDR
+/// window's state (its browser process, connected, muted) is re-read every
+/// 2 s meanwhile, so opening it or reconnecting is picked up.
 ///
 /// The per-chunk readouts (key, level, SNR, WPM, tone, pending symbols)
 /// aren't events: the worker leaves the latest in <see cref="Meters"/>,
@@ -87,6 +93,10 @@ public sealed class CwReceiver : IDisposable
     private CwDecoderKind _decoderKind;
     private string _tentative = "";
     private bool _modelLoadQueued;
+    private readonly Func<WebSdrState?> _webSdrState;
+    private WebSdrAudioTap? _webSdrTap;
+    private readonly DispatcherQueueTimer _webSdrTimer;
+    private WebSdrState? _lastWebSdrState;
 
     private const int MaxTextLength = 100_000;
     /// No Sub audio (or only digital silence, which is what a mono Local
@@ -96,9 +106,15 @@ public sealed class CwReceiver : IDisposable
     /// File decoding's chunk size, in frames (CWKit's AudioFileReader).
     private const int FileChunkFrames = 16_384;
 
-    public CwReceiver(DispatcherQueue dispatcher)
+    /// <param name="webSdrState">The WebSDR window's state, or null while
+    /// it isn't open (UI thread).</param>
+    public CwReceiver(DispatcherQueue dispatcher, Func<WebSdrState?> webSdrState)
     {
         _dispatcher = dispatcher;
+        _webSdrState = webSdrState;
+        _webSdrTimer = dispatcher.CreateTimer();
+        _webSdrTimer.Interval = TimeSpan.FromSeconds(2);
+        _webSdrTimer.Tick += (_, _) => RefreshWebSdrState();
         _channelSetting = AppSettings.CwChannel;
         _channel = _channelSetting;
         _toneFrequency = Math.Clamp(AppSettings.CwToneFrequency, FrequencyTracker.SearchMin, FrequencyTracker.SearchMax);
@@ -112,7 +128,12 @@ public sealed class CwReceiver : IDisposable
     }
 
     /// The worker disposes the model once the queue is drained.
-    public void Dispose() => _queue.CompleteAdding();
+    public void Dispose()
+    {
+        _webSdrTimer.Stop();
+        _webSdrTap?.Dispose();
+        _queue.CompleteAdding();
+    }
 
     // Lifecycle (the CW window's open/close)
 
@@ -128,6 +149,7 @@ public sealed class CwReceiver : IDisposable
             _modelLoadQueued = true;
             Enqueue(new LoadModelWork());
         }
+        UpdateWebSdrTap();
     }
 
     /// Called when the CW window closes. A file decode already under way
@@ -143,6 +165,7 @@ public sealed class CwReceiver : IDisposable
         {
             Enqueue(new FlushWork());
         }
+        UpdateWebSdrTap();
     }
 
     // Audio
@@ -156,11 +179,63 @@ public sealed class CwReceiver : IDisposable
         {
             Interlocked.Exchange(ref _lastSubAudioTicks, Stopwatch.GetTimestamp());
         }
-        if (!_running || _decodingFile || _pausedForTransmit || sampleRate <= 0)
+        var channel = _channel;
+        if (!_running || _decodingFile || _pausedForTransmit || sampleRate <= 0 || channel == CwAudioChannel.WebSdr)
         {
             return;
         }
-        Enqueue(new SamplesWork(_channel == CwAudioChannel.Main ? main : sub, sampleRate));
+        Enqueue(new SamplesWork(channel == CwAudioChannel.Main ? main : sub, sampleRate));
+    }
+
+    /// From the WebSDR tap's capture thread.
+    private void IngestWebSdr(float[] samples, int sampleRate)
+    {
+        if (!_running || _decodingFile || _pausedForTransmit || _channel != CwAudioChannel.WebSdr)
+        {
+            return;
+        }
+        Enqueue(new SamplesWork(samples, sampleRate));
+    }
+
+    // WebSDR source
+
+    public WebSdrTapPhase WebSdrPhase { get; private set; } = WebSdrTapPhase.Stopped;
+    /// Why the capture failed, with WebSdrPhase Failed.
+    public string? WebSdrFailure { get; private set; }
+    /// The WebSDR window as last read, null while it isn't open.
+    public WebSdrState? WebSdr => _lastWebSdrState;
+
+    /// The tap runs only while the window is open with WebSDR selected.
+    private void UpdateWebSdrTap()
+    {
+        if (_running && _channelSetting == CwAudioChannel.WebSdr)
+        {
+            _webSdrTap ??= new WebSdrAudioTap(IngestWebSdr, (phase, detail) => _dispatcher.TryEnqueue(() =>
+            {
+                WebSdrPhase = phase;
+                WebSdrFailure = detail;
+                Changed?.Invoke();
+            }));
+            RefreshWebSdrState();
+            _webSdrTap.Start();
+            _webSdrTimer.Start();
+        }
+        else
+        {
+            _webSdrTimer.Stop();
+            _webSdrTap?.Stop();
+        }
+    }
+
+    private void RefreshWebSdrState()
+    {
+        var state = _webSdrState();
+        _webSdrTap?.SetTarget(state?.BrowserProcessId);
+        if (state != _lastWebSdrState)
+        {
+            _lastWebSdrState = state;
+            Changed?.Invoke();
+        }
     }
 
     /// Whether Sub audio has been arriving: a mono input device (Local
@@ -207,6 +282,7 @@ public sealed class CwReceiver : IDisposable
                 Enqueue(new FlushWork());
                 StartNewLine();
             }
+            UpdateWebSdrTap();
             Changed?.Invoke();
         }
     }
@@ -310,7 +386,12 @@ public sealed class CwReceiver : IDisposable
     {
         get
         {
-            var mode = _channelSetting == CwAudioChannel.Main ? _rigInfo.MainMode : _rigInfo.SubMode;
+            var mode = _channelSetting switch
+            {
+                CwAudioChannel.Main => _rigInfo.MainMode,
+                CwAudioChannel.Sub => _rigInfo.SubMode,
+                _ => null,
+            };
             return mode is { } m && m != RigMode.Cw ? m : null;
         }
     }

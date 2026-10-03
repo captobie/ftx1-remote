@@ -709,7 +709,11 @@ it yet on the rig. The neural model is CWKit's `CWNet.mlmodelc` converted
 to `Assets/CWNet.onnx` (same weights) by `Apps/Windows/Tools/
 cwnet_to_onnx.py` and run with ONNX Runtime: rerun the script with the new
 tag whenever CWKit ships a new model (it checks against the release's
-golden file). Next: WebSDR source.
+golden file). The WebSDR window is a third CW source
+(`Services/WebSdrAudioTap.cs`, process-loopback capture of the WebView2
+browser process tree), tested with a local CW page, not yet against a real
+WebSDR; unlike the Mac, a muted WebSDR can't be decoded (Windows has no
+mute that keeps the capture fed — user decision).
 Full plan, protocol/model porting notes, and open items:
 `Apps/Windows/README.md`. `Apps/Windows/FTX1RemoteWindows/` has a
 build-verified (`dotnet build -r win-x64 --self-contained`, not yet

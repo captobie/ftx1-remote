@@ -23,6 +23,8 @@
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
     <Nullable>enable</Nullable>
+    <!-- Services/WebSdrAudioTap.cs reads WASAPI capture buffers in place. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
     <!--
       Unpackaged for now so `dotnet build`/`dotnet run` work stand-alone
