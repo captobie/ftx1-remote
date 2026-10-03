@@ -263,8 +263,8 @@ as well as from mobile — the Mac isn't monitor-only.
 - "Pi/Tailscale unreachable" vs. "rigctld/radio down but the Pi is fine" is
   not yet distinguished in `.remote` mode's connection-state UI.
 - Windows app: its newest features (CW, WebSDR, filters, scope, Deep
-  Settings) are not yet rig-tested, and it has no APRS map; the Mac's CW
-  neural decoder isn't ported yet.
+  Settings) are not yet rig-tested, and it has no APRS map; unlike the
+  Mac, it can't decode a muted WebSDR in the CW window.
 - Live CW decoding on the rig (MAIN, SUB, across a swap) and FT8 against
   live traffic are not yet validated.
 - Pi 2B under-voltage can drop the rig's USB (hardware fix pending; see
