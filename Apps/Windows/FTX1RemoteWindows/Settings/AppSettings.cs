@@ -89,6 +89,7 @@ public static class AppSettings
         public string? WebSdrDirectoryETag { get; set; }
         public SdrPlatform WebSdrStationsTab { get; set; } = SdrPlatform.KiwiSdr;
         public bool MainMutedByWebSdr { get; set; }
+        public bool CheckForUpdatesAtLaunch { get; set; } = true;
     }
 
     /// One Polling-tab value: its default and allowed range. Every getter
@@ -606,6 +607,18 @@ public static class AppSettings
         set
         {
             _cache.MainMutedByWebSdr = value;
+            Save();
+        }
+    }
+
+    /// Check GitHub for a newer release at launch (Settings → About), on by
+    /// default like the Mac's Sparkle automatic checks.
+    public static bool CheckForUpdatesAtLaunch
+    {
+        get => _cache.CheckForUpdatesAtLaunch;
+        set
+        {
+            _cache.CheckForUpdatesAtLaunch = value;
             Save();
         }
     }

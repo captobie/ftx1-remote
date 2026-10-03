@@ -1105,3 +1105,15 @@ Apps/Windows/FTX1RemoteWindows/
     AppSettings.cs                every setting (connection, audio, WPSD, APRS, station, WebSDR, CW, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
     Appearance.cs                 AppTheme / ButtonValueColor (ports of the FTX1Core Appearance enums)
 ```
+
+## Updates (Settings → About, 2026-10-03)
+
+Notify-only: `Services/UpdateChecker.cs` reads the repo's GitHub Releases and
+looks for the newest non-draft, non-prerelease tag `windows-v<version>`
+(e.g. `windows-v0.8`; the Mac's `v0.x` tags are ignored). A newer one than the
+`.csproj`'s `<Version>` (kept equal to the Mac's) shows its notes and a
+Download button that opens the release page. "Check for updates when the app
+starts" (default on) does the same silently at launch, with a dialog only if
+there's an update. To publish: bump `<Version>`, build, zip the output, and
+`gh release create windows-v<version>` with the zip attached. Build-verified
+only; not yet run against a real Windows release.

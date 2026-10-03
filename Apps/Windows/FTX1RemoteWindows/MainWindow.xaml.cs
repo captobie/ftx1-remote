@@ -225,7 +225,16 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         SetInitialWidth();
-        AppLog.Write($"app: started ({AppSettings.ConnectionMode} mode, audio swapped={AppSettings.AudioChannelsSwapped})");
+        AppLog.Write($"app: started ({AppSettings.ConnectionMode} mode, audio swapped={AppSettings.AudioChannelsSwapped}, version {UpdateChecker.CurrentVersionText})");
+        if (AppSettings.CheckForUpdatesAtLaunch && Content is FrameworkElement root)
+        {
+            void OnLoaded(object? s, RoutedEventArgs e)
+            {
+                root.Loaded -= OnLoaded;
+                _ = CheckForUpdateAtLaunchAsync();
+            }
+            root.Loaded += OnLoaded;
+        }
 
         _menuGrid = new MenuGrid(_lastState) { Client = null };
         _menuGrid.StatusMessage += message => StatusText.Text = message;
@@ -436,6 +445,39 @@ public sealed partial class MainWindow : Window
             ? $"Disconnected · Local, {(AppSettings.ComPort.Length > 0 ? AppSettings.ComPort : "no COM port set")} @ {AppSettings.BaudRate}"
             : $"Disconnected · Remote, {(AppSettings.PiHost.Length > 0 ? AppSettings.PiHost : "no Pi host set")}";
         ConnectionStateText.Foreground = new SolidColorBrush(Colors.Gray);
+    }
+
+    /// The launch-time update check: silent unless a newer release exists
+    /// (a failed check is only logged). Offers the release page; "Later"
+    /// just dismisses it until the next launch.
+    private async Task CheckForUpdateAtLaunchAsync()
+    {
+        try
+        {
+            var update = await UpdateChecker.CheckAsync();
+            if (update is null)
+            {
+                return;
+            }
+            var dialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                RequestedTheme = (Content as FrameworkElement)?.RequestedTheme ?? ElementTheme.Default,
+                Title = "Update available",
+                Content = $"FTX1Remote {UpdateChecker.Display(update.Version)} is available (you have {UpdateChecker.CurrentVersionText}).",
+                PrimaryButtonText = "Download",
+                CloseButtonText = "Later",
+                DefaultButton = ContentDialogButton.Primary,
+            };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                await Windows.System.Launcher.LaunchUriAsync(new Uri(update.PageUrl));
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"update check failed: {ex.Message}");
+        }
     }
 
     private async void SettingsButton_Click(object sender, RoutedEventArgs e)

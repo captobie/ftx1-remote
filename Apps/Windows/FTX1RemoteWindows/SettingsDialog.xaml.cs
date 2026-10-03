@@ -119,6 +119,10 @@ public sealed partial class SettingsDialog : ContentDialog
             ButtonValueColorComboBox.Items.Add(new ComboBoxItem { Content = color.DisplayName(), Tag = color });
         }
         ButtonValueColorComboBox.SelectedIndex = (int)AppSettings.ButtonValueColor;
+
+        // About
+        VersionText.Text = $"Version {UpdateChecker.CurrentVersionText}";
+        CheckAtLaunchCheckBox.IsChecked = AppSettings.CheckForUpdatesAtLaunch;
     }
 
     private void TabBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
@@ -132,6 +136,7 @@ public sealed partial class SettingsDialog : ContentDialog
         {
             ("Rigctld", RigctldTab), ("Audio", AudioTab), ("C4fm", C4fmTab), ("Aprs", AprsTab),
             ("Station", StationTab), ("Home", HomeTab), ("Polling", PollingTab), ("Appearance", AppearanceTab),
+            ("About", AboutTab),
         };
         foreach (var (t, panel) in tabs)
         {
@@ -261,6 +266,8 @@ public sealed partial class SettingsDialog : ContentDialog
         AppSettings.SlowPollEvery = NumberBoxValue(SlowPollEveryBox, AppSettings.SlowPollEverySetting);
         AppSettings.WpsdCallerSeconds = NumberBoxValue(WpsdCallerBox, AppSettings.WpsdCallerSecondsSetting);
         AppSettings.WpsdReflectorSeconds = NumberBoxValue(WpsdReflectorBox, AppSettings.WpsdReflectorSecondsSetting);
+
+        AppSettings.CheckForUpdatesAtLaunch = CheckAtLaunchCheckBox.IsChecked == true;
 
         if (ThemeRadioButtons.SelectedItem is RadioButton { Tag: AppTheme theme })
         {
@@ -501,4 +508,50 @@ public sealed partial class SettingsDialog : ContentDialog
         WpsdCallerBox.Value = AppSettings.WpsdCallerSecondsSetting.Default;
         WpsdReflectorBox.Value = AppSettings.WpsdReflectorSecondsSetting.Default;
     }
+
+    // About tab.
+
+    private string _updatePageUrl = UpdateChecker.ReleasesPageUrl;
+
+    private async void CheckForUpdatesButton_Click(object sender, RoutedEventArgs e)
+    {
+        CheckForUpdatesButton.IsEnabled = false;
+        UpdateProgress.IsActive = true;
+        DownloadUpdateButton.Visibility = Visibility.Collapsed;
+        ReleaseNotesBox.Visibility = Visibility.Collapsed;
+        UpdateStatusText.Text = "Checking…";
+        try
+        {
+            var update = await UpdateChecker.CheckAsync();
+            if (update is null)
+            {
+                UpdateStatusText.Text = $"You're up to date (version {UpdateChecker.CurrentVersionText}).";
+            }
+            else
+            {
+                _updatePageUrl = update.PageUrl;
+                UpdateStatusText.Text = $"Version {UpdateChecker.Display(update.Version)} is available.";
+                DownloadUpdateButton.Content = $"Download {UpdateChecker.Display(update.Version)}";
+                DownloadUpdateButton.Visibility = Visibility.Visible;
+                if (update.Notes.Length > 0)
+                {
+                    ReleaseNotesBox.Text = update.Notes;
+                    ReleaseNotesBox.Visibility = Visibility.Visible;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"update check failed: {ex.Message}");
+            UpdateStatusText.Text = $"Couldn't check for updates: {ex.Message}";
+        }
+        finally
+        {
+            UpdateProgress.IsActive = false;
+            CheckForUpdatesButton.IsEnabled = true;
+        }
+    }
+
+    private async void DownloadUpdateButton_Click(object sender, RoutedEventArgs e) =>
+        await Windows.System.Launcher.LaunchUriAsync(new Uri(_updatePageUrl));
 }

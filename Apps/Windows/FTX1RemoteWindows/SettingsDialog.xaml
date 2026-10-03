@@ -8,8 +8,8 @@
     DefaultButton="Primary"
     PrimaryButtonClick="SaveButton_Click">
 
-    <!-- The Mac's Settings tabs (SettingsView.swift), minus Updates (no
-         Sparkle on Windows); Station has the callsign (CW macros) and
+    <!-- The Mac's Settings tabs (SettingsView.swift), with its Updates tab
+         folded into About (notify-only, no Sparkle on Windows); Station has the callsign (CW macros) and
          grid square (the WebSDR station list's distances, CW macros). Everything applies on Save; Cancel discards
          every tab, unlike the Mac, where only the rigctld tab waits. -->
     <Grid Width="620" RowSpacing="12">
@@ -28,6 +28,7 @@
             <SelectorBarItem Text="Home Freq" Tag="Home" />
             <SelectorBarItem Text="Polling" Tag="Polling" />
             <SelectorBarItem Text="Appearance" Tag="Appearance" />
+            <SelectorBarItem Text="About" Tag="About" />
         </SelectorBar>
 
         <ScrollViewer Grid.Row="1" Padding="0,0,16,0">
@@ -152,6 +153,23 @@
                     <RadioButtons x:Name="ThemeRadioButtons" Header="Theme" MaxColumns="3" />
                     <ComboBox x:Name="ButtonValueColorComboBox" Header="Button value color" Width="200" HorizontalAlignment="Left"
                               ToolTipService.ToolTip="The color of each MENU grid button's current setting" />
+                </StackPanel>
+
+                <!-- About: version + update check (notify-only). -->
+                <StackPanel x:Name="AboutTab" Spacing="12" Visibility="Collapsed">
+                    <TextBlock Text="FTX1Remote for Windows" FontWeight="SemiBold" FontSize="18" />
+                    <TextBlock x:Name="VersionText" />
+                    <CheckBox x:Name="CheckAtLaunchCheckBox" Content="Check for updates when the app starts" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button x:Name="CheckForUpdatesButton" Content="Check for Updates" Click="CheckForUpdatesButton_Click" />
+                        <ProgressRing x:Name="UpdateProgress" IsActive="False" Width="20" Height="20" />
+                        <TextBlock x:Name="UpdateStatusText" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button x:Name="DownloadUpdateButton" Visibility="Collapsed" Style="{StaticResource AccentButtonStyle}"
+                            Click="DownloadUpdateButton_Click" />
+                    <TextBox x:Name="ReleaseNotesBox" Header="What's new" Visibility="Collapsed" IsReadOnly="True"
+                             AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="180" />
+                    <HyperlinkButton Content="All releases on GitHub" NavigateUri="https://github.com/captobie/ftx1-remote/releases" Padding="0" />
                 </StackPanel>
             </Grid>
         </ScrollViewer>
