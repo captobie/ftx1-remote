@@ -126,16 +126,38 @@ Mac, iOS, and iPadOS targets. The Windows client shares no code with it
   YSF reflector name for C4FM/YSF traffic relayed through it, since no CAT
   command exposes either.
 - **Windows app is a separate client**
-  (`Apps/Windows/FTX1RemoteWindows/`, C# + WinUI 3, MSIX-packaged) that
-  talks directly to the Pi's rigctld and `ftx1-audiostream.py` — never
-  through the Mac hub, and the Mac doesn't need to be running — or, in its
-  Local mode, to a `rigctld.exe` it launches against a radio on the PC's
-  own USB port (hardware-confirmed, 2026-09-27). v1 scope is
-  core rig control (VFO A/B, mode, PTT, power, SWR, band) plus Main/Sub
-  audio playback (from the Pi, or a local sound-card input); MENU grid, Deep Settings,
-  waterfall, and APRS are deferred but not architecturally blocked (direct-to-Pi gives it the live per-item read
-  Deep Settings needs, unlike iPad). Build-verified, not yet run against
-  real hardware. See `Apps/Windows/README.md`.
+  (`Apps/Windows/FTX1RemoteWindows/`, C# + WinUI 3) that talks directly to
+  the Pi's rigctld and `ftx1-audiostream.py` — never through the Mac hub,
+  and the Mac doesn't need to be running — or, in its Local mode, to a
+  `rigctld.exe` it launches against a radio on the PC's own USB port. It
+  has grown well past the v1 skeleton: core rig control, Main/Sub audio
+  with swap tracking, the MENU grid, V/M memory control, WPSD C4FM display,
+  Settings dialog, Deep Settings, filter controls, waterfall/oscilloscope,
+  APRS decode, WebSDR window and CW decode/send. Local mode and much of
+  this has been rig-tested; the newest pieces (CW, WebSDR, filters,
+  scope) are checked against fakes only. It also has the Mac's
+  Enable Transmit gate. See `Apps/Windows/README.md` for status.
+- **Dual Main/Sub audio.** The FTX-1's USB audio is stereo (Main left, Sub
+  right) in dual-VFO display. The app keeps the two channels as parallel
+  mono pipelines: independent playback, mute/volume/squelch and APRS
+  decode for each, a Sub relay to iPad, and swap tracking
+  (`HubService.audioChannelsSwapped`) so audio follows a Main/Sub swap
+  made in the app or on the front panel. The rig has no readout of the
+  true mapping, so front-panel swaps are detected heuristically, with a
+  manual override button. No Sub waterfall — the rig doesn't have one.
+- **Filter controls and display.** WIDTH, IF SHIFT, notch, CONTOUR/APF and
+  N/W controls plus a Filter Function Display (passband over a live
+  spectrum), addressing MAIN or SUB via a side selector.
+- **Digital modes (Mac-only, Tools menu):** FT8 decoding via vendored
+  `ft8_lib` (`FT8Kit`), CW decode (CWKit from the author's `cwdecode`
+  repo; MAIN, SUB, WebSDR or file) and CW send through the rig's keyer
+  memory, and a **WebSDR window** that embeds a KiwiSDR, classic WebSDR or
+  OpenWebRX receiver, follows the rig's frequency, can tune the rig from
+  the page, and records audio.
+- **Auto-update via Sparkle** (Mac only): Developer ID–signed, notarized
+  releases hosted on GitHub Releases, with `appcast.xml` at the repo root;
+  `Scripts/release-mac.sh` builds, notarizes and generates the appcast.
+  iOS/iPadOS update through the App Store/TestFlight.
 - **High-rate state (audio frames, meter samples) stays off `HubService`'s
   `@Published` surface.** `HubService` is what nearly every Mac view
   observes, so anything published there re-renders the whole window; scope
@@ -147,8 +169,9 @@ Mac, iOS, and iPadOS targets. The Windows client shares no code with it
 
 ```
 Sources/FTX1Core/
-├── RigState/       RigState, RigMode, BandPlan, HomeFrequency — shared
-│                    state model, band table, home-frequency setting
+├── RigState/       RigState, RigMode, BandPlan, HomeFrequency, plus the
+│                    filter value spaces (FilterWidthTable, IFShift,
+│                    IFNotch, IFContour, FilterPassbandModel, FilterSide)
 ├── Appearance/      AppTheme, ButtonValueColor, AppearanceSettings — shared
 │                    app-appearance settings (theme, MENU grid button color)
 ├── Networking/      WireMessage (JSON protocol: RigCommand/RigStatePush),
@@ -157,6 +180,7 @@ Sources/FTX1Core/
 │                    mobile — see Architecture above re: the Mac's own UI),
 │                    RigClientViewModel (ObservableObject wrapping
 │                    RigWebSocketClient, shared by iOS + iPad)
+├── Station/         StationSettings — operator callsign/grid square
 ├── Commands/        CommandQueue — serializes RigCommands into rigctld calls
 ├── MenuSettings/    DeepSettingsCatalog — static, table-driven catalog
 │                    behind the Deep Settings screens (see Architecture)
@@ -174,8 +198,13 @@ Sources/FTX1Core/
                      + MemoryChannelEntryView (VFO readout, tap-to-edit
                      frequency entry, and memory-channel entry, shared by
                      Mac + iPad), SMeterView (analog S/SWR meter face,
-                     shared by Mac + iPad)
+                     shared by Mac + iPad), plus the filter controls and
+                     FilterDisplayView
 ```
+
+Other SPM targets: `Sources/CFT8Lib/` (vendored decode-only `ft8_lib` +
+kissfft, C) and `Sources/FT8Kit/` (its Swift wrapper) — a separate product
+so the iOS/iPadOS builds don't carry it.
 
 Mac-only, not part of the shared package (`Apps/Mac/FTX1RemoteMac/`):
 `AudioCaptureEngine`/`AudioInputDevice`/`AudioOutputDevice` (Core Audio I/O
@@ -183,6 +212,9 @@ and the FFT that drives the waterfall/oscilloscope), `ScopeDisplayView`,
 `RemoteAudioStreamClient` (the `.remote` audio path to the Pi),
 `APRSDecoder`/`APRSStore`/`APRSPersistence`/`APRSStationListView`/
 `APRSMessageListView` (the APRS feature's Mac-side wiring and UI),
+the FT8 files (`FT8DecodeCoordinator`, `FT8Store`, `FT8ListView`), the CW
+files (`CWReceiver`, `CWSender`, `CWWindowView`, `CWSendPane`), the WebSDR
+window (`WebSDRFollowModel`, `KiwiWebView`, `SDRPageBridge`),
 `WPSDSettings`/`WPSDCallsignMonitor` (hotspot callsign/reflector lookup),
 `BandMemory` (per-band last-frequency recall), `RigctldProcessController`,
 `RigWebSocketServer`, `HubService`/`HubService+RigController`, `ContentView`,
@@ -204,12 +236,14 @@ an ALSA `dsnoop` share) are set up directly on the Pi, not tracked here.
 
 ## Mac app at a glance
 
-Single dense multi-pane window (no menu bar extra): VFO A/B, S/SWR meter,
-waterfall/oscilloscope with volume/squelch sliders, band/mode selectors, and
-the numbered MENU grid all visible at once. A tabbed Settings sheet covers
-rigctld connection (Local/Remote mode), Audio (input/output device
-pickers), C4FM (WPSD hotspot lookup), APRS (enable, frequency/tolerance,
-retention limits), Home Freq, and Appearance. Deep Settings opens as a
+Single dense multi-pane window (no menu bar extra): VFO A/B, S/SWR meters,
+waterfall/oscilloscope with per-channel (Main/Sub) mute and volume/squelch
+sliders, band/mode selectors, filter controls and display, and the numbered
+MENU grid all visible at once. A **Tools** menu opens FT8, CW, WebSDR and
+the APRS windows. A tabbed Settings sheet covers rigctld connection
+(Local/Remote mode), Audio (input/output device pickers), Station, C4FM
+(WPSD hotspot lookup), APRS (enable, frequency/tolerance, retention
+limits), Polling, Home Freq, Appearance and Updates. Deep Settings opens as a
 separate window from the MENU grid's page-3 items. APRS station/message
 history opens in its own S.LIST/M.LIST windows. Real control happens here
 as well as from mobile — the Mac isn't monitor-only.
@@ -220,6 +254,7 @@ as well as from mobile — the Mac isn't monitor-only.
   mobile — blocks bringing `DeepSettingsView` to iOS or iPad; iPad's Deep
   Settings buttons show a "SOON" placeholder until this exists.
 - iOS UI for the numbered MENU grid (iPad has it; iOS doesn't yet).
+- iPad placement of the filter controls.
 - Full state diffing / reconnect-and-resync logic for `RigWebSocketClient`.
 - The numbered MENU grid is still growing outside the completed FM/C4FM
   page — see `MenuPageView.swift` for current per-item coverage (some
@@ -227,8 +262,13 @@ as well as from mobile — the Mac isn't monitor-only.
   hardware issues, the rest are unwired).
 - "Pi/Tailscale unreachable" vs. "rigctld/radio down but the Pi is fine" is
   not yet distinguished in `.remote` mode's connection-state UI.
-- Windows app v1 is a build-verified skeleton not yet run against real
-  hardware, and doesn't have the transmit-safety interlock the Mac has.
+- Windows app: its newest features (CW, WebSDR, filters, scope, Deep
+  Settings) are not yet rig-tested, and it has no APRS map; the Mac's CW
+  neural decoder isn't ported yet.
+- Live CW decoding on the rig (MAIN, SUB, across a swap) and FT8 against
+  live traffic are not yet validated.
+- Pi 2B under-voltage can drop the rig's USB (hardware fix pending; see
+  `CLAUDE.md`).
 - WSJT-X's "Hamlib NET rigctl" setup must be pointed manually at whichever
   host is active (localhost in `.local`, the Pi in `.remote`) — not managed
   by this app.
@@ -236,10 +276,10 @@ as well as from mobile — the Mac isn't monitor-only.
   manual's firmware revision, no source yet), KEY/DIAL's MIC UP/MIC DOWN
   (shape unknown, deliberately deferred), and the manual's P1=09 "PRESET"
   category (out of scope until a page-3 button is decided to map to it).
-- Dual-VFO audio is mono end-to-end despite the FTX-1 confirmed outputting
-  stereo Main/Sub — deferred future feature.
+- FT8 and audio recording are still Main-channel only.
 - Memory→VFO mode toggle has a hub-side workaround for a stuck-frequency
-  bug (replays FA/MD after switching); root cause still unknown.
+  bug (replays the last VFO frequency/mode after switching); root cause
+  still unknown.
 
 ## Third-party code
 
@@ -257,6 +297,9 @@ package dependency — not vendored.
 
 The Windows app uses [NAudio](https://github.com/naudio/NAudio) (MIT, Mark
 Heath) as a NuGet package (`NAudio.Wasapi`) for audio output — not vendored.
+
+The Mac app updates itself with [Sparkle](https://sparkle-project.org)
+(MIT-style license), a Swift package dependency.
 
 ## Commands
 
