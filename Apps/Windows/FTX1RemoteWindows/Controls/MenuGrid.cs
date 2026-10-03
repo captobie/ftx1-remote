@@ -15,11 +15,11 @@ namespace FTX1RemoteWindows.Controls;
 /// 7×4 buttons mirroring the FTX-1's own MENU pages, each wired to the raw
 /// CAT command the Mac already uses (CommandQueue.swift for the writes,
 /// HubService.refreshSlowTier for the reads), sent straight to rigctld.
-/// All three pages (SSB, CW, FM/C4FM) are ported. Buttons that need
-/// features this app doesn't have yet are disabled placeholders: CW's
-/// PLAY/RECORD (audio recorder). FM's APRS S.LIST/M.LIST open the decoded
-/// APRS lists (AprsListWindow, through MainWindow), and its bottom row the
-/// Deep Settings screens (DeepSettingsDialog).
+/// All three pages (SSB, CW, FM/C4FM) are ported. CW's PLAY/RECORD open
+/// the Recordings window and record the rig's Main audio (RecordingsWindow,
+/// AudioRecorder, both through MainWindow); FM's APRS S.LIST/M.LIST open
+/// the decoded APRS lists (AprsListWindow, through MainWindow), and its
+/// bottom row the Deep Settings screens (DeepSettingsDialog).
 ///
 /// Only the page on screen is read in the slow poll tier, and switching
 /// pages reads the new one at once — so the tier doesn't grow with every
@@ -94,6 +94,23 @@ public sealed class MenuGrid : UserControl
 
     /// S.LIST/M.LIST: MainWindow owns the APRS store and the list windows.
     public event Action<AprsListKind>? AprsListRequested;
+
+    /// CW page PLAY / RECORD: MainWindow owns the recorder and the
+    /// Recordings window.
+    public event Action? RecordingsRequested;
+    public event Action? RecordToggleRequested;
+
+    /// Set by MainWindow: RECORD's ON/OFF, and whether there's audio to
+    /// record (RECORD is disabled without it — the audio switch is off, or
+    /// the source couldn't start).
+    private bool _isRecording;
+    private bool _canRecord;
+    public void SetRecordingState(bool isRecording, bool canRecord)
+    {
+        _isRecording = isRecording;
+        _canRecord = canRecord;
+        RefreshLabels();
+    }
 
     public MenuGrid(RigState state)
     {
@@ -431,11 +448,21 @@ public sealed class MenuGrid : UserControl
         // TransmitGate's PlayCwMessage check if it's ever enabled.
         AddDisabled(19, "MESSAGE");
 
-        // On the Mac these play back and record the app's own captured
-        // audio (AudioRecorder, Recordings window); this app has no
-        // recorder yet.
-        AddDisabled(20, "PLAY", "Recording playback isn't built on Windows yet");
-        AddDisabled(21, "RECORD", "Audio recording isn't built on Windows yet");
+        // Not the rig's CW MESSAGE memory (as on the rig): the Mac
+        // repurposes these to record the app's own Main audio to a WAV
+        // (RECORD, AudioRecorder) and browse/play what's recorded (PLAY,
+        // the Recordings window).
+        AddWord(20, "PLAY", enabled: true).Click += (_, _) => RecordingsRequested?.Invoke();
+        var record = AddCell(21, "RECORD", () => _isRecording ? "ON" : "OFF");
+        record.Click += (_, _) => RecordToggleRequested?.Invoke();
+        _refreshers.Add(() =>
+        {
+            // Stays clickable while recording, so it can always be stopped.
+            record.IsEnabled = _isRecording || _canRecord;
+            ToolTipService.SetToolTip(record, _isRecording
+                ? "Stop recording and save to Recordings"
+                : _canRecord ? "Record the Main audio to Recordings" : "Turn on audio to record");
+        });
 
         AddNav(22, "◀", MenuPage.Ssb);
         AddNav(28, "▶", MenuPage.Fm);

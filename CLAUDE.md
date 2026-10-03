@@ -648,8 +648,11 @@ pass `TransmitGate.BlockReason` before keying. The order for the rest of
 the Mac-parity work is the "Mac parity plan" section of
 `Apps/Windows/README.md` (all ten steps done; step 3, the MENU grid, has all
 three pages in `Controls/MenuGrid.cs` as of 2026-09-28, spot-tested on the
-rig by the user the same day, all working — CW's PLAY/RECORD and FM's
-APRS S.LIST/M.LIST are placeholders until those features exist; step 4, the
+rig by the user the same day, all working — CW's PLAY/RECORD were
+placeholders until 2026-10-03, now the Mac's recorder + Recordings window
+(`Services/AudioRecorder.cs`, `Controls/RecordingsWindow.cs`; tested by
+the user the same day, working; see the README's "Recordings"), and
+FM's APRS S.LIST/M.LIST came with APRS decode; step 4, the
 analog Main/Sub meters in `Controls/SMeter.cs`, 2026-09-28, checked
 against a fake rigctld only, not yet on the rig; step 5, the V/M memory
 toggle + channel set/step/tag, 2026-09-29, tested on the rig by the user

@@ -256,13 +256,12 @@ public sealed class WebSdrWindow : Window
         right.Children.Add(_muteButton);
         _recordButton.Click += (_, _) => Model.ToggleRecording();
         right.Children.Add(_recordButton);
-        // The CW page's PLAY is still a placeholder here, so there's no
-        // Recordings window yet (the Mac's Play opens one): this opens the
-        // folder the WebSDR recordings go to.
+        // The Mac's Play: opens the Recordings window (the CW page's PLAY,
+        // through MainWindow).
         var recordingsButton = new Button();
         SetContent(recordingsButton, "", "Recordings");
-        ToolTipService.SetToolTip(recordingsButton, "Open the Recordings folder");
-        recordingsButton.Click += (_, _) => OpenRecordingsFolder();
+        ToolTipService.SetToolTip(recordingsButton, "Open the Recordings window");
+        recordingsButton.Click += (_, _) => RecordingsRequested?.Invoke();
         right.Children.Add(recordingsButton);
         Grid.SetColumn(right, 4);
         bar.Children.Add(right);
@@ -373,17 +372,8 @@ public sealed class WebSdrWindow : Window
         _stationsWindow.Activate();
     }
 
-    private static void OpenRecordingsFolder()
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{Recordings.Directory}\"") { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            AppLog.Write($"websdr: couldn't open the Recordings folder: {ex.Message}");
-        }
-    }
+    /// The toolbar's Recordings button; MainWindow owns the window.
+    public event Action? RecordingsRequested;
 
     /// Follows Settings → Appearance, like the main window.
     public void ApplyTheme()

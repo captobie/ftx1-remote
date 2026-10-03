@@ -334,9 +334,8 @@ read, "DA" triple, and `GetMenuItem`/`SetMenuItem` ("EX").
 - Values are cleared on each Connect; the grid is disabled while
   disconnected. SSB: D-COLOR and TXW are disabled placeholders, 17 is
   empty. CW: MESSAGE is a disabled placeholder (as on the Mac, where it
-  was unreliable; its play must pass `TransmitGate` if it's ever enabled),
-  and PLAY/RECORD are too, since this app has no audio recorder yet (on
-  the Mac they record the app's own audio and open the Recordings window).
+  was unreliable; its play must pass `TransmitGate` if it's ever enabled).
+  PLAY/RECORD are the Mac's repurposed ones — see "Recordings" below.
   CW's empty items (3-7, 15-18, 23-27) are left out.
 - FM/C4FM: RPT SHIFT ("OS0"), BEACON (Table 3 "EX" 07/01/01 — an APRS item
   but a plain rig setting, so it's wired), CH STEP ("EX" 03/06/06), SQL
@@ -397,8 +396,10 @@ Hardware checklist, CW page:
 - [ ] BK-DELAY steps 30, 50, 100 … 250, 300, 400 ms, matching the rig.
 - [ ] MONI LEVEL 0 shows OFF and the rig's monitor is off at 0.
 - [ ] ZIN zero-ins the MAIN side on a CW signal.
-- [ ] MESSAGE, PLAY and RECORD are disabled, PLAY/RECORD with a "not built
-      on Windows yet" tooltip.
+- [ ] MESSAGE is disabled.
+- [ ] RECORD → ON starts a file named for Main's frequency/mode; OFF saves
+      it ("Saved … to Recordings." on the status line) and it plays back in
+      PLAY's Recordings window. RECORD is disabled with the audio off.
 
 Hardware checklist, FM/C4FM page:
 
@@ -538,7 +539,8 @@ the next one starts.
    `f511da3`), checked against a fake rigctld and spot-tested on the rig
    by the user the same day, all working (see "MENU grid" above).
    Left as placeholders for later steps: CW's PLAY/RECORD (audio
-   recorder) and FM's APRS S.LIST/M.LIST (APRS decoding). FM's Deep
+   recorder, done 2026-10-03 — see "Recordings") and FM's APRS
+   S.LIST/M.LIST (APRS decoding). FM's Deep
    Settings buttons came with step 8, HOME's per-band frequencies with
    step 7.
 4. **Graphical S-meter — done** (2026-09-28, build-verified and checked
@@ -797,8 +799,8 @@ while disconnected too (it just has no rig frequency to follow).
   - closing the window destroys the web view, so a close while recording is
     cancelled, the file saved, then the window closed.
 - Recordings go to `%LOCALAPPDATA%\FTX1RemoteWindows\Recordings` with the
-  Mac's file names; there's no Recordings window here yet, so the Mac's
-  Play is a **Recordings** button that opens the folder in Explorer.
+  Mac's file names; the Mac's Play is a **Recordings** button that opens
+  the Recordings window (the CW page's PLAY, see "Recordings").
 - Manage Favorites reorders with up/down buttons instead of the Mac's drag
   (a ListView drag-reorder didn't take with a name box in every row).
 - Settings got a **Station** tab with only the grid square, for the
@@ -1009,6 +1011,50 @@ and CLAUDE.md's "v2: CW send pane" have the rig facts this relies on):
   line, and clicking a decoded W1AW filling Their call. Not yet on the
   rig.
 
+## Recordings (the CW page's PLAY/RECORD, 2026-10-03)
+
+The Mac's `AudioRecorder` + `RecordingsListView`. Like the Mac, the CW
+page's PLAY/RECORD aren't the rig's CW MESSAGE memory: RECORD records the
+app's own Main audio, PLAY opens a window of everything recorded.
+
+- `Services/AudioRecorder.cs` is fed Main from `MainWindow`'s audio route
+  (the same routed channel as the scope, APRS and CW, so it follows a
+  swap), and writes it through `SdrAudioFileWriter` under a lock, from the
+  audio thread. 16-bit mono PCM at the source's rate (44.1 kHz from the
+  Pi), not the Mac's 32-bit float: plenty for receive audio, half the
+  size (~5.3 MB/min). File name = the Mac's, with Main's frequency/mode
+  when RECORD was pressed ("Recording 2026-10-03 14.57.32 14.074.000
+  USB.wav"); created on the first audio block, and nothing is left if
+  none arrived.
+- Differences from the Mac: RECORD is disabled while there's no audio
+  source (Audio off, or Local mode without an input), and a recording
+  stops when the audio does (Disconnect, the Audio switch, a new Local
+  input device) — so one file never spans two sources or sample rates.
+  The Mac's keeps recording across a reconnect.
+- `Controls/RecordingsWindow.cs`: newest first, each row with a check
+  box, play/stop, name + date · length, rename and delete; Export
+  Selected (a folder picker, " (2)"-style suffix on a name clash) and
+  Delete Selected appear while something's checked; Delete All (both
+  confirmed); Refresh. Windows additions: Open Folder, and the file being
+  recorded shows "Recording…" with play/rename/delete off (Delete All
+  spares it). Reloads on open/activation, on Refresh, when RECORD starts
+  or stops, and on file name changes in the folder (a
+  `FileSystemWatcher`), so a WebSDR recording shows up while it's open.
+  The WebSDR window's Recordings button opens this window too (it used to
+  open the folder in Explorer).
+- `Services/RecordingPlayer.cs` plays one file at a time on its own
+  WASAPI stream (over the live audio, not instead of it), on the output
+  chosen in Settings → Audio or Windows' default, resampled to the
+  device's mix rate like `AudioPlayback`. It refuses the radio's own USB
+  audio as output (same adapter as the Local input), for the same reason
+  live playback does.
+- Checked 2026-10-03 with a console harness built from the same source
+  files: a 2 s recording fed from another thread (format, length, clipping
+  at full scale), Stop with no audio leaving nothing, listing, rename
+  (empty refused, invalid characters, a clash refused, case-only rename),
+  export twice giving " (2)", delete. Tested in the app by the user the
+  same day, working.
+
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
 - **APRS map** — see "APRS decode" above.
@@ -1063,6 +1109,7 @@ Apps/Windows/FTX1RemoteWindows/
     WebSdrFavoritesDialog.cs     Manage Favorites (WebSDRFavoritesView.swift)
     CwWindow.cs                  CW window + receive pane (CWWindowView.swift)
     CwSendPane.cs                CW send pane + macro editor (CWSendPane.swift)
+    RecordingsWindow.cs          the CW page's PLAY: browse/play/rename/export/delete recordings (RecordingsListView.swift)
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
     BandPlan.cs                 band table — Sources/FTX1Core/RigState/BandPlan.swift
@@ -1092,8 +1139,10 @@ Apps/Windows/FTX1RemoteWindows/
     WebSdrFollowModel.cs         WebSDR window logic: follow, click-to-tune, record, mute (WebSDRFollowModel.swift)
     SdrPageBridge.cs             calls into the KiwiSDR/WebSDR page + the shared WebView2 environment (SDRPageBridge.swift)
     KiwiSdrDirectory.cs          public KiwiSDR list from rx.linkfanel.net, cached (KiwiSDRDirectory.swift)
-    Recordings.cs                Recordings folder + file naming (AudioRecorder.swift's statics)
-    SdrAudioFileWriter.cs        WAV writer for the OpenWebRX recorder tap (SDRAudioFileWriter.swift)
+    Recordings.cs                Recordings folder, file naming, list/rename/delete/export (AudioRecorder.swift's statics)
+    AudioRecorder.cs             the CW page's RECORD: Main audio to a WAV (AudioRecorder.swift)
+    RecordingPlayer.cs           plays a recording for the Recordings window (RecordingsListView.swift's RecordingPlayer)
+    SdrAudioFileWriter.cs        16-bit mono WAV writer: the OpenWebRX recorder tap and AudioRecorder (SDRAudioFileWriter.swift)
     CwClassicDecoder.cs          CWKit's classic CW decoder (captobie/cwdecode DSP/ + Morse/)
     CwNeuralDecoder.cs           CWKit's neural CW decoder: spectrogram, resampler, streaming CTC, ONNX model, pipeline (Neural/)
     CwReceiver.cs                CW decode worker + window state (CWReceiver.swift + CWKit's PipelineRunner)

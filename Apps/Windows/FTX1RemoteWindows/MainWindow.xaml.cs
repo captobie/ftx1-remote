@@ -116,6 +116,11 @@ public sealed partial class MainWindow : Window
     /// sending a queued line when the window closes.
     private readonly CwSender _cwSender;
     private CwWindow? _cwWindow;
+    /// The CW page's RECORD (the Mac's HubService.audioRecorder): fed Main
+    /// from the audio thread, a no-op while not recording.
+    private readonly AudioRecorder _audioRecorder = new();
+    /// The CW page's PLAY window, while open.
+    private RecordingsWindow? _recordingsWindow;
     /// Each VFO's last polled frequency, for the audio thread's APRS gate
     /// (0 = unknown). Written by the poll, read with Volatile on the audio
     /// thread.
@@ -251,6 +256,8 @@ public sealed partial class MainWindow : Window
         };
         _menuGrid.FrequencyRequested += async hz => await SetMainFrequencyAsync(hz);
         _menuGrid.AprsListRequested += ShowAprsList;
+        _menuGrid.RecordingsRequested += ShowRecordings;
+        _menuGrid.RecordToggleRequested += ToggleRecording;
         MenuGridHost.Child = _menuGrid;
         _filterPanel = new FilterPanel(_lastState);
         _filterPanel.StatusMessage += message => StatusText.Text = message;
@@ -428,7 +435,9 @@ public sealed partial class MainWindow : Window
             }
             _webSdrWindow?.Close();
             _cwWindow?.Close();
+            _recordingsWindow?.Close();
             _cwReceiver.Dispose();
+            _audioRecorder.Stop();
         };
     }
 
@@ -555,6 +564,7 @@ public sealed partial class MainWindow : Window
         }
         _webSdrWindow?.ApplyTheme();
         _cwWindow?.ApplyTheme();
+        _recordingsWindow?.ApplyTheme();
     }
 
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -1989,6 +1999,59 @@ public sealed partial class MainWindow : Window
         window.Activate();
     }
 
+    // Recording (the CW page's PLAY/RECORD)
+
+    /// PLAY (and the WebSDR window's Recordings button): one Recordings
+    /// window, brought to the front if it's already open.
+    private void ShowRecordings()
+    {
+        if (_recordingsWindow is null)
+        {
+            _recordingsWindow = new RecordingsWindow(_audioRecorder);
+            _recordingsWindow.Closed += (_, _) => _recordingsWindow = null;
+        }
+        _recordingsWindow.Activate();
+    }
+
+    /// RECORD: starts a file named for Main's frequency/mode now (the Mac's
+    /// HubService.toggleAudioRecording), or saves the one being written.
+    private void ToggleRecording()
+    {
+        if (_audioRecorder.IsRecording)
+        {
+            StopRecording();
+            return;
+        }
+        if (_audioSource is null)
+        {
+            StatusText.Text = "Turn on audio to record.";
+            return;
+        }
+        var mode = _lastState.MainIsC4fm == true ? "C4FM" : _lastState.Mode?.DisplayName() ?? "";
+        _audioRecorder.Start(IsConnected && _lastState.FrequencyHz > 0 ? Recordings.Label(_lastState.FrequencyHz, mode) : "");
+        StatusText.Text = "Recording Main audio…";
+        UpdateRecordingState();
+    }
+
+    private void StopRecording()
+    {
+        if (!_audioRecorder.IsRecording)
+        {
+            return;
+        }
+        var path = _audioRecorder.Stop();
+        StatusText.Text = path is null
+            ? "Recording stopped — no audio arrived, nothing saved."
+            : $"Saved {System.IO.Path.GetFileName(path)} to Recordings.";
+        UpdateRecordingState();
+    }
+
+    private void UpdateRecordingState()
+    {
+        _menuGrid.SetRecordingState(_audioRecorder.IsRecording, _audioSource is not null);
+        _recordingsWindow?.Reload();
+    }
+
     // WebSDR window
 
     private void WebSdrButton_Click(object sender, RoutedEventArgs e)
@@ -2002,6 +2065,7 @@ public sealed partial class MainWindow : Window
                 SetAudioActive = SetWebSdrAudioActive,
             });
             _webSdrWindow.Closed += (_, _) => _webSdrWindow = null;
+            _webSdrWindow.RecordingsRequested += ShowRecordings;
             PushRigStateToWebSdr();
         }
         _webSdrWindow.Activate();
@@ -2176,6 +2240,8 @@ public sealed partial class MainWindow : Window
             FeedAprs(_aprsSubDecoder, sub, Volatile.Read(ref _aprsSubGateHz), ref _aprsSubGateOpen, "Sub");
             // And CW, which keeps the selected receiver while its window is open.
             _cwReceiver.Ingest(main, sub, _audioSampleRate);
+            // And RECORD, Main only as on the Mac.
+            _audioRecorder.Ingest(main, _audioSampleRate);
         }
 
         IAudioSource source;
@@ -2223,6 +2289,7 @@ public sealed partial class MainWindow : Window
         source.Start();
         _audioStatusTimer.Start();
         UpdateAudioStatus();
+        UpdateRecordingState();
     }
 
     /// (Re)starts playback for the running source on the output device
@@ -2296,6 +2363,10 @@ public sealed partial class MainWindow : Window
         {
             await source.StopAsync();
         }
+        // A recording ends with its audio, so a file never spans two
+        // sources (or two sample rates).
+        StopRecording();
+        UpdateRecordingState();
         ClearScope();
         _playback.Stop();
         _playbackError = null;

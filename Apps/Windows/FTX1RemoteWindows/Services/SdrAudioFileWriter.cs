@@ -10,18 +10,21 @@ namespace FTX1RemoteWindows.Services;
 /// Written straight from the UI thread: a block is 8 KB about 12 times a
 /// second, which needs no queue of its own (the Mac hands each one to a
 /// serial queue). The file is created on the first block, since only the
-/// page knows its rate.
+/// page knows its rate. AudioRecorder (the CW page's RECORD) writes its WAVs
+/// through this too, under its own lock.
 public sealed class SdrAudioFileWriter
 {
     public string Path { get; }
+    private readonly string _logCategory;
     private FileStream? _file;
     private int _sampleRate;
     private long _dataBytes;
     private bool _failed;
 
-    public SdrAudioFileWriter(string path)
+    public SdrAudioFileWriter(string path, string logCategory = "websdr-recording")
     {
         Path = path;
+        _logCategory = logCategory;
     }
 
     /// `pcm`: little-endian Int16 samples, as the page tap packs them.
@@ -45,7 +48,7 @@ public sealed class SdrAudioFileWriter
         catch (Exception ex)
         {
             _failed = true;
-            AppLog.Write($"websdr-recording: couldn't write {System.IO.Path.GetFileName(Path)}: {ex.Message}");
+            AppLog.Write($"{_logCategory}: couldn't write {System.IO.Path.GetFileName(Path)}: {ex.Message}");
         }
     }
 
@@ -64,7 +67,7 @@ public sealed class SdrAudioFileWriter
         }
         catch (Exception ex)
         {
-            AppLog.Write($"websdr-recording: couldn't finish {System.IO.Path.GetFileName(Path)}: {ex.Message}");
+            AppLog.Write($"{_logCategory}: couldn't finish {System.IO.Path.GetFileName(Path)}: {ex.Message}");
         }
         _file.Dispose();
         _file = null;
