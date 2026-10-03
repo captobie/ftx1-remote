@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using FTX1RemoteWindows.Controls;
 using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Services;
@@ -223,6 +224,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        SetInitialWidth();
         AppLog.Write($"app: started ({AppSettings.ConnectionMode} mode, audio swapped={AppSettings.AudioChannelsSwapped})");
 
         _menuGrid = new MenuGrid(_lastState) { Client = null };
@@ -2324,4 +2326,24 @@ public sealed partial class MainWindow : Window
         AppSettings.SubAudio.SquelchThreshold = threshold;
         AppSettings.SaveAudio();
     }
+
+    /// The window's width on first open, in DIPs: the user's preferred
+    /// width (2026-10-03, read off their window at 150% scaling: 2177 px).
+    /// Windows' own default was wider. The height stays Windows' default.
+    private const int InitialWidthDips = 1451;
+
+    /// Applies <see cref="InitialWidthDips"/> at this monitor's scaling,
+    /// never wider than the screen's work area.
+    private void SetInitialWidth()
+    {
+        var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
+        var width = (int)Math.Round(InitialWidthDips * scale, MidpointRounding.AwayFromZero);
+        var workArea = Microsoft.UI.Windowing.DisplayArea
+            .GetFromWindowId(AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Nearest).WorkArea;
+        width = Math.Min(width, workArea.Width);
+        AppWindow.Resize(new Windows.Graphics.SizeInt32(width, AppWindow.Size.Height));
+    }
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
 }
