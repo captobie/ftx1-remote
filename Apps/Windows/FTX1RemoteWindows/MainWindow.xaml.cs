@@ -1171,9 +1171,9 @@ public sealed partial class MainWindow : Window
         _suppressSelectionEvents = false;
     }
 
-    /// MHz in the rig's own grouping: 14.074.000 (MHz.kHz.Hz).
+    /// The rig's own grouping, in MHz: 14.074.000 (MHz.kHz.Hz); no unit label.
     private static string FormatHz(long hz) =>
-        $"{hz / 1_000_000}.{hz / 1_000 % 1_000:000}.{hz % 1_000:000} MHz";
+        $"{hz / 1_000_000}.{hz / 1_000 % 1_000:000}.{hz % 1_000:000}";
 
     /// Tunes the Main VFO: the VFO entry flyout and the MENU grid's HOME. An app
     /// tune resets swap tracking's baseline, so it isn't mistaken for a

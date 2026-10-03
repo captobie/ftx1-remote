@@ -88,14 +88,14 @@
                                  sub-modes, hidden in VFO mode. -->
                             <TextBlock x:Name="MemoryChannelAText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
                         </StackPanel>
-                        <TextBlock x:Name="FrequencyAText" Text="—" FontSize="28" FontFamily="Consolas" />
-                        <!-- C4FM caller + reflector from the WPSD hotspot, only while
-                             this side is in C4FM. Height reserved so the box doesn't
-                             jump when a caller appears. -->
-                        <StackPanel Orientation="Horizontal" Spacing="12" Height="26">
-                            <TextBlock x:Name="C4fmCallsignAText" FontSize="18" FontWeight="SemiBold" Foreground="DodgerBlue" VerticalAlignment="Center" />
-                            <TextBlock x:Name="C4fmReflectorAText" Foreground="Gray" VerticalAlignment="Center" />
-                        </StackPanel>
+                        <!-- Like the Mac's VFODisplayBox: the C4FM reflector / "APRS" line (height
+                             reserved so nothing jumps), then the caller on the left and the
+                             frequency on the right. -->
+                        <TextBlock x:Name="C4fmReflectorAText" Foreground="Gray" FontSize="12" Height="14" />
+                        <Grid>
+                            <TextBlock x:Name="C4fmCallsignAText" FontSize="20" FontWeight="SemiBold" Foreground="DodgerBlue" FontFamily="Consolas" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                            <TextBlock x:Name="FrequencyAText" Text="—" FontSize="32" FontFamily="Consolas" HorizontalAlignment="Right" />
+                        </Grid>
                     </StackPanel>
                 </Border>
 
@@ -128,11 +128,14 @@
                             <TextBlock Text="SUB" FontWeight="SemiBold" />
                             <TextBlock x:Name="MemoryChannelBText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
                         </StackPanel>
-                        <TextBlock x:Name="FrequencyBText" Text="—" FontSize="28" FontFamily="Consolas" />
-                        <StackPanel Orientation="Horizontal" Spacing="12" Height="26">
-                            <TextBlock x:Name="C4fmCallsignBText" FontSize="18" FontWeight="SemiBold" Foreground="DodgerBlue" VerticalAlignment="Center" />
-                            <TextBlock x:Name="C4fmReflectorBText" Foreground="Gray" VerticalAlignment="Center" />
-                        </StackPanel>
+                        <!-- Like the Mac's VFODisplayBox: the C4FM reflector / "APRS" line (height
+                             reserved so nothing jumps), then the caller on the left and the
+                             frequency on the right. -->
+                        <TextBlock x:Name="C4fmReflectorBText" Foreground="Gray" FontSize="12" Height="14" />
+                        <Grid>
+                            <TextBlock x:Name="C4fmCallsignBText" FontSize="20" FontWeight="SemiBold" Foreground="DodgerBlue" FontFamily="Consolas" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                            <TextBlock x:Name="FrequencyBText" Text="—" FontSize="32" FontFamily="Consolas" HorizontalAlignment="Right" />
+                        </Grid>
                     </StackPanel>
                 </Border>
 
