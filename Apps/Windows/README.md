@@ -844,10 +844,10 @@ with signal in it). Not yet on the rig.
 
 ## CW window (decode + send, 2026-10-03)
 
-The Mac's Tools → CW window: the receive pane with the **classic decoder
-only** (step 1 of the CW port) and the send pane (step 2). Still to come:
-the neural decoder via an ONNX export of CWKit's model, then WebSDR as a
-source. Opened from the **CW** button in the connection bar.
+The Mac's Tools → CW window: the receive pane with the classic decoder
+(step 1 of the CW port), the send pane (step 2) and the neural decoder
+(step 3). Still to come: WebSDR as a source. Opened from the **CW** button
+in the connection bar.
 
 - `Services/CwClassicDecoder.cs` is CWKit's classic decoder
   (`captobie/cwdecode`, `Sources/CWKit`: `Goertzel`, `ToneDetector`,
@@ -874,14 +874,64 @@ source. Opened from the **CW** button in the connection bar.
   character being received, tone/SNR/WPM, and Auto-tune/Tone/Rig Pitch/
   Squelch. Readouts are sampled from the receiver every 30 ms rather than
   pushed per chunk, so they never touch the text.
-- Not yet: the Neural/Classic picker (Neural needs the model on Windows)
-  and the WebSDR source.
+- Not yet: the WebSDR source.
 - Tested in the built app against a fake Pi (stand-in rigctld + a 44.1 kHz
   stereo stream with different CW on each channel): MAIN and SUB decode,
   switching starts a new line, the not-in-CW note, the pause while TX
   (fake `t` = 3), Rig Pitch ("KP" → 700 Hz, auto-tune off, persisted), and
   a WAV through the picker (header line, then live resumes). Not yet on
   the rig.
+
+Neural decoder (step 3), CWKit's `Neural/` (`NeuralFeatures`,
+`AudioResampler`, `StreamingCTCDecoder`, `CWNetModel`, `NeuralPipeline`):
+
+- **The model is CWKit's own**, converted rather than re-exported (user
+  decision, 2026-10-03): `Apps/Windows/Tools/cwnet_to_onnx.py` reads a
+  cwdecode release's `CWNet.mlmodelc` (the ML Program text `model.mil` +
+  `weights/weight.bin`, whose blobs are a 64-byte header — `0xDEADBEEF`,
+  data type, size, data offset — then raw float32) and writes
+  `Assets/CWNet.onnx` with the same weights, plus the Core ML metadata
+  (vocabulary, feature settings, model version, source). It parses the
+  program generically but only accepts CWNet's ops (conv, relu, add,
+  reduce_max, transpose, softmax, log — MIL's `log` has an epsilon, so it
+  becomes Add + Log) and refuses anything else. To pick up a new model:
+  `python cwnet_to_onnx.py --tag <cwdecode tag>` (needs `numpy onnx
+  onnxruntime`; a venv is fine), which also checks the result against that
+  release's golden file (CWKit's `modelMatchesPython`) and fails if it
+  doesn't match. The current file is from cwdecode 0.1.1 (model version
+  202609301110): output frames identical, largest probability difference
+  4×10⁻⁶ (the test allows 10⁻³).
+- Run with **ONNX Runtime** (`Microsoft.ML.OnnxRuntime` NuGet, MIT, CPU, one
+  thread), loaded on the CW worker the first time the window opens (~90 ms).
+  If it can't load, the classic decoder runs, the Neural/Classic picker is
+  disabled and its tooltip says why; the saved choice isn't changed.
+- `Services/CwNeuralDecoder.cs` is the rest, translated from the Swift:
+  the 8 kHz spectrogram (a DFT over just the 33 bins kept, SIMD dot
+  products), the streaming CTC decoder (6 s windows every 1 s, 2.5 s of
+  context, handoff in the widest gap, reconcile), and the pipeline (the
+  classic decoder still runs for the meters; its text is dropped). The
+  resampler to 8 kHz is NAudio's WDL sinc resampler instead of
+  `AVAudioConverter`, with a flush that pushes silence through until the
+  output matches the input length. `CwReceiver` runs either engine
+  (`ICwDecoderEngine`); switching flushes the old one, as CWKit's
+  `PipelineRunner` does.
+- The window: Neural/Classic picker next to MAIN/SUB (persisted as
+  `CwDecoder`, Neural by default like the Mac); the neural decoder's
+  not-yet-final text is shown dimmed after the committed text (not
+  linked); squelch is greyed out with Neural, which doesn't use it; the
+  character readout stays empty with Neural.
+- Checked with a scratch harness running CWKit's `NeuralDecoderTests`
+  against the C# code with CWKit 0.1.1's golden files: spectrogram (largest
+  difference 1.8×10⁻⁵, limit 2×10⁻³), model (4×10⁻⁶), streaming on all four
+  golden clips (text identical to the Python reference, its mistakes
+  included), handoff/reconcile, the resampler (700 Hz tone level and pitch,
+  48 and 44.1 kHz), and the whole pipeline at 48 and 44.1 kHz plus silence
+  on noise. About 13 ms of CPU per second of audio. Then in the built app
+  against the fake Pi: live decoding on MAIN, the dimmed tentative text,
+  switching Neural ↔ Classic mid-stream, the missing-model fallback, and
+  that the saved choice survives it. Whole-app CPU in the Debug build:
+  ~12% of a core with the CW window closed, ~20% decoding Classic, ~24%
+  Neural. Not yet on the rig.
 
 Send pane (step 2), the Mac's `CWSendPane`/`CWSender` (its doc comments
 and CLAUDE.md's "v2: CW send pane" have the rig facts this relies on):
@@ -966,6 +1016,8 @@ and CLAUDE.md's "v2: CW send pane" have the rig facts this relies on):
 ## Current file layout
 
 ```
+Apps/Windows/Tools/
+  cwnet_to_onnx.py             CWKit's CWNet.mlmodelc → Assets/CWNet.onnx, checked against its golden file
 Apps/Windows/FTX1RemoteWindows/
   FTX1RemoteWindows.csproj   unpackaged WinUI 3, net8.0-windows10.0.19041.0
   app.manifest               DPI-awareness manifest (unpackaged apps need this)
@@ -1016,8 +1068,11 @@ Apps/Windows/FTX1RemoteWindows/
     Recordings.cs                Recordings folder + file naming (AudioRecorder.swift's statics)
     SdrAudioFileWriter.cs        WAV writer for the OpenWebRX recorder tap (SDRAudioFileWriter.swift)
     CwClassicDecoder.cs          CWKit's classic CW decoder (captobie/cwdecode DSP/ + Morse/)
+    CwNeuralDecoder.cs           CWKit's neural CW decoder: spectrogram, resampler, streaming CTC, ONNX model, pipeline (Neural/)
     CwReceiver.cs                CW decode worker + window state (CWReceiver.swift + CWKit's PipelineRunner)
     CwSender.cs                  CW send queue via the rig's keyer memory, CwText, macros, callsign finder (CWSender/CWCallsigns.swift)
+  Assets/
+    CWNet.onnx                    CWKit's neural CW model, converted by ../Tools/cwnet_to_onnx.py
   Settings/
     AppSettings.cs                every setting (connection, audio, WPSD, APRS, station, WebSDR, CW, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
     Appearance.cs                 AppTheme / ButtonValueColor (ports of the FTX1Core Appearance enums)

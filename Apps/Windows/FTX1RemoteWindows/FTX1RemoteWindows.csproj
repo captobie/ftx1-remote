@@ -42,6 +42,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Assets\CWNet.onnx" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Runs the CW window's neural decoder (Assets/CWNet.onnx, converted from
+      CWKit's Core ML model by Apps/Windows/Tools/cwnet_to_onnx.py). MIT-licensed.
+    -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
     <!--
       Audio output (WASAPI) for the Pi's :8532 stream. NAudio.Wasapi rather

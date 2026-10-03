@@ -20,7 +20,8 @@ namespace FTX1RemoteWindows.Controls;
 /// pane on top (MAIN/SUB + Open Audio File / Copy / Clear header, the
 /// signal status bar, the decoded text, and the tuning row: auto-tune,
 /// tone, Rig Pitch, squelch), the send pane below (<see cref="CwSendPane"/>).
-/// Classic decoder only for now, so there's no Neural/Classic picker yet.
+/// Neural or classic decoder (picker next to MAIN/SUB); the neural one's
+/// newest, not-yet-final text is shown dimmed after the committed text.
 /// Callsigns in the decoded text are links that fill the send pane's Their
 /// call (the Mac's CWCallsigns).
 ///
@@ -39,6 +40,10 @@ public sealed class CwWindow : Window
     private readonly SelectorBar _channelBar = new();
     private readonly SelectorBarItem _mainItem = new() { Text = "MAIN", Tag = CwAudioChannel.Main };
     private readonly SelectorBarItem _subItem = new() { Text = "SUB", Tag = CwAudioChannel.Sub };
+    private readonly SelectorBar _decoderBar = new();
+    private readonly SelectorBarItem _neuralItem = new() { Text = "Neural", Tag = CwDecoderKind.Neural };
+    private readonly SelectorBarItem _classicItem = new() { Text = "Classic", Tag = CwDecoderKind.Classic };
+    private readonly StackPanel _squelchPanel = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     private readonly Button _openButton = new();
     private readonly Button _copyButton = new();
     private readonly Button _clearButton = new();
@@ -90,6 +95,7 @@ public sealed class CwWindow : Window
     /// handler doesn't write the value straight back.
     private bool _updating;
     private string _shownText = "";
+    private string _shownTentative = "";
     /// How much of _shownText is rendered as final inlines: up to its last
     /// space or newline, so a callsign still being received can't be split.
     /// The rest is the tail, re-rendered on every change.
@@ -210,7 +216,25 @@ public sealed class CwWindow : Window
             _receiver.Channel = channel;
         };
         ToolTipService.SetToolTip(_mainItem, "Decode the rig's MAIN receiver");
-        header.Children.Add(_channelBar);
+
+        _decoderBar.Items.Add(_neuralItem);
+        _decoderBar.Items.Add(_classicItem);
+        _decoderBar.SelectionChanged += (bar, _) =>
+        {
+            // The bar shows the decoder actually running, so selecting it in
+            // code (Refresh) raises this too, after _updating is cleared; only
+            // a change from that is the user's. Without the check, a fallback
+            // to Classic would overwrite the saved Neural preference.
+            if (_updating || bar.SelectedItem?.Tag is not CwDecoderKind kind || kind == _receiver.EffectiveDecoder)
+            {
+                return;
+            }
+            _receiver.Decoder = kind;
+        };
+        var pickers = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
+        pickers.Children.Add(_channelBar);
+        pickers.Children.Add(_decoderBar);
+        header.Children.Add(pickers);
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
         SetContent(_openButton, "", "Open Audio File…");
@@ -247,7 +271,7 @@ public sealed class CwWindow : Window
         }
         ToolTipService.SetToolTip(_keyLed, "Key down");
         ToolTipService.SetToolTip(_levelMeter, "Tone level between the noise floor and the signal peak");
-        ToolTipService.SetToolTip(_pendingText, "Elements of the character being received");
+        ToolTipService.SetToolTip(_pendingText, "Elements of the character being received (Classic decoder)");
         _keyLed.VerticalAlignment = VerticalAlignment.Center;
         var note = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
         note.Children.Add(_fileRing);
@@ -289,7 +313,7 @@ public sealed class CwWindow : Window
         tone.Children.Add(_rigPitchButton);
         row.Children.Add(tone);
 
-        var squelch = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var squelch = _squelchPanel;
         squelch.Children.Add(Label("Squelch"));
         _squelchSlider.ValueChanged += (_, e) =>
         {
@@ -300,7 +324,6 @@ public sealed class CwWindow : Window
         };
         squelch.Children.Add(_squelchSlider);
         squelch.Children.Add(_squelchValue);
-        ToolTipService.SetToolTip(squelch, "Minimum signal-to-noise ratio needed before anything is decoded");
         row.Children.Add(squelch);
         return row;
     }
@@ -323,20 +346,21 @@ public sealed class CwWindow : Window
         try
         {
             var text = _receiver.DecodedText;
-            if (text != _shownText)
+            var tentative = _receiver.TentativeText;
+            if (text != _shownText || tentative != _shownTentative)
             {
                 // Keep following the newest text only if the reader is
                 // already at the bottom, so scrolling back to read isn't
                 // yanked away by the next character.
                 var atBottom = _textScroller.VerticalOffset >= _textScroller.ScrollableHeight - 4;
-                RenderText(text);
+                RenderText(text, tentative);
                 if (atBottom)
                 {
                     _textScroller.UpdateLayout();
                     _textScroller.ChangeView(null, _textScroller.ScrollableHeight, null, disableAnimation: true);
                 }
             }
-            _placeholder.Visibility = text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            _placeholder.Visibility = text.Length == 0 && tentative.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
             _copyButton.IsEnabled = _clearButton.IsEnabled = text.Length > 0;
             _openButton.IsEnabled = !_receiver.IsDecodingFile;
 
@@ -345,6 +369,22 @@ public sealed class CwWindow : Window
             {
                 selected.IsSelected = true;
             }
+
+            var decoder = _receiver.EffectiveDecoder == CwDecoderKind.Neural ? _neuralItem : _classicItem;
+            if (!decoder.IsSelected)
+            {
+                decoder.IsSelected = true;
+            }
+            var unavailable = _receiver.NeuralUnavailableReason;
+            _decoderBar.IsEnabled = unavailable is null;
+            ToolTipService.SetToolTip(_decoderBar, unavailable
+                ?? "Neural: a model trained on simulated CW, best on weak and noisy signals; text runs about 3½ s behind. Classic: tone threshold and timing rules.");
+            var neural = _receiver.EffectiveDecoder == CwDecoderKind.Neural;
+            _squelchPanel.Opacity = neural ? 0.5 : 1;
+            _squelchSlider.IsEnabled = !neural;
+            ToolTipService.SetToolTip(_squelchPanel, neural
+                ? "The neural decoder doesn't need a squelch: it stays silent on noise"
+                : "Minimum signal-to-noise ratio needed before anything is decoded");
 
             _autoTuneBox.IsChecked = _receiver.AutoTune;
             _toneSlider.IsEnabled = !_receiver.AutoTune;
@@ -368,10 +408,11 @@ public sealed class CwWindow : Window
         UpdateSubAvailability();
     }
 
-    /// Renders the decoded text with its callsigns as links. Appended text
-    /// (the usual case) only re-renders from the last word break on; a
+    /// Renders the decoded text with its callsigns as links, then the
+    /// tentative text dimmed (not linked: it can still change). Appended
+    /// text (the usual case) only re-renders from the last word break on; a
     /// cleared or trimmed text renders from scratch.
-    private void RenderText(string text)
+    private void RenderText(string text, string tentative)
     {
         var inlines = _decodedText.Inlines;
         if (_shownText.Length == 0 || !text.StartsWith(_shownText, StringComparison.Ordinal))
@@ -392,8 +433,13 @@ public sealed class CwWindow : Window
         }
         var before = inlines.Count;
         AppendInlines(text[_stableLength..]);
+        if (tentative.Length > 0)
+        {
+            inlines.Add(new Run { Text = tentative, Foreground = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"] });
+        }
         _tailInlineCount = inlines.Count - before;
         _shownText = text;
+        _shownTentative = tentative;
     }
 
     private void AppendInlines(string segment)

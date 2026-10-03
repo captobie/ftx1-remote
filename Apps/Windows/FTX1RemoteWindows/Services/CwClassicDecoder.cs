@@ -9,7 +9,7 @@ namespace FTX1RemoteWindows.Services;
 // DecoderPipeline.swift), which stay the source of truth: copy any decoder
 // fix made there. Same constants, same arithmetic (Float where CWKit uses
 // Float), so both apps decode the same audio the same way. The neural
-// decoder (CWKit's Neural/, a Core ML model) isn't ported yet.
+// decoder is in CwNeuralDecoder.cs.
 
 /// CWKit's PipelineSettings (the classic decoder's part of it).
 public sealed record CwPipelineSettings(
@@ -17,7 +17,8 @@ public sealed record CwPipelineSettings(
     bool AutoTune = true,
     /// Minimum signal-to-noise ratio before the key is allowed to close.
     double SquelchDb = 12,
-    double InitialWpm = 20);
+    double InitialWpm = 20,
+    CwDecoderKind Decoder = CwDecoderKind.Classic);
 
 /// CWKit's PipelineOutput.
 public readonly record struct CwPipelineOutput(
@@ -29,8 +30,11 @@ public readonly record struct CwPipelineOutput(
     double SnrDb,
     double ToneFrequency,
     double Wpm,
-    /// Dits and dahs of the character being received, as "." and "-".
-    string PendingSymbols);
+    /// Classic decoder: dits and dahs of the character being received, as
+    /// "." and "-".
+    string PendingSymbols,
+    /// Neural decoder: text past the last commit point, replaced on every update.
+    string TentativeText = "");
 
 /// Single-bin DFT, much cheaper than an FFT when only a few frequencies matter.
 internal static class Goertzel
@@ -532,7 +536,7 @@ internal sealed class MorseDecoder
 /// timing decoder. CWKit's DecoderPipeline.
 ///
 /// Not thread-safe; confine each instance to one thread.
-public sealed class CwClassicDecoder
+public sealed class CwClassicDecoder : ICwDecoderEngine
 {
     public double SampleRate { get; }
     private CwPipelineSettings _settings;

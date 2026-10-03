@@ -697,15 +697,19 @@ OpenWebRX followed 2026-10-02 (profiles, in-place retune, the recorder
 tap), tested against the operator's own server with a fake rigctld, not
 yet on the rig; WebView2 needs no hash-navigation workaround (Chromium
 keeps OpenWebRX's hash updates same-document).
-The CW window was ported 2026-10-03: decode with the classic decoder only
-(`Services/CwClassicDecoder.cs` = CWKit's classic decoder translated line
-for line — cwdecode stays the source of truth; `Services/CwReceiver.cs`,
-`Controls/CwWindow.cs`), checked against CWKit's own tests in a harness
-and a fake Pi; and the send pane (`Services/CwSender.cs`,
-`Controls/CwSendPane.cs`, `RigctldClient.WriteKeyerMemoryAsync`, a
-Callsign field in Settings → Station), checked against a fake rigctld
-that models the keyer. Neither yet on the rig. Next: neural decoder (ONNX
-export of CWKit's model), WebSDR source.
+The CW window was ported 2026-10-03: decode with both of CWKit's decoders
+translated to C# — cwdecode stays the source of truth for both
+(`Services/CwClassicDecoder.cs`, `Services/CwNeuralDecoder.cs`,
+`Services/CwReceiver.cs`, `Controls/CwWindow.cs`), checked against
+CWKit's own tests and golden files in a harness and a fake Pi; and the
+send pane (`Services/CwSender.cs`, `Controls/CwSendPane.cs`,
+`RigctldClient.WriteKeyerMemoryAsync`, a Callsign field in Settings →
+Station), checked against a fake rigctld that models the keyer. None of
+it yet on the rig. The neural model is CWKit's `CWNet.mlmodelc` converted
+to `Assets/CWNet.onnx` (same weights) by `Apps/Windows/Tools/
+cwnet_to_onnx.py` and run with ONNX Runtime: rerun the script with the new
+tag whenever CWKit ships a new model (it checks against the release's
+golden file). Next: WebSDR source.
 Full plan, protocol/model porting notes, and open items:
 `Apps/Windows/README.md`. `Apps/Windows/FTX1RemoteWindows/` has a
 build-verified (`dotnet build -r win-x64 --self-contained`, not yet

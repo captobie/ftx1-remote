@@ -25,8 +25,11 @@ public readonly record struct CwRigInfo(bool Transmitting, int? PitchHz, RigMode
 
 /// The receive side of the CW window: decodes rig audio (or an audio file)
 /// to text — the Mac's CWReceiver (Apps/Mac/FTX1RemoteMac/CWReceiver.swift)
-/// together with CWKit's PipelineRunner. Classic decoder only so far
-/// (Services/CwClassicDecoder.cs).
+/// together with CWKit's PipelineRunner, with either decoder: neural
+/// (Services/CwNeuralDecoder.cs, the default, as on the Mac) or classic
+/// (Services/CwClassicDecoder.cs). The neural model loads the first time the
+/// window opens, on the worker; if it can't, the classic decoder is used and
+/// <see cref="NeuralUnavailableReason"/> says why.
 ///
 /// MainWindow feeds it both receivers' audio from the audio thread
 /// (<see cref="Ingest"/>); it keeps only the selected channel, and drops
@@ -54,14 +57,17 @@ public sealed class CwReceiver : IDisposable
     private sealed record SettingsWork(CwPipelineSettings Settings) : Work;
     private sealed record FlushWork : Work;
     private sealed record FileWork(string Path) : Work;
+    private sealed record LoadModelWork : Work;
 
     private readonly DispatcherQueue _dispatcher;
     private readonly BlockingCollection<Work> _queue = new(boundedCapacity: 256);
     private readonly Thread _worker;
 
     // Worker thread only.
-    private CwClassicDecoder? _decoder;
+    private ICwDecoderEngine? _decoder;
     private CwPipelineSettings _workerSettings;
+    private CwNetModel? _model;
+    private string _workerTentative = "";
 
     // Read by the audio thread.
     private volatile bool _running;
@@ -78,6 +84,9 @@ public sealed class CwReceiver : IDisposable
     private double _toneFrequency;
     private bool _autoTune;
     private double _squelchDb;
+    private CwDecoderKind _decoderKind;
+    private string _tentative = "";
+    private bool _modelLoadQueued;
 
     private const int MaxTextLength = 100_000;
     /// No Sub audio (or only digital silence, which is what a mono Local
@@ -95,12 +104,14 @@ public sealed class CwReceiver : IDisposable
         _toneFrequency = Math.Clamp(AppSettings.CwToneFrequency, FrequencyTracker.SearchMin, FrequencyTracker.SearchMax);
         _autoTune = AppSettings.CwAutoTune;
         _squelchDb = AppSettings.CwSquelchDb;
+        _decoderKind = AppSettings.CwDecoder;
         _workerSettings = CurrentSettings;
         _meters = new CwMeters(false, 0, 0, _toneFrequency, 0, "");
         _worker = new Thread(Run) { IsBackground = true, Name = "CW decoder" };
         _worker.Start();
     }
 
+    /// The worker disposes the model once the queue is drained.
     public void Dispose() => _queue.CompleteAdding();
 
     // Lifecycle (the CW window's open/close)
@@ -110,6 +121,13 @@ public sealed class CwReceiver : IDisposable
     public void Start()
     {
         _running = true;
+        // The model loads on first use, so a session that never opens the
+        // CW window never pays for it (the Mac's makeRunnerIfNeeded).
+        if (!_modelLoadQueued)
+        {
+            _modelLoadQueued = true;
+            Enqueue(new LoadModelWork());
+        }
     }
 
     /// Called when the CW window closes. A file decode already under way
@@ -242,7 +260,30 @@ public sealed class CwReceiver : IDisposable
         }
     }
 
-    private CwPipelineSettings CurrentSettings => new(_toneFrequency, _autoTune, _squelchDb);
+    /// Neural or classic (the Mac's cw.decoder, Neural by default).
+    public CwDecoderKind Decoder
+    {
+        get => _decoderKind;
+        set
+        {
+            if (value == _decoderKind)
+            {
+                return;
+            }
+            _decoderKind = value;
+            AppSettings.CwDecoder = value;
+            SettingsChanged();
+        }
+    }
+
+    /// Why the neural decoder can't be used, or null when it can (or hasn't
+    /// been loaded yet).
+    public string? NeuralUnavailableReason { get; private set; }
+
+    /// The decoder actually running: classic when the model couldn't load.
+    public CwDecoderKind EffectiveDecoder => NeuralUnavailableReason is null ? _decoderKind : CwDecoderKind.Classic;
+
+    private CwPipelineSettings CurrentSettings => new(_toneFrequency, _autoTune, _squelchDb, Decoder: EffectiveDecoder);
 
     private void SettingsChanged()
     {
@@ -354,10 +395,13 @@ public sealed class CwReceiver : IDisposable
 
     public string DecodedText => _text.ToString();
     public bool HasText => _text.Length > 0;
+    /// Neural decoder: the newest text, not final yet; replaced on every update.
+    public string TentativeText => _tentative;
 
     public void ClearText()
     {
         _text.Clear();
+        _tentative = "";
         Changed?.Invoke();
     }
 
@@ -423,8 +467,10 @@ public sealed class CwReceiver : IDisposable
                         Process(samples.Samples, samples.SampleRate);
                         break;
                     case SettingsWork settings:
-                        _workerSettings = settings.Settings;
-                        _decoder?.Update(settings.Settings);
+                        ApplySettings(settings.Settings);
+                        break;
+                    case LoadModelWork:
+                        LoadModel();
                         break;
                     case FlushWork:
                         Flush();
@@ -439,6 +485,51 @@ public sealed class CwReceiver : IDisposable
                 AppLog.Write($"cw-decoder: {ex.Message}");
             }
         }
+        _model?.Dispose();
+    }
+
+    private void LoadModel()
+    {
+        if (_model is not null)
+        {
+            return;
+        }
+        try
+        {
+            var stopwatch = Stopwatch.StartNew();
+            _model = new CwNetModel();
+            AppLog.Write($"cw-decoder: neural model loaded in {stopwatch.ElapsedMilliseconds} ms ({_model.Vocabulary.Count} tokens)");
+        }
+        catch (Exception ex)
+        {
+            var reason = ex.Message;
+            AppLog.Write($"cw-decoder: neural decoder unavailable: {reason}");
+            _dispatcher.TryEnqueue(() =>
+            {
+                NeuralUnavailableReason = reason;
+                // Falls back to classic from here on.
+                Enqueue(new SettingsWork(CurrentSettings));
+                Changed?.Invoke();
+            });
+        }
+    }
+
+    /// Like PipelineRunner.update: switching decoders flushes what the old
+    /// one still holds; the next audio starts the new one.
+    private void ApplySettings(CwPipelineSettings settings)
+    {
+        var switching = settings.Decoder != _workerSettings.Decoder;
+        _workerSettings = settings;
+        if (switching && _decoder is { } old)
+        {
+            Publish(old.Finish());
+            PublishTentative("");
+            _decoder = null;
+        }
+        else
+        {
+            _decoder?.Update(settings);
+        }
     }
 
     private void Process(float[] samples, int sampleRate)
@@ -447,7 +538,9 @@ public sealed class CwReceiver : IDisposable
         // PipelineRunner's.
         if (_decoder is null || _decoder.SampleRate != sampleRate)
         {
-            _decoder = new CwClassicDecoder(sampleRate, _workerSettings);
+            _decoder = _workerSettings.Decoder == CwDecoderKind.Neural && _model is { } model
+                ? new CwNeuralPipeline(sampleRate, _workerSettings, model)
+                : new CwClassicDecoder(sampleRate, _workerSettings);
         }
         Publish(_decoder.Process(samples));
     }
@@ -461,21 +554,39 @@ public sealed class CwReceiver : IDisposable
             Publish(decoder.Finish());
             _decoder = null;
         }
+        PublishTentative("");
         Meters = Meters with { KeyDown = false, SignalLevel = 0, PendingSymbols = "" };
     }
 
     private void Publish(CwPipelineOutput output)
     {
         Meters = new CwMeters(output.KeyDown, output.SignalLevel, output.SnrDb, output.ToneFrequency, output.Wpm, output.PendingSymbols);
-        if (output.Text.Length > 0)
+        var tentative = output.TentativeText ?? "";
+        if (output.Text.Length > 0 || tentative != _workerTentative)
         {
             var text = output.Text;
+            _workerTentative = tentative;
             _dispatcher.TryEnqueue(() =>
             {
                 Append(text);
+                _tentative = tentative;
                 Changed?.Invoke();
             });
         }
+    }
+
+    private void PublishTentative(string tentative)
+    {
+        if (tentative == _workerTentative)
+        {
+            return;
+        }
+        _workerTentative = tentative;
+        _dispatcher.TryEnqueue(() =>
+        {
+            _tentative = tentative;
+            Changed?.Invoke();
+        });
     }
 
     private void DecodeFileOnWorker(string path)

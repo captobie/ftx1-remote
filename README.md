@@ -297,6 +297,12 @@ package dependency — not vendored.
 
 The Windows app uses [NAudio](https://github.com/naudio/NAudio) (MIT, Mark
 Heath) as a NuGet package (`NAudio.Wasapi`) for audio output — not vendored.
+Its CW decoders are CWKit's, translated to C#, and
+`Apps/Windows/FTX1RemoteWindows/Assets/CWNet.onnx` is CWKit's neural model
+(captobie/cwdecode, MIT) converted to ONNX by
+`Apps/Windows/Tools/cwnet_to_onnx.py`; it runs with
+[ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT, Microsoft),
+also a NuGet package (`Microsoft.ML.OnnxRuntime`).
 
 The Mac app updates itself with [Sparkle](https://sparkle-project.org)
 (MIT-style license), a Swift package dependency.

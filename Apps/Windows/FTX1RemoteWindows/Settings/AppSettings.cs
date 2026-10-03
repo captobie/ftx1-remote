@@ -82,6 +82,7 @@ public static class AppSettings
         public bool CwAutoTune { get; set; } = true;
         public double CwSquelchDb { get; set; } = 12;
         public int CwKeyerSlot { get; set; } = 1;
+        public CwDecoderKind CwDecoder { get; set; } = CwDecoderKind.Neural;
         public List<CwMacro>? CwMacros { get; set; }
         public WebSdrFavorite? WebSdrPickedStation { get; set; }
         public List<WebSdrFavorite> WebSdrFavorites { get; set; } = [];
@@ -632,6 +633,17 @@ public static class AppSettings
         _cache.CwAutoTune = autoTune;
         _cache.CwSquelchDb = squelchDb;
         Save();
+    }
+
+    /// The CW window's decoder — the Mac's cw.decoder, Neural by default.
+    public static CwDecoderKind CwDecoder
+    {
+        get => _cache.CwDecoder;
+        set
+        {
+            _cache.CwDecoder = value;
+            Save();
+        }
     }
 
     /// The CW TEXT keyer memory the send pane writes to (1-5) — the Mac's
