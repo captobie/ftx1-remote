@@ -939,6 +939,7 @@ public sealed partial class MainWindow : Window
             {
                 _lastState.MainIsC4fm = false;
             }
+            UpdateModeTags();
         }
         catch (Exception ex)
         {
@@ -1113,6 +1114,7 @@ public sealed partial class MainWindow : Window
     /// which is what lets the APRS callsign expire.
     private void UpdateC4fmDisplay()
     {
+        UpdateModeTags();
         ShowCallsignLine(C4fmCallsignAText, C4fmReflectorAText, _lastState.MainIsC4fm == true,
             AppSettings.IsAprsActive(IsConnected ? _lastState.FrequencyHz : null), _aprsMainLastHeard);
         ShowCallsignLine(C4fmCallsignBText, C4fmReflectorBText, _lastState.SubIsC4fm == true,
@@ -1256,6 +1258,7 @@ public sealed partial class MainWindow : Window
                 (_lastState.Mode, _lastState.SubMode) = (subMode, _lastState.Mode);
             }
             (_lastState.MainIsC4fm, _lastState.SubIsC4fm) = (_lastState.SubIsC4fm, _lastState.MainIsC4fm);
+            UpdateModeTags();
             _filterPanel.RefreshUI();
             _filterPanel.RequestRefresh(TimeSpan.FromMilliseconds(400));
         }
@@ -1264,6 +1267,14 @@ public sealed partial class MainWindow : Window
             StatusText.Text = $"Swap VFO failed: {ex.Message}";
             AppLog.Write($"swap: SV failed: {ex.Message}");
         }
+    }
+
+    /// Each box's mode, upper right: C4FM when that side is in it, else the
+    /// mode's display name (blank until read).
+    private void UpdateModeTags()
+    {
+        MainModeText.Text = _lastState.MainIsC4fm == true ? "C4FM" : _lastState.Mode?.DisplayName() ?? "";
+        SubModeText.Text = _lastState.SubIsC4fm == true ? "C4FM" : _lastState.SubMode?.DisplayName() ?? "";
     }
 
     /// The Mac's RigState.mainTxRxLabel/subTxRxLabel: TXRX (red) on the TX
