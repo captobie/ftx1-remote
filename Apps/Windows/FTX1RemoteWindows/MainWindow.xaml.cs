@@ -182,6 +182,11 @@ public sealed partial class MainWindow : Window
     /// "FR" (FUNCTION RX): false dual receive, true single, null not read
     /// yet. Read in the slow tier.
     private bool? _singleReceive;
+    /// "ST" (SPLIT) and "FT" (which side transmits: false MAIN, true SUB),
+    /// read in the slow tier; they pick the TXRX/RX tags and the TX button's
+    /// caption (RigState.mainTxRxLabel/subTxRxLabel on the Mac).
+    private bool? _splitOn;
+    private bool? _txSideSub;
     private int _pollCount;
     /// C4FM caller/reflector lookup, started and stopped by
     /// UpdateWpsdMonitorState as settings and the rig's modes change.
@@ -866,6 +871,23 @@ public sealed partial class MainWindow : Window
                 AppLog.Write($"poll: FR failed: {ex.Message}");
             }
 
+            try
+            {
+                if (await client.GetRawBoolAsync("ST") is { } split)
+                {
+                    _splitOn = split;
+                }
+                if (await client.GetRawDigitAsync("FT") is { } ft)
+                {
+                    _txSideSub = ft == 1;
+                }
+                UpdateTxRxIndicators();
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write($"poll: ST/FT failed: {ex.Message}");
+            }
+
             // Slow tier: modes rarely change, and a C4FM switch only has to
             // start the WPSD lookup and skip the MENU grid's GT0/PR1 (which
             // go unanswered in C4FM). Main's fast-tier mode read also clears
@@ -1241,6 +1263,43 @@ public sealed partial class MainWindow : Window
         {
             StatusText.Text = $"Swap VFO failed: {ex.Message}";
             AppLog.Write($"swap: SV failed: {ex.Message}");
+        }
+    }
+
+    /// The Mac's RigState.mainTxRxLabel/subTxRxLabel: TXRX (red) on the TX
+    /// side, RX (green) on the other; with split on, MAIN shows RX.
+    private void UpdateTxRxIndicators()
+    {
+        var sub = _txSideSub == true;
+        var split = _splitOn == true;
+        SetTxRxTag(MainTxRxTag, MainTxRxText, !(split || sub));
+        SetTxRxTag(SubTxRxTag, SubTxRxText, !split && sub);
+        TxSideButton.Content = sub ? "TX:SUB" : "TX:MAIN";
+    }
+
+    private static void SetTxRxTag(Border tag, TextBlock text, bool txrx)
+    {
+        text.Text = txrx ? "TXRX" : "RX";
+        tag.Background = new SolidColorBrush(txrx ? Microsoft.UI.Colors.Red : Microsoft.UI.Colors.Green);
+    }
+
+    private async void TxSideButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_client is null)
+        {
+            return;
+        }
+        var toSub = _txSideSub != true;
+        try
+        {
+            await _client.SetRawIntAsync("FT", toSub ? 1 : 0, 1);
+            _txSideSub = toSub;
+            UpdateTxRxIndicators();
+            AppLog.Write($"tx side: FT{(toSub ? 1 : 0)} sent");
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Set TX side failed: {ex.Message}";
         }
     }
 

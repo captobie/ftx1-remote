@@ -84,6 +84,9 @@
                     <StackPanel Spacing="4">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <TextBlock Text="MAIN" FontWeight="SemiBold" />
+                            <Border x:Name="MainTxRxTag" Background="Red" CornerRadius="3" Padding="4,1" VerticalAlignment="Center">
+                                <TextBlock x:Name="MainTxRxText" Text="TXRX" FontSize="12" FontWeight="SemiBold" Foreground="White" />
+                            </Border>
                             <!-- "CH n TAG" while in Memory mode, "VM nn" in the other
                                  sub-modes, hidden in VFO mode. -->
                             <TextBlock x:Name="MemoryChannelAText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
@@ -101,16 +104,20 @@
 
                 <StackPanel Grid.Row="0" Grid.Column="1" Spacing="8" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                        <!-- Order matches the Mac: V/M, TX side, swap, audio override. -->
+                        <!-- Main's VFO/Memory mode; checked whenever it isn't plain VFO. -->
+                        <ToggleButton x:Name="VfoMemoryToggle" Content="V/M"
+                                      Click="VfoMemoryToggle_Click"
+                                      ToolTipService.ToolTip="Switch MAIN between VFO and Memory mode (the rig's V/M)" />
+                        <!-- Which receiver transmits (raw "FT"); the caption shows the current side. -->
+                        <Button x:Name="TxSideButton" Content="TX:MAIN" Click="TxSideButton_Click"
+                                ToolTipService.ToolTip="Switch the transmit side between MAIN and SUB" />
                         <Button x:Name="SwapVfoButton" Content="⇄"
                                 Click="SwapVfoButton_Click" ToolTipService.ToolTip="Swap Main and Sub (the rig's SV command)" />
                         <!-- Manual override for audio swap tracking; checked while L/R are swapped. -->
                         <ToggleButton x:Name="AudioSwapToggle" Click="AudioSwapToggle_Click">
                             <FontIcon Glyph="&#xE767;" FontSize="14" />
                         </ToggleButton>
-                        <!-- Main's VFO/Memory mode; checked whenever it isn't plain VFO. -->
-                        <ToggleButton x:Name="VfoMemoryToggle" Content="V/M"
-                                      Click="VfoMemoryToggle_Click"
-                                      ToolTipService.ToolTip="Switch MAIN between VFO and Memory mode (the rig's V/M)" />
                     </StackPanel>
                     <!-- What the scope below shows (the Mac's scope mode buttons). -->
                     <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
@@ -126,6 +133,9 @@
                     <StackPanel Spacing="4">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <TextBlock Text="SUB" FontWeight="SemiBold" />
+                            <Border x:Name="SubTxRxTag" Background="Green" CornerRadius="3" Padding="4,1" VerticalAlignment="Center">
+                                <TextBlock x:Name="SubTxRxText" Text="RX" FontSize="12" FontWeight="SemiBold" Foreground="White" />
+                            </Border>
                             <TextBlock x:Name="MemoryChannelBText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
                         </StackPanel>
                         <!-- Like the Mac's VFODisplayBox: the C4FM reflector / "APRS" line (height
