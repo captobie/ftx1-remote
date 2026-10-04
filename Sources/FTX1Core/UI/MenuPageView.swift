@@ -88,6 +88,9 @@ public struct MenuPageView<Controller: RigController>: View {
     @State private var showingRFPowerPopover = false
     @State private var isDraggingRFPower = false
     @State private var localRFPowerLevel: Double = 0
+    /// Last value sent by the popover's ◀/▶ fine-step buttons, until the
+    /// rig's next read replaces it — see `stepRFPower(by:)`.
+    @State private var steppedRFPowerLevel: Double?
     @State private var showingMicGainPopover = false
     @State private var showingAMCLevelPopover = false
     @State private var showingVoxGainPopover = false
@@ -786,26 +789,55 @@ public struct MenuPageView<Controller: RigController>: View {
         .popover(isPresented: $showingRFPowerPopover) {
             VStack(spacing: 8) {
                 Text(Self.rfPowerLabel(displayedRFPowerLevel))
-                Slider(
-                    value: Binding(
-                        get: { displayedRFPowerLevel },
-                        set: { localRFPowerLevel = $0 }
-                    ),
-                    in: 0...1,
-                    onEditingChanged: { editing in
-                        if editing {
-                            localRFPowerLevel = hub.rigState.powerLevel ?? 0
-                            isDraggingRFPower = true
-                        } else {
-                            isDraggingRFPower = false
-                            hub.send(.setPowerLevel(localRFPowerLevel))
-                        }
+                HStack(spacing: 6) {
+                    Button { stepRFPower(by: -1) } label: {
+                        Image(systemName: "chevron.left")
                     }
-                )
+                    .disabled(displayedRFPowerLevel <= 0)
+                    .help("Decrease RF power by 1 W")
+                    Slider(
+                        value: Binding(
+                            get: { displayedRFPowerLevel },
+                            set: { localRFPowerLevel = $0 }
+                        ),
+                        in: 0...1,
+                        onEditingChanged: { editing in
+                            if editing {
+                                localRFPowerLevel = displayedRFPowerLevel
+                                isDraggingRFPower = true
+                            } else {
+                                isDraggingRFPower = false
+                                steppedRFPowerLevel = nil
+                                hub.send(.setPowerLevel(localRFPowerLevel))
+                            }
+                        }
+                    )
+                    Button { stepRFPower(by: 1) } label: {
+                        Image(systemName: "chevron.right")
+                    }
+                    .disabled(displayedRFPowerLevel >= 1)
+                    .help("Increase RF power by 1 W")
+                }
             }
             .padding()
-            .frame(width: 180)
+            .frame(width: 240)
+            .onChange(of: hub.rigState.powerLevel) { _, _ in
+                steppedRFPowerLevel = nil
+            }
         }
+    }
+
+    /// The popover's ◀/▶ buttons: one display step (1 W, i.e. 0.01 of
+    /// `RFPOWER`'s 0–1 range, matching `rfPowerLabel`) per click, snapped to
+    /// a whole step. Steps from `steppedRFPowerLevel` while it's set, so
+    /// several quick clicks add up even before the next poll reads the new
+    /// value back (the iPad's `RigClientViewModel` doesn't update
+    /// `rigState` optimistically the way `HubService` does).
+    private func stepRFPower(by steps: Int) {
+        let current = (displayedRFPowerLevel * 100).rounded()
+        let next = min(max(current + Double(steps), 0), 100) / 100
+        steppedRFPowerLevel = next
+        hub.send(.setPowerLevel(next))
     }
 
     /// SSB button 23, MIC GAIN — numeric like CW SPEED/PITCH/BK-DELAY/MONI
@@ -1215,7 +1247,8 @@ public struct MenuPageView<Controller: RigController>: View {
     }
 
     private var displayedRFPowerLevel: Double {
-        isDraggingRFPower ? localRFPowerLevel : (hub.rigState.powerLevel ?? 0)
+        if isDraggingRFPower { return localRFPowerLevel }
+        return steppedRFPowerLevel ?? hub.rigState.powerLevel ?? 0
     }
 
     private static func rfPowerLabel(_ level: Double?) -> String {
