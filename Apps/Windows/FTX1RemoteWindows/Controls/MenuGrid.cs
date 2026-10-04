@@ -921,9 +921,36 @@ public sealed class MenuGrid : UserControl
         slider.AddHandler(PointerReleasedEvent, new PointerEventHandler(Done), true);
         slider.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(Done), true);
 
+        // ◀/▶ fine-step by one whole watt (1%); the slider's ValueChanged
+        // sends it, as for a key press, and quick clicks add up.
+        Button StepButton(int step, string glyph, string tip)
+        {
+            var b = new Button
+            {
+                Content = new FontIcon { Glyph = glyph, FontSize = 10 },
+                Padding = new Thickness(6, 4, 6, 4),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            ToolTipService.SetToolTip(b, tip);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, tip);
+            b.Click += (_, _) => slider.Value = Math.Clamp(Math.Round(slider.Value) + step, 0, 100);
+            return b;
+        }
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            Children =
+            {
+                StepButton(-1, "\uE76B", "Decrease RF power by 1 W"),
+                slider,
+                StepButton(1, "\uE76C", "Increase RF power by 1 W"),
+            },
+        };
+
         var flyout = new Flyout
         {
-            Content = new StackPanel { Spacing = 4, Children = { valueText, slider } },
+            Content = new StackPanel { Spacing = 4, Children = { valueText, row } },
         };
         flyout.Opening += (_, _) =>
         {

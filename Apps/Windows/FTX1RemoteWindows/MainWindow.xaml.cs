@@ -1784,6 +1784,16 @@ public sealed partial class MainWindow : Window
         await SendPowerLevelAsync(e.NewValue);
     }
 
+    /// The ◀/▶ buttons beside the power slider: one whole watt (1% of
+    /// RFPOWER) per click. Setting the slider's value sends it through
+    /// PowerSlider_ValueChanged, like an arrow key, and quick clicks add up
+    /// since each one steps from the slider's own value.
+    private void PowerStep_Click(object sender, RoutedEventArgs e)
+    {
+        var step = int.Parse((string)((Button)sender).Tag);
+        PowerSlider.Value = Math.Clamp(Math.Round(PowerSlider.Value) + step, 0, 100);
+    }
+
     private async void PowerSlider_PointerDone(object sender, PointerRoutedEventArgs e)
     {
         if (!_powerDragging)

@@ -304,9 +304,25 @@
                     </Border>
                 </StackPanel>
 
-                <StackPanel Spacing="4" Width="160">
+                <StackPanel Spacing="4" Width="230">
                     <TextBlock Text="Power level" FontWeight="SemiBold" />
-                    <Slider x:Name="PowerSlider" Minimum="0" Maximum="100" ValueChanged="PowerSlider_ValueChanged" />
+                    <!-- ◀/▶ fine-step the level by 1 W (PowerStep_Click). -->
+                    <Grid ColumnSpacing="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Tag="-1" Click="PowerStep_Click" Padding="6,4" VerticalAlignment="Center"
+                                AutomationProperties.Name="Decrease power by 1 W" ToolTipService.ToolTip="Decrease RF power by 1 W">
+                            <FontIcon Glyph="&#xE76B;" FontSize="10" />
+                        </Button>
+                        <Slider Grid.Column="1" x:Name="PowerSlider" Minimum="0" Maximum="100" ValueChanged="PowerSlider_ValueChanged" />
+                        <Button Grid.Column="2" Tag="1" Click="PowerStep_Click" Padding="6,4" VerticalAlignment="Center"
+                                AutomationProperties.Name="Increase power by 1 W" ToolTipService.ToolTip="Increase RF power by 1 W">
+                            <FontIcon Glyph="&#xE76C;" FontSize="10" />
+                        </Button>
+                    </Grid>
                 </StackPanel>
 
                 <StackPanel Spacing="4">
