@@ -172,11 +172,11 @@ public static class AppSettings
         }
     }
 
-    /// The VFO entry flyout's up/down step (100 Hz, 1 kHz or 10 kHz), kept
+    /// The VFO entry flyout's up/down step (10 Hz, 100 Hz, 1 kHz or 10 kHz), kept
     /// between openings like the Mac's "ui.frequencyStepSize".
     public static int FrequencyStepHz
     {
-        get => _cache.FrequencyStepHz is 100 or 1_000 or 10_000 ? _cache.FrequencyStepHz : 1_000;
+        get => _cache.FrequencyStepHz is 10 or 100 or 1_000 or 10_000 ? _cache.FrequencyStepHz : 1_000;
         set
         {
             _cache.FrequencyStepHz = value;

@@ -96,11 +96,11 @@ internal sealed class VfoEntryFlyout
         set.Click += async (_, _) => await CommitAsync();
 
         var step = new ComboBox { Width = 220, HorizontalAlignment = HorizontalAlignment.Center };
-        foreach (var (label, hz) in new[] { ("100 Hz", 100), ("1 kHz", 1_000), ("10 kHz", 10_000) })
+        foreach (var (label, hz) in new[] { ("10 Hz", 10), ("100 Hz", 100), ("1 kHz", 1_000), ("10 kHz", 10_000) })
         {
             step.Items.Add(new ComboBoxItem { Content = label, Tag = hz });
         }
-        step.SelectedIndex = AppSettings.FrequencyStepHz switch { 100 => 0, 10_000 => 2, _ => 1 };
+        step.SelectedIndex = AppSettings.FrequencyStepHz switch { 10 => 0, 100 => 1, 10_000 => 3, _ => 2 };
         step.SelectionChanged += (_, _) =>
         {
             if (step.SelectedItem is ComboBoxItem { Tag: int hz })

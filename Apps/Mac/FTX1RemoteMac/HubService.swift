@@ -700,7 +700,7 @@ final class HubService: ObservableObject {
         // conventional receive mode auto-selected the moment the primary
         // VFO crosses into them — edge-triggered against the *previous*
         // frequency's segment so stepping around inside one segment (the
-        // ±100Hz/1kHz/10kHz steppers in `FrequencyEntryView`) doesn't
+        // ±10Hz/100Hz/1kHz/10kHz steppers in `FrequencyEntryView`) doesn't
         // resend the same mode change on every step. `generalCoverageSegment`
         // treats an overlapping amateur allocation as taking precedence
         // (see its doc comment), so normal ham-band tuning never matches

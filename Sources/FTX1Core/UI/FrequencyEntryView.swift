@@ -15,12 +15,14 @@ public struct FrequencyEntryView: View {
     /// Up/down step size choices — persisted per device via `stepSize` so
     /// the last one picked carries over to the next time the popover opens.
     private enum StepSize: Int, CaseIterable {
+        case tenHz = 10
         case oneHundredHz = 100
         case oneKHz = 1_000
         case tenKHz = 10_000
 
         var label: String {
             switch self {
+            case .tenHz: "10 Hz"
             case .oneHundredHz: "100 Hz"
             case .oneKHz: "1 kHz"
             case .tenKHz: "10 kHz"
@@ -53,7 +55,8 @@ public struct FrequencyEntryView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .frame(width: 220)
+            .labelsHidden()
+            .frame(width: 280)
 
             HStack(spacing: 20) {
                 Button {
