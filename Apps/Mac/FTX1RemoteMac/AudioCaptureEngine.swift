@@ -4,6 +4,7 @@ import AVFoundation
 import CoreAudio
 import CoreGraphics
 import Foundation
+import FTX1Core
 import os
 
 /// One tap callback's worth of rendered display frames — always produced
@@ -231,7 +232,7 @@ final class AudioCaptureEngine {
         // — `HubService.onSubChannelSamples` feeds it to `subAudioPlayback`
         // and the independent `aprsDecoderSub` (see repo CLAUDE.md, "Dual
         // Main/Sub audio channels").
-        let client = RemoteAudioStreamClient(host: RigctldSettings.activeRemoteHost) { [weak self] left, right, sampleRate in
+        let client = RemoteAudioStreamClient(host: RigctldSettings.activeRemoteHost, logSubsystem: "com.ftx1remote.mac") { [weak self] left, right, sampleRate in
             guard let self else { return }
             // `left`/`right` are the rig's physical L/R channels; which of
             // them is the Main *role* depends on `channelsSwapped` (see its

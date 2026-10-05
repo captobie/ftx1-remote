@@ -24,7 +24,8 @@ over Tailscale, without needing to be physically near the rig.
   mid-session with it); only an unresponsive/stale one gets killed and
   replaced.
 - **Mac app exposes a WebSocket server** that iOS/iPadOS clients connect to.
-  Mobile apps never talk to rigctld directly.
+  Mobile apps never talk to rigctld directly — except the iPhone's
+  Pi-direct proof of concept (see "iPhone Pi-direct proof of concept" below).
 - **Mac's own local UI calls `HubService` directly** (`hub.send(...)`,
   bypassing `RigWebSocketClient`/`RigWebSocketServer`) rather than
   round-tripping through the WebSocket to itself — the original plan was for
@@ -258,7 +259,8 @@ re-architecture.
   `Pi/ftx1-audiostream.py` (a small Python + `pyalsaaudio` script, run as
   its own systemd service on the Pi alongside `rigctld.service`/`direwolf.
   service`, listening on port 8532) via the new `RemoteAudioStreamClient`
-  (Mac-only, `Apps/Mac/FTX1RemoteMac/`). This piggybacks on the same
+  (originally Mac-only; in `Sources/FTX1Core/Audio/` since 2026-10-05,
+  shared with the iPhone's Pi-direct proof of concept). This piggybacks on the same
   `RigctldSettings.connectionMode`/`.remoteHost` the rig-control work
   already added — deliberately no separate audio setting, since the rig's
   audio-out cable physically moves with wherever the USB/serial connection
@@ -604,6 +606,55 @@ re-architecture.
     channel swapped onto Main, then V/M tried to restore Sub's old CW
     frequency). Leaving Memory then sends a bare "VM000" until the next
     VFO-mode poll relearns it.
+
+## iPhone Pi-direct proof of concept (started 2026-10-05)
+
+A deliberate, contained exception to "mobile apps never talk to rigctld":
+the iPhone app can connect straight to the Pi's rigctld over Tailscale,
+without the Mac hub (user decision, 2026-10-05). Picked with a "Mac hub /
+Pi direct" segmented control at the top of `ContentView` (`@AppStorage
+"connectionRoute"`); switching disconnects the side being left. The
+Mac-hub path (`RigClientViewModel`, now in `HubControlView`) is unchanged.
+All of it lives in the iOS target, not `FTX1Core`.
+
+- **Milestone 1, control (2026-10-05, Simulator against the real Pi)**:
+  `PiDirectViewModel` owns a `RigctldClient` (`<piHost>:4532`, host
+  `@AppStorage "piHost"`, default `ftx1pi`) and a `CommandQueue`; polls
+  every 1 s for MAIN frequency ("FA"), MAIN/SUB mode ("MD0"/"MD1"), SUB
+  frequency and PTT, best-effort like `HubService`; only
+  `.connectionLost`/`.notConnected` ends the session (retry after 3 s).
+  Logs under subsystem "com.ftx1remote.ios", category "pi-direct".
+  Accepts only `.setFrequency`/`.setMode`. Verified: connect, live
+  read, mode change confirmed independently with a raw "MD0;" read
+  (USB, then back to CW), Disconnect. Not yet tried on a real iPhone or
+  over cellular; the frequency-entry tune path wasn't exercised.
+- **Receive only, on purpose**: the Enable Transmit and amateur-band gates
+  live in `HubService.send(_:)`, which this path bypasses — port a gate
+  (like Windows' `TransmitGate`) before adding PTT or anything else that
+  transmits.
+- Milestone 1 confirmed on a real iPhone by the user, 2026-10-05.
+- **Milestone 2, Main audio (2026-10-05, Simulator against the real Pi)**:
+  `RemoteAudioStreamClient` moved from the Mac target to
+  `FTX1Core/Audio/` (now `public`, takes a `logSubsystem` — the Mac passes
+  "com.ftx1remote.mac"; cancelling it now also cancels the
+  `NWConnection`, so a stopped client can't sit in the Pi's listen
+  backlog). `PiDirectViewModel` runs one alongside the rigctld link (own
+  retry loop), downsamples the **left** channel with `PiAudioDownsampler`
+  (44.1 kHz float → 8 kHz Int16, one long-lived `AVAudioConverter`) on
+  the client's actor, and pushes into an `AudioPlaybackEngine` on the
+  main actor. `audioState` (off/waiting/playing, "waiting" = no samples
+  for 2 s) is sampled once a second, not published per chunk. Mute and
+  VOL/SQL sliders use the same `AudioPlaybackSettings` keys as the iPad's
+  Main controls (squelch slider inverted the same way). The quieting-
+  based `SquelchGate` stays shut on HF band noise (~0.02 RMS vs the 0.015
+  default), so SQL has to go left to hear SSB/CW. Verified: samples at
+  real-time rate (~21.5 chunks/s), gate opening with SQL left, "waiting"
+  while another client (`nc`) held :8532 with rig control unaffected, and
+  automatic pickup once it let go. Audio confirmed on a real iPhone by
+  the user the same day; not yet tried over cellular. Known gaps: left channel = Main only until a swap (the
+  Mac's `audioChannelsSwapped` isn't ported); no background audio
+  (`UIBackgroundModes`); accepted limit (user decision) — the Pi serves
+  one audio client at a time, so the Mac must not hold the stream.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
@@ -1516,7 +1567,7 @@ WebSDR differences are in their own bullet at the end.
   builds a real `DeepSettingsView` destination). Also owns the audio-derived
   waterfall/oscilloscope display (`AudioCaptureEngine`, `ScopeDisplayView`,
   `AudioInputDevice`/`AudioInputSettings`, and — `.remote`-mode only —
-  `RemoteAudioStreamClient`) — Mac-only, see Architecture above. Also owns
+  the shared `FTX1Core` `RemoteAudioStreamClient`) — Mac-only, see Architecture above. Also owns
   FT8 decoding (`FT8DecodeCoordinator`, `FT8Resampler`, `FT8Store`,
   `FT8Spot`, `FT8ListView`) — see "Digital modes — FT8" above. Also
   owns CW decoding and sending (`CWReceiver`, `CWSender`, `CWWindowView`,

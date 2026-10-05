@@ -1,10 +1,56 @@
 import FTX1Core
 import SwiftUI
 
+/// Top level: picks between the normal Mac-hub connection and the
+/// Pi-direct proof of concept (`PiDirectView`). Switching disconnects the
+/// side being left, so only one link is ever live.
+struct ContentView: View {
+    enum ConnectionRoute: String, CaseIterable {
+        case macHub
+        case piDirect
+
+        var label: String {
+            switch self {
+            case .macHub: "Mac hub"
+            case .piDirect: "Pi direct"
+            }
+        }
+    }
+
+    @EnvironmentObject private var hubViewModel: RigClientViewModel
+    @EnvironmentObject private var piViewModel: PiDirectViewModel
+    @AppStorage("connectionRoute") private var route: ConnectionRoute = .macHub
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("Connection", selection: $route) {
+                ForEach(ConnectionRoute.allCases, id: \.self) { route in
+                    Text(route.label).tag(route)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+
+            switch route {
+            case .macHub: HubControlView()
+            case .piDirect: PiDirectView()
+            }
+            Spacer(minLength: 0)
+        }
+        .onChange(of: route) { _, newRoute in
+            switch newRoute {
+            case .macHub: piViewModel.disconnect()
+            case .piDirect: hubViewModel.disconnect()
+            }
+        }
+    }
+}
+
 /// Focused single-rig-control view (see repo root CLAUDE.md) — no attempt
 /// to cram the Mac's dense multi-pane layout in here. Real VFO/mode/PTT
 /// controls land once this skeleton is wired up further.
-struct ContentView: View {
+struct HubControlView: View {
     @EnvironmentObject private var viewModel: RigClientViewModel
     @AppStorage("hubHost") private var host: String = ""
     @State private var isPTTPressed = false
@@ -39,27 +85,8 @@ struct ContentView: View {
         .padding(24)
     }
 
-    /// Grid of mode buttons under PTT — iOS has no room for the Mac's
-    /// segmented `Picker`, and a grid keeps every mode a single tap away
-    /// instead of buried in a menu. 4 columns fits all 8 `RigMode` cases
-    /// (excluding `.unknown`) in two rows on an iPhone-width screen.
     private var modeGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
-            ForEach(RigMode.allCases.filter { $0 != .unknown }, id: \.self) { mode in
-                Button {
-                    viewModel.send(.setMode(mode))
-                } label: {
-                    Text(mode.displayName)
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(mode == viewModel.rigState.mode ? Color.accentColor : Color.gray.opacity(0.25))
-                        .foregroundStyle(mode == viewModel.rigState.mode ? Color.white : Color.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-            }
-        }
+        ModeGrid(selected: viewModel.rigState.mode) { viewModel.send(.setMode($0)) }
     }
 
     /// Momentary press-and-hold, not a toggle — keys on touch-down and
@@ -130,7 +157,37 @@ struct ContentView: View {
     }
 }
 
+/// Grid of mode buttons — iOS has no room for the Mac's segmented
+/// `Picker`, and a grid keeps every mode a single tap away instead of
+/// buried in a menu. 4 columns fits all 8 `RigMode` cases (excluding
+/// `.unknown`) in two rows on an iPhone-width screen. Shared by the hub
+/// and Pi-direct views.
+struct ModeGrid: View {
+    let selected: RigMode
+    let onSelect: (RigMode) -> Void
+
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
+            ForEach(RigMode.allCases.filter { $0 != .unknown }, id: \.self) { mode in
+                Button {
+                    onSelect(mode)
+                } label: {
+                    Text(mode.displayName)
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(mode == selected ? Color.accentColor : Color.gray.opacity(0.25))
+                        .foregroundStyle(mode == selected ? Color.white : Color.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
 #Preview {
     ContentView()
         .environmentObject(RigClientViewModel())
+        .environmentObject(PiDirectViewModel())
 }

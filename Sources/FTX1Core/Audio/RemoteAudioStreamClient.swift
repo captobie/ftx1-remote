@@ -32,7 +32,11 @@ import os
 /// Owns its own connect/retry loop, independent of `RigctldClient`'s — the
 /// audio link and the CAT link are two separate TCP connections to two
 /// separate Pi-side services, and one can drop while the other stays up.
-actor RemoteAudioStreamClient {
+///
+/// Lives in `FTX1Core` (moved from the Mac target 2026-10-05) because the
+/// iPhone's Pi-direct proof of concept uses it too (`PiDirectViewModel`);
+/// each app passes its own `logSubsystem`.
+public actor RemoteAudioStreamClient {
     private let host: String
     private let port: UInt16
     private let sampleRate: Double
@@ -52,15 +56,16 @@ actor RemoteAudioStreamClient {
     private var running = false
     private var loopTask: Task<Void, Never>?
 
-    /// Diagnostic-only — check via Console.app (subsystem
-    /// "com.ftx1remote.mac", category "remote-audio"). Added because,
+    /// Diagnostic-only — check via Console.app (the subsystem the app
+    /// passed in — "com.ftx1remote.mac" on the Mac — category
+    /// "remote-audio"). Added because,
     /// unlike the rigctld link, nothing about this connection's state was
     /// visible anywhere before — a silent connect failure here would look
     /// identical to "connected but the Pi isn't sending anything" from the
     /// waterfall's perspective (blank either way).
-    private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "remote-audio")
+    private let logger: Logger
 
-    init(
+    public init(
         host: String,
         port: UInt16 = 8532,
         // 44100, not AudioStreamFormat.sampleRate (8000, the Mac→iPad
@@ -74,6 +79,7 @@ actor RemoteAudioStreamClient {
         sampleRate: Double = 44100,
         samplesPerChunk: Int = 2048,
         reconnectDelay: Duration = .seconds(3),
+        logSubsystem: String,
         onSamples: @escaping @Sendable (_ main: [Float], _ sub: [Float], _ sampleRate: Double) -> Void
     ) {
         self.host = host
@@ -82,17 +88,18 @@ actor RemoteAudioStreamClient {
         self.samplesPerChunk = samplesPerChunk
         self.reconnectDelay = reconnectDelay
         self.onSamples = onSamples
+        self.logger = Logger(subsystem: logSubsystem, category: "remote-audio")
     }
 
-    func start() {
+    public func start() {
         guard !running else { return }
-        Self.logger.notice("start() — connecting to \(self.host, privacy: .public):\(self.port)")
+        self.logger.notice("start() — connecting to \(self.host, privacy: .public):\(self.port)")
         running = true
         loopTask = Task { await self.connectionLoop() }
     }
 
-    func stop() {
-        Self.logger.notice("stop()")
+    public func stop() {
+        logger.notice("stop()")
         running = false
         loopTask?.cancel()
         loopTask = nil
@@ -108,7 +115,7 @@ actor RemoteAudioStreamClient {
                 // connection. Nothing here distinguishes "Pi unreachable"
                 // from "stream ended" — same open gap as the rigctld link's
                 // .failed state (see repo root CLAUDE.md's Option A notes).
-                Self.logger.error("connection attempt failed: \(String(describing: error), privacy: .public)")
+                self.logger.error("connection attempt failed: \(String(describing: error), privacy: .public)")
             }
             guard running, !Task.isCancelled else { return }
             try? await Task.sleep(for: reconnectDelay)
@@ -118,6 +125,20 @@ actor RemoteAudioStreamClient {
     private func receiveUntilDisconnected() async throws {
         let conn = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!, using: .tcp)
         defer { conn.cancel() }
+        // `stop()` cancels the loop task, but neither the ready-wait nor a
+        // pending `receive` notices cancellation by itself. That matters
+        // when the Pi's single audio slot is taken: the TCP connect still
+        // succeeds (into the listen backlog) and then no data ever comes,
+        // so without this a stopped client would sit on the Pi until the
+        // slot freed up.
+        try await withTaskCancellationHandler {
+            try await stream(on: conn)
+        } onCancel: {
+            conn.cancel()
+        }
+    }
+
+    private func stream(on conn: NWConnection) async throws {
 
         let readyGuard = ContinuationGuard()
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -135,7 +156,7 @@ actor RemoteAudioStreamClient {
             }
             conn.start(queue: .global(qos: .userInitiated))
         }
-        Self.logger.notice("connected")
+        self.logger.notice("connected")
 
         // Carries 0-3 leftover bytes across reads when a TCP chunk splits a
         // 4-byte stereo frame (2-byte Main sample + 2-byte Sub sample) —
@@ -164,7 +185,7 @@ actor RemoteAudioStreamClient {
             totalBytesReceived += chunk.count
             if totalBytesReceived - lastLoggedAtByteCount >= bytesPerHeartbeat {
                 lastLoggedAtByteCount = totalBytesReceived
-                Self.logger.notice("received \(totalBytesReceived) bytes so far")
+                self.logger.notice("received \(totalBytesReceived) bytes so far")
             }
             var bytes = pendingBytes
             bytes.append(contentsOf: chunk)
@@ -207,7 +228,7 @@ actor RemoteAudioStreamClient {
     }
 }
 
-enum RemoteAudioStreamError: Error {
+public enum RemoteAudioStreamError: Error {
     case disconnected
 }
 
