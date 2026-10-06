@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Services;
@@ -70,6 +71,18 @@ public sealed partial class SettingsDialog : ContentDialog
         BaudRateComboBox.SelectedItem = BaudRateComboBox.Items.OfType<ComboBoxItem>()
             .First(i => (int)i.Tag == AppSettings.BaudRate);
         UpdateModePanels();
+        PiHostBox.TextChanged += (_, _) => RefreshVersions();
+        RigctldPathBox.TextChanged += (_, _) => RefreshVersions();
+        Opened += (_, _) =>
+        {
+            _isOpen = true;
+            RefreshVersions();
+        };
+        Closed += (_, _) =>
+        {
+            _isOpen = false;
+            _versionLookup?.Cancel();
+        };
 
         // Audio
         RefreshAudioInputs();
@@ -319,13 +332,150 @@ public sealed partial class SettingsDialog : ContentDialog
     private ConnectionMode SelectedMode =>
         ConnectionModeComboBox.SelectedItem is ComboBoxItem { Tag: "Local" } ? ConnectionMode.Local : ConnectionMode.Remote;
 
-    private void ConnectionModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateModePanels();
+    private void ConnectionModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        UpdateModePanels();
+        RefreshVersions();
+    }
 
     private void UpdateModePanels()
     {
         var local = SelectedMode == ConnectionMode.Local;
         LocalSettingsPanel.Visibility = local ? Visibility.Visible : Visibility.Collapsed;
         RemoteSettingsPanel.Visibility = local ? Visibility.Collapsed : Visibility.Visible;
+        InstalledVersionLabel.Visibility = local ? Visibility.Visible : Visibility.Collapsed;
+        InstalledVersionText.Visibility = local ? Visibility.Visible : Visibility.Collapsed;
+        RunningVersionLabel.Text = local ? "Running" : "Running on Pi";
+    }
+
+    // --- rigctld version box (the Mac's RigctldVersionBox) ---
+    //
+    // Follows the tab's unsaved fields. "Installed" (Local only) runs the
+    // chosen rigctld.exe with --version; "Running" asks whatever answers on
+    // port 4532 (127.0.0.1, or the Pi) through its own short-lived
+    // connection — the only way to see the Pi's version, and in Local mode
+    // it can differ from the file when an already-running rigctld was
+    // adopted.
+
+    private bool _isOpen;
+    private CancellationTokenSource? _versionLookup;
+
+    private void RefreshVersionButton_Click(object sender, RoutedEventArgs e) => RefreshVersions();
+
+    private async void RefreshVersions()
+    {
+        if (!_isOpen)
+        {
+            return;
+        }
+        _versionLookup?.Cancel();
+        var cts = new CancellationTokenSource();
+        _versionLookup = cts;
+        var token = cts.Token;
+
+        var local = SelectedMode == ConnectionMode.Local;
+        var path = RigctldPathBox.Text.Trim().Trim('"');
+        var host = local ? "127.0.0.1" : PiHostBox.Text.Trim();
+        InstalledVersionText.Text = "Checking…";
+        RunningVersionText.Text = "Checking…";
+        RefreshVersionButton.IsEnabled = false;
+        try
+        {
+            // Typing restarts this per keystroke; wait until it settles
+            // before connecting anywhere.
+            await Task.Delay(400, token);
+            if (local)
+            {
+                var installed = await Task.Run(() => BinaryVersion(path), token);
+                if (token.IsCancellationRequested) return;
+                InstalledVersionText.Text = installed;
+            }
+            var running = host.Length == 0 ? "No Pi hostname set" : await RunningVersionAsync(host, local, token);
+            if (token.IsCancellationRequested) return;
+            RunningVersionText.Text = running;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        finally
+        {
+            if (_versionLookup == cts)
+            {
+                RefreshVersionButton.IsEnabled = true;
+            }
+        }
+    }
+
+    /// "rigctld --version" prints e.g. "rigctld Hamlib 4.7.2 …"; the program
+    /// name is dropped to match what "\dump_caps" reports.
+    private static string BinaryVersion(string path)
+    {
+        if (path.Length == 0 || !File.Exists(path))
+        {
+            return "No rigctld.exe at this path";
+        }
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                Arguments = "--version",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            });
+            if (process is null)
+            {
+                return "Couldn't run rigctld.exe";
+            }
+            var output = process.StandardOutput.ReadToEnd();
+            if (!process.WaitForExit(5000))
+            {
+                process.Kill();
+                return "rigctld.exe didn't answer";
+            }
+            var line = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .FirstOrDefault() ?? "";
+            if (line.StartsWith("rigctld ", StringComparison.Ordinal))
+            {
+                line = line["rigctld ".Length..];
+            }
+            return line.Length == 0 ? "No version reported" : line;
+        }
+        catch (Exception)
+        {
+            return "Couldn't run rigctld.exe";
+        }
+    }
+
+    private static async Task<string> RunningVersionAsync(string host, bool local, CancellationToken token)
+    {
+        await using var client = new RigctldClient(host);
+        try
+        {
+            // Windows retries a refused connection for ~2 s before failing,
+            // so localhost's "nothing there" takes that long; the Pi gets
+            // the usual 5 s.
+            await client.ConnectAsync(TimeSpan.FromSeconds(local ? 3 : 5), token);
+        }
+        catch (RigctldError)
+        {
+            return local ? "Not running" : "Unreachable";
+        }
+        try
+        {
+            return await client.ReadHamlibVersionAsync(token) ?? "No version reported";
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            return "No reply from rigctld";
+        }
+        catch (Exception ex) when (ex is RigctldError or IOException)
+        {
+            return "No reply from rigctld";
+        }
     }
 
     private async void BrowseRigctldButton_Click(object sender, RoutedEventArgs e)

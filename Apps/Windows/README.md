@@ -136,6 +136,14 @@ applied at once, also while connected, except the rigctld tab (below).
   connected. The connection bar says which connection Connect will use
   ("Disconnected · Remote, ftx1pi"); Connect with no Pi host (Remote), or
   no rigctld.exe or COM port (Local), points at Settings instead.
+
+  A **Version** box (2026-10-06, the Mac's `RigctldVersionBox`; written on
+  the Mac, not yet built or run on Windows) follows the tab's unsaved
+  fields: **Installed** (Local only) is `rigctld.exe --version`, and
+  **Running** is the "Hamlib version:" line of `\dump_caps` from whatever
+  answers on port 4532 (127.0.0.1, or the Pi), read over a short-lived
+  connection of its own (`RigctldClient.ReadHamlibVersionAsync`), so it
+  works while connected too.
 - **Audio**: the Local-mode input device and the playback output device
   (see "Audio" below). The Audio on/off switch and the MAIN/SUB mute,
   VOL and SQL stay in the main window.

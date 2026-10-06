@@ -707,6 +707,43 @@ public sealed class RigctldClient : IAsyncDisposable
         }
     }
 
+    /// The running rigctld's Hamlib version (e.g. "Hamlib 4.7.2
+    /// 2026-06-21T13:07:37Z SHA=40f63488f 32-bit"), from the "Hamlib
+    /// version:" line near the top of "\dump_caps" — rigctld has no version
+    /// verb. Port of RigctldClient.swift's readHamlibVersion: the dump is
+    /// ~2300 lines, so this reads only up to that line and disconnects
+    /// rather than draining the rest. For a short-lived client of its own
+    /// (the Settings dialog's version box), never the main one; a timeout
+    /// just disconnects, without ReadReplyLineAsync's reconnect.
+    public async Task<string?> ReadHamlibVersionAsync(CancellationToken cancellationToken = default)
+    {
+        await _roundTripLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await WriteAsync("\\dump_caps", cancellationToken).ConfigureAwait(false);
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+            for (var i = 0; i < 20; i++)
+            {
+                var line = await ReadLineAsync(linked.Token).ConfigureAwait(false);
+                if (line.StartsWith("RPRT", StringComparison.Ordinal))
+                {
+                    throw new RigctldError($"'\\dump_caps' failed: {line}");
+                }
+                if (line.StartsWith("Hamlib version:", StringComparison.Ordinal))
+                {
+                    return line["Hamlib version:".Length..].Trim();
+                }
+            }
+            return null;
+        }
+        finally
+        {
+            Disconnect();
+            _roundTripLock.Release();
+        }
+    }
+
     /// The write itself takes ~2 s (see WriteKeyerMemoryAsync), so this is
     /// the Mac's 6 s, not raw CAT's 1 s.
     private static readonly TimeSpan KeyerMemoryWriteTimeout = TimeSpan.FromSeconds(6);

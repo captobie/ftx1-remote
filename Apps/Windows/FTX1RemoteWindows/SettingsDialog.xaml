@@ -68,6 +68,32 @@
                         <TextBlock Text="rigctld is started on 127.0.0.1:4532 (or an already-running one is used), so WSJT-X's &quot;Hamlib NET rigctl&quot; can share it."
                                    Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                     </StackPanel>
+
+                    <!-- The Mac's RigctldVersionBox: follows the fields above (unsaved). -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Version" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                CornerRadius="4" Padding="12,8">
+                            <Grid ColumnSpacing="12" RowSpacing="6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock x:Name="InstalledVersionLabel" Text="Installed" />
+                                <TextBlock x:Name="InstalledVersionText" Grid.Column="1" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
+                                <TextBlock x:Name="RunningVersionLabel" Grid.Row="1" Text="Running" />
+                                <TextBlock x:Name="RunningVersionText" Grid.Row="1" Grid.Column="1" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
+                                <Button x:Name="RefreshVersionButton" Grid.RowSpan="2" Grid.Column="2" Content="Refresh"
+                                        VerticalAlignment="Bottom" Click="RefreshVersionButton_Click" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Audio -->
