@@ -55,6 +55,12 @@ public struct VFODisplayBox: View {
     /// Up/down memory-channel-step callback — see `onSetFrequency`. Only
     /// used while `vfoMemoryMode == .memory`.
     let onStepMemoryChannel: ((Bool) -> Void)?
+    /// The rig's memory scan — see `RigState.memoryScan`. While scanning,
+    /// the channel, frequency and mode are hidden (they're a stale sample:
+    /// the rig steps faster than the app polls) and the indicator line
+    /// reads SCAN; paused shows the channel it stopped on. `nil` (the
+    /// default) shows nothing extra.
+    let memoryScan: MemoryScanState?
 
     @State private var isEditing = false
 
@@ -72,7 +78,8 @@ public struct VFODisplayBox: View {
         memoryChannel: Int? = nil,
         memoryChannelTag: String? = nil,
         onSetMemoryChannel: ((Int) -> Void)? = nil,
-        onStepMemoryChannel: ((Bool) -> Void)? = nil
+        onStepMemoryChannel: ((Bool) -> Void)? = nil,
+        memoryScan: MemoryScanState? = nil
     ) {
         self.label = label
         self.frequencyHz = frequencyHz
@@ -88,6 +95,17 @@ public struct VFODisplayBox: View {
         self.memoryChannelTag = memoryChannelTag
         self.onSetMemoryChannel = onSetMemoryChannel
         self.onStepMemoryChannel = onStepMemoryChannel
+        self.memoryScan = memoryScan
+    }
+
+    private var isScanning: Bool { memoryScan == .scanning }
+
+    private var scanIndicator: String? {
+        switch memoryScan {
+        case .scanning: return "SCAN"
+        case .paused: return "SCAN PAUSED"
+        case .stopped, nil: return nil
+        }
     }
 
     /// Whether tapping should open the memory-channel popover instead of
@@ -113,6 +131,7 @@ public struct VFODisplayBox: View {
     /// The memory-channel tag's text ("CH 11 K7RPT") while in Memory mode,
     /// shown in its own box after the TXRX/RX indicator; nil otherwise.
     private var channelText: String? {
+        if isScanning { return "SCANNING" }
         guard vfoMemoryMode == .memory, let memoryChannel else { return nil }
         let tagSuffix = memoryChannelTag.map { " \($0)" } ?? ""
         return "CH \(memoryChannel)\(tagSuffix)"
@@ -146,7 +165,7 @@ public struct VFODisplayBox: View {
                         .tagBoxed()
                 }
                 Spacer(minLength: 8)
-                Text(mode)
+                Text(isScanning ? "—" : mode)
                     .font(.caption2)
                     .foregroundStyle(digitColor)
                     .tagBoxed()
@@ -164,6 +183,11 @@ public struct VFODisplayBox: View {
                 }
                 if aprsActive {
                     Text("APRS")
+                        .font(.caption2)
+                        .foregroundStyle(digitColor)
+                }
+                if let scanIndicator {
+                    Text(scanIndicator)
                         .font(.caption2)
                         .foregroundStyle(digitColor)
                 }
@@ -230,7 +254,7 @@ public struct VFODisplayBox: View {
     /// Grouped like the rig's own display (e.g. "147.380.000") rather than
     /// a plain Hz count, so it reads the way a radio operator expects.
     private var formattedFrequency: String {
-        guard let frequencyHz, frequencyHz > 0 else { return "-- . --- . ---" }
+        guard !isScanning, let frequencyHz, frequencyHz > 0 else { return "-- . --- . ---" }
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = "."

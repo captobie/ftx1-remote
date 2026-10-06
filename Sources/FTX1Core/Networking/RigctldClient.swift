@@ -799,6 +799,12 @@ public actor RigctldClient {
         }
     }
 
+    /// The raw "RI0" (RADIO INFORMATION) answer, parsed — see
+    /// `RadioInformation`. nil for an answer of the wrong shape.
+    public func getRadioInformation() async throws -> RadioInformation? {
+        RadioInformation(reply: try await sendRawCommand("RI0"))
+    }
+
     /// Writes CW TEXT keyer memory `slot` (1-5) with the FTX-1's "KM" and
     /// returns what the rig stored (without its "}" end marker, which it
     /// appends itself). Probed on the real rig, 2026-10-02:

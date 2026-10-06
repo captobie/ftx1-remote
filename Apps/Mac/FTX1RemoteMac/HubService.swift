@@ -299,6 +299,12 @@ final class HubService: ObservableObject {
     /// fast ticks a few reads at a time instead of running as one block
     /// (see `pollLoop()`).
     private var slowTierCursor = 0
+    /// Direction of the last memory scan the app started, reused by Skip.
+    private var lastMemoryScanDirection: MemoryScanDirection = .up
+    /// When the app last started a memory scan — see `memoryScanTick`.
+    private var memoryScanStartedAt: ContinuousClock.Instant?
+    /// See `memoryScanTick`. ~4 "RI0" reads a second at ~55–110 ms each.
+    private let memoryScanTickInterval: Duration = .milliseconds(250)
     /// User-adjustable (Settings → Polling), default 6: the slow-tier
     /// reads each fast tick adds, so a full slow cycle (~50 reads) takes
     /// ~8 ticks. The slow tier only needs to catch external (front-panel)
@@ -654,12 +660,46 @@ final class HubService: ObservableObject {
     /// own. This is the only path commands take (local UI and WebSocket-
     /// forwarded mobile commands both call this), so it covers both.
     func send(_ command: RigCommand) {
+        send(command, memoryScanStopped: false)
+    }
+
+    /// Skip on a paused memory scan: the same scan command again, which the
+    /// rig takes as "resume past this channel" (rig-confirmed 2026-10-06).
+    /// A scan started from the front panel resumes upward.
+    func skipMemoryScanChannel() {
+        send(.setMemoryScan(lastMemoryScanDirection))
+    }
+
+    private var isMemoryScanActive: Bool {
+        rigState.memoryScan == .scanning || rigState.memoryScan == .paused
+    }
+
+    /// `memoryScanStopped`: the scan-stop for this command has already been
+    /// queued (see below), so don't queue another.
+    private func send(_ command: RigCommand, memoryScanStopped: Bool) {
         if !transmitEnabled, Self.isTransmitCapable(command) {
             Self.connectionLogger.notice("Blocked transmit-capable command (transmit disabled): \(String(describing: command), privacy: .public)")
             return
         }
         if Self.isTransmitCapable(command), BandPlan.band(containing: rigState.frequencyHz) == nil {
             Self.connectionLogger.notice("Blocked transmit-capable command (outside amateur band): \(String(describing: command), privacy: .public)")
+            return
+        }
+        // "SC" in VFO mode runs the rig's VFO scan instead (seen in the
+        // 2026-10-06 probes), which this app doesn't model.
+        if case .setMemoryScan(let direction) = command, direction != .off, rigState.vfoMemoryMode != .memory {
+            Self.connectionLogger.notice("Ignored memory scan start outside Memory mode")
+            return
+        }
+        // Tuning, recalling a channel or transmitting while the rig scans
+        // would be fighting it, so the scan is stopped first. Enqueued
+        // before re-sending, so `CommandQueue`'s FIFO order puts the stop
+        // ahead of the command whichever branch below handles it.
+        if !memoryScanStopped, isMemoryScanActive, Self.stopsMemoryScan(command) {
+            Task {
+                await commandQueue.enqueue(.setMemoryScan(.off))
+                self.send(command, memoryScanStopped: true)
+            }
             return
         }
         if case .setBand(let name) = command {
@@ -818,7 +858,23 @@ final class HubService: ObservableObject {
              .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow, .setFilterSide, .setAntSelect, .setTXW, .setTXSide, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel,
-             .setSubMemoryChannel, .stepSubMemoryChannel, .recallMemoryChannel:
+             .setSubMemoryChannel, .stepSubMemoryChannel, .recallMemoryChannel, .setMemoryScan:
+            return false
+        }
+    }
+
+    /// Commands that move MAIN off the channel a memory scan is on, or key
+    /// the transmitter — see `send(_:memoryScanStopped:)`. SUB-side and
+    /// settings commands leave the scan running.
+    private static func stopsMemoryScan(_ command: RigCommand) -> Bool {
+        if isTransmitCapable(command) { return true }
+        switch command {
+        case .setFrequency, .setMode, .setBand, .swapActiveVFO, .setVFOMemoryMode,
+             .setMemoryChannel, .stepMemoryChannel:
+            return true
+        case .recallMemoryChannel(_, let sub):
+            return !sub
+        default:
             return false
         }
     }
@@ -968,6 +1024,15 @@ final class HubService: ObservableObject {
             Task { await refreshMemoryChannel(sub: false) }
         case .setSubMemoryChannel, .stepSubMemoryChannel:
             Task { await refreshMemoryChannel(sub: true) }
+        case .setMemoryScan(let direction):
+            if direction == .off {
+                rigState.memoryScan = .stopped
+                Task { await publishMemoryScanStop(.stopped) }
+            } else {
+                lastMemoryScanDirection = direction
+                memoryScanStartedAt = .now
+                rigState.memoryScan = .scanning
+            }
         case .recallMemoryChannel(_, let sub):
             // Like the channel commands: read back what the rig did rather
             // than guess (a blank channel is ignored). For MAIN that's
@@ -988,6 +1053,66 @@ final class HubService: ObservableObject {
         case .triggerZeroIn, .triggerAntennaTune, .selectCWMessageChannel,
              .setCWMessageRecording, .playCWMessage, .playCWTextMemory, .setMenuItem:
             break
+        }
+    }
+
+    /// One poll tick while the rig's memory scan runs, in place of the fast
+    /// and slow tiers: just "RI0", every `memoryScanTickInterval`. The rig
+    /// steps ~10 channels a second (measured 2026-10-06), so the regular
+    /// tiers' frequency/channel reads would only catch a random channel
+    /// each; what matters is noticing the moment it pauses on a busy
+    /// channel (or stops), then `publishMemoryScanStop` reads that channel.
+    private func memoryScanTick() async throws {
+        let info: RadioInformation?
+        do {
+            info = try await rigctld.getRadioInformation()
+        } catch let error as RigctldError where error == .connectionLost || error == .notConnected {
+            throw error
+        } catch {
+            info = nil
+        }
+        guard let info, rigState.memoryScan == .scanning else { return }
+        if info.scan == .scanning {
+            if rigState.ptt != info.isTransmitting {
+                rigState.ptt = info.isTransmitting
+                await server.broadcast(rigState)
+            }
+            return
+        }
+        // Right after the app starts a scan, a "stopped" read may predate
+        // the rig acting on "SC" — don't take it as the scan ending.
+        if info.scan == .stopped, let memoryScanStartedAt, ContinuousClock.now - memoryScanStartedAt < .seconds(1) {
+            return
+        }
+        await publishMemoryScanStop(info.scan)
+    }
+
+    /// Reads and publishes the channel a memory scan paused or stopped on,
+    /// straight away rather than at the next fast tick. "MC0" is read again
+    /// after "FA" and the mode, and the set retried if it changed: the
+    /// scan may have moved on between the reads (a scan can resume from a
+    /// pause at any time). If nothing consistent comes back,
+    /// `rigState.memoryScan` is left as it was, so the scan tick (or the
+    /// next fast tick) tries again.
+    private func publishMemoryScanStop(_ state: MemoryScanState) async {
+        let generationAtStart = commandGeneration
+        for _ in 0..<3 {
+            guard let channel = try? await rigctld.getRawInt("MC0"),
+                  let hz = try? await rigctld.getFrequency() else { continue }
+            let mode = (try? await rigctld.getModeCode(p1: 0))
+                .flatMap { $0 }
+                .flatMap(RigMode.init(catModeCode:))
+            guard (try? await rigctld.getRawInt("MC0")) == channel else { continue }
+            let tag = try? await rigctld.getMemoryChannelTag(channel: channel)
+            guard commandGeneration == generationAtStart else { return }
+            commandGeneration += 1
+            rigState.memoryScan = state
+            rigState.frequencyHz = hz
+            rigState.mode = mode ?? rigState.mode
+            rigState.memoryChannel = channel
+            rigState.memoryChannelTag = tag
+            await server.broadcast(rigState)
+            return
         }
     }
 
@@ -1450,6 +1575,11 @@ final class HubService: ObservableObject {
         // could have changed while the link was down.
         var primeSlowTier = true
         while !Task.isCancelled {
+            if rigState.memoryScan == .scanning {
+                try await timed("scan") { try await memoryScanTick() }
+                try await Task.sleep(for: memoryScanTickInterval)
+                continue
+            }
             let tickStart = ContinuousClock.now
             try await timed("fast") { try await refreshFastTier() }
             if primeSlowTier {
@@ -1606,6 +1736,14 @@ final class HubService: ObservableObject {
         if let memoryChannel {
             memoryChannelTag = try? await rigctld.getMemoryChannelTag(channel: memoryChannel)
         }
+        // The rig's memory scan, read last so it covers the reads above:
+        // only in Memory mode (one more raw read per tick there), or while a
+        // scan was last seen running, to see it end after leaving Memory
+        // mode from the front panel.
+        var radioInfo: RadioInformation?
+        if vfoMemoryModeRaw == 11 || isMemoryScanActive {
+            radioInfo = try? await rigctld.getRadioInformation()
+        }
 
         // Every field above has an optimistic-set counterpart in
         // applyOptimistically (frequency, mode, PTT, power level). If a
@@ -1616,6 +1754,17 @@ final class HubService: ObservableObject {
         // the command has already landed, so it reads the true value
         // without racing.
         guard commandGeneration == generationAtStart else { return }
+
+        // Scanning: the rig moved channels while the reads above ran, so
+        // the frequency/channel/mode they caught are a random sample that
+        // may not even belong together. Publish only the scan state; the
+        // poll loop switches to `memoryScanTick` next.
+        if let radioInfo, radioInfo.scan == .scanning {
+            rigState.memoryScan = .scanning
+            rigState.ptt = radioInfo.isTransmitting
+            await server.broadcast(rigState)
+            return
+        }
 
         // Amateur allocation wins on overlap (see `generalCoverageSegment`) —
         // `bandOrSegmentName` is what the Band picker's selection binds to,
@@ -1682,6 +1831,11 @@ final class HubService: ObservableObject {
         // stale channel number from the last time it was active.
         rigState.memoryChannel = memoryChannel
         rigState.memoryChannelTag = memoryChannelTag
+        if let radioInfo {
+            rigState.memoryScan = radioInfo.scan
+        } else if rigState.vfoMemoryMode != .memory {
+            rigState.memoryScan = nil
+        }
 
         // Only while genuinely in VFO mode — never from a Memory-mode
         // snapshot, whose frequency/mode are the channel's, not the VFO's.

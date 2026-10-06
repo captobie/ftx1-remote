@@ -75,6 +75,9 @@ struct MemoryListView: View {
             statusBar
         }
         .toolbar {
+            ToolbarItemGroup {
+                memoryScanControls
+            }
             ToolbarItem {
                 if store.isScanning {
                     Button("Stop", systemImage: "stop.circle", action: store.cancel)
@@ -107,6 +110,8 @@ struct MemoryListView: View {
             } else if let error = store.scanError {
                 Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
                 Text(error)
+            } else if let scanText {
+                Text(scanText)
             } else if let scanned = store.lastScanned {
                 Text("\(store.entries.count) channels · read \(scanned.formatted(date: .abbreviated, time: .shortened))")
             }
@@ -117,6 +122,51 @@ struct MemoryListView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(.bar)
+    }
+
+    /// The rig's memory scan on MAIN (`RigCommand.setMemoryScan`) — not
+    /// the Refresh read of the list, which this file otherwise calls a scan.
+    /// Only the buttons that apply right now are shown: Scan Down/Up while
+    /// stopped, then Skip (paused only) and Stop Scan while it runs.
+    @ViewBuilder
+    private var memoryScanControls: some View {
+        let state = hub.rigState.memoryScan
+        if state == .scanning || state == .paused {
+            if state == .paused {
+                Button("Skip", systemImage: "forward.end", action: hub.skipMemoryScanChannel)
+                    .labelStyle(.titleAndIcon)
+                    .disabled(!isConnected)
+                    .help("Resume the scan past this channel")
+            }
+            Button("Stop Scan", systemImage: "stop.circle") { hub.send(.setMemoryScan(.off)) }
+                .labelStyle(.titleAndIcon)
+                .disabled(!isConnected)
+                .help("Stop the memory scan")
+        } else {
+            let canStart = isConnected && hub.rigState.vfoMemoryMode == .memory
+            let hint = hub.rigState.vfoMemoryMode == .memory ? "" : " (put MAIN in Memory mode first)"
+            Button("Scan Down", systemImage: "chevron.down.circle") { hub.send(.setMemoryScan(.down)) }
+                .labelStyle(.titleAndIcon)
+                .disabled(!canStart)
+                .help("Scan MAIN's memory channels downward" + hint)
+            Button("Scan Up", systemImage: "chevron.up.circle") { hub.send(.setMemoryScan(.up)) }
+                .labelStyle(.titleAndIcon)
+                .disabled(!canStart)
+                .help("Scan MAIN's memory channels upward" + hint)
+        }
+    }
+
+    /// Status-bar text for the rig's memory scan; nil when it isn't running.
+    private var scanText: String? {
+        switch hub.rigState.memoryScan {
+        case .scanning:
+            return "Memory scan running…"
+        case .paused:
+            let channel = hub.rigState.memoryChannel.map { "CH \($0)" } ?? "a busy channel"
+            return "Memory scan paused on \(channel)"
+        case .stopped, nil:
+            return nil
+        }
     }
 
     private func recallButton(_ title: String, entry: MemoryChannelEntry, sub: Bool) -> some View {

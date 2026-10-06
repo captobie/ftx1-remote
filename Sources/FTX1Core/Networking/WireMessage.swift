@@ -286,6 +286,11 @@ public enum RigCommand: Sendable, Equatable {
     /// side if it's in VFO mode — the memory list window's MAIN/SUB
     /// buttons. "MC<side>" then "VM<side>11" (see `CommandQueue`).
     case recallMemoryChannel(channel: Int, sub: Bool)
+    /// Starts (up/down) or stops the rig's own scan on MAIN — raw "SC0<n>".
+    /// The hub only starts it while MAIN is in Memory mode, so it's a
+    /// memory scan; sending up/down again while paused resumes past the
+    /// busy channel (rig-confirmed 2026-10-06), which is how Skip works.
+    case setMemoryScan(MemoryScanDirection)
 
     /// Wire payload for `.recallMemoryChannel`.
     private struct RecallMemoryPayload: Codable, Sendable, Equatable {
@@ -374,6 +379,7 @@ public enum RigCommand: Sendable, Equatable {
         case setSubMemoryChannel = "set_sub_memory_channel"
         case stepSubMemoryChannel = "step_sub_memory_channel"
         case recallMemoryChannel = "recall_memory_channel"
+        case setMemoryScan = "set_memory_scan"
     }
 }
 
@@ -516,6 +522,8 @@ extension RigCommand: Codable {
         case .recallMemoryChannel:
             let payload = try container.decode(RecallMemoryPayload.self, forKey: .value)
             self = .recallMemoryChannel(channel: payload.channel, sub: payload.sub)
+        case .setMemoryScan:
+            self = .setMemoryScan(try container.decode(MemoryScanDirection.self, forKey: .value))
         }
     }
 
@@ -717,6 +725,9 @@ extension RigCommand: Codable {
         case .recallMemoryChannel(let channel, let sub):
             try container.encode(CommandName.recallMemoryChannel, forKey: .cmd)
             try container.encode(RecallMemoryPayload(channel: channel, sub: sub), forKey: .value)
+        case .setMemoryScan(let direction):
+            try container.encode(CommandName.setMemoryScan, forKey: .cmd)
+            try container.encode(direction, forKey: .value)
         }
     }
 }

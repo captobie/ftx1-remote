@@ -361,6 +361,13 @@ public struct RigState: Codable, Equatable, Sendable {
     public var subVfoMemoryMode: VFOMemoryMode?
     public var subMemoryChannel: Int?
     public var subMemoryChannelTag: String?
+    /// The rig's own MAIN-side scan (raw "SC", state from "RI0" P7), read
+    /// only while MAIN is in Memory mode or a scan was last seen running —
+    /// nil otherwise. While `.scanning` the rig steps ~10 channels a second,
+    /// faster than any poll, so `frequencyHz`/`memoryChannel`/`mode` are
+    /// left at their last values and the display hides them; they're
+    /// re-read the moment the scan pauses or stops.
+    public var memoryScan: MemoryScanState?
     /// Local app-level safety policy, not CAT-sourced — mirrors the Mac's
     /// `RigctldSettings.transmitEnabled` and is pushed to clients like every
     /// other field so a remote PTT/MOX/ANT TUNE control can reflect it. When
@@ -442,6 +449,7 @@ public struct RigState: Codable, Equatable, Sendable {
         subVfoMemoryMode: VFOMemoryMode? = nil,
         subMemoryChannel: Int? = nil,
         subMemoryChannelTag: String? = nil,
+        memoryScan: MemoryScanState? = nil,
         transmitEnabled: Bool = true
     ) {
         self.frequencyHz = frequencyHz
@@ -516,6 +524,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.subVfoMemoryMode = subVfoMemoryMode
         self.subMemoryChannel = subMemoryChannel
         self.subMemoryChannelTag = subMemoryChannelTag
+        self.memoryScan = memoryScan
         self.transmitEnabled = transmitEnabled
     }
 }

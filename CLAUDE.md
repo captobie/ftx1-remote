@@ -1266,6 +1266,55 @@ channel a receiver is on is highlighted.
   recall on MAIN and SUB from VFO mode, a recall while already in Memory
   mode, and V/M back to the VFO afterward.
 
+## Memory scan (Phase 1, 2026-10-06, rig-confirmed by the user the same day)
+
+The rig's own memory scan on MAIN, started from the app — not an app-side
+stepper (the rig does ~9–10 channels/s; stepping from the app over the Pi
+would manage ~3–4 even with the poll paused, so an app-side scan is only
+worth building later, for custom scan lists). Scan/Skip buttons next to
+Mem List under Waterfall (`ContentView`), and Scan Down/Up, Skip, Stop
+Scan in the Mem List window's toolbar (shown only when they apply).
+
+- **CAT, probed with a scratch script against the Pi first**: raw "SC0<n>"
+  (0 off, 1 up, 2 down; bare "SC;" reads back e.g. "SC01;" — "SC0;"/"SC1;"
+  answer "?;"). In Memory mode it's a memory scan; in VFO mode a VFO scan,
+  so `HubService.send` refuses to start one outside Memory mode. "RI0" P7
+  is the scan state (0 stopped, 1 scanning, 2 paused) and P8 the squelch;
+  parsed by `RadioInformation` (`FTX1Core/RigState/MemoryScan.swift`,
+  unit-tested against real answers). Sending "SC01" again while paused
+  resumes past the busy channel — that's Skip. None of the fast tier's
+  reads stop the scan. SCAN RESUME (EX030204) is BUSY on the user's rig.
+- **"SC" is an ordinary raw set** (`setRawInt("SC0", n, digits: 1)`),
+  answered at once since every raw set moved to the `W <cmd>; 0` form the
+  same day (see `sendRawCommandFireAndForget`). Multi-command raw writes
+  (`W A;B; ;`) run only the first command.
+- **Latency handling**: while scanning, `MC0`/`FA` samples are random and
+  can even belong to different channels, so `RigState.memoryScan ==
+  .scanning` hides channel, frequency and mode in `VFODisplayBox` (SCAN on
+  the indicator line, SCANNING in the channel box) and `pollLoop` runs
+  `memoryScanTick` instead of the fast/slow tiers: "RI0" only, every 250 ms
+  (~310 ms with the read). On pause/stop, `publishMemoryScanStop` reads
+  MC0/FA/MD0, MC0 again (retrying if it moved) and the tag, and publishes
+  at once. Measured in the app: ~0.65 s from the rig pausing to the
+  channel on screen. The fast tier reads "RI0" last, only in Memory mode
+  (or while a scan was last seen running), and drops that tick's
+  frequency/channel if it finds the rig scanning — which is also how a
+  front-panel scan or a BUSY auto-resume is picked up.
+- **Stopped before anything that would fight it**: tuning, band/mode,
+  swap, V/M, MAIN channel set/step/recall, and anything transmit-capable
+  (`HubService.stopsMemoryScan`) enqueue "SC00" ahead of the command.
+  SUB-side and settings commands leave it running.
+- `RigCommand.setMemoryScan(MemoryScanDirection)` ("set_memory_scan") and
+  `RigState.memoryScan` are on the wire, so the iPad's MAIN box shows
+  SCANNING/SCAN PAUSED too; the iPad has no scan controls yet, and the
+  Windows app doesn't have the feature.
+- Tested 2026-10-06 in the built app against the rig: Scan, display while
+  scanning, pause on busy channels, Skip, Scan Down (rig read "SC02;"),
+  Stop Scan, and a Mem List recall while scanning (SC00 went out first).
+  Not tried: a SUB scan (not offered — SUB's "SC1x" and what "SC;"/"RI0"
+  report for it are unprobed), front-panel skip flags (channels 101–114
+  looked skipped; "MR" has no skip field).
+
 ## WebSDR follow (KiwiSDR 2026-09-24, classic WebSDR 2026-09-25, OpenWebRX 2026-10-01)
 
 Tools → **WebSDR** opens `Window(id: "websdr-follow")` (Mac-only): an

@@ -70,11 +70,11 @@ struct ContentView: View {
                             VStack(spacing: 4) {
                                 scopeDisplayModeButtons
                                 // Under Waterfall: the same three equal
-                                // columns, two of them empty for now.
+                                // columns.
                                 HStack(spacing: 4) {
                                     memoryListButton
-                                    Color.clear.frame(maxWidth: .infinity, maxHeight: 0)
-                                    Color.clear.frame(maxWidth: .infinity, maxHeight: 0)
+                                    memoryScanButton
+                                    memoryScanSkipButton
                                 }
                             }
                             Text(swrLabel)
@@ -83,7 +83,7 @@ struct ContentView: View {
                                 .fixedSize()
                         }
                     }
-                    VFODisplayBox(label: "MAIN", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, txRxLabel: hub.rigState.mainTxRxLabel, callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.vfoMemoryMode, memoryChannel: hub.rigState.memoryChannel, memoryChannelTag: hub.rigState.memoryChannelTag, onSetMemoryChannel: { hub.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepMemoryChannel(up: $0)) })
+                    VFODisplayBox(label: "MAIN", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, txRxLabel: hub.rigState.mainTxRxLabel, callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.vfoMemoryMode, memoryChannel: hub.rigState.memoryChannel, memoryChannelTag: hub.rigState.memoryChannelTag, onSetMemoryChannel: { hub.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepMemoryChannel(up: $0)) }, memoryScan: hub.rigState.memoryScan)
                 }
                 GridRow(alignment: .top) {
                     channelControls(isSub: true)
@@ -322,6 +322,43 @@ struct ContentView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
+    }
+
+    /// Starts the rig's memory scan (upward) on MAIN, or stops it — see
+    /// `RigCommand.setMemoryScan`. Only offered in Memory mode, where "SC"
+    /// is a memory scan.
+    private var memoryScanButton: some View {
+        let isActive = hub.rigState.memoryScan == .scanning || hub.rigState.memoryScan == .paused
+        return Button {
+            hub.send(.setMemoryScan(isActive ? .off : .up))
+        } label: {
+            Text(isActive ? "Stop" : "Scan")
+                .font(.caption)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+                .background(isActive ? Color.accentColor : Color.gray.opacity(0.2))
+                .foregroundStyle(isActive ? Color.white : Color.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+        .disabled(hub.connectionState != .connected || (!isActive && hub.rigState.vfoMemoryMode != .memory))
+        .help(isActive ? "Stop the memory scan" : "Scan MAIN's memory channels (Memory mode)")
+    }
+
+    /// Moves a paused memory scan on past the busy channel.
+    private var memoryScanSkipButton: some View {
+        Button(action: hub.skipMemoryScanChannel) {
+            Text("Skip")
+                .font(.caption)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+                .background(Color.gray.opacity(0.2))
+                .foregroundStyle(Color.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+        .disabled(hub.connectionState != .connected || hub.rigState.memoryScan != .paused)
+        .help("Resume the scan past this channel")
     }
 
     private func scopeDisplayModeButton(_ title: String, mode: ScopeDisplayMode) -> some View {
