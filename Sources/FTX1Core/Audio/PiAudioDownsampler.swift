@@ -1,7 +1,6 @@
 import AVFoundation
-import FTX1Core
 
-/// Converts the Pi's 44.1 kHz Main-channel samples (as delivered by
+/// Converts one channel of the Pi's 44.1 kHz samples (as delivered by
 /// `RemoteAudioStreamClient`) into the 8 kHz Int16 mono PCM that
 /// `AudioPlaybackEngine.push(pcm:)` plays — the same wire format the Mac
 /// relays to iOS/iPad (`AudioStreamFormat.sampleRate`).
@@ -10,10 +9,10 @@ import FTX1Core
 /// state carries over chunk boundaries (same pattern as the Mac's
 /// `FT8Resampler`); rebuilt only if the source rate changes.
 ///
-/// `nonisolated` + `@unchecked Sendable`: called from
-/// `RemoteAudioStreamClient`'s actor, one chunk at a time, never
-/// concurrently — the target's default MainActor isolation doesn't fit.
-nonisolated final class PiAudioDownsampler: @unchecked Sendable {
+/// `@unchecked Sendable`: called from `RemoteAudioStreamClient`'s actor,
+/// one chunk at a time, never concurrently. Used by `PiDirectViewModel`,
+/// one instance per channel.
+public final class PiAudioDownsampler: @unchecked Sendable {
     private var converter: AVAudioConverter?
     private var sourceFormat: AVAudioFormat?
     private let targetFormat = AVAudioFormat(
@@ -23,10 +22,10 @@ nonisolated final class PiAudioDownsampler: @unchecked Sendable {
         interleaved: false
     )!
 
-    init() {}
+    public init() {}
 
     /// Returns little-endian Int16 PCM, or empty `Data` on any failure.
-    func convert(_ samples: [Float], sourceRate: Double) -> Data {
+    public func convert(_ samples: [Float], sourceRate: Double) -> Data {
         guard !samples.isEmpty else { return Data() }
 
         if sourceFormat?.sampleRate != sourceRate {

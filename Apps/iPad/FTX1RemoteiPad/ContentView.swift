@@ -1,12 +1,59 @@
 import FTX1Core
 import SwiftUI
 
+/// Top level: picks between the normal Mac-hub connection
+/// (`HubControlView`) and the Pi-direct proof of concept (`PiDirectView`),
+/// same switch as the iPhone's. Switching disconnects the side being left,
+/// so only one link is ever live.
+struct ContentView: View {
+    enum ConnectionRoute: String, CaseIterable {
+        case macHub
+        case piDirect
+
+        var label: String {
+            switch self {
+            case .macHub: "Mac hub"
+            case .piDirect: "Pi direct"
+            }
+        }
+    }
+
+    @EnvironmentObject private var hubViewModel: RigClientViewModel
+    @EnvironmentObject private var piViewModel: PiDirectViewModel
+    @AppStorage("connectionRoute") private var route: ConnectionRoute = .macHub
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("Connection", selection: $route) {
+                ForEach(ConnectionRoute.allCases, id: \.self) { route in
+                    Text(route.label).tag(route)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 360)
+            .padding(.horizontal, 32)
+            .padding(.top, 12)
+
+            switch route {
+            case .macHub: HubControlView()
+            case .piDirect: PiDirectView()
+            }
+        }
+        .onChange(of: route) { _, newRoute in
+            switch newRoute {
+            case .macHub: piViewModel.disconnect()
+            case .piDirect: hubViewModel.disconnect()
+            }
+        }
+    }
+}
+
 /// Dense multi-pane control UI, modeled on the Mac's `ContentView` rather
 /// than iPhone's single-focus flow (see repo root CLAUDE.md) — VFO A/B,
 /// meters, and band/mode selectors all visible together, plus the numbered
 /// `MenuPageView` grid. Unlike the Mac, this is a WebSocket client only
 /// (`RigClientViewModel`), never touches `RigctldClient` directly.
-struct ContentView: View {
+struct HubControlView: View {
     @EnvironmentObject private var viewModel: RigClientViewModel
     @AppStorage("hubHost") private var host: String = ""
     @AppStorage(AudioPlaybackSettings.volumeKey) private var mainAudioVolume: Double = 0.8
@@ -16,10 +63,6 @@ struct ContentView: View {
     @State private var isDraggingPower = false
     @State private var localPowerLevel: Double = 0
     @State private var isPTTPressed = false
-
-    /// Upper bound of the squelch slider's *displayed* range — see the
-    /// Mac's identical constant/doc comment in its own `ContentView`.
-    private static let squelchDisplayRange: Double = 0.05
 
     var body: some View {
         ScrollView {
@@ -124,7 +167,7 @@ struct ContentView: View {
     /// CLAUDE.md, "Dual Main/Sub audio channels".
     private var audioControls: some View {
         HStack(alignment: .top, spacing: 16) {
-            channelAudioControls(
+            ChannelAudioControls(
                 label: "SUB",
                 volume: $subAudioVolume,
                 squelchThreshold: $subAudioSquelchThreshold,
@@ -132,7 +175,7 @@ struct ContentView: View {
                 engine: viewModel.subAudioEngine,
                 onToggleMute: viewModel.toggleSubAudioMuted
             )
-            channelAudioControls(
+            ChannelAudioControls(
                 label: "MAIN",
                 volume: $mainAudioVolume,
                 squelchThreshold: $mainAudioSquelchThreshold,
@@ -140,64 +183,6 @@ struct ContentView: View {
                 engine: viewModel.audioEngine,
                 onToggleMute: viewModel.toggleMainAudioMuted
             )
-        }
-    }
-
-    /// One channel's worth of `audioControls` — see its doc comment.
-    /// `engine` is written to directly on every slider change (not routed
-    /// back through `RigClientViewModel`) since `AudioPlaybackEngine` is a
-    /// reference type owned by the view model already, same pattern the
-    /// pre-Sub single-channel version used for `viewModel.audioEngine`.
-    private func channelAudioControls(
-        label: String,
-        volume: Binding<Double>,
-        squelchThreshold: Binding<Double>,
-        isMuted: Bool,
-        engine: AudioPlaybackEngine,
-        onToggleMute: @escaping () -> Void
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button(action: onToggleMute) {
-                    Text(isMuted ? "Muted" : "Mute")
-                        .font(.caption2)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(isMuted ? Color.red : Color.gray.opacity(0.2))
-                        .foregroundStyle(isMuted ? Color.white : Color.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                }
-                .buttonStyle(.plain)
-            }
-            Text("Volume")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            Slider(value: volume, in: 0...1)
-                .onChange(of: volume.wrappedValue) { _, newValue in
-                    engine.volume = Float(newValue)
-                }
-            Text("Squelch")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            // `SquelchGate.threshold` is now "how close to true silence
-            // counts as quieting" — smaller is stricter (see its doc
-            // comment). Inverted here so dragging up still tightens the
-            // squelch, matching a normal radio's knob and the Mac's own
-            // slider — see its `squelchBinding` doc comment.
-            Slider(
-                value: Binding(
-                    get: { Self.squelchDisplayRange - squelchThreshold.wrappedValue },
-                    set: { squelchThreshold.wrappedValue = Self.squelchDisplayRange - $0 }
-                ),
-                in: 0...Self.squelchDisplayRange
-            )
-            .onChange(of: squelchThreshold.wrappedValue) { _, newValue in
-                engine.squelchThreshold = Float(newValue)
-            }
         }
     }
 
@@ -307,4 +292,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environmentObject(RigClientViewModel())
+        .environmentObject(PiDirectViewModel(logSubsystem: "com.ftx1remote.ipad"))
 }

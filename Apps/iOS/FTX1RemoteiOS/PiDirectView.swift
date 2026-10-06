@@ -76,17 +76,17 @@ struct PiDirectView: View {
     private var audioRow: some View {
         HStack(spacing: 12) {
             Button {
-                viewModel.toggleAudioMuted()
+                viewModel.toggleMainAudioMuted()
             } label: {
-                Image(systemName: viewModel.isAudioMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                Image(systemName: viewModel.isMainAudioMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                     .font(.title3)
                     .frame(width: 44, height: 36)
-                    .background(viewModel.isAudioMuted ? Color.orange.opacity(0.85) : Color.gray.opacity(0.25))
-                    .foregroundStyle(viewModel.isAudioMuted ? Color.white : Color.primary)
+                    .background(viewModel.isMainAudioMuted ? Color.orange.opacity(0.85) : Color.gray.opacity(0.25))
+                    .foregroundStyle(viewModel.isMainAudioMuted ? Color.white : Color.primary)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(viewModel.isAudioMuted ? "Unmute audio" : "Mute audio")
+            .accessibilityLabel(viewModel.isMainAudioMuted ? "Unmute audio" : "Mute audio")
 
             Text(audioStatus)
                 .font(.footnote)
@@ -113,10 +113,10 @@ struct PiDirectView: View {
             }
         }
         .onChange(of: volume, initial: true) { _, newValue in
-            viewModel.setVolume(newValue)
+            viewModel.mainAudioEngine.volume = Float(newValue)
         }
         .onChange(of: squelchThreshold, initial: true) { _, newValue in
-            viewModel.setSquelchThreshold(newValue)
+            viewModel.mainAudioEngine.squelchThreshold = Float(newValue)
         }
     }
 
@@ -124,7 +124,7 @@ struct PiDirectView: View {
         switch viewModel.audioState {
         case .off: "Audio off"
         case .waiting: "Waiting for audio — is the Mac using the Pi's stream?"
-        case .playing: viewModel.isAudioMuted ? "Main audio (muted)" : "Main audio"
+        case .playing: viewModel.isMainAudioMuted ? "Main audio (muted)" : "Main audio"
         }
     }
 

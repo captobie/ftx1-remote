@@ -24,8 +24,9 @@ over Tailscale, without needing to be physically near the rig.
   mid-session with it); only an unresponsive/stale one gets killed and
   replaced.
 - **Mac app exposes a WebSocket server** that iOS/iPadOS clients connect to.
-  Mobile apps never talk to rigctld directly — except the iPhone's
-  Pi-direct proof of concept (see "iPhone Pi-direct proof of concept" below).
+  Mobile apps never talk to rigctld directly — except the iPhone/iPad
+  Pi-direct proof of concept (see "Pi-direct proof of concept (iPhone,
+  iPad)" below).
 - **Mac's own local UI calls `HubService` directly** (`hub.send(...)`,
   bypassing `RigWebSocketClient`/`RigWebSocketServer`) rather than
   round-tripping through the WebSocket to itself — the original plan was for
@@ -260,7 +261,7 @@ re-architecture.
   its own systemd service on the Pi alongside `rigctld.service`/`direwolf.
   service`, listening on port 8532) via the new `RemoteAudioStreamClient`
   (originally Mac-only; in `Sources/FTX1Core/Audio/` since 2026-10-05,
-  shared with the iPhone's Pi-direct proof of concept). This piggybacks on the same
+  shared with the iPhone/iPad Pi-direct proof of concept). This piggybacks on the same
   `RigctldSettings.connectionMode`/`.remoteHost` the rig-control work
   already added — deliberately no separate audio setting, since the rig's
   audio-out cable physically moves with wherever the USB/serial connection
@@ -607,15 +608,23 @@ re-architecture.
     frequency). Leaving Memory then sends a bare "VM000" until the next
     VFO-mode poll relearns it.
 
-## iPhone Pi-direct proof of concept (started 2026-10-05)
+## Pi-direct proof of concept (iPhone, iPad) (started 2026-10-05)
 
 A deliberate, contained exception to "mobile apps never talk to rigctld":
-the iPhone app can connect straight to the Pi's rigctld over Tailscale,
-without the Mac hub (user decision, 2026-10-05). Picked with a "Mac hub /
-Pi direct" segmented control at the top of `ContentView` (`@AppStorage
-"connectionRoute"`); switching disconnects the side being left. The
-Mac-hub path (`RigClientViewModel`, now in `HubControlView`) is unchanged.
-All of it lives in the iOS target, not `FTX1Core`.
+the iPhone app (2026-10-05) and the iPad app (2026-10-06) can connect
+straight to the Pi's rigctld over Tailscale, without the Mac hub (user
+decision). Picked with a "Mac hub / Pi direct" segmented control at the
+top of each app's `ContentView` (`@AppStorage "connectionRoute"`);
+switching disconnects the side being left. The Mac-hub path
+(`RigClientViewModel`, now in each app's `HubControlView`) is unchanged.
+`PiDirectViewModel` and `PiAudioDownsampler` live in `FTX1Core`
+(`Networking/`, `Audio/`; moved out of the iOS target 2026-10-06 when the
+iPad needed them — explicitly `@MainActor public`, since the package
+doesn't have the app targets' MainActor default); each app has its own
+`PiDirectView`. The iPhone/iPad differences are init options:
+`PiDirectViewModel(logSubsystem:playsSubAudio:readsSMeter:)` — the iPhone
+passes `"com.ftx1remote.ios"` and neither option, the iPad
+`"com.ftx1remote.ipad"`, `playsSubAudio: true`, `readsSMeter: true`.
 
 - **Milestone 1, control (2026-10-05, Simulator against the real Pi)**:
   `PiDirectViewModel` owns a `RigctldClient` (`<piHost>:4532`, host
@@ -655,6 +664,31 @@ All of it lives in the iOS target, not `FTX1Core`.
   Mac's `audioChannelsSwapped` isn't ported); no background audio
   (`UIBackgroundModes`); accepted limit (user decision) — the Pi serves
   one audio client at a time, so the Mac must not hold the stream.
+- **iPad port (2026-10-06, Simulator against the real Pi; confirmed on a
+  real iPad by the user the same day)**: same model, plus Sub audio — the **right** channel through
+  a second downsampler (each `AVAudioConverter` keeps its own filter
+  state) into a second `AudioPlaybackEngine`, muted via the same
+  `isMuted`/`subIsMuted` keys as the iPad's hub columns (the model's mutes
+  are now `isMainAudioMuted`/`isSubAudioMuted`, and the engines are public
+  `mainAudioEngine`/`subAudioEngine` so the views set VOL/SQL on them
+  directly, as the hub screen does) — and one more read per 1 s tick,
+  `l currVFO STRENGTH`, for the S-meter (5 → 6 rigctld round trips). The
+  iPad `PiDirectView` is a cut-down hub screen: SUB/MAIN `VFODisplayBox`es
+  (MAIN tunable, SUB read-only, no TX/RX tags or memory channel — not
+  polled), `SMeterView` (RX only), Sub + Main `ChannelAudioControls`
+  (pulled out of the hub screen so both share it; its `onChange(initial:
+  true)` also fixed the hub's Sub engine starting on *Main's* volume/
+  squelch, since `AudioPlaybackEngine.init` loads the Main settings), and
+  the segmented mode picker. No PTT, power, band picker, VFO swap (would
+  also break left = Main) or `MenuPageView`. Verified: connect, live
+  frequency/mode/S-meter read, mode change confirmed with a raw "MD0;"
+  read (USB, then back to CW), both channels at ~21.5 chunks/s (Main on
+  14 MHz HF noise gated shut until SQL went left; Sub on a quiet UHF
+  carrier open), per-channel mute and SQL, "waiting" while `nc` held
+  :8532 and automatic pickup after, and switching to "Mac hub" freeing
+  the Pi's audio slot. Note for `nc` checks against the Pi: its rigctld
+  runs with `-o`, so verbs need a VFO argument (`l currVFO STRENGTH`, not
+  `l STRENGTH` — the latter just hangs, read as VFO "STRENGTH").
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
@@ -1581,18 +1615,24 @@ WebSDR differences are in their own bullet at the end.
   plus two menu systems: `MenuPageView` (shared, see `Sources/FTX1Core/UI/`
   above) and `DeepSettingsView` (Mac-only — the page-3 category screens,
   rendered generically from `DeepSettingsCatalog`).
-- `Apps/iOS/FTX1RemoteiOS/` — iPhone app target. WebSocket client only
-  (`RigClientViewModel`/`RigWebSocketClient`), never touches `RigctldClient`
-  directly. Focused single-rig-control view (frequency, SWR, PTT, mode grid)
+- `Apps/iOS/FTX1RemoteiOS/` — iPhone app target. WebSocket client
+  (`RigClientViewModel`/`RigWebSocketClient`, in `HubControlView`), except
+  the receive-only "Pi direct" route (`PiDirectView` over the shared
+  `PiDirectViewModel` — see "Pi-direct proof of concept" above). Focused single-rig-control view (frequency, SWR, PTT, mode grid)
   — don't try to cram the Mac's dense layout or `MenuPageView` in here
   without deciding that's actually wanted; iOS still has no menu-grid UI
   (iPad does — see below). `DeepSettingsView` isn't available to any mobile
   target yet either way (see Architecture above).
 - `Apps/iPad/FTX1RemoteiPad/` — iPad app target, separate from iOS (not a
   universal/size-classes target — resolved decision, don't relitigate).
-  WebSocket client only, same as iOS. Dense layout modeled on the Mac's
-  `ContentView` (VFO A/B side by side via the shared `VFODisplayBox`, SWR,
-  PTT, power, band/mode) plus the shared `MenuPageView` grid. The FM page's
+  WebSocket client, same as iOS, except the same receive-only "Pi direct"
+  route (since 2026-10-06: `ContentView` is the Mac hub / Pi direct
+  switch, `HubControlView` the hub screen, `PiDirectView` the Pi-direct
+  one, `ChannelAudioControls` the per-channel mute/VOL/SQL column both
+  use — see "Pi-direct proof of concept" above). The hub screen is a dense
+  layout modeled on the Mac's `ContentView` (VFO A/B side by side via the
+  shared `VFODisplayBox`, SWR, PTT, power, band/mode) plus the shared
+  `MenuPageView` grid. The FM page's
   6 Deep Settings buttons render a disabled "SOON" placeholder rather than
   opening `DeepSettingsView` — see the `RigController`/Deep Settings note
   above for why, and don't wire them up without first adding the wire-

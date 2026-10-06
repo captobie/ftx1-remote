@@ -1,13 +1,13 @@
 import Combine
-import FTX1Core
 import Foundation
 import os
 
-/// Proof of concept (2026-10-05): the iPhone talking to the Pi's rigctld
-/// directly over Tailscale, without the Mac hub. A deliberate, contained
-/// exception to "mobile apps never talk to rigctld" (see repo root
-/// CLAUDE.md) — lives in the iOS target only, and the Mac-hub path
-/// (`RigClientViewModel`) is untouched.
+/// Proof of concept (2026-10-05): a mobile client talking to the Pi's
+/// rigctld directly over Tailscale, without the Mac hub. A deliberate,
+/// contained exception to "mobile apps never talk to rigctld" (see repo
+/// root CLAUDE.md) — used by the iPhone and (since 2026-10-06) the iPad,
+/// each with its own view; the Mac-hub path (`RigClientViewModel`) is
+/// untouched.
 ///
 /// Receive-only: there's no PTT here, because the Enable Transmit and
 /// amateur-band gates live in `HubService.send(_:)`, which this path
@@ -17,25 +17,29 @@ import os
 /// rigctld accepts several clients at once, so this coexists with the Mac
 /// (or WSJT-X) being connected to the same Pi.
 ///
-/// Audio (milestone 2): a separate `RemoteAudioStreamClient` connection to
+/// Audio: a separate `RemoteAudioStreamClient` connection to
 /// `Pi/ftx1-audiostream.py` (:8532), its own retry loop independent of the
-/// rigctld link. Plays the left channel only — Main, unless the rig's
-/// Main/Sub have been swapped (the Mac's `audioChannelsSwapped` tracking
-/// isn't ported). The Pi serves one audio client at a time, so while the
-/// Mac holds the stream this stays at `.waiting`.
+/// rigctld link. The left channel is Main and the right Sub, unless the
+/// rig's Main/Sub have been swapped (the Mac's `audioChannelsSwapped`
+/// tracking isn't ported). The Pi serves one audio client at a time, so
+/// while the Mac (or another phone/iPad) holds the stream this stays at
+/// `.waiting`.
+///
+/// Explicitly `@MainActor`: this package doesn't use the app targets'
+/// MainActor default isolation.
 @MainActor
-final class PiDirectViewModel: ObservableObject {
-    enum ConnectionState: Equatable {
+public final class PiDirectViewModel: ObservableObject {
+    public enum ConnectionState: Equatable {
         case disconnected
         case connecting
         case connected
         case failed(String)
     }
 
-    @Published private(set) var rigState = RigState()
-    @Published private(set) var connectionState: ConnectionState = .disconnected
+    @Published public private(set) var rigState = RigState()
+    @Published public private(set) var connectionState: ConnectionState = .disconnected
 
-    enum AudioState: Equatable {
+    public enum AudioState: Equatable {
         case off
         /// Connected (or retrying) but no samples lately — the Pi
         /// unreachable on :8532, or another client (the Mac) holding the
@@ -44,11 +48,13 @@ final class PiDirectViewModel: ObservableObject {
         case playing
     }
 
-    @Published private(set) var audioState: AudioState = .off
-    /// Same persisted key as the Mac-hub path's Main mute
-    /// (`RigClientViewModel.isMainAudioMuted`) — one mute for "the Main
-    /// audio on this phone", whichever route it comes from.
-    @Published private(set) var isAudioMuted = AudioPlaybackSettings.isMuted
+    @Published public private(set) var audioState: AudioState = .off
+    /// Same persisted keys as the Mac-hub path's mutes
+    /// (`RigClientViewModel.isMainAudioMuted`/`isSubAudioMuted`) — one
+    /// mute per channel on this device, whichever route the audio comes
+    /// from.
+    @Published public private(set) var isMainAudioMuted = AudioPlaybackSettings.isMuted
+    @Published public private(set) var isSubAudioMuted = AudioPlaybackSettings.subIsMuted
 
     /// Fixed, like the Mac's `.remote` mode — only the host is configurable.
     private static let rigctldPort: UInt16 = 4532
@@ -57,21 +63,37 @@ final class PiDirectViewModel: ObservableObject {
     private static let audioPort: UInt16 = 8532
     /// No samples for this long → `.waiting`. Chunks arrive ~21×/s.
     private static let audioStaleAfter: TimeInterval = 2
-    private static let logSubsystem = "com.ftx1remote.ios"
-    private static let logger = Logger(subsystem: logSubsystem, category: "pi-direct")
+
+    private let logSubsystem: String
+    private let logger: Logger
+    /// The iPad plays Sub (right channel) too; the iPhone leaves it out.
+    private let playsSubAudio: Bool
+    /// Adds one "STRENGTH" read per poll tick, for screens that show the
+    /// S-meter (the iPad).
+    private let readsSMeter: Bool
 
     private var rigctld: RigctldClient?
     private var queue: CommandQueue?
     private var sessionTask: Task<Void, Never>?
 
-    private let audioEngine = AudioPlaybackEngine()
+    /// Public so a view can set volume/squelch on them directly, as the
+    /// iPad's audio columns do with `RigClientViewModel`'s engines.
+    public let mainAudioEngine = AudioPlaybackEngine()
+    public let subAudioEngine = AudioPlaybackEngine()
     private var audioClient: RemoteAudioStreamClient?
     private var audioWatchTask: Task<Void, Never>?
     /// Deliberately not `@Published` — updated per audio chunk; the watch
     /// task samples it once a second into `audioState`.
     private var lastAudioAt: Date?
 
-    func connect(toHost host: String) {
+    public init(logSubsystem: String, playsSubAudio: Bool = false, readsSMeter: Bool = false) {
+        self.logSubsystem = logSubsystem
+        logger = Logger(subsystem: logSubsystem, category: "pi-direct")
+        self.playsSubAudio = playsSubAudio
+        self.readsSMeter = readsSMeter
+    }
+
+    public func connect(toHost host: String) {
         let host = host.trimmingCharacters(in: .whitespaces)
         guard !host.isEmpty else {
             connectionState = .failed("Enter the Pi's hostname")
@@ -87,7 +109,7 @@ final class PiDirectViewModel: ObservableObject {
         startAudio(host: host)
     }
 
-    func disconnect() {
+    public func disconnect() {
         sessionTask?.cancel()
         sessionTask = nil
         if let rigctld {
@@ -99,38 +121,40 @@ final class PiDirectViewModel: ObservableObject {
         stopAudio()
     }
 
-    func setVolume(_ volume: Double) {
-        audioEngine.volume = Float(volume)
+    public func toggleMainAudioMuted() {
+        isMainAudioMuted.toggle()
+        AudioPlaybackSettings.isMuted = isMainAudioMuted
     }
 
-    func setSquelchThreshold(_ threshold: Double) {
-        audioEngine.squelchThreshold = Float(threshold)
-    }
-
-    func toggleAudioMuted() {
-        isAudioMuted.toggle()
-        AudioPlaybackSettings.isMuted = isAudioMuted
+    public func toggleSubAudioMuted() {
+        isSubAudioMuted.toggle()
+        AudioPlaybackSettings.subIsMuted = isSubAudioMuted
     }
 
     private func startAudio(host: String) {
-        audioEngine.start()
+        mainAudioEngine.start()
+        if playsSubAudio { subAudioEngine.start() }
         lastAudioAt = nil
         audioState = .waiting
-        let downsampler = PiAudioDownsampler()
+        // One per channel: each converter keeps filter state across chunks.
+        let mainDownsampler = PiAudioDownsampler()
+        let subDownsampler = playsSubAudio ? PiAudioDownsampler() : nil
         let client = RemoteAudioStreamClient(
             host: host,
             port: Self.audioPort,
-            logSubsystem: Self.logSubsystem
-        ) { [weak self] left, _, sampleRate in
+            logSubsystem: logSubsystem
+        ) { [weak self] left, right, sampleRate in
             // Runs on the client's actor; resample there, hop to the main
-            // actor only to hand the 8 kHz chunk to the engine.
-            let pcm = downsampler.convert(left, sourceRate: sampleRate)
-            guard !pcm.isEmpty else { return }
+            // actor only to hand the 8 kHz chunks to the engines.
+            let mainPCM = mainDownsampler.convert(left, sourceRate: sampleRate)
+            let subPCM = subDownsampler?.convert(right, sourceRate: sampleRate) ?? Data()
+            guard !mainPCM.isEmpty || !subPCM.isEmpty else { return }
             Task { @MainActor [weak self] in
                 guard let self, self.audioClient != nil else { return }
                 self.lastAudioAt = Date()
                 if self.audioState != .playing { self.audioState = .playing }
-                if !self.isAudioMuted { self.audioEngine.push(pcm: pcm) }
+                if !mainPCM.isEmpty, !self.isMainAudioMuted { self.mainAudioEngine.push(pcm: mainPCM) }
+                if !subPCM.isEmpty, !self.isSubAudioMuted { self.subAudioEngine.push(pcm: subPCM) }
             }
         }
         audioClient = client
@@ -153,19 +177,20 @@ final class PiDirectViewModel: ObservableObject {
             Task { await audioClient.stop() }
         }
         audioClient = nil
-        audioEngine.stop()
+        mainAudioEngine.stop()
+        subAudioEngine.stop()
         lastAudioAt = nil
         audioState = .off
     }
 
-    func send(_ command: RigCommand) {
+    public func send(_ command: RigCommand) {
         guard connectionState == .connected, let queue else { return }
         switch command {
         case .setFrequency, .setMode:
             break
         default:
             // RX-only proof of concept — see the type's doc comment.
-            Self.logger.notice("ignoring unsupported command \(String(describing: command), privacy: .public)")
+            logger.notice("ignoring unsupported command \(String(describing: command), privacy: .public)")
             return
         }
         applyOptimistically(command)
@@ -192,7 +217,7 @@ final class PiDirectViewModel: ObservableObject {
             connectionState = .connecting
             do {
                 try await rigctld.connect()
-                Self.logger.notice("connected to \(host, privacy: .public):\(Self.rigctldPort)")
+                logger.notice("connected to \(host, privacy: .public):\(Self.rigctldPort)")
                 connectionState = .connected
                 try await pollUntilFailure(rigctld)
             } catch is CancellationError {
@@ -200,7 +225,7 @@ final class PiDirectViewModel: ObservableObject {
             } catch {
                 guard !Task.isCancelled else { return }
                 let message = error.localizedDescription
-                Self.logger.error("session ended: \(message, privacy: .public)")
+                logger.error("session ended: \(message, privacy: .public)")
                 connectionState = .failed(message)
                 await rigctld.disconnect()
             }
@@ -242,6 +267,9 @@ final class PiDirectViewModel: ObservableObject {
         }
         if let subMode = (try? await rigctld.getModeCode(p1: 1)).flatMap({ $0 }).flatMap(RigMode.init(catModeCode:)) {
             state.secondaryMode = subMode
+        }
+        if readsSMeter, let smeterDb = try? await rigctld.getLevel("STRENGTH") {
+            state.smeterDb = smeterDb
         }
 
         guard !Task.isCancelled else { return }

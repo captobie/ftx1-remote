@@ -189,5 +189,5 @@ struct ModeGrid: View {
 #Preview {
     ContentView()
         .environmentObject(RigClientViewModel())
-        .environmentObject(PiDirectViewModel())
+        .environmentObject(PiDirectViewModel(logSubsystem: "com.ftx1remote.ios"))
 }
