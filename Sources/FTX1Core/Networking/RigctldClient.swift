@@ -992,6 +992,32 @@ public actor RigctldClient {
         }
     }
 
+    /// The running rigctld's own Hamlib version string (e.g. "Hamlib 4.7.2
+    /// 2026-06-21T13:07:37Z SHA=40f63488f 32-bit"), from the "Hamlib
+    /// version:" line near the top of `\dump_caps` — rigctld's protocol has
+    /// no version verb, and this is the one place it reports which build is
+    /// actually answering (on the Pi, a stale hamlib on `PATH` can differ
+    /// from the one `rigctld.service` runs). `\dump_caps` is ~2300 lines,
+    /// so this reads only up to that line and then disconnects rather than
+    /// draining the rest — meant for a short-lived client of its own (the
+    /// Settings tab's version box), never the hub's shared one.
+    public func readHamlibVersion() async throws -> String? {
+        defer { disconnect() }
+        await acquireRoundTrip()
+        defer { releaseRoundTrip() }
+        try await write("\\dump_caps")
+        return try await withReplyTimeout("\\dump_caps", hamlibReplyTimeout, error: .replyTimedOut) {
+            for _ in 0..<20 {
+                let line = try await self.readLine()
+                if line.hasPrefix("RPRT") { throw RigctldError.badResponse }
+                if line.hasPrefix("Hamlib version:") {
+                    return line.dropFirst("Hamlib version:".count).trimmingCharacters(in: .whitespaces)
+                }
+            }
+            return nil
+        }
+    }
+
     public func disconnect() {
         connection?.cancel()
         connection = nil

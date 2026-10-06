@@ -158,6 +158,8 @@ struct SettingsView: View {
                 TextField("Pi hostname", text: $remoteHost, prompt: Text("e.g. raspberrypi.tailnet-name.ts.net"))
                     .frame(maxWidth: 280)
             }
+
+            RigctldVersionBox(connectionMode: connectionMode, binaryPath: binaryPath, remoteHost: remoteHost)
         }
         .padding(.top, 8)
     }
@@ -236,6 +238,148 @@ struct SettingsView: View {
             paths.append(binaryPath)
         }
         availableBinaryPaths = paths.sorted()
+    }
+}
+
+/// The rigctld tab's version box, following the tab's *edited* values (not
+/// the saved ones), so picking another binary or typing a host shows that
+/// one's version before Done. Two sources: "Installed" (Local only) runs the
+/// picked binary with `--version`; "Running" asks whatever rigctld is
+/// listening on port 4532 (localhost, or the Pi) over its own short-lived
+/// connection (`RigctldClient.readHamlibVersion`) — the only way to see the
+/// Pi's version, and in Local mode it can differ from the binary when an
+/// already-running rigctld was adopted.
+private struct RigctldVersionBox: View {
+    let connectionMode: RigctldSettings.ConnectionMode
+    let binaryPath: String
+    let remoteHost: String
+
+    private enum Lookup: Equatable {
+        case checking
+        case found(String)
+        case unavailable(String)
+    }
+
+    private struct Inputs: Equatable {
+        var connectionMode: RigctldSettings.ConnectionMode
+        var binaryPath: String
+        var remoteHost: String
+        var refreshCount: Int
+    }
+
+    @State private var installed: Lookup = .checking
+    @State private var running: Lookup = .checking
+    @State private var refreshCount = 0
+
+    var body: some View {
+        GroupBox("Version") {
+            VStack(alignment: .leading, spacing: 6) {
+                if connectionMode == .local {
+                    row("Installed", installed)
+                }
+                row(connectionMode == .local ? "Running" : "Running on Pi", running)
+                HStack {
+                    Spacer()
+                    Button("Refresh") { refreshCount += 1 }
+                        .disabled(installed == .checking || running == .checking)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(4)
+        }
+        .task(id: Inputs(connectionMode: connectionMode, binaryPath: binaryPath, remoteHost: remoteHost, refreshCount: refreshCount)) {
+            await lookUp()
+        }
+    }
+
+    private func row(_ label: String, _ lookup: Lookup) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label)
+                .frame(width: 90, alignment: .leading)
+            switch lookup {
+            case .checking:
+                Text("Checking…").foregroundStyle(.secondary)
+            case .found(let version):
+                Text(version).textSelection(.enabled)
+            case .unavailable(let reason):
+                Text(reason).foregroundStyle(.secondary)
+            }
+        }
+        .font(.callout)
+    }
+
+    private func lookUp() async {
+        installed = .checking
+        running = .checking
+        // Typing a host restarts this task per keystroke; wait until it
+        // settles before connecting anywhere.
+        try? await Task.sleep(for: .milliseconds(400))
+        guard !Task.isCancelled else { return }
+
+        switch connectionMode {
+        case .local:
+            let binaryResult = await Self.binaryVersion(atPath: binaryPath)
+            guard !Task.isCancelled else { return }
+            installed = binaryResult
+            let liveResult = await Self.runningVersion(host: "127.0.0.1")
+            guard !Task.isCancelled else { return }
+            running = liveResult
+        case .remote:
+            let host = remoteHost.trimmingCharacters(in: .whitespaces)
+            let result: Lookup = host.isEmpty ? .unavailable("No Pi hostname set") : await Self.runningVersion(host: host)
+            guard !Task.isCancelled else { return }
+            running = result
+        }
+    }
+
+    /// `rigctld --version` prints e.g. "rigctld Hamlib 4.7.2 2026-06-21T…
+    /// SHA=40f63488f 64-bit"; the leading program name is dropped to match
+    /// what `\dump_caps` reports for the running one.
+    nonisolated private static func binaryVersion(atPath path: String) async -> Lookup {
+        guard FileManager.default.isExecutableFile(atPath: path) else {
+            return .unavailable("No rigctld at this path")
+        }
+        return await Task.detached {
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: path)
+            proc.arguments = ["--version"]
+            let pipe = Pipe()
+            proc.standardOutput = pipe
+            proc.standardError = pipe
+            do {
+                try proc.run()
+            } catch {
+                return .unavailable("Couldn't run rigctld")
+            }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            proc.waitUntilExit()
+            let line = (String(data: data, encoding: .utf8) ?? "")
+                .split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+            let version = line.hasPrefix("rigctld ") ? String(line.dropFirst("rigctld ".count)) : line
+            return version.isEmpty ? .unavailable("No version reported") : .found(version)
+        }.value
+    }
+
+    nonisolated private static func runningVersion(host: String) async -> Lookup {
+        let client = RigctldClient(host: host, port: 4532)
+        // A refused connection doesn't fail an NWConnection, it waits — so
+        // "nothing listening" takes the whole timeout. Localhost answers at
+        // once if anything is there; the Pi gets the hub's usual 5 s.
+        let isLocal = host == "127.0.0.1"
+        do {
+            try await client.connect(timeout: .seconds(isLocal ? 1 : 5))
+        } catch {
+            return .unavailable(isLocal ? "Not running" : "Unreachable")
+        }
+        do {
+            if let version = try await client.readHamlibVersion() {
+                return .found(version)
+            }
+            return .unavailable("No version reported")
+        } catch {
+            await client.disconnect()
+            return .unavailable("No reply from rigctld")
+        }
     }
 }
 
