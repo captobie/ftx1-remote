@@ -26,6 +26,7 @@ enum ScopeDisplayMode: String {
 /// Dense multi-pane control UI (see repo root CLAUDE.md) — still growing.
 struct ContentView: View {
     @EnvironmentObject private var hub: HubService
+    @Environment(\.openWindow) private var openWindow
     @State private var isPTTPressed = false
     @AppStorage(ScopeDisplayMode.storageKey) private var scopeDisplayMode: ScopeDisplayMode = .waterfall
 
@@ -65,8 +66,17 @@ struct ContentView: View {
                             vfoSwapButton
                             audioChannelSwapButton
                         }
-                        HStack(spacing: 8) {
-                            scopeDisplayModeButtons
+                        HStack(alignment: .top, spacing: 8) {
+                            VStack(spacing: 4) {
+                                scopeDisplayModeButtons
+                                // Under Waterfall: the same three equal
+                                // columns, two of them empty for now.
+                                HStack(spacing: 4) {
+                                    memoryListButton
+                                    Color.clear.frame(maxWidth: .infinity, maxHeight: 0)
+                                    Color.clear.frame(maxWidth: .infinity, maxHeight: 0)
+                                }
+                            }
                             Text(swrLabel)
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
@@ -296,6 +306,22 @@ struct ContentView: View {
             scopeDisplayModeButton("Oscilloscope", mode: .oscilloscope)
             scopeDisplayModeButton("Off", mode: .off)
         }
+    }
+
+    /// Opens the memory list window (`MemoryListView`).
+    private var memoryListButton: some View {
+        Button {
+            openWindow(id: "memory-list")
+        } label: {
+            Text("Mem List")
+                .font(.caption)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+                .background(Color.gray.opacity(0.2))
+                .foregroundStyle(Color.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
     }
 
     private func scopeDisplayModeButton(_ title: String, mode: ScopeDisplayMode) -> some View {

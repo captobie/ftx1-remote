@@ -1220,6 +1220,37 @@ vendored here.
     (sending always keys whatever the rig transmits on), WebSDR source
     while sending.
 
+## Memory list (2026-10-06, rig-confirmed by the user the same day)
+
+A "Mem List" button under the Waterfall button (Mac `ContentView`) opens
+`Window(id: "memory-list")` (`MemoryListView`, Mac-only): the rig's
+programmed memory channels (channel, tag, frequency, mode, shift, tone
+type), searchable, with MAIN/SUB buttons per row. The button for the
+channel a receiver is on is highlighted.
+
+- **Reading**: CAT has no list command, so `MemoryListStore` (a `lazy
+  var` on `HubService`, like `cwSender`) reads channel by channel with
+  `RigctldClient.readMemoryChannel` (raw "MR", then "MT" for the tag of a
+  programmed channel). A blank channel answers "MR" with "?;" at once
+  (checked with `nc` against the Pi, 2026-10-06). The scan stops after
+  `blankRunLimit` (100) blank channels in a row, so a gap that long hides
+  the channels after it. The result is cached in
+  `~/Library/Application Support/FTX1Remote/memory-channels.json`. The
+  window shows the cache and re-reads only on Refresh, except the first
+  time it opens with no cache. `MemoryChannelEntry` (`FTX1Core/RigState/`)
+  parses "MR". Field offsets are unit-tested against real answers.
+- **Recall**: `RigCommand.recallMemoryChannel(channel:sub:)` sends
+  "MC<side>" and then "VM<side>11" unless that side already reads
+  VM=11. MC first also covers the undocumented MC-before-VM precondition
+  (see `.setVFOMemoryMode`). The hub reads back afterward rather than
+  guessing: `refreshAfterEnteringMemory` for MAIN (which keeps
+  `lastVFOState`, so V/M still goes back to the VFO) and
+  `refreshMemoryChannel(sub: true)` for SUB. Leaving Memory mode isn't
+  offered from the list. There's still no SUB V/M control in the app.
+- Tested on the rig by the user, 2026-10-06, all working: the scan,
+  recall on MAIN and SUB from VFO mode, a recall while already in Memory
+  mode, and V/M back to the VFO afterward.
+
 ## WebSDR follow (KiwiSDR 2026-09-24, classic WebSDR 2026-09-25, OpenWebRX 2026-10-01)
 
 Tools → **WebSDR** opens `Window(id: "websdr-follow")` (Mac-only): an

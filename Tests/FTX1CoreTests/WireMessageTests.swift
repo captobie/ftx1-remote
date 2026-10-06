@@ -13,6 +13,16 @@ final class WireMessageTests: XCTestCase {
         XCTAssertEqual(decoded, command)
     }
 
+    func testRecallMemoryChannelRoundTrip() throws {
+        let command = RigCommand.recallMemoryChannel(channel: 278, sub: true)
+        let data = try JSONEncoder().encode(command)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        XCTAssertEqual(json?["cmd"] as? String, "recall_memory_channel")
+
+        let decoded = try JSONDecoder().decode(RigCommand.self, from: data)
+        XCTAssertEqual(decoded, command)
+    }
+
     func testSetModeRoundTrip() throws {
         let command = RigCommand.setMode(.usb)
         let data = try JSONEncoder().encode(command)

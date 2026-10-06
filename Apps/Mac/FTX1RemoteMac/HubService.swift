@@ -234,6 +234,9 @@ final class HubService: ObservableObject {
     /// Tools → CW's send pane (keys the rig's CW TEXT keyer memory) — see
     /// `CWSender`. `lazy` so it can be handed `self`.
     lazy var cwSender = CWSender(hub: self)
+    /// The memory list window's channels — see `MemoryListStore`. `lazy`
+    /// so it can be handed `rigctld`.
+    lazy var memoryList = MemoryListStore(rigctld: rigctld)
     /// Feeds `cwReceiver` the TX state and the rig's CW pitch/modes.
     private var cwRigCancellable: AnyCancellable?
     private let webSocketPort: UInt16
@@ -815,7 +818,7 @@ final class HubService: ObservableObject {
              .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow, .setFilterSide, .setAntSelect, .setTXW, .setTXSide, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel,
-             .setSubMemoryChannel, .stepSubMemoryChannel:
+             .setSubMemoryChannel, .stepSubMemoryChannel, .recallMemoryChannel:
             return false
         }
     }
@@ -965,6 +968,19 @@ final class HubService: ObservableObject {
             Task { await refreshMemoryChannel(sub: false) }
         case .setSubMemoryChannel, .stepSubMemoryChannel:
             Task { await refreshMemoryChannel(sub: true) }
+        case .recallMemoryChannel(_, let sub):
+            // Like the channel commands: read back what the rig did rather
+            // than guess (a blank channel is ignored). For MAIN that's
+            // `refreshAfterEnteringMemory`, which also reads the recalled
+            // frequency/mode and leaves `lastVFOState` alone, so V/M still
+            // returns to the VFO.
+            if sub {
+                rigState.subVfoMemoryMode = .memory
+                Task { await refreshMemoryChannel(sub: true) }
+            } else {
+                rigState.vfoMemoryMode = .memory
+                Task { await refreshAfterEnteringMemory() }
+            }
         // Momentary triggers, and CW MESSAGE record/select/play (whose
         // `cwMessageStatus` doesn't map 1:1 from any single command — see
         // RigState.cwMessageStatus) have no direct optimistic value; left

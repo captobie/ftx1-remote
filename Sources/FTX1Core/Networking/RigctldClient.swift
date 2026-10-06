@@ -737,6 +737,18 @@ public actor RigctldClient {
         return trimmed.isEmpty ? nil : trimmed
     }
 
+    /// Reads one memory channel's contents with raw "MR" plus its tag with
+    /// "MT" — see `MemoryChannelEntry`. Nil for a blank channel, which
+    /// answers "MR" with "?;" right away; the tag is only read for a
+    /// programmed one. A tag read that fails leaves the tag nil rather than
+    /// dropping the channel.
+    public func readMemoryChannel(_ channel: Int) async throws -> MemoryChannelEntry? {
+        let reply = try await sendRawCommand("MR" + String(format: "%05d", channel))
+        guard var entry = MemoryChannelEntry(mrReply: reply), entry.channel == channel else { return nil }
+        entry.tag = try? await getMemoryChannelTag(channel: channel)
+        return entry
+    }
+
     /// Like `sendRawCommand`, but doesn't wait for or read any reply at
     /// all — for Set-style commands, which this rig (confirmed both by
     /// the CAT manual, which documents an Answer only for Read commands,

@@ -282,6 +282,16 @@ public enum RigCommand: Sendable, Equatable {
     /// selector, so this steps "MC1" instead, skipping blank channels —
     /// see `CommandQueue`.
     case stepSubMemoryChannel(up: Bool)
+    /// Recalls a memory channel on one side, entering Memory mode on that
+    /// side if it's in VFO mode — the memory list window's MAIN/SUB
+    /// buttons. "MC<side>" then "VM<side>11" (see `CommandQueue`).
+    case recallMemoryChannel(channel: Int, sub: Bool)
+
+    /// Wire payload for `.recallMemoryChannel`.
+    private struct RecallMemoryPayload: Codable, Sendable, Equatable {
+        let channel: Int
+        let sub: Bool
+    }
 
     /// Wire payload for `.setMenuItem`, the one case here with more than a
     /// single associated value.
@@ -363,6 +373,7 @@ public enum RigCommand: Sendable, Equatable {
         case stepMemoryChannel = "step_memory_channel"
         case setSubMemoryChannel = "set_sub_memory_channel"
         case stepSubMemoryChannel = "step_sub_memory_channel"
+        case recallMemoryChannel = "recall_memory_channel"
     }
 }
 
@@ -502,6 +513,9 @@ extension RigCommand: Codable {
             self = .setSubMemoryChannel(try container.decode(Int.self, forKey: .value))
         case .stepSubMemoryChannel:
             self = .stepSubMemoryChannel(up: try container.decode(Bool.self, forKey: .value))
+        case .recallMemoryChannel:
+            let payload = try container.decode(RecallMemoryPayload.self, forKey: .value)
+            self = .recallMemoryChannel(channel: payload.channel, sub: payload.sub)
         }
     }
 
@@ -700,6 +714,9 @@ extension RigCommand: Codable {
         case .stepSubMemoryChannel(let up):
             try container.encode(CommandName.stepSubMemoryChannel, forKey: .cmd)
             try container.encode(up, forKey: .value)
+        case .recallMemoryChannel(let channel, let sub):
+            try container.encode(CommandName.recallMemoryChannel, forKey: .cmd)
+            try container.encode(RecallMemoryPayload(channel: channel, sub: sub), forKey: .value)
         }
     }
 }

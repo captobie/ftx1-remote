@@ -99,6 +99,15 @@ struct FTX1RemoteMacApp: App {
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
 
+        // The Mem List button under Waterfall (ContentView). `hub` to send
+        // the MAIN/SUB recalls and highlight the current channels.
+        Window("Memory Channels", id: "memory-list") {
+            MemoryListView()
+                .environmentObject(appDelegate.hub)
+                .environmentObject(appDelegate.hub.memoryList)
+                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+        }
+
         // CW page's PLAY button (`MenuPageView.playRecordingsButton`) opens
         // this by id, same "own window, not a sheet" treatment as the APRS
         // windows — a plain file browser, unrelated to `hub`/`RigController`.

@@ -454,6 +454,18 @@ public actor CommandQueue {
                 try await rigctld.setRawInt("MC1", candidate, digits: 5)
                 if try await rigctld.getRawInt("MC1") == candidate { break }
             }
+        case .recallMemoryChannel(let channel, let sub):
+            // Select the channel, then enter Memory mode unless that side
+            // is already in it. Writing "MC" right before "VM…11" is also
+            // the undocumented precondition `.setVFOMemoryMode` satisfies
+            // by re-asserting the current channel — here it's the new one.
+            // Leaving Memory mode isn't offered from the list, so MAIN's
+            // `lastVFOState` replay (HubService) keeps working as before.
+            let p1 = sub ? "1" : "0"
+            try await rigctld.setRawInt("MC" + p1, channel, digits: 5)
+            if (try? await rigctld.getRawInt("VM" + p1)) != 11 {
+                try await rigctld.setRawInt("VM" + p1, 11, digits: 2)
+            }
         }
     }
 }
