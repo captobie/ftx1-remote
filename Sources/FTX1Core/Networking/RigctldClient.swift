@@ -749,24 +749,32 @@ public actor RigctldClient {
         return entry
     }
 
-    /// Like `sendRawCommand`, but doesn't wait for or read any reply at
-    /// all — for Set-style commands, which this rig (confirmed both by
-    /// the CAT manual, which documents an Answer only for Read commands,
-    /// and by direct testing) never acknowledges. `sendRawCommand` used to
-    /// be used for these too, but waiting out its timeout on *every single
-    /// click* (there being no reply to actually catch) is what made menu
-    /// buttons take several seconds to visibly update, even after tuning
-    /// rigctld's own retry/timeout down in `RigctldProcessController` — the
-    /// wait was happening client-side on every call, not just when
-    /// something was actually wrong.
+    /// Like `sendRawCommand`, but for Set-style commands, which this rig
+    /// never acknowledges (the CAT manual documents an Answer only for
+    /// Read commands; confirmed by direct testing). `sendRawCommand` used
+    /// to be used for these too, but waiting out its timeout on every
+    /// click (there being no reply to catch) is what made menu buttons
+    /// take several seconds to visibly update.
     ///
-    /// This is safe from the same stale-reply risk `sendRawCommand`'s
-    /// timeout path guards against: hamlib's `send_cmd` (tests/
-    /// rigctl_parse.c) writes *nothing* back when its internal serial read
-    /// fails, so there's no eventual reply sitting around to leak into a
-    /// later read — confirmed by reading that source directly. `write(_:)`
-    /// clears any stale buffered bytes at the start of the next round trip
-    /// as a defensive backstop regardless.
+    /// Sends `W <cmd>; 0` — "expect 0 reply bytes" — rather than
+    /// `sendRawCommand`'s `; ;` ("read up to a ';'"). With `; ;`, rigctld
+    /// itself waits out its serial read timeout for the answer a set
+    /// never gets, and holds every later command behind it: measured
+    /// against the Pi's rigctld (2026-10-06), a read queued right behind
+    /// an accepted set answered only after ~2.1 s, so every raw set
+    /// stalled the poll loop that long (~300 ms in local mode, see
+    /// `RigctldProcessController`'s `timeout=300`). With `; 0` rigctld
+    /// writes the command and answers at once with an empty reply, a bare
+    /// "\0" (~55 ms over the Pi), and the set is still applied. A set
+    /// the rig *rejects* ("?;") behaves the same: rigctld answers the
+    /// empty reply and flushes the rig's "?;" before the next command, so
+    /// it never shows up as a later read's answer (checked 15× back to
+    /// back, also with three sets queued ahead of a read).
+    ///
+    /// That empty reply line is read here, inside the round-trip lock, so
+    /// it can't be taken for the next command's answer. An error reply
+    /// ("RPRT -N") is logged, not thrown, as before when nothing was read
+    /// at all. A missing reply times out like `sendRawCommand`'s.
     /// Sends a raw CAT command that isn't shaped like a boolean or
     /// fixed-width-int setting (see `setRawBool`/`setRawInt`) — for
     /// momentary/action commands such as "ZI0" (CW auto zero-in), which
@@ -781,8 +789,14 @@ public actor RigctldClient {
     private func sendRawCommandFireAndForget(_ cmd: String) async throws {
         await acquireRoundTrip()
         defer { releaseRoundTrip() }
-        Self.catLogger.debug("-> \(cmd, privacy: .public) (fire-and-forget)")
-        try await write("W \(cmd); ;")
+        Self.catLogger.debug("-> \(cmd, privacy: .public) (set)")
+        try await write("W \(cmd); 0")
+        let reply = try await withReplyTimeout(cmd, .seconds(1), error: .rawCommandTimedOut) {
+            try await self.readLine(terminators: [0, UInt8(ascii: "\n")])
+        }
+        if reply.hasPrefix("RPRT") {
+            Self.catLogger.notice("<- \(cmd, privacy: .public) : \(reply, privacy: .public) (set failed)")
+        }
     }
 
     /// Writes CW TEXT keyer memory `slot` (1-5) with the FTX-1's "KM" and
@@ -911,14 +925,12 @@ public actor RigctldClient {
         guard let connection else {
             throw RigctldError.notConnected
         }
-        // Every ordinary round trip fully drains its own reply via
-        // readLine() before releasing acquireRoundTrip()'s lock, so any
-        // bytes still sitting here at the start of a *new* round trip can
-        // only be stale leftovers — specifically from
-        // sendRawCommandFireAndForget below, which deliberately doesn't
-        // read a reply at all. Discarding them keeps a late, unsolicited
-        // byte from a previous fire-and-forget command from being
-        // misread as part of this new exchange.
+        // Every round trip fully drains its own reply via readLine()
+        // before releasing acquireRoundTrip()'s lock, so any bytes still
+        // sitting here at the start of a *new* round trip can only be
+        // stale leftovers. Discarding them is a defensive backstop that
+        // keeps a late, unsolicited byte from being misread as part of
+        // this new exchange.
         readBuffer.removeAll()
         let data = (command + "\n").data(using: .utf8)!
         do {

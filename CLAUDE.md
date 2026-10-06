@@ -237,6 +237,17 @@ re-architecture.
   unanswered every poll in C4FM. `readLine` now only tears down the
   connection it was reading from, so the cancelled read's late error
   can't close the freshly reconnected one.
+- **Raw CAT sets go out as `W <cmd>; 0` (2026-10-06)**: with `; ;`
+  ("read up to a ';'") rigctld waited out its serial timeout for the
+  answer a set never gets, holding every later command ~2.1 s over the Pi
+  (~300 ms in local mode). `; 0` ("expect 0 bytes") gets an empty `\0`
+  reply in ~55 ms with the set still applied; a rejected set's "?;" is
+  flushed by rigctld, not left for the next read (probed with `nc`-style
+  scripts against the Pi; rig-confirmed by the user the same day on Mac
+  and Windows — filters, MENU grid, V/M). The client reads that empty reply inside the
+  round-trip lock (`sendRawCommandFireAndForget`, Windows'
+  `WriteRawSetAsync`). `writeKeyerMemory`'s lowercase `w` (needed for
+  spaces) has no such option and still takes ~2 s.
 - **Pi under-voltage drops the rig's USB (found 2026-10-02, not fixed —
   hardware)**: the "sometimes an error" reports traced to the Pi 2B's
   supply, not the app: `journalctl -k` showed "Undervoltage detected!"

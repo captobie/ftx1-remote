@@ -317,19 +317,59 @@ public sealed class RigctldClient : IAsyncDisposable
         }
     }
 
-    /// For Set-only raw commands the rig doesn't answer (e.g. "SV"). Any
-    /// stray bytes that come back anyway are dropped by the next
-    /// WriteAsync.
+    /// For Set-only raw commands the rig doesn't answer (e.g. "SV") —
+    /// RigctldClient.swift's sendRawCommandFireAndForget, whose doc comment
+    /// has the measurements (Pi, 2026-10-06). Sent as "W <cmd>; 0" (expect
+    /// 0 reply bytes): with "; ;" rigctld waits out its serial timeout for
+    /// an answer a set never gets (~2.1 s against the Pi) and holds every
+    /// later command behind it; with "; 0" it answers an empty "\0" reply
+    /// at once (~55 ms) and still applies the set. A rejected set's "?;" is
+    /// flushed by rigctld, not left for the next read.
     public async Task SendRawFireAndForgetAsync(string cmd, CancellationToken cancellationToken = default)
     {
         await _roundTripLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await WriteAsync($"W {cmd}; ;", cancellationToken).ConfigureAwait(false);
+            await WriteRawSetAsync(cmd, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             _roundTripLock.Release();
+        }
+    }
+
+    /// The body of SendRawFireAndForgetAsync, for callers that already hold
+    /// the round-trip lock: writes "W <cmd>; 0" and reads rigctld's empty
+    /// reply, so it can't be taken for the next command's answer. An error
+    /// reply ("RPRT -N") is logged, not thrown. No reply within 1 s resets
+    /// the connection, like SendRawCommandAsync.
+    private async Task WriteRawSetAsync(string cmd, CancellationToken cancellationToken)
+    {
+        await WriteAsync($"W {cmd}; 0", cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        string reply;
+        try
+        {
+            reply = await ReadLineAsync(linked.Token, acceptNul: true).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            AppLog.Write($"rigctld: no reply to raw set {cmd} within 1.0 s, reconnecting");
+            Disconnect();
+            try
+            {
+                await ConnectAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            catch (RigctldError ex)
+            {
+                AppLog.Write($"rigctld: reconnect failed: {ex.Message}");
+            }
+            throw new RigctldError($"No reply to raw set {cmd}");
+        }
+        if (reply.StartsWith("RPRT", StringComparison.Ordinal))
+        {
+            AppLog.Write($"rigctld: raw set {cmd} failed: {reply}");
         }
     }
 
@@ -560,8 +600,8 @@ public sealed class RigctldClient : IAsyncDisposable
         await _roundTripLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await WriteAsync($"W MC0{channel:00000}; ;", cancellationToken).ConfigureAwait(false);
-            await WriteAsync("W VM011; ;", cancellationToken).ConfigureAwait(false);
+            await WriteRawSetAsync($"MC0{channel:00000}", cancellationToken).ConfigureAwait(false);
+            await WriteRawSetAsync("VM011", cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -677,10 +717,10 @@ public sealed class RigctldClient : IAsyncDisposable
         await _roundTripLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await WriteAsync($"W MC{p1}{channel:00000}; ;", cancellationToken).ConfigureAwait(false);
+            await WriteRawSetAsync($"MC{p1}{channel:00000}", cancellationToken).ConfigureAwait(false);
             if (mode != 11)
             {
-                await WriteAsync($"W VM{p1}11; ;", cancellationToken).ConfigureAwait(false);
+                await WriteRawSetAsync($"VM{p1}11", cancellationToken).ConfigureAwait(false);
             }
         }
         finally
@@ -809,10 +849,9 @@ public sealed class RigctldClient : IAsyncDisposable
         {
             throw new RigctldError("Not connected");
         }
-        // Every ordinary round trip reads its whole reply before releasing
-        // the lock, so anything still buffered now is stale, e.g. from a
-        // fire-and-forget raw command. Drop it, as RigctldClient.swift's
-        // write() does.
+        // Every round trip reads its whole reply before releasing the lock,
+        // so anything still buffered now is stale. Drop it, as
+        // RigctldClient.swift's write() does.
         _readBuffer.Clear();
         LastCommand = command;
         LastCommandAt = DateTime.UtcNow;

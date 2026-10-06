@@ -512,7 +512,9 @@ same mistake the Mac fixed on 2026-09-17. It now sends raw "SV".
 (`SendRawCommandAsync`/`SendRawFireAndForgetAsync`/`GetRawIntAsync`,
 ported from the Swift client: `W <cmd>; ;`, reply terminated by `\n` or
 `\0`, 1 s timeout followed by a reconnect, and stale bytes dropped before
-each write). Tested against the fake Pi (app swap, no double flip on the
+each write; sets go out as `W <cmd>; 0` since 2026-10-06 and read
+rigctld's empty reply, because `; ;` made rigctld wait ~2 s for an answer
+a set never gets). Tested against the fake Pi (app swap, no double flip on the
 following polls, front-panel swap, both in single-receive, manual override,
 persisted state on relaunch, an unanswered raw command not wedging the
 poll loop), not yet on the rig.
