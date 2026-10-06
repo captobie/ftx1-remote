@@ -1068,8 +1068,8 @@ app's own Main audio, PLAY opens a window of everything recorded.
 ## Memory list (Mem List, 2026-10-06)
 
 The Mac's memory list window (repo root CLAUDE.md, "Memory list"), ported
-as-is. Not built on Windows yet — written on the Mac, which has no .NET SDK;
-not yet run on the rig. The Mem List button sits under Waterfall and opens
+as-is. Built and tested on the rig by the user on Windows, 2026-10-06, all
+working. The Mem List button sits under Waterfall and opens
 `Controls/MemoryListWindow.cs`: the rig's programmed channels (channel, tag,
 frequency, mode, shift, tone type), a search box, and MAIN/SUB buttons per
 row. The button for the channel a receiver is on uses the accent style.
@@ -1090,9 +1090,6 @@ row. The button for the channel a receiver is on uses the accent style.
   precondition. `MainWindow.RecallMemoryChannelAsync` shows the channel at
   once and leaves `_lastVfoState` alone, so V/M still returns MAIN to its
   VFO. Leaving Memory mode isn't offered from the list.
-- To test on the rig: Refresh (how long, how many channels), MAIN and SUB
-  recall from VFO mode, a recall while already in Memory mode, V/M back to
-  the VFO, and the highlight following front-panel channel changes.
 
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
