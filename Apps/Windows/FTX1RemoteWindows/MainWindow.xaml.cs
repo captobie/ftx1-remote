@@ -121,6 +121,8 @@ public sealed partial class MainWindow : Window
     private readonly AudioRecorder _audioRecorder = new();
     /// The CW page's PLAY window, while open.
     private RecordingsWindow? _recordingsWindow;
+    private readonly MemoryListStore _memoryListStore = new();
+    private MemoryListWindow? _memoryListWindow;
     /// Each VFO's last polled frequency, for the audio thread's APRS gate
     /// (0 = unknown). Written by the poll, read with Volatile on the audio
     /// thread.
@@ -436,6 +438,8 @@ public sealed partial class MainWindow : Window
             _webSdrWindow?.Close();
             _cwWindow?.Close();
             _recordingsWindow?.Close();
+            _memoryListStore.Cancel();
+            _memoryListWindow?.Close();
             _cwReceiver.Dispose();
             _audioRecorder.Stop();
         };
@@ -565,6 +569,7 @@ public sealed partial class MainWindow : Window
         _webSdrWindow?.ApplyTheme();
         _cwWindow?.ApplyTheme();
         _recordingsWindow?.ApplyTheme();
+        _memoryListWindow?.ApplyTheme();
     }
 
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -1424,6 +1429,13 @@ public sealed partial class MainWindow : Window
         ShowMemoryLabel(MemoryChannelAText, _lastState.VfoMemoryRaw, _lastState.MemoryChannel, _lastState.MemoryChannelTag);
         ShowMemoryLabel(MemoryChannelBText, _lastState.SubVfoMemoryRaw, _lastState.SubMemoryChannel, _lastState.SubMemoryChannelTag);
         VfoMemoryToggle.IsChecked = _lastState.VfoMemoryRaw is { } raw && raw != 0;
+        // ClearMemoryState runs on every connect and disconnect, after
+        // _client is set or cleared, so this also keeps the window's
+        // connected state current.
+        _memoryListWindow?.SetConnected(IsConnected);
+        _memoryListWindow?.SetCurrentChannels(
+            _lastState.VfoMemoryRaw == 11 ? _lastState.MemoryChannel : null,
+            _lastState.SubVfoMemoryRaw == 11 ? _lastState.SubMemoryChannel : null);
     }
 
     /// "CH n TAG" in Memory mode (the Mac's VFODisplayBox label), "VM nn"
@@ -1538,6 +1550,59 @@ public sealed partial class MainWindow : Window
         _swapTracker.ResetBaseline();
         await (sub ? client.SetSubMemoryChannelAsync(channel) : client.SetMemoryChannelAsync(channel));
         StatusText.Text = "";
+    }
+
+    // Memory list (the Mac's Mem List window)
+
+    /// One memory list window, brought to the front if it's already open.
+    private void MemoryListButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_memoryListWindow is null)
+        {
+            _memoryListWindow = new MemoryListWindow(_memoryListStore, () => _client, RecallMemoryChannelAsync);
+            _memoryListWindow.Closed += (_, _) => _memoryListWindow = null;
+            UpdateMemoryDisplay();
+        }
+        _memoryListWindow.Activate();
+    }
+
+    /// A row's MAIN/SUB button: "MC" then, unless already there, "VM…11"
+    /// (RigctldClient.RecallMemoryChannelAsync). Shown at once (the list
+    /// only holds programmed channels, which the rig doesn't ignore); the
+    /// next poll reads back the tag and corrects anything else. Main's
+    /// remembered VFO is left alone, so V/M still returns to it.
+    private async Task RecallMemoryChannelAsync(int channel, bool sub)
+    {
+        if (_client is not { } client)
+        {
+            return;
+        }
+        _commandGeneration++;
+        _swapTracker.ResetBaseline();
+        AppLog.Write($"memory: list recall of channel {channel} on {(sub ? "SUB" : "MAIN")}");
+        if (sub)
+        {
+            _lastState.SubVfoMemoryRaw = 11;
+            _lastState.SubMemoryChannel = channel;
+            _lastState.SubMemoryChannelTag = null;
+        }
+        else
+        {
+            _lastState.VfoMemoryRaw = 11;
+            _lastState.MemoryChannel = channel;
+            _lastState.MemoryChannelTag = null;
+        }
+        UpdateMemoryDisplay();
+        try
+        {
+            await client.RecallMemoryChannelAsync(channel, sub);
+            StatusText.Text = "";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Recall channel {channel} failed: {ex.Message}";
+            AppLog.Write($"memory: list recall failed: {ex.Message}");
+        }
     }
 
     /// The rig resolves what up/down means ("CH"; its wrap and blank-channel

@@ -1063,6 +1063,35 @@ app's own Main audio, PLAY opens a window of everything recorded.
   export twice giving " (2)", delete. Tested in the app by the user the
   same day, working.
 
+## Memory list (Mem List, 2026-10-06)
+
+The Mac's memory list window (repo root CLAUDE.md, "Memory list"), ported
+as-is. Not built on Windows yet — written on the Mac, which has no .NET SDK;
+not yet run on the rig. The Mem List button sits under Waterfall and opens
+`Controls/MemoryListWindow.cs`: the rig's programmed channels (channel, tag,
+frequency, mode, shift, tone type), a search box, and MAIN/SUB buttons per
+row. The button for the channel a receiver is on uses the accent style.
+
+- **Reading** (`Services/MemoryListStore.cs`): CAT has no list command, so a
+  Refresh reads channel by channel with `RigctldClient.
+  ReadMemoryChannelAsync` ("MR", then "MT" for a programmed channel's tag;
+  a blank channel answers "?;" at once). The scan stops after 100 blank
+  channels in a row, the same as the Mac. It's cached in
+  `%LOCALAPPDATA%\FTX1RemoteWindows\memory-channels.json`, and the
+  window only re-reads on Refresh, except the first time it opens with no
+  cache. `Models/MemoryChannelEntry.cs` parses "MR". The Swift parser is
+  the source of truth: its offsets are unit-tested against real rig
+  answers.
+- **Recall** (`RigctldClient.RecallMemoryChannelAsync`): "MC<side>", then
+  "VM<side>11" unless that side already reads 11. Both writes go under
+  one lock hold, like `SetVfoMemoryModeAsync`'s MC-before-VM
+  precondition. `MainWindow.RecallMemoryChannelAsync` shows the channel at
+  once and leaves `_lastVfoState` alone, so V/M still returns MAIN to its
+  VFO. Leaving Memory mode isn't offered from the list.
+- To test on the rig: Refresh (how long, how many channels), MAIN and SUB
+  recall from VFO mode, a recall while already in Memory mode, V/M back to
+  the VFO, and the highlight following front-panel channel changes.
+
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
 - **APRS map** — see "APRS decode" above.
@@ -1117,6 +1146,7 @@ Apps/Windows/FTX1RemoteWindows/
     WebSdrFavoritesDialog.cs     Manage Favorites (WebSDRFavoritesView.swift)
     CwWindow.cs                  CW window + receive pane (CWWindowView.swift)
     CwSendPane.cs                CW send pane + macro editor (CWSendPane.swift)
+    MemoryListWindow.cs          Mem List: memory channels with MAIN/SUB recall (MemoryListView.swift)
     RecordingsWindow.cs          the CW page's PLAY: browse/play/rename/export/delete recordings (RecordingsListView.swift)
   Models/
     RigMode.cs                 hamlib mode vocabulary — Sources/FTX1Core/RigState/RigState.swift's RigMode
@@ -1130,6 +1160,7 @@ Apps/Windows/FTX1RemoteWindows/
     AprsPacket.cs               APRS info-field parser — APRS/APRSPacket.swift
     AprsModels.cs               AprsStation/AprsMessage/AprsSource — APRS/APRSModels.swift
     SdrUrls.cs                  SdrPlatform + KiwiSDR/WebSDR/OpenWebRX URL builders — SDRPlatform + the three *URLBuilder.swift
+    MemoryChannelEntry.cs       one "MR"/"MT" memory channel — RigState/MemoryChannelEntry.swift
     SdrStations.cs              KiwiSdrStation, WebSdrFavorite, Maidenhead — KiwiSDRStation/WebSDRFavorite.swift
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
@@ -1143,6 +1174,7 @@ Apps/Windows/FTX1RemoteWindows/
     AfskDemodulator.cs           Bell 202 AFSK demodulator — APRS/AFSKDemodulator.swift
     Ax25.cs                      AX.25 frame/FCS/frame decoder — APRS/AX25Frame.swift
     AprsDecoder.cs               per-receiver decode worker (port of the Mac's APRSDecoder.swift)
+    MemoryListStore.cs           memory channel scan + memory-channels.json (MemoryListStore.swift)
     AprsStore.cs                 decoded station/message history + aprs-history.json (APRSStore/APRSPersistence.swift)
     WebSdrFollowModel.cs         WebSDR window logic: follow, click-to-tune, record, mute (WebSDRFollowModel.swift)
     SdrPageBridge.cs             calls into the KiwiSDR/WebSDR page + the shared WebView2 environment (SDRPageBridge.swift)

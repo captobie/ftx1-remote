@@ -802,6 +802,10 @@ golden file). The WebSDR window is a third CW source
 browser process tree), tested with a local CW page, not yet against a real
 WebSDR; unlike the Mac, a muted WebSDR can't be decoded (Windows has no
 mute that keeps the capture fed — user decision).
+The memory list (Mem List under Waterfall) was ported 2026-10-06
+(`Controls/MemoryListWindow.cs`, `Services/MemoryListStore.cs`,
+`Models/MemoryChannelEntry.cs`). It was written on the Mac and isn't yet
+built on Windows or tried on the rig; see the README's "Memory list".
 Full plan, protocol/model porting notes, and open items:
 `Apps/Windows/README.md`. `Apps/Windows/FTX1RemoteWindows/` has a
 build-verified (`dotnet build -r win-x64 --self-contained`, not yet

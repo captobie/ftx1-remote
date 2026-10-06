@@ -634,6 +634,61 @@ public sealed class RigctldClient : IAsyncDisposable
         return tag.Length == 0 ? null : tag;
     }
 
+    /// One memory channel's contents ("MR") plus its tag ("MT", read only
+    /// for a programmed channel) — the Swift readMemoryChannel. Null for a
+    /// blank channel, which answers "MR" with "?;" right away. A failed
+    /// tag read leaves the tag null rather than dropping the channel.
+    public async Task<MemoryChannelEntry?> ReadMemoryChannelAsync(int channel, CancellationToken cancellationToken = default)
+    {
+        var reply = await SendRawCommandAsync($"MR{channel:00000}", cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (MemoryChannelEntry.Parse(reply) is not { } entry || entry.Channel != channel)
+        {
+            return null;
+        }
+        try
+        {
+            entry.Tag = await GetMemoryChannelTagAsync(channel, cancellationToken).ConfigureAwait(false);
+        }
+        catch (RigctldError)
+        {
+        }
+        return entry;
+    }
+
+    /// The memory list's MAIN/SUB buttons — CommandQueue.swift's
+    /// .recallMemoryChannel: select the channel with "MC", then enter
+    /// Memory mode with "VM…11" unless that side already reads 11. Writing
+    /// "MC" right before "VM" is also the undocumented precondition
+    /// SetVfoMemoryModeAsync re-asserts the current channel for — here it's
+    /// the new one, and both writes go out under one lock hold for the same
+    /// reason as there.
+    public async Task RecallMemoryChannelAsync(int channel, bool sub, CancellationToken cancellationToken = default)
+    {
+        var p1 = sub ? "1" : "0";
+        int? mode;
+        try
+        {
+            mode = await GetRawIntAsync("VM" + p1, cancellationToken).ConfigureAwait(false);
+        }
+        catch (RigctldError)
+        {
+            mode = null;
+        }
+        await _roundTripLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await WriteAsync($"W MC{p1}{channel:00000}; ;", cancellationToken).ConfigureAwait(false);
+            if (mode != 11)
+            {
+                await WriteAsync($"W VM{p1}11; ;", cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            _roundTripLock.Release();
+        }
+    }
+
     /// Writes CW TEXT keyer memory <paramref name="slot"/> (1-5) with "KM"
     /// and returns what the rig stored, without the "}" end marker it
     /// appends itself — RigctldClient.swift's writeKeyerMemory, whose doc

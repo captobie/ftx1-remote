@@ -125,13 +125,26 @@
                             <FontIcon Glyph="&#xE767;" FontSize="14" />
                         </ToggleButton>
                     </StackPanel>
-                    <!-- What the scope below shows (the Mac's scope mode buttons). -->
-                    <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                    <!-- What the scope below shows (the Mac's scope mode buttons),
+                         and under Waterfall the memory list (the Mac's Mem List). -->
+                    <Grid ColumnSpacing="4" RowSpacing="4" HorizontalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
                         <ToggleButton x:Name="ScopeWaterfallButton" Content="Waterfall" Tag="Waterfall" Click="ScopeModeButton_Click" />
-                        <ToggleButton x:Name="ScopeOscilloscopeButton" Content="Oscilloscope" Tag="Oscilloscope" Click="ScopeModeButton_Click" />
-                        <ToggleButton x:Name="ScopeOffButton" Content="Off" Tag="Off" Click="ScopeModeButton_Click"
+                        <ToggleButton x:Name="ScopeOscilloscopeButton" Grid.Column="1" Content="Oscilloscope" Tag="Oscilloscope" Click="ScopeModeButton_Click" />
+                        <ToggleButton x:Name="ScopeOffButton" Grid.Column="2" Content="Off" Tag="Off" Click="ScopeModeButton_Click"
                                       ToolTipService.ToolTip="Stops the FFT too (and the Filter display's spectrum); audio keeps playing" />
-                    </StackPanel>
+                        <Button x:Name="MemoryListButton" Grid.Row="1" Content="Mem List" HorizontalAlignment="Stretch"
+                                Click="MemoryListButton_Click"
+                                ToolTipService.ToolTip="List the rig's memory channels and recall one on MAIN or SUB" />
+                    </Grid>
                 </StackPanel>
 
                 <Border Grid.Row="0" Grid.Column="0" x:Name="SubVfoBox" RequestedTheme="Dark"
