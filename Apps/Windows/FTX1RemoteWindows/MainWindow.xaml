@@ -108,39 +108,52 @@
                     </StackPanel>
                 </Border>
 
-                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="8" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <!-- Spread across the width of the button grid below, so V/M lines up
+                         with Waterfall and the speaker button with Off/Skip. -->
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
                         <!-- Order matches the Mac: V/M, TX side, swap, audio override. -->
                         <!-- Main's VFO/Memory mode; checked whenever it isn't plain VFO. -->
                         <ToggleButton x:Name="VfoMemoryToggle" Content="V/M"
                                       Click="VfoMemoryToggle_Click"
                                       ToolTipService.ToolTip="Switch MAIN between VFO and Memory mode (the rig's V/M)" />
                         <!-- Which receiver transmits (raw "FT"); the caption shows the current side. -->
-                        <Button x:Name="TxSideButton" Content="TX:MAIN" Click="TxSideButton_Click"
+                        <Button x:Name="TxSideButton" Grid.Column="2" Content="TX:MAIN" Click="TxSideButton_Click"
                                 ToolTipService.ToolTip="Switch the transmit side between MAIN and SUB" />
-                        <Button x:Name="SwapVfoButton" Content="⇄"
+                        <Button x:Name="SwapVfoButton" Grid.Column="4" Content="⇄"
                                 Click="SwapVfoButton_Click" ToolTipService.ToolTip="Swap Main and Sub (the rig's SV command)" />
                         <!-- Manual override for audio swap tracking; checked while L/R are swapped. -->
-                        <ToggleButton x:Name="AudioSwapToggle" Click="AudioSwapToggle_Click">
+                        <ToggleButton x:Name="AudioSwapToggle" Grid.Column="6" Click="AudioSwapToggle_Click">
                             <FontIcon Glyph="&#xE767;" FontSize="14" />
                         </ToggleButton>
-                    </StackPanel>
+                    </Grid>
                     <!-- What the scope below shows (the Mac's scope mode buttons),
                          and under them the memory list (the Mac's Mem List) and the
                          rig's memory scan (MainWindow.MemoryScan.cs). -->
-                    <Grid ColumnSpacing="4" RowSpacing="4" HorizontalAlignment="Center">
+                    <!-- The last column takes up any slack, so Off/Skip end where the
+                         speaker button above does whichever row is wider. -->
+                    <Grid ColumnSpacing="4" RowSpacing="4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <ToggleButton x:Name="ScopeWaterfallButton" Content="Waterfall" Tag="Waterfall" Click="ScopeModeButton_Click" />
-                        <ToggleButton x:Name="ScopeOscilloscopeButton" Grid.Column="1" Content="Oscilloscope" Tag="Oscilloscope" Click="ScopeModeButton_Click" />
-                        <ToggleButton x:Name="ScopeOffButton" Grid.Column="2" Content="Off" Tag="Off" Click="ScopeModeButton_Click"
+                        <ToggleButton x:Name="ScopeWaterfallButton" Content="Waterfall" HorizontalAlignment="Stretch" Tag="Waterfall" Click="ScopeModeButton_Click" />
+                        <ToggleButton x:Name="ScopeOscilloscopeButton" Grid.Column="1" Content="Oscilloscope" HorizontalAlignment="Stretch" Tag="Oscilloscope" Click="ScopeModeButton_Click" />
+                        <ToggleButton x:Name="ScopeOffButton" Grid.Column="2" Content="Off" HorizontalAlignment="Stretch" Tag="Off" Click="ScopeModeButton_Click"
                                       ToolTipService.ToolTip="Stops the FFT too (and the Filter display's spectrum); audio keeps playing" />
                         <Button x:Name="MemoryListButton" Grid.Row="1" Content="Mem List" HorizontalAlignment="Stretch"
                                 Click="MemoryListButton_Click"
