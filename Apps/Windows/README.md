@@ -1094,8 +1094,8 @@ row. The button for the channel a receiver is on uses the accent style.
 ## Memory scan (MAIN and SUB, 2026-10-06)
 
 The Mac's memory scan (repo root CLAUDE.md, "Memory scan"), ported. Written
-on the Mac, which has no .NET SDK: not yet built on Windows or tried on the
-rig. Everything about the rig's behavior was probed on the real rig for the
+on the Mac, then built and tested on the rig by the user on Windows,
+2026-10-06: working. Everything about the rig's behavior was probed on the real rig for the
 Mac and is the same here; `MainWindow.MemoryScan.cs`'s header comment
 lists it.
 
@@ -1142,7 +1142,7 @@ lists it.
   Unchanged: `SetFrequencyAsync`/`SetModeAsync` ("F/M currVFO"), MAIN's
   "CH" step and the MAIN S-meter ("l currVFO STRENGTH") still follow the
   active side, and `SetSecondaryFrequencyAsync` picks its side with `v`.
-- To test on the rig: Scan MAIN and Scan SUB from the menu (box blanked,
+- Checklist used for that test: Scan MAIN and Scan SUB from the menu (box blanked,
   TXRX moving to the scanning side, the other box live), a pause on a busy
   channel, Skip, Stop (TX back to MAIN), Scan Down/Up from the Mem List
   picker, switching sides mid-scan, a Mem List recall mid-scan, a scan

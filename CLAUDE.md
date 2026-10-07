@@ -816,8 +816,8 @@ mute that keeps the capture fed — user decision).
 The memory scan (MAIN and SUB, Scan/Skip next to Mem List) was ported
 2026-10-06 (`MainWindow.MemoryScan.cs`, `Models/MemoryScan.cs`), with the
 same read-by-side poll fix as the Mac (the boxes traded places with TX on
-SUB); written on the Mac, not yet built or rig-tested. See the README's
-"Memory scan".
+SUB); built and rig-tested by the user on Windows the same day, working.
+See the README's "Memory scan".
 The memory list (Mem List under Waterfall) was ported 2026-10-06
 (`Controls/MemoryListWindow.cs`, `Services/MemoryListStore.cs`,
 `Models/MemoryChannelEntry.cs`). The user built it and tested it on the
