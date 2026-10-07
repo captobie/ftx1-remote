@@ -813,6 +813,11 @@ golden file). The WebSDR window is a third CW source
 browser process tree), tested with a local CW page, not yet against a real
 WebSDR; unlike the Mac, a muted WebSDR can't be decoded (Windows has no
 mute that keeps the capture fed — user decision).
+The memory scan (MAIN and SUB, Scan/Skip next to Mem List) was ported
+2026-10-06 (`MainWindow.MemoryScan.cs`, `Models/MemoryScan.cs`), with the
+same read-by-side poll fix as the Mac (the boxes traded places with TX on
+SUB); written on the Mac, not yet built or rig-tested. See the README's
+"Memory scan".
 The memory list (Mem List under Waterfall) was ported 2026-10-06
 (`Controls/MemoryListWindow.cs`, `Services/MemoryListStore.cs`,
 `Models/MemoryChannelEntry.cs`). The user built it and tested it on the
@@ -1353,7 +1358,8 @@ then Skip and Stop Scan while one runs (shown only when they apply).
 - `RigCommand.setMemoryScan(_:side:)` ("set_memory_scan", value
   `{direction, side}`) and `RigState.memoryScan`/`memoryScanSide` are on
   the wire, so the iPad's boxes show SCANNING/SCAN PAUSED too; the iPad
-  has no scan controls yet, and the Windows app doesn't have the feature.
+  has no scan controls yet. Windows port: see `Apps/Windows/README.md`'s
+  "Memory scan".
 - Tested 2026-10-06 in the built app against the rig: MAIN — Scan,
   display while scanning, pause on busy channels, Skip, Scan Down (rig
   read "SC02;"), Stop Scan, a Mem List recall while scanning (rig-confirmed

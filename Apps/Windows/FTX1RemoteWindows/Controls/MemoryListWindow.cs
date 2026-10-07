@@ -19,11 +19,29 @@ namespace FTX1RemoteWindows.Controls;
 /// Rows are rebuilt only when the list's contents change (coalesced while
 /// a scan fills it in); the current-channel highlight is restyled in place
 /// on each poll.
+///
+/// The toolbar also drives the rig's memory scan (MainWindow.MemoryScan.cs,
+/// the Mac's MemoryListView scan controls) — not the Refresh read of the
+/// list, which this file otherwise calls a scan: a MAIN/SUB picker with
+/// Scan Down/Up while stopped, then Skip (paused only) and Stop Scan.
 public sealed class MemoryListWindow : Window
 {
     private readonly MemoryListStore _store;
     private readonly Func<RigctldClient?> _clientProvider;
     private readonly Func<int, bool, Task> _recall;
+    private readonly Func<bool, bool, Task> _startScan;
+    private readonly Func<Task> _skipScan;
+    private readonly Func<Task> _stopScan;
+    private readonly ComboBox _scanSide = new() { Items = { "MAIN", "SUB" }, SelectedIndex = 0, VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _scanDownButton = new() { Content = "Scan Down" };
+    private readonly Button _scanUpButton = new() { Content = "Scan Up" };
+    private readonly Button _skipButton = new() { Content = "Skip" };
+    private readonly Button _stopScanButton = new() { Content = "Stop Scan" };
+    private MemoryScanState? _memoryScan;
+    private bool _memoryScanSub;
+    private bool _canScanMain;
+    private bool _canScanSub;
+    private int? _scanChannel;
     private readonly Grid _root = new() { Padding = new Thickness(12), RowSpacing = 8 };
     private readonly ListView _list = new() { SelectionMode = ListViewSelectionMode.None };
     private readonly TextBox _search = new() { PlaceholderText = "Name, channel, frequency", Width = 240 };
@@ -45,15 +63,20 @@ public sealed class MemoryListWindow : Window
 
     /// <param name="clientProvider">MainWindow's current client (null while disconnected).</param>
     /// <param name="recall">Recalls (channel, sub) — MainWindow.RecallMemoryChannelAsync.</param>
-    public MemoryListWindow(MemoryListStore store, Func<RigctldClient?> clientProvider, Func<int, bool, Task> recall)
+    /// <param name="startScan">Starts the memory scan (sub, up) — MainWindow.StartMemoryScanAsync.</param>
+    public MemoryListWindow(MemoryListStore store, Func<RigctldClient?> clientProvider, Func<int, bool, Task> recall,
+        Func<bool, bool, Task> startScan, Func<Task> skipScan, Func<Task> stopScan)
     {
         _store = store;
         _clientProvider = clientProvider;
         _recall = recall;
+        _startScan = startScan;
+        _skipScan = skipScan;
+        _stopScan = stopScan;
         Title = "Memory Channels";
         // AppWindow sizes are physical pixels; scale from DIPs.
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
-        AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(720 * scale), (int)(560 * scale)));
+        AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(880 * scale), (int)(560 * scale)));
 
         _root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -63,10 +86,27 @@ public sealed class MemoryListWindow : Window
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _search.TextChanged += (_, _) => Rebuild();
         toolbar.Children.Add(_search);
         Grid.SetColumn(_statusText, 1);
         toolbar.Children.Add(_statusText);
+
+        var scanPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        ToolTipService.SetToolTip(_scanSide, "Which receiver to scan");
+        _scanSide.SelectionChanged += (_, _) => UpdateScanControls();
+        _scanDownButton.Click += async (_, _) => await _startScan(_scanSide.SelectedIndex == 1, false);
+        _scanUpButton.Click += async (_, _) => await _startScan(_scanSide.SelectedIndex == 1, true);
+        _skipButton.Click += async (_, _) => await _skipScan();
+        _stopScanButton.Click += async (_, _) => await _stopScan();
+        ToolTipService.SetToolTip(_skipButton, "Resume the scan past this channel");
+        foreach (var control in new FrameworkElement[] { _scanSide, _scanDownButton, _scanUpButton, _skipButton, _stopScanButton })
+        {
+            scanPanel.Children.Add(control);
+        }
+        Grid.SetColumn(scanPanel, 2);
+        toolbar.Children.Add(scanPanel);
+        UpdateScanControls();
         _refreshButton.Click += (_, _) =>
         {
             if (_store.IsScanning)
@@ -78,7 +118,7 @@ public sealed class MemoryListWindow : Window
                 _store.Refresh(_clientProvider);
             }
         };
-        Grid.SetColumn(_refreshButton, 2);
+        Grid.SetColumn(_refreshButton, 3);
         toolbar.Children.Add(_refreshButton);
         _root.Children.Add(toolbar);
 
@@ -141,7 +181,59 @@ public sealed class MemoryListWindow : Window
         {
             _store.Refresh(_clientProvider);
         }
+        UpdateScanControls();
         UpdateStatus();
+    }
+
+    /// From MainWindow's scan display update (every poll; unchanged calls
+    /// return at once): the scan state, its side, which sides can start one
+    /// (Memory mode, SUB shown), and the scanning side's channel.
+    public void SetMemoryScan(MemoryScanState? state, bool sub, bool canScanMain, bool canScanSub, int? channel)
+    {
+        if (state == _memoryScan && sub == _memoryScanSub && canScanMain == _canScanMain && canScanSub == _canScanSub && channel == _scanChannel)
+        {
+            return;
+        }
+        _memoryScan = state;
+        _memoryScanSub = sub;
+        _canScanMain = canScanMain;
+        _canScanSub = canScanSub;
+        _scanChannel = channel;
+        UpdateScanControls();
+        UpdateStatus();
+    }
+
+    private bool ScanActive => _memoryScan is MemoryScanState.Scanning or MemoryScanState.Paused;
+
+    private void UpdateScanControls()
+    {
+        var active = ScanActive;
+        var picked = _scanSide.SelectedIndex == 1;
+        var canStart = _connected && (picked ? _canScanSub : _canScanMain);
+        foreach (var control in new Control[] { _scanSide, _scanDownButton, _scanUpButton })
+        {
+            control.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
+        }
+        _scanDownButton.IsEnabled = canStart;
+        _scanUpButton.IsEnabled = canStart;
+        var hint = canStart || !_connected ? "" : $" (put {(picked ? "SUB" : "MAIN")} in Memory mode first)";
+        ToolTipService.SetToolTip(_scanDownButton, $"Scan {(picked ? "SUB" : "MAIN")}'s memory channels downward{hint}");
+        ToolTipService.SetToolTip(_scanUpButton, $"Scan {(picked ? "SUB" : "MAIN")}'s memory channels upward{hint}");
+        _skipButton.Visibility = _memoryScan == MemoryScanState.Paused ? Visibility.Visible : Visibility.Collapsed;
+        _stopScanButton.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+        ToolTipService.SetToolTip(_stopScanButton, $"Stop the {(_memoryScanSub ? "SUB" : "MAIN")} memory scan");
+    }
+
+    /// Status text for the rig's memory scan; null when it isn't running.
+    private string? ScanStatusText()
+    {
+        var side = _memoryScanSub ? "SUB" : "MAIN";
+        return _memoryScan switch
+        {
+            MemoryScanState.Scanning => $"{side} memory scan running…",
+            MemoryScanState.Paused => $"{side} memory scan paused on {(_scanChannel is { } c ? $"CH {c}" : "a busy channel")}",
+            _ => null,
+        };
     }
 
     /// From MainWindow's memory display update: the channel each receiver
@@ -252,6 +344,8 @@ public sealed class MemoryListWindow : Window
         _refreshButton.IsEnabled = _store.IsScanning || _connected;
         _statusText.Text = _store.ScanningChannel is { } channel
             ? $"Reading channel {channel}…"
+            : ScanStatusText() is { } scanText
+                ? scanText
             : _store.ScanError is { } error
                 ? error
                 : _store.LastScanned is { } scanned

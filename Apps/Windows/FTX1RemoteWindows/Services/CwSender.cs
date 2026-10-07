@@ -17,6 +17,10 @@ public sealed class CwRigLink
     public required Func<int?> SpeedWpm { get; init; }
     /// Whether the last poll saw the rig transmitting.
     public required Func<bool> Ptt { get; init; }
+    /// Awaited right before each chunk keys ("KY0n"): MainWindow stops a
+    /// running memory scan there, as before PTT. Not part of BlockReason,
+    /// which the pane also reads just to show its status.
+    public Func<Task>? BeforeKeyAsync { get; init; }
 }
 
 /// The send side of the CW window — the Mac's CWSender (Apps/Mac/
@@ -292,6 +296,10 @@ public sealed class CwSender
             var wpm = Math.Max(_rig.SpeedWpm() ?? 20, 4);
             var expected = CwText.Duration(chunk, wpm);
             SetActivity($"Sending at {wpm} WPM…");
+            if (_rig.BeforeKeyAsync is { } beforeKey)
+            {
+                await beforeKey();
+            }
             var startedAt = DateTime.UtcNow;
             await client.SetRawIntAsync("KY0", slot, 1);
             await WaitUntilKeyedAsync(startedAt, expected, token);

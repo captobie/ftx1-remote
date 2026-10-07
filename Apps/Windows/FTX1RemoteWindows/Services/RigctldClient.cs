@@ -233,6 +233,55 @@ public sealed class RigctldClient : IAsyncDisposable
         _ = await SendAsync($"L {CurrentVfoArg} RFPOWER {level:F3}", cancellationToken).ConfigureAwait(false);
     }
 
+    /// MAIN's frequency from raw "FA", whichever side is active. The poll
+    /// reads each box by side (2026-10-06, like the Mac's fast tier):
+    /// "f currVFO"/"m currVFO" and GetSecondaryFrequencyAsync follow hamlib's
+    /// active VFO, which is SUB whenever "VS"/"FT" is (TX:SUB, or a SUB
+    /// memory scan) — then the two boxes traded places.
+    public async Task<long> GetMainFrequencyAsync(CancellationToken cancellationToken = default)
+    {
+        var reply = await SendRawCommandAsync("FA", cancellationToken: cancellationToken).ConfigureAwait(false);
+        var digits = reply.StartsWith("FA", StringComparison.Ordinal)
+            ? new string(reply.Skip(2).TakeWhile(char.IsAsciiDigit).ToArray())
+            : "";
+        if (!long.TryParse(digits, out var hz))
+        {
+            throw new RigctldError($"Bad FA reply: '{reply}'");
+        }
+        return hz;
+    }
+
+    /// SUB's frequency ("f Sub", explicitly — see GetMainFrequencyAsync).
+    /// It read 0 or a wrong ~51 MHz value while MAIN sat on a 6 m channel
+    /// in the 2026-10-06 probes (as did raw "FB"); the memory scan reads
+    /// SUB's channel from its "MR" entry for that reason.
+    public async Task<long> GetSubFrequencyAsync(CancellationToken cancellationToken = default)
+    {
+        var line = await SendAsync("f Sub", cancellationToken).ConfigureAwait(false);
+        if (!long.TryParse(line, out var hz))
+        {
+            throw new RigctldError($"Bad sub-frequency reply: '{line}'");
+        }
+        return hz;
+    }
+
+    /// Raw "RI0" (RADIO INFORMATION), parsed — see RadioInformation.
+    public async Task<RadioInformation?> GetRadioInformationAsync(CancellationToken cancellationToken = default) =>
+        RadioInformation.Parse(await SendRawCommandAsync("RI0", cancellationToken: cancellationToken).ConfigureAwait(false));
+
+    /// Starts or stops the rig's own scan on one side: raw "SC<side><n>",
+    /// n 0 off, 1 up, 2 down (CommandQueue.swift's .setMemoryScan). In
+    /// Memory mode it's a memory scan. A stop with either side's P1 stops
+    /// both sides' scans; starting one moves the rig's TX/RX side ("VS",
+    /// the same setting as "FT") to that side. All rig-confirmed 2026-10-06.
+    public Task SetMemoryScanAsync(bool sub, int direction, CancellationToken cancellationToken = default) =>
+        SetRawIntAsync(sub ? "SC1" : "SC0", direction, 1, cancellationToken);
+
+    /// The side "SC;" last told to scan ("SC11;" → true), for a scan the
+    /// app didn't start. Null for an odd reply.
+    public async Task<bool?> GetMemoryScanSideAsync(CancellationToken cancellationToken = default) =>
+        await GetRawDigitAsync("SC", cancellationToken).ConfigureAwait(false) is { } p1 ? p1 == 1 : null;
+
     public async Task<long> GetSecondaryFrequencyAsync(CancellationToken cancellationToken = default)
     {
         var currentVfo = await SendAsync("v", cancellationToken).ConfigureAwait(false);

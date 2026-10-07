@@ -47,6 +47,21 @@ public sealed class RigState
     public int? SubMemoryChannel { get; set; }
     public string? SubMemoryChannelTag { get; set; }
 
+    /// The rig's own memory scan (raw "SC", state from "RI0" P7 — one state
+    /// for the whole radio), RigState.swift's memoryScan: read only while
+    /// either side is in Memory mode or a scan was last seen running, null
+    /// otherwise. While Scanning the rig steps ~10 channels a second,
+    /// faster than any poll, so the scanning side's frequency/channel/mode
+    /// keep their last values and the box hides them; they're read again
+    /// the moment the scan pauses or stops.
+    public MemoryScanState? MemoryScan { get; set; }
+    /// Which side MemoryScan is about (the app runs one side's scan at a
+    /// time): true SUB, false MAIN.
+    public bool MemoryScanSub { get; set; }
+    public bool MemoryScanActive => MemoryScan is MemoryScanState.Scanning or MemoryScanState.Paused;
+    /// MemoryScan if it's about that side, null otherwise.
+    public MemoryScanState? MemoryScanOn(bool sub) => MemoryScanSub == sub ? MemoryScan : null;
+
     /// Plain VFO mode. The V/M toggle compares against this, not "is
     /// Memory": in the rig's other sub-modes a "not Memory" test would
     /// keep re-entering Memory instead of ever leaving (the Mac's

@@ -1091,6 +1091,63 @@ row. The button for the channel a receiver is on uses the accent style.
   once and leaves `_lastVfoState` alone, so V/M still returns MAIN to its
   VFO. Leaving Memory mode isn't offered from the list.
 
+## Memory scan (MAIN and SUB, 2026-10-06)
+
+The Mac's memory scan (repo root CLAUDE.md, "Memory scan"), ported. Written
+on the Mac, which has no .NET SDK: not yet built on Windows or tried on the
+rig. Everything about the rig's behavior was probed on the real rig for the
+Mac and is the same here; `MainWindow.MemoryScan.cs`'s header comment
+lists it.
+
+- **Controls**: Scan and Skip next to Mem List under Waterfall. Scan opens
+  a menu (Scan SUB / Scan MAIN, each enabled only in that side's Memory
+  mode, SUB not in single-receive display) and turns into "Stop MAIN"/"Stop
+  SUB" while a scan runs; Skip resumes a paused scan past the busy channel.
+  The Mem List window's toolbar has a MAIN/SUB picker with Scan Down/Up,
+  then Skip and Stop Scan while one runs.
+- **Rig commands**: `RigctldClient.SetMemoryScanAsync` ("SC<side><n>": 0
+  off, 1 up, 2 down — any stop stops both sides), `GetRadioInformationAsync`
+  ("RI0": P7 is the scan state for the whole radio, `Models/MemoryScan.cs`),
+  `GetMemoryScanSideAsync` ("SC;" reads back the side last told to scan,
+  for a front-panel scan).
+- **Polling**: while the rig scans, `PollFieldsAsync` hands over to
+  `MemoryScanTickAsync` and the poll timer drops to 250 ms: "RI0", plus the
+  side that isn't scanning kept live (MAIN's "FA"/"MD0" during a SUB scan,
+  SUB's "MC1" and that channel's "MR" during a MAIN scan). The scanning
+  box shows "—", SCANNING and SCAN; on a pause or stop
+  `PublishMemoryScanStopAsync` reads the channel (SUB's frequency/mode from
+  its "MR" entry), checks the number again, and shows it with SCAN PAUSED.
+  In Memory mode every normal poll starts with an "RI0" read, which is how
+  a front-panel scan or a BUSY resume is picked up before the poll reads a
+  random channel.
+- **One side at a time** (user decision, as on the Mac): starting a scan on
+  one side stops the other first.
+- **TX side**: a scan moves the rig's TX/RX side to the scanning side ("VS"
+  = "FT"). The side from before is put back ("FT0"/"FT1" right after the
+  stop) when the app stops the scan — Stop, or a tune/recall that stops it
+  — not before a transmit, not after a front-panel stop, not once TX:MAIN/
+  SUB is clicked.
+- **Stopped first** (`StopMemoryScanForAsync`): main-frequency entry, mode,
+  band, ⇄ and MAIN's channel step stop either side's scan ("F currVFO",
+  "M currVFO" and "CH" follow the active side, so the TX side is restored
+  first); V/M, MAIN channel entry and MAIN recall stop a MAIN scan; SUB
+  frequency, channel entry/step and SUB recall stop a SUB scan. PTT, MOX,
+  ANT TUNE (`MenuGrid.BeforeTransmitAsync`) and each CW chunk
+  (`CwRigLink.BeforeKeyAsync`) stop it but keep the TX side.
+- **Fixed with this — the poll read the boxes by hamlib's active VFO**:
+  MAIN was "f currVFO"/"m currVFO" and SUB a `v`-based read, so with TX on
+  SUB the two boxes traded places. The poll now reads MAIN with raw "FA"/
+  "MD0" and SUB with "f Sub" (`GetMainFrequencyAsync`/`GetSubFrequencyAsync`),
+  like the Mac's fast tier; "MD0" also reads C4FM, which "m" couldn't.
+  Unchanged: `SetFrequencyAsync`/`SetModeAsync` ("F/M currVFO"), MAIN's
+  "CH" step and the MAIN S-meter ("l currVFO STRENGTH") still follow the
+  active side, and `SetSecondaryFrequencyAsync` picks its side with `v`.
+- To test on the rig: Scan MAIN and Scan SUB from the menu (box blanked,
+  TXRX moving to the scanning side, the other box live), a pause on a busy
+  channel, Skip, Stop (TX back to MAIN), Scan Down/Up from the Mem List
+  picker, switching sides mid-scan, a Mem List recall mid-scan, a scan
+  started from the front panel, and both boxes with TX:SUB and no scan.
+
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
 - **APRS map** — see "APRS decode" above.
@@ -1132,6 +1189,7 @@ Apps/Windows/FTX1RemoteWindows/
   app.manifest               DPI-awareness manifest (unpackaged apps need this)
   App.xaml(.cs)               standard WinUI 3 application entry point
   MainWindow.xaml(.cs)        v1 core-rig-control UI + poll loop + audio controls
+  MainWindow.MemoryScan.cs    the rig's memory scan, MAIN/SUB (HubService.swift's scan parts)
   SettingsDialog.xaml(.cs)    Settings dialog (the Mac's SettingsView tabs)
   Controls/
     MenuGrid.cs                  MENU grid (port of MenuPageView.swift), all three pages
@@ -1160,6 +1218,7 @@ Apps/Windows/FTX1RemoteWindows/
     AprsModels.cs               AprsStation/AprsMessage/AprsSource — APRS/APRSModels.swift
     SdrUrls.cs                  SdrPlatform + KiwiSDR/WebSDR/OpenWebRX URL builders — SDRPlatform + the three *URLBuilder.swift
     MemoryChannelEntry.cs       one "MR"/"MT" memory channel — RigState/MemoryChannelEntry.swift
+    MemoryScan.cs               MemoryScanState + the "RI0" parse — RigState/MemoryScan.swift
     SdrStations.cs              KiwiSdrStation, WebSdrFavorite, Maidenhead — KiwiSDRStation/WebSDRFavorite.swift
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol

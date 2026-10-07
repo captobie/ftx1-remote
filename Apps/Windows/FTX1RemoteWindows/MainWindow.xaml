@@ -126,7 +126,8 @@
                         </ToggleButton>
                     </StackPanel>
                     <!-- What the scope below shows (the Mac's scope mode buttons),
-                         and under Waterfall the memory list (the Mac's Mem List). -->
+                         and under them the memory list (the Mac's Mem List) and the
+                         rig's memory scan (MainWindow.MemoryScan.cs). -->
                     <Grid ColumnSpacing="4" RowSpacing="4" HorizontalAlignment="Center">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -144,6 +145,14 @@
                         <Button x:Name="MemoryListButton" Grid.Row="1" Content="Mem List" HorizontalAlignment="Stretch"
                                 Click="MemoryListButton_Click"
                                 ToolTipService.ToolTip="List the rig's memory channels and recall one on MAIN or SUB" />
+                        <!-- A menu (Scan SUB / Scan MAIN) while stopped, "Stop MAIN"/"Stop SUB"
+                             while a scan runs. -->
+                        <Button x:Name="MemoryScanButton" Grid.Row="1" Grid.Column="1" Content="Scan" HorizontalAlignment="Stretch"
+                                Click="MemoryScanButton_Click" IsEnabled="False"
+                                ToolTipService.ToolTip="Scan MAIN's or SUB's memory channels (Memory mode)" />
+                        <Button x:Name="MemoryScanSkipButton" Grid.Row="1" Grid.Column="2" Content="Skip" HorizontalAlignment="Stretch"
+                                Click="MemoryScanSkipButton_Click" IsEnabled="False"
+                                ToolTipService.ToolTip="Resume the paused scan past this channel" />
                     </Grid>
                 </StackPanel>
 

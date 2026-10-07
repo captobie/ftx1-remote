@@ -83,6 +83,9 @@ public sealed class MenuGrid : UserControl
 
     /// A command or read failed; MainWindow shows it on its status line.
     public event Action<string>? StatusMessage;
+    /// Awaited right before MOX on or ANT TUNE keys the rig: MainWindow
+    /// stops a running memory scan there, as before PTT.
+    public Func<Task>? BeforeTransmitAsync { get; set; }
 
     /// RF POWER sent a new level (0.0-1.0), so the main window's power
     /// slider can move and hold like it does for its own sends.
@@ -840,7 +843,14 @@ public sealed class MenuGrid : UserControl
                 StatusMessage?.Invoke(reason);
                 return;
             }
-            Send("MOX", () => _state.MoxEnabled = on, c => c.SetMoxAsync(on));
+            Send("MOX", () => _state.MoxEnabled = on, async c =>
+            {
+                if (on && BeforeTransmitAsync is { } before)
+                {
+                    await before();
+                }
+                await c.SetMoxAsync(on);
+            });
         };
         _refreshers.Add(() =>
         {
@@ -863,7 +873,14 @@ public sealed class MenuGrid : UserControl
                 StatusMessage?.Invoke(reason);
                 return;
             }
-            Send("ANT TUNE", () => { }, c => c.SendRawFireAndForgetAsync("AC103"));
+            Send("ANT TUNE", () => { }, async c =>
+            {
+                if (BeforeTransmitAsync is { } before)
+                {
+                    await before();
+                }
+                await c.SendRawFireAndForgetAsync("AC103");
+            });
         };
         _refreshers.Add(() =>
         {

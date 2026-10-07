@@ -247,6 +247,7 @@ public sealed partial class MainWindow : Window
 
         _menuGrid = new MenuGrid(_lastState) { Client = null };
         _menuGrid.StatusMessage += message => StatusText.Text = message;
+        _menuGrid.BeforeTransmitAsync = StopMemoryScanBeforeTransmitAsync;
         _menuGrid.PowerLevelSent += level =>
         {
             // Same hold as the main slider's own sends, so a poll that read
@@ -289,6 +290,7 @@ public sealed partial class MainWindow : Window
             BlockReason = CwSendBlockReason,
             SpeedWpm = () => _lastState.CwSpeedWpm,
             Ptt = () => _lastState.Ptt,
+            BeforeKeyAsync = StopMemoryScanBeforeTransmitAsync,
         });
         _cwSender.ActiveChanged += _cwReceiver.SetSenderActive;
         WireAprsDecoder(_aprsMainDecoder, AprsSource.Main);
@@ -525,6 +527,8 @@ public sealed partial class MainWindow : Window
         }
         ApplyAppearance();
         _pollTimer.Interval = TimeSpan.FromMilliseconds(AppSettings.PollIntervalMs);
+        // A running memory scan keeps its short tick.
+        UpdateScanDisplay();
 
         if (dialog.WpsdHostChanged)
         {
@@ -828,13 +832,24 @@ public sealed partial class MainWindow : Window
 
     private async Task PollFieldsAsync(RigctldClient client)
     {
+        // The rig's memory scan (MainWindow.MemoryScan.cs): while it runs,
+        // a short scan tick replaces this poll.
+        if (await MemoryScanPollAsync(client))
+        {
+            return;
+        }
         var generationAtStart = _commandGeneration;
         long? polledMain = null;
         long? polledSub = null;
 
+        // Each box is read by side — MAIN raw "FA"/"MD0", SUB "f Sub" — not
+        // by hamlib's active VFO. Until 2026-10-06 these were "f currVFO",
+        // "m currVFO" and a `v`-based read for SUB, so whenever "VS"/"FT"
+        // was SUB (TX:SUB, or a SUB memory scan) the two boxes traded
+        // places. Same fix as the Mac's fast tier.
         try
         {
-            var hz = await client.GetFrequencyAsync();
+            var hz = await client.GetMainFrequencyAsync();
             polledMain = hz;
             _lastState.FrequencyHz = hz;
             Volatile.Write(ref _aprsMainGateHz, hz);
@@ -849,7 +864,7 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            var hz = await client.GetSecondaryFrequencyAsync();
+            var hz = await client.GetSubFrequencyAsync();
             polledSub = hz;
             _lastState.SecondaryFrequencyHz = hz;
             Volatile.Write(ref _aprsSubGateHz, hz);
@@ -947,21 +962,9 @@ public sealed partial class MainWindow : Window
             ApplyMemoryState(mainMemory, subMemory);
         }
 
-        try
-        {
-            var mode = await client.GetModeAsync();
-            _lastState.Mode = mode;
-            SetComboSelection(ModeComboBox, mode?.DisplayName());
-            if (mode is not null)
-            {
-                _lastState.MainIsC4fm = false;
-            }
-            UpdateModeTags();
-        }
-        catch (Exception ex)
-        {
-            AppLog.Write($"poll: getMode failed: {ex.Message}");
-        }
+        // Raw "MD0" rather than hamlib's "m currVFO" (see the frequency
+        // reads above); it also reads C4FM, which "m" answered with an error.
+        ApplyMainModeCode(await ReadModeCodeAsync(client, sub: false));
 
         // Only from a genuine VFO-mode snapshot — in Memory mode Main's
         // frequency/mode are the channel's, not the VFO's.
@@ -1136,6 +1139,7 @@ public sealed partial class MainWindow : Window
             AppSettings.IsAprsActive(IsConnected ? _lastState.FrequencyHz : null), _aprsMainLastHeard);
         ShowCallsignLine(C4fmCallsignBText, C4fmReflectorBText, _lastState.SubIsC4fm == true,
             AppSettings.IsAprsActive(IsConnected ? _lastState.SecondaryFrequencyHz : null), _aprsSubLastHeard);
+        ShowScanIndicators();
     }
 
     private void ShowCallsignLine(TextBlock callsign, TextBlock reflector, bool c4fm, bool aprsActive,
@@ -1225,6 +1229,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        await StopMemoryScanForAsync(client, null, ScanStopTxSide.Restore);
         _commandGeneration++;
         _swapTracker.ResetBaseline();
         try
@@ -1240,6 +1245,11 @@ public sealed partial class MainWindow : Window
 
     private async void SwapVfoButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_client is null)
+        {
+            return;
+        }
+        await StopMemoryScanForAsync(_client, null, ScanStopTxSide.Restore);
         if (_client is null)
         {
             return;
@@ -1290,8 +1300,11 @@ public sealed partial class MainWindow : Window
     /// mode's display name (blank until read).
     private void UpdateModeTags()
     {
-        MainModeText.Text = _lastState.MainIsC4fm == true ? "C4FM" : _lastState.Mode?.DisplayName() ?? "";
-        SubModeText.Text = _lastState.SubIsC4fm == true ? "C4FM" : _lastState.SubMode?.DisplayName() ?? "";
+        // Mid-scan the mode is a random channel's (MainWindow.MemoryScan.cs).
+        MainModeText.Text = _lastState.MemoryScanOn(false) == MemoryScanState.Scanning ? "—"
+            : _lastState.MainIsC4fm == true ? "C4FM" : _lastState.Mode?.DisplayName() ?? "";
+        SubModeText.Text = _lastState.MemoryScanOn(true) == MemoryScanState.Scanning ? "—"
+            : _lastState.SubIsC4fm == true ? "C4FM" : _lastState.SubMode?.DisplayName() ?? "";
     }
 
     /// The Mac's RigState.mainTxRxLabel/subTxRxLabel: TXRX (red) on the TX
@@ -1318,6 +1331,8 @@ public sealed partial class MainWindow : Window
             return;
         }
         var toSub = _txSideSub != true;
+        // Chosen by the operator: not undone when a memory scan stops.
+        _txSideBeforeScanSub = null;
         try
         {
             await _client.SetRawIntAsync("FT", toSub ? 1 : 0, 1);
@@ -1421,13 +1436,16 @@ public sealed partial class MainWindow : Window
         _lastState.SubMemoryChannel = null;
         _lastState.SubMemoryChannelTag = null;
         _lastVfoState = null;
-        UpdateMemoryDisplay();
+        _lastState.MemoryScan = null;
+        _txSideBeforeScanSub = null;
+        UpdateScanDisplay();
     }
 
     private void UpdateMemoryDisplay()
     {
         ShowMemoryLabel(MemoryChannelAText, _lastState.VfoMemoryRaw, _lastState.MemoryChannel, _lastState.MemoryChannelTag);
         ShowMemoryLabel(MemoryChannelBText, _lastState.SubVfoMemoryRaw, _lastState.SubMemoryChannel, _lastState.SubMemoryChannelTag);
+        ShowScanningMemoryLabels();
         VfoMemoryToggle.IsChecked = _lastState.VfoMemoryRaw is { } raw && raw != 0;
         // ClearMemoryState runs on every connect and disconnect, after
         // _client is set or cleared, so this also keeps the window's
@@ -1436,6 +1454,7 @@ public sealed partial class MainWindow : Window
         _memoryListWindow?.SetCurrentChannels(
             _lastState.VfoMemoryRaw == 11 ? _lastState.MemoryChannel : null,
             _lastState.SubVfoMemoryRaw == 11 ? _lastState.SubMemoryChannel : null);
+        UpdateMemoryScanControls();
     }
 
     /// "CH n TAG" in Memory mode (the Mac's VFODisplayBox label), "VM nn"
@@ -1464,6 +1483,7 @@ public sealed partial class MainWindow : Window
             UpdateMemoryDisplay();
             return;
         }
+        await StopMemoryScanForAsync(client, onlySub: false, ScanStopTxSide.Restore);
         var enterMemory = _lastState.InVfoMode;
         var restore = enterMemory ? null : _lastVfoState;
         _commandGeneration++;
@@ -1531,6 +1551,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        await StopMemoryScanForAsync(client, onlySub: true, ScanStopTxSide.Restore);
         _commandGeneration++;
         _swapTracker.ResetBaseline();
         await client.SetSecondaryFrequencyAsync(hz);
@@ -1546,6 +1567,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        await StopMemoryScanForAsync(client, sub, ScanStopTxSide.Restore);
         _commandGeneration++;
         _swapTracker.ResetBaseline();
         await (sub ? client.SetSubMemoryChannelAsync(channel) : client.SetMemoryChannelAsync(channel));
@@ -1559,9 +1581,10 @@ public sealed partial class MainWindow : Window
     {
         if (_memoryListWindow is null)
         {
-            _memoryListWindow = new MemoryListWindow(_memoryListStore, () => _client, RecallMemoryChannelAsync);
+            _memoryListWindow = new MemoryListWindow(_memoryListStore, () => _client, RecallMemoryChannelAsync,
+                StartMemoryScanAsync, SkipMemoryScanChannelAsync, StopMemoryScanFromButtonAsync);
             _memoryListWindow.Closed += (_, _) => _memoryListWindow = null;
-            UpdateMemoryDisplay();
+            UpdateScanDisplay();
         }
         _memoryListWindow.Activate();
     }
@@ -1577,6 +1600,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        await StopMemoryScanForAsync(client, sub, ScanStopTxSide.Restore);
         _commandGeneration++;
         _swapTracker.ResetBaseline();
         AppLog.Write($"memory: list recall of channel {channel} on {(sub ? "SUB" : "MAIN")}");
@@ -1615,6 +1639,9 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        // MAIN's step is "CH", which follows the active side — see
+        // StopMemoryScanForAsync.
+        await StopMemoryScanForAsync(client, sub ? true : null, ScanStopTxSide.Restore);
         _commandGeneration++;
         _swapTracker.ResetBaseline();
         await (sub ? client.StepSubMemoryChannelAsync(up) : client.StepMemoryChannelAsync(up));
@@ -1628,6 +1655,11 @@ public sealed partial class MainWindow : Window
             return;
         }
         if (ModeComboBox.SelectedItem is not ComboBoxItem { Tag: RigMode mode })
+        {
+            return;
+        }
+        await StopMemoryScanForAsync(_client, null, ScanStopTxSide.Restore);
+        if (_client is null)
         {
             return;
         }
@@ -1654,6 +1686,11 @@ public sealed partial class MainWindow : Window
             return;
         }
         if (BandComboBox.SelectedItem is not ComboBoxItem { Tag: Band band })
+        {
+            return;
+        }
+        await StopMemoryScanForAsync(_client, null, ScanStopTxSide.Restore);
+        if (_client is null)
         {
             return;
         }
@@ -1696,6 +1733,12 @@ public sealed partial class MainWindow : Window
         }
         _pttHeld = true;
         UpdateTransmitControls();
+        await StopMemoryScanBeforeTransmitAsync();
+        if (!_pttHeld)
+        {
+            // Released while the scan stop was going out.
+            return;
+        }
         try
         {
             await client.SetPttAsync(true);
