@@ -1240,6 +1240,30 @@ vendored here.
     (sending always keys whatever the rig transmits on), WebSDR source
     while sending.
 
+## Logbook — MacLoggerDX (started 2026-10-07)
+
+Goal: log QSOs made with the CW window, and flag stations already worked.
+Mac-only for now. Step 1 (done, tested in the built app): Settings →
+**Logbook** tab (`LogbookSettings`, `MacLoggerDX.swift`): Logger picker
+(None/MacLoggerDX), the MacLoggerDX log file (auto-detected, Choose…
+override) with a read-only summary, UDP host/port, and whether MacLoggerDX
+is running and listening.
+
+- **Logging goes over WSJT-X's UDP protocol** (user decision, over
+  AppleScript `importADIF`): MacLoggerDX listens on UDP 2237 when its
+  "listen for WSJT-X UDP broadcasts" pref is on. No reply comes back, so
+  confirm a logged QSO by finding it in the log file. MacLoggerDX's
+  `wsjt_log_adif` pref (off on the user's Mac) picks whether it logs from
+  WSJT-X's "QSO Logged" or "Logged ADIF" message; not yet checked which
+  one it actually acts on.
+- **Reading the log**: SQLite, path in MacLoggerDX's own prefs
+  (`qso_data_source_sql_db_path`, read with `CFPreferencesCopyAppValue`),
+  default `~/Documents/MLDX_Logs/MacLoggerDX.sql`. One table,
+  `qso_table_v008` (code takes the newest `qso_table_v%`), `qso_start` in
+  Unix seconds, `call`/`band_rx`/`mode`/`tx_frequency` (MHz). Read on
+  MacLoggerDX 6.62. Always opened `mode=ro`, never written.
+- Not built yet: sending a QSO, the CW window's log entry, worked-before.
+
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 
 A "Mem List" button under the Waterfall button (Mac `ContentView`) opens

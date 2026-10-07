@@ -56,6 +56,8 @@ struct SettingsView: View {
                     .tabItem { Text("APRS") }
                 StationSettingsTab()
                     .tabItem { Text("Station") }
+                LogbookSettingsTab()
+                    .tabItem { Text("Logbook") }
                 HomeFrequencySettingsTab()
                     .tabItem { Text("Home Freq") }
                 PollingSettingsTab()
@@ -493,6 +495,163 @@ private struct StationSettingsTab: View {
             TextField("Grid square", text: $gridSquare, prompt: Text("e.g. FN31pr"))
         }
         .padding(.top, 8)
+    }
+}
+
+/// External logbook — see `LogbookSettings`/`MacLoggerDX`. Applies
+/// instantly via `@AppStorage` like the other non-rigctld tabs. The status
+/// lines only report what can be seen from here (MacLoggerDX's process,
+/// its preferences, its log file read-only); the UDP link can't be
+/// checked without logging something, so there's no test send.
+private struct LogbookSettingsTab: View {
+    @AppStorage(LogbookSettings.loggerKey) private var loggerRawValue = LogbookSettings.Logger.none.rawValue
+    @AppStorage(LogbookSettings.macLoggerDXLogPathKey) private var logPathOverride = ""
+    @AppStorage(LogbookSettings.macLoggerDXUDPHostKey) private var udpHost = LogbookSettings.defaultUDPHost
+    @AppStorage(LogbookSettings.macLoggerDXUDPPortKey) private var udpPort = LogbookSettings.defaultUDPPort
+
+    @State private var status: Status?
+
+    private struct Status {
+        var isRunning: Bool
+        var listensForWSJTX: Bool?
+        var logPath: String?
+        var summary: Result<MacLoggerDX.LogSummary, MacLoggerDX.LogError>?
+    }
+
+    private var logger: Binding<LogbookSettings.Logger> {
+        Binding(
+            get: { LogbookSettings.Logger(rawValue: loggerRawValue) ?? .none },
+            set: { loggerRawValue = $0.rawValue }
+        )
+    }
+
+    var body: some View {
+        Form {
+            Picker("Logger", selection: logger) {
+                ForEach(LogbookSettings.Logger.allCases, id: \.self) { option in
+                    Text(option.displayName).tag(option)
+                }
+            }
+
+            if logger.wrappedValue == .macLoggerDX {
+                macLoggerDXSection
+            }
+        }
+        .padding(.top, 8)
+        .task(id: TaskKey(logger: loggerRawValue, path: logPathOverride)) { await refresh() }
+    }
+
+    private struct TaskKey: Equatable {
+        var logger: String
+        var path: String
+    }
+
+    @ViewBuilder
+    private var macLoggerDXSection: some View {
+        Section {
+            LabeledContent("File") {
+                Text(status == nil ? "Checking…" : status?.logPath ?? "Not found")
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                    .help(status?.logPath ?? "")
+            }
+            LabeledContent("Contents") {
+                logSummaryText
+            }
+            HStack {
+                Button("Choose…", action: chooseLogFile)
+                if !logPathOverride.isEmpty {
+                    Button("Use MacLoggerDX’s Log") { logPathOverride = "" }
+                }
+            }
+        } header: {
+            sectionHeader("Log file (read only)")
+        }
+
+        Section {
+            TextField("Host", text: $udpHost, prompt: Text(LogbookSettings.defaultUDPHost))
+                .frame(maxWidth: 240)
+            TextField("Port", value: $udpPort, format: .number.grouping(.never))
+                .frame(maxWidth: 120)
+            LabeledContent("MacLoggerDX") {
+                macLoggerDXStatusText
+            }
+            Button("Check Again") { Task { await refresh() } }
+        } header: {
+            sectionHeader("Logging (WSJT-X UDP)")
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.headline)
+            .padding(.top, 12)
+    }
+
+    @ViewBuilder
+    private var logSummaryText: some View {
+        switch status?.summary {
+        case nil:
+            Text(status == nil ? "Checking…" : "—").foregroundStyle(.secondary)
+        case .success(let summary):
+            Text(Self.describe(summary))
+        case .failure(let error):
+            Text(error.description).foregroundStyle(.red)
+        }
+    }
+
+    @ViewBuilder
+    private var macLoggerDXStatusText: some View {
+        if let status {
+            if !status.isRunning {
+                Text("Not running").foregroundStyle(.orange)
+            } else if status.listensForWSJTX == false {
+                Text("Running, but not listening for WSJT-X UDP (turn it on in MacLoggerDX’s preferences)")
+                    .foregroundStyle(.orange)
+            } else {
+                Text("Running")
+            }
+        } else {
+            Text("Checking…").foregroundStyle(.secondary)
+        }
+    }
+
+    private static func describe(_ summary: MacLoggerDX.LogSummary) -> String {
+        let counts = "\(summary.qsoCount.formatted()) QSOs, \(summary.callCount.formatted()) calls"
+        guard let last = summary.lastQSO else { return counts }
+        return counts + ", last \(last.formatted(date: .abbreviated, time: .omitted))"
+    }
+
+    private func refresh() async {
+        guard logger.wrappedValue == .macLoggerDX else {
+            status = nil
+            return
+        }
+        let path = LogbookSettings.macLoggerDXLogPath
+        // Off the main actor: the read can wait up to a second on
+        // MacLoggerDX's lock.
+        status = await Task.detached {
+            Status(
+                isRunning: MacLoggerDX.isRunning,
+                listensForWSJTX: MacLoggerDX.listensForWSJTXUDP,
+                logPath: path,
+                summary: path.map { path in Result { () throws(MacLoggerDX.LogError) in try MacLoggerDX.readSummary(path: path) } }
+            )
+        }.value
+    }
+
+    private func chooseLogFile() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose a MacLoggerDX log file (.sql)"
+        if let current = LogbookSettings.macLoggerDXLogPath {
+            panel.directoryURL = URL(fileURLWithPath: current).deletingLastPathComponent()
+        }
+        if panel.runModal() == .OK, let url = panel.url {
+            logPathOverride = url.path
+        }
     }
 }
 
