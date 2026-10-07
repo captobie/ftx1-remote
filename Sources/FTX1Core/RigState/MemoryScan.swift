@@ -54,3 +54,20 @@ public struct RadioInformation: Equatable, Sendable {
         squelchOpen = digits[7] == 1
     }
 }
+
+extension RigState {
+    /// `memoryScan` if it's about `side`, nil otherwise — for that side's
+    /// VFO box and scan buttons.
+    public func memoryScan(on side: FilterSide) -> MemoryScanState? {
+        (memoryScanSide ?? .main) == side ? memoryScan : nil
+    }
+
+    /// Whether `side`'s memory scan can be started: that side in Memory
+    /// mode, and for SUB, dual-receive display.
+    public func canStartMemoryScan(on side: FilterSide) -> Bool {
+        switch side {
+        case .main: return vfoMemoryMode == .memory
+        case .sub: return subVfoMemoryMode == .memory && singleReceive != true
+        }
+    }
+}

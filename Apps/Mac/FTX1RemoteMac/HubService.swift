@@ -301,6 +301,11 @@ final class HubService: ObservableObject {
     private var slowTierCursor = 0
     /// Direction of the last memory scan the app started, reused by Skip.
     private var lastMemoryScanDirection: MemoryScanDirection = .up
+    /// The TX side to put back when the app stops the memory scan it
+    /// started (user decision, 2026-10-06): starting a scan moves the rig's
+    /// TX/RX side to the scanning side. nil when there's nothing to undo,
+    /// or once the operator picks a TX side themselves.
+    private var txSideBeforeMemoryScan: FilterSide?
     /// When the app last started a memory scan — see `memoryScanTick`.
     private var memoryScanStartedAt: ContinuousClock.Instant?
     /// See `memoryScanTick`. ~4 "RI0" reads a second at ~55–110 ms each.
@@ -667,11 +672,40 @@ final class HubService: ObservableObject {
     /// rig takes as "resume past this channel" (rig-confirmed 2026-10-06).
     /// A scan started from the front panel resumes upward.
     func skipMemoryScanChannel() {
-        send(.setMemoryScan(lastMemoryScanDirection))
+        send(.setMemoryScan(lastMemoryScanDirection, side: activeMemoryScanSide))
     }
 
     private var isMemoryScanActive: Bool {
         rigState.memoryScan == .scanning || rigState.memoryScan == .paused
+    }
+
+    private var activeMemoryScanSide: FilterSide {
+        rigState.memoryScanSide ?? .main
+    }
+
+    /// What an app-sent scan stop does with `txSideBeforeMemoryScan`.
+    private enum MemoryScanStopTXSide {
+        /// Put it back (Stop, or a tune/recall that stops the scan).
+        case restore
+        /// Drop it: something is about to transmit on the side shown now.
+        case keep
+        /// Leave it for the scan about to start on the other side.
+        case carryOver
+    }
+
+    /// Queues "SC…0" (which stops both sides' scans) and, for `.restore`,
+    /// the TX side the scan moved — see `txSideBeforeMemoryScan`. Queued
+    /// in this order, ahead of whatever the caller sends next, so e.g. a
+    /// mode change after it reaches MAIN again rather than the SUB side a
+    /// SUB scan made active.
+    private func enqueueMemoryScanStop(_ txSide: MemoryScanStopTXSide) async {
+        await commandQueue.enqueue(.setMemoryScan(.off, side: activeMemoryScanSide))
+        guard txSide != .carryOver else { return }
+        let previous = txSideBeforeMemoryScan
+        txSideBeforeMemoryScan = nil
+        if txSide == .restore, let previous {
+            await commandQueue.enqueue(.setTXSide(previous))
+        }
     }
 
     /// `memoryScanStopped`: the scan-stop for this command has already been
@@ -685,19 +719,57 @@ final class HubService: ObservableObject {
             Self.connectionLogger.notice("Blocked transmit-capable command (outside amateur band): \(String(describing: command), privacy: .public)")
             return
         }
-        // "SC" in VFO mode runs the rig's VFO scan instead (seen in the
-        // 2026-10-06 probes), which this app doesn't model.
-        if case .setMemoryScan(let direction) = command, direction != .off, rigState.vfoMemoryMode != .memory {
-            Self.connectionLogger.notice("Ignored memory scan start outside Memory mode")
-            return
+        if case .setTXSide = command {
+            // Chosen by the operator: not undone when a scan stops.
+            txSideBeforeMemoryScan = nil
+        }
+        if case .setMemoryScan(let direction, let side) = command {
+            if direction == .off {
+                Task { await enqueueMemoryScanStop(.restore) }
+                return
+            }
+            // "SC" in VFO mode runs the rig's VFO scan instead (seen in the
+            // 2026-10-06 probes), which this app doesn't model.
+            let sideMode = side == .sub ? rigState.subVfoMemoryMode : rigState.vfoMemoryMode
+            guard sideMode == .memory else {
+                Self.connectionLogger.notice("Ignored memory scan start outside Memory mode (\(side.displayName, privacy: .public))")
+                return
+            }
+            if side == .sub, rigState.singleReceive == true {
+                Self.connectionLogger.notice("Ignored SUB memory scan in single-receive display")
+                return
+            }
+            // One side at a time: the rig would scan both, but "RI0"
+            // reports one state for the whole radio, so the app couldn't
+            // tell which side paused (and any stop stops both anyway).
+            if !memoryScanStopped, isMemoryScanActive, activeMemoryScanSide != side {
+                Task {
+                    await enqueueMemoryScanStop(.carryOver)
+                    self.send(command, memoryScanStopped: true)
+                }
+                return
+            }
+            // Starting a scan makes its side the rig's TX/RX side ("VS",
+            // which is the same setting as "FT" — rig-confirmed
+            // 2026-10-06). Remember the side to go back to when the app
+            // stops the scan (user decision). One already remembered —
+            // carried over from the other side's scan — is the original
+            // and stays. Not keyed on `isMemoryScanActive`: that's still
+            // true until a just-sent stop lands, which made a quick
+            // Stop-then-Scan look like a side switch and remember nothing.
+            if txSideBeforeMemoryScan == nil {
+                let current = rigState.txSide ?? .main
+                if current != side { txSideBeforeMemoryScan = current }
+            }
         }
         // Tuning, recalling a channel or transmitting while the rig scans
         // would be fighting it, so the scan is stopped first. Enqueued
         // before re-sending, so `CommandQueue`'s FIFO order puts the stop
         // ahead of the command whichever branch below handles it.
-        if !memoryScanStopped, isMemoryScanActive, Self.stopsMemoryScan(command) {
+        if !memoryScanStopped, isMemoryScanActive,
+           let restoreTXSide = Self.memoryScanStop(for: command, scanSide: activeMemoryScanSide) {
             Task {
-                await commandQueue.enqueue(.setMemoryScan(.off))
+                await enqueueMemoryScanStop(restoreTXSide ? .restore : .keep)
                 self.send(command, memoryScanStopped: true)
             }
             return
@@ -863,19 +935,29 @@ final class HubService: ObservableObject {
         }
     }
 
-    /// Commands that move MAIN off the channel a memory scan is on, or key
-    /// the transmitter — see `send(_:memoryScanStopped:)`. SUB-side and
-    /// settings commands leave the scan running.
-    private static func stopsMemoryScan(_ command: RigCommand) -> Bool {
-        if isTransmitCapable(command) { return true }
+    /// Whether a command stops a running memory scan first (see
+    /// `send(_:memoryScanStopped:)`), and if so whether the TX side the
+    /// scan moved is put back. nil: leave the scan running (settings, the
+    /// other side's own controls). `true`: stop and restore. `false`: stop
+    /// but keep the TX side — anything that transmits keys the side the
+    /// display shows as TX right now, never one switched behind the
+    /// operator's back. "F currVFO" (`.setFrequency`), "M currVFO"
+    /// (`.setMode`) and "CH" (`.stepMemoryChannel`) follow the rig's
+    /// active side, which a SUB scan made SUB, so they stop either side's
+    /// scan; restoring first lands them on MAIN as meant.
+    private static func memoryScanStop(for command: RigCommand, scanSide: FilterSide) -> Bool? {
+        if isTransmitCapable(command) { return false }
         switch command {
-        case .setFrequency, .setMode, .setBand, .swapActiveVFO, .setVFOMemoryMode,
-             .setMemoryChannel, .stepMemoryChannel:
+        case .setFrequency, .setMode, .setBand, .swapActiveVFO, .stepMemoryChannel:
             return true
+        case .setVFOMemoryMode, .setMemoryChannel:
+            return scanSide == .main ? true : nil
+        case .setSecondaryFrequency, .setSubMemoryChannel, .stepSubMemoryChannel:
+            return scanSide == .sub ? true : nil
         case .recallMemoryChannel(_, let sub):
-            return !sub
+            return (sub ? FilterSide.sub : .main) == scanSide ? true : nil
         default:
-            return false
+            return nil
         }
     }
 
@@ -1024,14 +1106,19 @@ final class HubService: ObservableObject {
             Task { await refreshMemoryChannel(sub: false) }
         case .setSubMemoryChannel, .stepSubMemoryChannel:
             Task { await refreshMemoryChannel(sub: true) }
-        case .setMemoryScan(let direction):
+        case .setMemoryScan(let direction, let side):
             if direction == .off {
+                let stoppedSide = activeMemoryScanSide
                 rigState.memoryScan = .stopped
-                Task { await publishMemoryScanStop(.stopped) }
+                Task { await publishMemoryScanStop(.stopped, side: stoppedSide) }
             } else {
                 lastMemoryScanDirection = direction
                 memoryScanStartedAt = .now
                 rigState.memoryScan = .scanning
+                rigState.memoryScanSide = side
+                // The rig moves its TX/RX side to the scanning side — see
+                // `send(_:memoryScanStopped:)`.
+                rigState.txSide = side
             }
         case .recallMemoryChannel(_, let sub):
             // Like the channel commands: read back what the rig did rather
@@ -1057,12 +1144,21 @@ final class HubService: ObservableObject {
     }
 
     /// One poll tick while the rig's memory scan runs, in place of the fast
-    /// and slow tiers: just "RI0", every `memoryScanTickInterval`. The rig
+    /// and slow tiers: "RI0", every `memoryScanTickInterval`. The rig
     /// steps ~10 channels a second (measured 2026-10-06), so the regular
     /// tiers' frequency/channel reads would only catch a random channel
     /// each; what matters is noticing the moment it pauses on a busy
     /// channel (or stops), then `publishMemoryScanStop` reads that channel.
+    /// The side that isn't scanning is kept live too: during a SUB scan,
+    /// MAIN's frequency and mode ("FA"/"MD0", explicitly MAIN — the scan
+    /// made SUB the active side); during a MAIN scan, SUB's memory channel
+    /// ("MC1", then that channel's "MR" entry when it changed — `f Sub`
+    /// read wrong frequencies while MAIN sat on 6 m channels in the
+    /// 2026-10-06 probes). The latter also catches up a SUB box whose
+    /// `publishMemoryScanStop` was dropped because this MAIN scan's start
+    /// landed mid-read.
     private func memoryScanTick() async throws {
+        let side = activeMemoryScanSide
         let info: RadioInformation?
         do {
             info = try await rigctld.getRadioInformation()
@@ -1073,10 +1169,38 @@ final class HubService: ObservableObject {
         }
         guard let info, rigState.memoryScan == .scanning else { return }
         if info.scan == .scanning {
-            if rigState.ptt != info.isTransmitting {
-                rigState.ptt = info.isTransmitting
-                await server.broadcast(rigState)
+            var changed = rigState.ptt != info.isTransmitting
+            rigState.ptt = info.isTransmitting
+            if side == .sub {
+                let generationAtStart = commandGeneration
+                let hz = try? await rigctld.getFrequency()
+                let mode = (try? await rigctld.getModeCode(p1: 0))
+                    .flatMap { $0 }
+                    .flatMap(RigMode.init(catModeCode:))
+                if commandGeneration == generationAtStart, rigState.memoryScan == .scanning {
+                    if let hz, hz != rigState.frequencyHz {
+                        rigState.frequencyHz = hz
+                        changed = true
+                    }
+                    if let mode, mode != rigState.mode {
+                        rigState.mode = mode
+                        changed = true
+                    }
+                }
             }
+            if side == .main, rigState.subVfoMemoryMode == .memory {
+                let generationAtStart = commandGeneration
+                if let channel = try? await rigctld.getRawInt("MC1"), channel != rigState.subMemoryChannel,
+                   let entry = try? await rigctld.readMemoryChannel(channel),
+                   commandGeneration == generationAtStart {
+                    rigState.subMemoryChannel = channel
+                    rigState.subMemoryChannelTag = entry.tag
+                    rigState.secondaryFrequencyHz = entry.frequencyHz
+                    rigState.secondaryMode = entry.modeCode.first.flatMap(RigMode.init(catModeCode:)) ?? rigState.secondaryMode
+                    changed = true
+                }
+            }
+            if changed { await server.broadcast(rigState) }
             return
         }
         // Right after the app starts a scan, a "stopped" read may predate
@@ -1084,19 +1208,48 @@ final class HubService: ObservableObject {
         if info.scan == .stopped, let memoryScanStartedAt, ContinuousClock.now - memoryScanStartedAt < .seconds(1) {
             return
         }
-        await publishMemoryScanStop(info.scan)
+        if info.scan == .stopped {
+            // Stopped without the app (front panel): leave the TX side as
+            // the rig has it, like a front-panel scan does.
+            txSideBeforeMemoryScan = nil
+        }
+        await publishMemoryScanStop(info.scan, side: side)
     }
 
     /// Reads and publishes the channel a memory scan paused or stopped on,
-    /// straight away rather than at the next fast tick. "MC0" is read again
-    /// after "FA" and the mode, and the set retried if it changed: the
+    /// straight away rather than at the next fast tick. The channel number
+    /// is read again after the rest and the set retried if it changed: the
     /// scan may have moved on between the reads (a scan can resume from a
-    /// pause at any time). If nothing consistent comes back,
-    /// `rigState.memoryScan` is left as it was, so the scan tick (or the
-    /// next fast tick) tries again.
-    private func publishMemoryScanStop(_ state: MemoryScanState) async {
-        let generationAtStart = commandGeneration
-        for _ in 0..<3 {
+    /// pause at any time), as they are when a command lands mid-read. If
+    /// nothing consistent comes back, `rigState.memoryScan` is left as it was, so the scan tick (or the
+    /// next fast tick) tries again. SUB's frequency/mode come from the
+    /// channel's own "MR" entry rather than "FB"/`f Sub`, which read 0 or a
+    /// wrong frequency in the 2026-10-06 probes (with SUB active, or MAIN on
+    /// a 6 m channel).
+    private func publishMemoryScanStop(_ state: MemoryScanState, side: FilterSide) async {
+        var generationAtStart = commandGeneration
+        for _ in 0..<4 {
+            if side == .sub {
+                guard let channel = try? await rigctld.getRawInt("MC1"),
+                      let entry = try? await rigctld.readMemoryChannel(channel) else { continue }
+                guard (try? await rigctld.getRawInt("MC1")) == channel else { continue }
+                // A command landed mid-read (e.g. the TX-side restore right
+                // behind the app's own stop): read again rather than give
+                // up, or the box keeps the channel/tag from before the scan
+                // until the slow tier's next pass (~10 s).
+                guard commandGeneration == generationAtStart else {
+                    generationAtStart = commandGeneration
+                    continue
+                }
+                commandGeneration += 1
+                rigState.memoryScan = state
+                rigState.secondaryFrequencyHz = entry.frequencyHz
+                rigState.secondaryMode = entry.modeCode.first.flatMap(RigMode.init(catModeCode:)) ?? rigState.secondaryMode
+                rigState.subMemoryChannel = channel
+                rigState.subMemoryChannelTag = entry.tag
+                await server.broadcast(rigState)
+                return
+            }
             guard let channel = try? await rigctld.getRawInt("MC0"),
                   let hz = try? await rigctld.getFrequency() else { continue }
             let mode = (try? await rigctld.getModeCode(p1: 0))
@@ -1104,7 +1257,10 @@ final class HubService: ObservableObject {
                 .flatMap(RigMode.init(catModeCode:))
             guard (try? await rigctld.getRawInt("MC0")) == channel else { continue }
             let tag = try? await rigctld.getMemoryChannelTag(channel: channel)
-            guard commandGeneration == generationAtStart else { return }
+            guard commandGeneration == generationAtStart else {
+                generationAtStart = commandGeneration
+                continue
+            }
             commandGeneration += 1
             rigState.memoryScan = state
             rigState.frequencyHz = hz
@@ -1662,13 +1818,13 @@ final class HubService: ObservableObject {
         } catch {
             frequencyHz = rigState.frequencyHz
         }
-        // The active side ("Main"/"Sub"), read once per tick for the mode
-        // and secondary-VFO reads below — each of those used to send its
-        // own `v` (four per tick). Best-effort: without it the Sub-side
-        // reads are skipped (kept at their last value) and the mode is
-        // read from MAIN, which "FA" above always addresses anyway.
-        let activeVFO = try? await rigctld.getActiveVFO()
-        let activeIsSub = activeVFO == "Sub"
+        // Each box is read by side — MAIN with P1 0, SUB with P1 1 / `f Sub`
+        // — not by hamlib's active VFO (`v`). Until 2026-10-06 the mode and
+        // SUB reads followed `v`, which answers "Sub" whenever the rig's
+        // "VS"/"FT" is SUB (TX:SUB, or a SUB memory scan): the MAIN box then
+        // showed SUB's mode and the SUB box MAIN's frequency, while the
+        // frequency here ("FA") was always MAIN's. Also one round trip less.
+        //
         // Raw "MD" rather than hamlib's "m": one round trip instead of the
         // three ("m", `v`, "MD") this took while hamlib's read needed the
         // raw C4FM fallback. That fallback ran every tick, not just on
@@ -1678,7 +1834,7 @@ final class HubService: ObservableObject {
         // alone has neither problem. Codes `RigMode(catModeCode:)` doesn't
         // map (CW-L, DATA-L, FM-N, ...) keep the last known mode, as the
         // unmapped hamlib names did before; so does a failed read.
-        let activeMode = (try? await rigctld.getModeCode(p1: activeIsSub ? 1 : 0))
+        let mainMode = (try? await rigctld.getModeCode(p1: 0))
             .flatMap { $0 }
             .flatMap(RigMode.init(catModeCode:))
         // Best-effort, same reasoning as the mode read above: a single
@@ -1712,16 +1868,11 @@ final class HubService: ObservableObject {
             )
         }
         let subSmeterDb = (try? await rigctld.getMeterReading(2)).flatMap { $0 }.map(SMeterScale.strengthDb(forRaw:))
-        // The side that isn't active, addressed with the `v` read above
-        // (see `RigctldClient.getSecondaryFrequency()` for why `f <VFO>`).
-        var secondaryFrequencyHz: Int?
-        var secondaryMode: RigMode?
-        if let activeVFO {
-            secondaryFrequencyHz = try? await rigctld.getFrequency(ofVFO: activeIsSub ? "Main" : "Sub")
-            secondaryMode = (try? await rigctld.getModeCode(p1: activeIsSub ? 0 : 1))
-                .flatMap { $0 }
-                .flatMap(RigMode.init(catModeCode:))
-        }
+        // SUB (see `RigctldClient.getSecondaryFrequency()` for why `f <VFO>`).
+        var secondaryFrequencyHz = try? await rigctld.getFrequency(ofVFO: "Sub")
+        var secondaryMode = (try? await rigctld.getModeCode(p1: 1))
+            .flatMap { $0 }
+            .flatMap(RigMode.init(catModeCode:))
         // "VM0" reads VFO-vs-memory mode with its fixed MAIN-side P1 baked
         // in — see RigState.vfoMemoryMode. Only bother reading the memory
         // channel itself while actually in Memory mode, to avoid a wasted
@@ -1741,8 +1892,15 @@ final class HubService: ObservableObject {
         // scan was last seen running, to see it end after leaving Memory
         // mode from the front panel.
         var radioInfo: RadioInformation?
-        if vfoMemoryModeRaw == 11 || isMemoryScanActive {
+        if vfoMemoryModeRaw == 11 || rigState.subVfoMemoryMode == .memory || isMemoryScanActive {
             radioInfo = try? await rigctld.getRadioInformation()
+        }
+        // A scan the app didn't start (front panel): "SC;" reads back the
+        // side last told to scan, e.g. "SC11;".
+        var scanSide = activeMemoryScanSide
+        if let radioInfo, radioInfo.scan != .stopped, !isMemoryScanActive,
+           let digit = try? await rigctld.getRawDigit("SC"), let side = FilterSide(rawValue: digit) {
+            scanSide = side
         }
 
         // Every field above has an optimistic-set counterpart in
@@ -1759,11 +1917,17 @@ final class HubService: ObservableObject {
         // the frequency/channel/mode they caught are a random sample that
         // may not even belong together. Publish only the scan state; the
         // poll loop switches to `memoryScanTick` next.
+        // A SUB scan only spoils the SUB reads; MAIN's are published as usual.
         if let radioInfo, radioInfo.scan == .scanning {
             rigState.memoryScan = .scanning
+            rigState.memoryScanSide = scanSide
             rigState.ptt = radioInfo.isTransmitting
-            await server.broadcast(rigState)
-            return
+            if scanSide == .main {
+                await server.broadcast(rigState)
+                return
+            }
+            secondaryFrequencyHz = nil
+            secondaryMode = nil
         }
 
         // Amateur allocation wins on overlap (see `generalCoverageSegment`) —
@@ -1782,7 +1946,7 @@ final class HubService: ObservableObject {
             // bands, where the operator's mode choice should persist.
             // C4FM excluded: hamlib's mode read (which this used to come
             // from) never reported it, so it was never remembered per band.
-            if let mode = activeMode, mode != .c4fm {
+            if let mode = mainMode, mode != .c4fm {
                 BandMemory.recordMode(mode, forBand: band.name)
             }
         } else if let segment {
@@ -1809,7 +1973,7 @@ final class HubService: ObservableObject {
         }
 
         rigState.frequencyHz = frequencyHz
-        rigState.mode = activeMode ?? rigState.mode
+        rigState.mode = mainMode ?? rigState.mode
         rigState.band = bandOrSegmentName
         rigState.powerWatts = powerWatts
         rigState.swr = swr
@@ -1832,8 +1996,11 @@ final class HubService: ObservableObject {
         rigState.memoryChannel = memoryChannel
         rigState.memoryChannelTag = memoryChannelTag
         if let radioInfo {
+            // Same as in `memoryScanTick`: a stop the app didn't send.
+            if radioInfo.scan == .stopped, isMemoryScanActive { txSideBeforeMemoryScan = nil }
             rigState.memoryScan = radioInfo.scan
-        } else if rigState.vfoMemoryMode != .memory {
+            if radioInfo.scan != .stopped { rigState.memoryScanSide = scanSide }
+        } else if rigState.vfoMemoryMode != .memory, rigState.subVfoMemoryMode != .memory {
             rigState.memoryScan = nil
         }
 
@@ -2013,6 +2180,9 @@ final class HubService: ObservableObject {
                 }
                 return {
                     self.rigState.subVfoMemoryMode = modeRaw.map(VFOMemoryMode.init(rawP2:)) ?? self.rigState.subVfoMemoryMode
+                    // Mid-scan these are a random sample (see
+                    // `RigState.memoryScan`); the scan's pause/stop reads them.
+                    guard !(self.rigState.memoryScan == .scanning && self.rigState.memoryScanSide == .sub) else { return }
                     // No fallback for these two: they go back to nil out of
                     // Memory mode rather than hold a stale channel.
                     self.rigState.subMemoryChannel = channel

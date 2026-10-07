@@ -286,11 +286,18 @@ public enum RigCommand: Sendable, Equatable {
     /// side if it's in VFO mode — the memory list window's MAIN/SUB
     /// buttons. "MC<side>" then "VM<side>11" (see `CommandQueue`).
     case recallMemoryChannel(channel: Int, sub: Bool)
-    /// Starts (up/down) or stops the rig's own scan on MAIN — raw "SC0<n>".
-    /// The hub only starts it while MAIN is in Memory mode, so it's a
-    /// memory scan; sending up/down again while paused resumes past the
-    /// busy channel (rig-confirmed 2026-10-06), which is how Skip works.
-    case setMemoryScan(MemoryScanDirection)
+    /// Starts (up/down) or stops the rig's own scan on one side — raw
+    /// "SC<side><n>". The hub only starts it while that side is in Memory
+    /// mode, so it's a memory scan; sending up/down again while paused
+    /// resumes past the busy channel (rig-confirmed 2026-10-06), which is
+    /// how Skip works. A stop with either side's P1 stops both sides' scans.
+    case setMemoryScan(MemoryScanDirection, side: FilterSide)
+
+    /// Wire payload for `.setMemoryScan`.
+    private struct MemoryScanPayload: Codable, Sendable, Equatable {
+        let direction: MemoryScanDirection
+        let side: FilterSide
+    }
 
     /// Wire payload for `.recallMemoryChannel`.
     private struct RecallMemoryPayload: Codable, Sendable, Equatable {
@@ -523,7 +530,8 @@ extension RigCommand: Codable {
             let payload = try container.decode(RecallMemoryPayload.self, forKey: .value)
             self = .recallMemoryChannel(channel: payload.channel, sub: payload.sub)
         case .setMemoryScan:
-            self = .setMemoryScan(try container.decode(MemoryScanDirection.self, forKey: .value))
+            let payload = try container.decode(MemoryScanPayload.self, forKey: .value)
+            self = .setMemoryScan(payload.direction, side: payload.side)
         }
     }
 
@@ -725,9 +733,9 @@ extension RigCommand: Codable {
         case .recallMemoryChannel(let channel, let sub):
             try container.encode(CommandName.recallMemoryChannel, forKey: .cmd)
             try container.encode(RecallMemoryPayload(channel: channel, sub: sub), forKey: .value)
-        case .setMemoryScan(let direction):
+        case .setMemoryScan(let direction, let side):
             try container.encode(CommandName.setMemoryScan, forKey: .cmd)
-            try container.encode(direction, forKey: .value)
+            try container.encode(MemoryScanPayload(direction: direction, side: side), forKey: .value)
         }
     }
 }

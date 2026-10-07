@@ -175,7 +175,7 @@ public struct VFODisplayBox: View {
             // height is reserved even when empty so neither it nor anything
             // below it moves as indicators or callsigns come and go.
             HStack(spacing: 6) {
-                if let reflector {
+                if let reflector, !isScanning {
                     Text(reflector)
                         .font(.caption2)
                         .foregroundStyle(digitColor)
@@ -194,7 +194,7 @@ public struct VFODisplayBox: View {
             }
             .frame(maxWidth: .infinity, minHeight: 14, alignment: .leading)
             HStack(alignment: .center, spacing: 8) {
-                if let callsign {
+                if let callsign, !isScanning {
                     Text(callsign)
                         .font(.system(size: 24, weight: .semibold, design: .monospaced))
                         .foregroundStyle(digitColor)

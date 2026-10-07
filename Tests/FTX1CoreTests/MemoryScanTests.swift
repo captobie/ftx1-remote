@@ -32,12 +32,16 @@ final class MemoryScanTests: XCTestCase {
 
     func testSetMemoryScanRoundTrip() throws {
         for direction in [MemoryScanDirection.off, .up, .down] {
-            let command = RigCommand.setMemoryScan(direction)
-            let data = try JSONEncoder().encode(command)
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-            XCTAssertEqual(json?["cmd"] as? String, "set_memory_scan")
-            XCTAssertEqual(json?["value"] as? String, direction.rawValue)
-            XCTAssertEqual(try JSONDecoder().decode(RigCommand.self, from: data), command)
+            for side in [FilterSide.main, .sub] {
+                let command = RigCommand.setMemoryScan(direction, side: side)
+                let data = try JSONEncoder().encode(command)
+                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                XCTAssertEqual(json?["cmd"] as? String, "set_memory_scan")
+                let value = json?["value"] as? [String: Any]
+                XCTAssertEqual(value?["direction"] as? String, direction.rawValue)
+                XCTAssertEqual(value?["side"] as? Int, side.rawValue)
+                XCTAssertEqual(try JSONDecoder().decode(RigCommand.self, from: data), command)
+            }
         }
     }
 
@@ -45,7 +49,28 @@ final class MemoryScanTests: XCTestCase {
     func testRigStateDecodesWithoutMemoryScan() throws {
         var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(RigState())) as! [String: Any]
         json.removeValue(forKey: "memoryScan")
+        json.removeValue(forKey: "memoryScanSide")
         let state = try JSONDecoder().decode(RigState.self, from: JSONSerialization.data(withJSONObject: json))
         XCTAssertNil(state.memoryScan)
+        XCTAssertNil(state.memoryScanSide)
+    }
+
+    func testMemoryScanIsReportedOnItsSideOnly() {
+        var state = RigState(memoryScan: .paused)
+        XCTAssertEqual(state.memoryScan(on: .main), .paused, "no side = MAIN (older hub)")
+        XCTAssertNil(state.memoryScan(on: .sub))
+        state.memoryScanSide = .sub
+        XCTAssertNil(state.memoryScan(on: .main))
+        XCTAssertEqual(state.memoryScan(on: .sub), .paused)
+    }
+
+    func testCanStartMemoryScanNeedsMemoryModeAndDualReceiveForSub() {
+        var state = RigState(vfoMemoryMode: .vfo, subVfoMemoryMode: .memory)
+        XCTAssertFalse(state.canStartMemoryScan(on: .main))
+        XCTAssertTrue(state.canStartMemoryScan(on: .sub))
+        state.singleReceive = true
+        XCTAssertFalse(state.canStartMemoryScan(on: .sub))
+        state.vfoMemoryMode = .memory
+        XCTAssertTrue(state.canStartMemoryScan(on: .main))
     }
 }

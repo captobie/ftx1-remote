@@ -466,8 +466,8 @@ public actor CommandQueue {
             if (try? await rigctld.getRawInt("VM" + p1)) != 11 {
                 try await rigctld.setRawInt("VM" + p1, 11, digits: 2)
             }
-        case .setMemoryScan(let direction):
-            try await rigctld.setRawInt("SC0", direction.catDigit, digits: 1)
+        case .setMemoryScan(let direction, let side):
+            try await rigctld.setRawInt("SC\(side.p1)", direction.catDigit, digits: 1)
         }
     }
 }

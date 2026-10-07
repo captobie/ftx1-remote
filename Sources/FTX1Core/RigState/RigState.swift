@@ -361,13 +361,17 @@ public struct RigState: Codable, Equatable, Sendable {
     public var subVfoMemoryMode: VFOMemoryMode?
     public var subMemoryChannel: Int?
     public var subMemoryChannelTag: String?
-    /// The rig's own MAIN-side scan (raw "SC", state from "RI0" P7), read
-    /// only while MAIN is in Memory mode or a scan was last seen running —
-    /// nil otherwise. While `.scanning` the rig steps ~10 channels a second,
-    /// faster than any poll, so `frequencyHz`/`memoryChannel`/`mode` are
-    /// left at their last values and the display hides them; they're
-    /// re-read the moment the scan pauses or stops.
+    /// The rig's own memory scan (raw "SC", state from "RI0" P7 — one
+    /// state for the whole radio), read only while either side is in
+    /// Memory mode or a scan was last seen running — nil otherwise. While
+    /// `.scanning` the rig steps ~10 channels a second, faster than any
+    /// poll, so the scanning side's frequency/channel/mode are left at
+    /// their last values and the display hides them; they're re-read the
+    /// moment the scan pauses or stops.
     public var memoryScan: MemoryScanState?
+    /// Which side `memoryScan` is about (the app runs one side's scan at a
+    /// time). nil — e.g. from a hub that predates SUB scans — means MAIN.
+    public var memoryScanSide: FilterSide?
     /// Local app-level safety policy, not CAT-sourced — mirrors the Mac's
     /// `RigctldSettings.transmitEnabled` and is pushed to clients like every
     /// other field so a remote PTT/MOX/ANT TUNE control can reflect it. When
@@ -450,6 +454,7 @@ public struct RigState: Codable, Equatable, Sendable {
         subMemoryChannel: Int? = nil,
         subMemoryChannelTag: String? = nil,
         memoryScan: MemoryScanState? = nil,
+        memoryScanSide: FilterSide? = nil,
         transmitEnabled: Bool = true
     ) {
         self.frequencyHz = frequencyHz
@@ -525,6 +530,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.subMemoryChannel = subMemoryChannel
         self.subMemoryChannelTag = subMemoryChannelTag
         self.memoryScan = memoryScan
+        self.memoryScanSide = memoryScanSide
         self.transmitEnabled = transmitEnabled
     }
 }

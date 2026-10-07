@@ -58,7 +58,7 @@ struct ContentView: View {
             // the VFO boxes; the scope mode buttons sit below it.
             Grid(horizontalSpacing: 12, verticalSpacing: 6) {
                 GridRow(alignment: .top) {
-                    VFODisplayBox(label: "SUB", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: hub.rigState.singleReceive != true, mode: hub.rigState.secondaryMode?.displayName ?? "—", txRxLabel: hub.rigState.subTxRxLabel, callsign: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsSubActive ? hub.rigState.aprsSubLastCallsign : nil), reflector: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsSubActive, onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.subVfoMemoryMode, memoryChannel: hub.rigState.subMemoryChannel, memoryChannelTag: hub.rigState.subMemoryChannelTag, onSetMemoryChannel: { hub.send(.setSubMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepSubMemoryChannel(up: $0)) })
+                    VFODisplayBox(label: "SUB", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: hub.rigState.singleReceive != true, mode: hub.rigState.secondaryMode?.displayName ?? "—", txRxLabel: hub.rigState.subTxRxLabel, callsign: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsSubActive ? hub.rigState.aprsSubLastCallsign : nil), reflector: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsSubActive, onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.subVfoMemoryMode, memoryChannel: hub.rigState.subMemoryChannel, memoryChannelTag: hub.rigState.subMemoryChannelTag, onSetMemoryChannel: { hub.send(.setSubMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepSubMemoryChannel(up: $0)) }, memoryScan: hub.rigState.memoryScan(on: .sub))
                     VStack(spacing: 8) {
                         HStack(spacing: 12) {
                             vmToggleButton
@@ -83,7 +83,7 @@ struct ContentView: View {
                                 .fixedSize()
                         }
                     }
-                    VFODisplayBox(label: "MAIN", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, txRxLabel: hub.rigState.mainTxRxLabel, callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.vfoMemoryMode, memoryChannel: hub.rigState.memoryChannel, memoryChannelTag: hub.rigState.memoryChannelTag, onSetMemoryChannel: { hub.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepMemoryChannel(up: $0)) }, memoryScan: hub.rigState.memoryScan)
+                    VFODisplayBox(label: "MAIN", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, txRxLabel: hub.rigState.mainTxRxLabel, callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.vfoMemoryMode, memoryChannel: hub.rigState.memoryChannel, memoryChannelTag: hub.rigState.memoryChannelTag, onSetMemoryChannel: { hub.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepMemoryChannel(up: $0)) }, memoryScan: hub.rigState.memoryScan(on: .main))
                 }
                 GridRow(alignment: .top) {
                     channelControls(isSub: true)
@@ -324,37 +324,62 @@ struct ContentView: View {
         .buttonStyle(.plain)
     }
 
-    /// Starts the rig's memory scan (upward) on MAIN, or stops it — see
-    /// `RigCommand.setMemoryScan`. Only offered in Memory mode, where "SC"
-    /// is a memory scan.
+    /// Starts the rig's memory scan (upward) — a menu to pick MAIN or SUB —
+    /// or, while one runs, stops it ("Stop MAIN"/"Stop SUB"). See
+    /// `RigCommand.setMemoryScan`. A side is offered only in its Memory
+    /// mode, where "SC" is a memory scan (`RigState.canStartMemoryScan`).
+    @ViewBuilder
     private var memoryScanButton: some View {
-        let isActive = hub.rigState.memoryScan == .scanning || hub.rigState.memoryScan == .paused
-        return Button {
-            hub.send(.setMemoryScan(isActive ? .off : .up))
-        } label: {
-            Text(isActive ? "Stop" : "Scan")
-                .font(.caption)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
-                .background(isActive ? Color.accentColor : Color.gray.opacity(0.2))
-                .foregroundStyle(isActive ? Color.white : Color.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+        let isConnected = hub.connectionState == .connected
+        if let side = activeMemoryScanSide {
+            Button {
+                hub.send(.setMemoryScan(.off, side: side))
+            } label: {
+                memoryScanLabel("Stop \(side.displayName)", highlighted: true)
+            }
+            .buttonStyle(.plain)
+            .disabled(!isConnected)
+            .help("Stop the \(side.displayName) memory scan")
+        } else {
+            let canStartAny = FilterSide.allCases.contains { hub.rigState.canStartMemoryScan(on: $0) }
+            Menu {
+                // SUB first, matching the VFO boxes' left-to-right order.
+                ForEach([FilterSide.sub, .main], id: \.self) { side in
+                    Button("Scan \(side.displayName)") { hub.send(.setMemoryScan(.up, side: side)) }
+                        .disabled(!hub.rigState.canStartMemoryScan(on: side))
+                }
+            } label: {
+                memoryScanLabel("Scan", highlighted: false)
+            }
+            .menuStyle(.button)
+            .menuIndicator(.hidden)
+            .buttonStyle(.plain)
+            .disabled(!isConnected || !canStartAny)
+            .help("Scan MAIN's or SUB's memory channels (Memory mode)")
         }
-        .buttonStyle(.plain)
-        .disabled(hub.connectionState != .connected || (!isActive && hub.rigState.vfoMemoryMode != .memory))
-        .help(isActive ? "Stop the memory scan" : "Scan MAIN's memory channels (Memory mode)")
     }
 
-    /// Moves a paused memory scan on past the busy channel.
+    /// The side whose memory scan is running or paused, nil when none is.
+    private var activeMemoryScanSide: FilterSide? {
+        let state = hub.rigState.memoryScan
+        return state == .scanning || state == .paused ? (hub.rigState.memoryScanSide ?? .main) : nil
+    }
+
+    private func memoryScanLabel(_ title: String, highlighted: Bool) -> some View {
+        Text(title)
+            .font(.caption)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            .background(highlighted ? Color.accentColor : Color.gray.opacity(0.2))
+            .foregroundStyle(highlighted ? Color.white : Color.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+    }
+
+    /// Moves a paused memory scan on past the busy channel, whichever side
+    /// it's on.
     private var memoryScanSkipButton: some View {
         Button(action: hub.skipMemoryScanChannel) {
-            Text("Skip")
-                .font(.caption)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
-                .background(Color.gray.opacity(0.2))
-                .foregroundStyle(Color.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+            memoryScanLabel("Skip", highlighted: false)
         }
         .buttonStyle(.plain)
         .disabled(hub.connectionState != .connected || hub.rigState.memoryScan != .paused)

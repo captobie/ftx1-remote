@@ -9,6 +9,8 @@ struct MemoryListView: View {
     @EnvironmentObject private var hub: HubService
     @EnvironmentObject private var store: MemoryListStore
     @State private var searchText = ""
+    /// Which side Scan Down/Up start — see `memoryScanControls`.
+    @State private var scanSide: FilterSide = .main
 
     private var isConnected: Bool { hub.connectionState == .connected }
 
@@ -124,10 +126,11 @@ struct MemoryListView: View {
         .background(.bar)
     }
 
-    /// The rig's memory scan on MAIN (`RigCommand.setMemoryScan`) — not
-    /// the Refresh read of the list, which this file otherwise calls a scan.
-    /// Only the buttons that apply right now are shown: Scan Down/Up while
-    /// stopped, then Skip (paused only) and Stop Scan while it runs.
+    /// The rig's memory scan (`RigCommand.setMemoryScan`) — not the
+    /// Refresh read of the list, which this file otherwise calls a scan.
+    /// Only the controls that apply right now are shown: a MAIN/SUB picker
+    /// and Scan Down/Up while stopped, then Skip (paused only) and Stop
+    /// Scan for the side that's scanning.
     @ViewBuilder
     private var memoryScanControls: some View {
         let state = hub.rigState.memoryScan
@@ -138,32 +141,42 @@ struct MemoryListView: View {
                     .disabled(!isConnected)
                     .help("Resume the scan past this channel")
             }
-            Button("Stop Scan", systemImage: "stop.circle") { hub.send(.setMemoryScan(.off)) }
+            Button("Stop Scan", systemImage: "stop.circle") { hub.send(.setMemoryScan(.off, side: scanningSide)) }
                 .labelStyle(.titleAndIcon)
                 .disabled(!isConnected)
-                .help("Stop the memory scan")
+                .help("Stop the \(scanningSide.displayName) memory scan")
         } else {
-            let canStart = isConnected && hub.rigState.vfoMemoryMode == .memory
-            let hint = hub.rigState.vfoMemoryMode == .memory ? "" : " (put MAIN in Memory mode first)"
-            Button("Scan Down", systemImage: "chevron.down.circle") { hub.send(.setMemoryScan(.down)) }
+            let canStart = isConnected && hub.rigState.canStartMemoryScan(on: scanSide)
+            let hint = hub.rigState.canStartMemoryScan(on: scanSide) ? "" : " (put \(scanSide.displayName) in Memory mode first)"
+            Picker("Scan Side", selection: $scanSide) {
+                ForEach(FilterSide.allCases, id: \.self) { side in
+                    Text(side.displayName).tag(side)
+                }
+            }
+            .pickerStyle(.segmented)
+            .help("Which receiver to scan")
+            Button("Scan Down", systemImage: "chevron.down.circle") { hub.send(.setMemoryScan(.down, side: scanSide)) }
                 .labelStyle(.titleAndIcon)
                 .disabled(!canStart)
-                .help("Scan MAIN's memory channels downward" + hint)
-            Button("Scan Up", systemImage: "chevron.up.circle") { hub.send(.setMemoryScan(.up)) }
+                .help("Scan \(scanSide.displayName)'s memory channels downward" + hint)
+            Button("Scan Up", systemImage: "chevron.up.circle") { hub.send(.setMemoryScan(.up, side: scanSide)) }
                 .labelStyle(.titleAndIcon)
                 .disabled(!canStart)
-                .help("Scan MAIN's memory channels upward" + hint)
+                .help("Scan \(scanSide.displayName)'s memory channels upward" + hint)
         }
     }
 
+    private var scanningSide: FilterSide { hub.rigState.memoryScanSide ?? .main }
+
     /// Status-bar text for the rig's memory scan; nil when it isn't running.
     private var scanText: String? {
+        let side = scanningSide
+        let channel = side == .sub ? hub.rigState.subMemoryChannel : hub.rigState.memoryChannel
         switch hub.rigState.memoryScan {
         case .scanning:
-            return "Memory scan running…"
+            return "\(side.displayName) memory scan running…"
         case .paused:
-            let channel = hub.rigState.memoryChannel.map { "CH \($0)" } ?? "a busy channel"
-            return "Memory scan paused on \(channel)"
+            return "\(side.displayName) memory scan paused on " + (channel.map { "CH \($0)" } ?? "a busy channel")
         case .stopped, nil:
             return nil
         }
