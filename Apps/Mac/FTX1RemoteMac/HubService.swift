@@ -307,6 +307,9 @@ final class HubService: ObservableObject {
     /// or once the operator picks a TX side themselves.
     private var txSideBeforeMemoryScan: FilterSide?
     /// When the app last started a memory scan — see `memoryScanTick`.
+    /// Bumped by every scan start and Skip, so a pause or stop read that a
+    /// Skip has overtaken isn't published — see `publishMemoryScanStop`.
+    private var memoryScanStarts = 0
     private var memoryScanStartedAt: ContinuousClock.Instant?
     /// See `memoryScanTick`. ~4 "RI0" reads a second at ~55–110 ms each.
     private let memoryScanTickInterval: Duration = .milliseconds(250)
@@ -1114,6 +1117,7 @@ final class HubService: ObservableObject {
             } else {
                 lastMemoryScanDirection = direction
                 memoryScanStartedAt = .now
+                memoryScanStarts += 1
                 rigState.memoryScan = .scanning
                 rigState.memoryScanSide = side
                 // The rig moves its TX/RX side to the scanning side — see
@@ -1228,7 +1232,10 @@ final class HubService: ObservableObject {
     /// a 6 m channel).
     private func publishMemoryScanStop(_ state: MemoryScanState, side: FilterSide) async {
         var generationAtStart = commandGeneration
+        let startsAtStart = memoryScanStarts
         for _ in 0..<4 {
+            // A Skip (or a new scan) since: this pause is over.
+            guard memoryScanStarts == startsAtStart else { return }
             if side == .sub {
                 guard let channel = try? await rigctld.getRawInt("MC1"),
                       let entry = try? await rigctld.readMemoryChannel(channel) else { continue }
