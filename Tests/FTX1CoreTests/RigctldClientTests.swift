@@ -14,7 +14,10 @@ final class RigctldClientTests: XCTestCase {
         // rigctld runs with -o in the real app (see RigctldProcessController),
         // which requires every command to carry an explicit VFO argument —
         // "currVFO" is what RigctldClient sends for the active-VFO calls.
-        server.respond(to: "f currVFO", with: ["14074000"])
+        // getFrequency() reads raw "FA" rather than hamlib's "f", whose
+        // cached answer goes stale after a raw VM0/MC0 (see its doc
+        // comment) — so the reply is a raw-passthrough one, \0-terminated.
+        server.respondRaw(to: "W FA; ;", bytes: Array("FA014074000;\0".utf8))
         let frequency = try await client.getFrequency()
         XCTAssertEqual(frequency, 14_074_000)
 
@@ -283,15 +286,16 @@ final class RigctldClientTests: XCTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(start), 2.0, "should time out promptly, not hang")
 
         // The hung round trip must not leave acquireRoundTrip()'s lock
-        // stuck — a follow-up call should fail fast (the timeout already
-        // tore down the connection) rather than hang waiting for a lock
-        // that's never released.
-        do {
-            _ = try await client.getFrequency()
-            XCTFail("expected notConnected after the connection was torn down")
-        } catch RigctldError.notConnected {
-            // expected
-        }
+        // stuck. The timeout tears down the connection and reconnects at
+        // once (so a routinely-unanswered command, e.g. "GT0" in C4FM,
+        // costs only its own field — see `sendRawCommand`), so a follow-up
+        // call is answered normally on the new connection.
+        server.respondRaw(to: "W FA; ;", bytes: Array("FA014074000;\0".utf8))
+        let frequency = try await client.getFrequency()
+        XCTAssertEqual(frequency, 14_074_000)
+        XCTAssertEqual(server.connectionCount, 2, "expected one reconnect after the timeout")
+
+        await client.disconnect()
     }
 }
 
@@ -308,7 +312,7 @@ private final class FakeRigctldServer: @unchecked Sendable {
     private var scripts: [String: [String]] = [:]
     private var rawScripts: [String: [UInt8]] = [:]
     private var silencedCommands: Set<String> = []
-    private var clientFD: Int32 = -1
+    private var clientFDs: [Int32] = []
     private var acceptThread: Thread?
 
     private init(socketFD: Int32, port: UInt16) {
@@ -350,16 +354,28 @@ private final class FakeRigctldServer: @unchecked Sendable {
         return server
     }
 
+    /// Accepts any number of connections, each served on its own thread —
+    /// `RigctldClient` reconnects by itself after a reply timeout, so a
+    /// test can see a second connection.
     private func acceptLoop() {
         let thread = Thread { [weak self] in
-            guard let self else { return }
-            let fd = accept(self.socketFD, nil, nil)
-            guard fd >= 0 else { return }
-            self.clientFD = fd
-            self.readLoop(fd: fd)
+            while let self {
+                let fd = accept(self.socketFD, nil, nil)
+                guard fd >= 0 else { return }
+                self.lock.lock()
+                self.clientFDs.append(fd)
+                self.lock.unlock()
+                Thread { self.readLoop(fd: fd) }.start()
+            }
         }
         thread.start()
         acceptThread = thread
+    }
+
+    var connectionCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return clientFDs.count
     }
 
     private func readLoop(fd: Int32) {
@@ -425,7 +441,10 @@ private final class FakeRigctldServer: @unchecked Sendable {
 
     func stop() {
         close(socketFD)
-        if clientFD >= 0 { close(clientFD) }
+        lock.lock()
+        let fds = clientFDs
+        lock.unlock()
+        fds.forEach { close($0) }
     }
 }
 
