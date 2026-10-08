@@ -66,6 +66,32 @@ final class WSJTXMessageTests: XCTestCase {
         XCTAssertEqual(value.msOfDay, 86_399_000)
     }
 
+    func testStatusLayout() throws {
+        var reader = Reader(WSJTXMessage.status(dialFrequencyHz: 7_028_500, mode: "CW", dxCall: "K6NA", deCall: "N0CALL", deGrid: "FN31"))
+        _ = try (reader.uint32(), reader.uint32())
+        XCTAssertEqual(try reader.uint32(), 1)
+        XCTAssertEqual(try reader.utf8(), "WSJT-X - FTX1Remote")
+        XCTAssertEqual(try reader.uint64(), 7_028_500)
+        XCTAssertEqual(try reader.utf8(), "CW")
+        XCTAssertEqual(try reader.utf8(), "K6NA")
+        XCTAssertEqual(try reader.utf8(), "")        // report
+        XCTAssertEqual(try reader.utf8(), "CW")      // TX mode
+        XCTAssertEqual(Array(try reader.take(3)), [0, 0, 0])
+        XCTAssertEqual(try reader.uint32(), 0)
+        XCTAssertEqual(try reader.uint32(), 0)
+        XCTAssertEqual(try reader.utf8(), "N0CALL")
+        XCTAssertEqual(try reader.utf8(), "FN31")
+        XCTAssertEqual(try reader.utf8(), "")        // DX grid
+        XCTAssertEqual(Array(try reader.take(1)), [0])
+        XCTAssertEqual(try reader.utf8(), "")        // sub-mode
+        XCTAssertEqual(Array(try reader.take(2)), [0, 0])
+        XCTAssertEqual(try reader.uint32(), 0xffff_ffff)
+        XCTAssertEqual(try reader.uint32(), 0xffff_ffff)
+        XCTAssertEqual(try reader.utf8(), "")
+        XCTAssertEqual(try reader.utf8(), "")
+        XCTAssertTrue(reader.atEnd)
+    }
+
     func testHeartbeatLayout() throws {
         var reader = Reader(WSJTXMessage.heartbeat())
         XCTAssertEqual(try reader.uint32(), 0xadbc_cbda)
@@ -104,6 +130,15 @@ final class WSJTXMessageTests: XCTestCase {
         var outOfBand = qso
         outOfBand.frequencyHz = 9_500_000
         XCTAssertFalse(ADIFRecord.record(for: outOfBand).contains("<band:"))
+    }
+
+    func testADIFModeFromRigMode() {
+        XCTAssertEqual(ADIFMode(.cw), ADIFMode(mode: "CW"))
+        XCTAssertEqual(ADIFMode(.usb), ADIFMode(mode: "SSB", submode: "USB"))
+        XCTAssertEqual(ADIFMode(.lsb), ADIFMode(mode: "SSB", submode: "LSB"))
+        XCTAssertEqual(ADIFMode(.c4fm), ADIFMode(mode: "DIGITALVOICE", submode: "C4FM"))
+        XCTAssertNil(ADIFMode(.dataUSB))
+        XCTAssertNil(ADIFMode(.unknown))
     }
 
     private struct Reader {

@@ -4,7 +4,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// Tools → CW (`Window(id: "cw")` in `FTX1RemoteMacApp`): the receive pane
-/// on top, the send pane (`CWSendPane`, v2) below, in a `VSplitView`. Each
+/// on top, the send pane (`CWSendPane`, v2) below it and the Log QSO pane
+/// (`CWLogPane`) at the bottom, in a `VSplitView`. Each
 /// pane keeps its own controls in its own header rather than sharing the
 /// window toolbar.
 ///
@@ -20,9 +21,11 @@ struct CWWindowView: View {
                 .frame(minHeight: 240)
             CWSendPane()
                 .frame(minHeight: 230)
+            CWLogPane()
+                .frame(minHeight: 130, maxHeight: 160)
         }
             .navigationTitle("CW")
-            .frame(minWidth: 720, minHeight: 520)
+            .frame(minWidth: 720, minHeight: 660)
             .onAppear { receiver.start() }
             .onDisappear { receiver.stop() }
             .alert("CW", isPresented: Binding(

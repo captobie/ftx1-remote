@@ -12,6 +12,9 @@ private let logbookLogger = Logger(subsystem: "com.ftx1remote.mac", category: "l
 /// `WSJTXMessage`), to
 /// `LogbookSettings.macLoggerDXUDPHost`/`Port`. UDP gets no answer, so the
 /// QSO is then looked for in MacLoggerDX's log file to confirm it arrived.
+///
+/// Also asks MacLoggerDX to look a callsign up (`lookUp`), the way WSJT-X
+/// gets it to: a Status message carrying the call as its DX call.
 enum QSOLogger {
     enum Outcome: Equatable {
         /// Found in the logbook's file afterward.
@@ -29,23 +32,58 @@ enum QSOLogger {
         guard LogbookSettings.logger == .macLoggerDX else {
             return .failed("No logbook is selected in Settings → Logbook")
         }
+        if let problem = await sendToMacLoggerDX([WSJTXMessage.qsoLogged(qso), WSJTXMessage.loggedADIF(qso)], what: qso.call) {
+            return .failed(problem)
+        }
+        logbookLogger.notice("Logged \(qso.call, privacy: .public) (\(qso.mode, privacy: .public), \(qso.frequencyHz) Hz)")
+        return await confirm(qso)
+    }
+
+    /// Has MacLoggerDX look `call` up (its call field, QRZ data, worked-
+    /// before line) by sending what WSJT-X sends when its DX Call changes.
+    /// MacLoggerDX only acts on a *changed* DX call, so an empty one goes
+    /// first — otherwise looking up the same call twice in a row does
+    /// nothing. The dial frequency and mode fill its entry panel too, and
+    /// must be real: it ignores the whole message at 0 Hz.
+    /// Returns nil once sent, or why it couldn't be; there's no answer to
+    /// wait for (the lookup itself takes MacLoggerDX a few seconds).
+    static func lookUp(call: String, dialFrequencyHz: Int, mode: String) async -> String? {
+        guard LogbookSettings.logger == .macLoggerDX else {
+            return "No logbook is selected in Settings → Logbook"
+        }
+        let status = { (dxCall: String) in
+            WSJTXMessage.status(
+                dialFrequencyHz: dialFrequencyHz,
+                mode: mode,
+                dxCall: dxCall,
+                deCall: StationSettings.callsign,
+                deGrid: StationSettings.gridSquare
+            )
+        }
+        if let problem = await sendToMacLoggerDX([status(""), status(call)], what: "lookup of \(call)") {
+            return problem
+        }
+        if !MacLoggerDX.isRunning {
+            return "Sent, but MacLoggerDX isn't running"
+        }
+        return nil
+    }
+
+    /// Sends to Settings → Logbook's host/port; nil once sent, otherwise
+    /// what went wrong, in words for the pane.
+    private static func sendToMacLoggerDX(_ datagrams: [Data], what: String) async -> String? {
         let host = LogbookSettings.macLoggerDXUDPHost
         let port = LogbookSettings.macLoggerDXUDPPort
-        let datagrams = [
-            WSJTXMessage.qsoLogged(qso),
-            WSJTXMessage.loggedADIF(qso),
-        ]
         do {
             try await send(datagrams, host: host, port: port)
+            return nil
         } catch {
-            logbookLogger.error("Sending \(qso.call, privacy: .public) to \(host, privacy: .public):\(port) failed: \(error.localizedDescription, privacy: .public)")
+            logbookLogger.error("Sending \(what, privacy: .public) to \(host, privacy: .public):\(port) failed: \(error.localizedDescription, privacy: .public)")
             if case NWError.dns = error {
-                return .failed("Couldn't find the host \(host)")
+                return "Couldn't find the host \(host)"
             }
-            return .failed("Couldn't send to \(host):\(port): \(error.localizedDescription)")
+            return "Couldn't send to \(host):\(port): \(error.localizedDescription)"
         }
-        logbookLogger.notice("Sent \(qso.call, privacy: .public) (\(qso.mode, privacy: .public), \(qso.frequencyHz) Hz) to \(host, privacy: .public):\(port)")
-        return await confirm(qso)
     }
 
     /// Polls the log file until the QSO shows up or the timeout passes.
@@ -85,7 +123,7 @@ enum QSOLogger {
         return .sentUnconfirmed("Sent, but \(reason)")
     }
 
-    /// One UDP flow per QSO: wait for it to be ready, send each datagram
+    /// One UDP flow per call: wait for it to be ready, send each datagram
     /// in order, then close. Fails after 3 s if the host can't be resolved
     /// or routed to.
     private static func send(_ datagrams: [Data], host: String, port: Int) async throws {

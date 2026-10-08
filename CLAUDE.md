@@ -1273,7 +1273,37 @@ is running and listening.
   `qso_table_v008` (code takes the newest `qso_table_v%`), `qso_start` in
   Unix seconds, `call`/`band_rx`/`mode`/`tx_frequency` (MHz). Read on
   MacLoggerDX 6.62. Always opened `mode=ro`, never written.
-- Not built yet: the CW window's log entry, worked-before.
+- **CW window Log QSO pane (step 3, 2026-10-07)**: `CWLogPane`, a third
+  section of the CW window's `VSplitView` (user decision, over a strip in
+  the send pane). "Their call" moved there from the send pane — still
+  `CWSender.theirCall`, so `{CALL}` and click-to-fill are unchanged. RST
+  sent/rcvd (default 599), name, comment; frequency/mode/power from the
+  transmitting side when Log QSO (⌘L) is clicked (SUB's when TX:SUB or
+  split, the VFO boxes' TXRX rule), mode through `ADIFMode` (data modes
+  refused: the rig can't say which one). Time on is set when the call
+  goes from empty to filled (reset button next to it); time off at Log.
+  Fields clear only after MacLoggerDX confirms (user decision).
+  Their call uppercases as it's typed (user request), keeping the cursor
+  in place: worked out from the edit, never by measuring the field's
+  `TextSelection` index against the string — that index can belong to
+  another copy of the string, and `String.distance` trapped (crashed the
+  app) the first time.
+  UI-tested in the built app with the rig disconnected (time on, the
+  not-connected refusal); not yet logged a real QSO from it.
+- **Lookup button (2026-10-07)**, left of Their call: `QSOLogger.lookUp`
+  sends WSJT-X's Status message (`WSJTXMessage.status`) with the call as
+  its DX call — what WSJT-X sends when its DX Call changes, and what
+  makes MacLoggerDX fill its call field from QRZ and show its "<call>
+  Worked <date> on <band> <mode>" line. Tested against the running
+  MacLoggerDX with a scratch sender (W1AW, K6NA) and from the app's
+  button (disconnected refusal). Found by testing: MacLoggerDX only acts
+  on a *changed* DX call (an empty one is sent first, so a repeat lookup
+  works), and **ignores the whole Status at a 0 Hz dial frequency** — so
+  Lookup needs the rig connected; it fills MacLoggerDX's MHz/band/mode
+  from the transmitting side too. The lookup shows up a few seconds
+  later (QRZ). Status parsing has no `substringWithRange:` (checked in
+  the disassembly) unlike the Heartbeat that crashed it.
+- Not built yet: worked-before.
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 

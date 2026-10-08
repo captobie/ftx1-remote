@@ -27,6 +27,7 @@ public enum WSJTXMessage {
 
     enum MessageType: UInt32 {
         case heartbeat = 0
+        case status = 1
         case qsoLogged = 5
         case loggedADIF = 12
     }
@@ -36,6 +37,43 @@ public enum WSJTXMessage {
         writer.uint32(schema)
         writer.utf8(version)
         writer.utf8(revision)
+        return writer.data
+    }
+
+    /// What WSJT-X sends whenever its DX Call (or dial frequency, mode…)
+    /// changes — MacLoggerDX looks up the DX call from it. The decode/TX
+    /// fields are what an idle WSJT-X reports; 0xffffffff is "not
+    /// applicable" for the tolerance and T/R period.
+    public static func status(
+        dialFrequencyHz: Int,
+        mode: String,
+        dxCall: String,
+        deCall: String = "",
+        deGrid: String = "",
+        id: String = defaultID
+    ) -> Data {
+        var writer = Writer(type: .status, id: id)
+        writer.uint64(UInt64(max(dialFrequencyHz, 0)))
+        writer.utf8(mode)
+        writer.utf8(dxCall)
+        writer.utf8("")           // report
+        writer.utf8(mode)         // TX mode
+        writer.bool(false)        // TX enabled
+        writer.bool(false)        // transmitting
+        writer.bool(false)        // decoding
+        writer.uint32(0)          // RX DF
+        writer.uint32(0)          // TX DF
+        writer.utf8(deCall)
+        writer.utf8(deGrid)
+        writer.utf8("")           // DX grid
+        writer.bool(false)        // TX watchdog
+        writer.utf8("")           // sub-mode
+        writer.bool(false)        // fast mode
+        writer.uint8(0)           // special operation mode: none
+        writer.uint32(.max)       // frequency tolerance
+        writer.uint32(.max)       // T/R period
+        writer.utf8("")           // configuration name
+        writer.utf8("")           // TX message
         return writer.data
     }
 
@@ -81,6 +119,7 @@ public enum WSJTXMessage {
         }
 
         mutating func uint8(_ value: UInt8) { data.append(value) }
+        mutating func bool(_ value: Bool) { uint8(value ? 1 : 0) }
         mutating func uint32(_ value: UInt32) { withUnsafeBytes(of: value.bigEndian) { data.append(contentsOf: $0) } }
         mutating func int64(_ value: Int64) { withUnsafeBytes(of: value.bigEndian) { data.append(contentsOf: $0) } }
         mutating func uint64(_ value: UInt64) { withUnsafeBytes(of: value.bigEndian) { data.append(contentsOf: $0) } }

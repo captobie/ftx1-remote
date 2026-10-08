@@ -24,7 +24,7 @@ final class CWSender: ObservableObject {
     /// What the rig is doing for the send pane right now, e.g. "Writing
     /// keyer memory…" — nil when idle.
     @Published private(set) var activity: String?
-    /// The station being worked ("Their call" in the pane), for `{CALL}` in
+    /// The station being worked ("Their call" in the Log QSO pane), for `{CALL}` in
     /// macros; also filled by clicking a callsign in the decoded text.
     @Published var theirCall = ""
     @Published var slot: Int {
