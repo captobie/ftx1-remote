@@ -54,26 +54,11 @@ nonisolated enum MacLoggerDX {
         }
     }
 
-    /// Opens the log read-only and counts what's in it. Never `immutable`:
-    /// MacLoggerDX keeps writing to the file while we read it.
+    /// Counts what's in the log.
     static func readSummary(path: String) throws(LogError) -> LogSummary {
-        guard FileManager.default.fileExists(atPath: path) else { throw .missing }
-        var db: OpaquePointer?
-        let uri = "file:\(path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path)?mode=ro"
-        guard sqlite3_open_v2(uri, &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nil) == SQLITE_OK else {
-            let message = db.map { String(cString: sqlite3_errmsg($0)) } ?? "open failed"
-            sqlite3_close(db)
-            throw .cannotOpen(message)
-        }
+        let db = try open(path)
         defer { sqlite3_close(db) }
-        sqlite3_busy_timeout(db, 1000)
-
-        // The table name carries a schema version; take the newest one so
-        // a future v009 still reads (its columns are checked when used).
-        let tableQuery = "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'qso_table_v%' ORDER BY name DESC LIMIT 1"
-        guard let table = try queryRow(db, tableQuery, { String(cString: sqlite3_column_text($0, 0)) }) else {
-            throw .noQSOTable
-        }
+        let table = try qsoTable(db)
 
         let summaryQuery = "SELECT COUNT(*), COUNT(DISTINCT UPPER(call)), MAX(qso_start) FROM \"\(table)\""
         let summary = try queryRow(db, summaryQuery) { statement in
@@ -86,6 +71,54 @@ nonisolated enum MacLoggerDX {
             )
         }
         return summary ?? LogSummary(qsoCount: 0, callCount: 0, lastQSO: nil)
+    }
+
+    /// Whether the log has a QSO with `call` starting within `tolerance`
+    /// of `start` — how a UDP-logged QSO is confirmed, since MacLoggerDX
+    /// sends nothing back.
+    static func containsQSO(call: String, start: Date, tolerance: TimeInterval = 120, path: String) throws(LogError) -> Bool {
+        let db = try open(path)
+        defer { sqlite3_close(db) }
+        let table = try qsoTable(db)
+        let sql = "SELECT 1 FROM \"\(table)\" WHERE UPPER(call) = UPPER(?1) AND ABS(qso_start - ?2) <= ?3 LIMIT 1"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw .cannotOpen(String(cString: sqlite3_errmsg(db)))
+        }
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_text(statement, 1, call, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
+        sqlite3_bind_double(statement, 2, start.timeIntervalSince1970)
+        sqlite3_bind_double(statement, 3, tolerance)
+        switch sqlite3_step(statement) {
+        case SQLITE_ROW: return true
+        case SQLITE_DONE: return false
+        default: throw .cannotOpen(String(cString: sqlite3_errmsg(db)))
+        }
+    }
+
+    /// Opens the log read-only. Never `immutable`: MacLoggerDX keeps
+    /// writing to the file while we read it. The caller closes it.
+    private static func open(_ path: String) throws(LogError) -> OpaquePointer? {
+        guard FileManager.default.fileExists(atPath: path) else { throw .missing }
+        var db: OpaquePointer?
+        let uri = "file:\(path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path)?mode=ro"
+        guard sqlite3_open_v2(uri, &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nil) == SQLITE_OK else {
+            let message = db.map { String(cString: sqlite3_errmsg($0)) } ?? "open failed"
+            sqlite3_close(db)
+            throw .cannotOpen(message)
+        }
+        sqlite3_busy_timeout(db, 1000)
+        return db
+    }
+
+    /// The QSO table's name carries a schema version; take the newest one
+    /// so a future v009 still reads (its columns are checked when used).
+    private static func qsoTable(_ db: OpaquePointer?) throws(LogError) -> String {
+        let sql = "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'qso_table_v%' ORDER BY name DESC LIMIT 1"
+        guard let table = try queryRow(db, sql, { String(cString: sqlite3_column_text($0, 0)) }) else {
+            throw .noQSOTable
+        }
+        return table
     }
 
     /// Runs `sql` and reads its first row, if any.

@@ -1250,19 +1250,30 @@ override) with a read-only summary, UDP host/port, and whether MacLoggerDX
 is running and listening.
 
 - **Logging goes over WSJT-X's UDP protocol** (user decision, over
-  AppleScript `importADIF`): MacLoggerDX listens on UDP 2237 when its
-  "listen for WSJT-X UDP broadcasts" pref is on. No reply comes back, so
-  confirm a logged QSO by finding it in the log file. MacLoggerDX's
-  `wsjt_log_adif` pref (off on the user's Mac) picks whether it logs from
-  WSJT-X's "QSO Logged" or "Logged ADIF" message; not yet checked which
-  one it actually acts on.
+  AppleScript `importADIF`) — step 2, done 2026-10-07: `QSOLogger` (Mac)
+  sends a `LoggedQSO` (`FTX1Core/Logbook/`) as WSJT-X's "QSO Logged" +
+  "Logged ADIF" datagrams (`WSJTXMessage`, `ADIFRecord`; layout from
+  WSJT-X's `Network/NetworkMessage.hpp`, unit-tested in
+  `WSJTXMessageTests`) to UDP 2237, then confirms by finding the QSO in
+  the log file within 5 s (`MacLoggerDX.containsQSO`) — UDP gets no reply.
+  Tested against the user's running MacLoggerDX 6.62 with one QSO (TE5T,
+  logged once, every field right; MacLoggerDX fills in my call/grid
+  itself when they're empty). What the binary's strings show: MacLoggerDX
+  acts on "QSO Logged" when its `wsjt_log_adif` checkbox is off and on
+  "Logged ADIF" when it's on — never both — and checks the sender Id
+  against "WSJT-X"/"JTDX" (Id used: "WSJT-X - FTX1Remote", the form a
+  second named WSJT-X instance uses). **Never send it a Heartbeat with an
+  empty version**: that crashed MacLoggerDX twice (uncaught
+  `substringWithRange:` in `-[WsjtDecoder messageHeartBeat:]`), so
+  `QSOLogger` sends no Heartbeat at all. Only the checkbox-off path is
+  tested.
 - **Reading the log**: SQLite, path in MacLoggerDX's own prefs
   (`qso_data_source_sql_db_path`, read with `CFPreferencesCopyAppValue`),
   default `~/Documents/MLDX_Logs/MacLoggerDX.sql`. One table,
   `qso_table_v008` (code takes the newest `qso_table_v%`), `qso_start` in
   Unix seconds, `call`/`band_rx`/`mode`/`tx_frequency` (MHz). Read on
   MacLoggerDX 6.62. Always opened `mode=ro`, never written.
-- Not built yet: sending a QSO, the CW window's log entry, worked-before.
+- Not built yet: the CW window's log entry, worked-before.
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 
