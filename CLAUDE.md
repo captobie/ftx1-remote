@@ -1303,7 +1303,28 @@ is running and listening.
   from the transmitting side too. The lookup shows up a few seconds
   later (QRZ). Status parsing has no `substringWithRange:` (checked in
   the disassembly) unlike the Heartbeat that crashed it.
-- Not built yet: worked-before.
+- **Worked-before (2026-10-07)**: `WorkedStations` (`FTX1Core/Logbook/`,
+  unit-tested) indexes the log by base call — the longest `/` part, the
+  later one on a tie (K6NA/P, VP2E/K6NA → K6NA; so W1AW/0 counts as
+  W1AW) — and answers this band / other band / never, bands compared
+  case-insensitively ("40M" in the log, "40m" in `BandPlan`).
+  `WorkedStationsStore` (`lazy var` on `HubService`, runs while the CW
+  window is open) builds it from `MacLoggerDX.readWorkedQSOs`, re-reads
+  when the log file's date changes (checked every 5 s; MacLoggerDX's
+  `journal_mode` is `delete`, so a new QSO changes the main file) and
+  right after Log QSO confirms, and tracks the transmitting side's band
+  (`RigState.transmitter`, shared with the Log pane). Shown as colors on
+  the decoded callsigns (green this band, orange other band, link blue
+  never — user decision: call then band, mode ignored) with a legend,
+  and as a "Worked N× · last … · new on <band>" / "New station" line
+  next to Their call. **Every file access to the log runs off the main
+  actor**: it's in ~/Documents, and the first access blocks on macOS's
+  Documents-folder permission prompt — a `FileManager` date check on the
+  main thread froze the whole app until the prompt was answered (also
+  re-asked after Debug rebuilds). Tested in the built app with a
+  synthesized CW recording (K6NA, JJ0PKS, W1AW/0 orange with no band
+  known; JA1XYZ, ZL2AB blue) and the pane lines; the green/this-band
+  case only in unit tests so far (needs the rig connected).
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 

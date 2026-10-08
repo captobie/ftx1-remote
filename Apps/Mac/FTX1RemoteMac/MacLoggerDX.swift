@@ -1,4 +1,5 @@
 import AppKit
+import FTX1Core
 import SQLite3
 
 /// What the app knows about MacLoggerDX without talking to it: whether
@@ -71,6 +72,37 @@ nonisolated enum MacLoggerDX {
             )
         }
         return summary ?? LogSummary(qsoCount: 0, callCount: 0, lastQSO: nil)
+    }
+
+    /// Every QSO's call, band, mode and start, for `WorkedStations`. The
+    /// band is `band_rx`, or `band_tx` where that's empty.
+    static func readWorkedQSOs(path: String) throws(LogError) -> [WorkedStations.QSO] {
+        let db = try open(path)
+        defer { sqlite3_close(db) }
+        let table = try qsoTable(db)
+        let sql = "SELECT call, COALESCE(NULLIF(band_rx, ''), band_tx, ''), COALESCE(mode, ''), COALESCE(qso_start, 0) FROM \"\(table)\""
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw .cannotOpen(String(cString: sqlite3_errmsg(db)))
+        }
+        defer { sqlite3_finalize(statement) }
+        var qsos: [WorkedStations.QSO] = []
+        while true {
+            switch sqlite3_step(statement) {
+            case SQLITE_ROW:
+                guard let call = sqlite3_column_text(statement, 0) else { continue }
+                qsos.append(WorkedStations.QSO(
+                    call: String(cString: call),
+                    band: String(cString: sqlite3_column_text(statement, 1)),
+                    mode: String(cString: sqlite3_column_text(statement, 2)),
+                    date: Date(timeIntervalSince1970: sqlite3_column_double(statement, 3))
+                ))
+            case SQLITE_DONE:
+                return qsos
+            default:
+                throw .cannotOpen(String(cString: sqlite3_errmsg(db)))
+            }
+        }
     }
 
     /// Whether the log has a QSO with `call` starting within `tolerance`

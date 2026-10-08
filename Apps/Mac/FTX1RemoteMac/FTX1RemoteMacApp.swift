@@ -82,12 +82,14 @@ struct FTX1RemoteMacApp: App {
 
         // Tools → CW. `hub` for the MAIN/SUB picker's single-receive
         // check and the send pane's keyer controls, `cwReceiver`/`cwSender`
-        // for the two panes; decoding runs while the window is open, like FT8.
+        // for the two panes, `workedStations` for worked-before; decoding
+        // runs while the window is open, like FT8.
         Window("CW", id: "cw") {
             CWWindowView()
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.cwReceiver)
                 .environmentObject(appDelegate.hub.cwSender)
+                .environmentObject(appDelegate.hub.workedStations)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
 

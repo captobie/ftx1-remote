@@ -234,6 +234,9 @@ final class HubService: ObservableObject {
     /// Tools → CW's send pane (keys the rig's CW TEXT keyer memory) — see
     /// `CWSender`. `lazy` so it can be handed `self`.
     lazy var cwSender = CWSender(hub: self)
+    /// Worked-before for the CW window — see `WorkedStationsStore`.
+    /// `lazy` so it can be handed `$rigState`.
+    lazy var workedStations = WorkedStationsStore(rigState: $rigState)
     /// The memory list window's channels — see `MemoryListStore`. `lazy`
     /// so it can be handed `rigctld`.
     lazy var memoryList = MemoryListStore(rigctld: rigctld)

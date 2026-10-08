@@ -14,6 +14,7 @@ import UniformTypeIdentifiers
 /// queued line still goes out (Stop is the way to cancel it).
 struct CWWindowView: View {
     @EnvironmentObject private var receiver: CWReceiver
+    @EnvironmentObject private var workedStations: WorkedStationsStore
 
     var body: some View {
         VSplitView {
@@ -26,8 +27,14 @@ struct CWWindowView: View {
         }
             .navigationTitle("CW")
             .frame(minWidth: 720, minHeight: 660)
-            .onAppear { receiver.start() }
-            .onDisappear { receiver.stop() }
+            .onAppear {
+                receiver.start()
+                workedStations.start()
+            }
+            .onDisappear {
+                receiver.stop()
+                workedStations.stop()
+            }
             .alert("CW", isPresented: Binding(
                 get: { receiver.errorMessage != nil },
                 set: { if !$0 { receiver.errorMessage = nil } }
@@ -184,8 +191,13 @@ private struct CWDecoderPicker: View {
 /// fills the send pane's Their call. Handled here through `openURL`, so the
 /// custom scheme never reaches the system. The tentative text isn't linked
 /// — it can still change.
+/// Callsigns in the decoded text are links (a click fills Their call) and
+/// are colored by worked-before (`WorkedStationsStore`): green worked on
+/// the band the rig transmits on, orange worked only on other bands, the
+/// plain link color never worked.
 private struct CWDecodedTextView: View {
     @EnvironmentObject private var sender: CWSender
+    @EnvironmentObject private var workedStations: WorkedStationsStore
     let text: String
     /// Newest text, not yet final: shown dimmed after the committed text.
     let tentative: String
@@ -207,6 +219,12 @@ private struct CWDecodedTextView: View {
         }
         .defaultScrollAnchor(.bottom, for: .sizeChanges)
         .background(Color(nsColor: .textBackgroundColor))
+        .overlay(alignment: .bottomTrailing) {
+            if workedStations.problem == nil, !text.isEmpty {
+                WorkedLegend(band: workedStations.band)
+                    .padding(8)
+            }
+        }
         .environment(\.openURL, OpenURLAction { url in
             guard let call = CWCallsigns.call(from: url) else { return .systemAction }
             sender.theirCall = call
@@ -221,8 +239,43 @@ private struct CWDecodedTextView: View {
                   let url = CWCallsigns.url(for: text[range]) else { continue }
             attributed[attributedRange].link = url
             attributed[attributedRange].underlineStyle = .single
+            if let color = Self.color(for: workedStations.worked.status(of: String(text[range]), band: workedStations.band)) {
+                attributed[attributedRange].foregroundColor = color
+            }
         }
         return attributed
+    }
+
+    static func color(for status: WorkedStations.Status) -> Color? {
+        switch status {
+        case .thisBand: .green
+        case .otherBand: .orange
+        case .never: nil
+        }
+    }
+}
+
+/// Key to the decoded callsigns' colors.
+private struct WorkedLegend: View {
+    let band: String?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            entry(.green, "Worked on \(band ?? "this band")")
+            entry(.orange, "Worked, other band")
+            entry(Color(nsColor: .linkColor), "New")
+        }
+        .font(.caption)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.regularMaterial, in: Capsule())
+    }
+
+    private func entry(_ color: Color, _ title: String) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(title)
+        }
     }
 }
 

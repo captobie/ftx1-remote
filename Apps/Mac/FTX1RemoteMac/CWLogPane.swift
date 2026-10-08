@@ -14,6 +14,7 @@ import SwiftUI
 struct CWLogPane: View {
     @EnvironmentObject private var hub: HubService
     @EnvironmentObject private var sender: CWSender
+    @EnvironmentObject private var workedStations: WorkedStationsStore
 
     @AppStorage(LogbookSettings.loggerKey) private var loggerRawValue = LogbookSettings.Logger.none.rawValue
     @State private var rstSent = Self.defaultRST
@@ -50,6 +51,7 @@ struct CWLogPane: View {
                     .frame(width: 120)
                     .help("The station you're working — also {CALL} in macros. Click a callsign in the decoded text to fill it in.")
                 timeOnView
+                CWWorkedSummary(call: normalizedCall)
             }
             HStack(spacing: 8) {
                 labeled("RST sent") { TextField("", text: $rstSent).frame(width: 50) }
@@ -153,7 +155,7 @@ struct CWLogPane: View {
     private func lookUp() {
         let call = normalizedCall
         guard !call.isEmpty else { return }
-        let tx = CWLogRigReadout.transmitter(hub.rigState)
+        let tx = hub.rigState.transmitter
         guard hub.connectionState == .connected, let frequencyHz = tx.frequencyHz, frequencyHz > 0 else {
             result = .failure("Connect to the rig first — MacLoggerDX ignores a lookup without a frequency")
             return
@@ -176,7 +178,7 @@ struct CWLogPane: View {
             result = .failure("Not connected to the rig — frequency and mode unknown")
             return
         }
-        let tx = CWLogRigReadout.transmitter(rig)
+        let tx = rig.transmitter
         guard let frequencyHz = tx.frequencyHz, frequencyHz > 0 else {
             result = .failure("The transmitting side's frequency isn't known yet")
             return
@@ -209,6 +211,7 @@ struct CWLogPane: View {
             switch outcome {
             case .logged:
                 result = .success("\(call) logged")
+                workedStations.reload()
                 // Only clear if nothing was typed for a new QSO meanwhile.
                 if normalizedCall == call { clear() }
             case .sentUnconfirmed(let reason):
@@ -256,25 +259,52 @@ struct CWLogPane: View {
     }
 }
 
+/// Worked-before for the call being entered: how often, the last QSO, and
+/// whether the band the rig transmits on is new for this station.
+private struct CWWorkedSummary: View {
+    @EnvironmentObject private var workedStations: WorkedStationsStore
+    let call: String
+
+    var body: some View {
+        Group {
+            if call.isEmpty {
+                EmptyView()
+            } else if let problem = workedStations.problem {
+                Text("Worked before: \(problem)").foregroundStyle(.secondary)
+            } else if let summary = workedStations.worked.summary(of: call) {
+                summaryText(summary)
+            } else {
+                // Link blue, the decoded text's color for a call never worked.
+                Label("New station", systemImage: "sparkles").foregroundStyle(Color(nsColor: .linkColor))
+            }
+        }
+        .font(.callout)
+        .lineLimit(1)
+    }
+
+    private func summaryText(_ summary: WorkedStations.Summary) -> some View {
+        let last = summary.last
+        let date = last.date.formatted(.iso8601.year().month().day())
+        var text = "Worked \(summary.count)× · last \(date) \(last.band.lowercased()) \(last.mode)"
+        let newBand = workedStations.band.map { !summary.bands.contains($0.lowercased()) } ?? false
+        if newBand, let band = workedStations.band {
+            text += " · new on \(band)"
+        }
+        return Text(text)
+            .foregroundStyle(newBand ? Color.orange : Color.green)
+            .help(summary.bands.sorted().joined(separator: ", "))
+    }
+}
+
 /// What will be logged from the rig: the transmitting side's frequency,
 /// mode and RF power setting. Its own struct so the rig's polling only
 /// re-renders this line, not the text fields.
 private struct CWLogRigReadout: View {
     @EnvironmentObject private var hub: HubService
 
-    /// MAIN or SUB, whichever transmits — the same rule as the VFO boxes'
-    /// TXRX caption (`RigState.mainTxRxLabel`); `secondaryFrequencyHz`/
-    /// `secondaryMode` are SUB's.
-    static func transmitter(_ rig: RigState) -> (frequencyHz: Int?, mode: RigMode?) {
-        if rig.splitEnabled == true || rig.txSide == .sub {
-            return (rig.secondaryFrequencyHz, rig.secondaryMode)
-        }
-        return (rig.frequencyHz, rig.mode)
-    }
-
     var body: some View {
         let rig = hub.rigState
-        let tx = Self.transmitter(rig)
+        let tx = rig.transmitter
         HStack(spacing: 8) {
             Text(tx.frequencyHz.flatMap { $0 > 0 ? String(format: "%.4f MHz", Double($0) / 1_000_000) : nil } ?? "— MHz")
             Text(tx.mode?.displayName ?? "—")
@@ -283,5 +313,18 @@ private struct CWLogRigReadout: View {
         .font(.system(.body, design: .monospaced))
         .foregroundStyle(hub.connectionState == .connected ? .primary : .tertiary)
         .help("Logged from the transmitting side: frequency, mode and RF power setting")
+    }
+}
+
+extension RigState {
+    /// MAIN or SUB, whichever transmits — the same rule as the VFO boxes'
+    /// TXRX caption (`mainTxRxLabel`); `secondaryFrequencyHz`/
+    /// `secondaryMode` are SUB's. What a QSO is logged with, and the band
+    /// worked-before compares against.
+    var transmitter: (frequencyHz: Int?, mode: RigMode?) {
+        if splitEnabled == true || txSide == .sub {
+            return (secondaryFrequencyHz, secondaryMode)
+        }
+        return (frequencyHz, mode)
     }
 }
