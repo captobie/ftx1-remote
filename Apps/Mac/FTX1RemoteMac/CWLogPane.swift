@@ -222,22 +222,15 @@ struct CWLogPane: View {
         }
     }
 
-    /// Replaces the call with its uppercase form and puts the cursor back
-    /// after what was just typed — replacing the field's text otherwise
-    /// moves it to the end. The cursor position is worked out from the
-    /// edit (everything after it is the text old and new share at the end)
-    /// rather than read from `callSelection`, whose index can belong to a
-    /// different copy of the string and trap when measured against this one.
+    /// Replaces the call with its uppercase form, cursor kept in place —
+    /// see `UppercaseEdit`.
     private func uppercaseCall(from old: String, typed: String, to uppercased: String) {
-        let unchangedTail = zip(old.reversed(), typed.reversed()).prefix { $0 == $1 }.count
-        let caret = typed.count - unchangedTail
+        let caret = UppercaseEdit.caretOffset(old: old, typed: typed)
         sender.theirCall = uppercased
         // After the field has taken the new text, or it moves the cursor
         // to the end again.
         DispatchQueue.main.async {
-            let text = sender.theirCall
-            let offset = min(max(caret, 0), text.count)
-            callSelection = TextSelection(insertionPoint: text.index(text.startIndex, offsetBy: offset))
+            callSelection = UppercaseEdit.selection(in: sender.theirCall, at: caret)
         }
     }
 
@@ -326,5 +319,28 @@ extension RigState {
             return (secondaryFrequencyHz, secondaryMode)
         }
         return (frequencyHz, mode)
+    }
+}
+
+/// Typing in capitals for the CW window's text fields (Their call, the
+/// send line): the field's text is replaced with its uppercase form, which
+/// moves the cursor to the end, so the views put it back. The cursor's
+/// position is worked out from the edit — everything after it is the text
+/// the old and new values share at the end — rather than read from the
+/// field's `TextSelection`, whose index can belong to a different copy of
+/// the string and trapped (`String.distance`) when measured against this
+/// one (2026-10-07).
+enum UppercaseEdit {
+    /// The cursor's character offset right after the edit that turned
+    /// `old` into `typed`.
+    static func caretOffset(old: String, typed: String) -> Int {
+        let unchangedTail = zip(old.reversed(), typed.reversed()).prefix { $0 == $1 }.count
+        return typed.count - unchangedTail
+    }
+
+    /// An insertion point at `offset` characters into `text`, clamped.
+    static func selection(in text: String, at offset: Int) -> TextSelection {
+        let clamped = min(max(offset, 0), text.count)
+        return TextSelection(insertionPoint: text.index(text.startIndex, offsetBy: clamped))
     }
 }

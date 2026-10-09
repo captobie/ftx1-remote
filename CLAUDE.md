@@ -1283,7 +1283,8 @@ is running and listening.
   refused: the rig can't say which one). Time on is set when the call
   goes from empty to filled (reset button next to it); time off at Log.
   Fields clear only after MacLoggerDX confirms (user decision).
-  Their call uppercases as it's typed (user request), keeping the cursor
+  Their call and the send pane's line uppercase as they're typed (user
+  request, `UppercaseEdit` in `CWLogPane.swift`), keeping the cursor
   in place: worked out from the edit, never by measuring the field's
   `TextSelection` index against the string — that index can belong to
   another copy of the string, and `String.distance` trapped (crashed the
@@ -1317,7 +1318,9 @@ is running and listening.
   the decoded callsigns (green this band, orange other band, link blue
   never — user decision: call then band, mode ignored) with a legend,
   and as a "Worked N× · last … · new on <band>" / "New station" line
-  next to Their call. **Every file access to the log runs off the main
+  next to Their call. The legend has its own row under the decoded text
+  (a `VStack`; an overlay covered the newest line, and a `safeAreaInset`
+  left the last lines unscrollable). **Every file access to the log runs off the main
   actor**: it's in ~/Documents, and the first access blocks on macOS's
   Documents-folder permission prompt — a `FileManager` date check on the
   main thread froze the whole app until the prompt was answered (also

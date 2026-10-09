@@ -86,7 +86,18 @@ struct CWSendPane: View {
                 .font(.system(.body, design: .monospaced))
                 .focused($isLineFocused)
                 .onSubmit(submit)
-                .onChange(of: line) { if !line.isEmpty { note = nil } }
+                .onChange(of: line) { old, new in
+                    if !new.isEmpty { note = nil }
+                    // Capitals as typed, like Their call; this runs again
+                    // for the uppercased value, which changes nothing.
+                    let uppercased = new.uppercased()
+                    guard uppercased != new else { return }
+                    let caret = UppercaseEdit.caretOffset(old: old, typed: new)
+                    line = uppercased
+                    DispatchQueue.main.async {
+                        lineSelection = UppercaseEdit.selection(in: line, at: caret)
+                    }
+                }
             Button("Send", action: submit)
                 .disabled(line.trimmingCharacters(in: .whitespaces).isEmpty)
         }

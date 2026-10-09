@@ -203,28 +203,37 @@ private struct CWDecodedTextView: View {
     let tentative: String
 
     var body: some View {
-        ScrollView {
-            Group {
-                if text.isEmpty && tentative.isEmpty {
-                    Text("Decoded CW from the selected receiver appears here. Tune to a CW signal, or open a recording.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("\(linked)\(Text(tentative).foregroundStyle(.tertiary))")
-                        .textSelection(.enabled)
+        // The legend gets a row of its own under the scrolling text — not an
+        // overlay (it covered the newest decoded line) and not a
+        // `safeAreaInset` (the scroll view still ran under it there, and the
+        // last lines couldn't be scrolled into view). Shown whenever the log
+        // is loaded, so the text area doesn't change height as text arrives.
+        VStack(spacing: 0) {
+            ScrollView {
+                Group {
+                    if text.isEmpty && tentative.isEmpty {
+                        Text("Decoded CW from the selected receiver appears here. Tune to a CW signal, or open a recording.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("\(linked)\(Text(tentative).foregroundStyle(.tertiary))")
+                            .textSelection(.enabled)
+                    }
                 }
+                .font(.system(size: 20, design: .monospaced))
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding()
             }
-            .font(.system(size: 20, design: .monospaced))
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .padding()
+            .defaultScrollAnchor(.bottom, for: .sizeChanges)
+            if workedStations.problem == nil {
+                HStack {
+                    Spacer()
+                    WorkedLegend(band: workedStations.band)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+            }
         }
-        .defaultScrollAnchor(.bottom, for: .sizeChanges)
         .background(Color(nsColor: .textBackgroundColor))
-        .overlay(alignment: .bottomTrailing) {
-            if workedStations.problem == nil, !text.isEmpty {
-                WorkedLegend(band: workedStations.band)
-                    .padding(8)
-            }
-        }
         .environment(\.openURL, OpenURLAction { url in
             guard let call = CWCallsigns.call(from: url) else { return .systemAction }
             sender.theirCall = call
