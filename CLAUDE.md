@@ -760,8 +760,8 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   via new defaulted `VFODisplayBox` parameters (`currentMode`/`onSetMode`/
   `memoryList`/`onRefreshMemoryList`), so the Mac's boxes are unchanged.
   SUB's mode is the new `RigCommand.setSecondaryMode` (raw "MD1<code>",
-  `RigMode.catModeCode`) — **not yet rig-confirmed**: at the time SUB
-  sat on a memory channel, so the write wasn't probed. The list: on the
+  `RigMode.catModeCode`) — rig-confirmed by the user on Pi direct,
+  2026-10-09. The list: on the
   hub route the Mac's `MemoryListStore` (moved to `FTX1Core/RigState/`)
   is pushed as `MemoryListPush` (`type: "memory_list"`, throttled to 1/s,
   and sent on connect; `RigCommand.refreshMemoryList` asks the Mac to
@@ -776,9 +776,10 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   before concluding a popover doesn't open.
   Rig-confirmed by the user the same day: channel picker and the channel
   list download.
-- **iPad Pi-direct top row: swap, audio swap, V/M (2026-10-09, Simulator
-  against the real Pi — only the speaker toggle pressed; swap and V/M not
-  yet sent)**: user request, for testing. Next to Connected, once
+- **iPad Pi-direct top row: swap, audio swap, V/M (2026-10-09,
+  rig-confirmed by the user the same day: swap both ways with the audio
+  following, V/M in and out of Memory; a front-panel swap not tried
+  yet)**: user request, for testing. Next to Connected, once
   connected, in this order: V/M (MAIN only), swap (`.swapActiveVFO`, raw
   "SV") and the speaker override. `PiDirectViewModel` now ports the Mac's audio-routing
   parity: `audioChannelsSwapped` (same `AudioPlaybackSettings.
