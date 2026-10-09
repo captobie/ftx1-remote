@@ -22,6 +22,8 @@ actor RigWebSocketServer {
     private var isReady = false
     private var connections: [ObjectIdentifier: Connection] = [:]
     private var latestState: RigState?
+    /// Sent to each client on connect, like `latestState`.
+    private var latestMemoryList: MemoryListSnapshot?
     private var onCommandReceived: (@Sendable (RigCommand) -> Void)?
     /// Whichever client most recently sent `.setPTT(true)`, if any. Unlike
     /// the Mac's own local PTT button (which calls `HubService` directly,
@@ -150,6 +152,16 @@ actor RigWebSocketServer {
         }
     }
 
+    /// Sends the memory channel list (`MemoryListPush`) to every connected
+    /// client, and remembers it for clients that connect later.
+    func broadcastMemoryList(_ list: MemoryListSnapshot) {
+        latestMemoryList = list
+        guard let data = try? JSONEncoder().encode(MemoryListPush(list: list)) else { return }
+        for connection in connections.values {
+            connection.send(data)
+        }
+    }
+
     /// Relays one chunk of the Mac's captured Main-channel radio audio (see
     /// `AudioStreamEncoder`) to every connected client, tagged so
     /// `RigWebSocketClient` can tell it apart from `RigStatePush` JSON
@@ -188,6 +200,9 @@ actor RigWebSocketServer {
         client.start()
 
         if let latestState, let data = try? JSONEncoder().encode(RigStatePush(state: latestState)) {
+            client.send(data)
+        }
+        if let latestMemoryList, let data = try? JSONEncoder().encode(MemoryListPush(list: latestMemoryList)) {
             client.send(data)
         }
     }

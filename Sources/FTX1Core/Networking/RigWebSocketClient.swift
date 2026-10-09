@@ -50,6 +50,10 @@ public actor RigWebSocketClient {
     /// simply never sends a tagged Sub frame in either case.
     public var onSubAudioData: (@Sendable (Data) -> Void)?
 
+    /// The hub's memory channel list (`MemoryListPush`), on connect and
+    /// whenever it changes. Never fires against a hub that predates it.
+    public var onMemoryList: (@Sendable (MemoryListSnapshot) -> Void)?
+
     public init(hubURL: URL) {
         self.url = hubURL
         self.session = URLSession(configuration: .default, delegate: openSignal, delegateQueue: nil)
@@ -69,6 +73,10 @@ public actor RigWebSocketClient {
 
     public func setOnSubAudioData(_ handler: @escaping @Sendable (Data) -> Void) {
         onSubAudioData = handler
+    }
+
+    public func setOnMemoryList(_ handler: @escaping @Sendable (MemoryListSnapshot) -> Void) {
+        onMemoryList = handler
     }
 
     /// Waits for the server to actually accept the WebSocket handshake
@@ -161,9 +169,13 @@ public actor RigWebSocketClient {
             return
         }
 
-        guard let push = try? JSONDecoder().decode(RigStatePush.self, from: data) else { return }
-        lastActivity = Date()
-        onStateUpdate?(push.state)
+        if let push = try? JSONDecoder().decode(RigStatePush.self, from: data) {
+            lastActivity = Date()
+            onStateUpdate?(push.state)
+        } else if let push = try? JSONDecoder().decode(MemoryListPush.self, from: data) {
+            lastActivity = Date()
+            onMemoryList?(push.list)
+        }
     }
 
     /// `failedTask` guards against a stale callback from a task that's

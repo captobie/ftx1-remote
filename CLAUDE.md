@@ -747,6 +747,33 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   screen's audio status line shows only the "Waiting for audio…" warning;
   "Audio from the Pi"/"Audio off" are gone. (The route switch hiding
   while connected is noted at the top of this section.)
+- **iPad VFO popover: mode buttons + channel list, MAIN and SUB
+  (2026-10-09; Simulator against the real Pi, display and channel read
+  only — no mode/channel change sent yet)**: user request. Both iPad
+  screens dropped their segmented mode row. Tapping a box's frequency in
+  VFO mode shows `FrequencyEntryView` plus `ModeButtonGrid` (all nine
+  modes, current one filled, popover stays open); in Memory mode
+  `MemoryChannelEntryView` plus `MemoryChannelListView` (filterable
+  channel/tag/frequency/mode list from a `MemoryListSnapshot`, current
+  channel highlighted, tap selects through `onSetMemoryChannel` and
+  closes; Refresh; reads once by itself when there's no list yet). All
+  via new defaulted `VFODisplayBox` parameters (`currentMode`/`onSetMode`/
+  `memoryList`/`onRefreshMemoryList`), so the Mac's boxes are unchanged.
+  SUB's mode is the new `RigCommand.setSecondaryMode` (raw "MD1<code>",
+  `RigMode.catModeCode`) — **not yet rig-confirmed**: at the time SUB
+  sat on a memory channel, so the write wasn't probed. The list: on the
+  hub route the Mac's `MemoryListStore` (moved to `FTX1Core/RigState/`)
+  is pushed as `MemoryListPush` (`type: "memory_list"`, throttled to 1/s,
+  and sent on connect; `RigCommand.refreshMemoryList` asks the Mac to
+  re-read); on Pi direct `PiDirectViewModel.memoryList` is its own store
+  over the same rigctld link, cached on the iPad (277 channels read from
+  the Pi in the Simulator). Pi direct now also accepts SUB frequency/mode
+  and both sides' channel set/step (none transmit), refused while the rig
+  scans (the hub's scan-stop/TX-side restore isn't ported; the boxes
+  aren't editable then either); a SUB channel change forces the next
+  tick's slow reads so the box catches up in ~1 s. Simulator note: the
+  first tap after a relaunch or screenshot is often dropped — tap again
+  before concluding a popover doesn't open.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
@@ -1385,7 +1412,9 @@ type), searchable, with MAIN/SUB buttons per row. The button for the
 channel a receiver is on is highlighted.
 
 - **Reading**: CAT has no list command, so `MemoryListStore` (a `lazy
-  var` on `HubService`, like `cwSender`) reads channel by channel with
+  var` on `HubService`, like `cwSender`; in `FTX1Core/RigState/` since
+  2026-10-09, shared with the iPad — see the Pi-direct section's "iPad VFO
+  popover") reads channel by channel with
   `RigctldClient.readMemoryChannel` (raw "MR", then "MT" for the tag of a
   programmed channel). A blank channel answers "MR" with "?;" at once
   (checked with `nc` against the Pi, 2026-10-06). The scan stops after

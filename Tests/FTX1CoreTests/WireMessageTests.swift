@@ -23,6 +23,33 @@ final class WireMessageTests: XCTestCase {
         XCTAssertEqual(decoded, command)
     }
 
+    func testSetSecondaryModeRoundTrip() throws {
+        let command = RigCommand.setSecondaryMode(.c4fm)
+        let data = try JSONEncoder().encode(command)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        XCTAssertEqual(json?["cmd"] as? String, "set_secondary_mode")
+        XCTAssertEqual(json?["value"] as? String, "C4FM")
+        XCTAssertEqual(try JSONDecoder().decode(RigCommand.self, from: data), command)
+    }
+
+    func testRefreshMemoryListRoundTrip() throws {
+        let data = try JSONEncoder().encode(RigCommand.refreshMemoryList)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        XCTAssertEqual(json?["cmd"] as? String, "refresh_memory_list")
+        XCTAssertEqual(try JSONDecoder().decode(RigCommand.self, from: data), .refreshMemoryList)
+    }
+
+    /// The memory list push round-trips, and isn't mistaken for a state
+    /// push (older clients rely on that to ignore it).
+    func testMemoryListPushIsNotAStatePush() throws {
+        let entry = MemoryChannelEntry(channel: 1, frequencyHz: 431_075_000, modeCode: "4", toneMode: 1, shift: 0, tag: "Pi-STAR")
+        let push = MemoryListPush(list: MemoryListSnapshot(entries: [entry], scanned: Date(timeIntervalSince1970: 1_000), scanningChannel: nil))
+        let data = try JSONEncoder().encode(push)
+        XCTAssertEqual(try JSONDecoder().decode(MemoryListPush.self, from: data), push)
+        XCTAssertNil(try? JSONDecoder().decode(RigStatePush.self, from: data))
+        XCTAssertNil(try? JSONDecoder().decode(MemoryListPush.self, from: JSONEncoder().encode(RigStatePush(state: RigState()))))
+    }
+
     func testSetModeRoundTrip() throws {
         let command = RigCommand.setMode(.usb)
         let data = try JSONEncoder().encode(command)

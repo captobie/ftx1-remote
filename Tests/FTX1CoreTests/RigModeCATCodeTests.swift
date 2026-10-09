@@ -20,4 +20,13 @@ final class RigModeCATCodeTests: XCTestCase {
             XCTAssertNil(RigMode(catModeCode: code), "code \(code)")
         }
     }
+
+    /// Every settable mode's code reads back as the same mode.
+    func testCodeRoundTrip() {
+        for mode in RigMode.allCases where mode != .unknown {
+            let code = try! XCTUnwrap(mode.catModeCode, "\(mode)")
+            XCTAssertEqual(RigMode(catModeCode: code), mode)
+        }
+        XCTAssertNil(RigMode.unknown.catModeCode)
+    }
 }

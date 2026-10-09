@@ -718,6 +718,25 @@ public enum RigMode: String, Codable, Sendable, CaseIterable, Hashable {
         default: return nil
         }
     }
+
+    /// The raw "MD" P2 code to set this mode — the inverse of
+    /// `init?(catModeCode:)`, picking the plain variant where that table
+    /// folds two codes together (CW-U, RTTY-L, C4FM-DN, as
+    /// `RigctldClient.setActiveModeC4FM()` does). Nil for `.unknown`.
+    public var catModeCode: Character? {
+        switch self {
+        case .lsb: "1"
+        case .usb: "2"
+        case .cw: "3"
+        case .fm: "4"
+        case .am: "5"
+        case .rtty: "6"
+        case .dataFM: "A"
+        case .dataUSB: "C"
+        case .c4fm: "H"
+        case .unknown: nil
+        }
+    }
 }
 
 public extension RigState {

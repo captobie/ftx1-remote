@@ -111,6 +111,12 @@ public actor CommandQueue {
                 // own remembered width, matching the front panel.
                 _ = try await rigctld.send("M \(Self.currentVFOArg) \(mode.rawValue) -1")
             }
+        case .setSecondaryMode(let mode):
+            // Raw "MD1" (SUB) rather than hamlib's "M", which only
+            // addresses the active side; the same raw form C4FM already
+            // uses on the active side (`setActiveModeC4FM`).
+            guard let code = mode.catModeCode else { return }
+            try await rigctld.sendRawFireAndForget("MD1\(code)")
         case .setPTT(let on):
             _ = try await rigctld.send("T \(Self.currentVFOArg) \(on ? 1 : 0)")
         case .setBand(let band):
@@ -468,6 +474,10 @@ public actor CommandQueue {
             }
         case .setMemoryScan(let direction, let side):
             try await rigctld.setRawInt("SC\(side.p1)", direction.catDigit, digits: 1)
+        case .refreshMemoryList:
+            // Handled by whoever owns the memory list (`HubService.send`,
+            // `PiDirectViewModel.send`) — nothing to send to the rig.
+            break
         }
     }
 }

@@ -18,6 +18,10 @@ public enum RigCommand: Sendable, Equatable {
     /// `RigctldClient.swapActiveVFO()`.
     case swapActiveVFO
     case setMode(RigMode)
+    /// SUB's mode, by side — raw "MD1<code>" (`RigMode.catModeCode`), so
+    /// unlike `.setMode` ("M currVFO") it doesn't depend on which side is
+    /// active. Counterpart of `.setSecondaryFrequency`.
+    case setSecondaryMode(RigMode)
     case setPTT(Bool)
     case setBand(String)
     /// 0.0–1.0, relative RFPOWER setting (not watts) — see `RigState.powerLevel`.
@@ -292,6 +296,11 @@ public enum RigCommand: Sendable, Equatable {
     /// resumes past the busy channel (rig-confirmed 2026-10-06), which is
     /// how Skip works. A stop with either side's P1 stops both sides' scans.
     case setMemoryScan(MemoryScanDirection, side: FilterSide)
+    /// Asks the hub to re-read its memory channel list from the rig
+    /// (`MemoryListStore.refresh()`); the result comes back as
+    /// `MemoryListPush`es. Never reaches the rig as such — `CommandQueue`
+    /// ignores it.
+    case refreshMemoryList
 
     /// Wire payload for `.setMemoryScan`.
     private struct MemoryScanPayload: Codable, Sendable, Equatable {
@@ -324,6 +333,7 @@ public enum RigCommand: Sendable, Equatable {
         case setSecondaryFreq = "set_secondary_freq"
         case swapActiveVFO = "swap_active_vfo"
         case setMode = "set_mode"
+        case setSecondaryMode = "set_secondary_mode"
         case ptt
         case setBand = "set_band"
         case setPower = "set_power"
@@ -387,6 +397,7 @@ public enum RigCommand: Sendable, Equatable {
         case stepSubMemoryChannel = "step_sub_memory_channel"
         case recallMemoryChannel = "recall_memory_channel"
         case setMemoryScan = "set_memory_scan"
+        case refreshMemoryList = "refresh_memory_list"
     }
 }
 
@@ -403,6 +414,10 @@ extension RigCommand: Codable {
             self = .swapActiveVFO
         case .setMode:
             self = .setMode(try container.decode(RigMode.self, forKey: .value))
+        case .setSecondaryMode:
+            self = .setSecondaryMode(try container.decode(RigMode.self, forKey: .value))
+        case .refreshMemoryList:
+            self = .refreshMemoryList
         case .ptt:
             self = .setPTT(try container.decode(Bool.self, forKey: .value))
         case .setBand:
@@ -549,6 +564,11 @@ extension RigCommand: Codable {
         case .setMode(let mode):
             try container.encode(CommandName.setMode, forKey: .cmd)
             try container.encode(mode, forKey: .value)
+        case .setSecondaryMode(let mode):
+            try container.encode(CommandName.setSecondaryMode, forKey: .cmd)
+            try container.encode(mode, forKey: .value)
+        case .refreshMemoryList:
+            try container.encode(CommandName.refreshMemoryList, forKey: .cmd)
         case .setPTT(let on):
             try container.encode(CommandName.ptt, forKey: .cmd)
             try container.encode(on, forKey: .value)
@@ -749,5 +769,19 @@ public struct RigStatePush: Codable, Sendable, Equatable {
     public init(state: RigState) {
         self.type = "state"
         self.state = state
+    }
+}
+
+/// Server -> client push of the hub's memory channel list (the Mac's
+/// `MemoryListStore`), sent when it changes — at most once a second while
+/// a scan runs — and to each client on connect. A client that predates it
+/// fails to decode it as a `RigStatePush` and ignores it.
+public struct MemoryListPush: Codable, Sendable, Equatable {
+    public let type: String  // "memory_list"
+    public let list: MemoryListSnapshot
+
+    public init(list: MemoryListSnapshot) {
+        self.type = "memory_list"
+        self.list = list
     }
 }

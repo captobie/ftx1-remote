@@ -56,6 +56,15 @@ public final class PiDirectViewModel: ObservableObject {
     @Published public private(set) var isMainAudioMuted = AudioPlaybackSettings.isMuted
     @Published public private(set) var isSubAudioMuted = AudioPlaybackSettings.subIsMuted
 
+    /// The rig's programmed memory channels, read through this route's own
+    /// rigctld link (attached while connected) and cached on this device —
+    /// the iPad's VFO-box channel list. Read only on Refresh, or the first
+    /// time the list is shown with no cache, as on the Mac.
+    public let memoryList = MemoryListStore()
+    /// `memoryList.snapshot`, republished at most twice a second (a scan
+    /// publishes per channel) so a view observing this model sees it.
+    @Published public private(set) var memoryListSnapshot: MemoryListSnapshot
+
     /// Fixed, like the Mac's `.remote` mode — only the host is configurable.
     private static let rigctldPort: UInt16 = 4532
     private static let pollInterval: Duration = .seconds(1)
@@ -82,6 +91,10 @@ public final class PiDirectViewModel: ObservableObject {
     private var tick = 0
     /// The Mac reads these in its slow tier; they change rarely.
     private static let slowReadEvery = 5
+    /// Do the slow-tier reads on the next tick regardless — set after a SUB
+    /// memory channel change, so SUB's box catches up within a tick.
+    private var forceSlowReads = false
+    private var memoryListCancellable: AnyCancellable?
 
     /// Same scraper as the Mac's (`HubService`), polling the hotspot
     /// straight from this device — there's no hub in the path. Only runs
@@ -119,6 +132,13 @@ public final class PiDirectViewModel: ObservableObject {
         self.playsSubAudio = playsSubAudio
         self.readsSMeter = readsSMeter
         self.readsVFODetails = readsVFODetails
+        memoryListSnapshot = memoryList.snapshot
+        memoryListCancellable = memoryList.$entries
+            .combineLatest(memoryList.$scanningChannel, memoryList.$lastScanned)
+            .map { MemoryListSnapshot(entries: $0, scanned: $2, scanningChannel: $1) }
+            .removeDuplicates()
+            .throttle(for: .milliseconds(500), scheduler: DispatchQueue.main, latest: true)
+            .sink { [weak self] in self?.memoryListSnapshot = $0 }
         wpsdMonitor.onCallsignUpdate = { [weak self] callsign in
             self?.c4fmCallsign = callsign
             self?.rigState.c4fmCallsign = callsign
@@ -142,7 +162,22 @@ public final class PiDirectViewModel: ObservableObject {
         tick = 0
         let rigctld = RigctldClient(host: host, port: Self.rigctldPort)
         self.rigctld = rigctld
-        queue = CommandQueue(rigctld: rigctld)
+        let queue = CommandQueue(rigctld: rigctld)
+        self.queue = queue
+        Task {
+            await queue.setOnCommandApplied { [weak self] command, _ in
+                // No optimistic SUB channel (the rig ignores a blank one):
+                // read it back on the next tick instead of up to 5 later.
+                // MAIN's is read every tick anyway.
+                switch command {
+                case .setSubMemoryChannel, .stepSubMemoryChannel:
+                    Task { @MainActor in self?.forceSlowReads = true }
+                default:
+                    break
+                }
+            }
+        }
+        memoryList.rigctld = rigctld
         sessionTask = Task { [weak self] in
             await self?.runSession(rigctld: rigctld, host: host)
         }
@@ -157,6 +192,7 @@ public final class PiDirectViewModel: ObservableObject {
         }
         rigctld = nil
         queue = nil
+        memoryList.rigctld = nil
         connectionState = .disconnected
         stopAudio()
         stopWPSD()
@@ -230,8 +266,18 @@ public final class PiDirectViewModel: ObservableObject {
     public func send(_ command: RigCommand) {
         guard connectionState == .connected, let queue else { return }
         switch command {
-        case .setFrequency, .setMode:
-            break
+        case .setFrequency, .setMode, .setSecondaryFrequency, .setSecondaryMode,
+             .setMemoryChannel, .stepMemoryChannel, .setSubMemoryChannel, .stepSubMemoryChannel:
+            // None of these transmit. Not while the rig scans: the hub
+            // stops the scan first and puts the TX side back (see
+            // `HubService.memoryScanStop`), which this route doesn't port.
+            if rigState.memoryScan == .scanning || rigState.memoryScan == .paused {
+                logger.notice("ignoring \(String(describing: command), privacy: .public) while the rig scans")
+                return
+            }
+        case .refreshMemoryList:
+            memoryList.refresh()
+            return
         default:
             // RX-only proof of concept — see the type's doc comment.
             logger.notice("ignoring unsupported command \(String(describing: command), privacy: .public)")
@@ -249,6 +295,10 @@ public final class PiDirectViewModel: ObservableObject {
             rigState.frequencyHz = hz
         case .setMode(let mode):
             rigState.mode = mode
+        case .setSecondaryFrequency(let hz):
+            rigState.secondaryFrequencyHz = hz
+        case .setSecondaryMode(let mode):
+            rigState.secondaryMode = mode
         default:
             break
         }
@@ -338,7 +388,8 @@ public final class PiDirectViewModel: ObservableObject {
     /// slow tier for the others). Display only — nothing here is writable
     /// from this route. Best-effort, like every other field.
     private func refreshVFODetails(_ rigctld: RigctldClient, into state: inout RigState) async {
-        if tick % Self.slowReadEvery == 0 {
+        if tick % Self.slowReadEvery == 0 || forceSlowReads {
+            forceSlowReads = false
             // "FR" (FUNCTION RX): 00 dual receive, 01 single.
             if let receiveMode = try? await rigctld.getRawInt("FR") {
                 state.singleReceive = receiveMode == 1

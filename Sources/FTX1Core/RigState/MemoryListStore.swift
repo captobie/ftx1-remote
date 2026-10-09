@@ -1,9 +1,10 @@
 import Combine
-import FTX1Core
 import Foundation
 
-/// The rig's programmed memory channels, for the memory list window
-/// (`MemoryListView`). CAT has no "list memories" command, so a refresh
+/// The rig's programmed memory channels, for the Mac's memory list window
+/// (`MemoryListView`) and the iPad's VFO-box channel list — on the Mac
+/// hub, pushed to clients as `MemoryListPush`; on the iPad's Pi-direct
+/// route, its own store reading the Pi's rigctld. CAT has no "list memories" command, so a refresh
 /// reads every channel in turn with "MR" (plus "MT" for the tag of each
 /// programmed one) — see `RigctldClient.readMemoryChannel`. That's a few
 /// hundred round trips sharing the link with the poll loop, so the result
@@ -12,27 +13,41 @@ import Foundation
 ///
 /// A plain `let` on `HubService`, not `@Published` there, same as
 /// `ft8Store`: the scan publishes progress per channel.
-final class MemoryListStore: ObservableObject {
-    @Published private(set) var entries: [MemoryChannelEntry]
+///
+/// In `FTX1Core` since 2026-10-09 (was Mac-only); explicitly `@MainActor`
+/// since the package doesn't have the app targets' MainActor default. The
+/// cache file is per device.
+@MainActor
+public final class MemoryListStore: ObservableObject {
+    @Published public private(set) var entries: [MemoryChannelEntry]
     /// The channel being read while a scan runs, nil otherwise.
-    @Published private(set) var scanningChannel: Int?
-    @Published private(set) var lastScanned: Date?
+    @Published public private(set) var scanningChannel: Int?
+    @Published public private(set) var lastScanned: Date?
     /// Why the last scan stopped early, if it did.
-    @Published private(set) var scanError: String?
+    @Published public private(set) var scanError: String?
 
     /// A scan stops after this many blank channels in a row. Blank channels
     /// are cheap (one "MR" answered "?;" at once), but channels are
     /// normally filled from 1, and reading all 999 would take several times
     /// longer than a typical list plus this margin. A gap this long would
     /// hide the channels past it.
-    static let blankRunLimit = 100
+    public static let blankRunLimit = 100
 
-    private let rigctld: RigctldClient
+    /// The link a refresh reads through; nil (Pi direct while disconnected)
+    /// makes `refresh()` a no-op. Changing it cancels a running scan.
+    public var rigctld: RigctldClient? {
+        didSet { if rigctld !== oldValue { cancel() } }
+    }
     private var scanTask: Task<Void, Never>?
 
-    var isScanning: Bool { scanningChannel != nil }
+    public var isScanning: Bool { scanningChannel != nil }
 
-    init(rigctld: RigctldClient) {
+    /// What a channel picker needs — also the `MemoryListPush` payload.
+    public var snapshot: MemoryListSnapshot {
+        MemoryListSnapshot(entries: entries, scanned: lastScanned, scanningChannel: scanningChannel)
+    }
+
+    public init(rigctld: RigctldClient? = nil) {
         self.rigctld = rigctld
         let snapshot = MemoryListPersistence.load()
         entries = snapshot?.entries ?? []
@@ -43,21 +58,21 @@ final class MemoryListStore: ObservableObject {
     /// the scan position keep their cached values, so the list doesn't
     /// empty out; channels the scan finds blank are dropped as it passes
     /// them. Saved to disk only when the scan completes.
-    func refresh() {
-        guard scanTask == nil else { return }
+    public func refresh() {
+        guard scanTask == nil, let rigctld else { return }
         scanError = nil
         scanTask = Task { [weak self] in
-            await self?.scan()
+            await self?.scan(rigctld)
             self?.scanTask = nil
             self?.scanningChannel = nil
         }
     }
 
-    func cancel() {
+    public func cancel() {
         scanTask?.cancel()
     }
 
-    private func scan() async {
+    private func scan(_ rigctld: RigctldClient) async {
         var found: [MemoryChannelEntry] = []
         var blankRun = 0
         for channel in RigState.memoryChannelRange {
@@ -87,6 +102,20 @@ final class MemoryListStore: ObservableObject {
         entries = found
         lastScanned = Date()
         MemoryListPersistence.save(entries: found, scanned: lastScanned!)
+    }
+}
+
+/// The channel list as a value: entries plus when it was read, and the
+/// channel being read while a scan runs.
+public struct MemoryListSnapshot: Codable, Sendable, Equatable {
+    public var entries: [MemoryChannelEntry]
+    public var scanned: Date?
+    public var scanningChannel: Int?
+
+    public init(entries: [MemoryChannelEntry], scanned: Date?, scanningChannel: Int?) {
+        self.entries = entries
+        self.scanned = scanned
+        self.scanningChannel = scanningChannel
     }
 }
 

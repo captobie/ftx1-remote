@@ -61,6 +61,20 @@ public struct VFODisplayBox: View {
     /// reads SCAN; paused shows the channel it stopped on. `nil` (the
     /// default) shows nothing extra.
     let memoryScan: MemoryScanState?
+    /// This VFO's mode, for the frequency popover's mode buttons
+    /// (`ModeButtonGrid`), shown only together with `onSetMode`. `mode`
+    /// above is just the label.
+    let currentMode: RigMode?
+    /// Mode-button callback. `nil` (the default, the Mac) leaves the
+    /// frequency popover without mode buttons.
+    let onSetMode: ((RigMode) -> Void)?
+    /// Programmed channels for the memory popover's list
+    /// (`MemoryChannelListView`, which selects through
+    /// `onSetMemoryChannel`). `nil` (the default) with no
+    /// `onRefreshMemoryList` either leaves the popover without a list.
+    let memoryList: MemoryListSnapshot?
+    /// Re-reads `memoryList` from the rig.
+    let onRefreshMemoryList: (() -> Void)?
 
     @State private var isEditing = false
 
@@ -79,7 +93,11 @@ public struct VFODisplayBox: View {
         memoryChannelTag: String? = nil,
         onSetMemoryChannel: ((Int) -> Void)? = nil,
         onStepMemoryChannel: ((Bool) -> Void)? = nil,
-        memoryScan: MemoryScanState? = nil
+        memoryScan: MemoryScanState? = nil,
+        currentMode: RigMode? = nil,
+        onSetMode: ((RigMode) -> Void)? = nil,
+        memoryList: MemoryListSnapshot? = nil,
+        onRefreshMemoryList: (() -> Void)? = nil
     ) {
         self.label = label
         self.frequencyHz = frequencyHz
@@ -96,6 +114,15 @@ public struct VFODisplayBox: View {
         self.onSetMemoryChannel = onSetMemoryChannel
         self.onStepMemoryChannel = onStepMemoryChannel
         self.memoryScan = memoryScan
+        self.currentMode = currentMode
+        self.onSetMode = onSetMode
+        self.memoryList = memoryList
+        self.onRefreshMemoryList = onRefreshMemoryList
+    }
+
+    /// Whether the memory popover shows the channel list.
+    private var showsMemoryList: Bool {
+        memoryList != nil || onRefreshMemoryList != nil
     }
 
     private var isScanning: Bool { memoryScan == .scanning }
@@ -222,13 +249,40 @@ public struct VFODisplayBox: View {
                     }
                     .popover(isPresented: $isEditing) {
                         if isMemoryMode, let onSetMemoryChannel, let onStepMemoryChannel {
-                            MemoryChannelEntryView(
-                                currentChannel: memoryChannel,
-                                onSetChannel: onSetMemoryChannel,
-                                onStep: onStepMemoryChannel
-                            )
+                            if showsMemoryList {
+                                VStack(spacing: 0) {
+                                    MemoryChannelEntryView(
+                                        currentChannel: memoryChannel,
+                                        onSetChannel: onSetMemoryChannel,
+                                        onStep: onStepMemoryChannel
+                                    )
+                                    MemoryChannelListView(
+                                        list: memoryList,
+                                        currentChannel: memoryChannel,
+                                        onSelect: onSetMemoryChannel,
+                                        onRefresh: onRefreshMemoryList
+                                    )
+                                    .padding([.horizontal, .bottom])
+                                }
+                                .frame(width: 420)
+                            } else {
+                                MemoryChannelEntryView(
+                                    currentChannel: memoryChannel,
+                                    onSetChannel: onSetMemoryChannel,
+                                    onStep: onStepMemoryChannel
+                                )
+                            }
                         } else if !isOutsideVFOMode, let onSetFrequency {
-                            FrequencyEntryView(currentHz: frequencyHz ?? 0, onSetFrequency: onSetFrequency)
+                            if let onSetMode {
+                                VStack(spacing: 0) {
+                                    FrequencyEntryView(currentHz: frequencyHz ?? 0, onSetFrequency: onSetFrequency)
+                                    ModeButtonGrid(currentMode: currentMode, onSetMode: onSetMode)
+                                        .padding([.horizontal, .bottom])
+                                }
+                                .frame(width: 340)
+                            } else {
+                                FrequencyEntryView(currentHz: frequencyHz ?? 0, onSetFrequency: onSetFrequency)
+                            }
                         }
                     }
             }

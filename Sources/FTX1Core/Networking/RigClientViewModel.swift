@@ -18,6 +18,9 @@ public final class RigClientViewModel: ObservableObject, RigController {
 
     @Published public private(set) var rigState = RigState()
     @Published public private(set) var connectionState: ConnectionState = .disconnected
+    /// The hub's memory channel list (`MemoryListPush`) — nil until the hub
+    /// sends one (an older hub never does). Changes at most once a second.
+    @Published public private(set) var memoryList: MemoryListSnapshot?
 
     /// Plays back the Mac's relayed Main-channel radio audio — see
     /// `AudioPlaybackEngine`. Started/stopped alongside the connection
@@ -74,6 +77,9 @@ public final class RigClientViewModel: ObservableObject, RigController {
             await client.setOnStateChange { [weak self] state in
                 Task { @MainActor in self?.apply(state) }
             }
+            await client.setOnMemoryList { [weak self] list in
+                Task { @MainActor in self?.memoryList = list }
+            }
             await client.setOnAudioData { [weak self] data in
                 Task { @MainActor [weak self] in
                     guard let self, !self.isMainAudioMuted else { return }
@@ -96,6 +102,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
         Task { await client.disconnect() }
         self.client = nil
         connectionState = .disconnected
+        memoryList = nil
         audioEngine.stop()
         subAudioEngine.stop()
     }

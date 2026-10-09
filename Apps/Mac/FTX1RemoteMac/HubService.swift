@@ -245,6 +245,8 @@ final class HubService: ObservableObject {
     lazy var memoryList = MemoryListStore(rigctld: rigctld)
     /// Feeds `cwReceiver` the TX state and the rig's CW pitch/modes.
     private var cwRigCancellable: AnyCancellable?
+    /// Pushes `memoryList` to WebSocket clients (the iPad's channel list).
+    private var memoryListCancellable: AnyCancellable?
     private let webSocketPort: UInt16
     private let rigctldHost: String
     private let rigctldPort: UInt16
@@ -527,6 +529,17 @@ final class HubService: ObservableObject {
             }
             .removeDuplicates()
             .sink { [weak self] info in self?.cwReceiver.rigInfoChanged(info) }
+        // Throttled: a scan publishes once per channel. `latest: true` keeps
+        // the final state (scan finished) from being dropped.
+        memoryListCancellable = memoryList.$entries
+            .combineLatest(memoryList.$scanningChannel, memoryList.$lastScanned)
+            .map { MemoryListSnapshot(entries: $0, scanned: $2, scanningChannel: $1) }
+            .removeDuplicates()
+            .throttle(for: .seconds(1), scheduler: DispatchQueue.main, latest: true)
+            .sink { [weak self] list in
+                guard let self else { return }
+                Task { await self.server.broadcastMemoryList(list) }
+            }
     }
 
     /// App-launch lifecycle: starts the WebSocket server. Independent of
@@ -726,6 +739,12 @@ final class HubService: ObservableObject {
         }
         if Self.isTransmitCapable(command), BandPlan.band(containing: rigState.frequencyHz) == nil {
             Self.connectionLogger.notice("Blocked transmit-capable command (outside amateur band): \(String(describing: command), privacy: .public)")
+            return
+        }
+        if case .refreshMemoryList = command {
+            // From a client (the iPad's channel list): same as the memory
+            // list window's Refresh. Nothing to send to the rig as such.
+            memoryList.refresh()
             return
         }
         if case .setTXSide = command {
@@ -930,7 +949,7 @@ final class HubService: ObservableObject {
         case .setMox(let on): return on
         case .playCWMessage, .triggerAntennaTune: return true
         case .playCWTextMemory(let slot): return slot != 0
-        case .setFrequency, .setSecondaryFrequency, .swapActiveVFO, .setMode, .setBand,
+        case .setFrequency, .setSecondaryFrequency, .swapActiveVFO, .setMode, .setSecondaryMode, .setBand,
              .setPowerLevel, .setBreakIn, .setKeyer, .setCWSpeed, .setCWPitch, .setBreakInDelay,
              .setCWSpot, .triggerZeroIn, .setMoniLevel, .selectCWMessageChannel,
              .setCWMessageRecording, .setAtt, .setPreamp, .setTuner, .setDisplayContrast,
@@ -939,7 +958,8 @@ final class HubService: ObservableObject {
              .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow, .setFilterSide, .setAntSelect, .setTXW, .setTXSide, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel,
-             .setSubMemoryChannel, .stepSubMemoryChannel, .recallMemoryChannel, .setMemoryScan:
+             .setSubMemoryChannel, .stepSubMemoryChannel, .recallMemoryChannel, .setMemoryScan,
+             .refreshMemoryList:
             return false
         }
     }
@@ -961,7 +981,7 @@ final class HubService: ObservableObject {
             return true
         case .setVFOMemoryMode, .setMemoryChannel:
             return scanSide == .main ? true : nil
-        case .setSecondaryFrequency, .setSubMemoryChannel, .stepSubMemoryChannel:
+        case .setSecondaryFrequency, .setSecondaryMode, .setSubMemoryChannel, .stepSubMemoryChannel:
             return scanSide == .sub ? true : nil
         case .recallMemoryChannel(_, let sub):
             return (sub ? FilterSide.sub : .main) == scanSide ? true : nil
@@ -1049,6 +1069,7 @@ final class HubService: ObservableObject {
             // but `SV` still exchanges the VFOs. See `lastVFOState`.
             lastVFOState = nil
         case .setMode(let mode): rigState.mode = mode
+        case .setSecondaryMode(let mode): rigState.secondaryMode = mode
         case .setPTT(let on): rigState.ptt = on
         case .setBand: break // resolved into .setFrequency before reaching CommandQueue — see send(_:)
         case .setPowerLevel(let level): rigState.powerLevel = level
@@ -1148,7 +1169,8 @@ final class HubService: ObservableObject {
         // RigState.cwMessageStatus) have no direct optimistic value; left
         // to the next poll, same as before.
         case .triggerZeroIn, .triggerAntennaTune, .selectCWMessageChannel,
-             .setCWMessageRecording, .playCWMessage, .playCWTextMemory, .setMenuItem:
+             .setCWMessageRecording, .playCWMessage, .playCWTextMemory, .setMenuItem,
+             .refreshMemoryList:
             break
         }
     }

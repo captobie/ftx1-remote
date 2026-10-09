@@ -6,9 +6,9 @@ import SwiftUI
 /// everything the Mac's do except APRS: TX/RX tags, memory channel + tag,
 /// scan state, SUB dimmed in single receive, and — with a WPSD host set —
 /// the C4FM callsign/reflector), a meter + audio `ChannelStrip` under
-/// each, and the mode picker. MAIN can be tuned and
-/// its mode changed; SUB is read-only (the model accepts only
-/// `.setFrequency`/`.setMode`).
+/// each. Tapping a box's frequency tunes it and sets its mode (VFO mode)
+/// or picks a memory channel from the list (Memory mode), MAIN and SUB
+/// alike — not while the rig is scanning (see `PiDirectViewModel.send`).
 ///
 /// Receive-only: no PTT, power, band picker, VFO swap or `MenuPageView` —
 /// those transmit, or depend on `HubService` translating/gating commands,
@@ -62,10 +62,11 @@ struct PiDirectView: View {
     @ViewBuilder
     private var connectedContent: some View {
         let state = viewModel.rigState
+        // No editing while the rig scans — see `PiDirectViewModel.send`.
+        let editable = state.memoryScan != .scanning && state.memoryScan != .paused
         HStack(spacing: 12) {
-            // Same arguments as the Mac's `ContentView` boxes, minus APRS
-            // (no decoder on this route) and the SUB/memory-channel
-            // callbacks (the model accepts only MAIN frequency/mode).
+            // Same arguments as the hub screen's boxes, minus APRS (no
+            // decoder on this route).
             VFODisplayBox(
                 label: "SUB",
                 frequencyHz: state.secondaryFrequencyHz,
@@ -74,10 +75,17 @@ struct PiDirectView: View {
                 txRxLabel: state.subTxRxLabel,
                 callsign: state.secondaryMode == .c4fm ? state.c4fmCallsign : nil,
                 reflector: state.secondaryMode == .c4fm ? state.c4fmReflector : nil,
+                onSetFrequency: editable ? { viewModel.send(.setSecondaryFrequency(hz: $0)) } : nil,
                 vfoMemoryMode: state.subVfoMemoryMode,
                 memoryChannel: state.subMemoryChannel,
                 memoryChannelTag: state.subMemoryChannelTag,
-                memoryScan: state.memoryScan(on: .sub)
+                onSetMemoryChannel: editable ? { viewModel.send(.setSubMemoryChannel($0)) } : nil,
+                onStepMemoryChannel: editable ? { viewModel.send(.stepSubMemoryChannel(up: $0)) } : nil,
+                memoryScan: state.memoryScan(on: .sub),
+                currentMode: state.secondaryMode,
+                onSetMode: { viewModel.send(.setSecondaryMode($0)) },
+                memoryList: viewModel.memoryListSnapshot,
+                onRefreshMemoryList: { viewModel.send(.refreshMemoryList) }
             )
             VFODisplayBox(
                 label: "MAIN",
@@ -87,11 +95,17 @@ struct PiDirectView: View {
                 txRxLabel: state.mainTxRxLabel,
                 callsign: state.mode == .c4fm ? state.c4fmCallsign : nil,
                 reflector: state.mode == .c4fm ? state.c4fmReflector : nil,
-                onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) },
+                onSetFrequency: editable ? { viewModel.send(.setFrequency(hz: $0)) } : nil,
                 vfoMemoryMode: state.vfoMemoryMode,
                 memoryChannel: state.memoryChannel,
                 memoryChannelTag: state.memoryChannelTag,
-                memoryScan: state.memoryScan(on: .main)
+                onSetMemoryChannel: editable ? { viewModel.send(.setMemoryChannel($0)) } : nil,
+                onStepMemoryChannel: editable ? { viewModel.send(.stepMemoryChannel(up: $0)) } : nil,
+                memoryScan: state.memoryScan(on: .main),
+                currentMode: state.mode,
+                onSetMode: { viewModel.send(.setMode($0)) },
+                memoryList: viewModel.memoryListSnapshot,
+                onRefreshMemoryList: { viewModel.send(.refreshMemoryList) }
             )
         }
 
@@ -129,16 +143,6 @@ struct PiDirectView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
-
-        Picker("Mode", selection: Binding(
-            get: { viewModel.rigState.mode },
-            set: { viewModel.send(.setMode($0)) }
-        )) {
-            ForEach(RigMode.allCases.filter { $0 != .unknown }, id: \.self) { mode in
-                Text(mode.displayName).tag(mode)
-            }
-        }
-        .pickerStyle(.segmented)
 
         Text("Receive only — direct to rigctld on the Pi, no Mac hub. Audio: left channel = MAIN, right = SUB, until the rig's VFOs are swapped.")
             .font(.caption)
