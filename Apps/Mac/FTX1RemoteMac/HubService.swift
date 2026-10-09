@@ -202,7 +202,10 @@ final class HubService: ObservableObject {
     /// via the separate `aprsDecoderSub` below.
     private let subAudioStreamEncoder = AudioStreamEncoder()
     private let subAudioPlayback = AudioPlaybackEngine()
-    private let wpsdMonitor = WPSDCallsignMonitor()
+    private let wpsdMonitor = WPSDCallsignMonitor(
+        callerInterval: { PollingSettings.wpsdCallerInterval },
+        reflectorInterval: { PollingSettings.wpsdReflectorInterval }
+    )
     private let aprsDecoder = APRSDecoder()
     /// Independent decoder instance for the Sub channel, fed from
     /// `onSubChannelSamples` below (both `.local` and `.remote`), gated on

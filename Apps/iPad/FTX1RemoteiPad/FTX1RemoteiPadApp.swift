@@ -7,7 +7,8 @@ struct FTX1RemoteiPadApp: App {
     @StateObject private var piViewModel = PiDirectViewModel(
         logSubsystem: "com.ftx1remote.ipad",
         playsSubAudio: true,
-        readsSMeter: true
+        readsSMeter: true,
+        readsVFODetails: true
     )
 
     var body: some Scene {

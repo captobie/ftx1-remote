@@ -173,26 +173,34 @@ public struct VFODisplayBox: View {
             }
             // Reflector/APRS indicator sits directly under MAIN/SUB. Its
             // height is reserved even when empty so neither it nor anything
-            // below it moves as indicators or callsigns come and go.
-            HStack(spacing: 6) {
-                if let reflector, !isScanning {
-                    Text(reflector)
-                        .font(.caption2)
-                        .foregroundStyle(digitColor)
-                        .lineLimit(1)
-                }
-                if aprsActive {
-                    Text("APRS")
-                        .font(.caption2)
-                        .foregroundStyle(digitColor)
-                }
-                if let scanIndicator {
-                    Text(scanIndicator)
-                        .font(.caption2)
-                        .foregroundStyle(digitColor)
+            // below it moves as indicators or callsigns come and go — one
+            // hidden caption2 line, not a fixed height: caption2 is ~13pt on
+            // iPad vs 10pt on the Mac, and a 14pt minimum let the iPad box
+            // grow when a reflector appeared.
+            ZStack(alignment: .leading) {
+                Text(" ")
+                    .font(.caption2)
+                    .hidden()
+                HStack(spacing: 6) {
+                    if let reflector, !isScanning {
+                        Text(reflector)
+                            .font(.caption2)
+                            .foregroundStyle(digitColor)
+                            .lineLimit(1)
+                    }
+                    if aprsActive {
+                        Text("APRS")
+                            .font(.caption2)
+                            .foregroundStyle(digitColor)
+                    }
+                    if let scanIndicator {
+                        Text(scanIndicator)
+                            .font(.caption2)
+                            .foregroundStyle(digitColor)
+                    }
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 14, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             HStack(alignment: .center, spacing: 8) {
                 if let callsign, !isScanning {
                     Text(callsign)

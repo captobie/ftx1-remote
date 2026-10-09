@@ -12,33 +12,43 @@ import Foundation
 /// dashboard page polls, undocumented and unauthenticated. Mirrors
 /// `AudioCaptureEngine`'s shape (owned + lifecycle-driven by `HubService`,
 /// reports out via a closure) but for this network side-channel rather than
-/// the audio-hardware one.
-final class WPSDCallsignMonitor {
+/// the audio-hardware one. In `FTX1Core` since 2026-10-09, shared with the
+/// iPad's Pi-direct route (`PiDirectViewModel`), which polls the hotspot
+/// itself since no Mac hub is in the path.
+public final class WPSDCallsignMonitor {
     /// Always invoked on the main actor — same contract as
     /// `AudioCaptureEngine.onNewFrame`.
-    var onCallsignUpdate: ((String?) -> Void)?
+    public var onCallsignUpdate: ((String?) -> Void)?
     /// Same contract as `onCallsignUpdate`.
-    var onReflectorUpdate: ((String?) -> Void)?
+    public var onReflectorUpdate: ((String?) -> Void)?
 
     /// Slower than the dashboard page's own ~1s polling cadence — this
     /// hotspot (a Pi Zero 2 W) costs ~0.7s of PHP work per request when idle
     /// and ~3.3s once polled at ~0.7 req/s by this app plus the dashboard
-    /// page (measured 2026-09-20), so poll conservatively. User-adjustable
-    /// (Settings → Polling, default 3s), read live each iteration.
-    private var pollInterval: Duration { PollingSettings.wpsdCallerInterval }
+    /// page (measured 2026-09-20), so poll conservatively. The Mac makes it
+    /// user-adjustable (Settings → Polling, default 3s); read live each
+    /// iteration.
+    private let callerInterval: () -> Duration
+    private var pollInterval: Duration { callerInterval() }
     /// The linked reflector changes far less often than the live caller, so
     /// this polls on its own, slower loop rather than riding along with
     /// `pollInterval`. The WPSD dashboard polls this endpoint every 5s
     /// (`reloadRepeaterInfo`), which is faster than needed here, and a slower
     /// cadence keeps this app from adding to the backend strain noted above.
-    /// User-adjustable (Settings → Polling, default 30s).
-    private var reflectorPollInterval: Duration { PollingSettings.wpsdReflectorInterval }
+    /// The Mac makes it user-adjustable (Settings → Polling, default 30s).
+    private let reflectorInterval: () -> Duration
+    private var reflectorPollInterval: Duration { reflectorInterval() }
     private let session: URLSession
     private var pollTask: Task<Void, Never>?
     private var reflectorPollTask: Task<Void, Never>?
     private var currentHost: String?
 
-    init() {
+    public init(
+        callerInterval: @escaping () -> Duration = { .seconds(3) },
+        reflectorInterval: @escaping () -> Duration = { .seconds(30) }
+    ) {
+        self.callerInterval = callerInterval
+        self.reflectorInterval = reflectorInterval
         let configuration = URLSessionConfiguration.ephemeral
         // The hotspot's PHP backend routinely takes 4-5s to answer (measured
         // 2026-09-20 with a ~8ms network RTT), so 3s timed out nearly every
@@ -49,7 +59,7 @@ final class WPSDCallsignMonitor {
     }
 
     /// No-op if already running against this exact host.
-    func start(host: String) {
+    public func start(host: String) {
         guard host != currentHost else { return }
         stop()
         currentHost = host
@@ -67,7 +77,7 @@ final class WPSDCallsignMonitor {
         }
     }
 
-    func stop() {
+    public func stop() {
         pollTask?.cancel()
         pollTask = nil
         reflectorPollTask?.cancel()
@@ -142,7 +152,7 @@ final class WPSDCallsignMonitor {
     /// live-TX cells reduce to exactly when both conditions hold (confirmed:
     /// a just-ended caller flattens to "Net  7.2s ...", not "Net TX", so
     /// this correctly excludes stale last-heard entries too).
-    static func liveCallsign(inCallerDetailsHTML html: String) -> String? {
+    public static func liveCallsign(inCallerDetailsHTML html: String) -> String? {
         let flattened = html.replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
         guard flattened.contains("Net TX") else { return nil }
         guard let regex = try? NSRegularExpression(pattern: #"qrz\.com/db/([A-Za-z0-9]+)""#) else {
@@ -170,7 +180,7 @@ final class WPSDCallsignMonitor {
     /// `pill-data`/link-icon markup, using the same templated component —
     /// so this treats that value (case-insensitively) as "no reflector"
     /// too, on top of an outright missing/empty match.
-    static func linkedReflector(inRepeaterInfoHTML html: String) -> String? {
+    public static func linkedReflector(inRepeaterInfoHTML html: String) -> String? {
         guard let sectionStart = html.range(of: "YSF Status") else { return nil }
         var section = html[sectionStart.upperBound...]
         if let nextSection = section.range(of: "sidebar-section-title") {

@@ -700,6 +700,26 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   the Pi's audio slot. Note for `nc` checks against the Pi: its rigctld
   runs with `-o`, so verbs need a VFO argument (`l currVFO STRENGTH`, not
   `l STRENGTH` — the latter just hangs, read as VFO "STRENGTH").
+- **iPad VFO boxes at Mac parity (2026-10-09, Simulator against the real
+  Pi and WPSD hotspot)**: `PiDirectViewModel(readsVFODetails: true)` (iPad
+  only; the iPhone is unchanged) adds the rest of what the Mac's
+  `VFODisplayBox`es show — "VM0"/"MC0"/"MT" and the memory scan ("RI0",
+  "SC" while running, only in Memory mode) every tick; "FR", "ST", "FT"
+  and "VM1"/"MC1"/"MT" every 5th tick (the Mac's slow-tier reads) — and
+  the C4FM callsign/reflector: `WPSDCallsignMonitor`/`WPSDSettings` moved
+  from the Mac target to `FTX1Core/WPSD/` (poll intervals now injected;
+  the Mac passes `PollingSettings`), and the iPad polls the hotspot itself,
+  host from a "WPSD hotspot" field next to the Pi host (`wpsd.host` in the
+  iPad's own defaults; empty = off). Display only: SUB tuning and memory
+  channel set/step stay unsupported on this route, and there's no APRS
+  (user decision — no decoder here). The Simulator can't resolve the bare
+  MagicDNS name "wpsd" for `URLSession` (-1003; `NWConnection` to "ftx1pi"
+  is fine), so test there with the full `wpsd.<tailnet>.ts.net`. Fixed on
+  the way, in the shared box: the indicator line reserved a fixed 14 pt,
+  shorter than iPad's caption2, so a reflector appearing grew the box; it
+  now reserves one hidden caption2 line. Verified: SUB's "CH 1 Pi-STAR",
+  RX/TXRX tags, the reflector, equal box heights. Not seen yet: the scan
+  display, single-receive dimming, a live C4FM caller.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 

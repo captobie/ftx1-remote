@@ -2,7 +2,10 @@ import FTX1Core
 import SwiftUI
 
 /// The iPad's Pi-direct proof-of-concept screen (see `PiDirectViewModel`):
-/// a cut-down `HubControlView` — SUB/MAIN `VFODisplayBox`es, the S-meter,
+/// a cut-down `HubControlView` — SUB/MAIN `VFODisplayBox`es (showing
+/// everything the Mac's do except APRS: TX/RX tags, memory channel + tag,
+/// scan state, SUB dimmed in single receive, and — with a WPSD host set —
+/// the C4FM callsign/reflector), the S-meter,
 /// Sub + Main audio columns, and the mode picker. MAIN can be tuned and
 /// its mode changed; SUB is read-only (the model accepts only
 /// `.setFrequency`/`.setMode`).
@@ -17,6 +20,9 @@ import SwiftUI
 struct PiDirectView: View {
     @EnvironmentObject private var viewModel: PiDirectViewModel
     @AppStorage("piHost") private var host: String = "ftx1pi"
+    /// This device's own copy of the Mac's WPSD host key; empty = no C4FM
+    /// callsign/reflector lookup.
+    @AppStorage(WPSDSettings.hostKey) private var wpsdHost: String = ""
     @AppStorage(AudioPlaybackSettings.volumeKey) private var mainAudioVolume: Double = 0.8
     @AppStorage(AudioPlaybackSettings.squelchThresholdKey) private var mainAudioSquelchThreshold: Double = 0.015
     @AppStorage(AudioPlaybackSettings.subVolumeKey) private var subAudioVolume: Double = 0.8
@@ -28,6 +34,10 @@ struct PiDirectView: View {
                 HStack {
                     if viewModel.connectionState != .connected {
                         TextField("Pi hostname (Tailscale)", text: $host)
+                            .textFieldStyle(.roundedBorder)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        TextField("WPSD hotspot (optional, C4FM callsign)", text: $wpsdHost)
                             .textFieldStyle(.roundedBorder)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
@@ -53,18 +63,35 @@ struct PiDirectView: View {
     private var connectedContent: some View {
         let state = viewModel.rigState
         HStack(spacing: 12) {
+            // Same arguments as the Mac's `ContentView` boxes, minus APRS
+            // (no decoder on this route) and the SUB/memory-channel
+            // callbacks (the model accepts only MAIN frequency/mode).
             VFODisplayBox(
                 label: "SUB",
                 frequencyHz: state.secondaryFrequencyHz,
-                isActive: true,
-                mode: state.secondaryMode?.displayName ?? "—"
+                isActive: state.singleReceive != true,
+                mode: state.secondaryMode?.displayName ?? "—",
+                txRxLabel: state.subTxRxLabel,
+                callsign: state.secondaryMode == .c4fm ? state.c4fmCallsign : nil,
+                reflector: state.secondaryMode == .c4fm ? state.c4fmReflector : nil,
+                vfoMemoryMode: state.subVfoMemoryMode,
+                memoryChannel: state.subMemoryChannel,
+                memoryChannelTag: state.subMemoryChannelTag,
+                memoryScan: state.memoryScan(on: .sub)
             )
             VFODisplayBox(
                 label: "MAIN",
                 frequencyHz: state.frequencyHz,
                 isActive: true,
                 mode: state.mode.displayName,
-                onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }
+                txRxLabel: state.mainTxRxLabel,
+                callsign: state.mode == .c4fm ? state.c4fmCallsign : nil,
+                reflector: state.mode == .c4fm ? state.c4fmReflector : nil,
+                onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) },
+                vfoMemoryMode: state.vfoMemoryMode,
+                memoryChannel: state.memoryChannel,
+                memoryChannelTag: state.memoryChannelTag,
+                memoryScan: state.memoryScan(on: .main)
             )
         }
 
@@ -124,7 +151,7 @@ struct PiDirectView: View {
     private var connectButton: some View {
         Button {
             if viewModel.connectionState == .disconnected {
-                viewModel.connect(toHost: host)
+                viewModel.connect(toHost: host, wpsdHost: wpsdHost)
             } else {
                 viewModel.disconnect()
             }

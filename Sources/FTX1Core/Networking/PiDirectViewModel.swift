@@ -71,6 +71,28 @@ public final class PiDirectViewModel: ObservableObject {
     /// Adds one "STRENGTH" read per poll tick, for screens that show the
     /// S-meter (the iPad).
     private let readsSMeter: Bool
+    /// Adds everything else the Mac's VFO boxes show (the iPad): TX/RX
+    /// tags ("ST"/"FT"), single-receive display ("FR"), both sides'
+    /// memory mode/channel/tag ("VM"/"MC"/"MT") and the memory scan
+    /// ("RI0"/"SC") — see `refreshVFODetails` — plus the C4FM callsign and
+    /// reflector from a WPSD hotspot (`connect(toHost:wpsdHost:)`).
+    private let readsVFODetails: Bool
+    /// Poll ticks since connect, for the reads that only run every
+    /// `slowReadEvery` ticks.
+    private var tick = 0
+    /// The Mac reads these in its slow tier; they change rarely.
+    private static let slowReadEvery = 5
+
+    /// Same scraper as the Mac's (`HubService`), polling the hotspot
+    /// straight from this device — there's no hub in the path. Only runs
+    /// while a WPSD host is set and either side is in C4FM.
+    private let wpsdMonitor = WPSDCallsignMonitor()
+    private var wpsdHost = ""
+    /// Kept outside `rigState` and copied in at publish: a poll tick works
+    /// on a copy of `rigState` across its awaits, which would overwrite a
+    /// callback's write made in between.
+    private var c4fmCallsign: String?
+    private var c4fmReflector: String?
 
     private var rigctld: RigctldClient?
     private var queue: CommandQueue?
@@ -86,20 +108,38 @@ public final class PiDirectViewModel: ObservableObject {
     /// task samples it once a second into `audioState`.
     private var lastAudioAt: Date?
 
-    public init(logSubsystem: String, playsSubAudio: Bool = false, readsSMeter: Bool = false) {
+    public init(
+        logSubsystem: String,
+        playsSubAudio: Bool = false,
+        readsSMeter: Bool = false,
+        readsVFODetails: Bool = false
+    ) {
         self.logSubsystem = logSubsystem
         logger = Logger(subsystem: logSubsystem, category: "pi-direct")
         self.playsSubAudio = playsSubAudio
         self.readsSMeter = readsSMeter
+        self.readsVFODetails = readsVFODetails
+        wpsdMonitor.onCallsignUpdate = { [weak self] callsign in
+            self?.c4fmCallsign = callsign
+            self?.rigState.c4fmCallsign = callsign
+        }
+        wpsdMonitor.onReflectorUpdate = { [weak self] reflector in
+            self?.c4fmReflector = reflector
+            self?.rigState.c4fmReflector = reflector
+        }
     }
 
-    public func connect(toHost host: String) {
+    /// `wpsdHost`: the WPSD hotspot to read the C4FM callsign/reflector
+    /// from (only with `readsVFODetails`); empty leaves that lookup off.
+    public func connect(toHost host: String, wpsdHost: String = "") {
         let host = host.trimmingCharacters(in: .whitespaces)
         guard !host.isEmpty else {
             connectionState = .failed("Enter the Pi's hostname")
             return
         }
         disconnect()
+        self.wpsdHost = wpsdHost.trimmingCharacters(in: .whitespaces)
+        tick = 0
         let rigctld = RigctldClient(host: host, port: Self.rigctldPort)
         self.rigctld = rigctld
         queue = CommandQueue(rigctld: rigctld)
@@ -119,6 +159,10 @@ public final class PiDirectViewModel: ObservableObject {
         queue = nil
         connectionState = .disconnected
         stopAudio()
+        stopWPSD()
+        // A reconnect starts from a blank state, as the Mac's does: none of
+        // these should linger from the last session until re-read.
+        rigState = RigState()
     }
 
     public func toggleMainAudioMuted() {
@@ -271,9 +315,91 @@ public final class PiDirectViewModel: ObservableObject {
         if readsSMeter, let smeterDb = try? await rigctld.getLevel("STRENGTH") {
             state.smeterDb = smeterDb
         }
+        if readsVFODetails {
+            await refreshVFODetails(rigctld, into: &state)
+        }
+        tick += 1
 
         guard !Task.isCancelled else { return }
         state.lastUpdated = Date()
+        state.c4fmCallsign = c4fmCallsign
+        state.c4fmReflector = c4fmReflector
         rigState = state
+        if readsVFODetails { updateWPSD() }
+    }
+
+    /// The rest of the Mac's VFO-box fields, read the way `HubService`
+    /// reads them (its fast tier for MAIN's memory mode and the scan, its
+    /// slow tier for the others). Display only — nothing here is writable
+    /// from this route. Best-effort, like every other field.
+    private func refreshVFODetails(_ rigctld: RigctldClient, into state: inout RigState) async {
+        if tick % Self.slowReadEvery == 0 {
+            // "FR" (FUNCTION RX): 00 dual receive, 01 single.
+            if let receiveMode = try? await rigctld.getRawInt("FR") {
+                state.singleReceive = receiveMode == 1
+            }
+            if let split = try? await rigctld.getRawBool("ST") {
+                state.splitEnabled = split
+            }
+            // "FT": the TX side (0 MAIN, 1 SUB), a bare digit like "ST".
+            if let side = (try? await rigctld.getRawDigit("FT")).flatMap({ $0 }).flatMap(FilterSide.init(rawValue:)) {
+                state.txSide = side
+            }
+            let subModeRaw = try? await rigctld.getRawInt("VM1")
+            let subChannel = subModeRaw == 11 ? (try? await rigctld.getRawInt("MC1")) : nil
+            state.subVfoMemoryMode = subModeRaw.flatMap { $0 }.map(VFOMemoryMode.init(rawP2:)) ?? state.subVfoMemoryMode
+            // No fallback: back to nil out of Memory mode, as on the Mac.
+            state.subMemoryChannel = subChannel.flatMap { $0 }
+            state.subMemoryChannelTag = nil
+            if let channel = state.subMemoryChannel {
+                state.subMemoryChannelTag = (try? await rigctld.getMemoryChannelTag(channel: channel)).flatMap { $0 }
+            }
+        }
+
+        // "VM0" every tick: it decides whether MAIN's frequency is a VFO's
+        // or a memory channel's.
+        let mainModeRaw = (try? await rigctld.getRawInt("VM0")).flatMap { $0 }
+        state.vfoMemoryMode = mainModeRaw.map(VFOMemoryMode.init(rawP2:)) ?? state.vfoMemoryMode
+        let mainChannel = mainModeRaw == 11 ? (try? await rigctld.getRawInt("MC0")).flatMap({ $0 }) : nil
+        state.memoryChannel = mainChannel
+        state.memoryChannelTag = nil
+        if let mainChannel {
+            state.memoryChannelTag = (try? await rigctld.getMemoryChannelTag(channel: mainChannel)).flatMap { $0 }
+        }
+
+        // The scan state is for the whole radio ("RI0" P7); read only in
+        // Memory mode, or while a scan was last seen running, as on the Mac.
+        let scanWasActive = state.memoryScan == .scanning || state.memoryScan == .paused
+        if state.vfoMemoryMode == .memory || state.subVfoMemoryMode == .memory || scanWasActive {
+            if let info = (try? await rigctld.getRadioInformation()).flatMap({ $0 }) {
+                state.memoryScan = info.scan
+                // Every scan is a front-panel one here: "SC;" reads back
+                // the side last told to scan, e.g. "SC11;".
+                if info.scan != .stopped,
+                   let side = (try? await rigctld.getRawDigit("SC")).flatMap({ $0 }).flatMap(FilterSide.init(rawValue:)) {
+                    state.memoryScanSide = side
+                }
+            }
+        } else {
+            state.memoryScan = nil
+        }
+    }
+
+    /// Mirrors `HubService.updateWPSDMonitorState`; `start`/`stop` are
+    /// no-ops when already in that state.
+    private func updateWPSD() {
+        guard !wpsdHost.isEmpty, rigState.mode == .c4fm || rigState.secondaryMode == .c4fm else {
+            stopWPSD()
+            return
+        }
+        wpsdMonitor.start(host: wpsdHost)
+    }
+
+    private func stopWPSD() {
+        wpsdMonitor.stop()
+        c4fmCallsign = nil
+        c4fmReflector = nil
+        rigState.c4fmCallsign = nil
+        rigState.c4fmReflector = nil
     }
 }
