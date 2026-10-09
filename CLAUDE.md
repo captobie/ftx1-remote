@@ -858,7 +858,18 @@ keys the rig and sends the iPad's microphone to the rig's USB audio input.
   `.playback` afterwards. A first version set `.playAndRecord` for the
   whole session, and every Pi-direct connect in the Simulator aborted in
   CoreAudio ("Initialize: RPC timeout. Apparently deadlocked") while
-  starting playback. Whether a *press* has the same problem in the
+  starting playback. That was probably not the category's fault: the same
+  abort hit a Pi-direct connect on `.playback` (2026-10-09). Its crash
+  report shows the main thread in `AudioPlaybackEngine.start()` →
+  `engine.outputNode`, waiting on the in-process AURemoteIO server, which
+  waits on a lock held by iOS's UI-sound renderer starting up
+  (`AQIONodeManager::StartImmortalDeviceRunner`). That renderer was stuck
+  in a call to the host Mac's `coreaudiod` (`HALC_ProxyObject::
+  SetPropertyData`). It's a Simulator/host problem. A real iPad doesn't
+  route audio through the Mac's `coreaudiod`, so it shouldn't hit this.
+  App code can't catch it either, since AudioToolbox `abort()`s on any
+  thread. If it happens, run `sudo killall coreaudiod` on the Mac, then
+  restart the Simulator. Whether a *press* has the same problem in the
   Simulator isn't known yet (no press with transmit unlocked was made).
   Both views release PTT when the scene leaves `.active`.
 - **Hub route**: the iPad sends `AudioStreamFormat.txAudioTag` (0x02)
