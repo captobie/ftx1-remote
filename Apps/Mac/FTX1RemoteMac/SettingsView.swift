@@ -77,7 +77,12 @@ struct SettingsView: View {
             }
         }
         .padding(24)
-        .frame(minWidth: 420, minHeight: 320)
+        // Flexible so the window can be resized — SwiftUI's `Settings`
+        // window is fixed-size otherwise, and the Local rigctld fields
+        // didn't fit. The ideal size is what it opens at.
+        .frame(minWidth: 420, idealWidth: 560, maxWidth: .infinity,
+               minHeight: 320, idealHeight: 520, maxHeight: .infinity)
+        .background(ResizableWindow())
         .onAppear {
             refreshAvailableDevices()
             refreshAvailableBinaryPaths()
@@ -107,63 +112,65 @@ struct SettingsView: View {
     }
 
     private var rigctldTab: some View {
-        Form {
-            // Applies immediately via a live binding into `hub`, unlike
-            // every other control on this tab (which waits for "Done") —
-            // it's a safety cutoff, not a connection parameter, so
-            // "Cancel" must never be able to silently leave it un-applied.
-            // See `HubService.transmitEnabled`'s doc comment for what it
-            // gates and the force-unkey behavior when switched off
-            // mid-transmission.
-            Toggle("Enable Transmit", isOn: $hub.transmitEnabled)
-            Text("When off, PTT, MOX, antenna tuning, and CW MESSAGE playback are disabled for every connected client. Applies immediately.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        ScrollView {
+            Form {
+                // Applies immediately via a live binding into `hub`, unlike
+                // every other control on this tab (which waits for "Done") —
+                // it's a safety cutoff, not a connection parameter, so
+                // "Cancel" must never be able to silently leave it un-applied.
+                // See `HubService.transmitEnabled`'s doc comment for what it
+                // gates and the force-unkey behavior when switched off
+                // mid-transmission.
+                Toggle("Enable Transmit", isOn: $hub.transmitEnabled)
+                Text("When off, PTT, MOX, antenna tuning, and CW MESSAGE playback are disabled for every connected client. Applies immediately.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-            Picker("Connection", selection: $connectionMode) {
-                Text("Local (USB)").tag(RigctldSettings.ConnectionMode.local)
-                Text("Remote (Pi)").tag(RigctldSettings.ConnectionMode.remote)
-            }
-            .pickerStyle(.segmented)
-            Text("Changing this requires restarting FTX1Remote — you'll be offered a restart when you click Done.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Picker("Connection", selection: $connectionMode) {
+                    Text("Local (USB)").tag(RigctldSettings.ConnectionMode.local)
+                    Text("Remote (Pi)").tag(RigctldSettings.ConnectionMode.remote)
+                }
+                .pickerStyle(.segmented)
+                Text("Changing this requires restarting FTX1Remote — you'll be offered a restart when you click Done.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-            switch connectionMode {
-            case .local:
-                HStack {
-                    Picker("Binary path", selection: $binaryPath) {
-                        ForEach(availableBinaryPaths, id: \.self) { path in
-                            Text(path).tag(path)
+                switch connectionMode {
+                case .local:
+                    HStack {
+                        Picker("Binary path", selection: $binaryPath) {
+                            ForEach(availableBinaryPaths, id: \.self) { path in
+                                Text(path).tag(path)
+                            }
+                        }
+                        Button("Choose…") { chooseBinaryPath() }
+                    }
+                    TextField("Model number", value: $modelNumber, format: .number.grouping(.never))
+                    Picker("Serial device", selection: $devicePath) {
+                        ForEach(availableDevices, id: \.self) { device in
+                            Text((device as NSString).lastPathComponent).tag(device)
                         }
                     }
-                    Button("Choose…") { chooseBinaryPath() }
-                }
-                TextField("Model number", value: $modelNumber, format: .number.grouping(.never))
-                Picker("Serial device", selection: $devicePath) {
-                    ForEach(availableDevices, id: \.self) { device in
-                        Text((device as NSString).lastPathComponent).tag(device)
+                    Picker("Baud rate", selection: $baudRate) {
+                        ForEach(baudRateOptionsIncludingCurrent, id: \.self) { rate in
+                            Text("\(rate)").tag(rate)
+                        }
                     }
-                }
-                Picker("Baud rate", selection: $baudRate) {
-                    ForEach(baudRateOptionsIncludingCurrent, id: \.self) { rate in
-                        Text("\(rate)").tag(rate)
+                    Picker("PTT port", selection: $pttPort) {
+                        Text("None (use CAT on main port)").tag("")
+                        ForEach(availableDevices, id: \.self) { device in
+                            Text((device as NSString).lastPathComponent).tag(device)
+                        }
                     }
+                case .remote:
+                    TextField("Pi hostname", text: $remoteHost, prompt: Text("e.g. raspberrypi.tailnet-name.ts.net"))
+                        .frame(maxWidth: 280)
                 }
-                Picker("PTT port", selection: $pttPort) {
-                    Text("None (use CAT on main port)").tag("")
-                    ForEach(availableDevices, id: \.self) { device in
-                        Text((device as NSString).lastPathComponent).tag(device)
-                    }
-                }
-            case .remote:
-                TextField("Pi hostname", text: $remoteHost, prompt: Text("e.g. raspberrypi.tailnet-name.ts.net"))
-                    .frame(maxWidth: 280)
-            }
 
-            RigctldVersionBox(connectionMode: connectionMode, binaryPath: binaryPath, remoteHost: remoteHost)
+                RigctldVersionBox(connectionMode: connectionMode, binaryPath: binaryPath, remoteHost: remoteHost)
+            }
+            .padding(.top, 8)
         }
-        .padding(.top, 8)
     }
 
     private func save() {
@@ -868,4 +875,17 @@ private struct UpdatesSettingsTab: View {
         startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil
     ).updater)
         .environmentObject(HubService())
+}
+
+/// Adds `.resizable` to the window hosting it. SwiftUI's `Settings` scene
+/// creates its window without that style bit, and `windowResizability`
+/// alone doesn't add it.
+private struct ResizableWindow: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { NSView() }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            nsView.window?.styleMask.insert(.resizable)
+        }
+    }
 }

@@ -126,5 +126,6 @@ struct FTX1RemoteMacApp: App {
                 .environmentObject(appDelegate.hub)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
+        .windowResizability(.contentMinSize)
     }
 }
