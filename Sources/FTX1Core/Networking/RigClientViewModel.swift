@@ -48,8 +48,20 @@ public final class RigClientViewModel: ObservableObject, RigController {
     @Published public private(set) var isMainAudioMuted = AudioPlaybackSettings.isMuted
     @Published public private(set) var isSubAudioMuted = AudioPlaybackSettings.subIsMuted
 
+    /// This client is holding PTT (press to release, plus the unkey
+    /// delay) — drives the iPad's PTT button and mutes receive playback,
+    /// so the rig's monitor audio can't feed back into the microphone.
+    @Published public private(set) var isTransmitting = false
+    /// Set when a press couldn't transmit audio (no microphone access, the
+    /// microphone wouldn't start); cleared on the next press.
+    @Published public private(set) var transmitProblem: String?
+
     private var client: RigWebSocketClient?
     private let port: UInt16
+    #if os(iOS)
+    private let microphone = MicrophoneTransmitter(logSubsystem: "com.ftx1remote.client")
+    private var unkeyTask: Task<Void, Never>?
+    #endif
 
     public init(port: UInt16 = 8765) {
         self.port = port
@@ -82,13 +94,13 @@ public final class RigClientViewModel: ObservableObject, RigController {
             }
             await client.setOnAudioData { [weak self] data in
                 Task { @MainActor [weak self] in
-                    guard let self, !self.isMainAudioMuted else { return }
+                    guard let self, !self.isMainAudioMuted, !self.isTransmitting else { return }
                     self.audioEngine.push(pcm: data)
                 }
             }
             await client.setOnSubAudioData { [weak self] data in
                 Task { @MainActor [weak self] in
-                    guard let self, !self.isSubAudioMuted else { return }
+                    guard let self, !self.isSubAudioMuted, !self.isTransmitting else { return }
                     self.subAudioEngine.push(pcm: data)
                 }
             }
@@ -99,6 +111,17 @@ public final class RigClientViewModel: ObservableObject, RigController {
 
     public func disconnect() {
         guard let client else { return }
+        #if os(iOS)
+        // The hub unkeys a client that leaves holding PTT, but say so
+        // anyway rather than rely on it.
+        if isTransmitting {
+            microphone.stop()
+            unkeyTask?.cancel()
+            unkeyTask = nil
+            Task { try? await client.send(.setPTT(false)) }
+            isTransmitting = false
+        }
+        #endif
         Task { await client.disconnect() }
         self.client = nil
         connectionState = .disconnected
@@ -111,6 +134,69 @@ public final class RigClientViewModel: ObservableObject, RigController {
         guard let client else { return }
         Task { try? await client.send(command) }
     }
+
+    #if os(iOS)
+    /// PTT pressed: key, then stream the microphone to the hub, which plays
+    /// it into the rig (`HubService`). The first press only asks for
+    /// microphone access — the prompt takes the press — and keys nothing.
+    /// The view checks the hub's gate (`canTransmit`) before calling; the
+    /// hub enforces it regardless.
+    public func startTransmit() {
+        guard let client, connectionState == .connected else { return }
+        transmitProblem = nil
+        guard TXAudioCapture.permissionGranted else {
+            Task {
+                if await !TXAudioCapture.requestPermission() {
+                    transmitProblem = "Microphone access is off — allow it in Settings to transmit audio"
+                }
+            }
+            return
+        }
+        if let unkeyTask {
+            // Pressed again within the unkey delay: still keyed, carry on.
+            unkeyTask.cancel()
+            self.unkeyTask = nil
+        } else {
+            send(.setPTT(true))
+        }
+        isTransmitting = true
+        // Off for the press (muted anyway) so the session can switch to
+        // recording — see `TXAudioCapture`.
+        audioEngine.stop()
+        subAudioEngine.stop()
+        do {
+            try microphone.start { pcm in
+                try? await client.sendTXAudio(pcm)
+            }
+        } catch {
+            transmitProblem = "Microphone didn't start: \(error.localizedDescription)"
+            // Keyed with nothing to send: unkey rather than carry dead air.
+            stopTransmit()
+        }
+    }
+
+    /// PTT released: stop the microphone, unkey once the audio in flight
+    /// has played out.
+    public func stopTransmit() {
+        guard isTransmitting, unkeyTask == nil else { return }
+        microphone.stop()
+        resumeReceiveAudio()
+        unkeyTask = Task { [weak self] in
+            try? await Task.sleep(for: MicrophoneTransmitter.unkeyDelay)
+            guard let self, !Task.isCancelled else { return }
+            self.send(.setPTT(false))
+            self.isTransmitting = false
+            self.unkeyTask = nil
+        }
+    }
+
+    /// Back on `.playback` after a press; muted until the unkey lands.
+    private func resumeReceiveAudio() {
+        guard connectionState == .connected else { return }
+        audioEngine.start()
+        subAudioEngine.start()
+    }
+    #endif
 
     /// See `HubService.toggleMainAudioMuted()`'s doc comment — identical
     /// shape.
@@ -130,6 +216,16 @@ public final class RigClientViewModel: ObservableObject, RigController {
     }
 
     private func apply(_ state: RigWebSocketClient.ConnectionState) {
+        #if os(iOS)
+        // The link is gone, so there's no one to unkey through: the hub
+        // unkeys a client that drops while holding PTT.
+        if state != .connected, isTransmitting {
+            microphone.stop()
+            unkeyTask?.cancel()
+            unkeyTask = nil
+            isTransmitting = false
+        }
+        #endif
         switch state {
         case .disconnected:
             connectionState = .disconnected

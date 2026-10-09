@@ -9,10 +9,16 @@ import os
 /// each with its own view; the Mac-hub path (`RigClientViewModel`) is
 /// untouched.
 ///
-/// Receive-only: there's no PTT here, because the Enable Transmit and
-/// amateur-band gates live in `HubService.send(_:)`, which this path
-/// bypasses entirely. Port a gate first (like Windows' `TransmitGate`)
-/// before adding any transmit-capable control.
+/// Transmit (2026-10-09, iPad): hold-to-talk PTT keys the rig through
+/// rigctld ("T currVFO 1") and streams the microphone to
+/// `Pi/ftx1-txaudio.py` (:8533, `RemoteTXAudioClient`), which plays it into
+/// the rig's USB audio input. The hub's gates don't apply on this path, so
+/// keying goes through `TransmitGate` (this device's own `transmitEnabled`,
+/// off by default, and the amateur bands) and is refused while the rig
+/// scans; unkeying always goes through. `.setPTT(true)` is the only
+/// transmit-capable command accepted — anything else that transmits needs
+/// the same gate first. If this device vanishes mid-transmission, the Pi's
+/// TX audio service unkeys the rig (its watchdog).
 ///
 /// rigctld accepts several clients at once, so this coexists with the Mac
 /// (or WSJT-X) being connected to the same Pi.
@@ -90,6 +96,38 @@ public final class PiDirectViewModel: ObservableObject {
     private static let audioPort: UInt16 = 8532
     /// No samples for this long → `.waiting`. Chunks arrive ~21×/s.
     private static let audioStaleAfter: TimeInterval = 2
+
+    /// This device's Enable Transmit for this route — the hub's toggle
+    /// lives on the Mac, which isn't in the path. Persisted, off by
+    /// default; turning it off while keyed unkeys at once.
+    @Published public var transmitEnabled = UserDefaults.standard.bool(forKey: PiDirectViewModel.transmitEnabledKey) {
+        didSet {
+            UserDefaults.standard.set(transmitEnabled, forKey: Self.transmitEnabledKey)
+            if !transmitEnabled, isTransmitting { abortTransmit(reason: "Enable Transmit turned off") }
+        }
+    }
+    public static let transmitEnabledKey = "piDirect.transmitEnabled"
+    /// Holding PTT (press to release, plus the unkey delay). Mutes receive
+    /// playback meanwhile, so the rig's monitor audio can't feed back into
+    /// the microphone.
+    @Published public private(set) var isTransmitting = false
+    /// Why the last press didn't transmit (gate, microphone access, ...);
+    /// cleared on the next press.
+    @Published public private(set) var transmitProblem: String?
+
+    /// nil when a press would key — for the PTT button's look.
+    public var transmitBlockReason: String? {
+        if rigState.memoryScan == .scanning || rigState.memoryScan == .paused {
+            return "Transmit disabled while the rig scans"
+        }
+        return TransmitGate.blockReason(transmitEnabled: transmitEnabled, state: rigState)
+    }
+
+    private var host = ""
+    #if os(iOS)
+    private lazy var microphone = MicrophoneTransmitter(logSubsystem: logSubsystem)
+    #endif
+    private var unkeyTask: Task<Void, Never>?
 
     private let logSubsystem: String
     private let logger: Logger
@@ -176,6 +214,7 @@ public final class PiDirectViewModel: ObservableObject {
             return
         }
         disconnect()
+        self.host = host
         self.wpsdHost = wpsdHost.trimmingCharacters(in: .whitespaces)
         tick = 0
         let rigctld = RigctldClient(host: host, port: Self.rigctldPort)
@@ -205,10 +244,16 @@ public final class PiDirectViewModel: ObservableObject {
     }
 
     public func disconnect() {
+        let wasTransmitting = isTransmitting
+        stopTransmitLocally()
         sessionTask?.cancel()
         sessionTask = nil
         if let rigctld {
-            Task { await rigctld.disconnect() }
+            Task {
+                // Unkey ahead of the teardown, on the same link.
+                if wasTransmitting { _ = try? await rigctld.send("T currVFO 0") }
+                await rigctld.disconnect()
+            }
         }
         rigctld = nil
         queue = nil
@@ -258,6 +303,7 @@ public final class PiDirectViewModel: ObservableObject {
                 guard let self, self.audioClient != nil else { return }
                 self.lastAudioAt = Date()
                 if self.audioState != .playing { self.audioState = .playing }
+                guard !self.isTransmitting else { return }
                 if !mainPCM.isEmpty, !self.isMainAudioMuted { self.mainAudioEngine.push(pcm: mainPCM) }
                 if !subPCM.isEmpty, !self.isSubAudioMuted { self.subAudioEngine.push(pcm: subPCM) }
             }
@@ -322,6 +368,15 @@ public final class PiDirectViewModel: ObservableObject {
         case .refreshMemoryList:
             memoryList.refresh()
             return
+        case .setPTT(let on):
+            // Only keying is gated; unkeying always goes through.
+            if on, let reason = transmitBlockReason {
+                logger.notice("refusing PTT: \(reason, privacy: .public)")
+                return
+            }
+            rigState.ptt = on
+            Task { await queue.enqueue(command) }
+            return
         default:
             // RX-only proof of concept — see the type's doc comment.
             logger.notice("ignoring unsupported command \(String(describing: command), privacy: .public)")
@@ -346,6 +401,98 @@ public final class PiDirectViewModel: ObservableObject {
         default:
             break
         }
+    }
+
+    #if os(iOS)
+    /// PTT pressed: key through rigctld and stream the microphone to the
+    /// Pi's TX audio service. The first press only asks for microphone
+    /// access (the prompt takes the press) and keys nothing.
+    public func startTransmit() {
+        guard connectionState == .connected else { return }
+        transmitProblem = nil
+        if let reason = transmitBlockReason {
+            transmitProblem = reason
+            return
+        }
+        guard TXAudioCapture.permissionGranted else {
+            Task {
+                if await !TXAudioCapture.requestPermission() {
+                    transmitProblem = "Microphone access is off — allow it in Settings to transmit audio"
+                }
+            }
+            return
+        }
+        if let unkeyTask {
+            // Pressed again within the unkey delay: still keyed, carry on.
+            unkeyTask.cancel()
+            self.unkeyTask = nil
+        } else {
+            send(.setPTT(true))
+        }
+        isTransmitting = true
+        // Off for the press (muted anyway) so the session can switch to
+        // recording — see `TXAudioCapture`.
+        mainAudioEngine.stop()
+        subAudioEngine.stop()
+        let txClient = RemoteTXAudioClient(host: host, logSubsystem: logSubsystem)
+        Task { await txClient.start() }
+        do {
+            try microphone.start(
+                sink: { pcm in await txClient.send(pcm) },
+                finish: { await txClient.finish() }
+            )
+        } catch {
+            Task { await txClient.finish() }
+            transmitProblem = "Microphone didn't start: \(error.localizedDescription)"
+            // Keyed with nothing to send: unkey rather than carry dead air.
+            stopTransmit()
+        }
+    }
+
+    /// PTT released: stop the microphone, unkey once the audio in flight
+    /// has played out.
+    public func stopTransmit() {
+        guard isTransmitting, unkeyTask == nil else { return }
+        microphone.stop()
+        resumeReceiveAudio()
+        unkeyTask = Task { [weak self] in
+            try? await Task.sleep(for: MicrophoneTransmitter.unkeyDelay)
+            guard let self, !Task.isCancelled else { return }
+            self.send(.setPTT(false))
+            self.isTransmitting = false
+            self.unkeyTask = nil
+        }
+    }
+    #endif
+
+    /// Unkey now, without the tail delay (Enable Transmit turned off).
+    private func abortTransmit(reason: String) {
+        logger.notice("unkeying: \(reason, privacy: .public)")
+        stopTransmitLocally()
+        send(.setPTT(false))
+    }
+
+    /// Microphone off and the PTT state cleared, without sending anything.
+    /// Closing the TX audio connection also lets the Pi's watchdog unkey
+    /// when the rigctld link is the thing that died.
+    private func stopTransmitLocally() {
+        #if os(iOS)
+        if microphone.isRunning {
+            microphone.stop()
+            resumeReceiveAudio()
+        }
+        #endif
+        unkeyTask?.cancel()
+        unkeyTask = nil
+        isTransmitting = false
+    }
+
+    /// Back on `.playback` after a press (the audio stream is still up);
+    /// muted until the unkey lands. `disconnect()` stops them right after.
+    private func resumeReceiveAudio() {
+        guard audioClient != nil else { return }
+        mainAudioEngine.start()
+        if playsSubAudio { subAudioEngine.start() }
     }
 
     /// The manual override for `audioChannelsSwapped`, for when the tracked
@@ -425,6 +572,11 @@ public final class PiDirectViewModel: ObservableObject {
                 guard !Task.isCancelled else { return }
                 let message = error.localizedDescription
                 logger.error("session ended: \(message, privacy: .public)")
+                if isTransmitting {
+                    // Can't unkey through a dead link; dropping the TX
+                    // audio connection makes the Pi do it.
+                    stopTransmitLocally()
+                }
                 connectionState = .failed(message)
                 await rigctld.disconnect()
             }

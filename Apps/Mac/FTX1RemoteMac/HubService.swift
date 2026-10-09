@@ -191,6 +191,28 @@ final class HubService: ObservableObject {
     /// `broadcastAudio` sends, in `onAudioSamples` below. Renamed from
     /// `audioPlayback` (2026-09-18) — see `subAudioPlayback` below.
     private let mainAudioPlayback = AudioPlaybackEngine()
+    /// Transmit audio from a remote client (the iPad's PTT): frames from
+    /// the PTT holder arrive through `RigWebSocketServer` into this stream
+    /// and are handled in order on the main actor (`handleTXAudio`).
+    private let txAudioInbound: AsyncStream<Data>
+    private let txAudioInboundContinuation: AsyncStream<Data>.Continuation
+    private var txAudioTask: Task<Void, Never>?
+    /// `.local`: plays the client's microphone into the rig's USB audio
+    /// input, the "Transmit audio output" device in Settings → Audio
+    /// (`TXAudioOutputSettings`). Pass-through: no squelch, full volume.
+    /// Started on a transmission's first frame, stopped at unkey, so each
+    /// transmission gets a fresh prebuffer.
+    private let txAudioPlayback = AudioPlaybackEngine(squelchEnabled: false)
+    private var txAudioPlaybackRunning = false
+    /// `.remote`: forwards it to the Pi's TX audio service instead
+    /// (`Pi/ftx1-txaudio.py`), one connection per transmission.
+    private var txAudioRemote: RemoteTXAudioClient?
+    /// Unkeys if a remote client keyed and then its audio stopped coming
+    /// for `txAudioSilenceLimit` (an app suspended mid-transmission keeps
+    /// its WebSocket open, so the holder-disconnect unkey wouldn't fire).
+    private var txAudioWatchdog: Task<Void, Never>?
+    private static let txAudioSilenceLimit: Duration = .milliseconds(1500)
+    private static let txAudioLogger = Logger(subsystem: "com.ftx1remote.mac", category: "tx-audio")
     /// Sub-channel counterparts to `mainAudioStreamEncoder`/
     /// `mainAudioPlayback` — fed from `AudioCaptureEngine.
     /// onSubChannelSamples`, which fires in both `.local` and `.remote` now
@@ -387,6 +409,7 @@ final class HubService: ObservableObject {
         self.rigctldPort = rigctldPort
         self.startupRetryInterval = startupRetryInterval
         self.startupGracePeriod = startupGracePeriod
+        (txAudioInbound, txAudioInboundContinuation) = AsyncStream<Data>.makeStream(bufferingPolicy: .bufferingNewest(50))
 
         // The app quit (or crashed) while the WebSDR had Main muted.
         // (`didSet` doesn't run inside `init`, so persist explicitly.)
@@ -576,6 +599,14 @@ final class HubService: ObservableObject {
     /// else would ever notice or recover it.
     private func startWebSocketServer() {
         guard webSocketServerTask == nil else { return }
+        if txAudioTask == nil {
+            let inbound = txAudioInbound
+            txAudioTask = Task { [weak self] in
+                for await pcm in inbound {
+                    self?.handleTXAudio(pcm)
+                }
+            }
+        }
         let port = webSocketPort
         webSocketServerTask = Task { [weak self, server, webSocketRebindDelay] in
             while !Task.isCancelled {
@@ -583,10 +614,82 @@ final class HubService: ObservableObject {
                     try? await Task.sleep(for: webSocketRebindDelay)
                     continue
                 }
-                try? await server.start(port: port) { command in
-                    Task { @MainActor in self?.send(command) }
-                }
+                try? await server.start(
+                    port: port,
+                    onCommand: { command in
+                        Task { @MainActor in self?.send(command) }
+                    },
+                    onTXAudio: { pcm in
+                        self?.txAudioInboundContinuation.yield(pcm)
+                    }
+                )
                 try? await Task.sleep(for: webSocketRebindDelay)
+            }
+        }
+    }
+
+    /// One frame of a remote client's microphone, already checked to come
+    /// from the PTT holder. Dropped unless the rig is keyed by the app —
+    /// a press the transmit gate refused keys nothing, so there's nothing
+    /// to send audio to.
+    private func handleTXAudio(_ pcm: Data) {
+        guard rigState.ptt else {
+            // Unkeyed some other way (front panel, a poll): drop the sink.
+            if txAudioRemote != nil || txAudioPlaybackRunning { endTXAudio() }
+            return
+        }
+        armTXAudioWatchdog()
+        switch RigctldSettings.activeConnectionMode {
+        case .local:
+            if !txAudioPlaybackRunning {
+                guard let deviceID = AudioOutputDeviceLister.deviceID(forUID: TXAudioOutputSettings.deviceUID) else {
+                    Self.txAudioLogger.error("transmit audio dropped: no Transmit audio output device set (Settings → Audio)")
+                    return
+                }
+                txAudioPlayback.setOutputDevice(deviceID)
+                txAudioPlayback.start()
+                txAudioPlaybackRunning = true
+                Self.txAudioLogger.notice("transmit audio → local device \(TXAudioOutputSettings.deviceUID, privacy: .public)")
+            }
+            txAudioPlayback.push(pcm: pcm)
+        case .remote:
+            if txAudioRemote == nil {
+                let client = RemoteTXAudioClient(host: RigctldSettings.activeRemoteHost, logSubsystem: "com.ftx1remote.mac")
+                txAudioRemote = client
+                Task { await client.start() }
+                Self.txAudioLogger.notice("transmit audio → Pi \(RigctldSettings.activeRemoteHost, privacy: .public)")
+            }
+            let client = txAudioRemote
+            Task { await client?.send(pcm) }
+        }
+    }
+
+    private func armTXAudioWatchdog() {
+        txAudioWatchdog?.cancel()
+        txAudioWatchdog = Task { [weak self] in
+            try? await Task.sleep(for: Self.txAudioSilenceLimit)
+            guard let self, !Task.isCancelled, self.rigState.ptt else { return }
+            Self.txAudioLogger.notice("transmit audio stopped while keyed — unkeying")
+            self.send(.setPTT(false))
+        }
+    }
+
+    /// Unkey: let the last of the audio play out, then release the sink.
+    private func endTXAudio() {
+        txAudioWatchdog?.cancel()
+        txAudioWatchdog = nil
+        if let client = txAudioRemote {
+            txAudioRemote = nil
+            Task { await client.finish() }
+        }
+        if txAudioPlaybackRunning {
+            txAudioPlaybackRunning = false
+            Task { [weak self] in
+                // The client unkeys ~300 ms after release; this is the
+                // local prebuffer's tail.
+                try? await Task.sleep(for: .milliseconds(300))
+                guard let self, !self.txAudioPlaybackRunning else { return }
+                self.txAudioPlayback.stop()
             }
         }
     }
@@ -1070,7 +1173,9 @@ final class HubService: ObservableObject {
             lastVFOState = nil
         case .setMode(let mode): rigState.mode = mode
         case .setSecondaryMode(let mode): rigState.secondaryMode = mode
-        case .setPTT(let on): rigState.ptt = on
+        case .setPTT(let on):
+            rigState.ptt = on
+            if !on { endTXAudio() }
         case .setBand: break // resolved into .setFrequency before reaching CommandQueue — see send(_:)
         case .setPowerLevel(let level): rigState.powerLevel = level
         case .setBreakIn(let on): rigState.breakIn = on

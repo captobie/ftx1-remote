@@ -30,6 +30,13 @@ public enum AudioStreamFormat {
     /// already describes for `audioTag`.
     public static let subAudioTag: UInt8 = 0x01
 
+    /// Transmit audio, the other way: client→server frames carrying the
+    /// iPad's microphone, same mono/8kHz Int16 format, sent only while the
+    /// client holds PTT. `RigWebSocketServer` checks this before trying a
+    /// `RigCommand` JSON decode, and forwards frames only from the client
+    /// that keyed.
+    public static let txAudioTag: UInt8 = 0x02
+
     /// Prepends the Main tag byte — what `RigWebSocketServer.broadcastAudio`
     /// actually sends over the wire.
     public static func frame(_ pcm: Data) -> Data {
@@ -40,6 +47,12 @@ public enum AudioStreamFormat {
     /// sends.
     public static func subFrame(_ pcm: Data) -> Data {
         tagged(pcm, with: subAudioTag)
+    }
+
+    /// Prepends the transmit tag byte — what `RigWebSocketClient.
+    /// sendTXAudio(_:)` sends.
+    public static func txFrame(_ pcm: Data) -> Data {
+        tagged(pcm, with: txAudioTag)
     }
 
     private static func tagged(_ pcm: Data, with tag: UInt8) -> Data {
@@ -62,7 +75,13 @@ public enum AudioStreamFormat {
         data.first == subAudioTag && data.count > 1
     }
 
-    /// The raw PCM payload of an audio frame (Main or Sub), tag byte
+    /// Whether a message received by the hub is a transmit audio frame
+    /// rather than `RigCommand` JSON.
+    public static func isTXAudioFrame(_ data: Data) -> Bool {
+        data.first == txAudioTag && data.count > 1
+    }
+
+    /// The raw PCM payload of an audio frame (Main, Sub or transmit), tag byte
     /// stripped. Only meaningful when `isAudioFrame(data)` or
     /// `isSubAudioFrame(data)` is true — both use the same one-byte tag
     /// width, so a single stripping function covers either.

@@ -14,9 +14,12 @@ import SwiftUI
 /// (`SV`) and audio-channel override (speaker, orange while swapped) —
 /// the model tracks the audio parity across swaps like `HubService`.
 ///
-/// Receive-only: no PTT, power, band picker or `MenuPageView` — those
-/// transmit, or depend on `HubService` translating/gating commands, which
-/// this path bypasses.
+/// Transmit (2026-10-09): hold-to-talk `PTTButton` right of Connected,
+/// with the iPad's microphone streamed to the Pi's TX audio service, and a
+/// lock button beside it — this route's own Enable Transmit (off by
+/// default), since the Mac's toggle isn't in the path. Still no power,
+/// band picker or `MenuPageView`: those depend on `HubService`
+/// translating/gating commands, which this path bypasses.
 ///
 /// Unlike the iPhone's `PiDirectView` (single focused VFO, Main audio
 /// only), this shows both receivers, as the hub screen does.
@@ -30,6 +33,7 @@ struct PiDirectView: View {
     @AppStorage(AudioPlaybackSettings.squelchThresholdKey) private var mainAudioSquelchThreshold: Double = 0.015
     @AppStorage(AudioPlaybackSettings.subVolumeKey) private var subAudioVolume: Double = 0.8
     @AppStorage(AudioPlaybackSettings.subSquelchThresholdKey) private var subAudioSquelchThreshold: Double = 0.015
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ScrollView {
@@ -47,9 +51,22 @@ struct PiDirectView: View {
                     }
                     connectButton
                     if viewModel.connectionState == .connected {
+                        PTTButton(
+                            isTransmitting: viewModel.isTransmitting || viewModel.rigState.ptt,
+                            blockReason: viewModel.transmitBlockReason,
+                            onPress: viewModel.startTransmit,
+                            onRelease: viewModel.stopTransmit
+                        )
+                        transmitEnableButton
                         Spacer()
                         rigButtons
                     }
+                }
+
+                if viewModel.connectionState == .connected, let problem = viewModel.transmitProblem {
+                    Text(problem)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 if case .failed(let message) = viewModel.connectionState {
@@ -64,6 +81,24 @@ struct PiDirectView: View {
             }
             .padding(32)
         }
+        // A press can't be released from the background; don't stay keyed.
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { viewModel.stopTransmit() }
+        }
+    }
+
+    /// This route's Enable Transmit: locked (gray) blocks PTT; unlocked
+    /// (red) allows it. Persisted by the model, off on first use.
+    private var transmitEnableButton: some View {
+        Button {
+            viewModel.transmitEnabled.toggle()
+        } label: {
+            Image(systemName: viewModel.transmitEnabled ? "lock.open.fill" : "lock.fill")
+                .foregroundStyle(viewModel.transmitEnabled ? Color.white : Color.primary)
+        }
+        .buttonStyle(.bordered)
+        .tint(viewModel.transmitEnabled ? .red : nil)
+        .accessibilityLabel(viewModel.transmitEnabled ? "Transmit enabled; tap to disable" : "Transmit disabled; tap to enable")
     }
 
     @ViewBuilder
@@ -151,7 +186,7 @@ struct PiDirectView: View {
                 .lineLimit(1)
         }
 
-        Text("Receive only — direct to rigctld on the Pi, no Mac hub. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed.")
+        Text("Direct to rigctld on the Pi, no Mac hub. Unlock to transmit; hold PTT to talk through the iPad's microphone. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed.")
             .font(.caption)
             .foregroundStyle(.secondary)
     }

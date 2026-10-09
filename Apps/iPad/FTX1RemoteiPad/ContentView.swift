@@ -72,7 +72,7 @@ struct HubControlView: View {
     @AppStorage(AudioPlaybackSettings.subSquelchThresholdKey) private var subAudioSquelchThreshold: Double = 0.015
     @State private var isDraggingPower = false
     @State private var localPowerLevel: Double = 0
-    @State private var isPTTPressed = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ScrollView {
@@ -85,6 +85,20 @@ struct HubControlView: View {
                             .autocorrectionDisabled()
                     }
                     connectButton
+                    if viewModel.connectionState == .connected {
+                        PTTButton(
+                            isTransmitting: viewModel.isTransmitting || viewModel.rigState.ptt,
+                            blockReason: transmitBlockReason,
+                            onPress: viewModel.startTransmit,
+                            onRelease: viewModel.stopTransmit
+                        )
+                    }
+                }
+
+                if let problem = viewModel.transmitProblem {
+                    Text(problem)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 HStack(spacing: 12) {
@@ -120,8 +134,6 @@ struct HubControlView: View {
                         onToggleMute: viewModel.toggleMainAudioMuted
                     )
                 }
-
-                pttButton
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Power: \(Int(displayedPowerLevel * 100))W")
@@ -171,6 +183,10 @@ struct HubControlView: View {
             }
             .padding(32)
         }
+        // A press can't be released from the background; don't stay keyed.
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { viewModel.stopTransmit() }
+        }
     }
 
     /// Swaps which of Main/Sub is the active VFO — the rig's own physical
@@ -186,43 +202,16 @@ struct HubControlView: View {
     }
 
     /// Mirrors `HubService.send(_:)`'s TX gate (transmit-enabled toggle AND
-    /// inside an amateur allocation) so the button visibly reflects why a
-    /// press won't do anything — the real enforcement happens on the Mac
+    /// inside an amateur allocation) so the PTT button visibly reflects why
+    /// a press won't do anything — the real enforcement happens on the Mac
     /// hub regardless, since every command here goes out over the
     /// WebSocket, but a silent no-op with no visual cue would be confusing.
-    private var canTransmit: Bool {
-        viewModel.rigState.transmitEnabled && BandPlan.band(containing: viewModel.rigState.frequencyHz) != nil
-    }
-
-    /// Momentary press-and-hold, not a toggle — same `DragGesture` pattern
-    /// as Mac/iOS (see their `ContentView`s): keys on touch-down, unkeys on
-    /// release, matching how PTT actually works.
-    private var pttButton: some View {
-        Text(viewModel.rigState.ptt ? "TRANSMITTING" : "PTT")
-            .font(.headline)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(viewModel.rigState.ptt ? Color.red : Color.gray.opacity(0.25))
-            .foregroundStyle(viewModel.rigState.ptt ? Color.white : Color.primary)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .opacity(canTransmit ? 1 : 0.4)
-            .help(
-                viewModel.rigState.transmitEnabled
-                    ? (canTransmit ? "" : "Transmit disabled: outside an amateur band")
-                    : "Transmit disabled"
-            )
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        guard !isPTTPressed, canTransmit else { return }
-                        isPTTPressed = true
-                        viewModel.send(.setPTT(true))
-                    }
-                    .onEnded { _ in
-                        isPTTPressed = false
-                        viewModel.send(.setPTT(false))
-                    }
-            )
+    private var transmitBlockReason: String? {
+        guard viewModel.rigState.transmitEnabled else { return "Transmit disabled on the Mac" }
+        guard BandPlan.band(containing: viewModel.rigState.frequencyHz) != nil else {
+            return "Transmit disabled: outside an amateur band"
+        }
+        return nil
     }
 
     /// Replaces the old "Connect" button + separate tap-to-disconnect

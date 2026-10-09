@@ -135,6 +135,14 @@ public actor RigWebSocketClient {
         try await task.send(.data(data))
     }
 
+    /// One chunk of microphone audio (8 kHz Int16 mono) while this client
+    /// holds PTT — tagged `AudioStreamFormat.txAudioTag`. The hub drops it
+    /// from any client that didn't key.
+    public func sendTXAudio(_ pcm: Data) async throws {
+        guard let task else { throw RigWebSocketError.notConnected }
+        try await task.send(.data(AudioStreamFormat.txFrame(pcm)))
+    }
+
     private func listen() {
         guard let task else { return }
         task.receive { [weak self] result in

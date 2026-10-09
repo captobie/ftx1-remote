@@ -1,0 +1,13 @@
+[Unit]
+Description=FTX1Remote transmit audio (iPad/Mac -> rig USB audio input)
+After=network.target sound.target rigctld.service
+
+[Service]
+Type=simple
+User=ftx1audio
+ExecStart=/usr/bin/python3 /opt/ftx1remote/ftx1-txaudio.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

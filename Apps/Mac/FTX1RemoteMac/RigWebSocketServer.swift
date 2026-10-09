@@ -33,10 +33,42 @@ actor RigWebSocketServer {
     /// radio keyed indefinitely. `remove(_:)` uses this to synthesize that
     /// release if the PTT-holding connection is the one that just closed.
     private var pttHolder: ObjectIdentifier?
+    /// Transmit audio (`AudioStreamFormat.txAudioTag`) from the client
+    /// holding PTT; frames from anyone else are dropped.
+    private var onTXAudioReceived: (@Sendable (Data) -> Void)?
 
-    func start(port: UInt16, onCommand: @escaping @Sendable (RigCommand) -> Void) throws {
+    /// Everything clients send, in arrival order: commands and transmit
+    /// audio share one stream so a client's `.setPTT(true)` is always
+    /// handled before its first audio frame (separate `Task`s per message
+    /// could reorder them, and drop that frame as not-from-the-holder).
+    private enum Inbound: Sendable {
+        case command(RigCommand, ObjectIdentifier)
+        case txAudio(Data, ObjectIdentifier)
+    }
+    private let inbound: AsyncStream<Inbound>
+    private let inboundContinuation: AsyncStream<Inbound>.Continuation
+    private var inboundTask: Task<Void, Never>?
+
+    init() {
+        (inbound, inboundContinuation) = AsyncStream<Inbound>.makeStream()
+    }
+
+    func start(
+        port: UInt16,
+        onCommand: @escaping @Sendable (RigCommand) -> Void,
+        onTXAudio: @escaping @Sendable (Data) -> Void = { _ in }
+    ) throws {
         guard listener == nil else { return }
         onCommandReceived = onCommand
+        onTXAudioReceived = onTXAudio
+        if inboundTask == nil {
+            let inbound = inbound
+            inboundTask = Task { [weak self] in
+                for await message in inbound {
+                    await self?.handle(message)
+                }
+            }
+        }
 
         let webSocketOptions = NWProtocolWebSocket.Options()
         webSocketOptions.autoReplyPing = true
@@ -187,10 +219,14 @@ actor RigWebSocketServer {
 
     private func accept(_ connection: NWConnection) {
         let connectionID = ObjectIdentifier(connection)
+        let inbound = inboundContinuation
         let client = Connection(
             connection: connection,
-            onCommand: { [weak self] command in
-                Task { await self?.handleCommand(command, from: connectionID) }
+            onCommand: { command in
+                inbound.yield(.command(command, connectionID))
+            },
+            onTXAudio: { pcm in
+                inbound.yield(.txAudio(pcm, connectionID))
             },
             onClose: { [weak self] id in
                 Task { await self?.remove(id) }
@@ -204,6 +240,16 @@ actor RigWebSocketServer {
         }
         if let latestMemoryList, let data = try? JSONEncoder().encode(MemoryListPush(list: latestMemoryList)) {
             client.send(data)
+        }
+    }
+
+    private func handle(_ message: Inbound) {
+        switch message {
+        case .command(let command, let id):
+            handleCommand(command, from: id)
+        case .txAudio(let pcm, let id):
+            guard id == pttHolder else { return }
+            onTXAudioReceived?(pcm)
         }
     }
 
@@ -240,16 +286,19 @@ private final class Connection {
 
     private let connection: NWConnection
     private let onCommand: (RigCommand) -> Void
+    private let onTXAudio: (Data) -> Void
     private let onClose: (ObjectIdentifier) -> Void
 
     init(
         connection: NWConnection,
         onCommand: @escaping (RigCommand) -> Void,
+        onTXAudio: @escaping (Data) -> Void,
         onClose: @escaping (ObjectIdentifier) -> Void
     ) {
         self.connection = connection
         self.id = ObjectIdentifier(connection)
         self.onCommand = onCommand
+        self.onTXAudio = onTXAudio
         self.onClose = onClose
     }
 
@@ -284,7 +333,9 @@ private final class Connection {
                 self.onClose(self.id)
                 return
             }
-            if let data, let command = try? JSONDecoder().decode(RigCommand.self, from: data) {
+            if let data, AudioStreamFormat.isTXAudioFrame(data) {
+                self.onTXAudio(Data(AudioStreamFormat.payload(of: data)))
+            } else if let data, let command = try? JSONDecoder().decode(RigCommand.self, from: data) {
                 self.onCommand(command)
             }
             self.receiveLoop()

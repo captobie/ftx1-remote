@@ -21,4 +21,19 @@ final class AudioStreamFormatTests: XCTestCase {
         XCTAssertFalse(AudioStreamFormat.isAudioFrame(Data()))
         XCTAssertFalse(AudioStreamFormat.isAudioFrame(Data([AudioStreamFormat.audioTag])))
     }
+
+    func testTXFrameRoundTripAndIsNotReceiveAudio() throws {
+        let pcm = Data([0x01, 0x02, 0x03, 0x04])
+        let framed = AudioStreamFormat.txFrame(pcm)
+
+        XCTAssertTrue(AudioStreamFormat.isTXAudioFrame(framed))
+        XCTAssertFalse(AudioStreamFormat.isAudioFrame(framed))
+        XCTAssertFalse(AudioStreamFormat.isSubAudioFrame(framed))
+        XCTAssertEqual(Data(AudioStreamFormat.payload(of: framed)), pcm)
+
+        // A RigCommand (what the hub otherwise receives) is never a TX frame.
+        let command = try JSONEncoder().encode(RigCommand.setPTT(true))
+        XCTAssertFalse(AudioStreamFormat.isTXAudioFrame(command))
+        XCTAssertFalse(AudioStreamFormat.isTXAudioFrame(Data([AudioStreamFormat.txAudioTag])))
+    }
 }

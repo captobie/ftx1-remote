@@ -169,3 +169,61 @@ is the dsnoop slave's `rate 48000` not matching what the hardware/Direwolf
 actually use — adjust `asound-ftx1.conf`'s `rate` to match `grep -i arate
 /etc/direwolf.conf`'s output (or the hardware's native rate) and re-run the
 `tee`/restart steps above.
+
+## Transmit audio (`ftx1-txaudio.py`, port 8533)
+
+Plays an iPad's PTT microphone into the rig's USB audio input — sent by the
+iPad's Pi-direct route, or by the Mac hub in Remote mode relaying an iPad.
+Raw 8 kHz mono 16-bit LE, one client (one transmission) at a time. It never
+keys the rig; keying stays a rigctld command. It does **unkey** as a
+watchdog: `T currVFO 0` to the local rigctld when a transmission ends with
+no new one within 0.5 s, or when a connected client sends nothing for
+1.5 s. A client that crashes, loses the network or goes to sleep
+mid-transmission can't leave the rig keyed.
+
+The rig's **MOD SOURCE** menu (one per mode group: SSB, AM, FM, DATA) has
+to be **USB**, or AUTO if AUTO picks USB on a CAT key (to be confirmed on
+the rig), for this audio to be what goes out. Set the level with **USB MOD
+GAIN** in the same group, watching ALC.
+
+`asound-ftx1.conf` now also defines `ftx1_tx`, a `plug` over a `dmix` of
+the sound card's playback side, so the device can be shared. Point
+Direwolf's TX side at it too; otherwise a running Direwolf holds
+`plughw:1,0` and this service gets "Device or resource busy".
+
+From the Mac:
+
+```bash
+scp Pi/ftx1-txaudio.py Pi/ftx1-txaudio.service Pi/asound-ftx1.conf captobie@ftx1pi:~/
+```
+
+On the Pi (overwrite `/etc/asound.conf` as in the section above; it's only
+this file):
+
+```bash
+sudo tee /etc/asound.conf < asound-ftx1.conf
+sudo sed -i 's/^ADEVICE .*/ADEVICE ftx1_shared ftx1_tx/' /etc/direwolf.conf
+sudo cp ftx1-txaudio.py /opt/ftx1remote/
+sudo cp ftx1-txaudio.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now ftx1-txaudio.service
+sudo systemctl restart ftx1-audiostream
+sudo systemctl restart direwolf
+journalctl -u ftx1-txaudio -f
+```
+
+Expect `listening on :8533, playing into ftx1_tx`. Each transmission logs
+`transmission from …`, `transmission ended: client closed, N bytes` and,
+once it's over, `unkeyed (transmission over): rigctld replied 'RPRT 0'`.
+An occasional `underrun …, restarting playback` means audio arrived slower
+than real time (network stall); playback re-primes by itself.
+
+Tested 2026-10-09 against `plughw:1,0` with Direwolf stopped, using
+real-time silence (never a tone: VOX could key the rig) from the Mac over
+Tailscale: no underruns at real-time pace, unkey after each transmission,
+no unkey between two transmissions 0.2 s apart, and the 1.5 s silence
+watchdog. Deployed the same day and re-checked through `ftx1_tx` (dmix): plays at
+48 kHz stereo, no underruns at real-time pace, unkey afterwards, silence
+watchdog. Direwolf was disabled then, so coexistence with a running
+Direwolf is still untested: check `journalctl -u direwolf` for audio
+errors and that a transmission still plays.

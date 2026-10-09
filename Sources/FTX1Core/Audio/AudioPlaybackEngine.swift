@@ -66,9 +66,14 @@ public final class AudioPlaybackEngine {
         set { squelchGate.threshold = newValue }
     }
 
-    public init() {
+    /// false for a pass-through player (the Mac's transmit audio sink),
+    /// which must never gate the operator's voice.
+    private let squelchEnabled: Bool
+
+    public init(squelchEnabled: Bool = true) {
+        self.squelchEnabled = squelchEnabled
         squelchGate = SquelchGate(threshold: Float(AudioPlaybackSettings.squelchThreshold))
-        player.volume = Float(AudioPlaybackSettings.volume)
+        player.volume = squelchEnabled ? Float(AudioPlaybackSettings.volume) : 1
     }
 
     #if os(macOS)
@@ -204,7 +209,7 @@ public final class AudioPlaybackEngine {
         }
 
         let rms = SquelchGate.rms(ofInt16Bytes: pcm)
-        let isOpen = squelchGate.update(rms: rms)
+        let isOpen = squelchEnabled ? squelchGate.update(rms: rms) : true
         gateMixer.outputVolume = isOpen ? 1 : 0
 
         pushLogCounter += 1

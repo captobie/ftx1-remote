@@ -400,6 +400,7 @@ private struct RigctldVersionBox: View {
 private struct AudioSettingsTab: View {
     @AppStorage(AudioInputSettings.deviceUIDKey) private var inputDeviceUID = ""
     @AppStorage(AudioOutputSettings.deviceUIDKey) private var outputDeviceUID = ""
+    @AppStorage(TXAudioOutputSettings.deviceUIDKey) private var txOutputDeviceUID = ""
     @State private var availableInputDevices: [AudioInputDevice] = []
     @State private var availableOutputDevices: [AudioOutputDevice] = []
 
@@ -418,6 +419,15 @@ private struct AudioSettingsTab: View {
                 }
             }
             Text("Changing this requires reconnecting (or restarting FTX1Remote) to take effect.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Picker("Transmit audio output", selection: $txOutputDeviceUID) {
+                Text("None").tag("")
+                ForEach(availableOutputDevices) { device in
+                    Text(device.name).tag(device.uid)
+                }
+            }
+            Text("Local mode: where an iPad's PTT microphone is played — pick the FTX-1's USB audio device. Remote mode sends it to the Pi instead. Takes effect on the next transmission.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -442,8 +452,8 @@ private struct AudioSettingsTab: View {
     /// Same reasoning as `refreshAvailableInputDevices`.
     private func refreshAvailableOutputDevices() {
         var devices = AudioOutputDeviceLister.availableOutputDevices()
-        if !outputDeviceUID.isEmpty, !devices.contains(where: { $0.uid == outputDeviceUID }) {
-            devices.append(AudioOutputDevice(id: 0, uid: outputDeviceUID, name: "\(outputDeviceUID) (not connected)"))
+        for uid in [outputDeviceUID, txOutputDeviceUID] where !uid.isEmpty && !devices.contains(where: { $0.uid == uid }) {
+            devices.append(AudioOutputDevice(id: 0, uid: uid, name: "\(uid) (not connected)"))
         }
         availableOutputDevices = devices
     }

@@ -650,10 +650,11 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   read, mode change confirmed independently with a raw "MD0;" read
   (USB, then back to CW), Disconnect. Not yet tried on a real iPhone or
   over cellular; the frequency-entry tune path wasn't exercised.
-- **Receive only, on purpose**: the Enable Transmit and amateur-band gates
-  live in `HubService.send(_:)`, which this path bypasses — port a gate
-  (like Windows' `TransmitGate`) before adding PTT or anything else that
-  transmits.
+- **Receive only, on purpose** (until 2026-10-09, see "iPad transmit
+  audio" below): the Enable Transmit and amateur-band gates live in
+  `HubService.send(_:)`, which this path bypasses. `FTX1Core`'s
+  `TransmitGate` is that gate for this route now. Anything else that
+  transmits here must go through it too.
 - Milestone 1 confirmed on a real iPhone by the user, 2026-10-05.
 - **Milestone 2, Main audio (2026-10-05, Simulator against the real Pi)**:
   `RemoteAudioStreamClient` moved from the Mac target to
@@ -793,6 +794,82 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   its pre-swap reads would look like a swap back). Both refused while the
   rig scans. Supersedes "no VFO swap" above. The hub screen is unchanged
   (its swap button already existed; its audio swap lives on the Mac).
+
+## iPad transmit audio (2026-10-09, build- and Simulator-checked; not yet on the air)
+
+Hold-to-talk PTT on both iPad screens (`PTTButton`, right of Connected and
+the same size; the hub screen's old full-width PTT is gone). Pressing it
+keys the rig and sends the iPad's microphone to the rig's USB audio input.
+
+- **Keying stays `T currVFO 1`/`0`** (`CommandQueue`'s `.setPTT`, i.e.
+  "TX1"/"TX0"). The CAT manual's `TX` set takes only 0/1; "TX2" is
+  read-only. What the rig transmits is chosen by the per-mode **MOD
+  SOURCE** menu (MIC/USB/BT-or-REAR/AUTO, in the SSB, AM, FM and DATA
+  groups), with **USB MOD GAIN** next to it. The app doesn't touch those:
+  set them to USB, or AUTO if AUTO picks USB on a CAT key (not yet
+  checked on the rig).
+- **iPad side** (`FTX1Core`, iOS-only parts in `#if os(iOS)`):
+  `TXAudioCapture` (an `AVAudioEngine` input tap → `PiAudioDownsampler` →
+  8 kHz Int16 mono, the relay's `AudioStreamFormat`) and
+  `MicrophoneTransmitter` (orders chunks through one `AsyncStream` into a
+  sink). Both models have `startTransmit()`/`stopTransmit()`. The first
+  press only asks for microphone access and keys nothing. The unkey goes
+  out 300 ms after release (`MicrophoneTransmitter.unkeyDelay`) so the
+  tail isn't cut off. Receive playback is muted while keyed.
+  **The session is `.playAndRecord` only during a press**: the receive
+  `AudioPlaybackEngine`s are stopped for the press and restarted on
+  `.playback` afterwards. A first version set `.playAndRecord` for the
+  whole session, and every Pi-direct connect in the Simulator aborted in
+  CoreAudio ("Initialize: RPC timeout. Apparently deadlocked") while
+  starting playback. Whether a *press* has the same problem in the
+  Simulator isn't known yet (no press with transmit unlocked was made).
+  Both views release PTT when the scene leaves `.active`.
+- **Hub route**: the iPad sends `AudioStreamFormat.txAudioTag` (0x02)
+  binary frames on the existing WebSocket. `RigWebSocketServer` puts
+  commands and TX frames through one ordered stream (`Inbound`) so a
+  client's `.setPTT(true)` always lands before its first frame, and
+  forwards frames **only from `pttHolder`**. `HubService.handleTXAudio`
+  drops them unless `rigState.ptt`, then plays them in `.local` mode
+  through a pass-through `AudioPlaybackEngine(squelchEnabled: false)` on
+  Settings → Audio → **Transmit audio output** (`TXAudioOutputSettings`;
+  empty = none, never the system default), or in `.remote` mode forwards
+  them to the Pi (`RemoteTXAudioClient`, one connection per transmission).
+  A 1.5 s silence watchdog unkeys a holder whose audio stops (an iPad
+  suspended mid-press keeps its socket open, so the holder-disconnect
+  unkey wouldn't fire). No `RigCommand`/`RigState` wire change.
+- **Pi direct**: `PiDirectViewModel` accepts `.setPTT`. Keying goes
+  through `TransmitGate` (this iPad's own Enable Transmit,
+  `piDirect.transmitEnabled`, **off by default**, the lock button beside
+  PTT; plus amateur bands on the *transmitting* side, the TXRX rule) and is
+  refused while the rig scans. Unkeying always goes through. Audio goes to
+  the Pi's `ftx1-txaudio.py` through `RemoteTXAudioClient`. On disconnect
+  it unkeys on the rigctld link before tearing it down.
+- **`Pi/ftx1-txaudio.py`** (port 8533, systemd `ftx1-txaudio.service`,
+  ALSA `ftx1_tx` = plug over a dmix, see `Pi/README.md`): plays 8 kHz mono
+  into the codec and never keys. It does **unkey** as a watchdog
+  (`T currVFO 0` to the local rigctld): after a transmission unless the
+  next one connects within 0.5 s, and when a connected client is silent
+  for 1.5 s. pyalsaaudio 0.10 raises "Broken pipe" on an underrun instead
+  of recovering, so the script reopens the device and re-primes. Tested
+  2026-10-09 against `plughw:1,0` with Direwolf stopped (real-time
+  *silence* from the Mac, never a tone: VOX could key the rig). No
+  underruns at real-time pace; unkey after each transmission; none
+  between two transmissions 0.2 s apart; the silence watchdog worked.
+  **Deployed 2026-10-09** (`ftx1-txaudio.service` enabled; backups
+  `/etc/asound.conf.bak-20261009-125011` and `/etc/direwolf.conf.bak-…`;
+  Direwolf's ADEVICE is now `ftx1_shared ftx1_tx`). Checked through the
+  `ftx1_tx` dmix with silence: RUNNING at 48 kHz stereo, a real-time
+  transmission with no underruns, unkey after it, and the silence
+  watchdog. Direwolf was disabled/inactive, so coexistence with it is
+  still untested.
+- Known edge: a re-press landing just as the Pi's 0.5 s grace expires can
+  race its unkey against the new key. It's small, and it shows up as the
+  transmission dropping.
+- **Not yet done**: any on-air test (dummy
+  load first: MOD SOURCE AUTO vs USB, all three paths, tail clipping,
+  backgrounding and Wi-Fi loss while keyed); the iPad hub screen's PTT
+  checked only by build, not on screen (needs a live hub). iPhone and
+  Windows are out of scope.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
@@ -1980,7 +2057,8 @@ WebSDR differences are in their own bullet at the end.
   `swift build` like the other `Apps/*` targets — use `dotnet build`
   from within `Apps/Windows/FTX1RemoteWindows/` instead.
 - `Pi/` — deployable Pi-side pieces, not part of any Xcode target
-  (`ftx1-audiostream.py` + its systemd unit + install/verify instructions —
+  (`ftx1-audiostream.py`, `ftx1-txaudio.py` (transmit audio, see "iPad
+  transmit audio") + their systemd units + install/verify instructions —
   see "Audio-over-Pi" above). Nothing here is built by `xcodebuild`/`swift
   build`; deploy by copying it to the Pi per `Pi/README.md`. `rigctld.
   service`/`direwolf.service` (the Pi's other two systemd units) aren't
