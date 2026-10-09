@@ -626,7 +626,9 @@ the iPhone app (2026-10-05) and the iPad app (2026-10-06) can connect
 straight to the Pi's rigctld over Tailscale, without the Mac hub (user
 decision). Picked with a "Mac hub / Pi direct" segmented control at the
 top of each app's `ContentView` (`@AppStorage "connectionRoute"`);
-switching disconnects the side being left. The Mac-hub path
+switching disconnects the side being left. On the iPad the control is
+hidden while the chosen route is connected (2026-10-09; back on
+disconnect, and during Pi direct's connecting/retrying). The Mac-hub path
 (`RigClientViewModel`, now in each app's `HubControlView`) is unchanged.
 `PiDirectViewModel` and `PiAudioDownsampler` live in `FTX1Core`
 (`Networking/`, `Audio/`; moved out of the iOS target 2026-10-06 when the
@@ -741,6 +743,10 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   now reserves one hidden caption2 line. Verified: SUB's "CH 1 Pi-STAR",
   RX/TXRX tags, the reflector, equal box heights. Confirmed on the real
   iPad by the user the same day, all fields showing.
+- **iPad cleanup (2026-10-09, build-verified only)**: the Pi-direct
+  screen's audio status line shows only the "Waiting for audio…" warning;
+  "Audio from the Pi"/"Audio off" are gone. (The route switch hiding
+  while connected is noted at the top of this section.)
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
