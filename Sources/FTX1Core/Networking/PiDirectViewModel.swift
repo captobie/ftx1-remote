@@ -68,8 +68,8 @@ public final class PiDirectViewModel: ObservableObject {
     private let logger: Logger
     /// The iPad plays Sub (right channel) too; the iPhone leaves it out.
     private let playsSubAudio: Bool
-    /// Adds one "STRENGTH" read per poll tick, for screens that show the
-    /// S-meter (the iPad).
+    /// Adds MAIN's "STRENGTH" and SUB's "RM2" reads per poll tick, for
+    /// screens that show both S-meters (the iPad).
     private let readsSMeter: Bool
     /// Adds everything else the Mac's VFO boxes show (the iPad): TX/RX
     /// tags ("ST"/"FT"), single-receive display ("FR"), both sides'
@@ -312,8 +312,13 @@ public final class PiDirectViewModel: ObservableObject {
         if let subMode = (try? await rigctld.getModeCode(p1: 1)).flatMap({ $0 }).flatMap(RigMode.init(catModeCode:)) {
             state.secondaryMode = subMode
         }
-        if readsSMeter, let smeterDb = try? await rigctld.getLevel("STRENGTH") {
-            state.smeterDb = smeterDb
+        if readsSMeter {
+            // Not carried forward on failure, like the Mac's fast tier: a
+            // meter should fall to rest rather than freeze. SUB's comes
+            // from raw "RM2", same as `HubService` (STRENGTH reads only the
+            // active side).
+            state.smeterDb = try? await rigctld.getLevel("STRENGTH")
+            state.subSmeterDb = (try? await rigctld.getMeterReading(2)).flatMap { $0 }.map(SMeterScale.strengthDb(forRaw:))
         }
         if readsVFODetails {
             await refreshVFODetails(rigctld, into: &state)

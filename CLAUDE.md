@@ -700,6 +700,27 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   the Pi's audio slot. Note for `nc` checks against the Pi: its rigctld
   runs with `-o`, so verbs need a VFO argument (`l currVFO STRENGTH`, not
   `l STRENGTH` — the latter just hangs, read as VFO "STRENGTH").
+- **iPad meters + audio as compact strips (2026-10-09, Simulator against
+  the real Pi; hub screen layout-checked only)**: user request, to save
+  space. Both iPad screens replace the analog `SMeterView` + the two tall
+  `ChannelAudioControls` columns with one `ChannelStrip`
+  (`Apps/iPad/`) under each VFO box: a segmented bar S-meter (S0–S9 in
+  the first 60%, over-S9 red) with an "S7"/"S9+12" readout and a mute
+  icon on the top row, SQL and VOL side by side below — about half the
+  old height. MAIN *and* SUB now have meters: the hub screen uses the
+  `subSmeterDb` the Mac already broadcasts ("RM2"); the Pi-direct model
+  (`readsSMeter`) reads "RM2" too (7 rigctld round trips per tick) and
+  no longer carries either meter forward on a failed read. While
+  transmitting (hub only), MAIN's bar shows the TX meter picked by
+  tapping it (shared `MeterSettings.key`, PO default), with the SWR under
+  the readout; the old standalone "SWR" label is gone. SUB's meter
+  confirmed by the user on HF band noise, and probed against the Pi on a
+  147 MHz FM repeater ("RM2" ~100–108 ≈ S8 with a carrier). On V/UHF FM
+  with no carrier the rig reports exactly 0 ("RM2"/"SM1", STRENGTH -54)
+  even though static is heard — USB audio is unsquelched — so a still
+  SUB bar there is correct. Unclear whether the rig reports SUB's meter
+  in C4FM (one 15 s probe read 0, maybe between transmissions). Not yet
+  tried: the TX display on the rig, a real iPad.
 - **iPad VFO boxes at Mac parity (2026-10-09, Simulator against the real
   Pi and WPSD hotspot)**: `PiDirectViewModel(readsVFODetails: true)` (iPad
   only; the iPhone is unchanged) adds the rest of what the Mac's
@@ -1805,8 +1826,8 @@ WebSDR differences are in their own bullet at the end.
     shrank the frequency. SUB's memory channel/tag come from
     `RigState.subVfoMemoryMode`/`subMemoryChannel`/`subMemoryChannelTag`
     (read via "VM1"/"MC1", display-only; P1=1 addressing hardware-confirmed
-    2026-09-20 when SUB showed "CH 1 Pi-STAR"), `SMeterView` (the analog S/SWR meter face, used by Mac
-    and iPad), `FilterWidthControl` (IF WIDTH picker + narrower/wider
+    2026-09-20 when SUB showed "CH 1 Pi-STAR"), `SMeterView` (the analog S/SWR meter face, used by the Mac;
+    the iPad switched to its own bar `ChannelStrip` 2026-10-09), `FilterWidthControl` (IF WIDTH picker + narrower/wider
     steppers), `IFShiftControl` (IF SHIFT slider + center button,
     command sent on drag release, not per tick) and `IFNotchControl`
     (manual-notch on/off button + frequency slider; dragging while off
@@ -1888,10 +1909,10 @@ WebSDR differences are in their own bullet at the end.
   WebSocket client, same as iOS, except the same receive-only "Pi direct"
   route (since 2026-10-06: `ContentView` is the Mac hub / Pi direct
   switch, `HubControlView` the hub screen, `PiDirectView` the Pi-direct
-  one, `ChannelAudioControls` the per-channel mute/VOL/SQL column both
+  one, `ChannelStrip` the per-receiver meter + mute/SQL/VOL strip both
   use — see "Pi-direct proof of concept" above). The hub screen is a dense
   layout modeled on the Mac's `ContentView` (VFO A/B side by side via the
-  shared `VFODisplayBox`, SWR, PTT, power, band/mode) plus the shared
+  shared `VFODisplayBox`, PTT, power, band/mode) plus the shared
   `MenuPageView` grid. The FM page's
   6 Deep Settings buttons render a disabled "SOON" placeholder rather than
   opening `DeepSettingsView` — see the `RigController`/Deep Settings note

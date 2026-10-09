@@ -83,14 +83,32 @@ struct HubControlView: View {
                     VFODisplayBox(label: "MAIN", frequencyHz: viewModel.rigState.frequencyHz, isActive: true, mode: viewModel.rigState.mode.displayName, txRxLabel: viewModel.rigState.mainTxRxLabel, callsign: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsActive ? viewModel.rigState.aprsLastCallsign : nil), reflector: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsActive, onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }, vfoMemoryMode: viewModel.rigState.vfoMemoryMode, memoryChannel: viewModel.rigState.memoryChannel, memoryChannelTag: viewModel.rigState.memoryChannelTag, onSetMemoryChannel: { viewModel.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { viewModel.send(.stepMemoryChannel(up: $0)) }, memoryScan: viewModel.rigState.memoryScan(on: .main))
                 }
 
-                HStack(alignment: .bottom, spacing: 12) {
-                    SMeterView(smeterDb: viewModel.rigState.smeterDb, swr: viewModel.rigState.swr, ptt: viewModel.rigState.ptt, powerWatts: viewModel.rigState.powerWatts, txMeters: viewModel.rigState.txMeters)
-                        .frame(width: 280)
-                    Text(swrLabel)
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(viewModel.rigState.swr == nil ? .secondary : .primary)
-                    audioControls
-                        .frame(maxWidth: .infinity)
+                // Same SUB | swap | MAIN columns as the VFO boxes above, so
+                // each strip sits under its own receiver.
+                HStack(spacing: 12) {
+                    ChannelStrip(
+                        label: "SUB",
+                        smeterDb: viewModel.rigState.subSmeterDb,
+                        txReadings: nil,
+                        ptt: viewModel.rigState.ptt,
+                        volume: $subAudioVolume,
+                        squelchThreshold: $subAudioSquelchThreshold,
+                        isMuted: viewModel.isSubAudioMuted,
+                        engine: viewModel.subAudioEngine,
+                        onToggleMute: viewModel.toggleSubAudioMuted
+                    )
+                    vfoSwapButton.hidden()
+                    ChannelStrip(
+                        label: "MAIN",
+                        smeterDb: viewModel.rigState.smeterDb,
+                        txReadings: MeterReadings(powerWatts: viewModel.rigState.powerWatts, swr: viewModel.rigState.swr, tx: viewModel.rigState.txMeters),
+                        ptt: viewModel.rigState.ptt,
+                        volume: $mainAudioVolume,
+                        squelchThreshold: $mainAudioSquelchThreshold,
+                        isMuted: viewModel.isMainAudioMuted,
+                        engine: viewModel.audioEngine,
+                        onToggleMute: viewModel.toggleMainAudioMuted
+                    )
                 }
 
                 pttButton
@@ -147,42 +165,6 @@ struct HubControlView: View {
                 MenuPageView<RigClientViewModel>()
             }
             .padding(32)
-        }
-    }
-
-    /// Volume + "virtual" squelch + mute (a client-side noise gate on the
-    /// relayed audio — see `AudioPlaybackEngine`/`SquelchGate` —
-    /// independent of the rig's own hardware squelch) for the Mac's
-    /// relayed radio audio, one column per channel. Occupies the free
-    /// trailing space in the SMeterView row, the iPad's analog of where the
-    /// Mac's `ScopeDisplayView` sits in its own `ContentView`. Volume/
-    /// squelch are bound to `AudioPlaybackSettings` directly via
-    /// `@AppStorage` — these never touch `RigCommand`/the rig, so unlike
-    /// the power slider they don't need a drag-commit-on-release pattern,
-    /// local audio settings can update live. Mute lives on
-    /// `viewModel` instead (see `RigClientViewModel.isMainAudioMuted`/
-    /// `isSubAudioMuted`) since it has to gate whether incoming relayed
-    /// audio gets pushed to the playback engine at all, not just adjust a
-    /// setting. Sub column added 2026-09-18, mirroring the Mac's — see repo
-    /// CLAUDE.md, "Dual Main/Sub audio channels".
-    private var audioControls: some View {
-        HStack(alignment: .top, spacing: 16) {
-            ChannelAudioControls(
-                label: "SUB",
-                volume: $subAudioVolume,
-                squelchThreshold: $subAudioSquelchThreshold,
-                isMuted: viewModel.isSubAudioMuted,
-                engine: viewModel.subAudioEngine,
-                onToggleMute: viewModel.toggleSubAudioMuted
-            )
-            ChannelAudioControls(
-                label: "MAIN",
-                volume: $mainAudioVolume,
-                squelchThreshold: $mainAudioSquelchThreshold,
-                isMuted: viewModel.isMainAudioMuted,
-                engine: viewModel.audioEngine,
-                onToggleMute: viewModel.toggleMainAudioMuted
-            )
         }
     }
 
@@ -259,11 +241,6 @@ struct HubControlView: View {
         }
         .buttonStyle(.plain)
         .disabled(viewModel.connectionState != .connected && host.isEmpty)
-    }
-
-    private var swrLabel: String {
-        guard let swr = viewModel.rigState.swr else { return "SWR --" }
-        return String(format: "SWR %.2f", swr)
     }
 
     private var displayedPowerLevel: Double {

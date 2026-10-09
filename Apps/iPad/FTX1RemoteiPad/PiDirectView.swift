@@ -5,8 +5,8 @@ import SwiftUI
 /// a cut-down `HubControlView` — SUB/MAIN `VFODisplayBox`es (showing
 /// everything the Mac's do except APRS: TX/RX tags, memory channel + tag,
 /// scan state, SUB dimmed in single receive, and — with a WPSD host set —
-/// the C4FM callsign/reflector), the S-meter,
-/// Sub + Main audio columns, and the mode picker. MAIN can be tuned and
+/// the C4FM callsign/reflector), a meter + audio `ChannelStrip` under
+/// each, and the mode picker. MAIN can be tuned and
 /// its mode changed; SUB is read-only (the model accepts only
 /// `.setFrequency`/`.setMode`).
 ///
@@ -95,35 +95,37 @@ struct PiDirectView: View {
             )
         }
 
-        HStack(alignment: .bottom, spacing: 12) {
-            SMeterView(smeterDb: state.smeterDb, swr: nil, ptt: state.ptt)
-                .frame(width: 280)
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 16) {
-                    ChannelAudioControls(
-                        label: "SUB",
-                        volume: $subAudioVolume,
-                        squelchThreshold: $subAudioSquelchThreshold,
-                        isMuted: viewModel.isSubAudioMuted,
-                        engine: viewModel.subAudioEngine,
-                        onToggleMute: viewModel.toggleSubAudioMuted
-                    )
-                    ChannelAudioControls(
-                        label: "MAIN",
-                        volume: $mainAudioVolume,
-                        squelchThreshold: $mainAudioSquelchThreshold,
-                        isMuted: viewModel.isMainAudioMuted,
-                        engine: viewModel.mainAudioEngine,
-                        onToggleMute: viewModel.toggleMainAudioMuted
-                    )
-                }
-                Text(audioStatus)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity)
+        // Same SUB | MAIN columns as the VFO boxes above. Receive only, so
+        // no TX readings.
+        HStack(spacing: 12) {
+            ChannelStrip(
+                label: "SUB",
+                smeterDb: state.subSmeterDb,
+                txReadings: nil,
+                ptt: false,
+                volume: $subAudioVolume,
+                squelchThreshold: $subAudioSquelchThreshold,
+                isMuted: viewModel.isSubAudioMuted,
+                engine: viewModel.subAudioEngine,
+                onToggleMute: viewModel.toggleSubAudioMuted
+            )
+            ChannelStrip(
+                label: "MAIN",
+                smeterDb: state.smeterDb,
+                txReadings: nil,
+                ptt: false,
+                volume: $mainAudioVolume,
+                squelchThreshold: $mainAudioSquelchThreshold,
+                isMuted: viewModel.isMainAudioMuted,
+                engine: viewModel.mainAudioEngine,
+                onToggleMute: viewModel.toggleMainAudioMuted
+            )
         }
+
+        Text(audioStatus)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
 
         Picker("Mode", selection: Binding(
             get: { viewModel.rigState.mode },
