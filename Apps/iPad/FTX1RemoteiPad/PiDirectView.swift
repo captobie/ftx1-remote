@@ -10,10 +10,13 @@ import SwiftUI
 /// or picks a memory channel from the list (Memory mode), MAIN and SUB
 /// alike — not while the rig is scanning (see `PiDirectViewModel.send`).
 ///
-/// Receive-only: no PTT, power, band picker, VFO swap or `MenuPageView` —
-/// those transmit, or depend on `HubService` translating/gating commands,
-/// which this path bypasses. A swap would also break the "left = Main,
-/// right = Sub" assumption the audio columns rely on.
+/// The top row adds, once connected, V/M (MAIN only), the Mac's swap
+/// (`SV`) and audio-channel override (speaker, orange while swapped) —
+/// the model tracks the audio parity across swaps like `HubService`.
+///
+/// Receive-only: no PTT, power, band picker or `MenuPageView` — those
+/// transmit, or depend on `HubService` translating/gating commands, which
+/// this path bypasses.
 ///
 /// Unlike the iPhone's `PiDirectView` (single focused VFO, Main audio
 /// only), this shows both receivers, as the hub screen does.
@@ -43,6 +46,10 @@ struct PiDirectView: View {
                             .autocorrectionDisabled()
                     }
                     connectButton
+                    if viewModel.connectionState == .connected {
+                        Spacer()
+                        rigButtons
+                    }
                 }
 
                 if case .failed(let message) = viewModel.connectionState {
@@ -144,9 +151,45 @@ struct PiDirectView: View {
                 .lineLimit(1)
         }
 
-        Text("Receive only — direct to rigctld on the Pi, no Mac hub. Audio: left channel = MAIN, right = SUB, until the rig's VFOs are swapped.")
+        Text("Receive only — direct to rigctld on the Pi, no Mac hub. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed.")
             .font(.caption)
             .foregroundStyle(.secondary)
+    }
+
+    /// V/M, swap and audio-channel override — same as the Mac's buttons by
+    /// the VFO boxes. Swap and V/M are refused while the rig scans.
+    private var rigButtons: some View {
+        let state = viewModel.rigState
+        let scanning = state.memoryScan == .scanning || state.memoryScan == .paused
+        return HStack(spacing: 12) {
+            // Against `.vfo`, not `.memory`, as on the Mac: the rig's other
+            // channel modes (PMS, 5 MHz band...) must exit to VFO too.
+            Button {
+                viewModel.send(.setVFOMemoryMode(memory: state.vfoMemoryMode == .vfo))
+            } label: {
+                Text("V/M")
+                    .fontWeight(state.vfoMemoryMode == .vfo ? .regular : .bold)
+            }
+            .disabled(scanning || state.vfoMemoryMode == nil)
+
+            Button {
+                viewModel.send(.swapActiveVFO)
+            } label: {
+                Image(systemName: "arrow.left.arrow.right")
+            }
+            .disabled(scanning)
+            .accessibilityLabel("Swap MAIN and SUB")
+
+            Button {
+                viewModel.toggleAudioChannelsSwapped()
+            } label: {
+                Image(systemName: "speaker.wave.2")
+                    .foregroundStyle(viewModel.audioChannelsSwapped ? Color.white : Color.primary)
+            }
+            .tint(viewModel.audioChannelsSwapped ? .orange : nil)
+            .accessibilityLabel(viewModel.audioChannelsSwapped ? "Audio channels swapped; tap to swap back" : "Swap audio channels")
+        }
+        .buttonStyle(.bordered)
     }
 
     private var connectButton: some View {

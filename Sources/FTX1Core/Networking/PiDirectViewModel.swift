@@ -19,9 +19,10 @@ import os
 ///
 /// Audio: a separate `RemoteAudioStreamClient` connection to
 /// `Pi/ftx1-audiostream.py` (:8532), its own retry loop independent of the
-/// rigctld link. The left channel is Main and the right Sub, unless the
-/// rig's Main/Sub have been swapped (the Mac's `audioChannelsSwapped`
-/// tracking isn't ported). The Pi serves one audio client at a time, so
+/// rigctld link. The left channel is Main and the right Sub until the rig's
+/// Main/Sub are swapped: the rig keeps L/R with the physical receiver, so
+/// `audioChannelsSwapped` tracks the parity like the Mac's (an app swap,
+/// a detected front-panel swap, or the manual toggle). The Pi serves one audio client at a time, so
 /// while the Mac (or another phone/iPad) holds the stream this stays at
 /// `.waiting`.
 ///
@@ -55,6 +56,23 @@ public final class PiDirectViewModel: ObservableObject {
     /// from.
     @Published public private(set) var isMainAudioMuted = AudioPlaybackSettings.isMuted
     @Published public private(set) var isSubAudioMuted = AudioPlaybackSettings.subIsMuted
+    /// Whether the Pi's L/R channels are exchanged before playback (R plays
+    /// as Main) — `HubService.audioChannelsSwapped`'s counterpart, same
+    /// persisted key (each device's own). Flipped by an app swap (not in
+    /// single-receive display, where `SV` doesn't move the audio), a
+    /// detected front-panel swap, or `toggleAudioChannelsSwapped()`.
+    @Published public private(set) var audioChannelsSwapped = AudioPlaybackSettings.channelsSwapped
+    /// `audioChannelsSwapped` for the audio client's actor.
+    private let channelSwap = ChannelSwapFlag(AudioPlaybackSettings.channelsSwapped)
+    /// MAIN's last VFO-mode frequency/mode, replayed when leaving Memory
+    /// mode — "VM000" alone leaves MAIN parked on the channel's values. See
+    /// `HubService.lastVFOState`; cleared by a swap the same way.
+    private var lastVFOState: (hz: Int, mode: RigMode)?
+    /// Baseline for `trackExternalSwap` — see `HubService`'s.
+    private var lastDistinctFrequencies: (main: Int, sub: Int)?
+    /// Bumped when a swap or V/M lands, so a poll tick that straddled it
+    /// is dropped rather than published (and mistaken for a swap back).
+    private var commandGeneration = 0
 
     /// The rig's programmed memory channels, read through this route's own
     /// rigctld link (attached while connected) and cached on this device —
@@ -164,14 +182,16 @@ public final class PiDirectViewModel: ObservableObject {
         self.rigctld = rigctld
         let queue = CommandQueue(rigctld: rigctld)
         self.queue = queue
-        Task {
-            await queue.setOnCommandApplied { [weak self] command, _ in
+        Task { [weak self] in
+            await queue.setOnCommandApplied { command, _ in
                 // No optimistic SUB channel (the rig ignores a blank one):
                 // read it back on the next tick instead of up to 5 later.
                 // MAIN's is read every tick anyway.
                 switch command {
                 case .setSubMemoryChannel, .stepSubMemoryChannel:
                     Task { @MainActor in self?.forceSlowReads = true }
+                case .swapActiveVFO, .setVFOMemoryMode:
+                    Task { @MainActor in self?.commandApplied(command) }
                 default:
                     break
                 }
@@ -197,8 +217,11 @@ public final class PiDirectViewModel: ObservableObject {
         stopAudio()
         stopWPSD()
         // A reconnect starts from a blank state, as the Mac's does: none of
-        // these should linger from the last session until re-read.
+        // these should linger from the last session until re-read. (The
+        // audio swap parity is kept: it describes the rig, not the session.)
         rigState = RigState()
+        lastVFOState = nil
+        lastDistinctFrequencies = nil
     }
 
     public func toggleMainAudioMuted() {
@@ -223,7 +246,9 @@ public final class PiDirectViewModel: ObservableObject {
             host: host,
             port: Self.audioPort,
             logSubsystem: logSubsystem
-        ) { [weak self] left, right, sampleRate in
+        ) { [weak self, channelSwap] left, right, sampleRate in
+            // L/R follow the physical receivers, so after a swap R is Main.
+            let (left, right) = channelSwap.value ? (right, left) : (left, right)
             // Runs on the client's actor; resample there, hop to the main
             // actor only to hand the 8 kHz chunks to the engines.
             let mainPCM = mainDownsampler.convert(left, sourceRate: sampleRate)
@@ -275,6 +300,25 @@ public final class PiDirectViewModel: ObservableObject {
                 logger.notice("ignoring \(String(describing: command), privacy: .public) while the rig scans")
                 return
             }
+        case .swapActiveVFO, .setVFOMemoryMode:
+            // Not while scanning, as above. Applied to `rigState` once the
+            // rig has taken them (`commandApplied`), not optimistically.
+            if rigState.memoryScan == .scanning || rigState.memoryScan == .paused {
+                logger.notice("ignoring \(String(describing: command), privacy: .public) while the rig scans")
+                return
+            }
+            if case .setVFOMemoryMode(memory: false) = command, let last = lastVFOState {
+                // Same as the hub: leave Memory first (the rig rejects "FA"
+                // in Memory mode), then put the VFO back. FIFO queue.
+                Task {
+                    await queue.enqueue(command)
+                    await queue.enqueue(.setFrequency(hz: last.hz))
+                    await queue.enqueue(.setMode(last.mode))
+                }
+                return
+            }
+            Task { await queue.enqueue(command) }
+            return
         case .refreshMemoryList:
             memoryList.refresh()
             return
@@ -302,6 +346,67 @@ public final class PiDirectViewModel: ObservableObject {
         default:
             break
         }
+    }
+
+    /// The manual override for `audioChannelsSwapped`, for when the tracked
+    /// parity has drifted (a swap made while this app wasn't watching).
+    public func toggleAudioChannelsSwapped() {
+        setAudioChannelsSwapped(!audioChannelsSwapped, reason: "manual toggle")
+    }
+
+    private func setAudioChannelsSwapped(_ swapped: Bool, reason: String) {
+        guard swapped != audioChannelsSwapped else { return }
+        audioChannelsSwapped = swapped
+        channelSwap.value = swapped
+        AudioPlaybackSettings.channelsSwapped = swapped
+        logger.notice("audio channels swapped=\(swapped, privacy: .public) (\(reason, privacy: .public))")
+    }
+
+    /// A swap or V/M the rig has just applied. Done here rather than
+    /// optimistically so a poll tick can't read the pre-swap values after
+    /// the baseline moved; `commandGeneration` drops a tick in flight.
+    private func commandApplied(_ command: RigCommand) {
+        commandGeneration += 1
+        switch command {
+        case .swapActiveVFO:
+            let main = rigState.frequencyHz
+            rigState.frequencyHz = rigState.secondaryFrequencyHz ?? main
+            rigState.secondaryFrequencyHz = main
+            if let subMode = rigState.secondaryMode {
+                rigState.secondaryMode = rigState.mode
+                rigState.mode = subMode
+            }
+            if rigState.singleReceive == true {
+                logger.notice("app swap in single-receive display — audio channels left as is")
+            } else {
+                setAudioChannelsSwapped(!audioChannelsSwapped, reason: "app swap command")
+            }
+            if let sub = rigState.secondaryFrequencyHz, sub != rigState.frequencyHz {
+                lastDistinctFrequencies = (rigState.frequencyHz, sub)
+            } else {
+                lastDistinctFrequencies = nil
+            }
+            lastVFOState = nil
+        case .setVFOMemoryMode(let memory):
+            rigState.vfoMemoryMode = memory ? .memory : .vfo
+            if !memory, let last = lastVFOState {
+                rigState.frequencyHz = last.hz
+                rigState.mode = last.mode
+            }
+        default:
+            break
+        }
+    }
+
+    /// A front-panel swap: both frequencies exchange at once relative to
+    /// the last pair where they differed — `HubService.trackExternalSwap`.
+    private func trackExternalSwap(main: Int, sub: Int?) {
+        guard let sub, sub != main else { return }
+        if let last = lastDistinctFrequencies, main == last.sub, sub == last.main {
+            setAudioChannelsSwapped(!audioChannelsSwapped, reason: "front-panel swap detected (\(last.main)/\(last.sub) → \(main)/\(sub) Hz)")
+            lastVFOState = nil
+        }
+        lastDistinctFrequencies = (main, sub)
     }
 
     /// Connect, poll until the link dies, wait, retry — until cancelled by
@@ -342,6 +447,7 @@ public final class PiDirectViewModel: ObservableObject {
     /// after a swap and doesn't know C4FM).
     private func refresh(_ rigctld: RigctldClient) async throws {
         var state = rigState
+        let generation = commandGeneration
 
         do {
             state.frequencyHz = try await rigctld.getFrequency()
@@ -376,6 +482,13 @@ public final class PiDirectViewModel: ObservableObject {
         tick += 1
 
         guard !Task.isCancelled else { return }
+        // A swap or V/M landed mid-tick: some reads may predate it.
+        guard generation == commandGeneration else { return }
+        trackExternalSwap(main: state.frequencyHz, sub: state.secondaryFrequencyHz)
+        // Only from a genuine VFO-mode snapshot, never a channel's values.
+        if state.vfoMemoryMode == .vfo {
+            lastVFOState = (state.frequencyHz, state.mode)
+        }
         state.lastUpdated = Date()
         state.c4fmCallsign = c4fmCallsign
         state.c4fmReflector = c4fmReflector
@@ -457,5 +570,18 @@ public final class PiDirectViewModel: ObservableObject {
         c4fmReflector = nil
         rigState.c4fmCallsign = nil
         rigState.c4fmReflector = nil
+    }
+}
+
+/// `audioChannelsSwapped`, readable from the audio client's actor.
+private final class ChannelSwapFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: Bool
+
+    init(_ value: Bool) { stored = value }
+
+    var value: Bool {
+        get { lock.withLock { stored } }
+        set { lock.withLock { stored = newValue } }
     }
 }

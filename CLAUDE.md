@@ -774,6 +774,24 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   tick's slow reads so the box catches up in ~1 s. Simulator note: the
   first tap after a relaunch or screenshot is often dropped — tap again
   before concluding a popover doesn't open.
+  Rig-confirmed by the user the same day: channel picker and the channel
+  list download.
+- **iPad Pi-direct top row: swap, audio swap, V/M (2026-10-09, Simulator
+  against the real Pi — only the speaker toggle pressed; swap and V/M not
+  yet sent)**: user request, for testing. Next to Connected, once
+  connected, in this order: V/M (MAIN only), swap (`.swapActiveVFO`, raw
+  "SV") and the speaker override. `PiDirectViewModel` now ports the Mac's audio-routing
+  parity: `audioChannelsSwapped` (same `AudioPlaybackSettings.
+  channelsSwapped` key, this device's own) exchanges the Pi stream's L/R
+  before the downsamplers, flipped by an app swap (not in single-receive
+  display), a front-panel swap (`trackExternalSwap`, same heuristic as the
+  hub) or the speaker button. V/M ports `lastVFOState` (replayed after
+  "VM000"; cleared by any swap). Swap/V/M effects are applied in the
+  queue's `onCommandApplied`, not optimistically, and bump
+  `commandGeneration`, which drops a poll tick that straddled them (else
+  its pre-swap reads would look like a swap back). Both refused while the
+  rig scans. Supersedes "no VFO swap" above. The hub screen is unchanged
+  (its swap button already existed; its audio swap lives on the Mac).
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
