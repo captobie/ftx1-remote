@@ -18,9 +18,14 @@ import SwiftUI
 /// Transmit (2026-10-09): hold-to-talk `PTTButton` right of Connected,
 /// with the iPad's microphone streamed to the Pi's TX audio service, and a
 /// lock button beside it — this route's own Enable Transmit (off by
-/// default), since the Mac's toggle isn't in the path. Still no power,
-/// band picker or `MenuPageView`: those depend on `HubService`
-/// translating/gating commands, which this path bypasses.
+/// default), since the Mac's toggle isn't in the path.
+///
+/// The hub screen's `MenuPageView` (2026-10-09) sits at the bottom,
+/// running on `PiDirectViewModel` (a `RigController`): the same three
+/// pages, with MOX/ANT TUNE behind this route's lock and Deep Settings,
+/// APRS lists and RECORD/PLAY unavailable as on the hub route. Still no
+/// power slider or band picker (the band picker's band memory is the
+/// hub's).
 ///
 /// Unlike the iPhone's `PiDirectView` (single focused VFO, Main audio
 /// only), this shows both receivers, as the hub screen does.
@@ -187,7 +192,9 @@ struct PiDirectView: View {
                 .lineLimit(1)
         }
 
-        Text("Direct to rigctld on the Pi, no Mac hub. Unlock to transmit; hold PTT to talk through the iPad's microphone. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed.")
+        MenuPageView<PiDirectViewModel>()
+
+        Text("Direct to rigctld on the Pi, no Mac hub. Unlock to transmit (PTT, MOX, ANT TUNE); hold PTT to talk through the iPad's microphone. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed. Menu values refresh every ~10 s.")
             .font(.caption)
             .foregroundStyle(.secondary)
     }

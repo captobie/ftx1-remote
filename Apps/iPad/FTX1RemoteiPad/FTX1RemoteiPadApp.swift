@@ -8,7 +8,8 @@ struct FTX1RemoteiPadApp: App {
         logSubsystem: "com.ftx1remote.ipad",
         playsSubAudio: true,
         readsSMeter: true,
-        readsVFODetails: true
+        readsVFODetails: true,
+        readsMenuSettings: true
     )
 
     var body: some Scene {

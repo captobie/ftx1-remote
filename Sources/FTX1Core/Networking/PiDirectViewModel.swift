@@ -15,10 +15,18 @@ import os
 /// the rig's USB audio input. The hub's gates don't apply on this path, so
 /// keying goes through `TransmitGate` (this device's own `transmitEnabled`,
 /// off by default, and the amateur bands) and is refused while the rig
-/// scans; unkeying always goes through. `.setPTT(true)` is the only
-/// transmit-capable command accepted — anything else that transmits needs
-/// the same gate first. If this device vanishes mid-transmission, the Pi's
-/// TX audio service unkeys the rig (its watchdog).
+/// scans; unkeying always goes through. The MENU grid's MOX and ANT TUNE
+/// (2026-10-09, `readsMenuSettings`) go through the same gate; anything
+/// else that transmits needs it too. If this device vanishes
+/// mid-transmission, the Pi's TX audio service unkeys the rig (its
+/// watchdog) — but not MOX, which isn't tied to that connection.
+///
+/// MENU grid (2026-10-09, iPad): with `readsMenuSettings` this conforms to
+/// `RigController`, so the shared `MenuPageView` runs on it. It accepts the
+/// grid's setting commands (`isMenuSetting`) and reads their fields a few
+/// per poll tick (`menuSettingReads`, the hub's slow-tier reads). Deep
+/// Settings, APRS lists and RECORD/PLAY stay unsupported, as on the hub
+/// route.
 ///
 /// rigctld accepts several clients at once, so this coexists with the Mac
 /// (or WSJT-X) being connected to the same Pi.
@@ -112,7 +120,10 @@ public final class PiDirectViewModel: ObservableObject {
     @Published public var transmitEnabled = UserDefaults.standard.bool(forKey: PiDirectViewModel.transmitEnabledKey) {
         didSet {
             UserDefaults.standard.set(transmitEnabled, forKey: Self.transmitEnabledKey)
+            // `MenuPageView` gates MOX/ANT TUNE on the state's copy.
+            rigState.transmitEnabled = transmitEnabled
             if !transmitEnabled, isTransmitting { abortTransmit(reason: "Enable Transmit turned off") }
+            if !transmitEnabled, rigState.moxEnabled == true { send(.setMox(false)) }
         }
     }
     public static let transmitEnabledKey = "piDirect.transmitEnabled"
@@ -151,6 +162,14 @@ public final class PiDirectViewModel: ObservableObject {
     /// ("RI0"/"SC") — see `refreshVFODetails` — plus the C4FM callsign and
     /// reflector from a WPSD hotspot (`connect(toHost:wpsdHost:)`).
     private let readsVFODetails: Bool
+    /// Adds the MENU grid's fields (the iPad), `menuReadsPerTick` of
+    /// `menuSettingReads` per tick, round-robin.
+    private let readsMenuSettings: Bool
+    /// Where the next tick resumes `menuSettingReads`.
+    private var menuReadCursor = 0
+    /// ~9 s for the whole list at one tick a second — about the Mac's slow
+    /// tier — for ~0.3 s more per tick over the Pi.
+    private static let menuReadsPerTick = 4
     /// Poll ticks since connect, for the reads that only run every
     /// `slowReadEvery` ticks.
     private var tick = 0
@@ -190,14 +209,17 @@ public final class PiDirectViewModel: ObservableObject {
         logSubsystem: String,
         playsSubAudio: Bool = false,
         readsSMeter: Bool = false,
-        readsVFODetails: Bool = false
+        readsVFODetails: Bool = false,
+        readsMenuSettings: Bool = false
     ) {
         self.logSubsystem = logSubsystem
         logger = Logger(subsystem: logSubsystem, category: "pi-direct")
         self.playsSubAudio = playsSubAudio
         self.readsSMeter = readsSMeter
         self.readsVFODetails = readsVFODetails
+        self.readsMenuSettings = readsMenuSettings
         memoryListSnapshot = memoryList.snapshot
+        rigState.transmitEnabled = transmitEnabled
         memoryListCancellable = memoryList.$entries
             .combineLatest(memoryList.$scanningChannel, memoryList.$lastScanned)
             .map { MemoryListSnapshot(entries: $0, scanned: $2, scanningChannel: $1) }
@@ -226,6 +248,7 @@ public final class PiDirectViewModel: ObservableObject {
         self.host = host
         self.wpsdHost = wpsdHost.trimmingCharacters(in: .whitespaces)
         tick = 0
+        menuReadCursor = 0
         let rigctld = RigctldClient(host: host, port: Self.rigctldPort)
         self.rigctld = rigctld
         let queue = CommandQueue(rigctld: rigctld)
@@ -240,6 +263,10 @@ public final class PiDirectViewModel: ObservableObject {
                     Task { @MainActor in self?.forceSlowReads = true }
                 case .swapActiveVFO, .setVFOMemoryMode, .setMemoryScan, .setTXSide:
                     Task { @MainActor in self?.commandApplied(command) }
+                case _ where Self.isMenuSetting(command):
+                    // A tick that read the field before the rig took the
+                    // set would put the old value back until its next read.
+                    Task { @MainActor in self?.commandGeneration += 1 }
                 default:
                     break
                 }
@@ -254,13 +281,16 @@ public final class PiDirectViewModel: ObservableObject {
 
     public func disconnect() {
         let wasTransmitting = isTransmitting
+        let wasMox = rigState.moxEnabled == true
         stopTransmitLocally()
         sessionTask?.cancel()
         sessionTask = nil
         if let rigctld {
             Task {
-                // Unkey ahead of the teardown, on the same link.
+                // Unkey ahead of the teardown, on the same link. MOX too:
+                // nothing on the Pi would end it after this link is gone.
                 if wasTransmitting { _ = try? await rigctld.send("T currVFO 0") }
+                if wasMox { try? await rigctld.setRawBool("MX", false) }
                 await rigctld.disconnect()
             }
         }
@@ -274,6 +304,7 @@ public final class PiDirectViewModel: ObservableObject {
         // these should linger from the last session until re-read. (The
         // audio swap parity is kept: it describes the rig, not the session.)
         rigState = RigState()
+        rigState.transmitEnabled = transmitEnabled
         lastVFOState = nil
         lastDistinctFrequencies = nil
         txSideBeforeMemoryScan = nil
@@ -391,6 +422,20 @@ public final class PiDirectViewModel: ObservableObject {
             rigState.ptt = on
             Task { await queue.enqueue(command) }
             return
+        case .setMox(true), .triggerAntennaTune:
+            // The MENU grid's transmit-capable buttons: same gate as PTT
+            // (incl. refused while the rig scans). MOX off always goes
+            // through, below.
+            guard readsMenuSettings else {
+                logger.notice("ignoring unsupported command \(String(describing: command), privacy: .public)")
+                return
+            }
+            if let reason = transmitBlockReason {
+                logger.notice("refusing \(String(describing: command), privacy: .public): \(reason, privacy: .public)")
+                return
+            }
+        case _ where readsMenuSettings && Self.isMenuSetting(command):
+            break
         default:
             // RX-only proof of concept — see the type's doc comment.
             logger.notice("ignoring unsupported command \(String(describing: command), privacy: .public)")
@@ -449,8 +494,63 @@ public final class PiDirectViewModel: ObservableObject {
             rigState.secondaryFrequencyHz = hz
         case .setSecondaryMode(let mode):
             rigState.secondaryMode = mode
+        case .setPowerLevel(let level): rigState.powerLevel = level
+        case .setBreakIn(let on): rigState.breakIn = on
+        case .setKeyer(let on): rigState.keyerEnabled = on
+        case .setCWSpeed(let wpm): rigState.cwSpeedWpm = wpm
+        case .setCWPitch(let hz): rigState.cwPitchHz = hz
+        case .setBreakInDelay(let ms): rigState.bkDelayMs = ms
+        case .setCWSpot(let on): rigState.cwSpot = on
+        case .setMoniLevel(let level): rigState.moniLevel = level
+        case .setMox(let on): rigState.moxEnabled = on
+        case .setAtt(let on): rigState.attEnabled = on
+        case .setPreamp(let mode): rigState.preampMode = mode
+        case .setTuner(let on): rigState.tunerEnabled = on
+        case .setDisplayContrast(let value): rigState.displayContrast = value
+        case .setDisplayDimmer(let value): rigState.displayDimmer = value
+        case .setDisplayLevel(let dB): rigState.displayLevel = dB
+        case .setDisplayPeak(let level): rigState.displayPeak = level
+        case .setDisplayMarker(let on): rigState.displayMarker = on
+        case .setMicGain(let value): rigState.micGain = value
+        case .setAMCLevel(let value): rigState.amcLevel = value
+        case .setVox(let on): rigState.voxEnabled = on
+        case .setVoxGain(let value): rigState.voxGain = value
+        case .setVoxDelay(let ms): rigState.voxDelayMs = ms
+        case .setDNF(let on): rigState.dnfEnabled = on
+        case .setAGC(let mode): rigState.agcMode = mode
+        case .setMicEQ(let on): rigState.micEQEnabled = on
+        case .setProcLevel(let level): rigState.procLevel = level
+        case .setNBLevel(let level): rigState.nbLevel = level
+        case .setDNRLevel(let level): rigState.dnrLevel = level
+        case .setAntSelect(let mode): rigState.antSelect = mode
+        case .setSquelchType(let mode): rigState.squelchType = mode
+        case .setToneFreq(let index): rigState.ctcssToneIndex = index
+        case .setDCSCode(let index): rigState.dcsCodeIndex = index
+        case .setRepeaterShift(let mode): rigState.repeaterShiftMode = mode
+        case .setAPRSBeaconType(let mode): rigState.aprsBeaconType = mode
+        case .setFMChannelStep(let step): rigState.fmChannelStep = step
         default:
             break
+        }
+        // Drop a tick in flight: it may have read the old value.
+        if Self.isMenuSetting(command) { commandGeneration += 1 }
+    }
+
+    /// The MENU grid's commands (`MenuPageView`) other than tuning (HOME
+    /// sends `.setFrequency`), all queued as the hub queues them. Only
+    /// MOX on and ANT TUNE transmit; `send` gates those first.
+    nonisolated private static func isMenuSetting(_ command: RigCommand) -> Bool {
+        switch command {
+        case .setPowerLevel, .setBreakIn, .setKeyer, .setCWSpeed, .setCWPitch, .setBreakInDelay,
+             .setCWSpot, .triggerZeroIn, .setMoniLevel, .setMox, .triggerAntennaTune, .setAtt,
+             .setPreamp, .setTuner, .setDisplayContrast, .setDisplayDimmer, .setDisplayLevel,
+             .setDisplayPeak, .setDisplayMarker, .setMicGain, .setAMCLevel, .setVox, .setVoxGain,
+             .setVoxDelay, .setDNF, .setAGC, .setMicEQ, .setProcLevel, .setNBLevel, .setDNRLevel,
+             .setAntSelect, .setSquelchType, .setToneFreq, .setDCSCode, .setRepeaterShift,
+             .setAPRSBeaconType, .setFMChannelStep:
+            return true
+        default:
+            return false
         }
     }
 
@@ -697,6 +797,13 @@ public final class PiDirectViewModel: ObservableObject {
         if readsVFODetails {
             await refreshVFODetails(rigctld, into: &state)
         }
+        if readsMenuSettings {
+            let reads = Self.menuSettingReads
+            for _ in 0..<Self.menuReadsPerTick {
+                await reads[menuReadCursor % reads.count](rigctld, &state)
+                menuReadCursor = (menuReadCursor + 1) % reads.count
+            }
+        }
         tick += 1
 
         guard !Task.isCancelled else { return }
@@ -778,6 +885,69 @@ public final class PiDirectViewModel: ObservableObject {
         }
     }
 
+    /// One MENU-grid field read into the tick's state. Best-effort: a failed
+    /// read keeps the last value.
+    private typealias MenuSettingRead = (RigctldClient, inout RigState) async -> Void
+
+    /// The fields `MenuPageView` shows, read the way `HubService.
+    /// slowTierSteps()` reads them (see its comments for each command's
+    /// quirks). Not here because `refreshVFODetails` reads them already:
+    /// "FR", "ST", "FT", "VM1"; not shown by the grid: the filter fields,
+    /// "TS", the CW MESSAGE status.
+    private static let menuSettingReads: [MenuSettingRead] = [
+        { if let v = try? await $0.getLevel("RFPOWER") { $1.powerLevel = v } },
+        { if let v = try? await $0.getRawBool("BI") { $1.breakIn = v } },
+        { if let v = try? await $0.getRawBool("KR") { $1.keyerEnabled = v } },
+        { if let v = try? await $0.getRawInt("KS") { $1.cwSpeedWpm = v } },
+        // 00-75 steps above 300 Hz.
+        { if let v = try? await $0.getRawInt("KP") { $1.cwPitchHz = 300 + v * 10 } },
+        { if let v = (try? await $0.getRawInt("SD")).flatMap(RigDelayCode.milliseconds(forCode:)) { $1.bkDelayMs = v } },
+        { if let v = try? await $0.getRawBool("CS") { $1.cwSpot = v } },
+        // "ML1" is the level; "ML0" would be MONI on/off.
+        { if let v = try? await $0.getRawInt("ML1") { $1.moniLevel = v } },
+        { if let v = try? await $0.getRawBool("MX") { $1.moxEnabled = v } },
+        { if let v = try? await $0.getRawBool("RA0") { $1.attEnabled = v } },
+        { if let v = try? await $0.getRawInt("PA0") { $1.preampMode = v } },
+        { if let v = try? await $0.getTunerEnabled() { $1.tunerEnabled = v } },
+        { rigctld, state in
+            if let v = try? await rigctld.getDisplaySettings() {
+                state.displayContrast = v.contrast
+                state.displayDimmer = v.brightness
+            }
+        },
+        { if let v = try? await $0.getSpectrumScopeLevel() { $1.displayLevel = v } },
+        { if let v = try? await $0.getRawDigit("SS01") { $1.displayPeak = v } },
+        { if let v = try? await $0.getRawBool("SS02") { $1.displayMarker = v } },
+        { if let v = try? await $0.getRawInt("MG") { $1.micGain = v } },
+        { if let v = try? await $0.getRawInt("AO") { $1.amcLevel = v } },
+        { if let v = try? await $0.getRawBool("VX") { $1.voxEnabled = v } },
+        { if let v = try? await $0.getRawInt("VG") { $1.voxGain = v } },
+        { if let v = (try? await $0.getRawInt("VD")).flatMap(RigDelayCode.milliseconds(forCode:)) { $1.voxDelayMs = v } },
+        { if let v = try? await $0.getRawBool("BC0") { $1.dnfEnabled = v } },
+        // "GT0"/"PR1" go unanswered in C4FM, each costing a raw-CAT
+        // timeout and a reconnect — skipped then, as on the Mac.
+        { rigctld, state in
+            guard state.mode != .c4fm, let v = try? await rigctld.getRawInt("GT0") else { return }
+            state.agcMode = v
+        },
+        { rigctld, state in
+            guard state.mode != .c4fm, let v = try? await rigctld.getRawBool("PR1") else { return }
+            state.micEQEnabled = v
+        },
+        { if let v = try? await $0.getRawInt("PL") { $1.procLevel = v } },
+        { if let v = try? await $0.getRawInt("NL0") { $1.nbLevel = v } },
+        { if let v = try? await $0.getRawInt("RL0") { $1.dnrLevel = v } },
+        // HF ANT SELECT, BEACON TYPE and FM CH STEP have no mnemonic of
+        // their own: "EX" at fixed addresses.
+        { if let v = (try? await $0.getMenuItem(p1: 3, p2: 7, p3: 4)).flatMap(Int.init) { $1.antSelect = v } },
+        { if let v = try? await $0.getRawDigit("CT0") { $1.squelchType = v } },
+        { if let v = try? await $0.getRawInt("CN00") { $1.ctcssToneIndex = v } },
+        { if let v = try? await $0.getRawInt("CN01") { $1.dcsCodeIndex = v } },
+        { if let v = try? await $0.getRawDigit("OS0") { $1.repeaterShiftMode = v } },
+        { if let v = (try? await $0.getMenuItem(p1: 7, p2: 1, p3: 1)).flatMap(Int.init) { $1.aprsBeaconType = v } },
+        { if let v = (try? await $0.getMenuItem(p1: 3, p2: 6, p3: 6)).flatMap(Int.init) { $1.fmChannelStep = v } },
+    ]
+
     /// Mirrors `HubService.updateWPSDMonitorState`; `start`/`stop` are
     /// no-ops when already in that state.
     private func updateWPSD() {
@@ -809,3 +979,8 @@ private final class ChannelSwapFlag: @unchecked Sendable {
         set { lock.withLock { stored = newValue } }
     }
 }
+
+/// Lets the shared `MenuPageView` run on this route (the iPad's Pi-direct
+/// screen). Deep Settings, APRS and recording keep the protocol's
+/// unsupported defaults.
+extension PiDirectViewModel: RigController {}

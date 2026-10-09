@@ -814,6 +814,24 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   Seen in the Simulator: Scan SUB → rig "SC11;", "FT1;", SUB box SCANNING
   with MAIN live, button turned into Stop SUB.
 
+- **iPad MENU grid on Pi direct (2026-10-09, Simulator against the real
+  Pi; one write — D-MARKER off/on — confirmed with a raw "SS02" read)**:
+  user request. `PiDirectView` shows the shared `MenuPageView` under the
+  strips; `PiDirectViewModel` conforms to `RigController` (Deep Settings,
+  APRS lists, RECORD/PLAY keep the unsupported defaults, as on the hub
+  route). With `readsMenuSettings` (iPad only) it accepts the grid's
+  commands (`isMenuSetting`), applies them optimistically like the hub,
+  and reads their fields 4 per tick round-robin (`menuSettingReads`, the
+  hub's slow-tier reads plus "RFPOWER"; ~9 s per pass). A setting landing
+  bumps `commandGeneration` (optimistically and again once the queue
+  applied it), so a tick that read the old value is dropped. MOX on and
+  ANT TUNE go through `TransmitGate` (this route's lock, amateur bands,
+  not while scanning); `rigState.transmitEnabled` mirrors the lock so the
+  grid greys them out; locking or disconnecting while MOX is on sends
+  "MX0" (no Pi watchdog covers MOX). MIC GAIN reads "—" in CW: the rig
+  answers "MG" with "?;" there (probed), same on the hub. Not ported: the
+  power slider and band picker. Not yet tried on a real iPad or on air.
+
 ## iPad transmit audio (2026-10-09, build- and Simulator-checked; not yet on the air)
 
 Hold-to-talk PTT on both iPad screens (`PTTButton`, right of Connected and
