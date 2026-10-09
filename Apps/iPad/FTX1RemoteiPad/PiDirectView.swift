@@ -122,10 +122,13 @@ struct PiDirectView: View {
             )
         }
 
-        Text(audioStatus)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
+        // Only the problem case gets a line; playing/off need no text.
+        if viewModel.audioState == .waiting {
+            Text("Waiting for audio — is another device using the Pi's stream?")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
 
         Picker("Mode", selection: Binding(
             get: { viewModel.rigState.mode },
@@ -140,14 +143,6 @@ struct PiDirectView: View {
         Text("Receive only — direct to rigctld on the Pi, no Mac hub. Audio: left channel = MAIN, right = SUB, until the rig's VFOs are swapped.")
             .font(.caption)
             .foregroundStyle(.secondary)
-    }
-
-    private var audioStatus: String {
-        switch viewModel.audioState {
-        case .off: "Audio off"
-        case .waiting: "Waiting for audio — is another device using the Pi's stream?"
-        case .playing: "Audio from the Pi"
-        }
     }
 
     private var connectButton: some View {

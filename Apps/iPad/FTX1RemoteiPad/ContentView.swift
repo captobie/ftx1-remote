@@ -4,7 +4,8 @@ import SwiftUI
 /// Top level: picks between the normal Mac-hub connection
 /// (`HubControlView`) and the Pi-direct proof of concept (`PiDirectView`),
 /// same switch as the iPhone's. Switching disconnects the side being left,
-/// so only one link is ever live.
+/// so only one link is ever live. The switch is hidden while the chosen
+/// route is connected — disconnect to get it back.
 struct ContentView: View {
     enum ConnectionRoute: String, CaseIterable {
         case macHub
@@ -24,15 +25,17 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Connection", selection: $route) {
-                ForEach(ConnectionRoute.allCases, id: \.self) { route in
-                    Text(route.label).tag(route)
+            if !isConnected {
+                Picker("Connection", selection: $route) {
+                    ForEach(ConnectionRoute.allCases, id: \.self) { route in
+                        Text(route.label).tag(route)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 360)
+                .padding(.horizontal, 32)
+                .padding(.top, 12)
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 360)
-            .padding(.horizontal, 32)
-            .padding(.top, 12)
 
             switch route {
             case .macHub: HubControlView()
@@ -44,6 +47,13 @@ struct ContentView: View {
             case .macHub: piViewModel.disconnect()
             case .piDirect: hubViewModel.disconnect()
             }
+        }
+    }
+
+    private var isConnected: Bool {
+        switch route {
+        case .macHub: hubViewModel.connectionState == .connected
+        case .piDirect: piViewModel.connectionState == .connected
         }
     }
 }
