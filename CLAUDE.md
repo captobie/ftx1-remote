@@ -718,8 +718,8 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   the way, in the shared box: the indicator line reserved a fixed 14 pt,
   shorter than iPad's caption2, so a reflector appearing grew the box; it
   now reserves one hidden caption2 line. Verified: SUB's "CH 1 Pi-STAR",
-  RX/TXRX tags, the reflector, equal box heights. Not seen yet: the scan
-  display, single-receive dimming, a live C4FM caller.
+  RX/TXRX tags, the reflector, equal box heights. Confirmed on the real
+  iPad by the user the same day, all fields showing.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
