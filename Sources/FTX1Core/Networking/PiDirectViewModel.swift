@@ -76,9 +76,18 @@ public final class PiDirectViewModel: ObservableObject {
     private var lastVFOState: (hz: Int, mode: RigMode)?
     /// Baseline for `trackExternalSwap` — see `HubService`'s.
     private var lastDistinctFrequencies: (main: Int, sub: Int)?
-    /// Bumped when a swap or V/M lands, so a poll tick that straddled it
-    /// is dropped rather than published (and mistaken for a swap back).
+    /// Bumped when a swap, V/M or scan start/stop lands, so a poll tick
+    /// that straddled it is dropped rather than published (and mistaken
+    /// for a swap back, or a scan that hasn't started/stopped).
     private var commandGeneration = 0
+    /// The TX side to put back when the app stops the memory scan it
+    /// started — `HubService.txSideBeforeMemoryScan`: starting a scan moves
+    /// the rig's TX/RX side to the scanning side. nil when there's nothing
+    /// to undo, or after a scan stopped from the front panel.
+    private var txSideBeforeMemoryScan: FilterSide?
+    /// When the rig took the app's last scan start: a "stopped" read just
+    /// after may predate the rig acting on "SC" (as in `HubService`).
+    private var memoryScanStartedAt: ContinuousClock.Instant?
 
     /// The rig's programmed memory channels, read through this route's own
     /// rigctld link (attached while connected) and cached on this device —
@@ -229,7 +238,7 @@ public final class PiDirectViewModel: ObservableObject {
                 switch command {
                 case .setSubMemoryChannel, .stepSubMemoryChannel:
                     Task { @MainActor in self?.forceSlowReads = true }
-                case .swapActiveVFO, .setVFOMemoryMode:
+                case .swapActiveVFO, .setVFOMemoryMode, .setMemoryScan, .setTXSide:
                     Task { @MainActor in self?.commandApplied(command) }
                 default:
                     break
@@ -267,6 +276,8 @@ public final class PiDirectViewModel: ObservableObject {
         rigState = RigState()
         lastVFOState = nil
         lastDistinctFrequencies = nil
+        txSideBeforeMemoryScan = nil
+        memoryScanStartedAt = nil
     }
 
     public func toggleMainAudioMuted() {
@@ -368,6 +379,9 @@ public final class PiDirectViewModel: ObservableObject {
         case .refreshMemoryList:
             memoryList.refresh()
             return
+        case .setMemoryScan(let direction, let side):
+            sendMemoryScan(direction, side: side, queue: queue)
+            return
         case .setPTT(let on):
             // Only keying is gated; unkeying always goes through.
             if on, let reason = transmitBlockReason {
@@ -384,6 +398,43 @@ public final class PiDirectViewModel: ObservableObject {
         }
         applyOptimistically(command)
         Task { await queue.enqueue(command) }
+    }
+
+    /// The hub's memory-scan rules (`HubService.send(_:memoryScanStopped:)`),
+    /// minus its fast scan polling: start only in that side's Memory mode
+    /// ("SC" in VFO mode is the rig's VFO scan) and, for SUB, in dual
+    /// receive; one side at a time, since any stop stops both and "RI0"
+    /// reports one state for the whole radio; a stop puts back the TX side
+    /// the scan moved. A start on the side already scanning is a Skip.
+    /// Applied to `rigState` once the rig has taken it (`commandApplied`).
+    private func sendMemoryScan(_ direction: MemoryScanDirection, side: FilterSide, queue: CommandQueue) {
+        let active = rigState.memoryScan == .scanning || rigState.memoryScan == .paused
+        let activeSide = rigState.memoryScanSide ?? .main
+        if direction == .off {
+            let previous = txSideBeforeMemoryScan
+            txSideBeforeMemoryScan = nil
+            Task {
+                await queue.enqueue(.setMemoryScan(.off, side: active ? activeSide : side))
+                if let previous { await queue.enqueue(.setTXSide(previous)) }
+            }
+            return
+        }
+        guard rigState.canStartMemoryScan(on: side) else {
+            logger.notice("ignoring \(side.displayName, privacy: .public) memory scan outside Memory mode or in single receive")
+            return
+        }
+        // One already remembered (carried over from the other side's scan)
+        // is the original and stays.
+        if txSideBeforeMemoryScan == nil {
+            let current = rigState.txSide ?? .main
+            if current != side { txSideBeforeMemoryScan = current }
+        }
+        Task {
+            if active, activeSide != side {
+                await queue.enqueue(.setMemoryScan(.off, side: activeSide))
+            }
+            await queue.enqueue(.setMemoryScan(direction, side: side))
+        }
     }
 
     /// Shows the change at once rather than up to a poll interval later;
@@ -540,6 +591,21 @@ public final class PiDirectViewModel: ObservableObject {
                 rigState.frequencyHz = last.hz
                 rigState.mode = last.mode
             }
+        case .setMemoryScan(let direction, let side):
+            if direction == .off {
+                rigState.memoryScan = .stopped
+                memoryScanStartedAt = nil
+                // The scanning side's box was hidden: read its channel now.
+                forceSlowReads = true
+            } else {
+                rigState.memoryScan = .scanning
+                rigState.memoryScanSide = side
+                // The rig moves its TX/RX side to the scanning side.
+                rigState.txSide = side
+                memoryScanStartedAt = .now
+            }
+        case .setTXSide(let side):
+            rigState.txSide = side
         default:
             break
         }
@@ -692,10 +758,16 @@ public final class PiDirectViewModel: ObservableObject {
         // Memory mode, or while a scan was last seen running, as on the Mac.
         let scanWasActive = state.memoryScan == .scanning || state.memoryScan == .paused
         if state.vfoMemoryMode == .memory || state.subVfoMemoryMode == .memory || scanWasActive {
-            if let info = (try? await rigctld.getRadioInformation()).flatMap({ $0 }) {
+            if let info = (try? await rigctld.getRadioInformation()).flatMap({ $0 }),
+               !(info.scan == .stopped && memoryScanStartedAt.map { ContinuousClock.now - $0 < .seconds(1) } == true) {
+                if info.scan == .stopped, scanWasActive {
+                    // Stopped without the app (front panel): leave the TX
+                    // side as the rig has it, as the hub does.
+                    txSideBeforeMemoryScan = nil
+                }
                 state.memoryScan = info.scan
-                // Every scan is a front-panel one here: "SC;" reads back
-                // the side last told to scan, e.g. "SC11;".
+                // "SC;" reads back the side last told to scan, e.g.
+                // "SC11;" — also how a front-panel scan's side is learned.
                 if info.scan != .stopped,
                    let side = (try? await rigctld.getRawDigit("SC")).flatMap({ $0 }).flatMap(FilterSide.init(rawValue:)) {
                     state.memoryScanSide = side

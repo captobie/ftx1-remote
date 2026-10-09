@@ -10,9 +10,10 @@ import SwiftUI
 /// or picks a memory channel from the list (Memory mode), MAIN and SUB
 /// alike — not while the rig is scanning (see `PiDirectViewModel.send`).
 ///
-/// The top row adds, once connected, V/M (MAIN only), the Mac's swap
-/// (`SV`) and audio-channel override (speaker, orange while swapped) —
-/// the model tracks the audio parity across swaps like `HubService`.
+/// The top row adds, once connected, the memory scan (`MemoryScanButtons`),
+/// V/M (MAIN only), the Mac's swap (`SV`) and audio-channel override
+/// (speaker, orange while swapped) — the model tracks the audio parity
+/// across swaps like `HubService`.
 ///
 /// Transmit (2026-10-09): hold-to-talk `PTTButton` right of Connected,
 /// with the iPad's microphone streamed to the Pi's TX audio service, and a
@@ -191,12 +192,15 @@ struct PiDirectView: View {
             .foregroundStyle(.secondary)
     }
 
-    /// V/M, swap and audio-channel override — same as the Mac's buttons by
-    /// the VFO boxes. Swap and V/M are refused while the rig scans.
+    /// Scan/Skip, V/M, swap and audio-channel override — same as the Mac's
+    /// buttons by the VFO boxes. Swap and V/M are refused while the rig
+    /// scans; stop the scan first.
     private var rigButtons: some View {
         let state = viewModel.rigState
         let scanning = state.memoryScan == .scanning || state.memoryScan == .paused
         return HStack(spacing: 12) {
+            MemoryScanButtons(state: state, isConnected: true, send: viewModel.send)
+
             // Against `.vfo`, not `.memory`, as on the Mac: the rig's other
             // channel modes (PMS, 5 MHz band...) must exit to VFO too.
             Button {

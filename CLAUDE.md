@@ -795,6 +795,25 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   rig scans. Supersedes "no VFO swap" above. The hub screen is unchanged
   (its swap button already existed; its audio swap lives on the Mac).
 
+- **iPad memory scan (2026-10-09, rig-confirmed by the user on Pi direct
+  the same day; the hub route build-verified only)**: user request. `MemoryScanButtons` (`Apps/iPad/`) — the
+  Mac's Scan menu (Scan SUB / Scan MAIN, enabled in that side's Memory
+  mode; "Stop SUB"/"Stop MAIN" while one runs) and Skip — in both
+  screens' top rows (Pi direct: left of V/M; hub: right-aligned after
+  PTT). Hub route: sends `.setMemoryScan` over the wire and `HubService`
+  does the rest; Skip always resumes *upward* (the iPad doesn't know the
+  direction a Mac-started scan used). Pi direct: `PiDirectViewModel.
+  sendMemoryScan` ports the hub's rules — Memory mode only, one side at a
+  time (the other side's scan stopped first), the TX side the scan moved
+  remembered (`txSideBeforeMemoryScan`) and put back with "FT" after an
+  app Stop, dropped after a front-panel stop; state applied in
+  `commandApplied` (bumps `commandGeneration`), with the hub's 1 s grace
+  for a "stopped" RI0 read right after a start. Not ported: the hub's
+  250 ms scan tick, so a pause shows on the 1 s poll; tuning/swap/V/M
+  stay refused while scanning (stop first) instead of stopping the scan.
+  Seen in the Simulator: Scan SUB → rig "SC11;", "FT1;", SUB box SCANNING
+  with MAIN live, button turned into Stop SUB.
+
 ## iPad transmit audio (2026-10-09, build- and Simulator-checked; not yet on the air)
 
 Hold-to-talk PTT on both iPad screens (`PTTButton`, right of Connected and
@@ -1618,8 +1637,9 @@ then Skip and Stop Scan while one runs (shown only when they apply).
   set/step and recall stop a SUB scan. Settings commands leave it running.
 - `RigCommand.setMemoryScan(_:side:)` ("set_memory_scan", value
   `{direction, side}`) and `RigState.memoryScan`/`memoryScanSide` are on
-  the wire, so the iPad's boxes show SCANNING/SCAN PAUSED too; the iPad
-  has no scan controls yet. Windows port: see `Apps/Windows/README.md`'s
+  the wire, so the iPad's boxes show SCANNING/SCAN PAUSED too. The iPad
+  has the Scan menu + Skip in its top row since 2026-10-09 (see the
+  Pi-direct section's "iPad memory scan"). Windows port: see `Apps/Windows/README.md`'s
   "Memory scan".
 - Tested 2026-10-06 in the built app against the rig: MAIN — Scan,
   display while scanning, pause on busy channels, Skip, Scan Down (rig

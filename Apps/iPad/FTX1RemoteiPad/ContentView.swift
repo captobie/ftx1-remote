@@ -92,6 +92,8 @@ struct HubControlView: View {
                             onPress: viewModel.startTransmit,
                             onRelease: viewModel.stopTransmit
                         )
+                        Spacer()
+                        MemoryScanButtons(state: viewModel.rigState, isConnected: true, send: viewModel.send)
                     }
                 }
 
