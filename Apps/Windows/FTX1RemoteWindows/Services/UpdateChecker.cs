@@ -12,14 +12,21 @@ public sealed record UpdateInfo(Version Version, string Tag, string Name, string
 /// back its page so the user can download it — no self-install (the app is
 /// unpackaged; see the .csproj).
 ///
-/// Windows releases share the repo (captobie/ftx1-remote) with the Mac's, so
-/// they're told apart by tag: "windows-v0.8". The version number itself
-/// follows the Mac's. Drafts and pre-releases are ignored. The unauthenticated
-/// API allows 60 requests an hour per IP, far more than a launch check plus
-/// the odd button press.
+/// From 0.9 on, one release ("v0.9") carries both apps: the Mac's zip and
+/// deltas, plus the Windows zip uploaded from the PC. So a release counts as
+/// a Windows release only if it has a Windows zip attached (the Mac half goes
+/// up first, and a Windows user mustn't be sent to a page with nothing to
+/// download). 0.8 was a Windows-only release tagged "windows-v0.8"; that tag
+/// form still counts. The notes shown are only the sections whose "## "
+/// heading names Windows, when there are any. Drafts and pre-releases are
+/// ignored. The unauthenticated API allows 60 requests an hour per IP, far
+/// more than a launch check plus the odd button press.
 public static class UpdateChecker
 {
-    public const string TagPrefix = "windows-v";
+    /// Tag prefixes, longest first: "windows-v0.8" (0.8 only) and "v0.9".
+    private static readonly string[] TagPrefixes = ["windows-v", "v"];
+    private const string AssetPrefix = "FTX1Remote-Windows-";
+    private const string AssetSuffix = "-x64.zip";
     public const string ReleasesPageUrl = "https://github.com/captobie/ftx1-remote/releases";
     private const string ApiUrl = "https://api.github.com/repos/captobie/ftx1-remote/releases?per_page=50";
 
@@ -69,8 +76,7 @@ public static class UpdateChecker
                 continue;
             }
             var tag = release.GetProperty("tag_name").GetString() ?? "";
-            if (!tag.StartsWith(TagPrefix, StringComparison.OrdinalIgnoreCase)
-                || !Version.TryParse(tag[TagPrefix.Length..], out var version))
+            if (ParseTag(tag) is not { } version || !HasWindowsZip(release))
             {
                 continue;
             }
@@ -79,9 +85,63 @@ public static class UpdateChecker
                 var name = release.TryGetProperty("name", out var n) ? n.GetString() : null;
                 var body = release.TryGetProperty("body", out var b) ? b.GetString() : null;
                 newest = new UpdateInfo(version, tag, string.IsNullOrWhiteSpace(name) ? tag : name,
-                    body?.Trim() ?? "", release.GetProperty("html_url").GetString() ?? ReleasesPageUrl);
+                    WindowsNotes(body ?? ""), release.GetProperty("html_url").GetString() ?? ReleasesPageUrl);
             }
         }
         return newest is not null && newest.Version > CurrentVersion ? newest : null;
+    }
+
+    private static Version? ParseTag(string tag)
+    {
+        foreach (var prefix in TagPrefixes)
+        {
+            if (tag.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return Version.TryParse(tag[prefix.Length..], out var version) ? version : null;
+            }
+        }
+        return null;
+    }
+
+    private static bool HasWindowsZip(JsonElement release)
+    {
+        if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+        foreach (var asset in assets.EnumerateArray())
+        {
+            var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+            if (name.StartsWith(AssetPrefix, StringComparison.OrdinalIgnoreCase)
+                && name.EndsWith(AssetSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// The "## " sections of a combined release's notes whose heading names
+    /// Windows ("## Mac and Windows", "## Windows"), each up to the next "## "
+    /// heading, or the whole body if there are none.
+    private static string WindowsNotes(string body)
+    {
+        var lines = body.Replace("\r\n", "\n").Split('\n');
+        var kept = new List<string>();
+        var keeping = false;
+        var found = false;
+        foreach (var line in lines)
+        {
+            if (line.StartsWith("## ", StringComparison.Ordinal))
+            {
+                keeping = line.Contains("Windows", StringComparison.OrdinalIgnoreCase);
+                found |= keeping;
+            }
+            if (keeping)
+            {
+                kept.Add(line);
+            }
+        }
+        return (found ? string.Join('\n', kept) : body).Trim();
     }
 }

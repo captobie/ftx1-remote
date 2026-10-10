@@ -1332,10 +1332,18 @@ Apps/Windows/FTX1RemoteWindows/
 ## Updates (Settings → About, 2026-10-03)
 
 Notify-only: `Services/UpdateChecker.cs` reads the repo's GitHub Releases and
-looks for the newest non-draft, non-prerelease tag `windows-v<version>`
-(e.g. `windows-v0.8`; the Mac's `v0.x` tags are ignored). A newer one than the
+looks for the newest non-draft, non-prerelease one tagged `v<version>` or
+`windows-v<version>` **that has a `FTX1Remote-Windows-*-x64.zip` attached**.
+Since 0.9 one release (`v0.9`) carries both apps; 0.8 was a separate
+Windows-only `windows-v0.8`, and older Mac-only `v0.x` releases have no
+Windows zip, so they're skipped. Requiring the zip also covers the gap
+between the Mac half going up and the Windows zip being uploaded. Windows
+0.8 itself only looks for `windows-v` tags, so it never sees a combined
+release: 0.8 users update to 0.9 by hand once. A newer release than the
 `.csproj`'s `<Version>` (kept equal to the Mac's) shows its notes and a
-Download button that opens the release page. "Check for updates when the app
+Download button that opens the release page. Only the notes' `## ` sections
+whose heading names Windows are shown ("## Mac and Windows", "## Windows"),
+or all of them if none does. "Check for updates when the app
 starts" (default on) does the same silently at launch, with a dialog only if
 there's an update. Build-verified only; the first real Windows release
 (`windows-v0.8`) exists now, but nothing older has checked against it yet.
@@ -1368,14 +1376,17 @@ anyway"). Local mode still needs hamlib's `rigctld.exe` on the PC.
    Compress-Archive -Path C:\Tools\FTX1Remote-release\* -DestinationPath C:\Tools\FTX1Remote-Windows-<version>-x64.zip -Force
    ```
 
-4. Create the release (GitHub CLI, installed at `C:\Program Files\GitHub
-   CLI\gh.exe` on the user's PC). The tag must be `windows-v<version>`, and
-   `--latest=false` keeps the Mac's release as the repo's "Latest" (Sparkle
-   doesn't use that badge, but the releases page does):
+4. Upload the zip to the combined `v<version>` release, which the Mac half
+   creates first (the `gh release create` step `Scripts/release-mac.sh`
+   prints). GitHub CLI is at `C:\Program Files\GitHub CLI\gh.exe` on the
+   user's PC:
 
    ```powershell
-   gh release create windows-v<version> C:\Tools\FTX1Remote-Windows-<version>-x64.zip --repo captobie/ftx1-remote --target main --title "Windows <version>" --notes "..." --latest=false
+   gh release upload v<version> C:\Tools\FTX1Remote-Windows-<version>-x64.zip --repo captobie/ftx1-remote
    ```
 
-   Write the notes by hand (what changed, plus the install/SmartScreen/
-   rigctld lines from `windows-v0.8`'s notes). The update dialog shows them.
+   The release notes are shared (`releases/notes-<version>.md` on the Mac,
+   not in git): a "## Mac and Windows" section, then "## Mac" and
+   "## Windows". Keep the Windows install/SmartScreen/rigctld lines in the
+   Windows section; the update dialog shows only the sections whose heading
+   names Windows.
