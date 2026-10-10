@@ -7,7 +7,7 @@
     <RootNamespace>FTX1RemoteWindows</RootNamespace>
     <!-- Matches the Mac app's version; Settings → About shows it and the
          update check compares it with "windows-v<version>" GitHub releases. -->
-    <Version>0.8</Version>
+    <Version>0.9</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <Platforms>x64;ARM64</Platforms>
