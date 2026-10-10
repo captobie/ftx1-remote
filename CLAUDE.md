@@ -1118,6 +1118,13 @@ those targets.
   `FTX1RemoteMac-Info.plist`, which also skips Sparkle's first-run
   permission prompt; an install that already answered that prompt keeps
   its saved choice. Auto-download defaults to off.
+- **Sparkle doesn't start in Debug builds (2026-10-10)**: they share the
+  release app's bundle ID and `UserDefaults`, and every check (manual,
+  scheduled, even a delegate-vetoed one) writes `SULastCheckTime`, which
+  sets the next scheduled check 24 h later (default interval). Xcode Debug
+  runs kept resetting it, so the installed app never checked on its own
+  (user report). Check for Updates… is disabled in Debug; test the update
+  flow with a Release/exported build.
 - **Done since scaffolding, 2026-09-22** (see chat history for the full
   walkthrough): `generate_keys` run, real public key
   (`Xu1kV/OxMn0Yx53Wslwdo7zjYDUyiOqjK1a84j33YSk=`) is in

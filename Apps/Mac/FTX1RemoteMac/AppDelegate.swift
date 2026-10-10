@@ -14,11 +14,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// permission prompt); Settings → Updates (`UpdaterSettingsViewModel`)
     /// toggles it per Mac. The "Check for Updates…" menu item
     /// (`CheckForUpdatesView`) drives the same `updater` for manual checks.
+    ///
+    /// Not started in Debug builds: they share the release app's bundle ID
+    /// and so its `UserDefaults`, and every Sparkle check — manual,
+    /// scheduled, even one a delegate vetoes — writes `SULastCheckTime`,
+    /// which pushes the next scheduled check 24 h past it. A Debug build run
+    /// from Xcode (already at the newest version, so it never offers
+    /// anything) kept resetting that clock, and the installed release app
+    /// never got to check on its own. Check for Updates… is disabled in Debug.
     let updaterController = SPUStandardUpdaterController(
-        startingUpdater: true,
+        startingUpdater: !AppDelegate.isDebugBuild,
         updaterDelegate: nil,
         userDriverDelegate: nil
     )
+
+    #if DEBUG
+    private static let isDebugBuild = true
+    #else
+    private static let isDebugBuild = false
+    #endif
 
     /// Resolves which host `HubService` connects to once, at launch, per
     /// `RigctldSettings.activeConnectionMode` — switching modes takes a relaunch
