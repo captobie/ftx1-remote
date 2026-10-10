@@ -1338,8 +1338,11 @@ Since 0.9 one release (`v0.9`) carries both apps; 0.8 was a separate
 Windows-only `windows-v0.8`, and older Mac-only `v0.x` releases have no
 Windows zip, so they're skipped. Requiring the zip also covers the gap
 between the Mac half going up and the Windows zip being uploaded. Windows
-0.8 itself only looks for `windows-v` tags, so it never sees a combined
-release: 0.8 users update to 0.9 by hand once. A newer release than the
+0.8 itself only looks for `windows-v` tags, so 0.9 also has a one-time
+bridge release, `windows-v0.9` (same zip, Windows-only notes, not marked
+Latest, same commit as `v0.9`), which 0.8 finds and links to. 0.9 and later
+see it as 0.9 and ignore it. Don't make `windows-v` releases for later
+versions: from 0.9 on, the combined `v<version>` release is enough. A newer release than the
 `.csproj`'s `<Version>` (kept equal to the Mac's) shows its notes and a
 Download button that opens the release page. Only the notes' `## ` sections
 whose heading names Windows are shown ("## Mac and Windows", "## Windows"),
