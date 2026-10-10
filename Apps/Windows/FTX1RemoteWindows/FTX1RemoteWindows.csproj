@@ -6,7 +6,8 @@
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>FTX1RemoteWindows</RootNamespace>
     <!-- Matches the Mac app's version; Settings → About shows it and the
-         update check compares it with "windows-v<version>" GitHub releases. -->
+         update check compares it with the GitHub releases that carry a Windows
+         zip (combined "v<version>" since 0.9; see Services/UpdateChecker.cs). -->
     <Version>0.9</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
