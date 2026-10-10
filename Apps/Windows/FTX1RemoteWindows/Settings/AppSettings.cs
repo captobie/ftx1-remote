@@ -16,6 +16,15 @@ public enum ConnectionMode
     Local,
 }
 
+/// Which external logbook the CW window logs to and reads worked-before
+/// from (Settings → Logbook) — the Mac's LogbookSettings.Logger, which has
+/// MacLoggerDX where this has HRD Logbook (Services/HrdLogbook.cs).
+public enum LogbookKind
+{
+    None,
+    HrdLogbook,
+}
+
 /// Persists this app's settings: the connection mode, the Pi's Tailscale
 /// MagicDNS hostname for Remote (port fixed at 4532, not configurable —
 /// see Apps/Windows/README.md's "Settings" section, matching
@@ -91,6 +100,10 @@ public static class AppSettings
         public SdrPlatform WebSdrStationsTab { get; set; } = SdrPlatform.KiwiSdr;
         public bool MainMutedByWebSdr { get; set; }
         public bool CheckForUpdatesAtLaunch { get; set; } = true;
+        public LogbookKind Logbook { get; set; } = LogbookKind.None;
+        public string HrdLogPath { get; set; } = "";
+        public string HrdUdpHost { get; set; } = "";
+        public int HrdUdpPort { get; set; }
     }
 
     /// One Polling-tab value: its default and allowed range. Every getter
@@ -632,6 +645,52 @@ public static class AppSettings
         set
         {
             _cache.CheckForUpdatesAtLaunch = value;
+            Save();
+        }
+    }
+
+    // Settings → Logbook (the Mac's LogbookSettings).
+
+    public static LogbookKind Logbook
+    {
+        get => _cache.Logbook;
+        set
+        {
+            _cache.Logbook = value;
+            Save();
+        }
+    }
+
+    /// An HRD log file picked by hand; empty means "the one HRD Logbook
+    /// receives QSOs into" (HrdLogbook.DetectedLogPath).
+    public static string HrdLogPath
+    {
+        get => _cache.HrdLogPath;
+        set
+        {
+            _cache.HrdLogPath = value;
+            Save();
+        }
+    }
+
+    /// Where QSOs are sent; empty / 0 means HRD's own ADIF receiver
+    /// address and port, read from its settings (HrdLogbook.Receiver).
+    public static string HrdUdpHost
+    {
+        get => _cache.HrdUdpHost;
+        set
+        {
+            _cache.HrdUdpHost = value;
+            Save();
+        }
+    }
+
+    public static int HrdUdpPort
+    {
+        get => _cache.HrdUdpPort is >= 1 and <= 65535 ? _cache.HrdUdpPort : 0;
+        set
+        {
+            _cache.HrdUdpPort = value;
             Save();
         }
     }

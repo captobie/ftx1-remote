@@ -21,14 +21,18 @@ public sealed class CwWindowLink
     public required Func<bool?> BreakIn { get; init; }
     public required Action<bool> SetBreakIn { get; init; }
     public required Action<int> SetSpeed { get; init; }
+    /// The side the rig transmits on (SUB's with TX:SUB or split), for the
+    /// Log QSO pane; null while disconnected.
+    public required Func<CwTransmitter?> Transmitter { get; init; }
 }
 
 /// The CW window's send pane — the Mac's CWSendPane (Apps/Mac/
 /// FTX1RemoteMac/CWSendPane.swift): keyer speed, BK-IN and memory slot in
 /// the header with Macros… / Clear / Stop, the macro buttons, a log of
-/// what's queued, keying and sent, a status line, and Their call + the line
-/// to type into (Enter queues it). A macro fills the line rather than
-/// sending, so it can be edited first. Driven by <see cref="CwSender"/>.
+/// what's queued, keying and sent, a status line, and the line to type into
+/// (Enter queues it). A macro fills the line rather than sending, so it can
+/// be edited first. Their call ({CALL}) is in the Log QSO pane below, as on
+/// the Mac. Driven by <see cref="CwSender"/>.
 public sealed class CwSendPane : UserControl
 {
     private readonly CwSender _sender;
@@ -52,7 +56,6 @@ public sealed class CwSendPane : UserControl
     private readonly TextBlock _statusText = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly Button _breakInOnButton = new() { Content = "Turn On BK-IN", Padding = new Thickness(8, 2, 8, 3) };
 
-    private readonly TextBox _theirCallBox = new() { Width = 110, PlaceholderText = "Their call", CharacterCasing = CharacterCasing.Upper };
     private readonly TextBox _lineBox = new() { PlaceholderText = "Type a line and press Enter to send", FontFamily = new FontFamily("Consolas") };
     private readonly Button _sendButton = new() { Content = "Send" };
 
@@ -103,13 +106,6 @@ public sealed class CwSendPane : UserControl
         _logScroller.Background = (Brush)Application.Current.Resources["TextControlBackground"];
         _statusText.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
         RebuildLog();
-    }
-
-    /// Fills Their call — a click on a callsign in the decoded text.
-    public void FillTheirCall(string call)
-    {
-        _sender.TheirCall = call;
-        _theirCallBox.Text = call;
     }
 
     private static void Add(Grid root, FrameworkElement element, int row, bool divider)
@@ -214,21 +210,8 @@ public sealed class CwSendPane : UserControl
     private Grid BuildInputRow()
     {
         var row = new Grid { Padding = new Thickness(16, 0, 16, 10), ColumnSpacing = 8 };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-        _theirCallBox.Text = _sender.TheirCall;
-        ToolTipService.SetToolTip(_theirCallBox, "The station you're working, for {CALL} in macros. Click a callsign in the decoded text to fill it in.");
-        AutomationProperties.SetName(_theirCallBox, "Their call");
-        _theirCallBox.TextChanged += (_, _) =>
-        {
-            if (!_updating)
-            {
-                _sender.TheirCall = _theirCallBox.Text.Trim();
-            }
-        };
-        row.Children.Add(_theirCallBox);
 
         AutomationProperties.SetName(_lineBox, "Send line");
         _lineBox.KeyDown += (_, e) =>
@@ -248,12 +231,11 @@ public sealed class CwSendPane : UserControl
             }
             _sendButton.IsEnabled = _lineBox.Text.Trim().Length > 0;
         };
-        Grid.SetColumn(_lineBox, 1);
         row.Children.Add(_lineBox);
 
         _sendButton.IsEnabled = false;
         _sendButton.Click += (_, _) => Submit();
-        Grid.SetColumn(_sendButton, 2);
+        Grid.SetColumn(_sendButton, 1);
         row.Children.Add(_sendButton);
         return row;
     }
@@ -334,10 +316,6 @@ public sealed class CwSendPane : UserControl
         _updating = true;
         try
         {
-            if (_theirCallBox.Text.Trim() != _sender.TheirCall)
-            {
-                _theirCallBox.Text = _sender.TheirCall;
-            }
             if (_slotBox.SelectedIndex != _sender.Slot - 1)
             {
                 _slotBox.SelectedIndex = _sender.Slot - 1;

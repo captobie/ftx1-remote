@@ -59,6 +59,11 @@
       CWKit's Core ML model by Apps/Windows/Tools/cwnet_to_onnx.py). MIT-licensed.
     -->
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
+    <!--
+      Reads HRD Logbook's SQLite log (read-only) for worked-before in the CW
+      window — Services/HrdLogbook.cs. MIT-licensed.
+    -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
     <!--
       Audio output (WASAPI) for the Pi's :8532 stream. NAudio.Wasapi rather

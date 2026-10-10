@@ -77,6 +77,7 @@ public sealed partial class SettingsDialog : ContentDialog
         {
             _isOpen = true;
             RefreshVersions();
+            RefreshHrdStatus();
         };
         Closed += (_, _) =>
         {
@@ -98,6 +99,13 @@ public sealed partial class SettingsDialog : ContentDialog
         ConfigureNumberBox(AprsToleranceBox, AppSettings.AprsToleranceHzSetting, AppSettings.AprsToleranceHz);
         ConfigureNumberBox(AprsMaxStationsBox, AppSettings.AprsMaxStationsSetting, AppSettings.AprsMaxStations);
         ConfigureNumberBox(AprsMaxMessagesBox, AppSettings.AprsMaxMessagesSetting, AppSettings.AprsMaxMessages);
+
+        // Logbook
+        LogbookComboBox.SelectedIndex = AppSettings.Logbook == LogbookKind.HrdLogbook ? 1 : 0;
+        HrdLogPathBox.Text = AppSettings.HrdLogPath;
+        HrdHostBox.Text = AppSettings.HrdUdpHost;
+        HrdPortBox.Value = AppSettings.HrdUdpPort > 0 ? AppSettings.HrdUdpPort : double.NaN;
+        UpdateLogbookPanel();
 
         // Home Freq
         foreach (var band in HomeBand.All)
@@ -148,7 +156,7 @@ public sealed partial class SettingsDialog : ContentDialog
         var tabs = new (string Tag, UIElement Panel)[]
         {
             ("Rigctld", RigctldTab), ("Audio", AudioTab), ("C4fm", C4fmTab), ("Aprs", AprsTab),
-            ("Station", StationTab), ("Home", HomeTab), ("Polling", PollingTab), ("Appearance", AppearanceTab),
+            ("Station", StationTab), ("Logbook", LogbookTab), ("Home", HomeTab), ("Polling", PollingTab), ("Appearance", AppearanceTab),
             ("About", AboutTab),
         };
         foreach (var (t, panel) in tabs)
@@ -222,6 +230,14 @@ public sealed partial class SettingsDialog : ContentDialog
             return;
         }
 
+        var hrdHost = HrdHostBox.Text.Trim();
+        if (hrdHost.Contains(' ') || hrdHost.Contains('/'))
+        {
+            Fail("Logbook", $"\"{hrdHost}\" isn't a host name or address.");
+            args.Cancel = true;
+            return;
+        }
+
         if (ConnectionModeComboBox.IsEnabled)
         {
             AppSettings.ConnectionMode = SelectedMode;
@@ -263,6 +279,11 @@ public sealed partial class SettingsDialog : ContentDialog
         // ignores case.
         AppSettings.GridSquare = gridSquare;
         AppSettings.Callsign = CallsignBox.Text.Trim().ToUpperInvariant();
+
+        AppSettings.Logbook = SelectedLogbook;
+        AppSettings.HrdLogPath = HrdLogPathBox.Text.Trim().Trim('"');
+        AppSettings.HrdUdpHost = hrdHost;
+        AppSettings.HrdUdpPort = double.IsNaN(HrdPortBox.Value) ? 0 : (int)Math.Round(HrdPortBox.Value);
 
         AppSettings.AprsEnabled = AprsEnabledCheckBox.IsChecked == true;
         AppSettings.AprsFrequencyHz = aprsFrequencyHz;
@@ -325,6 +346,118 @@ public sealed partial class SettingsDialog : ContentDialog
         AprsClearNote.Text = AprsClearHistory
             ? "Every decoded station and message will be deleted when you Save."
             : "";
+    }
+
+    // Logbook tab.
+
+    private LogbookKind SelectedLogbook =>
+        LogbookComboBox.SelectedItem is ComboBoxItem { Tag: "HrdLogbook" } ? LogbookKind.HrdLogbook : LogbookKind.None;
+
+    private void LogbookComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        UpdateLogbookPanel();
+        RefreshHrdStatus();
+    }
+
+    private void UpdateLogbookPanel() =>
+        HrdSettingsPanel.Visibility = SelectedLogbook == LogbookKind.HrdLogbook ? Visibility.Visible : Visibility.Collapsed;
+
+    private async void BrowseHrdLogButton_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new FileOpenPicker();
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(_owner));
+        picker.FileTypeFilter.Add(".hrdsql");
+        picker.FileTypeFilter.Add("*");
+        var file = await picker.PickSingleFileAsync();
+        if (file is not null)
+        {
+            HrdLogPathBox.Text = file.Path;
+            RefreshHrdStatus();
+        }
+    }
+
+    private void UseHrdLogButton_Click(object sender, RoutedEventArgs e)
+    {
+        HrdLogPathBox.Text = "";
+        RefreshHrdStatus();
+    }
+
+    private void RefreshHrdButton_Click(object sender, RoutedEventArgs e) => RefreshHrdStatus();
+
+    private int _hrdStatusGeneration;
+
+    /// The Mac's "is MacLoggerDX running and listening" card, for HRD:
+    /// whether it's running, its ADIF receiver (from its own settings, or
+    /// the host/port typed here), and the log's QSO count. Read off the UI
+    /// thread: the log can be large and is in (OneDrive) Documents. Shows
+    /// HRD's own values as placeholders.
+    private async void RefreshHrdStatus()
+    {
+        if (SelectedLogbook != LogbookKind.HrdLogbook)
+        {
+            return;
+        }
+        var generation = ++_hrdStatusGeneration;
+        var typedPath = HrdLogPathBox.Text.Trim().Trim('"');
+        var typedHost = HrdHostBox.Text.Trim();
+        var typedPort = double.IsNaN(HrdPortBox.Value) ? 0 : (int)Math.Round(HrdPortBox.Value);
+        HrdRunningText.Text = HrdReceiverText.Text = HrdLogText.Text = "Checking…";
+        var status = await Task.Run(() =>
+        {
+            var receiver = HrdLogbook.Receiver();
+            var detectedPath = HrdLogbook.DetectedLogPath();
+            var host = typedHost.Length > 0 ? typedHost : receiver?.Address ?? "127.0.0.1";
+            var port = typedPort > 0 ? typedPort : receiver?.Port ?? 0;
+            string receiving;
+            if (port == 0)
+            {
+                receiving = "HRD's ADIF receiver port isn't set — turn it on in HRD (see above)";
+            }
+            else if (typedPort == 0 && receiver is { Enabled: false })
+            {
+                receiving = $"Off in HRD (UDP9/ADIF receive, port {port}) — turn it on (see above)";
+            }
+            else if (host is "127.0.0.1" or "localhost" or "::1")
+            {
+                receiving = HrdLogbook.IsListening(port)
+                    ? $"Listening on UDP {port} — QSOs go to {host}:{port}"
+                    : $"Nothing is listening on UDP {port} on this PC";
+            }
+            else
+            {
+                receiving = $"QSOs go to {host}:{port} (another computer; not checked)";
+            }
+            var path = typedPath.Length > 0 ? typedPath : detectedPath;
+            string log;
+            if (path is null)
+            {
+                log = HrdLogbook.UnreadableDatabaseReason() ?? "HRD's log wasn't found — choose its .hrdsql file";
+            }
+            else
+            {
+                try
+                {
+                    var (qsos, stations) = HrdLogbook.Summary(path);
+                    log = $"{qsos:N0} QSOs with {stations:N0} stations, read only\n{path}";
+                }
+                catch (HrdLogbook.LogException ex)
+                {
+                    log = $"{ex.Message}\n{path}";
+                }
+            }
+            var running = HrdLogbook.IsRunning ? "Running" : "Not running";
+            return (running, receiving, log, receiver, detectedPath);
+        });
+        if (generation != _hrdStatusGeneration)
+        {
+            return;
+        }
+        HrdRunningText.Text = status.running;
+        HrdReceiverText.Text = status.receiving;
+        HrdLogText.Text = status.log;
+        HrdLogPathBox.PlaceholderText = status.detectedPath ?? "HRD's log wasn't found";
+        HrdHostBox.PlaceholderText = status.receiver?.Address ?? "127.0.0.1";
+        HrdPortBox.PlaceholderText = status.receiver is { Port: > 0 } r ? r.Port.ToString(CultureInfo.InvariantCulture) : "";
     }
 
     // rigctld tab.

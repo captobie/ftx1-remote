@@ -1031,6 +1031,18 @@ golden file). The WebSDR window is a third CW source
 browser process tree), tested with a local CW page, not yet against a real
 WebSDR; unlike the Mac, a muted WebSDR can't be decoded (Windows has no
 mute that keeps the capture fed — user decision).
+CW window logging was ported 2026-10-09 with **HRD Logbook** (Ham Radio
+Deluxe 6.9, on the user's PC) in MacLoggerDX's place: Log QSO pane
+(`Controls/CwLogPane.cs`, Their call moved there from the send pane),
+worked-before colors, Settings → Logbook. QSOs go to HRD as plain ADIF
+text over UDP to its "UDP9/ADIF" receiver (QSO Forwarding, port 2339 on
+that PC, off by default — the user turned it on), **not** WSJT-X's binary
+protocol: HRD's 2237 listener is only its decodes (ALERT) dock and logged
+neither message type. No Lookup button (no outside route found). The log
+is SQLite (`.hrdsql`, `TABLE_HRD_CONTACTS_V07`), read-only. Tested by
+script (one TE5T QSO, logged correctly) and in the built app while
+disconnected; not yet logged from the app on the air. See the README's
+"Logbook — HRD Logbook".
 The memory scan (MAIN and SUB, Scan/Skip next to Mem List) was ported
 2026-10-06 (`MainWindow.MemoryScan.cs`, `Models/MemoryScan.cs`), with the
 same read-by-side poll fix as the Mac (the boxes traded places with TX on

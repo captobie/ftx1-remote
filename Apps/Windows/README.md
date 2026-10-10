@@ -998,8 +998,9 @@ and CLAUDE.md's "v2: CW send pane" have the rig facts this relies on):
   follows), the slot, Macros… / Clear / Stop, the macro buttons (Ctrl+1–9;
   a macro fills the send line, it doesn't send — the Mac's 2026-10-03
   decision), the log (queued, keying with chunk n/m, sent, stopped,
-  failed, and characters left out), the status line, Their call and the
-  send line (Enter queues). Text prep is the Mac's `CWText`: uppercase,
+  failed, and characters left out), the status line, and the send line
+  (Enter queues). Their call moved to the Log QSO pane (below) on
+  2026-10-09, as on the Mac. Text prep is the Mac's `CWText`: uppercase,
   `<BT>`/`<AR>`/`<KN>` → `=`/`+`/`(`, anything the keyer can't send
   dropped and listed.
 - Macros: `{MYCALL}`/`{MYGRID}` from Settings → Station (a **Callsign**
@@ -1020,6 +1021,75 @@ and CLAUDE.md's "v2: CW send pane" have the rig facts this relies on):
   dropped "É", a macro refused for an empty callsign, AGN? filling the
   line, and clicking a decoded W1AW filling Their call. Not yet on the
   rig.
+
+## Logbook — HRD Logbook (CW window Log QSO pane, 2026-10-09)
+
+The Mac's MacLoggerDX logbook (CLAUDE.md's "Logbook — MacLoggerDX"), with
+Ham Radio Deluxe's logbook in its place: a Log QSO pane at the bottom of
+the CW window, worked-before colors on the decoded callsigns, and
+Settings → **Logbook**. Everything about HRD was worked out against HRD
+Logbook 6.9.0.18083 on the user's PC, not from documentation:
+
+- **QSOs go in as ADIF text over UDP**, to HRD's ADIF receiver: Tools →
+  Configure → QSO Forwarding → "Receive QSO notifications using UDP9/ADIF
+  from other logging programs (eg. WSJT-X)" (`UDPReceiveSection9Enable` in
+  its settings; off by default, so the user has to turn it on once; it
+  listens on 127.0.0.1:2339 on that PC). One datagram = `AdifRecord.File`
+  (header, `<EOH>`, one record), the form WSJT-X's secondary "ADIF
+  broadcast" server sends. Tested with one QSO (TE5T, every field right).
+  HRD fills in the station callsign and looks the call up (name,
+  country) itself. **The Mac's WSJT-X binary route doesn't work here**:
+  HRD's UDP 2237 listener is its WSJT-X ALERT (decodes) dock, and neither a
+  "QSO Logged" nor a "Logged ADIF" message sent there was logged.
+- **No Lookup button**: unlike MacLoggerDX, HRD has no way found to be
+  asked for a lookup from outside (the 2237 dock ignores Status messages);
+  it looks the call up itself when the QSO arrives.
+- **Reading the log**: HRD's database list is in
+  `%APPDATA%\HRDLLC\HRD Logbook\LogbookDatabases*.xml` (newest file;
+  `LogbookDatabases8.xml` in 6.9); the receiver's target database
+  (`UDPTargetDB9` in `LogbookUserSettings.xml`) picks which. A "Local/
+  SQLite" log is a `.hrdsql` SQLite file (Access/MySQL/SQL Server logs
+  aren't read — the tab says so). One table, `TABLE_HRD_CONTACTS_V07` (the
+  code takes the newest `TABLE_HRD_CONTACTS_V%`): `COL_CALL`, `COL_BAND`
+  ("40m", sometimes "40M"), `COL_MODE`, `COL_FREQ` (Hz), `COL_QSO_DATE`
+  ("yyyy-MM-dd") and `COL_TIME_ON` ("HH:mm:ss.fff"), UTC; WAL journal.
+  Opened read-only and unpooled (Microsoft.Data.Sqlite), never written.
+  1,477 QSOs read in ~0.2 s.
+- `Services/HrdLogbook.cs` (settings, running/listening checks, log
+  reads), `Services/QsoLogger.cs` (send, then confirm by finding the QSO
+  in the log within 5 s, since UDP gets no reply — the Mac's flow),
+  `Services/WorkedStationsStore.cs` (index rebuilt when the log or its
+  `-wal` file changes, checked every 5 s, and after a confirmed log; owned
+  by the CW window), `Models/LoggedQso.cs` (+ `AdifMode`, `AdifRecord`),
+  `Models/WorkedStations.cs`, `Controls/CwLogPane.cs`. The models are the
+  Swift `FTX1Core/Logbook/` files translated; those stay the source of
+  truth for the rules (base call, band compare, ADIF fields).
+- **Log QSO pane** (the Mac's `CWLogPane`): Their call (still
+  `CwSender.TheirCall`, so `{CALL}` and click-to-fill are unchanged), time
+  on (set when the call goes from empty to filled; reset button), the
+  worked-before line, RST sent/rcvd (599), name, comment, the transmitting
+  side's frequency/mode/power (SUB's with TX:SUB or split — the TXRX tags'
+  rule, `MainWindow.CwTransmitterNow`), and Log QSO (Ctrl+L). Data modes
+  are refused; C4FM logs as DIGITALVOICE/C4FM. Fields clear only once the
+  QSO is found in the log.
+- **Worked-before colors**: green worked on the band the rig transmits on,
+  orange worked only on other bands (or no band known — disconnected),
+  blue never; a legend row under the decoded text. A fixed blue, not the
+  accent color, which (salmon on the user's PC) was too close to orange.
+- **Settings → Logbook**: None / Ham Radio Deluxe Logbook, the log file
+  (HRD's own by default, Browse… / Use HRD's), host/port overrides (empty
+  = HRD's receiver settings, shown as placeholders), and a status card:
+  HRD running, receiver on/listening (`GetActiveUdpListeners`), the log's
+  QSO/station counts.
+- Tested 2026-10-09: the logging route by script against the running HRD
+  (above); the models and HRD reader in a scratch harness against the
+  real log, read-only (ADIF text identical to what HRD accepted, TE5T
+  found to the second, K6NA this band/other band); in the built app,
+  disconnected: the Logbook tab's status card, Their call → time on and
+  "Worked 1× · last 2026-10-04 40m CW", the not-connected refusal, and a
+  synthesized CW recording decoded with K6NA/JJ0PKS/W1AW/0 orange and
+  JA1XYZ/ZL2AB uncolored. **Not yet done**: logging a QSO from the app
+  with the rig connected, and the green this-band case on the air.
 
 ## Recordings (the CW page's PLAY/RECORD, 2026-10-03)
 
@@ -1203,6 +1273,7 @@ Apps/Windows/FTX1RemoteWindows/
     WebSdrFavoritesDialog.cs     Manage Favorites (WebSDRFavoritesView.swift)
     CwWindow.cs                  CW window + receive pane (CWWindowView.swift)
     CwSendPane.cs                CW send pane + macro editor (CWSendPane.swift)
+    CwLogPane.cs                 CW window's Log QSO pane + worked-before colors (CWLogPane.swift)
     MemoryListWindow.cs          Mem List: memory channels with MAIN/SUB recall (MemoryListView.swift)
     RecordingsWindow.cs          the CW page's PLAY: browse/play/rename/export/delete recordings (RecordingsListView.swift)
   Models/
@@ -1219,6 +1290,8 @@ Apps/Windows/FTX1RemoteWindows/
     SdrUrls.cs                  SdrPlatform + KiwiSDR/WebSDR/OpenWebRX URL builders — SDRPlatform + the three *URLBuilder.swift
     MemoryChannelEntry.cs       one "MR"/"MT" memory channel — RigState/MemoryChannelEntry.swift
     MemoryScan.cs               MemoryScanState + the "RI0" parse — RigState/MemoryScan.swift
+    LoggedQso.cs                LoggedQso + AdifMode + AdifRecord — Logbook/LoggedQSO, ADIFMode, ADIFRecord.swift
+    WorkedStations.cs           worked-before index by base call — Logbook/WorkedStations.swift
     SdrStations.cs              KiwiSdrStation, WebSdrFavorite, Maidenhead — KiwiSDRStation/WebSDRFavorite.swift
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
@@ -1245,6 +1318,9 @@ Apps/Windows/FTX1RemoteWindows/
     CwNeuralDecoder.cs           CWKit's neural CW decoder: spectrogram, resampler, streaming CTC, ONNX model, pipeline (Neural/)
     CwReceiver.cs                CW decode worker + window state (CWReceiver.swift + CWKit's PipelineRunner)
     CwSender.cs                  CW send queue via the rig's keyer memory, CwText, macros, callsign finder (CWSender/CWCallsigns.swift)
+    HrdLogbook.cs                HRD Logbook: its settings, ADIF receiver, SQLite log reads (MacLoggerDX.swift's counterpart)
+    QsoLogger.cs                 Sends a QSO to HRD as ADIF over UDP, confirms it in the log (QSOLogger.swift)
+    WorkedStationsStore.cs       Worked-before index for the CW window (WorkedStationsStore.swift)
     WebSdrAudioTap.cs            process-loopback capture of the WebSDR window's audio for the CW window (WebSDRAudioTap.swift)
   Assets/
     CWNet.onnx                    CWKit's neural CW model, converted by ../Tools/cwnet_to_onnx.py

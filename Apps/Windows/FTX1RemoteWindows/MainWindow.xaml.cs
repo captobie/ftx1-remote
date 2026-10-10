@@ -2201,6 +2201,7 @@ public sealed partial class MainWindow : Window
                 BreakIn = () => IsConnected ? _lastState.BreakIn : null,
                 SetBreakIn = _menuGrid.SetBreakIn,
                 SetSpeed = _menuGrid.SetCwSpeed,
+                Transmitter = CwTransmitterNow,
             });
             _cwWindow.Closed += (_, _) => _cwWindow = null;
             PushRigStateToCw();
@@ -2211,6 +2212,20 @@ public sealed partial class MainWindow : Window
             }
         }
         _cwWindow.Activate();
+    }
+
+    /// The side the rig transmits on, for the CW window's Log QSO pane:
+    /// SUB's with TX:SUB or split — the TXRX tags' rule (UpdateTxRxTags),
+    /// the Mac's RigState.transmitter. Null while disconnected.
+    private CwTransmitter? CwTransmitterNow()
+    {
+        if (!IsConnected)
+        {
+            return null;
+        }
+        return _splitOn == true || _txSideSub == true
+            ? new CwTransmitter(_lastState.SecondaryFrequencyHz ?? 0, _lastState.SubMode, _lastState.SubIsC4fm == true, _lastState.PowerLevel)
+            : new CwTransmitter(_lastState.FrequencyHz, _lastState.Mode, _lastState.MainIsC4fm == true, _lastState.PowerLevel);
     }
 
     /// Why the CW send pane can't key the rig right now (the Mac's

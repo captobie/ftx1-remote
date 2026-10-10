@@ -19,11 +19,14 @@ namespace FTX1RemoteWindows.Controls;
 /// The CW window — the Mac's Tools → CW (CWWindowView.swift): the receive
 /// pane on top (MAIN/SUB + Open Audio File / Copy / Clear header, the
 /// signal status bar, the decoded text, and the tuning row: auto-tune,
-/// tone, Rig Pitch, squelch), the send pane below (<see cref="CwSendPane"/>).
+/// tone, Rig Pitch, squelch), the send pane below (<see cref="CwSendPane"/>)
+/// and the Log QSO pane at the bottom (<see cref="CwLogPane"/>).
 /// Neural or classic decoder (picker next to MAIN/SUB); the neural one's
 /// newest, not-yet-final text is shown dimmed after the committed text.
-/// Callsigns in the decoded text are links that fill the send pane's Their
-/// call (the Mac's CWCallsigns).
+/// Callsigns in the decoded text are links that fill the Log pane's Their
+/// call (the Mac's CWCallsigns), colored by worked-before from the logbook
+/// (<see cref="WorkedStationsStore"/>): green worked on the band the rig
+/// transmits on, orange worked only on other bands, the link color never.
 ///
 /// Decodes only while open, like the Mac's; the text itself lives in
 /// <see cref="CwReceiver"/> and the send queue in <see cref="CwSender"/>
@@ -34,6 +37,11 @@ public sealed class CwWindow : Window
     private readonly CwReceiver _receiver;
     private readonly CwWindowLink _link;
     private readonly CwSendPane _sendPane;
+    private readonly CwLogPane _logPane;
+    private readonly WorkedStationsStore _worked;
+    /// The band the legend's first entry names.
+    private string? _legendBand;
+    private readonly StackPanel _legend = new() { Orientation = Orientation.Horizontal, Spacing = 16, HorizontalAlignment = HorizontalAlignment.Right, Padding = new Thickness(16, 4, 16, 4) };
 
     private readonly Grid _root = new();
     private readonly Grid _receivePane = new();
@@ -112,11 +120,13 @@ public sealed class CwWindow : Window
         _link = link;
         Title = "CW";
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
-        AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(860 * scale), (int)(860 * scale)));
+        AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(860 * scale), (int)(940 * scale)));
+        _worked = new WorkedStationsStore(DispatcherQueue);
 
         _receivePane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _receivePane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _receivePane.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        _receivePane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _receivePane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         AddRow(BuildHeader(), 0, withDivider: true);
@@ -126,28 +136,42 @@ public sealed class CwWindow : Window
         textHost.Children.Add(_textScroller);
         textHost.Children.Add(_placeholder);
         AddRow(textHost, 2, withDivider: false);
-        AddRow(BuildTuningRow(), 3, withDivider: false, dividerAbove: true);
+        // The legend has its own row under the text (on the Mac an overlay
+        // covered the newest line).
+        AddRow(_legend, 3, withDivider: false);
+        AddRow(BuildTuningRow(), 4, withDivider: false, dividerAbove: true);
 
-        // Receive above send, like the Mac's VSplitView (no splitter in
-        // WinUI 3 without the Community Toolkit, so fixed proportions).
+        // Receive above send above Log QSO, like the Mac's VSplitView (no
+        // splitter in WinUI 3 without the Community Toolkit, so fixed
+        // proportions; the Log pane takes what it needs).
         _sendPane = new CwSendPane(sender, link);
+        _logPane = new CwLogPane(sender, link, _worked);
         _root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.1, GridUnitType.Star), MinHeight = 240 });
-        _root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star), MinHeight = 230 });
+        _root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star), MinHeight = 200 });
+        _root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _root.Children.Add(_receivePane);
         Grid.SetRow(_sendPane, 1);
         _root.Children.Add(_sendPane);
-        _root.Children.Add(new Rectangle
+        Grid.SetRow(_logPane, 2);
+        _root.Children.Add(_logPane);
+        for (var row = 0; row < 2; row++)
         {
-            Height = 2,
-            Fill = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"],
-            VerticalAlignment = VerticalAlignment.Bottom,
-        });
+            var divider = new Rectangle
+            {
+                Height = 2,
+                Fill = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"],
+                VerticalAlignment = VerticalAlignment.Bottom,
+            };
+            Grid.SetRow(divider, row);
+            _root.Children.Add(divider);
+        }
 
         Content = _root;
         ApplyTheme();
 
         _receiver.Changed += Refresh;
         _receiver.Error += ShowError;
+        _worked.Changed += RefreshWorked;
         _meterTimer = DispatcherQueue.CreateTimer();
         // Fast enough for the key LED to follow 30 WPM dits.
         _meterTimer.Interval = TimeSpan.FromMilliseconds(30);
@@ -160,6 +184,8 @@ public sealed class CwWindow : Window
             _receiver.Changed -= Refresh;
             _receiver.Error -= ShowError;
             _receiver.Stop();
+            _worked.Changed -= RefreshWorked;
+            _worked.Dispose();
         };
         Refresh();
         UpdateMeters();
@@ -178,6 +204,8 @@ public sealed class CwWindow : Window
             readout.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
         }
         _sendPane.ApplyTheme();
+        _logPane.ApplyTheme();
+        RefreshWorked();
         _shownMeters = null;
         UpdateMeters();
     }
@@ -364,6 +392,7 @@ public sealed class CwWindow : Window
                 }
             }
             _placeholder.Visibility = text.Length == 0 && tentative.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            UpdateLegend();
             _copyButton.IsEnabled = _clearButton.IsEnabled = text.Length > 0;
             _openButton.IsEnabled = !_receiver.IsDecodingFile;
 
@@ -467,14 +496,51 @@ public sealed class CwWindow : Window
             var call = segment.Substring(start, length);
             var link = new Hyperlink { UnderlineStyle = UnderlineStyle.Single };
             link.Inlines.Add(new Run { Text = call });
+            link.Foreground = CwLogPane.WorkedBrush(_worked.Worked.StatusOf(call, _worked.Band)) ?? CwLogPane.NewStationBrush;
             ToolTipService.SetToolTip(link, $"Use {call} as Their call");
-            link.Click += (_, _) => _sendPane.FillTheirCall(call);
+            link.Click += (_, _) => _logPane.FillTheirCall(call);
             inlines.Add(link);
             position = start + length;
         }
         if (position < segment.Length)
         {
             inlines.Add(new Run { Text = segment[position..] });
+        }
+    }
+
+    /// The worked-before index or the transmitting band changed: the
+    /// callsigns' colors are set as they're rendered, so the text renders
+    /// again from scratch.
+    private void RefreshWorked()
+    {
+        _shownText = "";
+        RenderText(_receiver.DecodedText, _receiver.TentativeText);
+        // Rebuilt every time: this also runs after a theme change.
+        UpdateLegend(rebuild: true);
+    }
+
+    /// Key to the decoded callsigns' colors, shown once there's text and the
+    /// log could be read.
+    private void UpdateLegend(bool rebuild = false)
+    {
+        _legend.Visibility = _worked.Problem is null && _receiver.DecodedText.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (!rebuild && _legend.Children.Count > 0 && _legendBand == _worked.Band)
+        {
+            return;
+        }
+        _legendBand = _worked.Band;
+        _legend.Children.Clear();
+        foreach (var (brush, title) in new[]
+                 {
+                     (CwLogPane.WorkedBrush(WorkedStations.Status.ThisBand)!, $"Worked on {_worked.Band ?? "this band"}"),
+                     (CwLogPane.WorkedBrush(WorkedStations.Status.OtherBand)!, "Worked, other band"),
+                     (CwLogPane.NewStationBrush, "New"),
+                 })
+        {
+            var entry = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+            entry.Children.Add(new Ellipse { Width = 8, Height = 8, Fill = brush, VerticalAlignment = VerticalAlignment.Center });
+            entry.Children.Add(new TextBlock { Text = title, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
+            _legend.Children.Add(entry);
         }
     }
 
