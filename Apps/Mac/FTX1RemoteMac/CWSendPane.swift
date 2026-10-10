@@ -251,7 +251,7 @@ private struct CWSendRow: View {
                 Image(systemName: symbol)
                     .foregroundStyle(color)
                     .frame(width: 16)
-                Text(item.text)
+                Text(item.displayText)
                     .font(.system(size: 16, design: .monospaced))
                     .foregroundStyle(item.state == .queued || item.state == .stopped ? .secondary : .primary)
                     .textSelection(.enabled)

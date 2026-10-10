@@ -248,6 +248,9 @@ struct CWSendItem: Identifiable, Equatable {
     let id = UUID()
     /// What will be keyed, after `CWText.prepare`.
     let text: String
+    /// `text` with prosigns written the way they're typed (`<BT>`, not
+    /// `=`), for the log.
+    var displayText: String { CWText.display(text) }
     let chunks: [String]
     /// Characters left out because the keyer can't send them.
     let dropped: String
@@ -299,6 +302,21 @@ enum CWText {
     static let prosigns: [String: String] = ["<BT>": "=", "<AR>": "+", "<KN>": "("]
 
     static let memoryLength = 50
+
+    /// Keyed text with the prosign characters written back in angle
+    /// brackets, for display. A typed "=" also shows as <BT> — it's the
+    /// same character on the air.
+    static func display(_ keyed: String) -> String {
+        var text = ""
+        for character in keyed {
+            if let prosign = prosigns.first(where: { $0.value == String(character) })?.key {
+                text += prosign
+            } else {
+                text.append(character)
+            }
+        }
+        return text
+    }
 
     /// Uppercased, prosigns mapped, other characters dropped, whitespace
     /// collapsed. `dropped` lists what was removed, for the pane to show.
