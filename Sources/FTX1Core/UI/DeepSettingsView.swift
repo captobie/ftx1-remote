@@ -1,4 +1,3 @@
-import FTX1Core
 import SwiftUI
 
 /// One of the FTX-1's deep SET-mode settings screens (Radio/CW/Operation/
@@ -9,16 +8,23 @@ import SwiftUI
 /// side, the selected tab's items (P3) as rows, each row's editor picked
 /// from the item's `DeepSettingValueType`. `p1s` is normally one category,
 /// except APRS Setting, whose physical button fans out to three Table 3
-/// categories (`p1` 6-8) sharing one screen.
-struct DeepSettingsView: View {
+/// categories (`p1` 6-8) sharing one screen. Generic over `RigController`
+/// like `MenuPageView`, which presents it: values come from the
+/// controller's `readMenuItem`, writes go out as `.setMenuItem`.
+public struct DeepSettingsView<Controller: RigController>: View {
     let title: String
     let p1s: [Int]
 
-    @EnvironmentObject private var hub: HubService
+    @EnvironmentObject private var hub: Controller
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTabID: String?
     @State private var rawValues: [String: String] = [:]
     @State private var isLoading = false
+
+    public init(title: String, p1s: [Int]) {
+        self.title = title
+        self.p1s = p1s
+    }
 
     private struct Tab: Identifiable, Hashable {
         let p1: Int
@@ -40,7 +46,7 @@ struct DeepSettingsView: View {
         return DeepSettingsCatalog.items(forP1: selectedTab.p1).filter { $0.p2 == selectedTab.p2 }
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationSplitView {
             List(tabs, selection: $selectedTabID) { tab in
                 Text(tab.name).tag(tab.id)
@@ -76,14 +82,17 @@ struct DeepSettingsView: View {
                 Button("Done") { dismiss() }
             }
         }
+        #if os(macOS)
         .frame(minWidth: 560, minHeight: 420)
+        #endif
         .onAppear {
             if selectedTabID == nil { selectedTabID = tabs.first?.id }
         }
     }
 
     /// Fetches only the visible tab's items, concurrently — `RigctldClient`'s
-    /// round-trip lock already serializes these safely even issued at once,
+    /// round-trip lock already serializes these safely even issued at once
+    /// (and the hub route's replies come back as they're read),
     /// and a tab can hold 15-20 items at the project's confirmed ~1-2s
     /// per-round-trip latency, so sequential reads would be slow to feel
     /// responsive.
@@ -94,7 +103,7 @@ struct DeepSettingsView: View {
         defer { isLoading = false }
         await withTaskGroup(of: (String, String?).self) { group in
             for item in items {
-                group.addTask {
+                group.addTask { @MainActor in
                     (item.id, await hub.readMenuItem(p1: item.p1, p2: item.p2, p3: item.p3))
                 }
             }

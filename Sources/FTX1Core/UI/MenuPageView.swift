@@ -144,7 +144,8 @@ public struct MenuPageView<Controller: RigController>: View {
             }
         }
         .sheet(item: $activeDeepSettings) { destination in
-            hub.deepSettingsDestination(title: destination.title, p1s: destination.p1s)
+            DeepSettingsView<Controller>(title: destination.title, p1s: destination.p1s)
+                .environmentObject(hub)
         }
     }
 
@@ -213,9 +214,7 @@ public struct MenuPageView<Controller: RigController>: View {
     /// getMenuItem` passthrough Deep Settings uses, just for this one fixed
     /// address rather than the on-demand per-item read `DeepSettingsView`
     /// needs — `HubService`'s regular poll loop reads it like every other
-    /// field here, so this doesn't need the wire-protocol request/response
-    /// addition that gates Deep Settings on mobile (see the Architecture
-    /// note in CLAUDE.md). Button 21 is TXW (`RigCommand.setTXW`, raw "TS"
+    /// field here. Button 21 is TXW (`RigCommand.setTXW`, raw "TS"
     /// command — unlike most booleans here, "TS" has no MAIN/SUB P1
     /// selector at all, just a bare digit) — hardware-confirmed working,
     /// but visible-but-disabled via `disabledTXWButton` since the user
@@ -569,9 +568,8 @@ public struct MenuPageView<Controller: RigController>: View {
     /// category — unlike every other button on this grid, none of these
     /// needs its own `@State` popover flag, since they all share
     /// `activeDeepSettings`. Only meaningful when `hub.supportsDeepSettings`
-    /// (currently the Mac's `HubService` only — see `RigController`); other
-    /// controllers get a disabled placeholder instead of a sheet that would
-    /// open to a screen of blank rows.
+    /// (see `RigController`); other controllers get a disabled placeholder
+    /// instead of a sheet that would open to a screen of blank rows.
     @ViewBuilder
     private func deepSettingsButton(top: String, bottom: String, title: String, p1s: [Int]) -> some View {
         if hub.supportsDeepSettings {

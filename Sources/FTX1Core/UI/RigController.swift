@@ -10,28 +10,23 @@ public protocol RigController: ObservableObject {
     var rigState: RigState { get }
     func send(_ command: RigCommand)
 
-    /// Whether this controller can open Deep Settings screens. Requires a
-    /// per-item read capability that only the Mac's direct rigctld link has
-    /// today (`HubService.readMenuItem`) — the WebSocket wire protocol has
-    /// no request/response mechanism for a remote client to fetch a Deep
-    /// Settings item's current value, only fire-and-forget commands and
-    /// one-way state pushes. Defaults to `false`.
+    /// Whether this controller can open Deep Settings screens
+    /// (`DeepSettingsView`): it needs `readMenuItem` to show each item's
+    /// current value. Defaults to `false`, which leaves the MENU grid's six
+    /// Deep Settings buttons as disabled placeholders.
     var supportsDeepSettings: Bool { get }
 
-    /// Type-erased Deep Settings destination for the given category, or
-    /// `nil` if unsupported. Type-erased because the concrete destination
-    /// view (`DeepSettingsView`) lives in the Mac app target, which this
-    /// shared package can't import — only `HubService`'s conformance
-    /// builds a real one.
-    func deepSettingsDestination(title: String, p1s: [Int]) -> AnyView?
+    /// Reads one Deep Settings item's raw P4 value (the "EX" read, see
+    /// `RigctldClient.getMenuItem`), or nil if it couldn't be read. Called
+    /// only while a Deep Settings tab is open, for that tab's items.
+    func readMenuItem(p1: Int, p2: Int, p3: Int) async -> String?
 
     /// Whether this controller can decode APRS traffic (S.LIST/M.LIST on
     /// the FM menu page). Requires the Mac's audio-derived decode pipeline
     /// (`AudioCaptureEngine` + `APRSDecoder`) — mobile clients have no
     /// audio input to decode and never will via the WebSocket wire
-    /// protocol (same reasoning as `supportsDeepSettings`: this is an
-    /// intrinsically Mac-only capability, not a missing wire-protocol
-    /// message). Defaults to `false`.
+    /// protocol (an intrinsically Mac-only capability, not a missing
+    /// wire-protocol message). Defaults to `false`.
     var supportsAPRSDecoding: Bool { get }
 
     /// Whether this controller can record/play back its own audio output
@@ -52,7 +47,7 @@ public protocol RigController: ObservableObject {
 
 public extension RigController {
     var supportsDeepSettings: Bool { false }
-    func deepSettingsDestination(title: String, p1s: [Int]) -> AnyView? { nil }
+    func readMenuItem(p1: Int, p2: Int, p3: Int) async -> String? { nil }
     var supportsAPRSDecoding: Bool { false }
     var supportsAudioRecording: Bool { false }
     var isAudioRecording: Bool { false }
