@@ -36,6 +36,12 @@ public final class RigClientViewModel: ObservableObject, RigController {
     /// Mac side.
     public let subAudioEngine = AudioPlaybackEngine()
 
+    /// The Filter Function Display's spectrum, computed here from the same
+    /// relayed audio (before the mute/transmit checks) — see
+    /// `FilterSpectrumStore`. Its own object so the per-chunk updates
+    /// re-render only the display.
+    public let filterSpectrum = FilterSpectrumStore()
+
     /// Mirrors `HubService.isMainAudioMuted`/`isSubAudioMuted` on the Mac —
     /// same shape (`private(set)` + an explicit toggle method, since this
     /// is a discrete action rather than a continuously-adjustable value
@@ -79,7 +85,11 @@ public final class RigClientViewModel: ObservableObject, RigController {
 
         Task {
             await client.setOnStateUpdate { [weak self] state in
-                Task { @MainActor in self?.rigState = state }
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.rigState = state
+                    self.filterSpectrum.selectedSide = state.activeFilterSide
+                }
             }
             // Not just a one-shot read after connect(): the client can
             // transition later on its own (e.g. its heartbeat detecting a
@@ -94,13 +104,17 @@ public final class RigClientViewModel: ObservableObject, RigController {
             }
             await client.setOnAudioData { [weak self] data in
                 Task { @MainActor [weak self] in
-                    guard let self, !self.isMainAudioMuted, !self.isTransmitting else { return }
+                    guard let self else { return }
+                    self.filterSpectrum.ingest(pcm: data, side: .main)
+                    guard !self.isMainAudioMuted, !self.isTransmitting else { return }
                     self.audioEngine.push(pcm: data)
                 }
             }
             await client.setOnSubAudioData { [weak self] data in
                 Task { @MainActor [weak self] in
-                    guard let self, !self.isSubAudioMuted, !self.isTransmitting else { return }
+                    guard let self else { return }
+                    self.filterSpectrum.ingest(pcm: data, side: .sub)
+                    guard !self.isSubAudioMuted, !self.isTransmitting else { return }
                     self.subAudioEngine.push(pcm: data)
                 }
             }
@@ -126,6 +140,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
         self.client = nil
         connectionState = .disconnected
         memoryList = nil
+        filterSpectrum.reset()
         audioEngine.stop()
         subAudioEngine.stop()
     }

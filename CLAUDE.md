@@ -859,18 +859,29 @@ each committed on its own:
    wire change: every filter command and field already crossed the
    WebSocket. `RigClientViewModel` doesn't apply optimistically, so a
    released SHIFT slider may snap back until the hub's next push.
-2. **Spectrum (next)**: an FFT on the iPad of the 8 kHz audio it already
-   gets (0–4 kHz is exactly the display's span; ~512-point FFT ≈ the Mac's
-   resolution) — no waterfall/scope, no spectrum on/off switch (user
-   decision). Move `AudioCaptureEngine`'s `fftPowerDb`/
-   `normalizedSpectrum`/auto-gain into `FTX1Core`; tap the selected
-   side's samples *before* the mute check; run only while shown; own
-   small store observed by the display only.
+2. **Spectrum (done 2026-10-11; rig-tested by the user on the hub route:
+   spectrum under the passband, MAIN/SUB switch, muted side still shown,
+   rotation, Mac waterfall/display unchanged)**: no waterfall/scope and
+   no on/off switch (user decision). `FilterSpectrumStore`
+   (`FTX1Core/Audio/`) runs a 512-point FFT over the last 512 samples of
+   the 8 kHz relay audio on every chunk (~21/s, 15.6 Hz bins; 8 kHz is
+   exactly the display's 0–4 kHz span), selected filter side only, reset
+   on a side switch, only while `FilterPanel` is on screen (enabled on the
+   panel, not the display — each `ViewThatFits` layout has its own
+   display, and on rotation the new one can appear before the old one
+   disappears). `RigClientViewModel` feeds it *before* the mute/transmit
+   checks. The FFT/auto-gain/0–4 kHz code moved out of the Mac's
+   `AudioCaptureEngine` into `FTX1Core/Audio/FilterSpectrum.swift`
+   (`SpectrumFFT`, `SpectrumAutoGain`, `FilterSpectrum`; same constants,
+   now used by both). `SpectrumFFT` scales dB to the 2048-point level, so
+   the auto-gain's −70 dB floor means the same at 512 points (else ~12 dB
+   lower). Unit-tested in `FilterSpectrumTests`.
 3. **Pi direct**: move `HubService`'s `readFilterState`/
    `applyFilterSnapshot`/`clearFilterFields`/`refreshFilterState` into
    `FTX1Core`, accept the filter commands in `PiDirectViewModel`, re-read
-   on a side switch/swap/NAR write, poll the reads round-robin, feed the
-   spectrum from the downsampled Pi audio.
+   on a side switch/swap/NAR write, poll the reads round-robin, and give
+   it its own `FilterSpectrumStore` fed from the downsampled Pi audio
+   (before its mute checks).
 
 ## iPad transmit audio (2026-10-09, build- and Simulator-checked; not yet on the air)
 

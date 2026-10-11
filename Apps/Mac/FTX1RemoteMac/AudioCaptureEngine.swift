@@ -101,23 +101,17 @@ final class AudioCaptureEngine {
     // quieter reads as flat/empty, anything louder clips. Peak-hold-and-
     // decay (jump up instantly, relax back down gradually) keeps both
     // displays using their full visual range without flickering frame to
-    // frame on ordinary level variation.
-    private let waterfallDynamicRangeDb: Float = 45
-    private let waterfallHeadroomDb: Float = 3
-    private let waterfallPeakDecayPerFrameDb: Float = 0.5
-    private let waterfallMinimumPeakDb: Float = -70
+    // frame on ordinary level variation. The waterfall/spectrum side is the
+    // shared `SpectrumAutoGain` (FTX1Core, also the iPad's filter display);
+    // the oscilloscope's amplitude constants are here.
     private let oscilloscopeMinimumPeakAmplitude: Float = 0.02
     private let oscilloscopePeakDecayPerFrame: Float = 0.002
 
     private let engine = AVAudioEngine()
-    /// `nonisolated(unsafe)` — read only from `process(buffer:bitmap:gain:)`
-    /// / `process(samples:sampleRate:bitmap:gain:)`, which are themselves
-    /// `nonisolated` (see their doc comments), never touched anywhere else
-    /// after `init`. Safe without a lock: it's immutable once set, and
-    /// `process()` never runs concurrently with itself (`.local`/`.remote`
-    /// are mutually exclusive per launch — see `start(deviceUID:)`).
-    nonisolated(unsafe) private let fftSetup: FFTSetup
-    private let log2n: vDSP_Length
+    /// The window/FFT/dB step (FTX1Core, shared with the iPad's filter
+    /// display). Immutable and `Sendable`, so the `nonisolated` audio path
+    /// can use it directly.
+    nonisolated private let fft: SpectrumFFT
     private var isRunning = false
     /// The caller's most recent intent, set synchronously in `start()`/
     /// `stop()` — distinct from `isRunning` because granting microphone
@@ -159,13 +153,8 @@ final class AudioCaptureEngine {
     nonisolated(unsafe) private let subGain: AutoGainState
 
     init() {
-        log2n = vDSP_Length(log2(Double(fftSize)))
-        fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2))!
-        subGain = AutoGainState(minimumPeakDb: waterfallMinimumPeakDb, minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
-    }
-
-    deinit {
-        vDSP_destroy_fftsetup(fftSetup)
+        fft = SpectrumFFT(size: fftSize)
+        subGain = AutoGainState(minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
     }
 
     /// `deviceUID` is `AudioInputSettings.deviceUID` — empty means "system
@@ -222,7 +211,7 @@ final class AudioCaptureEngine {
     private func beginRemoteCapture() {
         Self.logger.notice("beginRemoteCapture() — host=\(RigctldSettings.activeRemoteHost, privacy: .public)")
         let bitmap = WaterfallBitmap(binCount: binCount, historyRows: historyRows)
-        let gain = AutoGainState(minimumPeakDb: waterfallMinimumPeakDb, minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
+        let gain = AutoGainState(minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
         // `RemoteAudioStreamClient` delivers genuinely separate Main (left)
         // and Sub (right) channels — see its own doc comment. `main` feeds
         // the same process(samples:sampleRate:bitmap:gain:) entry point the
@@ -385,7 +374,7 @@ final class AudioCaptureEngine {
         // no property shared across both that would need its own
         // synchronization.
         let bitmap = WaterfallBitmap(binCount: binCount, historyRows: historyRows)
-        let gain = AutoGainState(minimumPeakDb: waterfallMinimumPeakDb, minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
+        let gain = AutoGainState(minimumPeakAmplitude: oscilloscopeMinimumPeakAmplitude)
 
         inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(fftSize), format: tapFormat) { [weak self] buffer, _ in
             self?.process(buffer: buffer, bitmap: bitmap, gain: gain)
@@ -503,59 +492,6 @@ final class AudioCaptureEngine {
         process(samples: mainSamples, sampleRate: buffer.format.sampleRate, bitmap: bitmap, gain: gain)
     }
 
-    /// Window + FFT + power→dB of exactly `fftSize` samples (the bins up to
-    /// Nyquist, `fftSize / 2` of them). Shared by Main's `process(samples:…)`
-    /// and the Sub-channel filter spectrum so the two can't drift apart.
-    /// All vDSP — this runs 21+ times a second, and the Debug build is
-    /// `-Onone` (see repo CLAUDE.md on per-sample Swift in hot paths).
-    nonisolated private func fftPowerDb(_ samples: [Float]) -> [Float] {
-        var window = [Float](repeating: 0, count: fftSize)
-        vDSP_hann_window(&window, vDSP_Length(fftSize), Int32(vDSP_HANN_NORM))
-        var windowed = [Float](repeating: 0, count: fftSize)
-        vDSP_vmul(samples, 1, window, 1, &windowed, 1, vDSP_Length(fftSize))
-
-        let halfSize = fftSize / 2
-        var realp = [Float](repeating: 0, count: halfSize)
-        var imagp = [Float](repeating: 0, count: halfSize)
-        var magnitudes = [Float](repeating: 0, count: halfSize)
-
-        realp.withUnsafeMutableBufferPointer { realPtr in
-            imagp.withUnsafeMutableBufferPointer { imagPtr in
-                var splitComplex = DSPSplitComplex(realp: realPtr.baseAddress!, imagp: imagPtr.baseAddress!)
-                windowed.withUnsafeBufferPointer { srcPtr in
-                    srcPtr.baseAddress!.withMemoryRebound(to: DSPComplex.self, capacity: halfSize) { complexPtr in
-                        vDSP_ctoz(complexPtr, 2, &splitComplex, 1, vDSP_Length(halfSize))
-                    }
-                }
-                vDSP_fft_zrip(fftSetup, &splitComplex, 1, log2n, FFTDirection(FFT_FORWARD))
-                vDSP_zvmags(&splitComplex, 1, &magnitudes, 1, vDSP_Length(halfSize))
-            }
-        }
-
-        // Power -> dB (vDSP_vdbcon flag 1 = 10*log10, since zvmags already
-        // produced squared-magnitude/power values, not amplitude).
-        var reference: Float = 1
-        var db = [Float](repeating: 0, count: halfSize)
-        vDSP_vdbcon(magnitudes, 1, &reference, &db, 1, vDSP_Length(halfSize), 1)
-        return db
-    }
-
-    /// The Filter Function Display's spectrum: the raw dB bins up to 4 kHz
-    /// (its fixed span — ~186 bins at 44.1 kHz), clipped to the given
-    /// floor/ceiling window and normalized 0…1. Shared by Main and Sub.
-    nonisolated private func normalizedSpectrum(db: [Float], floorDb: Float, ceilingDb: Float, sampleRate: Double) -> [Float] {
-        let spectrumBins = min(db.count, Int(4000 / (sampleRate / Double(fftSize))))
-        var spectrum = [Float](repeating: 0, count: spectrumBins)
-        var floorClip = floorDb
-        var ceilingClip = ceilingDb
-        vDSP_vclip(db, 1, &floorClip, &ceilingClip, &spectrum, 1, vDSP_Length(spectrumBins))
-        var negFloor = -floorDb
-        vDSP_vsadd(spectrum, 1, &negFloor, &spectrum, 1, vDSP_Length(spectrumBins))
-        var invRange = 1 / max(ceilingDb - floorDb, 1e-6)
-        vDSP_vsmul(spectrum, 1, &invRange, &spectrum, 1, vDSP_Length(spectrumBins))
-        return spectrum
-    }
-
     /// Computes the Sub channel's normalized spectrum with its own auto-gain
     /// and hands it to `onSubSpectrum` on the main actor. Chunks shorter
     /// than `fftSize` are zero-padded, longer ones truncated — the same as
@@ -569,12 +505,9 @@ final class AudioCaptureEngine {
                 dest.baseAddress!.update(from: src.baseAddress!, count: copyCount)
             }
         }
-        let db = fftPowerDb(samples)
-        let frameMaxDb = db.max() ?? waterfallMinimumPeakDb
-        subGain.peakDb = max(waterfallMinimumPeakDb, max(frameMaxDb, subGain.peakDb - waterfallPeakDecayPerFrameDb))
-        let ceilingDb = subGain.peakDb + waterfallHeadroomDb
-        let floorDb = ceilingDb - waterfallDynamicRangeDb / waterfallZoom.get()
-        let spectrum = normalizedSpectrum(db: db, floorDb: floorDb, ceilingDb: ceilingDb, sampleRate: sampleRate)
+        let db = fft.powerDb(samples)
+        let window = subGain.spectrum.update(db: db, zoom: waterfallZoom.get())
+        let spectrum = FilterSpectrum.normalized(db: db, floorDb: window.floorDb, ceilingDb: window.ceilingDb, binHz: fft.binHz(sampleRate: sampleRate))
         Task { @MainActor [weak self] in
             self?.onSubSpectrum?(spectrum)
         }
@@ -609,24 +542,21 @@ final class AudioCaptureEngine {
         }
 
         let halfSize = fftSize / 2
-        let db = fftPowerDb(samples)
+        let db = fft.powerDb(samples)
 
-        // Auto-gain: jump the tracked peak up to this frame's loudest bin
-        // immediately, or let it decay down by one step — never below the
-        // configured minimum, so near-silence doesn't drag the ceiling down
-        // to the noise floor and light up the whole palette.
-        let frameMaxDb = db.max() ?? waterfallMinimumPeakDb
-        gain.peakDb = max(waterfallMinimumPeakDb, max(frameMaxDb, gain.peakDb - waterfallPeakDecayPerFrameDb))
-        let ceilingDb = gain.peakDb + waterfallHeadroomDb
+        // Auto-gain (`SpectrumAutoGain`): jump the tracked peak up to this
+        // frame's loudest bin immediately, or let it decay down by one step
+        // — never below its minimum, so near-silence doesn't drag the
+        // ceiling down to the noise floor and light up the whole palette.
         // Manual zoom narrows (zoom in) or widens (zoom out) the dB span
         // mapped to the color gradient, on top of the auto-gain ceiling.
-        let floorDb = ceilingDb - waterfallDynamicRangeDb / waterfallZoom.get()
+        let (floorDb, ceilingDb) = gain.spectrum.update(db: db, zoom: waterfallZoom.get())
 
         // Filter-display spectrum: the raw bins up to 4 kHz (the display's
         // fixed span — ~186 bins at 44.1 kHz), clipped to the same
         // floor/ceiling window and normalized 0…1, all in vDSP so the
         // Debug build pays nothing per bin (see CLAUDE.md on -Onone).
-        let spectrum = normalizedSpectrum(db: db, floorDb: floorDb, ceilingDb: ceilingDb, sampleRate: sampleRate)
+        let spectrum = FilterSpectrum.normalized(db: db, floorDb: floorDb, ceilingDb: ceilingDb, binHz: fft.binHz(sampleRate: sampleRate))
 
         // Bucket the raw FFT bins down to binCount display columns, taking
         // each bucket's peak so brief narrow-band signals don't disappear
@@ -669,11 +599,10 @@ final class AudioCaptureEngine {
 /// letting it default to the target's MainActor isolation would be
 /// actively wrong, not just unnecessary.
 private final class AutoGainState {
-    nonisolated(unsafe) var peakDb: Float
+    nonisolated(unsafe) var spectrum = SpectrumAutoGain()
     nonisolated(unsafe) var peakAmplitude: Float
 
-    nonisolated init(minimumPeakDb: Float, minimumPeakAmplitude: Float) {
-        peakDb = minimumPeakDb
+    nonisolated init(minimumPeakAmplitude: Float) {
         peakAmplitude = minimumPeakAmplitude
     }
 }

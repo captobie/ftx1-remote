@@ -10,15 +10,16 @@ import SwiftUI
 /// it — the hub screen drives it with `RigClientViewModel`, whose commands
 /// and filter state already cross the WebSocket.
 ///
-/// `spectrum` is the display's audio overlay, 0…1 per bin over 0–4 kHz;
-/// `[]` draws the passband shape alone.
+/// `spectrumStore` is the display's audio overlay, computed on the iPad
+/// from the receive audio it already gets (`FilterSpectrumStore`); the
+/// display turns it on only while it's on screen.
 ///
 /// Picked by `ViewThatFits`, widest first: the Mac's arrangement (both
 /// control rows, then selector + display) in landscape; in portrait the
 /// selector + display with WIDTH and SHIFT stacked beside them and the
 /// second row underneath; failing that, everything stacked.
 struct FilterPanel<Controller: RigController>: View {
-    let spectrum: [Float]
+    let spectrumStore: FilterSpectrumStore
     let isActive: Bool
 
     var body: some View {
@@ -45,6 +46,11 @@ struct FilterPanel<Controller: RigController>: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Out here, not on the display: each `ViewThatFits` layout has its
+        // own display, and on rotation the new one can appear before the
+        // old one disappears.
+        .onAppear { spectrumStore.isEnabled = true }
+        .onDisappear { spectrumStore.isEnabled = false }
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1)
@@ -74,22 +80,23 @@ struct FilterPanel<Controller: RigController>: View {
     private var sideAndDisplay: some View {
         HStack(spacing: 12) {
             FilterSideSelector<Controller>()
-            FilterDisplayHostView<Controller>(spectrum: spectrum, isActive: isActive)
+            FilterDisplayHostView<Controller>(spectrumStore: spectrumStore, isActive: isActive)
         }
     }
 }
 
-/// Builds the display's `FilterPassbandModel` from the controller's state.
-/// Its own view so only it and the controls re-read `rigState`.
+/// Builds the display's `FilterPassbandModel` from the controller's state
+/// and draws the spectrum over it. The only view observing
+/// `spectrumStore`, so its ~21 updates a second re-render nothing else.
 private struct FilterDisplayHostView<Controller: RigController>: View {
     @EnvironmentObject private var hub: Controller
-    let spectrum: [Float]
+    @ObservedObject var spectrumStore: FilterSpectrumStore
     let isActive: Bool
 
     var body: some View {
         FilterDisplayView(
             model: FilterPassbandModel(state: hub.rigState),
-            spectrum: isActive ? spectrum : [],
+            spectrum: isActive ? spectrumStore.spectrum : [],
             isActive: isActive
         )
     }
