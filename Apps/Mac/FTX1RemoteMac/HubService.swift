@@ -436,6 +436,7 @@ final class HubService: ObservableObject {
         }
         audioCapture.setDisplayEnabled(ScopeDisplayMode.persisted != .off)
         audioCapture.setChannelsSwapped(audioChannelsSwapped)
+        rigState.audioChannelsSwapped = audioChannelsSwapped
         audioCapture.onAudioSamples = { [weak self] samples, sampleRate in
             guard let self else { return }
 
@@ -844,6 +845,12 @@ final class HubService: ObservableObject {
             Self.connectionLogger.notice("Blocked transmit-capable command (outside amateur band): \(String(describing: command), privacy: .public)")
             return
         }
+        if case .setAudioChannelsSwapped(let swapped) = command {
+            // From a client (the iPad hub screen's speaker button): same as
+            // this window's audio-channel override.
+            setAudioChannelsSwapped(swapped, reason: "manual toggle from a client")
+            return
+        }
         if case .refreshMemoryList = command {
             // From a client (the iPad's channel list): same as the memory
             // list window's Refresh. Nothing to send to the rig as such.
@@ -1062,7 +1069,7 @@ final class HubService: ObservableObject {
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel,
              .setSubMemoryChannel, .stepSubMemoryChannel, .recallMemoryChannel, .setMemoryScan,
-             .refreshMemoryList:
+             .refreshMemoryList, .setAudioChannelsSwapped:
             return false
         }
     }
@@ -1275,7 +1282,7 @@ final class HubService: ObservableObject {
         // to the next poll, same as before.
         case .triggerZeroIn, .triggerAntennaTune, .selectCWMessageChannel,
              .setCWMessageRecording, .playCWMessage, .playCWTextMemory, .setMenuItem,
-             .refreshMemoryList:
+             .refreshMemoryList, .setAudioChannelsSwapped:
             break
         }
     }
@@ -1719,6 +1726,9 @@ final class HubService: ObservableObject {
         audioChannelsSwapped = swapped
         AudioPlaybackSettings.channelsSwapped = swapped
         audioCapture.setChannelsSwapped(swapped)
+        rigState.audioChannelsSwapped = swapped
+        let state = rigState
+        Task { await server.broadcast(state) }
         Self.audioRoutingLogger.notice("audio channels swapped=\(swapped, privacy: .public) (\(reason, privacy: .public)) — main \(self.rigState.frequencyHz, privacy: .public) Hz, sub \(self.rigState.secondaryFrequencyHz.map(String.init) ?? "unknown", privacy: .public) Hz")
     }
 

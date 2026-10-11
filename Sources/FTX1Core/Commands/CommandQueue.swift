@@ -474,9 +474,9 @@ public actor CommandQueue {
             }
         case .setMemoryScan(let direction, let side):
             try await rigctld.setRawInt("SC\(side.p1)", direction.catDigit, digits: 1)
-        case .refreshMemoryList:
-            // Handled by whoever owns the memory list (`HubService.send`,
-            // `PiDirectViewModel.send`) — nothing to send to the rig.
+        case .refreshMemoryList, .setAudioChannelsSwapped:
+            // Handled by `HubService.send` / `PiDirectViewModel.send` —
+            // nothing to send to the rig.
             break
         }
     }

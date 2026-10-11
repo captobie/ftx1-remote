@@ -116,6 +116,10 @@ public struct RigState: Codable, Equatable, Sendable {
     /// tracking uses it: in single receive the app's `SV` swap doesn't move
     /// the L/R audio, unlike a front-panel swap or dual receive.
     public var singleReceive: Bool? = nil
+    /// The hub's `audioChannelsSwapped` (Main/Sub audio exchanged against
+    /// the rig's L/R), so a client can show the override's state. `nil`
+    /// from a hub too old to send it.
+    public var audioChannelsSwapped: Bool? = nil
     /// Raw COMP/ALC/ID/VDD meter values (CAT "RM"), read only while
     /// transmitting; nil otherwise so the needle falls to rest.
     public var txMeters: TXMeterReadings?

@@ -301,6 +301,11 @@ public enum RigCommand: Sendable, Equatable {
     /// `MemoryListPush`es. Never reaches the rig as such — `CommandQueue`
     /// ignores it.
     case refreshMemoryList
+    /// The hub's manual audio-channel override (the Mac's speaker button
+    /// next to swap), from a client: sets `HubService.audioChannelsSwapped`,
+    /// echoed back as `RigState.audioChannelsSwapped`. Never reaches the
+    /// rig — `CommandQueue` ignores it.
+    case setAudioChannelsSwapped(Bool)
 
     /// Wire payload for `.setMemoryScan`.
     private struct MemoryScanPayload: Codable, Sendable, Equatable {
@@ -398,6 +403,7 @@ public enum RigCommand: Sendable, Equatable {
         case recallMemoryChannel = "recall_memory_channel"
         case setMemoryScan = "set_memory_scan"
         case refreshMemoryList = "refresh_memory_list"
+        case setAudioChannelsSwapped = "set_audio_channels_swapped"
     }
 }
 
@@ -418,6 +424,8 @@ extension RigCommand: Codable {
             self = .setSecondaryMode(try container.decode(RigMode.self, forKey: .value))
         case .refreshMemoryList:
             self = .refreshMemoryList
+        case .setAudioChannelsSwapped:
+            self = .setAudioChannelsSwapped(try container.decode(Bool.self, forKey: .value))
         case .ptt:
             self = .setPTT(try container.decode(Bool.self, forKey: .value))
         case .setBand:
@@ -569,6 +577,9 @@ extension RigCommand: Codable {
             try container.encode(mode, forKey: .value)
         case .refreshMemoryList:
             try container.encode(CommandName.refreshMemoryList, forKey: .cmd)
+        case .setAudioChannelsSwapped(let swapped):
+            try container.encode(CommandName.setAudioChannelsSwapped, forKey: .cmd)
+            try container.encode(swapped, forKey: .value)
         case .setPTT(let on):
             try container.encode(CommandName.ptt, forKey: .cmd)
             try container.encode(on, forKey: .value)

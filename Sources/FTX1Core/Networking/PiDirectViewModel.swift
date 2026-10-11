@@ -410,6 +410,9 @@ public final class PiDirectViewModel: ObservableObject {
         case .refreshMemoryList:
             memoryList.refresh()
             return
+        case .setAudioChannelsSwapped(let swapped):
+            setAudioChannelsSwapped(swapped, reason: "manual toggle")
+            return
         case .setMemoryScan(let direction, let side):
             sendMemoryScan(direction, side: side, queue: queue)
             return

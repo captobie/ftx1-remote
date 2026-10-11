@@ -92,8 +92,9 @@ struct HubControlView: View {
                             onPress: viewModel.startTransmit,
                             onRelease: viewModel.stopTransmit
                         )
+                        transmitEnabledIndicator
                         Spacer()
-                        MemoryScanButtons(state: viewModel.rigState, isConnected: true, send: viewModel.send)
+                        rigButtons
                     }
                 }
 
@@ -105,12 +106,11 @@ struct HubControlView: View {
 
                 HStack(spacing: 12) {
                     VFODisplayBox(label: "SUB", frequencyHz: viewModel.rigState.secondaryFrequencyHz, isActive: viewModel.rigState.singleReceive != true, mode: viewModel.rigState.secondaryMode?.displayName ?? "—", txRxLabel: viewModel.rigState.subTxRxLabel, callsign: viewModel.rigState.secondaryMode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsSubActive ? viewModel.rigState.aprsSubLastCallsign : nil), reflector: viewModel.rigState.secondaryMode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsSubActive, onSetFrequency: { viewModel.send(.setSecondaryFrequency(hz: $0)) }, vfoMemoryMode: viewModel.rigState.subVfoMemoryMode, memoryChannel: viewModel.rigState.subMemoryChannel, memoryChannelTag: viewModel.rigState.subMemoryChannelTag, onSetMemoryChannel: { viewModel.send(.setSubMemoryChannel($0)) }, onStepMemoryChannel: { viewModel.send(.stepSubMemoryChannel(up: $0)) }, memoryScan: viewModel.rigState.memoryScan(on: .sub), currentMode: viewModel.rigState.secondaryMode, onSetMode: { viewModel.send(.setSecondaryMode($0)) }, memoryList: viewModel.memoryList, onRefreshMemoryList: { viewModel.send(.refreshMemoryList) })
-                    vfoSwapButton
                     VFODisplayBox(label: "MAIN", frequencyHz: viewModel.rigState.frequencyHz, isActive: true, mode: viewModel.rigState.mode.displayName, txRxLabel: viewModel.rigState.mainTxRxLabel, callsign: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsActive ? viewModel.rigState.aprsLastCallsign : nil), reflector: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsActive, onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }, vfoMemoryMode: viewModel.rigState.vfoMemoryMode, memoryChannel: viewModel.rigState.memoryChannel, memoryChannelTag: viewModel.rigState.memoryChannelTag, onSetMemoryChannel: { viewModel.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { viewModel.send(.stepMemoryChannel(up: $0)) }, memoryScan: viewModel.rigState.memoryScan(on: .main), currentMode: viewModel.rigState.mode, onSetMode: { viewModel.send(.setMode($0)) }, memoryList: viewModel.memoryList, onRefreshMemoryList: { viewModel.send(.refreshMemoryList) })
                 }
 
-                // Same SUB | swap | MAIN columns as the VFO boxes above, so
-                // each strip sits under its own receiver.
+                // Same SUB | MAIN columns as the VFO boxes above, so each
+                // strip sits under its own receiver.
                 HStack(spacing: 12) {
                     ChannelStrip(
                         label: "SUB",
@@ -123,7 +123,6 @@ struct HubControlView: View {
                         engine: viewModel.subAudioEngine,
                         onToggleMute: viewModel.toggleSubAudioMuted
                     )
-                    vfoSwapButton.hidden()
                     ChannelStrip(
                         label: "MAIN",
                         smeterDb: viewModel.rigState.smeterDb,
@@ -191,14 +190,60 @@ struct HubControlView: View {
         }
     }
 
-    /// Swaps which of Main/Sub is the active VFO — the rig's own physical
-    /// A/B button, over CAT. See Mac `ContentView`'s identical button for
-    /// why no other display logic is needed.
-    private var vfoSwapButton: some View {
-        Button {
-            viewModel.send(.swapActiveVFO)
-        } label: {
-            Image(systemName: "arrow.left.arrow.right")
+    /// The Mac's Enable Transmit, shown where the Pi-direct screen has its
+    /// own lock button. Display only: transmit is enabled on the Mac, not
+    /// from here.
+    private var transmitEnabledIndicator: some View {
+        let enabled = viewModel.rigState.transmitEnabled
+        return Button {} label: {
+            Image(systemName: enabled ? "lock.open.fill" : "lock.fill")
+                .foregroundStyle(enabled ? Color.white : Color.primary)
+        }
+        .buttonStyle(.bordered)
+        .tint(enabled ? .red : nil)
+        .allowsHitTesting(false)
+        .accessibilityLabel(enabled ? "Transmit enabled on the Mac" : "Transmit disabled on the Mac")
+    }
+
+    /// Scan/Skip, V/M, swap and audio-channel override — the same buttons,
+    /// in the same order, as the Pi-direct screen's top row. Unlike Pi
+    /// direct, swap and V/M stay enabled while the rig scans: the hub stops
+    /// the scan first (`HubService.memoryScanStop`). The speaker button is
+    /// the Mac's own override (`HubService.audioChannelsSwapped`), which
+    /// also decides what the relayed MAIN/SUB audio is.
+    private var rigButtons: some View {
+        let state = viewModel.rigState
+        let audioSwapped = state.audioChannelsSwapped == true
+        return HStack(spacing: 12) {
+            MemoryScanButtons(state: state, isConnected: true, send: viewModel.send)
+
+            // Against `.vfo`, not `.memory`, as on the Mac: the rig's other
+            // channel modes (PMS, 5 MHz band...) must exit to VFO too.
+            Button {
+                viewModel.send(.setVFOMemoryMode(memory: state.vfoMemoryMode == .vfo))
+            } label: {
+                Text("V/M")
+                    .fontWeight(state.vfoMemoryMode == .vfo ? .regular : .bold)
+            }
+            .disabled(state.vfoMemoryMode == nil)
+
+            Button {
+                viewModel.send(.swapActiveVFO)
+            } label: {
+                Image(systemName: "arrow.left.arrow.right")
+            }
+            .accessibilityLabel("Swap MAIN and SUB")
+
+            Button {
+                viewModel.send(.setAudioChannelsSwapped(!audioSwapped))
+            } label: {
+                Image(systemName: "speaker.wave.2")
+                    .foregroundStyle(audioSwapped ? Color.white : Color.primary)
+            }
+            .tint(audioSwapped ? .orange : nil)
+            // nil: a hub from before this override was on the wire.
+            .disabled(state.audioChannelsSwapped == nil)
+            .accessibilityLabel(audioSwapped ? "Audio channels swapped; tap to swap back" : "Swap audio channels")
         }
         .buttonStyle(.bordered)
     }
