@@ -797,7 +797,8 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   `commandGeneration`, which drops a poll tick that straddled them (else
   its pre-swap reads would look like a swap back). Both refused while the
   rig scans. Supersedes "no VFO swap" above. The hub screen's top row
-  matches since 2026-10-11 (build-verified only): Scan/Skip, V/M, swap
+  matches since 2026-10-11 (live-tested by the user the same day, as
+  were the power-slider, page-picker and band-picker changes): Scan/Skip, V/M, swap
   (moved up from between the VFO boxes) and the speaker override, which
   sends the new `RigCommand.setAudioChannelsSwapped` to the Mac's
   `HubService.audioChannelsSwapped` (echoed as `RigState.
