@@ -796,3 +796,45 @@ public struct MemoryListPush: Codable, Sendable, Equatable {
         self.list = list
     }
 }
+
+/// Client -> server: read one Deep Settings item ("EX" `p1`/`p2`/`p3`, see
+/// `DeepSettingsCatalog`) — what `DeepSettingsView` needs on the hub
+/// route. Not a `RigCommand`: it never reaches the rig through
+/// `CommandQueue`, and the answer (`MenuItemPush`) goes only to the client
+/// that asked. A hub that predates it ignores it (it doesn't decode as a
+/// `RigCommand`), so the client's read times out.
+public struct MenuItemReadRequest: Codable, Sendable, Equatable {
+    public let type: String  // "read_menu_item"
+    public let p1: Int
+    public let p2: Int
+    public let p3: Int
+
+    public static let typeName = "read_menu_item"
+
+    public init(p1: Int, p2: Int, p3: Int) {
+        self.type = Self.typeName
+        self.p1 = p1
+        self.p2 = p2
+        self.p3 = p3
+    }
+}
+
+/// Server -> client answer to a `MenuItemReadRequest`: the item's raw P4
+/// value, nil if the hub couldn't read it.
+public struct MenuItemPush: Codable, Sendable, Equatable {
+    public let type: String  // "menu_item"
+    public let p1: Int
+    public let p2: Int
+    public let p3: Int
+    public let value: String?
+
+    public static let typeName = "menu_item"
+
+    public init(p1: Int, p2: Int, p3: Int, value: String?) {
+        self.type = Self.typeName
+        self.p1 = p1
+        self.p2 = p2
+        self.p3 = p3
+        self.value = value
+    }
+}

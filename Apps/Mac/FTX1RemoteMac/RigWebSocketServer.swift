@@ -36,6 +36,9 @@ actor RigWebSocketServer {
     /// Transmit audio (`AudioStreamFormat.txAudioTag`) from the client
     /// holding PTT; frames from anyone else are dropped.
     private var onTXAudioReceived: (@Sendable (Data) -> Void)?
+    /// Reads one Deep Settings item for a client's `MenuItemReadRequest`;
+    /// the answer goes back to that client only.
+    private var onMenuItemRead: (@Sendable (Int, Int, Int) async -> String?)?
 
     /// Everything clients send, in arrival order: commands and transmit
     /// audio share one stream so a client's `.setPTT(true)` is always
@@ -44,6 +47,7 @@ actor RigWebSocketServer {
     private enum Inbound: Sendable {
         case command(RigCommand, ObjectIdentifier)
         case txAudio(Data, ObjectIdentifier)
+        case menuItemRead(MenuItemReadRequest, ObjectIdentifier)
     }
     private let inbound: AsyncStream<Inbound>
     private let inboundContinuation: AsyncStream<Inbound>.Continuation
@@ -56,11 +60,13 @@ actor RigWebSocketServer {
     func start(
         port: UInt16,
         onCommand: @escaping @Sendable (RigCommand) -> Void,
-        onTXAudio: @escaping @Sendable (Data) -> Void = { _ in }
+        onTXAudio: @escaping @Sendable (Data) -> Void = { _ in },
+        onMenuItemRead: @escaping @Sendable (Int, Int, Int) async -> String? = { _, _, _ in nil }
     ) throws {
         guard listener == nil else { return }
         onCommandReceived = onCommand
         onTXAudioReceived = onTXAudio
+        self.onMenuItemRead = onMenuItemRead
         if inboundTask == nil {
             let inbound = inbound
             inboundTask = Task { [weak self] in
@@ -228,6 +234,9 @@ actor RigWebSocketServer {
             onTXAudio: { pcm in
                 inbound.yield(.txAudio(pcm, connectionID))
             },
+            onMenuItemRead: { request in
+                inbound.yield(.menuItemRead(request, connectionID))
+            },
             onClose: { [weak self] id in
                 Task { await self?.remove(id) }
             }
@@ -250,7 +259,22 @@ actor RigWebSocketServer {
         case .txAudio(let pcm, let id):
             guard id == pttHolder else { return }
             onTXAudioReceived?(pcm)
+        case .menuItemRead(let request, let id):
+            // Off the inbound stream: a read takes a rigctld round trip,
+            // and commands behind it shouldn't wait for that.
+            guard let read = onMenuItemRead else { return }
+            Task {
+                let value = await read(request.p1, request.p2, request.p3)
+                self.reply(MenuItemPush(p1: request.p1, p2: request.p2, p3: request.p3, value: value), to: id)
+            }
         }
+    }
+
+    /// Sends a `MenuItemPush` to the one client that asked, if it's still
+    /// connected.
+    private func reply(_ push: MenuItemPush, to id: ObjectIdentifier) {
+        guard let connection = connections[id], let data = try? JSONEncoder().encode(push) else { return }
+        connection.send(data)
     }
 
     private func handleCommand(_ command: RigCommand, from id: ObjectIdentifier) {
@@ -287,18 +311,21 @@ private final class Connection {
     private let connection: NWConnection
     private let onCommand: (RigCommand) -> Void
     private let onTXAudio: (Data) -> Void
+    private let onMenuItemRead: (MenuItemReadRequest) -> Void
     private let onClose: (ObjectIdentifier) -> Void
 
     init(
         connection: NWConnection,
         onCommand: @escaping (RigCommand) -> Void,
         onTXAudio: @escaping (Data) -> Void,
+        onMenuItemRead: @escaping (MenuItemReadRequest) -> Void,
         onClose: @escaping (ObjectIdentifier) -> Void
     ) {
         self.connection = connection
         self.id = ObjectIdentifier(connection)
         self.onCommand = onCommand
         self.onTXAudio = onTXAudio
+        self.onMenuItemRead = onMenuItemRead
         self.onClose = onClose
     }
 
@@ -337,6 +364,9 @@ private final class Connection {
                 self.onTXAudio(Data(AudioStreamFormat.payload(of: data)))
             } else if let data, let command = try? JSONDecoder().decode(RigCommand.self, from: data) {
                 self.onCommand(command)
+            } else if let data, let request = try? JSONDecoder().decode(MenuItemReadRequest.self, from: data),
+                      request.type == MenuItemReadRequest.typeName {
+                self.onMenuItemRead(request)
             }
             self.receiveLoop()
         }

@@ -64,6 +64,16 @@ public final class RigClientViewModel: ObservableObject, RigController {
 
     private var client: RigWebSocketClient?
     private let port: UInt16
+    /// Deep Settings reads waiting for the hub's `MenuItemPush`, by item
+    /// address ("p1.p2.p3"); a second read of the same item joins the
+    /// first rather than asking again.
+    /// `token` ties a request's timeout to that request, so a timeout left
+    /// over from an earlier read of the same item can't end a later one.
+    private var pendingMenuReads: [String: (token: UUID, waiting: [CheckedContinuation<String?, Never>])] = [:]
+    /// Long enough for a whole tab read one at a time over the Pi
+    /// (~20 items, interleaved with the hub's poll); a hub that predates
+    /// `MenuItemReadRequest` never answers.
+    private static let menuReadTimeout: Duration = .seconds(10)
     #if os(iOS)
     private let microphone = MicrophoneTransmitter(logSubsystem: "com.ftx1remote.client")
     private var unkeyTask: Task<Void, Never>?
@@ -101,6 +111,11 @@ public final class RigClientViewModel: ObservableObject, RigController {
             }
             await client.setOnMemoryList { [weak self] list in
                 Task { @MainActor in self?.memoryList = list }
+            }
+            await client.setOnMenuItem { [weak self] push in
+                Task { @MainActor in
+                    self?.finishMenuRead(Self.menuReadKey(push.p1, push.p2, push.p3), value: push.value)
+                }
             }
             await client.setOnAudioData { [weak self] data in
                 Task { @MainActor [weak self] in
@@ -140,6 +155,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
         self.client = nil
         connectionState = .disconnected
         memoryList = nil
+        finishAllMenuReads()
         filterSpectrum.reset()
         audioEngine.stop()
         subAudioEngine.stop()
@@ -148,6 +164,52 @@ public final class RigClientViewModel: ObservableObject, RigController {
     public func send(_ command: RigCommand) {
         guard let client else { return }
         Task { try? await client.send(command) }
+    }
+
+    /// Deep Settings on the hub route: the hub reads the item from the rig
+    /// and answers this client alone (`MenuItemReadRequest`/`MenuItemPush`).
+    public var supportsDeepSettings: Bool { true }
+
+    public func readMenuItem(p1: Int, p2: Int, p3: Int) async -> String? {
+        guard let client, connectionState == .connected else { return nil }
+        let key = Self.menuReadKey(p1, p2, p3)
+        return await withCheckedContinuation { continuation in
+            if pendingMenuReads[key] != nil {
+                pendingMenuReads[key]?.waiting.append(continuation)
+                return
+            }
+            let token = UUID()
+            pendingMenuReads[key] = (token, [continuation])
+            Task {
+                do {
+                    try await client.sendMenuItemRead(p1: p1, p2: p2, p3: p3)
+                } catch {
+                    self.finishMenuRead(key, value: nil, token: token)
+                    return
+                }
+                try? await Task.sleep(for: Self.menuReadTimeout)
+                self.finishMenuRead(key, value: nil, token: token)
+            }
+        }
+    }
+
+    private static func menuReadKey(_ p1: Int, _ p2: Int, _ p3: Int) -> String {
+        "\(p1).\(p2).\(p3)"
+    }
+
+    /// Resumes everyone waiting on `key`; a no-op once they have been
+    /// (an answer after the timeout, or the timeout after an answer). With
+    /// a `token`, only if it's still that request's.
+    private func finishMenuRead(_ key: String, value: String?, token: UUID? = nil) {
+        guard let pending = pendingMenuReads[key], token == nil || pending.token == token else { return }
+        pendingMenuReads.removeValue(forKey: key)
+        pending.waiting.forEach { $0.resume(returning: value) }
+    }
+
+    private func finishAllMenuReads() {
+        let waiting = pendingMenuReads.values.flatMap(\.waiting)
+        pendingMenuReads.removeAll()
+        waiting.forEach { $0.resume(returning: nil) }
     }
 
     #if os(iOS)
@@ -244,6 +306,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
         switch state {
         case .disconnected:
             connectionState = .disconnected
+            finishAllMenuReads()
             audioEngine.stop()
             subAudioEngine.stop()
         case .connecting:
@@ -254,6 +317,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
             subAudioEngine.start()
         case .failed(let message):
             connectionState = .failed(message)
+            finishAllMenuReads()
             audioEngine.stop()
             subAudioEngine.stop()
         }

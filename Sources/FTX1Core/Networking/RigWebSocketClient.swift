@@ -54,6 +54,9 @@ public actor RigWebSocketClient {
     /// whenever it changes. Never fires against a hub that predates it.
     public var onMemoryList: (@Sendable (MemoryListSnapshot) -> Void)?
 
+    /// Answers to `sendMenuItemRead` (`MenuItemPush`).
+    public var onMenuItem: (@Sendable (MenuItemPush) -> Void)?
+
     public init(hubURL: URL) {
         self.url = hubURL
         self.session = URLSession(configuration: .default, delegate: openSignal, delegateQueue: nil)
@@ -77,6 +80,10 @@ public actor RigWebSocketClient {
 
     public func setOnMemoryList(_ handler: @escaping @Sendable (MemoryListSnapshot) -> Void) {
         onMemoryList = handler
+    }
+
+    public func setOnMenuItem(_ handler: @escaping @Sendable (MenuItemPush) -> Void) {
+        onMenuItem = handler
     }
 
     /// Waits for the server to actually accept the WebSocket handshake
@@ -135,6 +142,14 @@ public actor RigWebSocketClient {
         try await task.send(.data(data))
     }
 
+    /// Asks the hub for one Deep Settings item; the answer arrives through
+    /// `onMenuItem`.
+    public func sendMenuItemRead(p1: Int, p2: Int, p3: Int) async throws {
+        guard let task else { throw RigWebSocketError.notConnected }
+        let data = try JSONEncoder().encode(MenuItemReadRequest(p1: p1, p2: p2, p3: p3))
+        try await task.send(.data(data))
+    }
+
     /// One chunk of microphone audio (8 kHz Int16 mono) while this client
     /// holds PTT — tagged `AudioStreamFormat.txAudioTag`. The hub drops it
     /// from any client that didn't key.
@@ -183,6 +198,9 @@ public actor RigWebSocketClient {
         } else if let push = try? JSONDecoder().decode(MemoryListPush.self, from: data) {
             lastActivity = Date()
             onMemoryList?(push.list)
+        } else if let push = try? JSONDecoder().decode(MenuItemPush.self, from: data), push.type == MenuItemPush.typeName {
+            lastActivity = Date()
+            onMenuItem?(push)
         }
     }
 

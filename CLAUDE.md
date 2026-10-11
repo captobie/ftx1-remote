@@ -39,21 +39,31 @@ over Tailscale, without needing to be physically near the rig.
 - **Views shared across app targets go through a `RigController` protocol**
   (`Sources/FTX1Core/UI/RigController.swift`), not a concrete type — the Mac
   drives them with `HubService` (direct rigctld access), mobile clients
-  drive them with `RigClientViewModel` (WebSocket only). `MenuPageView` is
-  the first (and so far only) view built this way, generic over
-  `RigController`. When adding another view meant to appear on more than
+  drive them with `RigClientViewModel` (WebSocket only) or
+  `PiDirectViewModel`. `MenuPageView`, `DeepSettingsView` and the filter
+  views are built this way, generic over `RigController`. When adding another view meant to appear on more than
   one app target, follow this pattern rather than duplicating the file per
   target or coupling it to `HubService` directly.
-- **`DeepSettingsView` is still Mac-only, deliberately.** It needs
-  `HubService.readMenuItem` — a live per-item read only the Mac's direct
-  rigctld link supports. The WebSocket wire protocol has no request/
-  response mechanism today, only fire-and-forget `RigCommand` and one-way
-  `RigStatePush`, so a remote client has no way to fetch a Deep Settings
-  item's current value. `RigController.supportsDeepSettings`/
-  `deepSettingsDestination` is the seam for this: `HubService` returns a
-  real destination, every other conformer defaults to unsupported. Don't
-  try to light this up for iOS/iPad without first designing that
-  request/response addition (see `Apps/iPad/` note below).
+- **Deep Settings on every route (2026-10-11; Simulator against the
+  real Pi on both iPad routes)**: `DeepSettingsView` lives in
+  `FTX1Core/UI/` and reads each item through `RigController.
+  readMenuItem(p1:p2:p3:)` (`supportsDeepSettings` gates the six FM-page
+  buttons). `HubService` and `PiDirectViewModel` (with
+  `readsMenuSettings`) read straight over their rigctld link. The hub
+  route has the protocol's one request/reply pair, kept *beside*
+  `RigCommand` (it never reaches the rig): the client sends
+  `MenuItemReadRequest` (`type: "read_menu_item"`), and
+  `RigWebSocketServer` answers that client alone with a `MenuItemPush`
+  (`type: "menu_item"`, `value` nil if unreadable), reading off the
+  inbound stream so commands don't wait behind it.
+  `RigClientViewModel.readMenuItem` waits up to 10 s (an older hub never
+  answers), and concurrent reads of one item share one request. Writes are
+  the existing `.setMenuItem`, not transmit-gated on any route (the
+  catalog's `.action` items are never sent). Verified: tab reads on both
+  iPad routes and the Mac, and one write each way (APRS AF MUTE on, read
+  back raw as "EX0601031", then off again). On iOS the sheet's Done
+  button sits on the detail column, since a split view's own toolbar isn't
+  shown there.
 - **Tailscale** handles remote network routing between Mac and mobile devices
   (already set up and working — don't relitigate this).
 - **State sync is push-based**, not polled. The Mac pushes state changes
@@ -828,9 +838,9 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
 - **iPad MENU grid on Pi direct (2026-10-09, Simulator against the real
   Pi; one write — D-MARKER off/on — confirmed with a raw "SS02" read)**:
   user request. `PiDirectView` shows the shared `MenuPageView` under the
-  strips; `PiDirectViewModel` conforms to `RigController` (Deep Settings,
-  APRS lists, RECORD/PLAY keep the unsupported defaults, as on the hub
-  route). With `readsMenuSettings` (iPad only) it accepts the grid's
+  strips; `PiDirectViewModel` conforms to `RigController` (APRS lists
+  and RECORD/PLAY keep the unsupported defaults, as on the hub route;
+  Deep Settings since 2026-10-11, see Architecture). With `readsMenuSettings` (iPad only) it accepts the grid's
   commands (`isMenuSetting`), applies them optimistically like the hub,
   and reads their fields 4 per tick round-robin (`menuSettingReads`, the
   hub's slow-tier reads plus "RFPOWER"; ~9 s per pass). A setting landing
@@ -2071,8 +2081,10 @@ WebSDR differences are in their own bullet at the end.
     `DeepSettingValueType`: the static, table-driven catalog behind the
     page-3 Deep Settings screens (see below).
   - `UI/` — SwiftUI views/protocols shared across more than one app target.
-    `RigController` (the protocol `HubService`/`RigClientViewModel` both
-    conform to — see Architecture above), `MenuPageView` (the numbered 7×4
+    `RigController` (the protocol `HubService`/`RigClientViewModel`/
+    `PiDirectViewModel` conform to — see Architecture above),
+    `DeepSettingsView` (the page-3 SET-mode screens MenuPageView's FM page
+    opens, see Architecture), `MenuPageView` (the numbered 7×4
     MENU grid, generic over `RigController`, one hand-written button per
     item; both iPad screens pass `showsPagePicker: false` since
     2026-10-11, leaving page changes to the grid's ◀/▶ buttons), `VFODisplayBox` (the dense side-by-side VFO A/B readout used by
@@ -2139,8 +2151,7 @@ WebSDR differences are in their own bullet at the end.
   this directory via a synchronized group, not a separate copy). Owns the
   rigctld connection and WebSocket server (`HubService`, `RigWebSocketServer`,
   `RigctldProcessController`), plus `HubService`'s `RigController`
-  conformance (`HubService+RigController.swift` — the only conformer that
-  builds a real `DeepSettingsView` destination). Also owns the audio-derived
+  conformance (`HubService+RigController.swift`). Also owns the audio-derived
   waterfall/oscilloscope display (`AudioCaptureEngine`, `ScopeDisplayView`,
   `AudioInputDevice`/`AudioInputSettings`, and — `.remote`-mode only —
   the shared `FTX1Core` `RemoteAudioStreamClient`) — Mac-only, see Architecture above. Also owns
@@ -2155,16 +2166,16 @@ WebSDR differences are in their own bullet at the end.
   `PollingSettings`, read live by the poll loops, with Restore Defaults —,
   Appearance),
   plus two menu systems: `MenuPageView` (shared, see `Sources/FTX1Core/UI/`
-  above) and `DeepSettingsView` (Mac-only — the page-3 category screens,
-  rendered generically from `DeepSettingsCatalog`).
+  above) and `DeepSettingsView` (shared too, in `Sources/FTX1Core/UI/`
+  — the page-3 category screens, rendered generically from
+  `DeepSettingsCatalog`).
 - `Apps/iOS/FTX1RemoteiOS/` — iPhone app target. WebSocket client
   (`RigClientViewModel`/`RigWebSocketClient`, in `HubControlView`), except
   the receive-only "Pi direct" route (`PiDirectView` over the shared
   `PiDirectViewModel` — see "Pi-direct proof of concept" above). Focused single-rig-control view (frequency, SWR, PTT, mode grid)
   — don't try to cram the Mac's dense layout or `MenuPageView` in here
   without deciding that's actually wanted; iOS still has no menu-grid UI
-  (iPad does — see below). `DeepSettingsView` isn't available to any mobile
-  target yet either way (see Architecture above).
+  (iPad does — see below), so no Deep Settings either.
 - `Apps/iPad/FTX1RemoteiPad/` — iPad app target, separate from iOS (not a
   universal/size-classes target — resolved decision, don't relitigate).
   WebSocket client, same as iOS, except the same receive-only "Pi direct"
@@ -2174,11 +2185,8 @@ WebSDR differences are in their own bullet at the end.
   use — see "Pi-direct proof of concept" above). The hub screen is a dense
   layout modeled on the Mac's `ContentView` (VFO A/B side by side via the
   shared `VFODisplayBox`, PTT — no power slider since 2026-10-11, the MENU grid's RF POWER covers it; the band picker moved into MAIN's frequency popover the same day) plus the shared
-  `MenuPageView` grid. The FM page's
-  6 Deep Settings buttons render a disabled "SOON" placeholder rather than
-  opening `DeepSettingsView` — see the `RigController`/Deep Settings note
-  above for why, and don't wire them up without first adding the wire-
-  protocol read/response mechanism that unblocks it.
+  `MenuPageView` grid, whose FM page opens `DeepSettingsView` on both
+  routes (see Architecture).
 - `Apps/Windows/` — Windows app (C# + WinUI 3, Remote direct to the
   Pi, or Local via a spawned `rigctld.exe`). `FTX1RemoteWindows/` has a
   build-verified v1 skeleton (core rig control only; Local mode added

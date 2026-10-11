@@ -50,6 +50,27 @@ final class WireMessageTests: XCTestCase {
         XCTAssertNil(try? JSONDecoder().decode(MemoryListPush.self, from: JSONEncoder().encode(RigStatePush(state: RigState()))))
     }
 
+    /// The Deep Settings read pair travels beside `RigCommand` and the
+    /// state pushes, so neither side may mistake one for the other.
+    func testMenuItemReadMessagesDontCollide() throws {
+        let request = MenuItemReadRequest(p1: 6, p2: 1, p3: 3)
+        let requestData = try JSONEncoder().encode(request)
+        XCTAssertEqual(try JSONDecoder().decode(MenuItemReadRequest.self, from: requestData), request)
+        XCTAssertNil(try? JSONDecoder().decode(RigCommand.self, from: requestData))
+        let menuCommand = try JSONEncoder().encode(RigCommand.setMenuItem(p1: 6, p2: 1, p3: 3, rawValue: "1"))
+        XCTAssertNil(try? JSONDecoder().decode(MenuItemReadRequest.self, from: menuCommand))
+
+        let push = MenuItemPush(p1: 6, p2: 1, p3: 3, value: "0")
+        let pushData = try JSONEncoder().encode(push)
+        XCTAssertEqual(try JSONDecoder().decode(MenuItemPush.self, from: pushData), push)
+        XCTAssertNil(try? JSONDecoder().decode(RigStatePush.self, from: pushData))
+        XCTAssertNil(try? JSONDecoder().decode(MemoryListPush.self, from: pushData))
+        XCTAssertNil(try? JSONDecoder().decode(MenuItemPush.self, from: JSONEncoder().encode(RigStatePush(state: RigState()))))
+
+        let unread = MenuItemPush(p1: 6, p2: 1, p3: 3, value: nil)
+        XCTAssertNil(try JSONDecoder().decode(MenuItemPush.self, from: JSONEncoder().encode(unread)).value)
+    }
+
     func testSetModeRoundTrip() throws {
         let command = RigCommand.setMode(.usb)
         let data = try JSONEncoder().encode(command)

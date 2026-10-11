@@ -622,6 +622,9 @@ final class HubService: ObservableObject {
                     },
                     onTXAudio: { pcm in
                         self?.txAudioInboundContinuation.yield(pcm)
+                    },
+                    onMenuItemRead: { p1, p2, p3 in
+                        await self?.readMenuItem(p1: p1, p2: p2, p3: p3)
                     }
                 )
                 try? await Task.sleep(for: webSocketRebindDelay)
@@ -1527,7 +1530,9 @@ final class HubService: ObservableObject {
     }
 
     /// On-demand read for one Deep Settings item (see DeepSettingsCatalog),
-    /// called only while a Deep Settings tab is open — bypasses
+    /// called only while a Deep Settings tab is open, here or on a remote
+    /// client (`MenuItemReadRequest`, answered by `RigWebSocketServer`) —
+    /// bypasses
     /// `CommandQueue` directly, the same way the poll loop's getters do.
     /// These ~300 rarely-changed settings deliberately aren't part of the
     /// 500ms poll/broadcast cycle alongside VFO/SWR/PTT; they're fetched
