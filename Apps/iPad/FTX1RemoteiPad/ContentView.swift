@@ -70,8 +70,6 @@ struct HubControlView: View {
     @AppStorage(AudioPlaybackSettings.squelchThresholdKey) private var mainAudioSquelchThreshold: Double = 0.015
     @AppStorage(AudioPlaybackSettings.subVolumeKey) private var subAudioVolume: Double = 0.8
     @AppStorage(AudioPlaybackSettings.subSquelchThresholdKey) private var subAudioSquelchThreshold: Double = 0.015
-    @State private var isDraggingPower = false
-    @State private var localPowerLevel: Double = 0
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -133,26 +131,6 @@ struct HubControlView: View {
                         isMuted: viewModel.isMainAudioMuted,
                         engine: viewModel.audioEngine,
                         onToggleMute: viewModel.toggleMainAudioMuted
-                    )
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Power: \(Int(displayedPowerLevel * 100))W")
-                    Slider(
-                        value: Binding(
-                            get: { displayedPowerLevel },
-                            set: { localPowerLevel = $0 }
-                        ),
-                        in: 0...1,
-                        onEditingChanged: { editing in
-                            if editing {
-                                localPowerLevel = viewModel.rigState.powerLevel ?? 0
-                                isDraggingPower = true
-                            } else {
-                                isDraggingPower = false
-                                viewModel.send(.setPowerLevel(localPowerLevel))
-                            }
-                        }
                     )
                 }
 
@@ -282,10 +260,6 @@ struct HubControlView: View {
         }
         .buttonStyle(.plain)
         .disabled(viewModel.connectionState != .connected && host.isEmpty)
-    }
-
-    private var displayedPowerLevel: Double {
-        isDraggingPower ? localPowerLevel : (viewModel.rigState.powerLevel ?? 0)
     }
 
     /// Falls back to the first band in the plan if the active frequency

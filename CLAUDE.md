@@ -836,7 +836,8 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   grid greys them out; locking or disconnecting while MOX is on sends
   "MX0" (no Pi watchdog covers MOX). MIC GAIN reads "—" in CW: the rig
   answers "MG" with "?;" there (probed), same on the hub. Not ported: the
-  power slider and band picker. Not yet tried on a real iPad or on air.
+  band picker (the hub screen's power slider is gone too, 2026-10-11 —
+  RF POWER in the grid does it). Not yet tried on a real iPad or on air.
 
 ## iPad transmit audio (2026-10-09, build- and Simulator-checked; not yet on the air)
 
@@ -2117,7 +2118,7 @@ WebSDR differences are in their own bullet at the end.
   one, `ChannelStrip` the per-receiver meter + mute/SQL/VOL strip both
   use — see "Pi-direct proof of concept" above). The hub screen is a dense
   layout modeled on the Mac's `ContentView` (VFO A/B side by side via the
-  shared `VFODisplayBox`, PTT, power, band/mode) plus the shared
+  shared `VFODisplayBox`, PTT, band — no power slider since 2026-10-11, the MENU grid's RF POWER covers it) plus the shared
   `MenuPageView` grid. The FM page's
   6 Deep Settings buttons render a disabled "SOON" placeholder rather than
   opening `DeepSettingsView` — see the `RigController`/Deep Settings note

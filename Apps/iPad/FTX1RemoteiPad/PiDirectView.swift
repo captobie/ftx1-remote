@@ -24,8 +24,8 @@ import SwiftUI
 /// running on `PiDirectViewModel` (a `RigController`): the same three
 /// pages, with MOX/ANT TUNE behind this route's lock and Deep Settings,
 /// APRS lists and RECORD/PLAY unavailable as on the hub route. Still no
-/// power slider or band picker (the band picker's band memory is the
-/// hub's).
+/// band picker (its band memory is the hub's); power is the grid's RF
+/// POWER, as on the hub screen.
 ///
 /// Unlike the iPhone's `PiDirectView` (single focused VFO, Main audio
 /// only), this shows both receivers, as the hub screen does.
