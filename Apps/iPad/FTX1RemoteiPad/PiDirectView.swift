@@ -28,6 +28,10 @@ import SwiftUI
 /// the band picker too, without the hub's band memory (see
 /// `PiDirectViewModel.send`).
 ///
+/// The filter block (`FilterPanel`, 2026-10-11) sits between the strips
+/// and the grid, as on the hub screen, with the spectrum computed from this
+/// route's own audio (`PiDirectViewModel.filterSpectrum`).
+///
 /// Unlike the iPhone's `PiDirectView` (single focused VFO, Main audio
 /// only), this shows both receivers, as the hub screen does.
 struct PiDirectView: View {
@@ -194,6 +198,8 @@ struct PiDirectView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
+
+        FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected)
 
         MenuPageView<PiDirectViewModel>(showsPagePicker: false)
 

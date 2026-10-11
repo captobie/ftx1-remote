@@ -9,7 +9,8 @@ struct FTX1RemoteiPadApp: App {
         playsSubAudio: true,
         readsSMeter: true,
         readsVFODetails: true,
-        readsMenuSettings: true
+        readsMenuSettings: true,
+        readsFilters: true
     )
 
     var body: some Scene {

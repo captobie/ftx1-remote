@@ -844,7 +844,7 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   band picker (the hub screen's power slider is gone too, 2026-10-11 —
   RF POWER in the grid does it). Not yet tried on a real iPad or on air.
 
-## iPad filter controls (in progress, started 2026-10-11)
+## iPad filter controls (2026-10-11, complete)
 
 The Mac's Filter block on the iPad, always visible between the meter
 strips and the MENU grid, on both routes (user decisions). Three steps,
@@ -876,12 +876,23 @@ each committed on its own:
    now used by both). `SpectrumFFT` scales dB to the 2048-point level, so
    the auto-gain's −70 dB floor means the same at 512 points (else ~12 dB
    lower). Unit-tested in `FilterSpectrumTests`.
-3. **Pi direct**: move `HubService`'s `readFilterState`/
-   `applyFilterSnapshot`/`clearFilterFields`/`refreshFilterState` into
-   `FTX1Core`, accept the filter commands in `PiDirectViewModel`, re-read
-   on a side switch/swap/NAR write, poll the reads round-robin, and give
-   it its own `FilterSpectrumStore` fed from the downsampled Pi audio
-   (before its mute checks).
+3. **Pi direct (done 2026-10-11; rig-tested by the user: every control on
+   MAIN and SUB, spectrum, swap, single-receive fallback)**: the filter
+   reads/apply moved out of `HubService` into `FTX1Core/RigState/
+   FilterStateReads.swift` (`FilterSnapshot`, `FilterStateReads.all`,
+   `RigctldClient.readFilterState`, `RigState.applyFilterSnapshot`/
+   `clearFilterFields`/`applyFilterCommand`, `RigCommand.
+   isFilterSideCommand`) — the hub uses them unchanged in behavior (its
+   NAR re-read stays its own). `PiDirectViewModel(readsFilters: true)`
+   (iPad only) accepts the filter commands (optimistic + `commandGeneration`
+   bump), and ports the hub's rules: a side switch blanks the fields and
+   reads the new side in full, SUB refused in single-receive display and
+   falling back to MAIN if the rig goes there, WIDTH + NAR WIDTH re-read
+   after N/W, full re-read after an app swap. Polling: 3 of the 10 reads
+   per tick, round-robin (~4 s a pass). Its own `filterSpectrum` is fed
+   from the downsampled Pi audio before the mute checks. Seen in the
+   Simulator against the real Pi: SUB in FM answers the notch read with a
+   non-number, shown as "—" (known, see `FilterStateReads`).
 
 ## iPad transmit audio (2026-10-09, build- and Simulator-checked; not yet on the air)
 

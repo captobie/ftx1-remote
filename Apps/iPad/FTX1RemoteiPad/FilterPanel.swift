@@ -8,7 +8,8 @@ import SwiftUI
 /// Display. All the controls are the shared `FTX1Core` views, so this only
 /// arranges them. Generic over `RigController` so both iPad screens can use
 /// it — the hub screen drives it with `RigClientViewModel`, whose commands
-/// and filter state already cross the WebSocket.
+/// and filter state already cross the WebSocket, and the Pi-direct screen
+/// with `PiDirectViewModel` (`readsFilters`).
 ///
 /// `spectrumStore` is the display's audio overlay, computed on the iPad
 /// from the receive audio it already gets (`FilterSpectrumStore`); the

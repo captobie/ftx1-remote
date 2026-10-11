@@ -83,3 +83,42 @@ final class FilterSpectrumTests: XCTestCase {
         XCTAssertTrue(store.spectrum.isEmpty)
     }
 }
+
+/// `FilterStateReads`' `RigState` helpers, shared by the hub and Pi direct.
+final class FilterStateApplyTests: XCTestCase {
+    func testSnapshotKeepsUnreadFields() {
+        var state = RigState()
+        state.filterWidthIndex = 10
+        state.ifShiftHz = 200
+        var snapshot = FilterSnapshot()
+        snapshot.shiftHz = -100
+        snapshot.notchRaw = 1
+        state.applyFilterSnapshot(snapshot, mode: .usb)
+        XCTAssertEqual(state.filterWidthIndex, 10)
+        XCTAssertEqual(state.ifShiftHz, -100)
+        XCTAssertEqual(state.notchEnabled, true)
+    }
+
+    func testNarrowPresetClearedForModeWithoutOne() {
+        var state = RigState()
+        state.narrowWidthHz = 1800
+        state.applyFilterSnapshot(FilterSnapshot(), mode: .usb)
+        XCTAssertEqual(state.narrowWidthHz, 1800, "kept where the mode has a preset")
+        state.applyFilterSnapshot(FilterSnapshot(), mode: .fm)
+        XCTAssertNil(state.narrowWidthHz)
+    }
+
+    func testFilterCommandsOnly() {
+        var state = RigState()
+        XCTAssertTrue(state.applyFilterCommand(.setNarrow(true)))
+        XCTAssertEqual(state.narrowEnabled, true)
+        XCTAssertTrue(state.applyFilterCommand(.setIFShift(hz: 207)))
+        XCTAssertEqual(state.ifShiftHz, IFShift.snapped(207))
+        XCTAssertFalse(state.applyFilterCommand(.setFilterSide(.sub)))
+        XCTAssertFalse(RigCommand.setFilterSide(.sub).isFilterSideCommand)
+        XCTAssertTrue(RigCommand.setFilterWidth(5).isFilterSideCommand)
+        state.clearFilterFields()
+        XCTAssertNil(state.narrowEnabled)
+        XCTAssertNil(state.ifShiftHz)
+    }
+}

@@ -28,6 +28,14 @@ import os
 /// Settings, APRS lists and RECORD/PLAY stay unsupported, as on the hub
 /// route.
 ///
+/// Filters (2026-10-11, iPad): with `readsFilters` it takes the filter
+/// row's commands (WIDTH/SHIFT/CONTOUR-APF/N/W/NOTCH and the MAIN/SUB
+/// selector) and reads the selected side's filter state a few fields per
+/// tick (`FilterStateReads`, shared with the hub), plus a full re-read
+/// after a side switch or swap and a width re-read after N/W — the hub's
+/// rules. `filterSpectrum` is the Filter Function Display's spectrum,
+/// computed from this route's own 8 kHz audio.
+///
 /// rigctld accepts several clients at once, so this coexists with the Mac
 /// (or WSJT-X) being connected to the same Pi.
 ///
@@ -51,8 +59,14 @@ public final class PiDirectViewModel: ObservableObject {
         case failed(String)
     }
 
-    @Published public private(set) var rigState = RigState()
+    @Published public private(set) var rigState = RigState() {
+        didSet { filterSpectrum.selectedSide = rigState.activeFilterSide }
+    }
     @Published public private(set) var connectionState: ConnectionState = .disconnected
+
+    /// The Filter Function Display's spectrum from this route's audio, fed
+    /// before the mute/transmit checks — see `FilterSpectrumStore`.
+    public let filterSpectrum = FilterSpectrumStore()
 
     public enum AudioState: Equatable {
         case off
@@ -167,6 +181,15 @@ public final class PiDirectViewModel: ObservableObject {
     private let readsMenuSettings: Bool
     /// Where the next tick resumes `menuSettingReads`.
     private var menuReadCursor = 0
+    /// Adds the filter row (the iPad): accepts its commands and reads the
+    /// selected side's filter state, `filterReadsPerTick` of
+    /// `FilterStateReads.all` per tick, round-robin.
+    private let readsFilters: Bool
+    /// Where the next tick resumes `FilterStateReads.all`.
+    private var filterReadCursor = 0
+    /// The ten reads in ~4 s — the hub reads them every ~10 s in its slow
+    /// tier; a side switch or swap re-reads them all at once anyway.
+    private static let filterReadsPerTick = 3
     /// ~9 s for the whole list at one tick a second — about the Mac's slow
     /// tier — for ~0.3 s more per tick over the Pi.
     private static let menuReadsPerTick = 4
@@ -210,7 +233,8 @@ public final class PiDirectViewModel: ObservableObject {
         playsSubAudio: Bool = false,
         readsSMeter: Bool = false,
         readsVFODetails: Bool = false,
-        readsMenuSettings: Bool = false
+        readsMenuSettings: Bool = false,
+        readsFilters: Bool = false
     ) {
         self.logSubsystem = logSubsystem
         logger = Logger(subsystem: logSubsystem, category: "pi-direct")
@@ -218,6 +242,7 @@ public final class PiDirectViewModel: ObservableObject {
         self.readsSMeter = readsSMeter
         self.readsVFODetails = readsVFODetails
         self.readsMenuSettings = readsMenuSettings
+        self.readsFilters = readsFilters
         memoryListSnapshot = memoryList.snapshot
         rigState.transmitEnabled = transmitEnabled
         memoryListCancellable = memoryList.$entries
@@ -249,6 +274,7 @@ public final class PiDirectViewModel: ObservableObject {
         self.wpsdHost = wpsdHost.trimmingCharacters(in: .whitespaces)
         tick = 0
         menuReadCursor = 0
+        filterReadCursor = 0
         let rigctld = RigctldClient(host: host, port: Self.rigctldPort)
         self.rigctld = rigctld
         let queue = CommandQueue(rigctld: rigctld)
@@ -263,7 +289,7 @@ public final class PiDirectViewModel: ObservableObject {
                     Task { @MainActor in self?.forceSlowReads = true }
                 case .swapActiveVFO, .setVFOMemoryMode, .setMemoryScan, .setTXSide:
                     Task { @MainActor in self?.commandApplied(command) }
-                case _ where Self.isMenuSetting(command):
+                case _ where Self.isMenuSetting(command) || command.isFilterSideCommand:
                     // A tick that read the field before the rig took the
                     // set would put the old value back until its next read.
                     Task { @MainActor in self?.commandGeneration += 1 }
@@ -305,6 +331,7 @@ public final class PiDirectViewModel: ObservableObject {
         // audio swap parity is kept: it describes the rig, not the session.)
         rigState = RigState()
         rigState.transmitEnabled = transmitEnabled
+        filterSpectrum.reset()
         lastVFOState = nil
         lastDistinctFrequencies = nil
         txSideBeforeMemoryScan = nil
@@ -345,6 +372,9 @@ public final class PiDirectViewModel: ObservableObject {
                 guard let self, self.audioClient != nil else { return }
                 self.lastAudioAt = Date()
                 if self.audioState != .playing { self.audioState = .playing }
+                // Before the mute/transmit checks: a muted side still shows.
+                if !mainPCM.isEmpty { self.filterSpectrum.ingest(pcm: mainPCM, side: .main) }
+                if !subPCM.isEmpty { self.filterSpectrum.ingest(pcm: subPCM, side: .sub) }
                 guard !self.isTransmitting else { return }
                 if !mainPCM.isEmpty, !self.isMainAudioMuted { self.mainAudioEngine.push(pcm: mainPCM) }
                 if !subPCM.isEmpty, !self.isSubAudioMuted { self.subAudioEngine.push(pcm: subPCM) }
@@ -461,6 +491,34 @@ public final class PiDirectViewModel: ObservableObject {
             }
         case _ where readsMenuSettings && Self.isMenuSetting(command):
             break
+        case .setFilterSide(let side) where readsFilters:
+            // As on the hub: SUB isn't shown in single-receive display.
+            if side == .sub, rigState.singleReceive == true {
+                logger.notice("ignoring SUB filter selection in single-receive display")
+                return
+            }
+            // The fields hold the selected side's values: blank them until
+            // that side is read, never show the other side's as its own.
+            rigState.filterSide = side
+            rigState.clearFilterFields()
+            commandGeneration += 1
+            Task {
+                // No CAT traffic — retargets the queue's filter commands.
+                await queue.enqueue(command)
+                await self.refreshFilterState(side: side)
+            }
+            return
+        case .setNarrow where readsFilters:
+            // N/W changes what "SH" reports (AM/FM) and which width
+            // applies: re-read right behind the write, as the hub does.
+            applyOptimistically(command)
+            Task {
+                await queue.enqueue(command)
+                await self.refreshWidthAfterNarrow()
+            }
+            return
+        case _ where readsFilters && command.isFilterSideCommand:
+            break
         default:
             // RX-only proof of concept — see the type's doc comment.
             logger.notice("ignoring unsupported command \(String(describing: command), privacy: .public)")
@@ -554,11 +612,44 @@ public final class PiDirectViewModel: ObservableObject {
         case .setRepeaterShift(let mode): rigState.repeaterShiftMode = mode
         case .setAPRSBeaconType(let mode): rigState.aprsBeaconType = mode
         case .setFMChannelStep(let step): rigState.fmChannelStep = step
+        case _ where command.isFilterSideCommand:
+            rigState.applyFilterCommand(command)
         default:
             break
         }
         // Drop a tick in flight: it may have read the old value.
-        if Self.isMenuSetting(command) { commandGeneration += 1 }
+        if Self.isMenuSetting(command) || command.isFilterSideCommand { commandGeneration += 1 }
+    }
+
+    /// Reads `side`'s whole filter state right after something changed
+    /// which values the fields should show (a MAIN/SUB switch, a swap) —
+    /// `HubService.refreshFilterState`. The delay lets the queue apply the
+    /// command first. Dropped if the side, its mode or the link changed
+    /// meanwhile.
+    private func refreshFilterState(side: FilterSide, afterDelay delay: Duration = .milliseconds(200)) async {
+        try? await Task.sleep(for: delay)
+        guard let rigctld else { return }
+        let mode = rigState.filterMode(for: side)
+        let snapshot = await rigctld.readFilterState(side: side, mode: mode)
+        guard self.rigctld === rigctld, rigState.activeFilterSide == side, rigState.filterMode(for: side) == mode else { return }
+        commandGeneration += 1
+        rigState.applyFilterSnapshot(snapshot, mode: mode)
+    }
+
+    /// After N/W: WIDTH and the mode's NAR WIDTH preset only —
+    /// `HubService.refreshWidthAfterNarrow`, without its retry (the
+    /// round-robin reads catch up within a few ticks).
+    private func refreshWidthAfterNarrow() async {
+        let side = rigState.activeFilterSide
+        let mode = rigState.filterMode
+        try? await Task.sleep(for: .milliseconds(300))
+        guard let rigctld else { return }
+        var snapshot = FilterSnapshot()
+        await FilterStateReads.width(rigctld, side, mode, &snapshot)
+        await FilterStateReads.narrowPreset(rigctld, side, mode, &snapshot)
+        guard self.rigctld === rigctld, rigState.activeFilterSide == side else { return }
+        commandGeneration += 1
+        rigState.applyFilterSnapshot(snapshot, mode: mode)
     }
 
     /// The MENU grid's commands (`MenuPageView`) other than tuning (HOME
@@ -710,6 +801,12 @@ public final class PiDirectViewModel: ObservableObject {
                 lastDistinctFrequencies = nil
             }
             lastVFOState = nil
+            if readsFilters {
+                // Whether a receiver's filters travel with the VFO or stay
+                // with the receiver, re-reading shows what the rig has now.
+                let side = rigState.activeFilterSide
+                Task { await refreshFilterState(side: side, afterDelay: .milliseconds(400)) }
+            }
         case .setVFOMemoryMode(let memory):
             rigState.vfoMemoryMode = memory ? .memory : .vfo
             if !memory, let last = lastVFOState {
@@ -829,6 +926,19 @@ public final class PiDirectViewModel: ObservableObject {
                 menuReadCursor = (menuReadCursor + 1) % reads.count
             }
         }
+        if readsFilters {
+            // The selected side as of this tick, at the mode just read; a
+            // side switch mid-tick bumps `commandGeneration`, dropping it.
+            let side = state.activeFilterSide
+            let mode = state.filterMode(for: side)
+            var snapshot = FilterSnapshot()
+            let reads = FilterStateReads.all
+            for _ in 0..<Self.filterReadsPerTick {
+                await reads[filterReadCursor % reads.count](rigctld, side, mode, &snapshot)
+                filterReadCursor = (filterReadCursor + 1) % reads.count
+            }
+            state.applyFilterSnapshot(snapshot, mode: mode)
+        }
         tick += 1
 
         guard !Task.isCancelled else { return }
@@ -844,6 +954,12 @@ public final class PiDirectViewModel: ObservableObject {
         state.c4fmReflector = c4fmReflector
         rigState = state
         if readsVFODetails { updateWPSD() }
+        // As on the hub: if the rig went to single-receive display with SUB
+        // selected, fall back to MAIN through the normal path.
+        if readsFilters, state.singleReceive == true, state.activeFilterSide == .sub {
+            logger.notice("single-receive display while SUB filter selected — falling back to MAIN")
+            send(.setFilterSide(.main))
+        }
     }
 
     /// The rest of the Mac's VFO-box fields, read the way `HubService`
