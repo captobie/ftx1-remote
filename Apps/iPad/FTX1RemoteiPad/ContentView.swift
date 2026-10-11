@@ -135,6 +135,9 @@ struct HubControlView: View {
                     )
                 }
 
+                // No spectrum yet: the passband shape alone.
+                FilterPanel<RigClientViewModel>(spectrum: [], isActive: viewModel.connectionState == .connected)
+
                 MenuPageView<RigClientViewModel>(showsPagePicker: false)
             }
             .padding(32)

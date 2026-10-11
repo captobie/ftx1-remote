@@ -1,0 +1,96 @@
+import FTX1Core
+import SwiftUI
+
+/// The Mac `ContentView`'s Filter block on the iPad, between the meter
+/// strips and the MENU grid (always visible — user decision, 2026-10-11):
+/// WIDTH/SHIFT on the first row, CONTOUR-or-APF, N/W and NOTCH on the
+/// second, then the MAIN/SUB `FilterSideSelector` and the Filter Function
+/// Display. All the controls are the shared `FTX1Core` views, so this only
+/// arranges them. Generic over `RigController` so both iPad screens can use
+/// it — the hub screen drives it with `RigClientViewModel`, whose commands
+/// and filter state already cross the WebSocket.
+///
+/// `spectrum` is the display's audio overlay, 0…1 per bin over 0–4 kHz;
+/// `[]` draws the passband shape alone.
+///
+/// Picked by `ViewThatFits`, widest first: the Mac's arrangement (both
+/// control rows, then selector + display) in landscape; in portrait the
+/// selector + display with WIDTH and SHIFT stacked beside them and the
+/// second row underneath; failing that, everything stacked.
+struct FilterPanel<Controller: RigController>: View {
+    let spectrum: [Float]
+    let isActive: Bool
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 16) {
+                controls
+                sideAndDisplay
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .center, spacing: 16) {
+                    sideAndDisplay
+                    VStack(alignment: .leading, spacing: 8) {
+                        FilterWidthControl<Controller>()
+                        IFShiftControl<Controller>()
+                    }
+                    .fixedSize()
+                }
+                secondRow
+            }
+            VStack(alignment: .leading, spacing: 12) {
+                sideAndDisplay
+                controls
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private var controls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 16) {
+                FilterWidthControl<Controller>()
+                IFShiftControl<Controller>()
+            }
+            secondRow
+        }
+        .fixedSize()
+    }
+
+    private var secondRow: some View {
+        HStack(spacing: 16) {
+            ContourAPFControl<Controller>()
+            NarrowControl<Controller>()
+            IFNotchControl<Controller>()
+        }
+        .fixedSize()
+    }
+
+    private var sideAndDisplay: some View {
+        HStack(spacing: 12) {
+            FilterSideSelector<Controller>()
+            FilterDisplayHostView<Controller>(spectrum: spectrum, isActive: isActive)
+        }
+    }
+}
+
+/// Builds the display's `FilterPassbandModel` from the controller's state.
+/// Its own view so only it and the controls re-read `rigState`.
+private struct FilterDisplayHostView<Controller: RigController>: View {
+    @EnvironmentObject private var hub: Controller
+    let spectrum: [Float]
+    let isActive: Bool
+
+    var body: some View {
+        FilterDisplayView(
+            model: FilterPassbandModel(state: hub.rigState),
+            spectrum: isActive ? spectrum : [],
+            isActive: isActive
+        )
+    }
+}

@@ -844,6 +844,34 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   band picker (the hub screen's power slider is gone too, 2026-10-11 —
   RF POWER in the grid does it). Not yet tried on a real iPad or on air.
 
+## iPad filter controls (in progress, started 2026-10-11)
+
+The Mac's Filter block on the iPad, always visible between the meter
+strips and the MENU grid, on both routes (user decisions). Three steps,
+each committed on its own:
+
+1. **Hub screen, outline only (done 2026-10-11; tested by the user against
+   the Mac hub, portrait and landscape)**: `FilterPanel` (`Apps/iPad/`,
+   generic over `RigController`) places the shared WIDTH/SHIFT/CONTOUR-
+   APF/N/W/NOTCH views, `FilterSideSelector` and `FilterDisplayView`.
+   `ViewThatFits` picks the Mac's single-row layout in landscape, the
+   display with WIDTH/SHIFT beside it in portrait, or all stacked. No
+   wire change: every filter command and field already crossed the
+   WebSocket. `RigClientViewModel` doesn't apply optimistically, so a
+   released SHIFT slider may snap back until the hub's next push.
+2. **Spectrum (next)**: an FFT on the iPad of the 8 kHz audio it already
+   gets (0–4 kHz is exactly the display's span; ~512-point FFT ≈ the Mac's
+   resolution) — no waterfall/scope, no spectrum on/off switch (user
+   decision). Move `AudioCaptureEngine`'s `fftPowerDb`/
+   `normalizedSpectrum`/auto-gain into `FTX1Core`; tap the selected
+   side's samples *before* the mute check; run only while shown; own
+   small store observed by the display only.
+3. **Pi direct**: move `HubService`'s `readFilterState`/
+   `applyFilterSnapshot`/`clearFilterFields`/`refreshFilterState` into
+   `FTX1Core`, accept the filter commands in `PiDirectViewModel`, re-read
+   on a side switch/swap/NAR write, poll the reads round-robin, feed the
+   spectrum from the downsampled Pi audio.
+
 ## iPad transmit audio (2026-10-09, build- and Simulator-checked; not yet on the air)
 
 Hold-to-talk PTT on both iPad screens (`PTTButton`, right of Connected and
@@ -2064,9 +2092,8 @@ WebSDR differences are in their own bullet at the end.
     second, with `FilterDisplayHost` — Mac-only, `Apps/Mac/` — on the right
     spanning both rows, the `FilterSideSelector` between the two) (the rig
     keeps these on the MAIN-knob function menu, not the MENU grid, so
-    they're not `MenuPageView` buttons), placed only on the Mac so far but
-    deliberately built shared because the iPad is the planned next
-    placement. Only put
+    they're not `MenuPageView` buttons), on the Mac and, since 2026-10-11,
+    the iPad hub screen (`FilterPanel`, see "iPad filter controls"). Only put
     a view here once it's actually needed on more than one target — `FrequencyDisplay` (iOS's single-VFO readout) stays in the
     iOS app target since nothing else uses it.
 - `Sources/CFT8Lib/` — vendored decode-only subset of `kgoba/ft8_lib` (MIT)
