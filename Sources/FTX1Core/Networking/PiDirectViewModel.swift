@@ -24,9 +24,14 @@ import os
 /// MENU grid (2026-10-09, iPad): with `readsMenuSettings` this conforms to
 /// `RigController`, so the shared `MenuPageView` runs on it. It accepts the
 /// grid's setting commands (`isMenuSetting`) and reads their fields a few
-/// per poll tick (`menuSettingReads`, the hub's slow-tier reads). Deep
-/// Settings, APRS lists and RECORD/PLAY stay unsupported, as on the hub
-/// route.
+/// per poll tick (`menuSettingReads`, the hub's slow-tier reads). APRS
+/// lists and RECORD/PLAY stay unsupported, as on the hub route.
+///
+/// Deep Settings (2026-10-11, iPad, with `readsMenuSettings`): the shared
+/// `DeepSettingsView` reads the open tab's items straight over this
+/// rigctld link (`readMenuItem`) and writes with `.setMenuItem`, as the
+/// Mac does. Like the hub, those writes aren't transmit-gated: the
+/// catalog's momentary/irreversible items (`.action`) are never sent.
 ///
 /// Filters (2026-10-11, iPad): with `readsFilters` it takes the filter
 /// row's commands (WIDTH/SHIFT/CONTOUR-APF/N/W/NOTCH and the MAIN/SUB
@@ -653,7 +658,8 @@ public final class PiDirectViewModel: ObservableObject {
     }
 
     /// The MENU grid's commands (`MenuPageView`) other than tuning (HOME
-    /// sends `.setFrequency`), all queued as the hub queues them. Only
+    /// sends `.setFrequency`), plus Deep Settings' `.setMenuItem`, all
+    /// queued as the hub queues them. Only
     /// MOX on and ANT TUNE transmit; `send` gates those first.
     nonisolated private static func isMenuSetting(_ command: RigCommand) -> Bool {
         switch command {
@@ -663,7 +669,7 @@ public final class PiDirectViewModel: ObservableObject {
              .setDisplayPeak, .setDisplayMarker, .setMicGain, .setAMCLevel, .setVox, .setVoxGain,
              .setVoxDelay, .setDNF, .setAGC, .setMicEQ, .setProcLevel, .setNBLevel, .setDNRLevel,
              .setAntSelect, .setSquelchType, .setToneFreq, .setDCSCode, .setRepeaterShift,
-             .setAPRSBeaconType, .setFMChannelStep:
+             .setAPRSBeaconType, .setFMChannelStep, .setMenuItem:
             return true
         default:
             return false
@@ -1122,6 +1128,14 @@ private final class ChannelSwapFlag: @unchecked Sendable {
 }
 
 /// Lets the shared `MenuPageView` run on this route (the iPad's Pi-direct
-/// screen). Deep Settings, APRS and recording keep the protocol's
-/// unsupported defaults.
-extension PiDirectViewModel: RigController {}
+/// screen). APRS and recording keep the protocol's unsupported defaults.
+extension PiDirectViewModel: RigController {
+    public var supportsDeepSettings: Bool { readsMenuSettings }
+
+    /// Straight over the rigctld link, like `HubService.readMenuItem`; its
+    /// round-trip lock interleaves these with the poll's reads.
+    public func readMenuItem(p1: Int, p2: Int, p3: Int) async -> String? {
+        guard readsMenuSettings, connectionState == .connected, let rigctld else { return nil }
+        return try? await rigctld.getMenuItem(p1: p1, p2: p2, p3: p3)
+    }
+}

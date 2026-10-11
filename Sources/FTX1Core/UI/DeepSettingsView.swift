@@ -76,17 +76,26 @@ public struct DeepSettingsView<Controller: RigController>: View {
                     ContentUnavailableView("Select a tab", systemImage: "sidebar.left")
                 }
             }
+            #if os(iOS)
+            // On iOS a split view's own toolbar isn't shown; the detail
+            // column's navigation bar is.
+            .toolbar { doneButton }
+            #endif
         }
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Done") { dismiss() }
-            }
-        }
+        #if os(macOS)
+        .toolbar { doneButton }
+        #endif
         #if os(macOS)
         .frame(minWidth: 560, minHeight: 420)
         #endif
         .onAppear {
             if selectedTabID == nil { selectedTabID = tabs.first?.id }
+        }
+    }
+
+    private var doneButton: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Done") { dismiss() }
         }
     }
 
