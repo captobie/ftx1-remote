@@ -407,6 +407,28 @@ public final class PiDirectViewModel: ObservableObject {
             }
             Task { await queue.enqueue(command) }
             return
+        case .setBand(let name):
+            // MAIN's band picker. No band memory on this route (that's the
+            // hub's `BandMemory`): a band goes to its default frequency and
+            // keeps the mode; a general-coverage segment also gets its
+            // default mode, as on the hub. Not while scanning, as above.
+            if rigState.memoryScan == .scanning || rigState.memoryScan == .paused {
+                logger.notice("ignoring \(String(describing: command), privacy: .public) while the rig scans")
+                return
+            }
+            var commands: [RigCommand]
+            if let band = BandPlan.band(named: name) {
+                commands = [.setFrequency(hz: band.defaultFrequencyHz)]
+            } else if let segment = GeneralCoverageSegments.segment(named: name) {
+                commands = [.setFrequency(hz: segment.defaultFrequencyHz), .setMode(segment.defaultMode)]
+            } else {
+                logger.notice("ignoring unknown band \(name, privacy: .public)")
+                return
+            }
+            commands.forEach(applyOptimistically)
+            // One task, so the mode can't overtake the frequency.
+            Task { for command in commands { await queue.enqueue(command) } }
+            return
         case .refreshMemoryList:
             memoryList.refresh()
             return

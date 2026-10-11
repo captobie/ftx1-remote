@@ -755,7 +755,8 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   VFO mode shows `FrequencyEntryView` plus `ModeButtonGrid` (all nine
   modes, current one filled, popover stays open; on the hub screen's
   MAIN box also a `BandPicker` menu, `.setBand`, since 2026-10-11 —
-  build-verified only); in Memory mode
+  build-verified only; on Pi direct too, without the hub's band memory:
+  a band's default frequency, mode kept, a segment's default mode); in Memory mode
   `MemoryChannelEntryView` plus `MemoryChannelListView` (filterable
   channel/tag/frequency/mode list from a `MemoryListSnapshot`, current
   channel highlighted, tap selects through `onSetMemoryChannel` and

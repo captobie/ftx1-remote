@@ -23,9 +23,10 @@ import SwiftUI
 /// The hub screen's `MenuPageView` (2026-10-09) sits at the bottom,
 /// running on `PiDirectViewModel` (a `RigController`): the same three
 /// pages, with MOX/ANT TUNE behind this route's lock and Deep Settings,
-/// APRS lists and RECORD/PLAY unavailable as on the hub route. Still no
-/// band picker (its band memory is the hub's); power is the grid's RF
-/// POWER, as on the hub screen.
+/// APRS lists and RECORD/PLAY unavailable as on the hub route; power is
+/// the grid's RF POWER, as on the hub screen. MAIN's frequency popover has
+/// the band picker too, without the hub's band memory (see
+/// `PiDirectViewModel.send`).
 ///
 /// Unlike the iPhone's `PiDirectView` (single focused VFO, Main audio
 /// only), this shows both receivers, as the hub screen does.
@@ -153,7 +154,9 @@ struct PiDirectView: View {
                 currentMode: state.mode,
                 onSetMode: { viewModel.send(.setMode($0)) },
                 memoryList: viewModel.memoryListSnapshot,
-                onRefreshMemoryList: { viewModel.send(.refreshMemoryList) }
+                onRefreshMemoryList: { viewModel.send(.refreshMemoryList) },
+                currentBand: BandPicker.name(containing: state.frequencyHz),
+                onSetBand: editable ? { viewModel.send(.setBand($0)) } : nil
             )
         }
 
