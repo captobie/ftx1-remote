@@ -45,7 +45,8 @@ over Tailscale, without needing to be physically near the rig.
   one app target, follow this pattern rather than duplicating the file per
   target or coupling it to `HubService` directly.
 - **Deep Settings on every route (2026-10-11; Simulator against the
-  real Pi on both iPad routes)**: `DeepSettingsView` lives in
+  real Pi on both iPad routes, then confirmed on a real iPad by the user
+  the same day, both routes)**: `DeepSettingsView` lives in
   `FTX1Core/UI/` and reads each item through `RigController.
   readMenuItem(p1:p2:p3:)` (`supportsDeepSettings` gates the six FM-page
   buttons). `HubService` and `PiDirectViewModel` (with
