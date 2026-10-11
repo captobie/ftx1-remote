@@ -75,6 +75,13 @@ public struct VFODisplayBox: View {
     let memoryList: MemoryListSnapshot?
     /// Re-reads `memoryList` from the rig.
     let onRefreshMemoryList: (() -> Void)?
+    /// The band this VFO is on (`RigState.band`), for the frequency
+    /// popover's `BandPicker`, shown only together with `onSetBand` — VFO
+    /// mode only, like the rest of that popover.
+    let currentBand: String?
+    /// Band-picker callback (`RigCommand.setBand`). `nil` (the default)
+    /// leaves the popover without one.
+    let onSetBand: ((String) -> Void)?
 
     @State private var isEditing = false
 
@@ -97,7 +104,9 @@ public struct VFODisplayBox: View {
         currentMode: RigMode? = nil,
         onSetMode: ((RigMode) -> Void)? = nil,
         memoryList: MemoryListSnapshot? = nil,
-        onRefreshMemoryList: (() -> Void)? = nil
+        onRefreshMemoryList: (() -> Void)? = nil,
+        currentBand: String? = nil,
+        onSetBand: ((String) -> Void)? = nil
     ) {
         self.label = label
         self.frequencyHz = frequencyHz
@@ -118,6 +127,8 @@ public struct VFODisplayBox: View {
         self.onSetMode = onSetMode
         self.memoryList = memoryList
         self.onRefreshMemoryList = onRefreshMemoryList
+        self.currentBand = currentBand
+        self.onSetBand = onSetBand
     }
 
     /// Whether the memory popover shows the channel list.
@@ -273,11 +284,21 @@ public struct VFODisplayBox: View {
                                 )
                             }
                         } else if !isOutsideVFOMode, let onSetFrequency {
-                            if let onSetMode {
+                            if onSetMode != nil || onSetBand != nil {
                                 VStack(spacing: 0) {
                                     FrequencyEntryView(currentHz: frequencyHz ?? 0, onSetFrequency: onSetFrequency)
-                                    ModeButtonGrid(currentMode: currentMode, onSetMode: onSetMode)
+                                    if let onSetBand {
+                                        HStack {
+                                            Text("Band")
+                                            Spacer()
+                                            BandPicker(currentBand: currentBand, onSetBand: onSetBand)
+                                        }
                                         .padding([.horizontal, .bottom])
+                                    }
+                                    if let onSetMode {
+                                        ModeButtonGrid(currentMode: currentMode, onSetMode: onSetMode)
+                                            .padding([.horizontal, .bottom])
+                                    }
                                 }
                                 .frame(width: 340)
                             } else {

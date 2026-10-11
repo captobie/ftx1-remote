@@ -753,7 +753,9 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   only — no mode/channel change sent yet)**: user request. Both iPad
   screens dropped their segmented mode row. Tapping a box's frequency in
   VFO mode shows `FrequencyEntryView` plus `ModeButtonGrid` (all nine
-  modes, current one filled, popover stays open); in Memory mode
+  modes, current one filled, popover stays open; on the hub screen's
+  MAIN box also a `BandPicker` menu, `.setBand`, since 2026-10-11 —
+  build-verified only); in Memory mode
   `MemoryChannelEntryView` plus `MemoryChannelListView` (filterable
   channel/tag/frequency/mode list from a `MemoryListSnapshot`, current
   channel highlighted, tap selects through `onSetMemoryChannel` and
@@ -2119,7 +2121,7 @@ WebSDR differences are in their own bullet at the end.
   one, `ChannelStrip` the per-receiver meter + mute/SQL/VOL strip both
   use — see "Pi-direct proof of concept" above). The hub screen is a dense
   layout modeled on the Mac's `ContentView` (VFO A/B side by side via the
-  shared `VFODisplayBox`, PTT, band — no power slider since 2026-10-11, the MENU grid's RF POWER covers it) plus the shared
+  shared `VFODisplayBox`, PTT — no power slider since 2026-10-11, the MENU grid's RF POWER covers it; the band picker moved into MAIN's frequency popover the same day) plus the shared
   `MenuPageView` grid. The FM page's
   6 Deep Settings buttons render a disabled "SOON" placeholder rather than
   opening `DeepSettingsView` — see the `RigController`/Deep Settings note

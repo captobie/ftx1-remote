@@ -59,9 +59,10 @@ struct ContentView: View {
 }
 
 /// Dense multi-pane control UI, modeled on the Mac's `ContentView` rather
-/// than iPhone's single-focus flow (see repo root CLAUDE.md) — VFO A/B,
-/// meters, and band/mode selectors all visible together, plus the numbered
-/// `MenuPageView` grid. Unlike the Mac, this is a WebSocket client only
+/// than iPhone's single-focus flow (see repo root CLAUDE.md) — VFO A/B and
+/// meters visible together, plus the numbered `MenuPageView` grid. Band
+/// (MAIN only, VFO mode) and mode are picked in each VFO box's frequency
+/// popover. Unlike the Mac, this is a WebSocket client only
 /// (`RigClientViewModel`), never touches `RigctldClient` directly.
 struct HubControlView: View {
     @EnvironmentObject private var viewModel: RigClientViewModel
@@ -104,7 +105,7 @@ struct HubControlView: View {
 
                 HStack(spacing: 12) {
                     VFODisplayBox(label: "SUB", frequencyHz: viewModel.rigState.secondaryFrequencyHz, isActive: viewModel.rigState.singleReceive != true, mode: viewModel.rigState.secondaryMode?.displayName ?? "—", txRxLabel: viewModel.rigState.subTxRxLabel, callsign: viewModel.rigState.secondaryMode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsSubActive ? viewModel.rigState.aprsSubLastCallsign : nil), reflector: viewModel.rigState.secondaryMode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsSubActive, onSetFrequency: { viewModel.send(.setSecondaryFrequency(hz: $0)) }, vfoMemoryMode: viewModel.rigState.subVfoMemoryMode, memoryChannel: viewModel.rigState.subMemoryChannel, memoryChannelTag: viewModel.rigState.subMemoryChannelTag, onSetMemoryChannel: { viewModel.send(.setSubMemoryChannel($0)) }, onStepMemoryChannel: { viewModel.send(.stepSubMemoryChannel(up: $0)) }, memoryScan: viewModel.rigState.memoryScan(on: .sub), currentMode: viewModel.rigState.secondaryMode, onSetMode: { viewModel.send(.setSecondaryMode($0)) }, memoryList: viewModel.memoryList, onRefreshMemoryList: { viewModel.send(.refreshMemoryList) })
-                    VFODisplayBox(label: "MAIN", frequencyHz: viewModel.rigState.frequencyHz, isActive: true, mode: viewModel.rigState.mode.displayName, txRxLabel: viewModel.rigState.mainTxRxLabel, callsign: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsActive ? viewModel.rigState.aprsLastCallsign : nil), reflector: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsActive, onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }, vfoMemoryMode: viewModel.rigState.vfoMemoryMode, memoryChannel: viewModel.rigState.memoryChannel, memoryChannelTag: viewModel.rigState.memoryChannelTag, onSetMemoryChannel: { viewModel.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { viewModel.send(.stepMemoryChannel(up: $0)) }, memoryScan: viewModel.rigState.memoryScan(on: .main), currentMode: viewModel.rigState.mode, onSetMode: { viewModel.send(.setMode($0)) }, memoryList: viewModel.memoryList, onRefreshMemoryList: { viewModel.send(.refreshMemoryList) })
+                    VFODisplayBox(label: "MAIN", frequencyHz: viewModel.rigState.frequencyHz, isActive: true, mode: viewModel.rigState.mode.displayName, txRxLabel: viewModel.rigState.mainTxRxLabel, callsign: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsActive ? viewModel.rigState.aprsLastCallsign : nil), reflector: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsActive, onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }, vfoMemoryMode: viewModel.rigState.vfoMemoryMode, memoryChannel: viewModel.rigState.memoryChannel, memoryChannelTag: viewModel.rigState.memoryChannelTag, onSetMemoryChannel: { viewModel.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { viewModel.send(.stepMemoryChannel(up: $0)) }, memoryScan: viewModel.rigState.memoryScan(on: .main), currentMode: viewModel.rigState.mode, onSetMode: { viewModel.send(.setMode($0)) }, memoryList: viewModel.memoryList, onRefreshMemoryList: { viewModel.send(.refreshMemoryList) }, currentBand: viewModel.rigState.band, onSetBand: { viewModel.send(.setBand($0)) })
                 }
 
                 // Same SUB | MAIN columns as the VFO boxes above, so each
@@ -132,30 +133,6 @@ struct HubControlView: View {
                         engine: viewModel.audioEngine,
                         onToggleMute: viewModel.toggleMainAudioMuted
                     )
-                }
-
-                // Mode is set from each VFO box's frequency popover.
-                HStack(spacing: 16) {
-                    Picker("Band", selection: bandBinding) {
-                        Section("Amateur") {
-                            ForEach(BandPlan.all, id: \.name) { band in
-                                Text(band.name).tag(band.name)
-                            }
-                        }
-                        Section("Broadcast") {
-                            ForEach(GeneralCoverageSegments.all.filter { $0.category == .broadcast }, id: \.name) { segment in
-                                Text(segment.name).tag(segment.name)
-                            }
-                        }
-                        Section("Utility") {
-                            ForEach(GeneralCoverageSegments.all.filter { $0.category == .utility }, id: \.name) { segment in
-                                Text(segment.name).tag(segment.name)
-                            }
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 130)
-                    Spacer()
                 }
 
                 MenuPageView<RigClientViewModel>(showsPagePicker: false)
@@ -260,16 +237,6 @@ struct HubControlView: View {
         }
         .buttonStyle(.plain)
         .disabled(viewModel.connectionState != .connected && host.isEmpty)
-    }
-
-    /// Falls back to the first band in the plan if the active frequency
-    /// isn't within any known band (e.g. not connected yet) — same as Mac's
-    /// `ContentView`.
-    private var bandBinding: Binding<String> {
-        Binding(
-            get: { viewModel.rigState.band ?? BandPlan.all.first?.name ?? "" },
-            set: { viewModel.send(.setBand($0)) }
-        )
     }
 
 }
