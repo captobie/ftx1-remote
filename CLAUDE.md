@@ -754,9 +754,10 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   screens dropped their segmented mode row. Tapping a box's frequency in
   VFO mode shows `FrequencyEntryView` plus `ModeButtonGrid` (all nine
   modes, current one filled, popover stays open; on the hub screen's
-  MAIN box also a `BandPicker` menu, `.setBand`, since 2026-10-11 —
-  build-verified only; on Pi direct too, without the hub's band memory:
-  a band's default frequency, mode kept, a segment's default mode); in Memory mode
+  MAIN box also a `BandPicker` menu, `.setBand`, since 2026-10-11; on
+  Pi direct too, without the hub's band memory: a band's default
+  frequency, mode kept, a segment's default mode — both routes
+  rig-confirmed by the user the same day); in Memory mode
   `MemoryChannelEntryView` plus `MemoryChannelListView` (filterable
   channel/tag/frequency/mode list from a `MemoryListSnapshot`, current
   channel highlighted, tap selects through `onSetMemoryChannel` and
