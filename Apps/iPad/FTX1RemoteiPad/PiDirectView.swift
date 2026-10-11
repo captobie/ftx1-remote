@@ -192,7 +192,7 @@ struct PiDirectView: View {
                 .lineLimit(1)
         }
 
-        MenuPageView<PiDirectViewModel>()
+        MenuPageView<PiDirectViewModel>(showsPagePicker: false)
 
         Text("Direct to rigctld on the Pi, no Mac hub. Unlock to transmit (PTT, MOX, ANT TUNE); hold PTT to talk through the iPad's microphone. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed. Menu values refresh every ~10 s.")
             .font(.caption)

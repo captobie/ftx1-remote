@@ -2019,7 +2019,8 @@ WebSDR differences are in their own bullet at the end.
     `RigController` (the protocol `HubService`/`RigClientViewModel` both
     conform to — see Architecture above), `MenuPageView` (the numbered 7×4
     MENU grid, generic over `RigController`, one hand-written button per
-    item), `VFODisplayBox` (the dense side-by-side VFO A/B readout used by
+    item; both iPad screens pass `showsPagePicker: false` since
+    2026-10-11, leaving page changes to the grid's ◀/▶ buttons), `VFODisplayBox` (the dense side-by-side VFO A/B readout used by
     Mac and iPad), laid out as three fixed rows so nothing can resize the box or
     move the frequency: (1) tag row — MAIN/SUB, TXRX/RX, then (Memory mode
     only) a separate "CH n TAG" box, with the mode box at the right edge;

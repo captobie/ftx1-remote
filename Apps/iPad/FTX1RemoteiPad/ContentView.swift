@@ -158,7 +158,7 @@ struct HubControlView: View {
                     Spacer()
                 }
 
-                MenuPageView<RigClientViewModel>()
+                MenuPageView<RigClientViewModel>(showsPagePicker: false)
             }
             .padding(32)
         }

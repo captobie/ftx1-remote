@@ -113,17 +113,26 @@ public struct MenuPageView<Controller: RigController>: View {
         var id: String { title }
     }
 
-    public init() {}
+    /// Whether the SSB/CW/FM/C4FM segmented picker shows above the grid.
+    /// The grid's own ◀/▶ buttons (items 22 and 28) change pages either
+    /// way; the iPad hides the picker to save space.
+    private let showsPagePicker: Bool
+
+    public init(showsPagePicker: Bool = true) {
+        self.showsPagePicker = showsPagePicker
+    }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Picker("Menu page", selection: $selectedPage) {
-                ForEach(MenuPage.allCases) { page in
-                    Text(page.rawValue).tag(page)
+            if showsPagePicker {
+                Picker("Menu page", selection: $selectedPage) {
+                    ForEach(MenuPage.allCases) { page in
+                        Text(page.rawValue).tag(page)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
 
             LazyVGrid(
                 columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: menuPageColumns),
