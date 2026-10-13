@@ -1422,8 +1422,11 @@ vendored here.
   decoder (CNN + CTC Core ML model, `CWNet.mlmodelc`) and the classic one
   (Goertzel + timing rules), with their Python training/export (`ml/`) and
   golden tests in the same repo. The Mac target depends on it by git URL,
-  `upToNextMinorVersion` from `0.1.1`, wired into the pbxproj the same way
+  `upToNextMinorVersion` from `0.2.0`, wired into the pbxproj the same way
   as Sparkle (hand-added, then `xcodebuild -resolvePackageDependencies`).
+  0.2.0 (2026-10-12) retrained the neural model for hand-sent code, low
+  SNR and slow Farnsworth spacing, and stopped the streaming decoder
+  doubling commas; the API is unchanged from 0.1.1.
   To pick up a retrained model or decoder fix: tag a new CWKit release in
   cwdecode, then bump/resolve here. The model ships *compiled* in the
   package (`.copy("Resources/CWNet.mlmodelc")`) because SwiftPM compiles an

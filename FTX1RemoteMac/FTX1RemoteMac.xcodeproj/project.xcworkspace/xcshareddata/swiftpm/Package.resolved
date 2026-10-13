@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/captobie/cwdecode",
       "state" : {
-        "revision" : "2c34b246e437b15a298c105776c8250ec6b5402e",
-        "version" : "0.1.1"
+        "revision" : "e3934a475517148d108a59a9e17ba49f3209d7fe",
+        "version" : "0.2.0"
       }
     },
     {
