@@ -11,7 +11,9 @@ namespace FTX1RemoteWindows.Services;
 /// Like the Mac's, it adopts an already-running, responsive rigctld on the
 /// port instead of replacing it — another client (e.g. WSJT-X) may be
 /// mid-session with it — and only kills one that's listening but not
-/// answering. An adopted rigctld is never stopped by Stop().
+/// answering. An adopted rigctld is never stopped by Stop(). A responsive
+/// one started for a different rig model is neither adopted nor killed:
+/// StartAsync throws, naming it.
 public sealed class RigctldProcessController
 {
     public sealed record Configuration(
@@ -66,8 +68,18 @@ public sealed class RigctldProcessController
             return StartResult.Spawned;
         }
 
-        switch (await ProbeAsync(config.Host, config.Port).ConfigureAwait(false))
+        var (probe, otherRig) = await ProbeAsync(config.Host, config.Port, config.ModelNumber).ConfigureAwait(false);
+        switch (probe)
         {
+            case ProbeResult.OtherRig:
+                // Neither adopted nor killed: another program (e.g. WSJT-X)
+                // is likely using it, and silently controlling the wrong
+                // radio would be worse than not connecting.
+                LastResolution = null;
+                AppLog.Write($"connection: not adopting the rigctld on port {config.Port}: it's for {otherRig!.DisplayName}, not model {config.ModelNumber}");
+                throw new RigctldError(
+                    $"The rigctld already running on port {config.Port} is for {otherRig.DisplayName}, not {RigctldBinary.RigName(config.ModelNumber)}. " +
+                    "Quit it (or the program that started it, e.g. WSJT-X), then connect again.");
             case ProbeResult.Healthy:
                 LastResolution = null;
                 return StartResult.Adopted;
@@ -228,33 +240,60 @@ public sealed class RigctldProcessController
     private enum ProbeResult
     {
         NothingListening,
+        /// Started for the configured model and answering, rig included.
         Healthy,
+        /// Answering, but started for another rig — never adopted, and
+        /// never killed either.
+        OtherRig,
+        /// Not answering "\dump_caps", or (same model) not answering a
+        /// frequency read: stale, safe to replace.
         Unresponsive,
     }
 
-    /// Connects and does one round trip, like the Mac's isHealthy — a
-    /// liveness check only, not whether the running rigctld was started
-    /// with the same COM port/baud rate (it has no way to report that).
-    private static async Task<ProbeResult> ProbeAsync(string host, int port)
+    /// Probes a rigctld already listening on the port, like the Mac's
+    /// probeExisting. "\dump_caps" first, on its own connection
+    /// (ReadRigModelAsync stops partway through the ~2300-line reply and
+    /// disconnects): rigctld answers it without rig I/O, so it shows the
+    /// process is alive and which model it was started for. Then one
+    /// round trip ("f currVFO", which any rig answers) — a liveness check,
+    /// not whether it uses the same COM port/baud rate (rigctld has no way
+    /// to report those).
+    private static async Task<(ProbeResult, RigctldRigModel?)> ProbeAsync(string host, int port, int model)
     {
+        await using (var capsClient = new RigctldClient(host, port))
+        {
+            try
+            {
+                await capsClient.ConnectAsync(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
+            }
+            catch (RigctldError)
+            {
+                return (ProbeResult.NothingListening, null);
+            }
+            try
+            {
+                if (await capsClient.ReadRigModelAsync().ConfigureAwait(false) is { } running && running.Number != model)
+                {
+                    return (ProbeResult.OtherRig, running);
+                }
+            }
+            catch (Exception)
+            {
+                return (ProbeResult.Unresponsive, null);
+            }
+        }
+
         await using var client = new RigctldClient(host, port);
         try
         {
             await client.ConnectAsync(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
-        }
-        catch (RigctldError)
-        {
-            return ProbeResult.NothingListening;
-        }
-        try
-        {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
             _ = await client.GetFrequencyAsync(cts.Token).ConfigureAwait(false);
-            return ProbeResult.Healthy;
+            return (ProbeResult.Healthy, null);
         }
         catch (Exception)
         {
-            return ProbeResult.Unresponsive;
+            return (ProbeResult.Unresponsive, null);
         }
     }
 

@@ -888,6 +888,51 @@ public sealed class RigctldClient : IAsyncDisposable
         }
     }
 
+    /// Which rig a running rigctld was started for, from the first lines of
+    /// "\dump_caps": "Caps dump for model: 1051", "Model name:\tFTX-1",
+    /// "Mfg name:\tYaesu" (checked against Hamlib 4.7.2's Windows
+    /// rigctld.exe with the dummy rig, with and without -o). Port of
+    /// RigctldClient.swift's readRigModel. rigctld answers this without
+    /// talking to the rig. Like ReadHamlibVersionAsync, reads only those
+    /// lines and then disconnects — for a short-lived client of its own.
+    /// Null if the reply doesn't start that way.
+    public async Task<RigctldRigModel?> ReadRigModelAsync(CancellationToken cancellationToken = default)
+    {
+        await _roundTripLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await WriteAsync("\\dump_caps", cancellationToken).ConfigureAwait(false);
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+            int? number = null;
+            var name = "";
+            var manufacturer = "";
+            for (var i = 0; i < 3; i++)
+            {
+                var line = await ReadLineAsync(linked.Token).ConfigureAwait(false);
+                if (line.StartsWith("RPRT", StringComparison.Ordinal))
+                {
+                    throw new RigctldError($"'\\dump_caps' failed: {line}");
+                }
+                if (Value(line, "Caps dump for model:") is { } model && int.TryParse(model, out var parsed))
+                {
+                    number = parsed;
+                }
+                name = Value(line, "Model name:") ?? name;
+                manufacturer = Value(line, "Mfg name:") ?? manufacturer;
+            }
+            return number is { } n ? new RigctldRigModel(n, manufacturer, name) : null;
+        }
+        finally
+        {
+            Disconnect();
+            _roundTripLock.Release();
+        }
+
+        static string? Value(string line, string prefix) =>
+            line.StartsWith(prefix, StringComparison.Ordinal) ? line[prefix.Length..].Trim() : null;
+    }
+
     /// The write itself takes ~2 s (see WriteKeyerMemoryAsync), so this is
     /// the Mac's 6 s, not raw CAT's 1 s.
     private static readonly TimeSpan KeyerMemoryWriteTimeout = TimeSpan.FromSeconds(6);
@@ -933,6 +978,20 @@ public sealed class RigctldClient : IAsyncDisposable
                 throw new RigctldError("Connection closed by remote end");
             }
             _readBuffer.Append(Encoding.UTF8.GetString(_recvBuffer, 0, read));
+        }
+    }
+}
+
+/// The rig a running rigctld was started for (RigctldClient.ReadRigModelAsync).
+public sealed record RigctldRigModel(int Number, string Manufacturer, string Name)
+{
+    /// e.g. "Yaesu FT-991 (model 1035)".
+    public string DisplayName
+    {
+        get
+        {
+            var label = string.Join(" ", new[] { Manufacturer, Name }.Where(s => s.Length > 0));
+            return label.Length == 0 ? $"model {Number}" : $"{label} (model {Number})";
         }
     }
 }
