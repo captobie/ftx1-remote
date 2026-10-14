@@ -138,15 +138,17 @@ struct HubControlView: View {
                     )
                 }
 
-                FilterPanel<RigClientViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected)
-
-                MenuPageView<RigClientViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
-                    .aprsListPane(
-                        kind: $aprsListKind,
-                        stations: viewModel.aprsList?.stations ?? [],
-                        messages: viewModel.aprsList?.messages ?? [],
-                        onClearHistory: nil
-                    )
+                // The APRS pane covers the filter block and the grid both.
+                VStack(alignment: .leading, spacing: 16) {
+                    FilterPanel<RigClientViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && aprsListKind == nil)
+                    MenuPageView<RigClientViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
+                }
+                .aprsListPane(
+                    kind: $aprsListKind,
+                    stations: viewModel.aprsList?.stations ?? [],
+                    messages: viewModel.aprsList?.messages ?? [],
+                    onClearHistory: nil
+                )
             }
             .padding(32)
         }

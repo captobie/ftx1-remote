@@ -205,19 +205,22 @@ struct PiDirectView: View {
                 .lineLimit(1)
         }
 
-        FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected)
-
         if let store = viewModel.aprsStore {
             ObservingAPRSStore(store: store) { store in
-                MenuPageView<PiDirectViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
-                    .aprsListPane(
-                        kind: $aprsListKind,
-                        stations: store.stations,
-                        messages: store.messages,
-                        onClearHistory: store.clearHistory
-                    )
+                // The APRS pane covers the filter block and the grid both.
+                VStack(alignment: .leading, spacing: 16) {
+                    FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && aprsListKind == nil)
+                    MenuPageView<PiDirectViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
+                }
+                .aprsListPane(
+                    kind: $aprsListKind,
+                    stations: store.stations,
+                    messages: store.messages,
+                    onClearHistory: store.clearHistory
+                )
             }
         } else {
+            FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected)
             MenuPageView<PiDirectViewModel>(showsPagePicker: false)
         }
 

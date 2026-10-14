@@ -952,13 +952,16 @@ each committed on its own:
    Simulator against the real Pi: SUB in FM answers the notch read with a
    non-number, shown as "—" (known, see `FilterStateReads`).
 
-## iPad APRS S.LIST/M.LIST (2026-10-14, Simulator against the real Pi; no packet decoded on the iPad yet)
+## iPad APRS S.LIST/M.LIST (2026-10-14, tested on a real iPad by the user)
 
 User request: the FM page's S.LIST/M.LIST open `APRSListPane`
-(`Apps/iPad/`) *in place of* the MENU grid, on both routes; Close brings
-the grid back. The grid stays in the hierarchy, hidden under the pane
-(`.aprsListPane(...)`), so it returns on the FM page and the pane gets the
-grid's exact frame. `MenuPageView(onShowAPRSList:)` hands the list kind to
+(`Apps/iPad/`) *in place of* the filter block and the MENU grid (the
+filter block too since the same day, for more list space), on both
+routes; Close brings them back. Both stay in the hierarchy, hidden under
+the pane (`.aprsListPane(...)` on a VStack of the two), so the grid
+returns on the FM page and the pane gets their exact frame. While
+hidden, `FilterPanel`'s `isActive` is false, which now also turns its
+spectrum FFT off (opacity 0 doesn't fire `onDisappear`). `MenuPageView(onShowAPRSList:)` hands the list kind to
 the iPad; nil (the Mac) still opens the `aprs-*` windows. The pane has the
 Mac windows' columns/filters (S.LIST/M.LIST switch, Source, filter menu,
 search) — no map.
@@ -980,9 +983,7 @@ search) — no map.
   the Mac target to `FTX1Core/APRS/`, `APRSListFilter` (plus
   `APRSListKind`, `isBulletin`/`isTelemetryDefinition`) to `FTX1Core/UI/`;
   the Mac's behavior is unchanged.
-- Not yet: a real decode on either iPad route, the hub route on screen
-  (build-verified only), a real iPad. The VFO boxes' APRS indicator stays
-  hub-only.
+- The VFO boxes' APRS indicator stays hub-only.
 
 ## iPad transmit audio (2026-10-09, build- and Simulator-checked; not yet on the air)
 

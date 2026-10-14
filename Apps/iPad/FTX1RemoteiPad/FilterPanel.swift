@@ -50,7 +50,10 @@ struct FilterPanel<Controller: RigController>: View {
         // Out here, not on the display: each `ViewThatFits` layout has its
         // own display, and on rotation the new one can appear before the
         // old one disappears.
-        .onAppear { spectrumStore.isEnabled = true }
+        // Inactive too while hidden under the APRS pane, which keeps this
+        // on screen (opacity 0) rather than removing it.
+        .onAppear { spectrumStore.isEnabled = isActive }
+        .onChange(of: isActive) { _, active in spectrumStore.isEnabled = active }
         .onDisappear { spectrumStore.isEnabled = false }
         .overlay(
             RoundedRectangle(cornerRadius: 8)

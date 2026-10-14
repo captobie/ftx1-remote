@@ -2,9 +2,9 @@ import FTX1Core
 import SwiftUI
 
 /// The FM page's APRS S.LIST/M.LIST on the iPad: shown in place of the
-/// MENU grid (`MenuPageView`'s `onShowAPRSList`), over the grid's own
-/// frame, until Close puts the grid back. The grid stays underneath,
-/// hidden, so it comes back on the FM page it was left on.
+/// filter block and the MENU grid (`MenuPageView`'s `onShowAPRSList`),
+/// over their frame, until Close puts them back. They stay underneath,
+/// hidden, so the grid comes back on the FM page it was left on.
 ///
 /// The same columns and filters as the Mac's `APRSStationListView`/
 /// `APRSMessageListView` windows, fed by whichever route is connected:
@@ -255,7 +255,7 @@ struct APRSListPane: View {
 }
 
 extension View {
-    /// Shows `APRSListPane` over this view (the MENU grid) while `kind` is
+    /// Shows `APRSListPane` over this view (the filter block + MENU grid) while `kind` is
     /// set, hiding — not removing — the view underneath so its page
     /// survives.
     func aprsListPane(kind: Binding<APRSListKind?>, stations: [APRSStation], messages: [APRSMessage], onClearHistory: (() -> Void)?) -> some View {
