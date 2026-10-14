@@ -124,8 +124,10 @@ applied at once, also while connected, except the rigctld tab (below).
     fixed at 4532, not user-configurable, matching
     `RigctldSettings.remoteHost` (`Apps/Mac/FTX1RemoteMac/
     RigctldSettings.swift`).
-  - **Local**: path to `rigctld.exe` (with a Browse button; no default,
-    since hamlib's installer uses a version-numbered folder), hamlib model
+  - **Local**: which `rigctld.exe` to run (a picker: **Automatic
+    (recommended)**, the default; **Built-in (Hamlib 4.7.2)**; the
+    installed copies Automatic would look at; **Browse…** for any other
+    path — see "Bundled rigctld" below), hamlib model
     number (1051, the FTX-1), COM port (editable drop-down listing the
     ports in `HKLM\HARDWARE\DEVICEMAP\SERIALCOMM`, refreshed each time it
     opens), and baud rate (default 38400; 4800–115200, plus a hand-set
@@ -135,11 +137,14 @@ applied at once, also while connected, except the rigctld tab (below).
   a fresh `RigctldClient` on every Connect — but the tab is read-only while
   connected. The connection bar says which connection Connect will use
   ("Disconnected · Remote, ftx1pi"); Connect with no Pi host (Remote), or
-  no rigctld.exe or COM port (Local), points at Settings instead.
+  no COM port (Local), points at Settings instead.
 
-  A **Version** box (2026-10-06, the Mac's `RigctldVersionBox`; written on
-  the Mac, not yet built or run on Windows) follows the tab's unsaved
-  fields: **Installed** (Local only) is `rigctld.exe --version`, and
+  A **Version** box (2026-10-06, the Mac's `RigctldVersionBox`) follows
+  the tab's unsaved fields: **Uses** (Local only) resolves the picked
+  rigctld the way Connect would and shows its `--version`, the reason
+  ("Using built-in Hamlib 4.7.2 — C:\…\rigctld.exe is 4.5.5, too old for
+  the FTX-1."), a warning when an explicit choice is too old or lacks the
+  model, and what this session's Connect launched if that differs; and
   **Running** is the "Hamlib version:" line of `\dump_caps` from whatever
   answers on port 4532 (127.0.0.1, or the Pi), read over a short-lived
   connection of its own (`RigctldClient.ReadHamlibVersionAsync`), so it
@@ -197,13 +202,19 @@ failure.
 `Services/RigctldProcessController.cs` is a port of the Mac's
 `RigctldProcessController.swift`, same behavior:
 
-- On Connect it probes `127.0.0.1:4532`. A responsive rigctld is
+- On Connect it probes `127.0.0.1:4532`, first with `\dump_caps`
+  (`RigctldClient.ReadRigModelAsync`, answered without rig I/O) and then a
+  frequency read. A responsive rigctld for the configured model is
   **adopted** and left running on Disconnect/exit (WSJT-X or another client
   may be using it — its COM port/baud rate are whatever it was started
-  with). One that accepts the connection but doesn't answer is treated as
+  with). One started for **another model** is neither adopted nor killed:
+  Connect fails with "The rigctld already running on port 4532 is for
+  Hamlib Dummy (model 1), not the FTX-1. Quit it (or the program that
+  started it, e.g. WSJT-X), then connect again." (2026-10-14, the Mac's
+  check). One that accepts the connection but doesn't answer is treated as
   stale and killed. Windows has no port→PID lookup without P/Invoke, so
   this kills processes *named* `rigctld`, unlike the Mac's `lsof` check.
-- Otherwise it spawns `rigctld.exe -m 1051 -r COMx -s <baud> -t 4532
+- Otherwise it picks a `rigctld.exe` (below) and spawns `rigctld.exe -m 1051 -r COMx -s <baud> -t 4532
   -T 127.0.0.1 -o -C timeout=300,retry=0` (the Mac's arguments, same
   reasons — see its comments) with no console window, stderr captured.
 - A spawned rigctld gets a 10 s grace period to open the port. Connect only
@@ -257,6 +268,65 @@ Hardware checklist (user, on the rig, 2026-09-27) — all passed:
       killing a user-started rigctld whose radio is merely off is
       debatable.
 - [x] PTT keys the rig.
+
+### Bundled rigctld (2026-10-14)
+
+Hamlib is no longer a separate install. The FTX-1 (model 1051) first
+appears in Hamlib 4.7, and an older rigctld exits at once, so the app
+ships Hamlib's **official** Windows build of 4.7.2 (`hamlib-w64-4.7.2.zip`
+from the GitHub release, sha256 `8553bc6c…3304c7`), not one built here:
+`rigctld.exe` plus exactly the DLLs it loads — `libhamlib-4.dll`,
+`libusb-1.0.dll`, `libwinpthread-1.dll` (found with Git Bash's `ldd`; a
+copy without `libusb` fails with STATUS_DLL_NOT_FOUND; the zip's
+`libgcc_s_seh-1.dll` isn't loaded) — and Hamlib's `COPYING`, `COPYING.LIB`,
+`LICENSE` and `README-w64-bin.txt`. 12.3 MB. x64 only (Hamlib has no ARM64
+build; it runs under emulation there).
+
+- **Vendoring**: `Apps/Windows/Tools/fetch-rigctld.ps1 -Zip <zip>` checks
+  the sha256, copies the files into `FTX1RemoteWindows/Vendor/hamlib/` and
+  runs the copy from there with PATH cleared (`--version` must say the
+  version, `-l` must list 1051). For a new Hamlib: download the w64 zip,
+  check it against the release's `SHA256SUM-w64-<version>`, rerun the
+  script with `-Version`/`-Sha256`, re-check the DLL list with `ldd`, and
+  commit `Vendor/hamlib/`. Keep the version equal to the Mac's
+  (`Scripts/build-rigctld.sh`), since one source tarball on the release
+  covers both.
+- **Shipping**: `.csproj` Content items copy `Vendor\hamlib\*` to
+  `<output>\hamlib\` for both `dotnet build` and `dotnet publish`.
+- **Selection** (`Services/RigctldBinary.cs`, a port of the Mac's
+  `RigctldBinary.swift`; `AppSettings.RigctldChoice`): **Automatic**
+  (default) tries, in order, the `rigctld.exe` on PATH, `C:\Program
+  Files[ (x86)]\hamlib*\bin` (newest folder version first) and
+  `C:\Tools\hamlib\bin`, and uses the first whose `--version` is ≥ 4.7.0
+  *and* whose `-l` lists the configured model; otherwise
+  `hamlib\rigctld.exe` next to the app. The probes run off the UI thread,
+  capped at 3 s / 5 s (killed on timeout), only when a rigctld has to be
+  spawned — never for an adopted one. **Built-in** or an explicit path
+  (used as is, with a warning in Settings if too old or missing the model)
+  can be picked instead. The choice and why are logged to `app.log`
+  ("connection: Using installed C:\Tools\hamlib\bin\rigctld.exe (Hamlib
+  4.7.2).").
+- **Migration**: the old `RigctldPath` (no default) reads as Automatic
+  when empty; any path the user set stays an explicit choice.
+- **Testing the fallback** without touching the installed Hamlib: Debug
+  builds read `FTX1REMOTE_RIGCTLD_SEARCH_PATHS` (semicolon-separated
+  `rigctld.exe` paths instead of the search above; `none` = no installed
+  copy) — set it in the shell that launches the app.
+- **Licences**: rigctld is GPL-2.0-or-later, libhamlib LGPL-2.1-or-later,
+  libusb LGPL-2.1-or-later; the app runs rigctld as a separate program
+  over TCP (mere aggregation). The licence files ship in `hamlib\`. The
+  combined `v<version>` GitHub release carries Hamlib's exact source
+  tarball (`hamlib-4.7.2.tar.gz`, attached by the Mac half's
+  `release-mac.sh`), which is the source offer for both apps as long as
+  both ship the same Hamlib version.
+- Tested 2026-10-14 in the built app with Local mode and a non-existent
+  COM port (not on the rig): Automatic picks `C:\Tools\hamlib\bin\
+  rigctld.exe` (4.7.2) on the test PC; with only a fake 4.5.5 rigctld, or
+  none, installed (the override), it picks the built-in copy and Connect
+  spawns it from `hamlib\`; an explicit fake 4.5.5 shows the warning; the
+  model check refuses the bundled rigctld running the dummy rig (`-m 1`)
+  and adopts it with model 1 configured. **Not yet** run against the
+  FTX-1 itself, from a release zip on a PC without Hamlib, or on ARM64.
 
 ## v1 scope
 
@@ -1296,6 +1366,7 @@ Apps/Windows/FTX1RemoteWindows/
   Services/
     RigctldClient.cs             TCP client for rigctld's text protocol
     RigctldProcessController.cs  Local mode: spawns/adopts rigctld.exe (port of the Mac's)
+    RigctldBinary.cs             which rigctld.exe to spawn: Automatic/Built-in/path — RigctldBinary.swift
     RemoteAudioStreamClient.cs   TCP client for ftx1-audiostream.py (:8532), Main/Sub split
     ChannelPlayer.cs             per-receiver jitter buffer + squelch/volume/mute
     SquelchGate.cs               port of SquelchGate.swift
@@ -1357,7 +1428,11 @@ The release is a zip of the `dotnet publish` folder: unpackaged and
 self-contained (.NET + Windows App SDK included), so no installer and nothing
 else to install. Users unzip it anywhere and run `FTX1RemoteWindows.exe`.
 It isn't code-signed, so SmartScreen warns on first run ("More info → Run
-anyway"). Local mode still needs hamlib's `rigctld.exe` on the PC.
+anyway"). Local mode no longer needs Hamlib installed: the publish folder
+has Hamlib's `rigctld.exe`, its DLLs and licence files in `hamlib\` (see
+"Bundled rigctld"). Before zipping, check `hamlib\rigctld.exe --version`
+in the publish folder, and that the release has `hamlib-<version>.tar.gz`
+for the same Hamlib version.
 
 1. Bump `<Version>` in `FTX1RemoteWindows.csproj` (kept equal to the Mac's),
    commit and push — the update checker compares against this.

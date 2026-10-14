@@ -132,7 +132,9 @@ Mac, iOS, and iPadOS targets. The Windows client shares no code with it
   (`Apps/Windows/FTX1RemoteWindows/`, C# + WinUI 3) that talks directly to
   the Pi's rigctld and `ftx1-audiostream.py` — never through the Mac hub,
   and the Mac doesn't need to be running — or, in its Local mode, to a
-  `rigctld.exe` it launches against a radio on the PC's own USB port. It
+  `rigctld.exe` it launches against a radio on the PC's own USB port
+  (an installed Hamlib ≥ 4.7 that knows the rig, else the copy of Hamlib
+  4.7.2 the app ships; a running rigctld for another model is refused). It
   has grown well past the v1 skeleton: core rig control, Main/Sub audio
   with swap tracking, the MENU grid, V/M memory control, WPSD C4FM display,
   Settings dialog, Deep Settings, filter controls, waterfall/oscilloscope,
@@ -306,6 +308,16 @@ Its CW decoders are CWKit's, translated to C#, and
 `Apps/Windows/Tools/cwnet_to_onnx.py`; it runs with
 [ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT, Microsoft),
 also a NuGet package (`Microsoft.ML.OnnxRuntime`).
+It ships `rigctld.exe` from [Hamlib](https://github.com/Hamlib/Hamlib)
+4.7.2 — Hamlib's own official Windows build (`hamlib-w64-4.7.2.zip`),
+vendored unmodified by `Apps/Windows/Tools/fetch-rigctld.ps1` into
+`Apps/Windows/FTX1RemoteWindows/Vendor/hamlib/` with the DLLs it loads
+(`libhamlib-4.dll`, LGPL-2.1-or-later; `libusb-1.0.dll`, LGPL-2.1-or-later;
+`libwinpthread-1.dll`, the MinGW-w64 runtime) and Hamlib's licence texts
+(`COPYING`, `COPYING.LIB`, `LICENSE`), all in the app's `hamlib\` folder.
+rigctld is GPL-2.0-or-later and runs as a separate program the app talks
+to over TCP. The combined GitHub release carries the same Hamlib source
+tarball as the Mac app's.
 
 The Mac app updates itself with [Sparkle](https://sparkle-project.org)
 (MIT-style license), a Swift package dependency.

@@ -1056,6 +1056,33 @@ passed (connect, wrong-port and radio-off errors, rigctld cleanup on
 Disconnect/close, adopting a user-started rigctld, PTT). No WebSocket *server* (this app is
 a leaf client only).
 
+**Bundled rigctld (2026-10-14; build/UI-verified with a fake old rigctld
+and Hamlib's dummy rig, not yet on the FTX-1 or from a release zip on a
+PC without Hamlib)** — the Windows port of the Mac's "Bundled rigctld
+fallback" (Architecture above). Hamlib's *official* Windows build of
+4.7.2 (`hamlib-w64-4.7.2.zip`, sha256 checked; no build from source
+here) is vendored by `Apps/Windows/Tools/fetch-rigctld.ps1` into
+`FTX1RemoteWindows/Vendor/hamlib/`: `rigctld.exe`, exactly the DLLs it
+loads (`libhamlib-4`, `libusb-1.0`, `libwinpthread-1` — checked with
+`ldd` and by a copy missing one failing to start) and Hamlib's licence
+files; `.csproj` Content items put them in `<output>\hamlib\` for build
+and publish. `Services/RigctldBinary.cs` ports `RigctldBinary.swift`:
+Automatic (default) = PATH's `rigctld.exe`, `C:\Program Files[ (x86)]\
+hamlib*\bin` (newest first), `C:\Tools\hamlib\bin`, first with
+`--version` ≥ 4.7.0 and the model in `-l`, else built-in; probed only
+when spawning. Settings' rigctld box is a picker (Automatic / Built-in /
+found copies / Browse…). Migration: an empty old `RigctldPath` is
+Automatic, any other path stays explicit — so on the user's PC (saved
+`C:\Tools\hamlib\bin\rigctld.exe`) the explicit choice remains until
+they pick Automatic. Debug builds read `FTX1REMOTE_RIGCTLD_SEARCH_PATHS`
+(`none` = no installed copy; an empty variable is unset on Windows) to
+test the fallback. Adoption now reads `\dump_caps` first
+(`RigctldClient.ReadRigModelAsync`) and refuses — never kills — a
+responsive rigctld for another model. Keep the bundled Hamlib version
+equal to the Mac's: the one source tarball on the combined release is
+the source offer for both. Details: `Apps/Windows/README.md`, "Bundled
+rigctld".
+
 **The user's Windows test PC** — use these values in any commands given
 for it instead of placeholders: the FTX-1 is on **COM7** (COM4 before 2026-09-28) at **115200**
 baud; hamlib's binaries are in `C:\Tools\hamlib\bin`; the .NET 10 SDK is
