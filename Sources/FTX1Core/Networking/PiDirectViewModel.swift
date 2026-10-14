@@ -116,6 +116,10 @@ public final class PiDirectViewModel: ObservableObject {
     /// Whether each side is on the APRS frequency, for the audio client's
     /// actor — refreshed on every `rigState` change.
     private let aprsGate = APRSGateFlags()
+    /// The last station each side decoded, for the VFO boxes' APRS
+    /// indicator — shown for 5 s, as on the hub. Kept outside `rigState`
+    /// and copied in at publish, like `c4fmCallsign`.
+    private var aprsLastHeard: [APRSSource: (callsign: String, at: Date)] = [:]
     /// MAIN's last VFO-mode frequency/mode, replayed when leaving Memory
     /// mode — "VM000" alone leaves MAIN parked on the channel's values. See
     /// `HubService.lastVFOState`; cleared by a swap the same way.
@@ -302,7 +306,13 @@ public final class PiDirectViewModel: ObservableObject {
         // The decoder calls these on the main queue.
         decoder.onStation = { [weak self] callsign, latitude, longitude, symbolTable, symbolCode, comment in
             MainActor.assumeIsolated {
-                self?.aprsStore?.recordStation(callsign: callsign, latitude: latitude, longitude: longitude, symbolTable: symbolTable, symbolCode: symbolCode, comment: comment, heardAt: Date(), source: source)
+                guard let self else { return }
+                self.aprsLastHeard[source] = (callsign, Date())
+                // At once, not on the next tick.
+                var state = self.rigState
+                self.applyAPRSIndicators(to: &state)
+                self.rigState = state
+                self.aprsStore?.recordStation(callsign: callsign, latitude: latitude, longitude: longitude, symbolTable: symbolTable, symbolCode: symbolCode, comment: comment, heardAt: Date(), source: source)
             }
         }
         decoder.onMessage = { [weak self] from, to, text, messageID in
@@ -310,6 +320,20 @@ public final class PiDirectViewModel: ObservableObject {
                 self?.aprsStore?.recordMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: Date(), source: source)
             }
         }
+    }
+
+    /// The VFO boxes' APRS indicator, as `HubService.refreshFastTier` sets
+    /// it: on the APRS frequency (decoding enabled), plus the callsign
+    /// decoded there in the last 5 s.
+    private func applyAPRSIndicators(to state: inout RigState) {
+        guard aprsStore != nil else { return }
+        func recent(_ source: APRSSource) -> String? {
+            aprsLastHeard[source].flatMap { Date().timeIntervalSince($0.at) < 5 ? $0.callsign : nil }
+        }
+        state.aprsActive = APRSSettings.isActive(atFrequencyHz: state.frequencyHz)
+        state.aprsLastCallsign = state.aprsActive ? recent(.main) : nil
+        state.aprsSubActive = state.secondaryFrequencyHz.map { APRSSettings.isActive(atFrequencyHz: $0) } ?? false
+        state.aprsSubLastCallsign = state.aprsSubActive ? recent(.sub) : nil
     }
 
     /// Re-reads `APRSSettings` each time, so a change in the pane's
@@ -393,6 +417,7 @@ public final class PiDirectViewModel: ObservableObject {
         filterSpectrum.reset()
         lastVFOState = nil
         lastDistinctFrequencies = nil
+        aprsLastHeard = [:]
         txSideBeforeMemoryScan = nil
         memoryScanStartedAt = nil
     }
@@ -1017,6 +1042,7 @@ public final class PiDirectViewModel: ObservableObject {
         state.lastUpdated = Date()
         state.c4fmCallsign = c4fmCallsign
         state.c4fmReflector = c4fmReflector
+        applyAPRSIndicators(to: &state)
         rigState = state
         if readsVFODetails { updateWPSD() }
         // As on the hub: if the rig went to single-receive display with SUB

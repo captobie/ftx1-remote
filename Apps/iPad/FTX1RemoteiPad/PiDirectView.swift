@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The iPad's Pi-direct proof-of-concept screen (see `PiDirectViewModel`):
 /// a cut-down `HubControlView` — SUB/MAIN `VFODisplayBox`es (showing
-/// everything the Mac's do except APRS: TX/RX tags, memory channel + tag,
+/// everything the Mac's do: TX/RX tags, memory channel + tag,
 /// scan state, SUB dimmed in single receive, and — with a WPSD host set —
 /// the C4FM callsign/reflector), a meter + audio `ChannelStrip` under
 /// each. Tapping a box's frequency tunes it and sets its mode (VFO mode)
@@ -124,16 +124,17 @@ struct PiDirectView: View {
         // No editing while the rig scans — see `PiDirectViewModel.send`.
         let editable = state.memoryScan != .scanning && state.memoryScan != .paused
         HStack(spacing: 12) {
-            // Same arguments as the hub screen's boxes, minus the APRS
-            // indicator (the S.LIST/M.LIST pane has this route's decode).
+            // Same arguments as the hub screen's boxes; the APRS
+            // indicator comes from this iPad's own decode.
             VFODisplayBox(
                 label: "SUB",
                 frequencyHz: state.secondaryFrequencyHz,
                 isActive: state.singleReceive != true,
                 mode: state.secondaryMode?.displayName ?? "—",
                 txRxLabel: state.subTxRxLabel,
-                callsign: state.secondaryMode == .c4fm ? state.c4fmCallsign : nil,
+                callsign: state.secondaryMode == .c4fm ? state.c4fmCallsign : (state.aprsSubActive ? state.aprsSubLastCallsign : nil),
                 reflector: state.secondaryMode == .c4fm ? state.c4fmReflector : nil,
+                aprsActive: state.aprsSubActive,
                 onSetFrequency: editable ? { viewModel.send(.setSecondaryFrequency(hz: $0)) } : nil,
                 vfoMemoryMode: state.subVfoMemoryMode,
                 memoryChannel: state.subMemoryChannel,
@@ -152,8 +153,9 @@ struct PiDirectView: View {
                 isActive: true,
                 mode: state.mode.displayName,
                 txRxLabel: state.mainTxRxLabel,
-                callsign: state.mode == .c4fm ? state.c4fmCallsign : nil,
+                callsign: state.mode == .c4fm ? state.c4fmCallsign : (state.aprsActive ? state.aprsLastCallsign : nil),
                 reflector: state.mode == .c4fm ? state.c4fmReflector : nil,
+                aprsActive: state.aprsActive,
                 onSetFrequency: editable ? { viewModel.send(.setFrequency(hz: $0)) } : nil,
                 vfoMemoryMode: state.vfoMemoryMode,
                 memoryChannel: state.memoryChannel,

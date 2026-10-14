@@ -983,7 +983,13 @@ search) — no map.
   the Mac target to `FTX1Core/APRS/`, `APRSListFilter` (plus
   `APRSListKind`, `isBulletin`/`isTelemetryDefinition`) to `FTX1Core/UI/`;
   the Mac's behavior is unchanged.
-- The VFO boxes' APRS indicator stays hub-only.
+- **VFO box APRS indicator on Pi direct (2026-10-14; the APRS tag seen
+  in the Simulator on 144.390, the decoded callsign not yet)**: the
+  model sets `RigState.aprsActive`/`aprsSubActive` (decoding enabled +
+  on frequency) and the last callsign each side decoded within 5 s,
+  as `HubService.refreshFastTier` does — kept in `aprsLastHeard`,
+  applied at each tick's publish and at once on a decode. The hub
+  route already had it from the Mac (needs the Mac's APRS decoding on).
 
 ## iPad transmit audio (2026-10-09, build- and Simulator-checked; not yet on the air)
 
