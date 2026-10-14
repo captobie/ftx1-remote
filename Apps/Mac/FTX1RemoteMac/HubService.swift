@@ -782,6 +782,13 @@ final class HubService: ObservableObject {
         )
         Task { [weak self, rigctldProcess] in
             await rigctldProcess.start(with: config)
+            // A failed start includes refusing a rigctld that's running
+            // for another rig — connecting would control the wrong radio.
+            // Not active either, so one click on Connect retries.
+            if case .failed = rigctldProcess.state {
+                self?.isActive = false
+                return
+            }
             self?.connectRigctld(isFreshStart: true)
         }
     }

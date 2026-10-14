@@ -54,18 +54,31 @@ final class RigctldProcessController {
     /// `applicationWillTerminate`, which can orphan the rigctld child we
     /// spawned, and the next start attempt would otherwise fail immediately
     /// because the dead one is still holding the port.
+    ///
+    /// A responsive one started for a different rig (its `\dump_caps`
+    /// model isn't `config.modelNumber`) is neither adopted nor killed: the
+    /// start fails with a message naming it, rather than silently
+    /// controlling the wrong radio. Callers check `state` before
+    /// connecting.
     func start(with config: Configuration) async {
         guard process == nil else { return }
         setState(.starting)
 
         if let existingPID = await findRigctldListening(onPort: config.port) {
-            if await isHealthy(host: config.host, port: config.port) {
+            switch await probeExisting(host: config.host, port: config.port, model: config.modelNumber) {
+            case .otherRig(let model):
+                Self.logger.error("Not adopting the rigctld on port \(config.port) (pid \(existingPID)): it's for \(model.displayName, privacy: .public), not model \(config.modelNumber)")
+                onBinaryResolved?(nil)
+                setState(.failed("The rigctld already running on port \(config.port) is for \(model.displayName), not \(RigctldBinary.rigName(config.modelNumber)). Quit it (or the program that started it, e.g. WSJT-X), then connect again."))
+                return
+            case .responsive:
                 Self.logger.notice("Adopted the rigctld already listening on port \(config.port) (pid \(existingPID))")
                 onBinaryResolved?(nil)
                 setState(.running)
                 return
+            case .unresponsive:
+                await terminate(pid: existingPID)
             }
-            await terminate(pid: existingPID)
         }
 
         let resolution = await RigctldBinary.resolve(config.binary, model: config.modelNumber)
@@ -150,22 +163,47 @@ final class RigctldProcessController {
         onStateChange?(newState)
     }
 
-    /// Probes whether a rigctld already listening on `host`/`port` actually
-    /// answers, so `start()` can adopt it instead of assuming "listening on
-    /// the port" alone means "safe to reuse." Only checks liveness (a
-    /// connect + one round trip) — not whether it was started with the same
-    /// model/device/baud rate as `config`, which this app has no way to ask
-    /// an already-running rigctld for.
-    private func isHealthy(host: String, port: UInt16) async -> Bool {
+    private enum ExistingRigctld {
+        /// Started for the configured model and answering, rig included.
+        case responsive
+        /// Answering, but started for another rig — never adopted, and
+        /// never killed either (another program is likely using it).
+        case otherRig(RigctldRigModel)
+        /// Not answering `\dump_caps`, or (same model) the rig itself not
+        /// answering through it: stale, safe to replace.
+        case unresponsive
+    }
+
+    /// Probes a rigctld already listening on `host`/`port`, so `start()`
+    /// can adopt it instead of assuming "listening on the port" alone means
+    /// "safe to reuse". `\dump_caps` comes first: rigctld answers it
+    /// without talking to the rig, so it shows the process is alive and
+    /// which model it was started for. Only then the rig link (a raw "FA"
+    /// read) — which only a Yaesu answers, so checking it first would make
+    /// e.g. WSJT-X's rigctld for an Icom look stale and get killed. The
+    /// device and baud rate it uses can't be asked for.
+    private func probeExisting(host: String, port: UInt16, model: Int) async -> ExistingRigctld {
+        // Its own connection: readRigModel stops reading partway through
+        // the ~2300-line reply and disconnects.
+        let capsClient = RigctldClient(host: host, port: port)
+        do {
+            try await capsClient.connect(timeout: .milliseconds(500))
+            if let running = try await capsClient.readRigModel(), running.number != model {
+                return .otherRig(running)
+            }
+        } catch {
+            await capsClient.disconnect()
+            return .unresponsive
+        }
         let client = RigctldClient(host: host, port: port)
         do {
             try await client.connect(timeout: .milliseconds(500))
             _ = try await client.getFrequency()
             await client.disconnect()
-            return true
+            return .responsive
         } catch {
             await client.disconnect()
-            return false
+            return .unresponsive
         }
     }
 

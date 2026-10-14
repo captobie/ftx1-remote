@@ -167,7 +167,7 @@ struct SettingsView: View {
                         .frame(maxWidth: 280)
                 }
 
-                RigctldVersionBox(connectionMode: connectionMode, binaryChoice: binaryChoice, modelNumber: modelNumber, remoteHost: remoteHost)
+                RigctldVersionBox(connectionMode: connectionMode, binaryChoice: binaryChoice, modelNumber: modelNumber, remoteHost: remoteHost, inUse: hub.rigctldBinaryInUse)
             }
             .padding(.top, 8)
         }
@@ -264,6 +264,10 @@ private struct RigctldVersionBox: View {
     let binaryChoice: RigctldBinary.Choice
     let modelNumber: Int
     let remoteHost: String
+    /// What this session's last Local start launched (`HubService.
+    /// rigctldBinaryInUse`), which can differ from `resolution` after an
+    /// edit, an install or an uninstall.
+    let inUse: RigctldBinary.Resolution?
 
     private enum Lookup: Equatable {
         case checking
@@ -304,6 +308,13 @@ private struct RigctldVersionBox: View {
                     }
                 }
                 row(connectionMode == .local ? "Running" : "Running on Pi", running)
+                if connectionMode == .local, let inUse, inUse != resolution {
+                    Text("Started this session: \(inUse.summary)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 HStack {
                     Spacer()
                     Button("Refresh") { refreshCount += 1 }

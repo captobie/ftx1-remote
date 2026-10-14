@@ -1048,6 +1048,35 @@ public actor RigctldClient {
         }
     }
 
+    /// Which rig a running rigctld was started for, from the first lines of
+    /// `\dump_caps`: "Caps dump for model: 1051", "Model name:\tFTX-1",
+    /// "Mfg name:\tYaesu" (checked against Hamlib 4.7.2's rigctld; works
+    /// with and without `-o`). Like `readHamlibVersion`, reads only those
+    /// lines and then disconnects — for a short-lived client of its own.
+    /// nil if the reply doesn't start that way.
+    public func readRigModel() async throws -> RigctldRigModel? {
+        defer { disconnect() }
+        await acquireRoundTrip()
+        defer { releaseRoundTrip() }
+        try await write("\\dump_caps")
+        return try await withReplyTimeout("\\dump_caps", hamlibReplyTimeout, error: .replyTimedOut) {
+            var number: Int?
+            var name = ""
+            var manufacturer = ""
+            for _ in 0..<3 {
+                let line = try await self.readLine()
+                if line.hasPrefix("RPRT") { throw RigctldError.badResponse }
+                func value(_ prefix: String) -> String? {
+                    line.hasPrefix(prefix) ? line.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces) : nil
+                }
+                if let model = value("Caps dump for model:") { number = Int(model) }
+                if let model = value("Model name:") { name = model }
+                if let mfg = value("Mfg name:") { manufacturer = mfg }
+            }
+            return number.map { RigctldRigModel(number: $0, manufacturer: manufacturer, name: name) }
+        }
+    }
+
     public func disconnect() {
         connection?.cancel()
         connection = nil
@@ -1113,5 +1142,24 @@ extension RigctldError: LocalizedError {
         case .keyerMemoryRejected:
             "The rig rejected the keyer memory write."
         }
+    }
+}
+
+/// The rig a running rigctld was started for (`RigctldClient.readRigModel`).
+public struct RigctldRigModel: Equatable, Sendable {
+    public var number: Int
+    public var manufacturer: String
+    public var name: String
+
+    public init(number: Int, manufacturer: String, name: String) {
+        self.number = number
+        self.manufacturer = manufacturer
+        self.name = name
+    }
+
+    /// e.g. "Yaesu FT-991 (model 1035)".
+    public var displayName: String {
+        let label = [manufacturer, name].filter { !$0.isEmpty }.joined(separator: " ")
+        return label.isEmpty ? "model \(number)" : "\(label) (model \(number))"
     }
 }
