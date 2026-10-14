@@ -29,12 +29,14 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $dlls = @('libhamlib-4.dll', 'libusb-1.0.dll', 'libwinpthread-1.dll')
-# Renamed from the zip's *.txt to the names the Mac's Vendor/hamlib uses.
+# Renamed from the zip's *.txt to the names the Mac's Vendor/hamlib uses;
+# the README's ".w64-bin" would read as a resource qualifier to the PRI
+# generator (warning PRI249).
 $licences = @{
     'COPYING.txt'         = 'COPYING'
     'COPYING.LIB.txt'     = 'COPYING.LIB'
     'LICENSE.txt'         = 'LICENSE'
-    'README.w64-bin.txt'  = 'README.w64-bin.txt'
+    'README.w64-bin.txt'  = 'README-w64-bin.txt'
 }
 
 $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $Zip).Hash.ToLowerInvariant()

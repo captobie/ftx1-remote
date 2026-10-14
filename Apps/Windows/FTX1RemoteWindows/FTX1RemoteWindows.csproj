@@ -52,6 +52,14 @@
     <Content Include="Assets\CWNet.onnx" CopyToOutputDirectory="PreserveNewest" />
     <!-- Also set on the window at runtime (MainWindow), since WinUI windows don't pick up the exe icon by themselves. -->
     <Content Include="Assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <!--
+      Hamlib's official Windows rigctld.exe + the DLLs it loads + its licence
+      files (Vendor\hamlib, from Apps/Windows/Tools/fetch-rigctld.ps1), for
+      Local mode when no suitable rigctld is installed — Services/RigctldBinary.cs.
+      Lands in <output>\hamlib\ for both build and publish. x64 only (Hamlib
+      has no ARM64 build; it runs under emulation there).
+    -->
+    <Content Include="Vendor\hamlib\*" Link="hamlib\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
