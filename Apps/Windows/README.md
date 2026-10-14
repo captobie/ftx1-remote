@@ -282,8 +282,9 @@ copy without `libusb` fails with STATUS_DLL_NOT_FOUND; the zip's
 `LICENSE` and `README-w64-bin.txt`. 12.3 MB. x64 only (Hamlib has no ARM64
 build; it runs under emulation there).
 
-- **Vendoring**: `Apps/Windows/Tools/fetch-rigctld.ps1 -Zip <zip>` checks
-  the sha256, copies the files into `FTX1RemoteWindows/Vendor/hamlib/` and
+- **Vendoring**: `Apps/Windows/Tools/fetch-rigctld.ps1 -Zip <zip>
+  -WinpthreadsCopying <COPYING>` checks the sha256, copies the files (plus
+  winpthreads' licence, see Licences) into `FTX1RemoteWindows/Vendor/hamlib/` and
   runs the copy from there with PATH cleared (`--version` must say the
   version, `-l` must list 1051). For a new Hamlib: download the w64 zip,
   check it against the release's `SHA256SUM-w64-<version>`, rerun the
@@ -319,6 +320,22 @@ build; it runs under emulation there).
   tarball (`hamlib-4.7.2.tar.gz`, attached by the Mac half's
   `release-mac.sh`), which is the source offer for both apps as long as
   both ship the same Hamlib version.
+  - **libusb-1.0.dll** is libusb **1.0.24** (its version resource: build
+    11584, the official release build), LGPL-2.1-or-later — the text in
+    `COPYING.LIB`. Hamlib's tarball doesn't contain it, so the Windows
+    half of each release also uploads libusb's own release tarball,
+    `libusb-1.0.24.tar.bz2` (sha256 `7efd2685f7b327326dcfb85cee426d9b8
+    71fd70e22caa15bb68d595ce2a2b12a`, from libusb's GitHub release; its
+    `.asc` checked: good signature from Chris Dickens, key
+    `98928A68DEC3549C96F865B04658AEE82B5E6442`). Kept in the gitignored
+    `releases/` on the Windows PC, like the Mac's Hamlib tarball.
+  - **libwinpthread-1.dll** is the MinGW-w64 runtime, MIT-style: notice
+    only, no source obligation. The zip has no licence text for it, so
+    winpthreads' `COPYING` from mingw-w64 **v12.0.0** — the version Debian
+    13 (the zip's build host) ships; the DLL says "2010-2023" and GCC 13 —
+    is vendored as `COPYING-winpthreads.txt`.
+  - For a new Hamlib, re-check both DLLs' versions (file properties /
+    `VersionInfo`) and update the tarball and licence to match.
 - Tested 2026-10-14 in the built app with Local mode and a non-existent
   COM port (not on the rig): Automatic picks `C:\Tools\hamlib\bin\
   rigctld.exe` (4.7.2) on the test PC; with only a fake 4.5.5 rigctld, or
@@ -1461,6 +1478,13 @@ for the same Hamlib version.
 
    ```powershell
    gh release upload v<version> C:\Tools\FTX1Remote-Windows-<version>-x64.zip --repo captobie/ftx1-remote
+   ```
+
+   Also upload libusb's source tarball (LGPL source offer for the bundled
+   `libusb-1.0.dll`, see "Bundled rigctld"), from the repo root:
+
+   ```powershell
+   gh release upload v<version> releases\libusb-1.0.24.tar.bz2 --repo captobie/ftx1-remote
    ```
 
    The release notes are shared (`releases/notes-<version>.md` on the Mac,

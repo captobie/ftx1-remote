@@ -312,12 +312,13 @@ It ships `rigctld.exe` from [Hamlib](https://github.com/Hamlib/Hamlib)
 4.7.2 — Hamlib's own official Windows build (`hamlib-w64-4.7.2.zip`),
 vendored unmodified by `Apps/Windows/Tools/fetch-rigctld.ps1` into
 `Apps/Windows/FTX1RemoteWindows/Vendor/hamlib/` with the DLLs it loads
-(`libhamlib-4.dll`, LGPL-2.1-or-later; `libusb-1.0.dll`, LGPL-2.1-or-later;
-`libwinpthread-1.dll`, the MinGW-w64 runtime) and Hamlib's licence texts
-(`COPYING`, `COPYING.LIB`, `LICENSE`), all in the app's `hamlib\` folder.
-rigctld is GPL-2.0-or-later and runs as a separate program the app talks
-to over TCP. The combined GitHub release carries the same Hamlib source
-tarball as the Mac app's.
+(`libhamlib-4.dll`, LGPL-2.1-or-later; `libusb-1.0.dll`, libusb 1.0.24,
+LGPL-2.1-or-later; `libwinpthread-1.dll`, the MinGW-w64 runtime, MIT-style)
+and the licence texts (Hamlib's `COPYING`, `COPYING.LIB`, `LICENSE`, and
+winpthreads' as `COPYING-winpthreads.txt`), all in the app's `hamlib\`
+folder. rigctld is GPL-2.0-or-later and runs as a separate program the app
+talks to over TCP. The combined GitHub release carries the same Hamlib
+source tarball as the Mac app's, plus libusb's (`libusb-1.0.24.tar.bz2`).
 
 The Mac app updates itself with [Sparkle](https://sparkle-project.org)
 (MIT-style license), a Swift package dependency.

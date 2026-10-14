@@ -17,11 +17,21 @@
   (libgcc_s_seh-1.dll is in the zip but not loaded). Re-check it for a new
   Hamlib version: the self-test below fails if one is missing.
 
+  The zip has no licence text for libwinpthread-1.dll (the MinGW-w64
+  runtime, MIT-style), so -WinpthreadsCopying takes winpthreads' COPYING
+  from the mingw-w64 release the zip was built with (4.7.2's: v12.0.0,
+  Debian 13's — the DLL says "2010-2023", GCC 13), shipped as
+  COPYING-winpthreads.txt. libusb-1.0.dll (1.0.24) is LGPL-2.1-or-later,
+  the text already in COPYING.LIB; its source tarball goes on the GitHub
+  release, not in git (Apps/Windows/README.md, "Bundled rigctld").
+
 .EXAMPLE
-  .\fetch-rigctld.ps1 -Zip ~\Downloads\hamlib-w64-4.7.2.zip
+  .\fetch-rigctld.ps1 -Zip ~\Downloads\hamlib-w64-4.7.2.zip -WinpthreadsCopying ~\Downloads\winpthreads-COPYING
+  # COPYING from https://raw.githubusercontent.com/mingw-w64/mingw-w64/v12.0.0/mingw-w64-libraries/winpthreads/COPYING
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Zip,
+    [Parameter(Mandatory = $true)][string]$WinpthreadsCopying,
     [string]$Version = '4.7.2',
     [string]$Sha256 = '8553bc6c5c6032e8debf99c017e98f58fed7e07e7c25d04815dc3e8bbe3304c7'
 )
@@ -37,6 +47,10 @@ $licences = @{
     'COPYING.LIB.txt'     = 'COPYING.LIB'
     'LICENSE.txt'         = 'LICENSE'
     'README.w64-bin.txt'  = 'README-w64-bin.txt'
+}
+
+if (-not (Select-String -LiteralPath $WinpthreadsCopying -Pattern 'mingw-w64 project' -Quiet)) {
+    throw "$WinpthreadsCopying doesn't look like winpthreads' COPYING"
 }
 
 $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $Zip).Hash.ToLowerInvariant()
@@ -67,6 +81,7 @@ try {
     foreach ($entry in $licences.GetEnumerator()) {
         Copy-Item -LiteralPath (Join-Path $root $entry.Key) -Destination (Join-Path $dest $entry.Value)
     }
+    Copy-Item -LiteralPath $WinpthreadsCopying -Destination (Join-Path $dest 'COPYING-winpthreads.txt')
 }
 finally {
     Remove-Item -Recurse -Force -LiteralPath $work -Confirm:$false

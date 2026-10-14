@@ -1080,8 +1080,12 @@ test the fallback. Adoption now reads `\dump_caps` first
 (`RigctldClient.ReadRigModelAsync`) and refuses — never kills — a
 responsive rigctld for another model. Keep the bundled Hamlib version
 equal to the Mac's: the one source tarball on the combined release is
-the source offer for both. Details: `Apps/Windows/README.md`, "Bundled
-rigctld".
+the source offer for both. The Windows zip also carries `libusb-1.0.dll`
+(libusb 1.0.24, LGPL), whose source isn't in Hamlib's tarball: each
+release with the Windows zip also gets `releases\libusb-1.0.24.tar.bz2`
+(signature-checked, gitignored, on the Windows PC). winpthreads'
+MIT-style licence (mingw-w64 v12.0.0) ships as `COPYING-winpthreads.txt`.
+Details: `Apps/Windows/README.md`, "Bundled rigctld".
 
 **The user's Windows test PC** — use these values in any commands given
 for it instead of placeholders: the FTX-1 is on **COM7** (COM4 before 2026-09-28) at **115200**
