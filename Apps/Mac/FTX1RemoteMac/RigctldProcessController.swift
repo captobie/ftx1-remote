@@ -1,5 +1,6 @@
 import FTX1Core
 import Foundation
+import os
 
 /// Spawns and kills the `rigctld` daemon itself — this is the piece of the
 /// old `rigctld_control.py` setup (see repo root CLAUDE.md) that this app
@@ -19,7 +20,9 @@ final class RigctldProcessController {
     }
 
     struct Configuration {
-        var binaryPath: String
+        /// Resolved to a path (`RigctldBinary.resolve`) only when a new
+        /// rigctld actually has to be started, not when one is adopted.
+        var binary: RigctldBinary.Choice
         var modelNumber: Int
         var devicePath: String
         var baudRate: Int
@@ -33,6 +36,11 @@ final class RigctldProcessController {
     private(set) var state: State = .stopped
     private var process: Process?
     var onStateChange: ((State) -> Void)?
+    /// Which rigctld this start launched and why (nil when one was
+    /// adopted instead), for Settings' version box.
+    var onBinaryResolved: ((RigctldBinary.Resolution?) -> Void)?
+
+    private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "connection")
 
     /// Starts rigctld, first checking whether one is already listening on
     /// the configured port. If so, it's probed for liveness (`isHealthy`)
@@ -52,14 +60,24 @@ final class RigctldProcessController {
 
         if let existingPID = await findRigctldListening(onPort: config.port) {
             if await isHealthy(host: config.host, port: config.port) {
+                Self.logger.notice("Adopted the rigctld already listening on port \(config.port) (pid \(existingPID))")
+                onBinaryResolved?(nil)
                 setState(.running)
                 return
             }
             await terminate(pid: existingPID)
         }
 
+        let resolution = await RigctldBinary.resolve(config.binary, model: config.modelNumber)
+        Self.logger.notice("rigctld: \(resolution.summary, privacy: .public)\(resolution.warning.map { " Warning: " + $0 } ?? "", privacy: .public)")
+        onBinaryResolved?(resolution)
+        guard let binaryPath = resolution.path else {
+            setState(.failed(resolution.summary))
+            return
+        }
+
         let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: config.binaryPath)
+        proc.executableURL = URL(fileURLWithPath: binaryPath)
         var arguments = [
             "-m", "\(config.modelNumber)",
             "-r", config.devicePath,

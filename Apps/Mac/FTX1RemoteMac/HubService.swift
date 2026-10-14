@@ -31,6 +31,10 @@ final class HubService: ObservableObject {
     @Published private(set) var rigState = RigState(transmitEnabled: RigctldSettings.transmitEnabled)
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published private(set) var rigctldProcessState: RigctldProcessController.State = .stopped
+    /// Which rigctld the last Local-mode start launched and why (nil
+    /// before the first start, or when an already-running one was
+    /// adopted). Shown in Settings' version box.
+    @Published private(set) var rigctldBinaryInUse: RigctldBinary.Resolution?
     /// Whether the on/off toggle has been switched on — true from
     /// `startRigctld()` until `stopRigctld()`. A mode-independent stand-in
     /// for `rigctldProcessState == .running/.starting`: that reflects
@@ -420,6 +424,9 @@ final class HubService: ObservableObject {
             AudioPlaybackSettings.isMuted = false
         }
 
+        rigctldProcess.onBinaryResolved = { [weak self] resolution in
+            self?.rigctldBinaryInUse = resolution
+        }
         rigctldProcess.onStateChange = { [weak self] state in
             self?.rigctldProcessState = state
         }
@@ -765,7 +772,7 @@ final class HubService: ObservableObject {
             return
         }
         let config = RigctldProcessController.Configuration(
-            binaryPath: RigctldSettings.binaryPath,
+            binary: RigctldBinary.choice,
             modelNumber: RigctldSettings.modelNumber,
             devicePath: RigctldSettings.devicePath,
             baudRate: RigctldSettings.baudRate,

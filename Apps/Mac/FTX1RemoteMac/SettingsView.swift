@@ -22,7 +22,7 @@ struct SettingsView: View {
 
     @State private var connectionMode = RigctldSettings.connectionMode
     @State private var remoteHost = RigctldSettings.remoteHost
-    @State private var binaryPath = RigctldSettings.binaryPath
+    @State private var binaryChoice = RigctldBinary.choice
     @State private var modelNumber = RigctldSettings.modelNumber
     @State private var devicePath = RigctldSettings.devicePath
     @State private var baudRate = RigctldSettings.baudRate
@@ -32,16 +32,10 @@ struct SettingsView: View {
 
     @State private var availableDevices: [String] = []
     @State private var availableBinaryPaths: [String] = []
+    @State private var builtInVersion: HamlibVersion?
 
     /// Common CAT baud rates for hamlib-controlled rigs.
     private static let baudRateOptions = [4800, 9600, 19200, 38400, 57600, 115200]
-
-    /// Where `rigctld` typically lands depending on how it was installed.
-    private static let commonBinaryPaths = [
-        "/opt/homebrew/bin/rigctld",
-        "/usr/local/bin/rigctld",
-        "/opt/local/bin/rigctld",
-    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -87,6 +81,7 @@ struct SettingsView: View {
             refreshAvailableDevices()
             refreshAvailableBinaryPaths()
         }
+        .task { builtInVersion = await RigctldBinary.builtInVersion() }
         .alert("Restart FTX1Remote?", isPresented: $showRestartPrompt) {
             Button("Restart Now") { AppDelegate.relaunch() }
                 .keyboardShortcut(.defaultAction)
@@ -138,9 +133,14 @@ struct SettingsView: View {
                 switch connectionMode {
                 case .local:
                     HStack {
-                        Picker("Binary path", selection: $binaryPath) {
-                            ForEach(availableBinaryPaths, id: \.self) { path in
-                                Text(path).tag(path)
+                        Picker("rigctld", selection: $binaryChoice) {
+                            Text("Automatic (recommended)").tag(RigctldBinary.Choice.automatic)
+                            Text("Built-in (\(builtInVersion.map { "Hamlib \($0)" } ?? "Hamlib"))").tag(RigctldBinary.Choice.builtIn)
+                            if !availableBinaryPaths.isEmpty {
+                                Divider()
+                                ForEach(availableBinaryPaths, id: \.self) { path in
+                                    Text(path).tag(RigctldBinary.Choice.path(path))
+                                }
                             }
                         }
                         Button("Choose…") { chooseBinaryPath() }
@@ -167,7 +167,7 @@ struct SettingsView: View {
                         .frame(maxWidth: 280)
                 }
 
-                RigctldVersionBox(connectionMode: connectionMode, binaryPath: binaryPath, remoteHost: remoteHost)
+                RigctldVersionBox(connectionMode: connectionMode, binaryChoice: binaryChoice, modelNumber: modelNumber, remoteHost: remoteHost)
             }
             .padding(.top, 8)
         }
@@ -176,7 +176,7 @@ struct SettingsView: View {
     private func save() {
         RigctldSettings.connectionMode = connectionMode
         RigctldSettings.remoteHost = remoteHost
-        RigctldSettings.binaryPath = binaryPath
+        RigctldBinary.choice = binaryChoice
         RigctldSettings.modelNumber = modelNumber
         RigctldSettings.devicePath = devicePath
         RigctldSettings.baudRate = baudRate
@@ -191,8 +191,8 @@ struct SettingsView: View {
     }
 
     /// Opens a file browser rooted at the standard Homebrew bin directory,
-    /// for the case where `rigctld` lives somewhere none of
-    /// `commonBinaryPaths` guessed.
+    /// for a `rigctld` somewhere other than `RigctldBinary.searchPaths`.
+    /// The pick is used as is, even if too old (the version box warns).
     private func chooseBinaryPath() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
@@ -202,9 +202,9 @@ struct SettingsView: View {
         panel.directoryURL = URL(fileURLWithPath: "/opt/homebrew/bin", isDirectory: true)
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        binaryPath = url.path
-        if !availableBinaryPaths.contains(binaryPath) {
-            availableBinaryPaths.append(binaryPath)
+        binaryChoice = .path(url.path)
+        if !availableBinaryPaths.contains(url.path) {
+            availableBinaryPaths.append(url.path)
             availableBinaryPaths.sort()
         }
     }
@@ -236,15 +236,14 @@ struct SettingsView: View {
         availableDevices = devices.sorted()
     }
 
-    /// Scans `commonBinaryPaths` for whichever actually exist on disk, so
-    /// the dropdown always offers a real, working path to fall back to even
-    /// if the configured one got cleared or typo'd by hand. Keeps the
-    /// current value in the list too, so a nonstandard install location
-    /// isn't silently dropped.
+    /// The installed copies Automatic would consider (whichever of
+    /// `RigctldBinary.searchPaths` exist), offered as explicit choices
+    /// too. Keeps a chosen custom path in the list, so a nonstandard
+    /// install location isn't silently dropped.
     private func refreshAvailableBinaryPaths() {
-        var paths = Self.commonBinaryPaths.filter { FileManager.default.fileExists(atPath: $0) }
-        if !binaryPath.isEmpty, !paths.contains(binaryPath) {
-            paths.append(binaryPath)
+        var paths = RigctldBinary.searchPaths.filter { FileManager.default.isExecutableFile(atPath: $0) }
+        if case .path(let chosen) = binaryChoice, !paths.contains(chosen) {
+            paths.append(chosen)
         }
         availableBinaryPaths = paths.sorted()
     }
@@ -252,15 +251,18 @@ struct SettingsView: View {
 
 /// The rigctld tab's version box, following the tab's *edited* values (not
 /// the saved ones), so picking another binary or typing a host shows that
-/// one's version before Done. Two sources: "Installed" (Local only) runs the
-/// picked binary with `--version`; "Running" asks whatever rigctld is
+/// one's version before Done. Two sources: "Uses" (Local only) resolves the
+/// picked choice the way a start would (`RigctldBinary.resolve`: which copy,
+/// its version, and why — with a warning when an explicitly chosen copy is
+/// too old or lacks the model); "Running" asks whatever rigctld is
 /// listening on port 4532 (localhost, or the Pi) over its own short-lived
 /// connection (`RigctldClient.readHamlibVersion`) — the only way to see the
 /// Pi's version, and in Local mode it can differ from the binary when an
 /// already-running rigctld was adopted.
 private struct RigctldVersionBox: View {
     let connectionMode: RigctldSettings.ConnectionMode
-    let binaryPath: String
+    let binaryChoice: RigctldBinary.Choice
+    let modelNumber: Int
     let remoteHost: String
 
     private enum Lookup: Equatable {
@@ -271,12 +273,14 @@ private struct RigctldVersionBox: View {
 
     private struct Inputs: Equatable {
         var connectionMode: RigctldSettings.ConnectionMode
-        var binaryPath: String
+        var binaryChoice: RigctldBinary.Choice
+        var modelNumber: Int
         var remoteHost: String
         var refreshCount: Int
     }
 
     @State private var installed: Lookup = .checking
+    @State private var resolution: RigctldBinary.Resolution?
     @State private var running: Lookup = .checking
     @State private var refreshCount = 0
 
@@ -284,7 +288,20 @@ private struct RigctldVersionBox: View {
         GroupBox("Version") {
             VStack(alignment: .leading, spacing: 6) {
                 if connectionMode == .local {
-                    row("Installed", installed)
+                    row("Uses", installed)
+                    if let resolution {
+                        Text(resolution.summary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let warning = resolution.warning {
+                            Label(warning, systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                 }
                 row(connectionMode == .local ? "Running" : "Running on Pi", running)
                 HStack {
@@ -296,7 +313,7 @@ private struct RigctldVersionBox: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(4)
         }
-        .task(id: Inputs(connectionMode: connectionMode, binaryPath: binaryPath, remoteHost: remoteHost, refreshCount: refreshCount)) {
+        .task(id: Inputs(connectionMode: connectionMode, binaryChoice: binaryChoice, modelNumber: modelNumber, remoteHost: remoteHost, refreshCount: refreshCount)) {
             await lookUp()
         }
     }
@@ -319,6 +336,7 @@ private struct RigctldVersionBox: View {
 
     private func lookUp() async {
         installed = .checking
+        resolution = nil
         running = .checking
         // Typing a host restarts this task per keystroke; wait until it
         // settles before connecting anywhere.
@@ -327,8 +345,14 @@ private struct RigctldVersionBox: View {
 
         switch connectionMode {
         case .local:
-            let binaryResult = await Self.binaryVersion(atPath: binaryPath)
+            let resolved = await RigctldBinary.resolve(binaryChoice, model: modelNumber)
+            let binaryResult: Lookup = if let path = resolved.path {
+                await Self.binaryVersion(atPath: path)
+            } else {
+                .unavailable("No usable rigctld")
+            }
             guard !Task.isCancelled else { return }
+            resolution = resolved
             installed = binaryResult
             let liveResult = await Self.runningVersion(host: "127.0.0.1")
             guard !Task.isCancelled else { return }

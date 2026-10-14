@@ -20,6 +20,8 @@ enum RigctldSettings {
 
     static let connectionModeKey = "rigctld.connectionMode"
     static let remoteHostKey = "rigctld.remoteHost"
+    /// Only read now, to migrate to `RigctldBinary.choiceKey` (Automatic /
+    /// Built-in / a path) — see `RigctldBinary.choice`.
     static let binaryPathKey = "rigctld.binaryPath"
     static let modelNumberKey = "rigctld.modelNumber"
     static let devicePathKey = "rigctld.devicePath"
@@ -52,11 +54,6 @@ enum RigctldSettings {
     /// decide whether to offer a restart.
     static let activeConnectionMode = connectionMode
     static let activeRemoteHost = remoteHost
-
-    static var binaryPath: String {
-        get { UserDefaults.standard.string(forKey: binaryPathKey) ?? "/opt/homebrew/bin/rigctld" }
-        set { UserDefaults.standard.set(newValue, forKey: binaryPathKey) }
-    }
 
     static var modelNumber: Int {
         get {
