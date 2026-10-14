@@ -30,7 +30,10 @@ Mac, iOS, and iPadOS targets. The Windows client shares no code with it
     (`RigctldProcessController`) against `localhost:4532`, adopting an
     already-running, responsive instance on launch rather than killing it
     (another client, e.g. WSJT-X, may be mid-session with it) — only a
-    stale/unresponsive one gets replaced.
+    stale/unresponsive one gets replaced, and one started for another rig
+    model is refused, not used. Which rigctld it launches is
+    "Automatic" by default: an installed Hamlib ≥ 4.7 that knows the
+    FTX-1 (Homebrew/MacPorts paths), else the app's own bundled copy.
   - `.remote`: connects to rigctld already running on a Pi
     (`<remoteHost>:4532`, a Tailscale MagicDNS hostname) and skips process
     management entirely.
@@ -306,6 +309,16 @@ also a NuGet package (`Microsoft.ML.OnnxRuntime`).
 
 The Mac app updates itself with [Sparkle](https://sparkle-project.org)
 (MIT-style license), a Swift package dependency.
+
+The Mac app bundles `rigctld` from [Hamlib](https://github.com/Hamlib/Hamlib)
+4.7.2 (`Vendor/hamlib/rigctld`, shipped as `Contents/Helpers/rigctld`), a
+static universal build made from Hamlib's release tarball by
+`Scripts/build-rigctld.sh`. Hamlib's programs, rigctld included, are
+GPL-2.0-or-later and its library is LGPL-2.1-or-later; their licence texts
+(`COPYING`, `COPYING.LIB`, `LICENSE`) are in `Vendor/hamlib/` and ship in
+the app's `Contents/Resources/Hamlib/`. The app runs rigctld as a separate
+program and talks to it only over TCP. Each GitHub release that ships it
+carries the exact Hamlib source tarball and the build script.
 
 ## Commands
 

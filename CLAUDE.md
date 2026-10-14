@@ -23,6 +23,53 @@ over Tailscale, without needing to be physically near the rig.
   rigctld instead of killing it (another client, e.g. WSJT-X, may be
   mid-session with it); only an unresponsive/stale one gets killed and
   replaced.
+- **Bundled rigctld fallback (2026-10-14; build/UI-verified and tested
+  against Hamlib's dummy rig, not yet with the FTX-1 on the Mac's USB or
+  in a notarized build)**: users with a Hamlib older than 4.7 saw "app
+  doesn't work" — the FTX-1 (model 1051) first appears in 4.7, and an
+  older rigctld exits at once. The Mac app ships its own:
+  `Vendor/hamlib/rigctld` (static, universal, links only libSystem,
+  ~21 MB) is copied to `Contents/Helpers/rigctld` by the target's "Embed
+  Helpers" phase (Code Sign On Copy; Hamlib's licences go to
+  `Contents/Resources/Hamlib/`). The Developer ID export signs it with
+  hardened runtime and a timestamp; `release-mac.sh` checks all three
+  before notarizing. Developer ID / web-download build only.
+  - **Selection** (`RigctldBinary.swift`, `rigctld.binaryChoice`):
+    Automatic (default) checks `/opt/homebrew/bin`, `/usr/local/bin`,
+    `/opt/local/bin` on every spawn — first copy with `--version` ≥ 4.7.0
+    *and* the configured model in `-l` wins, else built-in. Probes are off
+    the main actor, 3 s/5 s caps, and skipped when a running rigctld is
+    adopted. Built-in or an explicit path (used as is; the version box
+    warns if too old or missing the model) can be picked instead. The
+    reason is logged ("connection" category) and shown in the version
+    box's "Uses" line. Migration: an old `rigctld.binaryPath` of
+    `/opt/homebrew/bin/rigctld` or `/usr/local/bin/rigctld` reads as
+    Automatic; any other path stays. Debug builds honour a
+    `rigctld.searchPathsOverride` defaults array — the way to test the
+    fallback without uninstalling Homebrew's Hamlib.
+  - **Adoption checks the model**: `\dump_caps` first (answered by
+    rigctld without rig I/O; `RigctldClient.readRigModel`), then, only
+    for a matching model, the raw "FA" rig-link probe. A responsive
+    rigctld for another model fails the start with a message naming it
+    and is never killed or connected to. "FA" can't come first: only a
+    Yaesu answers it, so e.g. WSJT-X's rigctld for an Icom looked stale
+    and was killed (found testing with the dummy rig).
+  - **Licence obligations** (rigctld GPL-2.0+, libhamlib LGPL-2.1+;
+    separate executable over TCP = mere aggregation): ship `COPYING`,
+    `COPYING.LIB`, `LICENSE` (done by the bundle phase); attach the exact
+    Hamlib source tarball and `Scripts/build-rigctld.sh` to every GitHub
+    release that ships it (`release-mac.sh` prints them in the `gh
+    release create` line and warns if `releases/hamlib-<ver>.tar.gz` is
+    missing); README "Third-party code" entry.
+  - **New Hamlib version**: download `hamlib-X.Y.Z.tar.gz` (the release
+    tarball, not GitHub's "Source code" archives — those need automake/
+    libtool) and check its sha256 against the release page; run
+    `Scripts/build-rigctld.sh <tarball> <sha256>` (update
+    `HAMLIB_VERSION`/`DEFAULT_SHA256` in it); it checks both arches, the
+    26.5 deployment target, libSystem-only linking, the version and model
+    1051. Commit `Vendor/hamlib/`, put the tarball in `releases/`, and
+    update the README entry's version. Keep `DEPLOYMENT_TARGET` in step
+    with the Mac target's `MACOSX_DEPLOYMENT_TARGET`.
 - **Mac app exposes a WebSocket server** that iOS/iPadOS clients connect to.
   Mobile apps never talk to rigctld directly — except the iPhone/iPad
   Pi-direct proof of concept (see "Pi-direct proof of concept (iPhone,
