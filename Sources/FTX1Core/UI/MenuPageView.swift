@@ -117,9 +117,14 @@ public struct MenuPageView<Controller: RigController>: View {
     /// The grid's own ◀/▶ buttons (items 22 and 28) change pages either
     /// way; the iPad hides the picker to save space.
     private let showsPagePicker: Bool
+    /// Where S.LIST/M.LIST go when the controller supports them: nil opens
+    /// the Mac's `aprs-stations`/`aprs-messages` windows; the iPad passes
+    /// a handler that shows its list pane in place of this grid.
+    private let onShowAPRSList: ((APRSListKind) -> Void)?
 
-    public init(showsPagePicker: Bool = true) {
+    public init(showsPagePicker: Bool = true, onShowAPRSList: ((APRSListKind) -> Void)? = nil) {
         self.showsPagePicker = showsPagePicker
+        self.onShowAPRSList = onShowAPRSList
     }
 
     public var body: some View {
@@ -510,9 +515,9 @@ public struct MenuPageView<Controller: RigController>: View {
         } else if selectedPage == .fm, item == 7 {
             disabledPlaceholderButton(top: "REV")
         } else if selectedPage == .fm, item == 11 {
-            aprsListButton(bottom: "S.LIST", windowID: "aprs-stations")
+            aprsListButton(bottom: "S.LIST", kind: .stations, windowID: "aprs-stations")
         } else if selectedPage == .fm, item == 12 {
-            aprsListButton(bottom: "M.LIST", windowID: "aprs-messages")
+            aprsListButton(bottom: "M.LIST", kind: .messages, windowID: "aprs-messages")
         } else if selectedPage == .fm, item == 13 {
             menuButtonShell {
                 hub.send(.setAPRSBeaconType(((hub.rigState.aprsBeaconType ?? 0) + 1) % 3))
@@ -1415,14 +1420,19 @@ public struct MenuPageView<Controller: RigController>: View {
     /// `hub.supportsAPRSDecoding` is true — opens a dedicated `Window`
     /// scene (`windowID`, declared only in the Mac app target) rather than
     /// a sheet, since a station/message list is meant to stay open
-    /// alongside the main window while operating, not block it. Falls back
-    /// to the same disabled placeholder every other CAT-less button on
-    /// this page uses when unsupported (mobile clients today).
+    /// alongside the main window while operating, not block it — or, with
+    /// `onShowAPRSList` set (the iPad), hands `kind` to that instead. Falls
+    /// back to the same disabled placeholder every other CAT-less button
+    /// on this page uses when unsupported (the iPhone today).
     @ViewBuilder
-    private func aprsListButton(bottom: String, windowID: String) -> some View {
+    private func aprsListButton(bottom: String, kind: APRSListKind, windowID: String) -> some View {
         if hub.supportsAPRSDecoding {
             menuButtonShell {
-                openWindow(id: windowID)
+                if let onShowAPRSList {
+                    onShowAPRSList(kind)
+                } else {
+                    openWindow(id: windowID)
+                }
             } label: {
                 twoLineLabelEqualSize(top: "APRS", bottom: bottom)
             }

@@ -53,6 +53,9 @@ public actor RigWebSocketClient {
     /// The hub's memory channel list (`MemoryListPush`), on connect and
     /// whenever it changes. Never fires against a hub that predates it.
     public var onMemoryList: (@Sendable (MemoryListSnapshot) -> Void)?
+    /// The hub's decoded APRS history (`APRSListPush`), on connect and
+    /// whenever it changes.
+    public var onAPRSList: (@Sendable (APRSListPush) -> Void)?
 
     /// Answers to `sendMenuItemRead` (`MenuItemPush`).
     public var onMenuItem: (@Sendable (MenuItemPush) -> Void)?
@@ -80,6 +83,10 @@ public actor RigWebSocketClient {
 
     public func setOnMemoryList(_ handler: @escaping @Sendable (MemoryListSnapshot) -> Void) {
         onMemoryList = handler
+    }
+
+    public func setOnAPRSList(_ handler: @escaping @Sendable (APRSListPush) -> Void) {
+        onAPRSList = handler
     }
 
     public func setOnMenuItem(_ handler: @escaping @Sendable (MenuItemPush) -> Void) {
@@ -198,6 +205,9 @@ public actor RigWebSocketClient {
         } else if let push = try? JSONDecoder().decode(MemoryListPush.self, from: data) {
             lastActivity = Date()
             onMemoryList?(push.list)
+        } else if let push = try? JSONDecoder().decode(APRSListPush.self, from: data), push.type == APRSListPush.typeName {
+            lastActivity = Date()
+            onAPRSList?(push)
         } else if let push = try? JSONDecoder().decode(MenuItemPush.self, from: data), push.type == MenuItemPush.typeName {
             lastActivity = Date()
             onMenuItem?(push)

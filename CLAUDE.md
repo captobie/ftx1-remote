@@ -952,6 +952,38 @@ each committed on its own:
    Simulator against the real Pi: SUB in FM answers the notch read with a
    non-number, shown as "—" (known, see `FilterStateReads`).
 
+## iPad APRS S.LIST/M.LIST (2026-10-14, Simulator against the real Pi; no packet decoded on the iPad yet)
+
+User request: the FM page's S.LIST/M.LIST open `APRSListPane`
+(`Apps/iPad/`) *in place of* the MENU grid, on both routes; Close brings
+the grid back. The grid stays in the hierarchy, hidden under the pane
+(`.aprsListPane(...)`), so it returns on the FM page and the pane gets the
+grid's exact frame. `MenuPageView(onShowAPRSList:)` hands the list kind to
+the iPad; nil (the Mac) still opens the `aprs-*` windows. The pane has the
+Mac windows' columns/filters (S.LIST/M.LIST switch, Source, filter menu,
+search) — no map.
+
+- **Pi direct decodes on the iPad** (`PiDirectViewModel(decodesAPRS:
+  true)`): an `APRSDecoder` per side on the Pi's **44.1 kHz** samples,
+  before the downsamplers, gated per side by `APRSSettings` (this device's
+  own keys; the pane's gear: Decode APRS — off by default, as on the Mac —
+  frequency, Clear History) via a lock-protected `APRSGateFlags` refreshed
+  on every `rigState` change. Into its own `APRSStore`, persisted on the
+  iPad (same `aprs-history.json` name, its own container).
+- **Hub route shows the Mac's lists**, not its own decode: the relayed
+  audio is 8 kHz, too coarse for the demodulator (see Audio-over-Pi).
+  `APRSListPush` (`type: "aprs_list"`, the whole history) is broadcast on
+  change, throttled to one per 2 s, and sent on connect;
+  `RigClientViewModel.aprsList`. Decoding there follows the Mac's
+  Settings → APRS.
+- `APRSDecoder`/`APRSStore`/`APRSPersistence`/`APRSSettings` moved from
+  the Mac target to `FTX1Core/APRS/`, `APRSListFilter` (plus
+  `APRSListKind`, `isBulletin`/`isTelemetryDefinition`) to `FTX1Core/UI/`;
+  the Mac's behavior is unchanged.
+- Not yet: a real decode on either iPad route, the hub route on screen
+  (build-verified only), a real iPad. The VFO boxes' APRS indicator stays
+  hub-only.
+
 ## iPad transmit audio (2026-10-09, build- and Simulator-checked; not yet on the air)
 
 Hold-to-talk PTT on both iPad screens (`PTTButton`, right of Connected and

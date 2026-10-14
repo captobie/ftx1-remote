@@ -60,7 +60,8 @@ struct ContentView: View {
 
 /// Dense multi-pane control UI, modeled on the Mac's `ContentView` rather
 /// than iPhone's single-focus flow (see repo root CLAUDE.md) — VFO A/B and
-/// meters visible together, plus the numbered `MenuPageView` grid. Band
+/// meters visible together, plus the numbered `MenuPageView` grid (whose
+/// S.LIST/M.LIST swap in `APRSListPane` with the Mac's lists). Band
 /// (MAIN only, VFO mode) and mode are picked in each VFO box's frequency
 /// popover. Unlike the Mac, this is a WebSocket client only
 /// (`RigClientViewModel`), never touches `RigctldClient` directly.
@@ -72,6 +73,8 @@ struct HubControlView: View {
     @AppStorage(AudioPlaybackSettings.subVolumeKey) private var subAudioVolume: Double = 0.8
     @AppStorage(AudioPlaybackSettings.subSquelchThresholdKey) private var subAudioSquelchThreshold: Double = 0.015
     @Environment(\.scenePhase) private var scenePhase
+    /// S.LIST/M.LIST shown in place of the MENU grid (`APRSListPane`).
+    @State private var aprsListKind: APRSListKind?
 
     var body: some View {
         ScrollView {
@@ -137,7 +140,13 @@ struct HubControlView: View {
 
                 FilterPanel<RigClientViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected)
 
-                MenuPageView<RigClientViewModel>(showsPagePicker: false)
+                MenuPageView<RigClientViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
+                    .aprsListPane(
+                        kind: $aprsListKind,
+                        stations: viewModel.aprsList?.stations ?? [],
+                        messages: viewModel.aprsList?.messages ?? [],
+                        onClearHistory: nil
+                    )
             }
             .padding(32)
         }

@@ -21,12 +21,12 @@ public protocol RigController: ObservableObject {
     /// only while a Deep Settings tab is open, for that tab's items.
     func readMenuItem(p1: Int, p2: Int, p3: Int) async -> String?
 
-    /// Whether this controller can decode APRS traffic (S.LIST/M.LIST on
-    /// the FM menu page). Requires the Mac's audio-derived decode pipeline
-    /// (`AudioCaptureEngine` + `APRSDecoder`) — mobile clients have no
-    /// audio input to decode and never will via the WebSocket wire
-    /// protocol (an intrinsically Mac-only capability, not a missing
-    /// wire-protocol message). Defaults to `false`.
+    /// Whether this controller has decoded APRS lists to show (S.LIST/
+    /// M.LIST on the FM menu page): the Mac decodes them itself
+    /// (`AudioCaptureEngine` + `APRSDecoder`), the iPad's Pi-direct model
+    /// decodes the Pi's 44.1 kHz audio, and the iPad's hub model shows the
+    /// Mac's (`APRSListPush` — the relayed 8 kHz audio is too coarse to
+    /// decode). Defaults to `false` (the iPhone).
     var supportsAPRSDecoding: Bool { get }
 
     /// Whether this controller can record/play back its own audio output

@@ -1,4 +1,3 @@
-import FTX1Core
 import Foundation
 
 /// Saves/loads decoded APRS history to disk so it survives an app

@@ -52,6 +52,19 @@ final class WireMessageTests: XCTestCase {
 
     /// The Deep Settings read pair travels beside `RigCommand` and the
     /// state pushes, so neither side may mistake one for the other.
+    func testAPRSListPushRoundTripsAndDoesntCollide() throws {
+        let push = APRSListPush(
+            stations: [APRSStation(callsign: "N0CALL-9", latitude: 39.5, longitude: -104.9, comment: "mobile", lastHeardAt: Date(timeIntervalSince1970: 1_000), source: .sub)],
+            messages: [APRSMessage(id: "m1", from: "N0CALL-9", to: "BLN1", text: "hello", receivedAt: Date(timeIntervalSince1970: 2_000))]
+        )
+        let data = try JSONEncoder().encode(push)
+        XCTAssertEqual(try JSONDecoder().decode(APRSListPush.self, from: data), push)
+        // The client tries these first; none may swallow an APRS push.
+        XCTAssertNil(try? JSONDecoder().decode(RigStatePush.self, from: data))
+        XCTAssertNil(try? JSONDecoder().decode(MemoryListPush.self, from: data))
+        XCTAssertNil(try? JSONDecoder().decode(APRSListPush.self, from: JSONEncoder().encode(RigStatePush(state: RigState()))))
+    }
+
     func testMenuItemReadMessagesDontCollide() throws {
         let request = MenuItemReadRequest(p1: 6, p2: 1, p3: 3)
         let requestData = try JSONEncoder().encode(request)

@@ -85,26 +85,13 @@ struct APRSMessageListView: View {
         !myBaseCallsign.isEmpty && APRSListFilter.baseCallsign(message.to) == myBaseCallsign
     }
 
-    /// APRS bulletins and announcements are addressed "BLN0"–"BLNZ" plus
-    /// optional group name (APRS 1.0.1, ch. 14).
-    private static func isBulletin(_ message: APRSMessage) -> Bool {
-        message.to.uppercased().hasPrefix("BLN")
-    }
-
-    /// Telemetry metadata ("PARM.", "UNIT.", "EQNS.", "BITS.") that a
-    /// station sends as a message, usually to itself, to label its
-    /// telemetry channels (APRS 1.0.1, ch. 13) — not a message for a human.
-    private static func isTelemetryDefinition(_ message: APRSMessage) -> Bool {
-        ["PARM.", "UNIT.", "EQNS.", "BITS."].contains { message.text.hasPrefix($0) }
-    }
-
     private var filteredMessages: [APRSMessage] {
         store.messages
             .filter { sourceFilter == nil || $0.source == sourceFilter }
             .filter { heardWindow.includes($0.receivedAt) }
             .filter { !addressedToMe || myBaseCallsign.isEmpty || isAddressedToMe($0) }
-            .filter { !hideBulletins || !Self.isBulletin($0) }
-            .filter { !hideTelemetry || !Self.isTelemetryDefinition($0) }
+            .filter { !hideBulletins || !APRSListFilter.isBulletin($0) }
+            .filter { !hideTelemetry || !APRSListFilter.isTelemetryDefinition($0) }
             .filter { APRSListFilter.matches(searchText, $0.from, $0.to, $0.text) }
             .sorted { $0.receivedAt > $1.receivedAt }
     }

@@ -797,6 +797,27 @@ public struct MemoryListPush: Codable, Sendable, Equatable {
     }
 }
 
+/// Server -> client push of the hub's decoded APRS history (the Mac's
+/// `APRSStore`) for the iPad's S.LIST/M.LIST panes: the iPad can't decode
+/// APRS itself on this route, since the relayed audio is 8 kHz (too few
+/// samples per bit for `AFSKDemodulator`). The whole history each time
+/// (bounded by the Mac's `APRSSettings.maxStations`/`maxMessages`), sent
+/// when it changes — at most once every 2 s — and to each client on
+/// connect. An older client fails to decode it and ignores it.
+public struct APRSListPush: Codable, Sendable, Equatable {
+    public let type: String  // "aprs_list"
+    public let stations: [APRSStation]
+    public let messages: [APRSMessage]
+
+    public static let typeName = "aprs_list"
+
+    public init(stations: [APRSStation], messages: [APRSMessage]) {
+        self.type = Self.typeName
+        self.stations = stations
+        self.messages = messages
+    }
+}
+
 /// Client -> server: read one Deep Settings item ("EX" `p1`/`p2`/`p3`, see
 /// `DeepSettingsCatalog`) — what `DeepSettingsView` needs on the hub
 /// route. Not a `RigCommand`: it never reaches the rig through

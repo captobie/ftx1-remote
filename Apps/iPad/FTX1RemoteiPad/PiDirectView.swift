@@ -22,11 +22,15 @@ import SwiftUI
 ///
 /// The hub screen's `MenuPageView` (2026-10-09) sits at the bottom,
 /// running on `PiDirectViewModel` (a `RigController`): the same three
-/// pages, with MOX/ANT TUNE behind this route's lock and Deep Settings,
-/// APRS lists and RECORD/PLAY unavailable as on the hub route; power is
+/// pages, with MOX/ANT TUNE behind this route's lock and RECORD/PLAY
+/// unavailable as on the hub route; power is
 /// the grid's RF POWER, as on the hub screen. MAIN's frequency popover has
 /// the band picker too, without the hub's band memory (see
 /// `PiDirectViewModel.send`).
+///
+/// APRS (2026-10-14): S.LIST/M.LIST show `APRSListPane` in place of the
+/// grid, with this iPad's own decode (`PiDirectViewModel.aprsStore`); its
+/// gear button turns decoding on and sets the frequency.
 ///
 /// The filter block (`FilterPanel`, 2026-10-11) sits between the strips
 /// and the grid, as on the hub screen, with the spectrum computed from this
@@ -45,6 +49,8 @@ struct PiDirectView: View {
     @AppStorage(AudioPlaybackSettings.subVolumeKey) private var subAudioVolume: Double = 0.8
     @AppStorage(AudioPlaybackSettings.subSquelchThresholdKey) private var subAudioSquelchThreshold: Double = 0.015
     @Environment(\.scenePhase) private var scenePhase
+    /// S.LIST/M.LIST shown in place of the MENU grid (`APRSListPane`).
+    @State private var aprsListKind: APRSListKind?
 
     var body: some View {
         ScrollView {
@@ -118,8 +124,8 @@ struct PiDirectView: View {
         // No editing while the rig scans — see `PiDirectViewModel.send`.
         let editable = state.memoryScan != .scanning && state.memoryScan != .paused
         HStack(spacing: 12) {
-            // Same arguments as the hub screen's boxes, minus APRS (no
-            // decoder on this route).
+            // Same arguments as the hub screen's boxes, minus the APRS
+            // indicator (the S.LIST/M.LIST pane has this route's decode).
             VFODisplayBox(
                 label: "SUB",
                 frequencyHz: state.secondaryFrequencyHz,
@@ -201,7 +207,19 @@ struct PiDirectView: View {
 
         FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected)
 
-        MenuPageView<PiDirectViewModel>(showsPagePicker: false)
+        if let store = viewModel.aprsStore {
+            ObservingAPRSStore(store: store) { store in
+                MenuPageView<PiDirectViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
+                    .aprsListPane(
+                        kind: $aprsListKind,
+                        stations: store.stations,
+                        messages: store.messages,
+                        onClearHistory: store.clearHistory
+                    )
+            }
+        } else {
+            MenuPageView<PiDirectViewModel>(showsPagePicker: false)
+        }
 
         Text("Direct to rigctld on the Pi, no Mac hub. Unlock to transmit (PTT, MOX, ANT TUNE); hold PTT to talk through the iPad's microphone. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed. Menu values refresh every ~10 s.")
             .font(.caption)

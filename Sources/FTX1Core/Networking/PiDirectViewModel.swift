@@ -24,8 +24,8 @@ import os
 /// MENU grid (2026-10-09, iPad): with `readsMenuSettings` this conforms to
 /// `RigController`, so the shared `MenuPageView` runs on it. It accepts the
 /// grid's setting commands (`isMenuSetting`) and reads their fields a few
-/// per poll tick (`menuSettingReads`, the hub's slow-tier reads). APRS
-/// lists and RECORD/PLAY stay unsupported, as on the hub route.
+/// per poll tick (`menuSettingReads`, the hub's slow-tier reads).
+/// RECORD/PLAY stay unsupported, as on the hub route.
 ///
 /// Deep Settings (2026-10-11, iPad, with `readsMenuSettings`): the shared
 /// `DeepSettingsView` reads the open tab's items straight over this
@@ -40,6 +40,13 @@ import os
 /// after a side switch or swap and a width re-read after N/W — the hub's
 /// rules. `filterSpectrum` is the Filter Function Display's spectrum,
 /// computed from this route's own 8 kHz audio.
+///
+/// APRS (2026-10-14, iPad, `decodesAPRS`): an `APRSDecoder` per side runs
+/// on the Pi's 44.1 kHz audio, before the downsampling — the same decoder
+/// and gate (`APRSSettings`, this device's own copy) as the Mac's, Sub
+/// gated on SUB's frequency — into `aprsStore`, persisted on this device,
+/// for the S.LIST/M.LIST pane. Decoding runs whenever audio arrives and
+/// the gate is open, pane shown or not, like the Mac's.
 ///
 /// rigctld accepts several clients at once, so this coexists with the Mac
 /// (or WSJT-X) being connected to the same Pi.
@@ -65,7 +72,10 @@ public final class PiDirectViewModel: ObservableObject {
     }
 
     @Published public private(set) var rigState = RigState() {
-        didSet { filterSpectrum.selectedSide = rigState.activeFilterSide }
+        didSet {
+            filterSpectrum.selectedSide = rigState.activeFilterSide
+            if aprsStore != nil { updateAPRSGate() }
+        }
     }
     @Published public private(set) var connectionState: ConnectionState = .disconnected
 
@@ -97,6 +107,15 @@ public final class PiDirectViewModel: ObservableObject {
     @Published public private(set) var audioChannelsSwapped = AudioPlaybackSettings.channelsSwapped
     /// `audioChannelsSwapped` for the audio client's actor.
     private let channelSwap = ChannelSwapFlag(AudioPlaybackSettings.channelsSwapped)
+
+    /// Decoded APRS stations/messages (`decodesAPRS` only, else nil).
+    public let aprsStore: APRSStore?
+    private let aprsDecoderMain: APRSDecoder?
+    /// Only when this also plays Sub (`playsSubAudio`).
+    private let aprsDecoderSub: APRSDecoder?
+    /// Whether each side is on the APRS frequency, for the audio client's
+    /// actor — refreshed on every `rigState` change.
+    private let aprsGate = APRSGateFlags()
     /// MAIN's last VFO-mode frequency/mode, replayed when leaving Memory
     /// mode — "VM000" alone leaves MAIN parked on the channel's values. See
     /// `HubService.lastVFOState`; cleared by a swap the same way.
@@ -239,7 +258,8 @@ public final class PiDirectViewModel: ObservableObject {
         readsSMeter: Bool = false,
         readsVFODetails: Bool = false,
         readsMenuSettings: Bool = false,
-        readsFilters: Bool = false
+        readsFilters: Bool = false,
+        decodesAPRS: Bool = false
     ) {
         self.logSubsystem = logSubsystem
         logger = Logger(subsystem: logSubsystem, category: "pi-direct")
@@ -248,6 +268,15 @@ public final class PiDirectViewModel: ObservableObject {
         self.readsVFODetails = readsVFODetails
         self.readsMenuSettings = readsMenuSettings
         self.readsFilters = readsFilters
+        if decodesAPRS {
+            aprsStore = APRSStore()
+            aprsDecoderMain = APRSDecoder(logSubsystem: logSubsystem)
+            aprsDecoderSub = playsSubAudio ? APRSDecoder(logSubsystem: logSubsystem) : nil
+        } else {
+            aprsStore = nil
+            aprsDecoderMain = nil
+            aprsDecoderSub = nil
+        }
         memoryListSnapshot = memoryList.snapshot
         rigState.transmitEnabled = transmitEnabled
         memoryListCancellable = memoryList.$entries
@@ -264,6 +293,31 @@ public final class PiDirectViewModel: ObservableObject {
             self?.c4fmReflector = reflector
             self?.rigState.c4fmReflector = reflector
         }
+        wireAPRSDecoder(aprsDecoderMain, source: .main)
+        wireAPRSDecoder(aprsDecoderSub, source: .sub)
+    }
+
+    private func wireAPRSDecoder(_ decoder: APRSDecoder?, source: APRSSource) {
+        guard let decoder else { return }
+        // The decoder calls these on the main queue.
+        decoder.onStation = { [weak self] callsign, latitude, longitude, symbolTable, symbolCode, comment in
+            MainActor.assumeIsolated {
+                self?.aprsStore?.recordStation(callsign: callsign, latitude: latitude, longitude: longitude, symbolTable: symbolTable, symbolCode: symbolCode, comment: comment, heardAt: Date(), source: source)
+            }
+        }
+        decoder.onMessage = { [weak self] from, to, text, messageID in
+            MainActor.assumeIsolated {
+                self?.aprsStore?.recordMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: Date(), source: source)
+            }
+        }
+    }
+
+    /// Re-reads `APRSSettings` each time, so a change in the pane's
+    /// settings applies on the next poll tick.
+    private func updateAPRSGate() {
+        let main = connectionState == .connected && APRSSettings.isActive(atFrequencyHz: rigState.frequencyHz)
+        let sub = connectionState == .connected && (rigState.secondaryFrequencyHz.map { APRSSettings.isActive(atFrequencyHz: $0) } ?? false)
+        aprsGate.set(main: main, sub: sub)
     }
 
     /// `wpsdHost`: the WPSD hotspot to read the C4FM callsign/reflector
@@ -365,9 +419,14 @@ public final class PiDirectViewModel: ObservableObject {
             host: host,
             port: Self.audioPort,
             logSubsystem: logSubsystem
-        ) { [weak self, channelSwap] left, right, sampleRate in
+        ) { [weak self, channelSwap, aprsGate, aprsDecoderMain, aprsDecoderSub] left, right, sampleRate in
             // L/R follow the physical receivers, so after a swap R is Main.
             let (left, right) = channelSwap.value ? (right, left) : (left, right)
+            // Full rate, before downsampling: at 8 kHz the demodulator has
+            // too few samples per bit (see Audio-over-Pi in CLAUDE.md).
+            let gate = aprsGate.value
+            if gate.main { aprsDecoderMain?.process(samples: left, sampleRate: sampleRate) }
+            if gate.sub { aprsDecoderSub?.process(samples: right, sampleRate: sampleRate) }
             // Runs on the client's actor; resample there, hop to the main
             // actor only to hand the 8 kHz chunks to the engines.
             let mainPCM = mainDownsampler.convert(left, sourceRate: sampleRate)
@@ -1127,10 +1186,25 @@ private final class ChannelSwapFlag: @unchecked Sendable {
     }
 }
 
+/// Each side's APRS gate, readable from the audio client's actor.
+private final class APRSGateFlags: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored = (main: false, sub: false)
+
+    var value: (main: Bool, sub: Bool) { lock.withLock { stored } }
+
+    func set(main: Bool, sub: Bool) {
+        lock.withLock { stored = (main, sub) }
+    }
+}
+
 /// Lets the shared `MenuPageView` run on this route (the iPad's Pi-direct
-/// screen). APRS and recording keep the protocol's unsupported defaults.
+/// screen). Recording keeps the protocol's unsupported default.
 extension PiDirectViewModel: RigController {
     public var supportsDeepSettings: Bool { readsMenuSettings }
+
+    /// S.LIST/M.LIST show this device's own decode (`aprsStore`).
+    public var supportsAPRSDecoding: Bool { aprsStore != nil }
 
     /// Straight over the rigctld link, like `HubService.readMenuItem`; its
     /// round-trip lock interleaves these with the poll's reads.

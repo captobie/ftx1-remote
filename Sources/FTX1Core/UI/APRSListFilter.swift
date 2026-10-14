@@ -1,14 +1,18 @@
-import FTX1Core
 import SwiftUI
+
+/// Which APRS list S.LIST/M.LIST opens.
+public enum APRSListKind: Hashable, Sendable {
+    case stations, messages
+}
 
 /// "Heard within" choices shared by the APRS station and message lists.
 /// Measured from the moment the list is rendered — the lists re-render on
 /// every new packet, so an entry can outlive its window by however long
 /// the channel stays quiet.
-enum APRSHeardWindow: Hashable, CaseIterable {
+public enum APRSHeardWindow: Hashable, CaseIterable {
     case any, lastHour, last24Hours, last7Days
 
-    var label: String {
+    public var label: String {
         switch self {
         case .any: "Any Time"
         case .lastHour: "Last Hour"
@@ -26,32 +30,49 @@ enum APRSHeardWindow: Hashable, CaseIterable {
         }
     }
 
-    func includes(_ date: Date, now: Date = Date()) -> Bool {
+    public func includes(_ date: Date, now: Date = Date()) -> Bool {
         guard let seconds else { return true }
         return now.timeIntervalSince(date) <= seconds
     }
 }
 
-enum APRSListFilter {
+public enum APRSListFilter {
     /// Case- and diacritic-insensitive match of `query` against any of
     /// `fields`; an empty (or all-whitespace) query matches everything.
-    static func matches(_ query: String, _ fields: String?...) -> Bool {
+    public static func matches(_ query: String, _ fields: String?...) -> Bool {
         let query = query.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else { return true }
         return fields.contains { $0?.localizedStandardContains(query) ?? false }
     }
 
     /// The callsign without its SSID, uppercased — "n0call-9" → "N0CALL".
-    static func baseCallsign(_ callsign: String) -> String {
+    public static func baseCallsign(_ callsign: String) -> String {
         String(callsign.split(separator: "-", maxSplits: 1).first ?? "").uppercased()
+    }
+
+    /// APRS bulletins and announcements are addressed "BLN0"–"BLNZ" plus
+    /// optional group name (APRS 1.0.1, ch. 14).
+    public static func isBulletin(_ message: APRSMessage) -> Bool {
+        message.to.uppercased().hasPrefix("BLN")
+    }
+
+    /// Telemetry metadata ("PARM.", "UNIT.", "EQNS.", "BITS.") that a
+    /// station sends as a message, usually to itself, to label its
+    /// telemetry channels (APRS 1.0.1, ch. 13) — not a message for a human.
+    public static func isTelemetryDefinition(_ message: APRSMessage) -> Bool {
+        ["PARM.", "UNIT.", "EQNS.", "BITS."].contains { message.text.hasPrefix($0) }
     }
 }
 
 /// The Source segmented picker both APRS lists put in their toolbar.
-struct APRSSourcePicker: View {
+public struct APRSSourcePicker: View {
     @Binding var selection: APRSSource?
 
-    var body: some View {
+    public init(selection: Binding<APRSSource?>) {
+        _selection = selection
+    }
+
+    public var body: some View {
         Picker("Source", selection: $selection) {
             Text("All").tag(APRSSource?.none)
             Text("Main").tag(APRSSource?.some(.main))

@@ -1,4 +1,3 @@
-import FTX1Core
 import Foundation
 import os
 
@@ -10,7 +9,7 @@ import os
 /// private serial queue for the actual DSP/parsing work: CPU-bound, and
 /// doesn't belong on the real-time Core Audio thread the samples arrive
 /// from, or on the main actor.
-final class APRSDecoder {
+public final class APRSDecoder: @unchecked Sendable {
     /// Always invoked on the main actor — same contract as
     /// `AudioCaptureEngine.onNewFrame` — since `HubService` assigns
     /// straight into `APRSStore`'s `@Published` state from inside these.
@@ -18,8 +17,8 @@ final class APRSDecoder {
     /// optional because a status report or a bare "heard" (no parseable
     /// payload) only has some of these, and `APRSStore.recordStation`
     /// leaves anything `nil` unchanged rather than clearing it.
-    var onStation: ((_ callsign: String, _ latitude: Double?, _ longitude: Double?, _ symbolTable: String?, _ symbolCode: String?, _ comment: String?) -> Void)?
-    var onMessage: ((_ from: String, _ to: String, _ text: String, _ messageID: String?) -> Void)?
+    public var onStation: ((_ callsign: String, _ latitude: Double?, _ longitude: Double?, _ symbolTable: String?, _ symbolCode: String?, _ comment: String?) -> Void)?
+    public var onMessage: ((_ from: String, _ to: String, _ text: String, _ messageID: String?) -> Void)?
 
     private let queue = DispatchQueue(label: "com.ftx1remote.aprs-decoder")
     private var demodulator: AFSKDemodulator?
@@ -35,13 +34,19 @@ final class APRSDecoder {
     /// this investigation rather than ripping out, since "is audio still
     /// reaching the decoder" is a reasonable first question for any future
     /// APRS reception report too.
-    private let logger = Logger(subsystem: "com.ftx1remote.mac", category: "aprs-decoder")
+    private let logger: Logger
     private var samplesSinceHeartbeat = 0
     private var heartbeatThreshold: Int?
 
     /// Cheap from the caller's side — copies the array reference into the
     /// closure and returns immediately; the DSP work happens on `queue`.
-    func process(samples: [Float], sampleRate: Double) {
+    /// `logSubsystem`: the app's own ("com.ftx1remote.mac",
+    /// "com.ftx1remote.ipad"); the category is always "aprs-decoder".
+    public init(logSubsystem: String) {
+        logger = Logger(subsystem: logSubsystem, category: "aprs-decoder")
+    }
+
+    public func process(samples: [Float], sampleRate: Double) {
         queue.async { [weak self] in
             self?.processOnQueue(samples: samples, sampleRate: sampleRate)
         }

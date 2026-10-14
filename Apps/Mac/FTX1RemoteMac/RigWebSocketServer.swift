@@ -24,6 +24,8 @@ actor RigWebSocketServer {
     private var latestState: RigState?
     /// Sent to each client on connect, like `latestState`.
     private var latestMemoryList: MemoryListSnapshot?
+    /// Encoded once per change, since it's the whole APRS history.
+    private var latestAPRSList: Data?
     private var onCommandReceived: (@Sendable (RigCommand) -> Void)?
     /// Whichever client most recently sent `.setPTT(true)`, if any. Unlike
     /// the Mac's own local PTT button (which calls `HubService` directly,
@@ -200,6 +202,16 @@ actor RigWebSocketServer {
         }
     }
 
+    /// Sends the decoded APRS history (`APRSListPush`) to every connected
+    /// client, and remembers it for clients that connect later.
+    func broadcastAPRSList(_ push: APRSListPush) {
+        guard let data = try? JSONEncoder().encode(push) else { return }
+        latestAPRSList = data
+        for connection in connections.values {
+            connection.send(data)
+        }
+    }
+
     /// Relays one chunk of the Mac's captured Main-channel radio audio (see
     /// `AudioStreamEncoder`) to every connected client, tagged so
     /// `RigWebSocketClient` can tell it apart from `RigStatePush` JSON
@@ -249,6 +261,9 @@ actor RigWebSocketServer {
         }
         if let latestMemoryList, let data = try? JSONEncoder().encode(MemoryListPush(list: latestMemoryList)) {
             client.send(data)
+        }
+        if let latestAPRSList {
+            client.send(latestAPRSList)
         }
     }
 

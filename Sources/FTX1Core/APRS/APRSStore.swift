@@ -1,5 +1,4 @@
 import Combine
-import FTX1Core
 import Foundation
 
 /// Owns the app's decoded APRS station/message history — what
@@ -12,11 +11,11 @@ import Foundation
 /// sparse (packets per minute at most on a quiet channel), so a
 /// synchronous save per update costs nothing and needs no debouncing.
 @MainActor
-final class APRSStore: ObservableObject {
-    @Published private(set) var stations: [APRSStation] = []
-    @Published private(set) var messages: [APRSMessage] = []
+public final class APRSStore: ObservableObject {
+    @Published public private(set) var stations: [APRSStation] = []
+    @Published public private(set) var messages: [APRSMessage] = []
 
-    init() {
+    public init() {
         let loaded = APRSPersistence.load()
         stations = loaded.stations
         messages = loaded.messages
@@ -32,7 +31,7 @@ final class APRSStore: ObservableObject {
     /// update rather than being part of the upsert key — see
     /// `APRSStation`'s doc comment: it reflects whichever channel most
     /// recently heard the station, not a fixed identity.
-    func recordStation(
+    public func recordStation(
         callsign: String,
         latitude: Double?,
         longitude: Double?,
@@ -68,13 +67,13 @@ final class APRSStore: ObservableObject {
         persist()
     }
 
-    func recordMessage(from: String, to: String, text: String, messageID: String?, receivedAt: Date, source: APRSSource) {
+    public func recordMessage(from: String, to: String, text: String, messageID: String?, receivedAt: Date, source: APRSSource) {
         messages.append(APRSMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: receivedAt, source: source))
         trimMessages()
         persist()
     }
 
-    func clearHistory() {
+    public func clearHistory() {
         stations = []
         messages = []
         APRSPersistence.clear()

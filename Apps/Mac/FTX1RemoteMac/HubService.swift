@@ -232,14 +232,14 @@ final class HubService: ObservableObject {
         callerInterval: { PollingSettings.wpsdCallerInterval },
         reflectorInterval: { PollingSettings.wpsdReflectorInterval }
     )
-    private let aprsDecoder = APRSDecoder()
+    private let aprsDecoder = APRSDecoder(logSubsystem: "com.ftx1remote.mac")
     /// Independent decoder instance for the Sub channel, fed from
     /// `onSubChannelSamples` below (both `.local` and `.remote`), gated on
     /// `rigState.secondaryFrequencyHz` rather than the Main gate's
     /// `rigState.frequencyHz`. Safe to run alongside `aprsDecoder`: both
     /// wrap value-type `AFSKDemodulator`/`AX25FrameDecoder` state on their
     /// own private serial queue, with nothing shared between instances.
-    private let aprsDecoderSub = APRSDecoder()
+    private let aprsDecoderSub = APRSDecoder(logSubsystem: "com.ftx1remote.mac")
     let aprsStore = APRSStore()
     /// Unlike `aprsDecoder`, not wired into `audioCapture.onAudioSamples`
     /// unconditionally — `ingest(samples:sampleRate:)` drops audio on its
@@ -273,6 +273,8 @@ final class HubService: ObservableObject {
     private var cwRigCancellable: AnyCancellable?
     /// Pushes `memoryList` to WebSocket clients (the iPad's channel list).
     private var memoryListCancellable: AnyCancellable?
+    /// Pushes `aprsStore` to WebSocket clients (the iPad's S.LIST/M.LIST).
+    private var aprsListCancellable: AnyCancellable?
     private let webSocketPort: UInt16
     private let rigctldHost: String
     private let rigctldPort: UInt16
@@ -570,6 +572,17 @@ final class HubService: ObservableObject {
             .sink { [weak self] list in
                 guard let self else { return }
                 Task { await self.server.broadcastMemoryList(list) }
+            }
+        // Throttled: a burst of packets (a digipeated beacon heard several
+        // times) would otherwise resend the whole history for each.
+        aprsListCancellable = aprsStore.$stations
+            .combineLatest(aprsStore.$messages)
+            .map { APRSListPush(stations: $0, messages: $1) }
+            .removeDuplicates()
+            .throttle(for: .seconds(2), scheduler: DispatchQueue.main, latest: true)
+            .sink { [weak self] push in
+                guard let self else { return }
+                Task { await self.server.broadcastAPRSList(push) }
             }
     }
 

@@ -21,6 +21,10 @@ public final class RigClientViewModel: ObservableObject, RigController {
     /// The hub's memory channel list (`MemoryListPush`) — nil until the hub
     /// sends one (an older hub never does). Changes at most once a second.
     @Published public private(set) var memoryList: MemoryListSnapshot?
+    /// The hub's decoded APRS history (`APRSListPush`), for the iPad's
+    /// S.LIST/M.LIST pane — nil until the hub sends one (an older hub
+    /// never does). Changes at most every 2 s.
+    @Published public private(set) var aprsList: APRSListPush?
 
     /// Plays back the Mac's relayed Main-channel radio audio — see
     /// `AudioPlaybackEngine`. Started/stopped alongside the connection
@@ -112,6 +116,9 @@ public final class RigClientViewModel: ObservableObject, RigController {
             await client.setOnMemoryList { [weak self] list in
                 Task { @MainActor in self?.memoryList = list }
             }
+            await client.setOnAPRSList { [weak self] push in
+                Task { @MainActor in self?.aprsList = push }
+            }
             await client.setOnMenuItem { [weak self] push in
                 Task { @MainActor in
                     self?.finishMenuRead(Self.menuReadKey(push.p1, push.p2, push.p3), value: push.value)
@@ -155,6 +162,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
         self.client = nil
         connectionState = .disconnected
         memoryList = nil
+        aprsList = nil
         finishAllMenuReads()
         filterSpectrum.reset()
         audioEngine.stop()
@@ -169,6 +177,9 @@ public final class RigClientViewModel: ObservableObject, RigController {
     /// Deep Settings on the hub route: the hub reads the item from the rig
     /// and answers this client alone (`MenuItemReadRequest`/`MenuItemPush`).
     public var supportsDeepSettings: Bool { true }
+
+    /// S.LIST/M.LIST show the Mac's decoded lists (`aprsList`).
+    public var supportsAPRSDecoding: Bool { true }
 
     public func readMenuItem(p1: Int, p2: Int, p3: Int) async -> String? {
         guard let client, connectionState == .connected else { return nil }
