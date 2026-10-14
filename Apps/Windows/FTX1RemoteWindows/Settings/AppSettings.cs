@@ -48,7 +48,10 @@ public static class AppSettings
         // keeps behaving exactly as it did.
         public ConnectionMode ConnectionMode { get; set; } = ConnectionMode.Remote;
         public string PiHost { get; set; } = "";
+        /// Pre-0.10 explicit path, read only for migration (RigctldChoice).
         public string RigctldPath { get; set; } = "";
+        /// RigctldBinary.Choice.StoredValue; null until first saved.
+        public string? RigctldChoice { get; set; }
         public int ModelNumber { get; set; } = 1051;
         public string ComPort { get; set; } = "";
         public int BaudRate { get; set; } = 38400;
@@ -171,16 +174,22 @@ public static class AppSettings
         }
     }
 
-    /// Full path to hamlib's rigctld.exe. No default: hamlib's Windows
-    /// installer puts it under a version-numbered folder (e.g.
-    /// C:\Program Files\hamlib-w64-4.7\bin\rigctld.exe), so any fixed guess
-    /// would be wrong after the next hamlib upgrade.
-    public static string RigctldPath
+    /// Which rigctld.exe Local mode launches (RigctldBinary.Choice):
+    /// Automatic by default. Before Automatic existed this was a plain path
+    /// with no default (RigctldPath); on first read an empty one becomes
+    /// Automatic and any other stays as an explicit choice — on Windows the
+    /// user always typed or browsed it themselves. A separate key, so a
+    /// path chosen later isn't migrated again.
+    public static RigctldBinary.Choice RigctldChoice
     {
-        get => _cache.RigctldPath;
+        get => _cache.RigctldChoice is { } stored
+            ? RigctldBinary.Choice.FromStored(stored)
+            : _cache.RigctldPath.Length == 0
+                ? RigctldBinary.Choice.Automatic
+                : RigctldBinary.Choice.ForPath(_cache.RigctldPath);
         set
         {
-            _cache.RigctldPath = value;
+            _cache.RigctldChoice = value.StoredValue;
             Save();
         }
     }

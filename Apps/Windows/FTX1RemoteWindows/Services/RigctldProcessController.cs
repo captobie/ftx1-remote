@@ -15,7 +15,7 @@ namespace FTX1RemoteWindows.Services;
 public sealed class RigctldProcessController
 {
     public sealed record Configuration(
-        string BinaryPath,
+        RigctldBinary.Choice Binary,
         int ModelNumber,
         string ComPort,
         int BaudRate,
@@ -46,10 +46,19 @@ public sealed class RigctldProcessController
 
     public bool IsOwnedProcessRunning => _process is { HasExited: false };
 
-    /// Throws RigctldError when rigctld can't be started (missing binary,
+    /// Which rigctld.exe the last start launched and why (the Mac's
+    /// HubService.rigctldBinaryInUse) — null after an adopt or before any
+    /// start. Settings shows it when it differs from the edited choice.
+    public RigctldBinary.Resolution? LastResolution { get; private set; }
+
+    /// Throws RigctldError when rigctld can't be started (no usable binary,
     /// no COM port). Doesn't wait for the spawned rigctld to be ready —
     /// callers retry their connect for a short grace period, same as the
     /// Mac's HubService.connectRigctld(isFreshStart: true).
+    ///
+    /// The binary is resolved (RigctldBinary.ResolveAsync: probes run
+    /// off the UI thread) only when one has to be spawned, never for an
+    /// adopted rigctld.
     public async Task<StartResult> StartAsync(Configuration config)
     {
         if (_process is not null)
@@ -60,6 +69,7 @@ public sealed class RigctldProcessController
         switch (await ProbeAsync(config.Host, config.Port).ConfigureAwait(false))
         {
             case ProbeResult.Healthy:
+                LastResolution = null;
                 return StartResult.Adopted;
             case ProbeResult.Unresponsive:
                 await KillStaleRigctldAsync().ConfigureAwait(false);
@@ -68,20 +78,24 @@ public sealed class RigctldProcessController
                 break;
         }
 
-        if (config.BinaryPath.Length == 0 || !File.Exists(config.BinaryPath))
-        {
-            throw new RigctldError(config.BinaryPath.Length == 0
-                ? "Set the path to rigctld.exe first."
-                : $"rigctld.exe not found at {config.BinaryPath}");
-        }
         if (config.ComPort.Length == 0)
         {
             throw new RigctldError("Pick the radio's COM port first.");
         }
 
+        var resolution = await Task.Run(() => RigctldBinary.ResolveAsync(config.Binary, config.ModelNumber)).ConfigureAwait(false);
+        LastResolution = resolution;
+        AppLog.Write($"connection: {resolution.Summary}" + (resolution.Warning is { } warning ? $" Warning: {warning}" : ""));
+        if (resolution.Path is null || !File.Exists(resolution.Path))
+        {
+            throw new RigctldError(resolution.Path is null
+                ? resolution.Summary
+                : $"rigctld.exe not found at {resolution.Path}");
+        }
+
         var startInfo = new ProcessStartInfo
         {
-            FileName = config.BinaryPath,
+            FileName = resolution.Path,
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardError = true,

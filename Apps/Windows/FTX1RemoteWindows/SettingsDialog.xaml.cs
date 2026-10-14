@@ -32,9 +32,13 @@ public sealed partial class SettingsDialog : ContentDialog
     /// everything else here.
     public bool AprsClearHistory { get; private set; }
 
-    public SettingsDialog(Window owner, bool connected)
+    /// `inUse`: what this session's last Local start launched
+    /// (RigctldProcessController.LastResolution), shown when it differs
+    /// from what the edited choice resolves to.
+    public SettingsDialog(Window owner, bool connected, RigctldBinary.Resolution? inUse = null)
     {
         _owner = owner;
+        _inUse = inUse;
         InitializeComponent();
         XamlRoot = owner.Content.XamlRoot;
         RequestedTheme = (owner.Content as FrameworkElement)?.RequestedTheme ?? ElementTheme.Default;
@@ -46,7 +50,7 @@ public sealed partial class SettingsDialog : ContentDialog
         ConnectedNote.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
         foreach (var control in new Control[]
                  {
-                     ConnectionModeComboBox, PiHostBox, RigctldPathBox, BrowseRigctldButton,
+                     ConnectionModeComboBox, PiHostBox, RigctldChoiceComboBox,
                      ModelNumberBox, ComPortComboBox, BaudRateComboBox,
                  })
         {
@@ -56,7 +60,7 @@ public sealed partial class SettingsDialog : ContentDialog
         PiHostBox.Text = AppSettings.PiHost;
         GridSquareBox.Text = AppSettings.GridSquare;
         CallsignBox.Text = AppSettings.Callsign;
-        RigctldPathBox.Text = AppSettings.RigctldPath;
+        FillRigctldChoices(AppSettings.RigctldChoice);
         ModelNumberBox.Value = AppSettings.ModelNumber;
         RefreshComPorts();
         // Not directly: WinUI 3's editable ComboBox drops a selection's text
@@ -72,7 +76,8 @@ public sealed partial class SettingsDialog : ContentDialog
             .First(i => (int)i.Tag == AppSettings.BaudRate);
         UpdateModePanels();
         PiHostBox.TextChanged += (_, _) => RefreshVersions();
-        RigctldPathBox.TextChanged += (_, _) => RefreshVersions();
+        // The choice box refreshes from its SelectionChanged handler.
+        ModelNumberBox.ValueChanged += (_, _) => RefreshVersions();
         Opened += (_, _) =>
         {
             _isOpen = true;
@@ -242,7 +247,7 @@ public sealed partial class SettingsDialog : ContentDialog
         {
             AppSettings.ConnectionMode = SelectedMode;
             AppSettings.PiHost = PiHostBox.Text.Trim();
-            AppSettings.RigctldPath = RigctldPathBox.Text.Trim().Trim('"');
+            AppSettings.RigctldChoice = SelectedRigctldChoice;
             if (!double.IsNaN(ModelNumberBox.Value))
             {
                 AppSettings.ModelNumber = (int)ModelNumberBox.Value;
@@ -477,15 +482,85 @@ public sealed partial class SettingsDialog : ContentDialog
         LocalSettingsPanel.Visibility = local ? Visibility.Visible : Visibility.Collapsed;
         RemoteSettingsPanel.Visibility = local ? Visibility.Collapsed : Visibility.Visible;
         InstalledVersionLabel.Visibility = local ? Visibility.Visible : Visibility.Collapsed;
-        InstalledVersionText.Visibility = local ? Visibility.Visible : Visibility.Collapsed;
+        InstalledVersionPanel.Visibility = local ? Visibility.Visible : Visibility.Collapsed;
         RunningVersionLabel.Text = local ? "Running" : "Running on Pi";
+    }
+
+    // --- rigctld choice (the Mac's rigctld Picker) ---
+    //
+    // Automatic, Built-in, every installed copy Automatic would look at
+    // (RigctldBinary.SearchPaths), an explicitly chosen path if it isn't one
+    // of those, and Browse…, which opens a file picker and then selects
+    // what was picked (or goes back to the previous choice).
+
+    private const string BrowseTag = "browse";
+    private readonly RigctldBinary.Resolution? _inUse;
+    private RigctldBinary.Choice _rigctldChoice = RigctldBinary.Choice.Automatic;
+    private bool _fillingRigctldChoices;
+
+    private RigctldBinary.Choice SelectedRigctldChoice => _rigctldChoice;
+
+    private void FillRigctldChoices(RigctldBinary.Choice selected)
+    {
+        _fillingRigctldChoices = true;
+        _rigctldChoice = selected;
+        var items = RigctldChoiceComboBox.Items;
+        items.Clear();
+        items.Add(new ComboBoxItem { Content = "Automatic (recommended)", Tag = RigctldBinary.Choice.Automatic });
+        var builtIn = new ComboBoxItem { Content = "Built-in (Hamlib)", Tag = RigctldBinary.Choice.BuiltIn };
+        items.Add(builtIn);
+        var paths = RigctldBinary.SearchPaths().ToList();
+        if (selected.ExplicitPath is { } chosen && !paths.Contains(chosen, StringComparer.OrdinalIgnoreCase))
+        {
+            paths.Add(chosen);
+        }
+        foreach (var path in paths)
+        {
+            items.Add(new ComboBoxItem { Content = path, Tag = RigctldBinary.Choice.ForPath(path) });
+        }
+        items.Add(new ComboBoxItem { Content = "Browse…", Tag = BrowseTag });
+        RigctldChoiceComboBox.SelectedItem = items.OfType<ComboBoxItem>().FirstOrDefault(i =>
+            i.Tag is RigctldBinary.Choice c
+            && string.Equals(c.StoredValue, selected.StoredValue, StringComparison.OrdinalIgnoreCase));
+        _fillingRigctldChoices = false;
+        _ = LabelBuiltInAsync(builtIn);
+    }
+
+    private static async Task LabelBuiltInAsync(ComboBoxItem item)
+    {
+        var version = await RigctldBinary.BuiltInVersionAsync();
+        item.Content = version is { } v ? $"Built-in (Hamlib {v})" : "Built-in (missing from the app folder)";
+    }
+
+    private async void RigctldChoiceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_fillingRigctldChoices || RigctldChoiceComboBox.SelectedItem is not ComboBoxItem { Tag: var tag })
+        {
+            return;
+        }
+        if (tag is RigctldBinary.Choice choice)
+        {
+            _rigctldChoice = choice;
+            RefreshVersions();
+            return;
+        }
+        // Browse…
+        var picker = new FileOpenPicker();
+        // Unpackaged WinUI 3 pickers need the owning window's HWND.
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(_owner));
+        picker.FileTypeFilter.Add(".exe");
+        var file = await picker.PickSingleFileAsync();
+        FillRigctldChoices(file is null ? _rigctldChoice : RigctldBinary.Choice.ForPath(file.Path));
+        RefreshVersions();
     }
 
     // --- rigctld version box (the Mac's RigctldVersionBox) ---
     //
-    // Follows the tab's unsaved fields. "Installed" (Local only) runs the
-    // chosen rigctld.exe with --version; "Running" asks whatever answers on
-    // port 4532 (127.0.0.1, or the Pi) through its own short-lived
+    // Follows the tab's unsaved fields. "Uses" (Local only) resolves the
+    // picked choice the way a start would (RigctldBinary.ResolveAsync: which
+    // copy, its version, and why — with a warning when an explicitly chosen
+    // copy is too old or lacks the model); "Running" asks whatever answers
+    // on port 4532 (127.0.0.1, or the Pi) through its own short-lived
     // connection — the only way to see the Pi's version, and in Local mode
     // it can differ from the file when an already-running rigctld was
     // adopted.
@@ -507,9 +582,13 @@ public sealed partial class SettingsDialog : ContentDialog
         var token = cts.Token;
 
         var local = SelectedMode == ConnectionMode.Local;
-        var path = RigctldPathBox.Text.Trim().Trim('"');
+        var choice = SelectedRigctldChoice;
+        var model = double.IsNaN(ModelNumberBox.Value) ? AppSettings.ModelNumber : (int)ModelNumberBox.Value;
         var host = local ? "127.0.0.1" : PiHostBox.Text.Trim();
         InstalledVersionText.Text = "Checking…";
+        ResolutionSummaryText.Visibility = Visibility.Collapsed;
+        ResolutionWarningText.Visibility = Visibility.Collapsed;
+        InUseText.Visibility = Visibility.Collapsed;
         RunningVersionText.Text = "Checking…";
         RefreshVersionButton.IsEnabled = false;
         try
@@ -519,9 +598,21 @@ public sealed partial class SettingsDialog : ContentDialog
             await Task.Delay(400, token);
             if (local)
             {
-                var installed = await Task.Run(() => BinaryVersion(path), token);
+                var resolution = await Task.Run(() => RigctldBinary.ResolveAsync(choice, model), token);
+                var installed = resolution.Path is { } path
+                    ? await Task.Run(() => BinaryVersionAsync(path), token)
+                    : "No usable rigctld";
                 if (token.IsCancellationRequested) return;
                 InstalledVersionText.Text = installed;
+                ResolutionSummaryText.Text = resolution.Summary;
+                ResolutionSummaryText.Visibility = Visibility.Visible;
+                ResolutionWarningText.Text = resolution.Warning is { } warning ? $"⚠ {warning}" : "";
+                ResolutionWarningText.Visibility = resolution.Warning is null ? Visibility.Collapsed : Visibility.Visible;
+                if (_inUse is { } inUse && inUse != resolution)
+                {
+                    InUseText.Text = $"Started this session: {inUse.Summary}";
+                    InUseText.Visibility = Visibility.Visible;
+                }
             }
             var running = host.Length == 0 ? "No Pi hostname set" : await RunningVersionAsync(host, local, token);
             if (token.IsCancellationRequested) return;
@@ -542,45 +633,24 @@ public sealed partial class SettingsDialog : ContentDialog
 
     /// "rigctld --version" prints e.g. "rigctld Hamlib 4.7.2 …"; the program
     /// name is dropped to match what "\dump_caps" reports.
-    private static string BinaryVersion(string path)
+    private static async Task<string> BinaryVersionAsync(string path)
     {
-        if (path.Length == 0 || !File.Exists(path))
+        if (!File.Exists(path))
         {
             return "No rigctld.exe at this path";
         }
-        try
-        {
-            using var process = Process.Start(new ProcessStartInfo
-            {
-                FileName = path,
-                Arguments = "--version",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            });
-            if (process is null)
-            {
-                return "Couldn't run rigctld.exe";
-            }
-            var output = process.StandardOutput.ReadToEnd();
-            if (!process.WaitForExit(5000))
-            {
-                process.Kill();
-                return "rigctld.exe didn't answer";
-            }
-            var line = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .FirstOrDefault() ?? "";
-            if (line.StartsWith("rigctld ", StringComparison.Ordinal))
-            {
-                line = line["rigctld ".Length..];
-            }
-            return line.Length == 0 ? "No version reported" : line;
-        }
-        catch (Exception)
+        var output = await RigctldBinary.RunAsync(path, "--version", TimeSpan.FromSeconds(3));
+        if (output is null)
         {
             return "Couldn't run rigctld.exe";
         }
+        var line = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault() ?? "";
+        if (line.StartsWith("rigctld ", StringComparison.Ordinal))
+        {
+            line = line["rigctld ".Length..];
+        }
+        return line.Length == 0 ? "No version reported" : line;
     }
 
     private static async Task<string> RunningVersionAsync(string host, bool local, CancellationToken token)
@@ -608,19 +678,6 @@ public sealed partial class SettingsDialog : ContentDialog
         catch (Exception ex) when (ex is RigctldError or IOException)
         {
             return "No reply from rigctld";
-        }
-    }
-
-    private async void BrowseRigctldButton_Click(object sender, RoutedEventArgs e)
-    {
-        var picker = new FileOpenPicker();
-        // Unpackaged WinUI 3 pickers need the owning window's HWND.
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(_owner));
-        picker.FileTypeFilter.Add(".exe");
-        var file = await picker.PickSingleFileAsync();
-        if (file is not null)
-        {
-            RigctldPathBox.Text = file.Path;
         }
     }
 

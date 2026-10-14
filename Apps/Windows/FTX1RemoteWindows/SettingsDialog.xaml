@@ -51,12 +51,10 @@
                     </StackPanel>
 
                     <StackPanel x:Name="LocalSettingsPanel" Spacing="12" Visibility="Collapsed">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBox x:Name="RigctldPathBox" Header="rigctld.exe" Width="440" HorizontalAlignment="Left"
-                                     PlaceholderText="C:\Program Files\hamlib-w64-4.7\bin\rigctld.exe" />
-                            <Button x:Name="BrowseRigctldButton" Content="Browse…" VerticalAlignment="Bottom"
-                                    Click="BrowseRigctldButton_Click" />
-                        </StackPanel>
+                        <!-- Filled in code: Automatic, Built-in, the installed copies found, Browse…. -->
+                        <ComboBox x:Name="RigctldChoiceComboBox" Header="rigctld.exe" Width="560" HorizontalAlignment="Left"
+                                  SelectionChanged="RigctldChoiceComboBox_SelectionChanged"
+                                  ToolTipService.ToolTip="Automatic uses an installed Hamlib 4.7 or later that knows the rig, else the copy built into the app." />
                         <NumberBox x:Name="ModelNumberBox" Header="Model number" Width="160" HorizontalAlignment="Left"
                                    Minimum="1" Maximum="99999" SmallChange="1" LargeChange="1"
                                    ToolTipService.ToolTip="hamlib's rig model — 1051 is the FTX-1" />
@@ -86,10 +84,20 @@
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <TextBlock x:Name="InstalledVersionLabel" Text="Installed" />
-                                <TextBlock x:Name="InstalledVersionText" Grid.Column="1" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
+                                <TextBlock x:Name="InstalledVersionLabel" Text="Uses" />
+                                <StackPanel x:Name="InstalledVersionPanel" Grid.Column="1" Spacing="4">
+                                    <TextBlock x:Name="InstalledVersionText" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="ResolutionSummaryText" IsTextSelectionEnabled="True" TextWrapping="Wrap"
+                                               Foreground="Gray" FontSize="12" Visibility="Collapsed" />
+                                    <TextBlock x:Name="ResolutionWarningText" IsTextSelectionEnabled="True" TextWrapping="Wrap"
+                                               Foreground="DarkOrange" FontSize="12" Visibility="Collapsed" />
+                                </StackPanel>
                                 <TextBlock x:Name="RunningVersionLabel" Grid.Row="1" Text="Running" />
-                                <TextBlock x:Name="RunningVersionText" Grid.Row="1" Grid.Column="1" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
+                                <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+                                    <TextBlock x:Name="RunningVersionText" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="InUseText" IsTextSelectionEnabled="True" TextWrapping="Wrap"
+                                               Foreground="Gray" FontSize="12" Visibility="Collapsed" />
+                                </StackPanel>
                                 <Button x:Name="RefreshVersionButton" Grid.RowSpan="2" Grid.Column="2" Content="Refresh"
                                         VerticalAlignment="Bottom" Click="RefreshVersionButton_Click" />
                             </Grid>

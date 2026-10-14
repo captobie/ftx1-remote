@@ -499,7 +499,7 @@ public sealed partial class MainWindow : Window
 
     private async void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SettingsDialog(this, IsConnected);
+        var dialog = new SettingsDialog(this, IsConnected, _rigctldProcess.LastResolution);
         SettingsButton.IsEnabled = false;
         try
         {
@@ -600,9 +600,9 @@ public sealed partial class MainWindow : Window
         else
         {
             host = LocalHost;
-            if (AppSettings.RigctldPath.Length == 0 || AppSettings.ComPort.Length == 0)
+            if (AppSettings.ComPort.Length == 0)
             {
-                StatusText.Text = "Set rigctld.exe and the COM port in Settings first.";
+                StatusText.Text = "Set the COM port in Settings first.";
                 return;
             }
             description = $"{AppSettings.ComPort} @ {AppSettings.BaudRate} via local rigctld";
@@ -619,7 +619,7 @@ public sealed partial class MainWindow : Window
             if (mode == ConnectionMode.Local)
             {
                 var started = await _rigctldProcess.StartAsync(new RigctldProcessController.Configuration(
-                    AppSettings.RigctldPath,
+                    AppSettings.RigctldChoice,
                     AppSettings.ModelNumber,
                     AppSettings.ComPort,
                     AppSettings.BaudRate,
