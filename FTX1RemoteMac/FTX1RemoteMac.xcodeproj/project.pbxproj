@@ -13,7 +13,38 @@
 		392190C1DE2BA02639B8A586 /* FTX1Core in Frameworks */ = {isa = PBXBuildFile; productRef = 3102B10EC9D493C0A039A314 /* FTX1Core */; };
 		C4A1D0E2F3B45A6978C0D101 /* CWKit in Frameworks */ = {isa = PBXBuildFile; productRef = C4A1D0E2F3B45A6978C0D102 /* CWKit */; };
 		EFD383E8E3E34549ADEF876D /* FT8Kit in Frameworks */ = {isa = PBXBuildFile; productRef = C28A82548BE9440A9A9565E9 /* FT8Kit */; };
+		D1A0B0C0E0F0A1B2C3D4E504 /* rigctld in Embed Helpers */ = {isa = PBXBuildFile; fileRef = D1A0B0C0E0F0A1B2C3D4E500 /* rigctld */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		D1A0B0C0E0F0A1B2C3D4E505 /* COPYING in Hamlib Licences */ = {isa = PBXBuildFile; fileRef = D1A0B0C0E0F0A1B2C3D4E501 /* COPYING */; };
+		D1A0B0C0E0F0A1B2C3D4E506 /* COPYING.LIB in Hamlib Licences */ = {isa = PBXBuildFile; fileRef = D1A0B0C0E0F0A1B2C3D4E502 /* COPYING.LIB */; };
+		D1A0B0C0E0F0A1B2C3D4E507 /* LICENSE in Hamlib Licences */ = {isa = PBXBuildFile; fileRef = D1A0B0C0E0F0A1B2C3D4E503 /* LICENSE */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D1A0B0C0E0F0A1B2C3D4E508 /* Embed Helpers */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
+			files = (
+				D1A0B0C0E0F0A1B2C3D4E504 /* rigctld in Embed Helpers */,
+			);
+			name = "Embed Helpers";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D1A0B0C0E0F0A1B2C3D4E509 /* Hamlib Licences */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Hamlib;
+			dstSubfolderSpec = 7;
+			files = (
+				D1A0B0C0E0F0A1B2C3D4E505 /* COPYING in Hamlib Licences */,
+				D1A0B0C0E0F0A1B2C3D4E506 /* COPYING.LIB in Hamlib Licences */,
+				D1A0B0C0E0F0A1B2C3D4E507 /* LICENSE in Hamlib Licences */,
+			);
+			name = "Hamlib Licences";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		17BAC8453002901F00096320 /* FTX1RemoteMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FTX1RemoteMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -22,6 +53,10 @@
 		A0A54F5E7FAA6A595412584B /* FTX1RemoteiPad-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "FTX1RemoteiPad-Info.plist"; sourceTree = "<group>"; };
 		B4C1E2A030029E6900B5CC41 /* FTX1RemoteMac-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "FTX1RemoteMac-Info.plist"; sourceTree = "<group>"; };
 		C71D270EF71B146CA854B371 /* FTX1RemoteiPad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FTX1RemoteiPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D1A0B0C0E0F0A1B2C3D4E500 /* rigctld */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = rigctld; sourceTree = "<group>"; };
+		D1A0B0C0E0F0A1B2C3D4E501 /* COPYING */ = {isa = PBXFileReference; lastKnownFileType = text; path = COPYING; sourceTree = "<group>"; };
+		D1A0B0C0E0F0A1B2C3D4E502 /* COPYING.LIB */ = {isa = PBXFileReference; lastKnownFileType = text; path = COPYING.LIB; sourceTree = "<group>"; };
+		D1A0B0C0E0F0A1B2C3D4E503 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -82,6 +117,7 @@
 				17BAC8473002901F00096320 /* ../Apps/Mac/FTX1RemoteMac */,
 				17BAC858300290B900096320 /* ../Apps/iOS/FTX1RemoteiOS */,
 				44A65C5A18FBBF3DCB465FF0 /* ../Apps/iPad/FTX1RemoteiPad */,
+				D1A0B0C0E0F0A1B2C3D4E50A /* hamlib */,
 				17BAC87F3002926B00096320 /* Frameworks */,
 				17BAC8463002901F00096320 /* Products */,
 			);
@@ -95,6 +131,18 @@
 				C71D270EF71B146CA854B371 /* FTX1RemoteiPad.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		D1A0B0C0E0F0A1B2C3D4E50A /* hamlib */ = {
+			isa = PBXGroup;
+			children = (
+				D1A0B0C0E0F0A1B2C3D4E500 /* rigctld */,
+				D1A0B0C0E0F0A1B2C3D4E501 /* COPYING */,
+				D1A0B0C0E0F0A1B2C3D4E502 /* COPYING.LIB */,
+				D1A0B0C0E0F0A1B2C3D4E503 /* LICENSE */,
+			);
+			name = hamlib;
+			path = ../Vendor/hamlib;
 			sourceTree = "<group>";
 		};
 		17BAC87F3002926B00096320 /* Frameworks */ = {
@@ -114,6 +162,8 @@
 				17BAC8413002901F00096320 /* Sources */,
 				17BAC8423002901F00096320 /* Frameworks */,
 				17BAC8433002901F00096320 /* Resources */,
+				D1A0B0C0E0F0A1B2C3D4E508 /* Embed Helpers */,
+				D1A0B0C0E0F0A1B2C3D4E509 /* Hamlib Licences */,
 			);
 			buildRules = (
 			);

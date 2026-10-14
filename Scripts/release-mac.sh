@@ -61,6 +61,30 @@ xcodebuild -exportArchive \
   -exportOptionsPlist Scripts/ExportOptions.plist
 
 APP_PATH="$EXPORT_DIR/$SCHEME.app"
+
+# The bundled rigctld (Contents/Helpers) must carry the Developer ID
+# signature, hardened runtime and a secure timestamp, or notarization
+# rejects the whole app. Xcode's Code Sign On Copy + export do this today;
+# this catches it if that ever changes.
+HELPER="$APP_PATH/Contents/Helpers/rigctld"
+echo "==> Checking the bundled rigctld's signature"
+HELPER_SIG=$(codesign -dv --verbose=4 "$HELPER" 2>&1) || { echo "error: $HELPER missing or unsigned" >&2; exit 1; }
+for want in 'flags=0x[0-9a-f]+\([^)]*runtime' 'Authority=Developer ID Application' 'Timestamp='; do
+  if ! grep -qE "$want" <<<"$HELPER_SIG"; then
+    echo "error: bundled rigctld signature lacks '$want':" >&2
+    echo "$HELPER_SIG" >&2
+    exit 1
+  fi
+done
+# Hamlib's source has to go out with every release that ships the binary
+# (GPL-2.0+). Keep the tarball the binary was built from in releases/.
+HAMLIB_VERSION=$("$HELPER" --version | awk '{print $3}')
+HAMLIB_TARBALL="$RELEASES_DIR/hamlib-$HAMLIB_VERSION.tar.gz"
+if [ ! -f "$HAMLIB_TARBALL" ]; then
+  echo "warning: $HAMLIB_TARBALL not found. Download it from" >&2
+  echo "  https://github.com/Hamlib/Hamlib/releases/tag/$HAMLIB_VERSION" >&2
+  echo "  and attach it to the GitHub release (see the gh command at the end)." >&2
+fi
 ZIP_PATH="$RELEASES_DIR/$SCHEME-$VERSION.zip"
 
 echo "==> Zipping for notarization submission"
@@ -102,5 +126,9 @@ echo "Enclosure URLs now in appcast.xml:"
 grep -o 'url="[^"]*"' appcast.xml | sed 's/^/  /'
 echo "Next steps (in this order: the release must exist before the appcast is"
 echo "live, or updating clients get a 404):"
-echo "  1. gh release create v$VERSION ${NEW_FILES}--title v$VERSION --notes-file $RELEASES_DIR/notes-$VERSION.md"
+# Hamlib's source tarball and the script that built the bundled rigctld
+# go with every release (GPL-2.0+ source offer).
+echo "  1. gh release create v$VERSION ${NEW_FILES}$HAMLIB_TARBALL Scripts/build-rigctld.sh --title v$VERSION --notes-file $RELEASES_DIR/notes-$VERSION.md"
+echo "     (includes Hamlib $HAMLIB_VERSION's source tarball and Scripts/build-rigctld.sh — required"
+echo "     by Hamlib's GPL for the bundled rigctld; don't drop them)"
 echo "  2. git add appcast.xml && git commit -m 'Update appcast for v$VERSION' && git push"
