@@ -190,8 +190,8 @@ struct PiDirectView: View {
             )
         }
 
-        // Same SUB | MAIN columns as the VFO boxes above. Receive only, so
-        // no TX readings.
+        // Same SUB | MAIN columns as the VFO boxes above. MAIN's bar shows
+        // the TX meter while the rig transmits, as on the hub screen.
         HStack(spacing: 12) {
             ChannelStrip(
                 label: "SUB",
@@ -207,8 +207,8 @@ struct PiDirectView: View {
             ChannelStrip(
                 label: "MAIN",
                 smeterDb: state.smeterDb,
-                txReadings: nil,
-                ptt: false,
+                txReadings: MeterReadings(powerWatts: state.powerWatts, swr: state.swr, tx: state.txMeters),
+                ptt: state.ptt,
                 volume: $mainAudioVolume,
                 squelchThreshold: $mainAudioSquelchThreshold,
                 isMuted: viewModel.isMainAudioMuted,

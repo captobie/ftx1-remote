@@ -204,7 +204,8 @@ public final class PiDirectViewModel: ObservableObject {
     /// The iPad plays Sub (right channel) too; the iPhone leaves it out.
     private let playsSubAudio: Bool
     /// Adds MAIN's "STRENGTH" and SUB's "RM2" reads per poll tick, for
-    /// screens that show both S-meters (the iPad).
+    /// screens that show both S-meters (the iPad) — plus, while the rig
+    /// transmits, the hub's TX meters (PO, SWR, COMP/ALC/ID/VDD).
     private let readsSMeter: Bool
     /// Adds everything else the Mac's VFO boxes show (the iPad): TX/RX
     /// tags ("ST"/"FT"), single-receive display ("FR"), both sides'
@@ -1047,6 +1048,23 @@ public final class PiDirectViewModel: ObservableObject {
             // active side).
             state.smeterDb = try? await rigctld.getLevel("STRENGTH")
             state.subSmeterDb = (try? await rigctld.getMeterReading(2)).flatMap { $0 }.map(SMeterScale.strengthDb(forRaw:))
+            // The TX meters, only while the rig transmits (6 round trips
+            // the receive ticks don't pay) — the hub's reads, for the MAIN
+            // strip. Not carried forward either.
+            if state.ptt {
+                state.powerWatts = try? await rigctld.getLevel("RFPOWER_METER_WATTS")
+                state.swr = try? await rigctld.getLevel("SWR")
+                state.txMeters = TXMeterReadings(
+                    comp: (try? await rigctld.getMeterReading(3)).flatMap { $0 },
+                    alc: (try? await rigctld.getMeterReading(4)).flatMap { $0 },
+                    idd: (try? await rigctld.getMeterReading(7)).flatMap { $0 },
+                    vdd: (try? await rigctld.getMeterReading(8)).flatMap { $0 }
+                )
+            } else {
+                state.powerWatts = nil
+                state.swr = nil
+                state.txMeters = nil
+            }
         }
         if readsVFODetails {
             await refreshVFODetails(rigctld, into: &state)

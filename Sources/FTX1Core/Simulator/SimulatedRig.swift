@@ -105,7 +105,9 @@ public final class SimulatedRig: @unchecked Sendable {
         4: "73 DE DEMO SK",
         5: "",
     ]
-    private var rfPower = 0.5
+    /// hamlib RFPOWER, 0...1 of 100 W (the real FTX-1 answers 0.05 at 5 W,
+    /// which the MENU grid shows as "5W"). 5 W, as on the user's rig.
+    private var rfPower = 0.05
     private var ptt = false
     private var keyerUntil: TimeInterval?
     private var tuneUntil: TimeInterval?
@@ -720,9 +722,9 @@ public final class SimulatedRig: @unchecked Sendable {
         }
     }
 
-    /// RF out: the power setting (100 W full scale, as the MENU grid's RF
-    /// POWER shows it) while keyed; in SSB it follows the TX audio level,
-    /// as speech would.
+    /// RF out: the power setting (RFPOWER × 100 W, as the real rig reports
+    /// it) while keyed; in SSB it follows the TX audio level, as speech
+    /// would.
     private func outputWatts(_ now: TimeInterval) -> Double {
         guard isTransmitting(now) else { return 0 }
         let full = rfPower * 100
@@ -743,9 +745,9 @@ public final class SimulatedRig: @unchecked Sendable {
         case 2: return Self.raw(forStrengthDb: strengthDb(side: 1, now: now))
         case 3: return transmitting ? 40 : 0
         case 4: return transmitting ? 60 : 0
-        case 5: return Int(outputWatts(now) / 100 * 255)
+        case 5: return min(255, Int(outputWatts(now) / 10 * 255))
         case 6: return transmitting ? Int((swr - 1) * 64) : 0
-        case 7: return transmitting ? Int(30 + outputWatts(now) * 1.4) : 18
+        case 7: return transmitting ? min(255, Int(30 + outputWatts(now) * 14)) : 18
         case 8: return 190
         default: return 0
         }
