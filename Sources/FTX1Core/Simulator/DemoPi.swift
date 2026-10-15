@@ -17,11 +17,9 @@ public final class DemoPi: @unchecked Sendable {
         let rig = SimulatedRig()
         self.rig = rig
         rigctld = SimulatedRigctldServer(rig: rig)
+        let synth = SimulatedAudioSynth(rig: rig)
         audio = SimulatedAudioServer { left, right in
-            for index in left.indices {
-                left[index] = 0
-                right[index] = 0
-            }
+            synth.render(left: &left, right: &right)
         }
         txAudio = SimulatedTXAudioServer(rig: rig)
     }
