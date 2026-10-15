@@ -85,6 +85,28 @@ public final class CWSender: ObservableObject {
         let stored = UserDefaults.standard.integer(forKey: DefaultsKey.slot)
         slot = (1...5).contains(stored) ? stored : 1
         macros = CWMacro.load()
+        watchPTT(of: link)
+    }
+
+    /// Switches to another route to the rig (the iPad: Mac hub or Pi
+    /// direct). Stops anything running on the old one first; the new
+    /// route's slot is checked again before its first write.
+    public func use(_ link: any CWKeyerLink) {
+        guard self.link !== link else { return }
+        stop()
+        self.link = link
+        slotCheckedAsText = nil
+        lastPTTOnAt = .distantPast
+        watchPTT(of: link)
+    }
+
+    /// Whether `link` is the route in use — so a route that isn't can't
+    /// stop the sender (e.g. its lock or link changing in the background).
+    public func isUsing(_ link: any CWKeyerLink) -> Bool {
+        self.link === link
+    }
+
+    private func watchPTT(of link: any CWKeyerLink) {
         pttCancellable = link.cwRigStatePublisher
             .map(\.ptt)
             .removeDuplicates()

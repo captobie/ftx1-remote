@@ -59,6 +59,8 @@ public actor RigWebSocketClient {
 
     /// Answers to `sendMenuItemRead` (`MenuItemPush`).
     public var onMenuItem: (@Sendable (MenuItemPush) -> Void)?
+    /// Answers to `sendCWKeyer` (`CWKeyerReply`).
+    public var onCWKeyerReply: (@Sendable (CWKeyerReply) -> Void)?
 
     public init(hubURL: URL) {
         self.url = hubURL
@@ -91,6 +93,10 @@ public actor RigWebSocketClient {
 
     public func setOnMenuItem(_ handler: @escaping @Sendable (MenuItemPush) -> Void) {
         onMenuItem = handler
+    }
+
+    public func setOnCWKeyerReply(_ handler: @escaping @Sendable (CWKeyerReply) -> Void) {
+        onCWKeyerReply = handler
     }
 
     /// Waits for the server to actually accept the WebSocket handshake
@@ -157,6 +163,14 @@ public actor RigWebSocketClient {
         try await task.send(.data(data))
     }
 
+    /// Asks the hub to write (or, with no `text`, check) CW TEXT keyer
+    /// memory `slot`; the answer arrives through `onCWKeyerReply`.
+    public func sendCWKeyer(_ request: CWKeyerRequest) async throws {
+        guard let task else { throw RigWebSocketError.notConnected }
+        let data = try JSONEncoder().encode(request)
+        try await task.send(.data(data))
+    }
+
     /// One chunk of microphone audio (8 kHz Int16 mono) while this client
     /// holds PTT — tagged `AudioStreamFormat.txAudioTag`. The hub drops it
     /// from any client that didn't key.
@@ -211,6 +225,9 @@ public actor RigWebSocketClient {
         } else if let push = try? JSONDecoder().decode(MenuItemPush.self, from: data), push.type == MenuItemPush.typeName {
             lastActivity = Date()
             onMenuItem?(push)
+        } else if let reply = try? JSONDecoder().decode(CWKeyerReply.self, from: data), reply.type == CWKeyerReply.typeName {
+            lastActivity = Date()
+            onCWKeyerReply?(reply)
         }
     }
 

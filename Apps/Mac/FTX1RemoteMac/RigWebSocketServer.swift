@@ -41,6 +41,15 @@ actor RigWebSocketServer {
     /// Reads one Deep Settings item for a client's `MenuItemReadRequest`;
     /// the answer goes back to that client only.
     private var onMenuItemRead: (@Sendable (Int, Int, Int) async -> String?)?
+    /// Writes or checks a CW TEXT keyer memory for a client's
+    /// `CWKeyerRequest` (slot, text — nil = make it a TEXT memory); returns
+    /// what the rig stored, or throws. The answer goes back to that client.
+    private var onCWKeyer: (@Sendable (Int, String?) async throws -> String?)?
+    /// Whichever client most recently played a CW TEXT keyer memory
+    /// ("KY0<n>", the iPad's CW send section). If it drops mid-message,
+    /// `remove(_:)` stops the keyer ("KY00"), as it unkeys a dropped PTT
+    /// holder — the rig would otherwise finish its up-to-50 characters.
+    private var keyerPlayer: ObjectIdentifier?
 
     /// Everything clients send, in arrival order: commands and transmit
     /// audio share one stream so a client's `.setPTT(true)` is always
@@ -50,6 +59,7 @@ actor RigWebSocketServer {
         case command(RigCommand, ObjectIdentifier)
         case txAudio(Data, ObjectIdentifier)
         case menuItemRead(MenuItemReadRequest, ObjectIdentifier)
+        case cwKeyer(CWKeyerRequest, ObjectIdentifier)
     }
     private let inbound: AsyncStream<Inbound>
     private let inboundContinuation: AsyncStream<Inbound>.Continuation
@@ -63,12 +73,14 @@ actor RigWebSocketServer {
         port: UInt16,
         onCommand: @escaping @Sendable (RigCommand) -> Void,
         onTXAudio: @escaping @Sendable (Data) -> Void = { _ in },
-        onMenuItemRead: @escaping @Sendable (Int, Int, Int) async -> String? = { _, _, _ in nil }
+        onMenuItemRead: @escaping @Sendable (Int, Int, Int) async -> String? = { _, _, _ in nil },
+        onCWKeyer: @escaping @Sendable (Int, String?) async throws -> String? = { _, _ in nil }
     ) throws {
         guard listener == nil else { return }
         onCommandReceived = onCommand
         onTXAudioReceived = onTXAudio
         self.onMenuItemRead = onMenuItemRead
+        self.onCWKeyer = onCWKeyer
         if inboundTask == nil {
             let inbound = inbound
             inboundTask = Task { [weak self] in
@@ -249,6 +261,9 @@ actor RigWebSocketServer {
             onMenuItemRead: { request in
                 inbound.yield(.menuItemRead(request, connectionID))
             },
+            onCWKeyer: { request in
+                inbound.yield(.cwKeyer(request, connectionID))
+            },
             onClose: { [weak self] id in
                 Task { await self?.remove(id) }
             }
@@ -282,12 +297,27 @@ actor RigWebSocketServer {
                 let value = await read(request.p1, request.p2, request.p3)
                 self.reply(MenuItemPush(p1: request.p1, p2: request.p2, p3: request.p3, value: value), to: id)
             }
+        case .cwKeyer(let request, let id):
+            // Off the stream too: a keyer write takes ~2 s over the Pi. The
+            // client waits for this answer before it plays the memory, so
+            // the play can't overtake the write.
+            guard let keyer = onCWKeyer else { return }
+            Task {
+                let reply: CWKeyerReply
+                do {
+                    let stored = try await keyer(request.slot, request.text)
+                    reply = CWKeyerReply(id: request.id, stored: stored, error: nil)
+                } catch {
+                    reply = CWKeyerReply(id: request.id, stored: nil, error: error.localizedDescription)
+                }
+                self.reply(reply, to: id)
+            }
         }
     }
 
-    /// Sends a `MenuItemPush` to the one client that asked, if it's still
+    /// Sends an answer to the one client that asked, if it's still
     /// connected.
-    private func reply(_ push: MenuItemPush, to id: ObjectIdentifier) {
+    private func reply(_ push: some Encodable, to id: ObjectIdentifier) {
         guard let connection = connections[id], let data = try? JSONEncoder().encode(push) else { return }
         connection.send(data)
     }
@@ -302,6 +332,9 @@ actor RigWebSocketServer {
             // holder tracking.)
             pttHolder = on ? id : (pttHolder == id ? nil : pttHolder)
         }
+        if case .playCWTextMemory(let slot) = command {
+            keyerPlayer = slot != 0 ? id : (keyerPlayer == id ? nil : keyerPlayer)
+        }
         onCommandReceived?(command)
     }
 
@@ -310,6 +343,10 @@ actor RigWebSocketServer {
         if pttHolder == id {
             pttHolder = nil
             onCommandReceived?(.setPTT(false))
+        }
+        if keyerPlayer == id {
+            keyerPlayer = nil
+            onCommandReceived?(.playCWTextMemory(slot: 0))
         }
     }
 }
@@ -327,6 +364,7 @@ private final class Connection {
     private let onCommand: (RigCommand) -> Void
     private let onTXAudio: (Data) -> Void
     private let onMenuItemRead: (MenuItemReadRequest) -> Void
+    private let onCWKeyer: (CWKeyerRequest) -> Void
     private let onClose: (ObjectIdentifier) -> Void
 
     init(
@@ -334,6 +372,7 @@ private final class Connection {
         onCommand: @escaping (RigCommand) -> Void,
         onTXAudio: @escaping (Data) -> Void,
         onMenuItemRead: @escaping (MenuItemReadRequest) -> Void,
+        onCWKeyer: @escaping (CWKeyerRequest) -> Void,
         onClose: @escaping (ObjectIdentifier) -> Void
     ) {
         self.connection = connection
@@ -341,6 +380,7 @@ private final class Connection {
         self.onCommand = onCommand
         self.onTXAudio = onTXAudio
         self.onMenuItemRead = onMenuItemRead
+        self.onCWKeyer = onCWKeyer
         self.onClose = onClose
     }
 
@@ -382,6 +422,9 @@ private final class Connection {
             } else if let data, let request = try? JSONDecoder().decode(MenuItemReadRequest.self, from: data),
                       request.type == MenuItemReadRequest.typeName {
                 self.onMenuItemRead(request)
+            } else if let data, let request = try? JSONDecoder().decode(CWKeyerRequest.self, from: data),
+                      request.type == CWKeyerRequest.typeName {
+                self.onCWKeyer(request)
             }
             self.receiveLoop()
         }

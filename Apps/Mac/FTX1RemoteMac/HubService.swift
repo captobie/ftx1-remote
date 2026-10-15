@@ -633,6 +633,10 @@ final class HubService: ObservableObject {
         }
         let port = webSocketPort
         webSocketServerTask = Task { [weak self, server, webSocketRebindDelay] in
+            // Seed what a client gets on connect: until the rig is polled
+            // nothing is broadcast, and a client would show `RigState()`'s
+            // defaults — Enable Transmit on, whatever it really is here.
+            if let state = self?.rigState { await server.broadcast(state) }
             while !Task.isCancelled {
                 if await server.isListening() {
                     try? await Task.sleep(for: webSocketRebindDelay)
@@ -648,6 +652,9 @@ final class HubService: ObservableObject {
                     },
                     onMenuItemRead: { p1, p2, p3 in
                         await self?.readMenuItem(p1: p1, p2: p2, p3: p3)
+                    },
+                    onCWKeyer: { slot, text in
+                        try await self?.remoteCWKeyer(slot: slot, text: text)
                     }
                 )
                 try? await Task.sleep(for: webSocketRebindDelay)
@@ -741,6 +748,27 @@ final class HubService: ObservableObject {
     /// `RigctldClient` serializes it with every other round trip anyway.
     func writeCWKeyerMemory(slot: Int, text: String) async throws -> String {
         try await rigctld.writeKeyerMemory(slot: slot, text: text)
+    }
+
+    /// A hub client's `CWKeyerRequest` (the iPad's CW send section on the
+    /// hub route): writes keyer memory `slot` and returns what the rig
+    /// stored, or, with no `text`, makes sure the slot is a TEXT memory.
+    /// Neither transmits; the client plays it with `.playCWTextMemory`,
+    /// which `send(_:)` gates.
+    func remoteCWKeyer(slot: Int, text: String?) async throws -> String? {
+        guard connectionState == .connected else { throw RigctldError.notConnected }
+        guard (1...5).contains(slot) else { throw RemoteCWKeyerError.badSlot(slot) }
+        if let text {
+            // Network input: only what the keyer can key, at most 50
+            // characters. Anything else (";" above all, which would end the
+            // CAT command and start another) never reaches the rig.
+            guard !text.isEmpty, text.count <= CWText.memoryLength, text.allSatisfy(CWText.allowed.contains) else {
+                throw RemoteCWKeyerError.badText
+            }
+            return try await writeCWKeyerMemory(slot: slot, text: text)
+        }
+        try await ensureCWTextMemory(slot: slot)
+        return nil
     }
 
     /// CW send pane: makes sure keyer memory `slot` is a TEXT memory (CW
@@ -876,6 +904,14 @@ final class HubService: ObservableObject {
         }
         if Self.isTransmitCapable(command), BandPlan.band(containing: rigState.frequencyHz) == nil {
             Self.connectionLogger.notice("Blocked transmit-capable command (outside amateur band): \(String(describing: command), privacy: .public)")
+            return
+        }
+        if case .setTransmitEnabled(let enabled) = command {
+            // From a client (the iPad hub screen's lock button): the same
+            // as this Mac's Settings → rigctld → Enable Transmit, including
+            // the unkey and CW stop when it's turned off.
+            Self.connectionLogger.notice("Enable Transmit set \(enabled ? "on" : "off", privacy: .public) by a client")
+            transmitEnabled = enabled
             return
         }
         if case .setAudioChannelsSwapped(let swapped) = command {
@@ -1102,7 +1138,7 @@ final class HubService: ObservableObject {
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel,
              .setSubMemoryChannel, .stepSubMemoryChannel, .recallMemoryChannel, .setMemoryScan,
-             .refreshMemoryList, .setAudioChannelsSwapped:
+             .refreshMemoryList, .setAudioChannelsSwapped, .setTransmitEnabled:
             return false
         }
     }
@@ -1297,7 +1333,7 @@ final class HubService: ObservableObject {
         // to the next poll, same as before.
         case .triggerZeroIn, .triggerAntennaTune, .selectCWMessageChannel,
              .setCWMessageRecording, .playCWMessage, .playCWTextMemory, .setMenuItem,
-             .refreshMemoryList, .setAudioChannelsSwapped:
+             .refreshMemoryList, .setAudioChannelsSwapped, .setTransmitEnabled:
             break
         }
     }
@@ -2330,5 +2366,19 @@ private extension Duration {
     var milliseconds: Int {
         let (seconds, attoseconds) = components
         return Int(seconds) * 1000 + Int(attoseconds / 1_000_000_000_000_000)
+    }
+}
+
+/// Why the hub refused a client's `CWKeyerRequest` before it reached the
+/// rig (`HubService.remoteCWKeyer`).
+enum RemoteCWKeyerError: LocalizedError {
+    case badSlot(Int)
+    case badText
+
+    var errorDescription: String? {
+        switch self {
+        case .badSlot(let slot): "Keyer memory \(slot) doesn't exist (1–5)"
+        case .badText: "The Mac refused the text: up to 50 characters the keyer can send"
+        }
     }
 }

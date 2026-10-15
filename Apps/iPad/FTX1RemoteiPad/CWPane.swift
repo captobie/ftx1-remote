@@ -10,10 +10,10 @@ import SwiftUI
 /// (`onReceiveAudio`), and decodes only while this pane is showing on a
 /// connected route.
 ///
-/// Sending (phase 2, Pi direct only): `CWSendSection` under the tuning
-/// row, on the shared `CWSender`, which pauses the decoder while it runs
-/// (`CWReceiver.setSenderActive(_:)`). The hub route has no send section
-/// yet (phase 3 needs wire messages for the keyer).
+/// Sending: `CWSendSection` under the tuning row, on the shared
+/// `CWSender` (pointed at the route in use), which pauses the decoder
+/// while it runs (`CWReceiver.setSenderActive(_:)`). Pi direct since
+/// phase 2, the hub route since phase 3.
 struct CWPane<SendSection: View>: View {
     @EnvironmentObject private var receiver: CWReceiver
     @Binding var isShowing: Bool

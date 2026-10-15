@@ -2,7 +2,7 @@ import FTX1CW
 import FTX1Core
 import SwiftUI
 
-/// The CW pane's send section (phase 2, Pi direct only): the Mac's
+/// The CW pane's send section, on both routes: the Mac's
 /// `CWSendPane` on the shared `CWSender` — the rig's keyer speed and
 /// break-in, the keyer memory slot, macro buttons that fill the send line,
 /// a log of queued/keying/sent lines and a line to type into (Return
@@ -10,9 +10,10 @@ import SwiftUI
 /// the route's `CWKeyerLink.cwSendBlock`; the decoder pauses while it runs.
 ///
 /// Generic over `RigController` for the parts that read the rig (keyer
-/// controls, status line), so the hub route can use it once the wire
-/// messages for the keyer exist (phase 3). Those parts are their own small
-/// views so the rig's polling doesn't re-render the log.
+/// controls, status line): `PiDirectViewModel` on Pi direct (phase 2),
+/// `RigClientViewModel` on the hub route (phase 3, the keyer memory
+/// written on the Mac through `CWKeyerRequest`). Those parts are their own
+/// small views so the rig's polling doesn't re-render the log.
 struct CWSendSection<Controller: RigController>: View {
     @EnvironmentObject private var sender: CWSender
     @State private var line = ""

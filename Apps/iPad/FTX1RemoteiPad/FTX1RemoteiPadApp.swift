@@ -8,9 +8,9 @@ struct FTX1RemoteiPadApp: App {
     @StateObject private var piViewModel: PiDirectViewModel
     /// The CW pane's decoder, shared by both routes (fed their audio below).
     @StateObject private var cwReceiver = CWReceiver(logSubsystem: "com.ftx1remote.ipad", channels: [.main, .sub])
-    /// The CW pane's send section — Pi direct only for now (the hub route
-    /// needs wire messages for the keyer first), so it keys through
-    /// `piViewModel`.
+    /// The CW pane's send section, on whichever route is in use:
+    /// `ContentView` points it at `viewModel` (Mac hub) or `piViewModel`
+    /// (Pi direct) with `CWSender.use(_:)`.
     @StateObject private var cwSender: CWSender
 
     init() {
@@ -49,13 +49,22 @@ struct FTX1RemoteiPadApp: App {
                     cwSender.onActiveChanged = { receiver.setSenderActive($0) }
                 }
                 // As on the Mac: locking transmit, or the link going away,
-                // stops the sender and drops what's queued (the model sends
-                // "KY00" itself on a lock or a disconnect).
+                // stops the sender and drops what's queued — only for the
+                // route it's using. On Pi direct the model sends "KY00"
+                // itself on a lock or a disconnect; on the hub route the
+                // Mac does when this client drops, and `stop()` sends it
+                // while the link is still up.
                 .onChange(of: piViewModel.transmitEnabled) { _, enabled in
-                    if !enabled { cwSender.stop() }
+                    if !enabled, cwSender.isUsing(piViewModel) { cwSender.stop() }
                 }
                 .onChange(of: piViewModel.connectionState) { _, state in
-                    if state != .connected { cwSender.stop() }
+                    if state != .connected, cwSender.isUsing(piViewModel) { cwSender.stop() }
+                }
+                .onChange(of: viewModel.rigState.transmitEnabled) { _, enabled in
+                    if !enabled, cwSender.isUsing(viewModel) { cwSender.stop() }
+                }
+                .onChange(of: viewModel.connectionState) { _, state in
+                    if state != .connected, cwSender.isUsing(viewModel) { cwSender.stop() }
                 }
                 .preferredColorScheme(.dark)
         }

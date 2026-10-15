@@ -306,6 +306,13 @@ public enum RigCommand: Sendable, Equatable {
     /// echoed back as `RigState.audioChannelsSwapped`. Never reaches the
     /// rig — `CommandQueue` ignores it.
     case setAudioChannelsSwapped(Bool)
+    /// The hub's Enable Transmit (the Mac's Settings → rigctld toggle),
+    /// from a client — the iPad hub screen's lock button (user decision
+    /// 2026-10-14: the iPad can both lock and unlock). Sets `HubService.
+    /// transmitEnabled`, echoed back as `RigState.transmitEnabled`. Never
+    /// reaches the rig — `CommandQueue` ignores it. A hub that predates it
+    /// can't decode it and ignores it.
+    case setTransmitEnabled(Bool)
 
     /// Wire payload for `.setMemoryScan`.
     private struct MemoryScanPayload: Codable, Sendable, Equatable {
@@ -404,6 +411,7 @@ public enum RigCommand: Sendable, Equatable {
         case setMemoryScan = "set_memory_scan"
         case refreshMemoryList = "refresh_memory_list"
         case setAudioChannelsSwapped = "set_audio_channels_swapped"
+        case setTransmitEnabled = "set_transmit_enabled"
     }
 }
 
@@ -426,6 +434,8 @@ extension RigCommand: Codable {
             self = .refreshMemoryList
         case .setAudioChannelsSwapped:
             self = .setAudioChannelsSwapped(try container.decode(Bool.self, forKey: .value))
+        case .setTransmitEnabled:
+            self = .setTransmitEnabled(try container.decode(Bool.self, forKey: .value))
         case .ptt:
             self = .setPTT(try container.decode(Bool.self, forKey: .value))
         case .setBand:
@@ -580,6 +590,9 @@ extension RigCommand: Codable {
         case .setAudioChannelsSwapped(let swapped):
             try container.encode(CommandName.setAudioChannelsSwapped, forKey: .cmd)
             try container.encode(swapped, forKey: .value)
+        case .setTransmitEnabled(let enabled):
+            try container.encode(CommandName.setTransmitEnabled, forKey: .cmd)
+            try container.encode(enabled, forKey: .value)
         case .setPTT(let on):
             try container.encode(CommandName.ptt, forKey: .cmd)
             try container.encode(on, forKey: .value)
@@ -857,5 +870,47 @@ public struct MenuItemPush: Codable, Sendable, Equatable {
         self.p2 = p2
         self.p3 = p3
         self.value = value
+    }
+}
+
+/// Client -> server: the CW send section's keyer memory, on the hub route
+/// (the iPad's `CWSender`, through `RigClientViewModel`). With `text`,
+/// writes CW TEXT keyer memory `slot` (`RigctldClient.writeKeyerMemory`);
+/// without, makes sure `slot` is a TEXT memory (`HubService.
+/// ensureCWTextMemory`). Neither transmits — playing is the transmit-gated
+/// `RigCommand.playCWTextMemory`. Like `MenuItemReadRequest`, not a
+/// `RigCommand`: the answer (`CWKeyerReply`, same `id`) goes only to the
+/// client that asked, and a hub that predates it never answers.
+public struct CWKeyerRequest: Codable, Sendable, Equatable {
+    public let type: String  // "cw_keyer"
+    public let id: Int
+    public let slot: Int
+    public let text: String?
+
+    public static let typeName = "cw_keyer"
+
+    public init(id: Int, slot: Int, text: String?) {
+        self.type = Self.typeName
+        self.id = id
+        self.slot = slot
+        self.text = text
+    }
+}
+
+/// Server -> client answer to a `CWKeyerRequest`: what the rig stored (a
+/// write), or `error` if it failed. Both nil after a successful TEXT check.
+public struct CWKeyerReply: Codable, Sendable, Equatable {
+    public let type: String  // "cw_keyer_reply"
+    public let id: Int
+    public let stored: String?
+    public let error: String?
+
+    public static let typeName = "cw_keyer_reply"
+
+    public init(id: Int, stored: String?, error: String?) {
+        self.type = Self.typeName
+        self.id = id
+        self.stored = stored
+        self.error = error
     }
 }

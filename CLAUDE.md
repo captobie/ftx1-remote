@@ -98,7 +98,8 @@ over Tailscale, without needing to be physically near the rig.
   readMenuItem(p1:p2:p3:)` (`supportsDeepSettings` gates the six FM-page
   buttons). `HubService` and `PiDirectViewModel` (with
   `readsMenuSettings`) read straight over their rigctld link. The hub
-  route has the protocol's one request/reply pair, kept *beside*
+  route has a request/reply pair (the CW keyer's, phase 3 of "iPad CW
+  decoder", is the other), kept *beside*
   `RigCommand` (it never reaches the rig): the client sends
   `MenuItemReadRequest` (`type: "read_menu_item"`), and
   `RigWebSocketServer` answers that client alone with a `MenuItemPush`
@@ -861,7 +862,8 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   sends the new `RigCommand.setAudioChannelsSwapped` to the Mac's
   `HubService.audioChannelsSwapped` (echoed as `RigState.
   audioChannelsSwapped`, `nil` from an older hub = button disabled). Its
-  lock is display-only — the Mac's Enable Transmit; swap/V/M stay enabled
+  lock is the Mac's Enable Transmit (display-only until 2026-10-14, now
+  a toggle — see "iPad CW decoder" phase 3); swap/V/M stay enabled
   while scanning, since the hub stops the scan first.
 
 - **iPad memory scan (2026-10-09, rig-confirmed by the user on Pi direct
@@ -1078,7 +1080,7 @@ keys the rig and sends the iPad's microphone to the rig's USB audio input.
   checked only by build, not on screen (needs a live hub). iPhone and
   Windows are out of scope.
 
-## iPad CW decoder (phase 1 decode, 2026-10-14, confirmed on a real iPad; phase 2 sending on Pi direct, 2026-10-14, transmit-tested by the user)
+## iPad CW decoder (phase 1 decode, 2026-10-14, confirmed on a real iPad; phase 2 sending on Pi direct, transmit-tested by the user; phase 3 sending on the hub route, transmit-tested by the user)
 
 User request: the Mac's CW decoder on the iPad, in a pane over the filter
 block + MENU grid (the APRS lists' area), opened by a **CW** button at the
@@ -1154,6 +1156,55 @@ keyer-memory write and send queue live only in `HubService` today).
     domain from the app's own — check `Library/Preferences/<bundle>.plist`
     in `simctl get_app_container … data` for the real value (it said the
     lock was open when `defaults` said closed).
+- **Phase 3, sending on the hub route (2026-10-14; transmit-tested by the
+  user the same day)**: the same `CWSendSection` on the hub screen
+  (`CWSendSection<RigClientViewModel>`). The App's one `CWSender` follows
+  the route switch (`ContentView` → `CWSender.use(_:)`, which stops the
+  old route's run first); each route's lock/link changes stop it only
+  while it's the one in use (`isUsing`).
+  - **Wire**: `CWKeyerRequest` (`type: "cw_keyer"`, `id`, `slot`, `text`
+    — no text = make the slot a TEXT memory) and `CWKeyerReply`
+    (`"cw_keyer_reply"`, same `id`, `stored` or `error`), beside
+    `RigCommand` like the menu-read pair: `RigWebSocketServer` answers the
+    asking client alone, off the inbound stream (a write is ~2 s over the
+    Pi; the client waits for the reply before it plays, so order holds).
+    `HubService.remoteCWKeyer` refuses a slot outside 1–5 or text that
+    isn't ≤50 `CWText.allowed` characters before it reaches the rig — a
+    ";" would end the CAT command (`RemoteCWKeyerError`). Playing is the
+    existing `.playCWTextMemory`, so the Mac's Enable Transmit/band gate
+    applies; the server remembers the client that last played
+    (`keyerPlayer`) and sends "KY00" if it drops, as it unkeys a dropped
+    PTT holder. `RigClientViewModel.writeCWKeyerMemory`/
+    `ensureCWTextMemory` wait up to 15 s (`CWKeyerRequestError.noReply`
+    says to update the Mac app — an older hub never answers).
+  - `RigClientViewModel+CWKeyerLink` (FTX1CW): the Mac's own blocks
+    from the pushed state (Mac's Enable Transmit, MAIN in CW, MAIN in an
+    amateur band, BK-IN), plus not while PTT is held on the iPad.
+  - Verified: a scripted WebSocket probe against the Debug Mac app
+    (TEXT check answered; ";" and slot 9 refused by the Mac with their
+    own messages; no keyer write, nothing keyed) and the hub screen in
+    the Simulator with the Mac's Enable Transmit off ("Can't send:
+    transmit is off on the Mac…", BK-IN/WPM from the Mac's state), then
+    the user's own transmit test through the hub, working. Not tried: the
+    Mac's own CW window sending at the same time as the iPad (both use the
+    same keyer slot; not coordinated).
+  - **Hub-screen lock toggles the Mac's Enable Transmit (2026-10-14,
+    user request after the phase 3 test, user decision: lock *and*
+    unlock)**: new `RigCommand.setTransmitEnabled` (`"set_transmit_
+    enabled"`) sets `HubService.transmitEnabled`, the same as the Mac's
+    Settings toggle (incl. its unkey/CW stop when turned off), logged
+    under "connection"; `CommandQueue` ignores it. Fixed with it: a hub
+    running but not yet polling the rig never broadcast, so a client
+    showed `RigState()`'s default — Enable Transmit **on** — whatever the
+    Mac's was; the server is now seeded with the hub's state when it
+    starts. Checked in the Simulator against the Debug Mac app (not
+    connected to the rig): correct locked state on connect, then unlock
+    and relock from the iPad with the Mac's saved setting following
+    (0 → 1 → 0). An older Mac app ignores the command.
+  - The Mac's Enable Transmit is **on** when never saved
+    (`RigctldSettings.transmitEnabled`), so for tests save it off first
+    (`defaults write com.ftx1remote.FTX1RemoteMac rigctld.transmitEnabled
+    -bool NO`) and `defaults delete` it afterwards to restore.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 

@@ -84,6 +84,45 @@ final class WireMessageTests: XCTestCase {
         XCTAssertNil(try JSONDecoder().decode(MenuItemPush.self, from: JSONEncoder().encode(unread)).value)
     }
 
+    /// The hub route's CW keyer pair must not be taken for any other
+    /// message by either end's decode chain (server: RigCommand, menu read;
+    /// client: state, memory list, menu item).
+    func testCWKeyerMessagesDontCollide() throws {
+        let write = CWKeyerRequest(id: 7, slot: 1, text: "CQ CQ DE TE5T K")
+        let writeData = try JSONEncoder().encode(write)
+        XCTAssertEqual(try JSONDecoder().decode(CWKeyerRequest.self, from: writeData), write)
+        XCTAssertNil(try? JSONDecoder().decode(RigCommand.self, from: writeData))
+        XCTAssertNil(try? JSONDecoder().decode(MenuItemReadRequest.self, from: writeData))
+        let check = CWKeyerRequest(id: 8, slot: 1, text: nil)
+        XCTAssertNil(try JSONDecoder().decode(CWKeyerRequest.self, from: JSONEncoder().encode(check)).text)
+        let menuRead = try JSONEncoder().encode(MenuItemReadRequest(p1: 2, p2: 2, p3: 6))
+        XCTAssertNil(try? JSONDecoder().decode(CWKeyerRequest.self, from: menuRead))
+        let play = try JSONEncoder().encode(RigCommand.playCWTextMemory(slot: 1))
+        XCTAssertNil(try? JSONDecoder().decode(CWKeyerRequest.self, from: play))
+
+        let reply = CWKeyerReply(id: 7, stored: "CQ CQ DE TE5T K", error: nil)
+        let replyData = try JSONEncoder().encode(reply)
+        XCTAssertEqual(try JSONDecoder().decode(CWKeyerReply.self, from: replyData), reply)
+        XCTAssertNil(try? JSONDecoder().decode(RigStatePush.self, from: replyData))
+        XCTAssertNil(try? JSONDecoder().decode(MemoryListPush.self, from: replyData))
+        XCTAssertNil(try? JSONDecoder().decode(MenuItemPush.self, from: replyData))
+        let menuPush = try JSONEncoder().encode(MenuItemPush(p1: 2, p2: 2, p3: 6, value: "0"))
+        XCTAssertNil(try? JSONDecoder().decode(CWKeyerReply.self, from: menuPush))
+        let failed = CWKeyerReply(id: 9, stored: nil, error: "rejected")
+        XCTAssertEqual(try JSONDecoder().decode(CWKeyerReply.self, from: JSONEncoder().encode(failed)).error, "rejected")
+    }
+
+    func testSetTransmitEnabledRoundTrip() throws {
+        for enabled in [true, false] {
+            let command = RigCommand.setTransmitEnabled(enabled)
+            let data = try JSONEncoder().encode(command)
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            XCTAssertEqual(json?["cmd"] as? String, "set_transmit_enabled")
+            XCTAssertEqual(json?["value"] as? Bool, enabled)
+            XCTAssertEqual(try JSONDecoder().decode(RigCommand.self, from: data), command)
+        }
+    }
+
     func testSetModeRoundTrip() throws {
         let command = RigCommand.setMode(.usb)
         let data = try JSONEncoder().encode(command)

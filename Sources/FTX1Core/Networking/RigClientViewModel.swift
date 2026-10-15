@@ -83,6 +83,12 @@ public final class RigClientViewModel: ObservableObject, RigController {
     /// (~20 items, interleaved with the hub's poll); a hub that predates
     /// `MenuItemReadRequest` never answers.
     private static let menuReadTimeout: Duration = .seconds(10)
+    /// CW keyer requests waiting for the hub's `CWKeyerReply`, by id.
+    private var pendingKeyerRequests: [Int: CheckedContinuation<CWKeyerReply?, Never>] = [:]
+    private var nextKeyerRequestID = 1
+    /// A keyer write takes ~2 s over the Pi, behind the hub's own poll
+    /// round trips; a hub that predates `CWKeyerRequest` never answers.
+    private static let keyerTimeout: Duration = .seconds(15)
     #if os(iOS)
     private let microphone = MicrophoneTransmitter(logSubsystem: "com.ftx1remote.client")
     private var unkeyTask: Task<Void, Never>?
@@ -123,6 +129,9 @@ public final class RigClientViewModel: ObservableObject, RigController {
             }
             await client.setOnAPRSList { [weak self] push in
                 Task { @MainActor in self?.aprsList = push }
+            }
+            await client.setOnCWKeyerReply { [weak self] reply in
+                Task { @MainActor in self?.finishKeyerRequest(reply.id, reply: reply) }
             }
             await client.setOnMenuItem { [weak self] push in
                 Task { @MainActor in
@@ -228,6 +237,52 @@ public final class RigClientViewModel: ObservableObject, RigController {
         let waiting = pendingMenuReads.values.flatMap(\.waiting)
         pendingMenuReads.removeAll()
         waiting.forEach { $0.resume(returning: nil) }
+        // Keyer requests end with the link the same way.
+        let keyer = pendingKeyerRequests.values
+        pendingKeyerRequests.removeAll()
+        keyer.forEach { $0.resume(returning: nil) }
+    }
+
+    // MARK: - CW keyer memory (the iPad's CW send section)
+
+    /// Writes CW TEXT keyer memory `slot` through the hub
+    /// (`CWKeyerRequest`) and returns what the rig stored. Doesn't
+    /// transmit; playing is `.playCWTextMemory`, which the hub gates.
+    public func writeCWKeyerMemory(slot: Int, text: String) async throws -> String {
+        try await keyerRequest(slot: slot, text: text) ?? ""
+    }
+
+    /// Makes sure keyer memory `slot` is a TEXT memory, through the hub.
+    public func ensureCWTextMemory(slot: Int) async throws {
+        _ = try await keyerRequest(slot: slot, text: nil)
+    }
+
+    private func keyerRequest(slot: Int, text: String?) async throws -> String? {
+        guard let client, connectionState == .connected else { throw CWKeyerRequestError.notConnected }
+        let id = nextKeyerRequestID
+        nextKeyerRequestID += 1
+        let reply = await withCheckedContinuation { continuation in
+            pendingKeyerRequests[id] = continuation
+            Task {
+                do {
+                    try await client.sendCWKeyer(CWKeyerRequest(id: id, slot: slot, text: text))
+                } catch {
+                    self.finishKeyerRequest(id, reply: nil)
+                    return
+                }
+                try? await Task.sleep(for: Self.keyerTimeout)
+                self.finishKeyerRequest(id, reply: nil)
+            }
+        }
+        guard let reply else { throw CWKeyerRequestError.noReply }
+        if let error = reply.error { throw CWKeyerRequestError.failed(error) }
+        return reply.stored
+    }
+
+    /// A no-op once that request has been answered (an answer after the
+    /// timeout, or the timeout after an answer).
+    private func finishKeyerRequest(_ id: Int, reply: CWKeyerReply?) {
+        pendingKeyerRequests.removeValue(forKey: id)?.resume(returning: reply)
     }
 
     #if os(iOS)
@@ -338,6 +393,25 @@ public final class RigClientViewModel: ObservableObject, RigController {
             finishAllMenuReads()
             audioEngine.stop()
             subAudioEngine.stop()
+        }
+    }
+}
+
+/// Why a hub-route keyer request (`RigClientViewModel.writeCWKeyerMemory`/
+/// `ensureCWTextMemory`) didn't go through.
+public enum CWKeyerRequestError: LocalizedError, Equatable {
+    case notConnected
+    /// No `CWKeyerReply` in time — most likely a Mac app from before CW
+    /// sending on the hub route.
+    case noReply
+    /// The hub answered with an error (e.g. the rig rejected the write).
+    case failed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .notConnected: "Not connected to the Mac"
+        case .noReply: "The Mac didn't answer — update the Mac app to send CW from here"
+        case .failed(let message): message
         }
     }
 }

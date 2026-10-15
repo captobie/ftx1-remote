@@ -22,6 +22,8 @@ struct ContentView: View {
 
     @EnvironmentObject private var hubViewModel: RigClientViewModel
     @EnvironmentObject private var piViewModel: PiDirectViewModel
+    /// The CW pane's sender, pointed at the route in use.
+    @EnvironmentObject private var cwSender: CWSender
     @AppStorage("connectionRoute") private var route: ConnectionRoute = .macHub
 
     var body: some View {
@@ -41,6 +43,12 @@ struct ContentView: View {
             switch route {
             case .macHub: HubControlView()
             case .piDirect: PiDirectView()
+            }
+        }
+        .onChange(of: route, initial: true) { _, newRoute in
+            switch newRoute {
+            case .macHub: cwSender.use(hubViewModel)
+            case .piDirect: cwSender.use(piViewModel)
             }
         }
         .onChange(of: route) { _, newRoute in
@@ -157,7 +165,9 @@ struct HubControlView: View {
                     isConnected: viewModel.connectionState == .connected,
                     rigInfo: CWRigInfo(state: viewModel.rigState, connected: viewModel.connectionState == .connected, transmitting: viewModel.isTransmitting),
                     singleReceive: viewModel.rigState.singleReceive == true
-                )
+                ) {
+                    CWSendSection<RigClientViewModel>()
+                }
             }
             .padding(32)
         }
@@ -167,19 +177,22 @@ struct HubControlView: View {
         }
     }
 
-    /// The Mac's Enable Transmit, shown where the Pi-direct screen has its
-    /// own lock button. Display only: transmit is enabled on the Mac, not
-    /// from here.
+    /// The Mac's Enable Transmit, where the Pi-direct screen has its own
+    /// lock button: locked (gray) blocks PTT, MOX, ANT TUNE and CW sending
+    /// for every client; unlocked (red) allows them. Tapping it sets the
+    /// Mac's toggle (`.setTransmitEnabled`, user decision 2026-10-14 — lock
+    /// and unlock both); the button follows the state the Mac echoes back.
     private var transmitEnabledIndicator: some View {
         let enabled = viewModel.rigState.transmitEnabled
-        return Button {} label: {
+        return Button {
+            viewModel.send(.setTransmitEnabled(!enabled))
+        } label: {
             Image(systemName: enabled ? "lock.open.fill" : "lock.fill")
                 .foregroundStyle(enabled ? Color.white : Color.primary)
         }
         .buttonStyle(.bordered)
         .tint(enabled ? .red : nil)
-        .allowsHitTesting(false)
-        .accessibilityLabel(enabled ? "Transmit enabled on the Mac" : "Transmit disabled on the Mac")
+        .accessibilityLabel(enabled ? "Transmit enabled on the Mac; tap to disable" : "Transmit disabled on the Mac; tap to enable")
     }
 
     /// Scan/Skip, V/M, swap and audio-channel override — the same buttons,
