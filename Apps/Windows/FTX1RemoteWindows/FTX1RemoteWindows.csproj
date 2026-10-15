@@ -64,6 +64,14 @@
 
   <ItemGroup>
     <!--
+      Kestrel + WebSockets for the iPad's Desktop hub (Services/Hub/HubServer.cs).
+      Part of the shared framework, so self-contained builds carry it.
+    -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
       Runs the CW window's neural decoder (Assets/CWNet.onnx, converted from
       CWKit's Core ML model by Apps/Windows/Tools/cwnet_to_onnx.py). MIT-licensed.
     -->

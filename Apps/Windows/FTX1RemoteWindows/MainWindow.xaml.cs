@@ -418,11 +418,14 @@ public sealed partial class MainWindow : Window
             UpdateAudioStatus();
         };
 
+        InitHub();
+
         // Don't leave a rigctld we spawned running after the window closes
         // (an adopted one is left alone — see RigctldProcessController).
         Closed += (_, _) =>
         {
             _pollTimer.Stop();
+            StopHub();
             UnkeyBeforeDisconnect();
             _audioStatusTimer.Stop();
             _wpsdMonitor.Stop();
@@ -499,7 +502,7 @@ public sealed partial class MainWindow : Window
 
     private async void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SettingsDialog(this, IsConnected, _rigctldProcess.LastResolution);
+        var dialog = new SettingsDialog(this, IsConnected, _rigctldProcess.LastResolution, _hub);
         SettingsButton.IsEnabled = false;
         try
         {
@@ -526,6 +529,7 @@ public sealed partial class MainWindow : Window
             ShowDisconnected();
         }
         ApplyAppearance();
+        await ApplyHubSettingAsync();
         _pollTimer.Interval = TimeSpan.FromMilliseconds(AppSettings.PollIntervalMs);
         // A running memory scan keeps its short tick.
         UpdateScanDisplay();
@@ -817,6 +821,8 @@ public sealed partial class MainWindow : Window
         try
         {
             await PollFieldsAsync(client);
+            // The hub pushes every poll: this stamp alone changes its JSON.
+            _lastState.LastUpdated = DateTimeOffset.UtcNow;
         }
         finally
         {

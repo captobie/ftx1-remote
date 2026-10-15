@@ -29,6 +29,7 @@
             <SelectorBarItem Text="Home Freq" Tag="Home" />
             <SelectorBarItem Text="Polling" Tag="Polling" />
             <SelectorBarItem Text="Appearance" Tag="Appearance" />
+            <SelectorBarItem Text="Hub" Tag="Hub" />
             <SelectorBarItem Text="About" Tag="About" />
         </SelectorBar>
 
@@ -245,6 +246,21 @@
                     <RadioButtons x:Name="ThemeRadioButtons" Header="Theme" MaxColumns="3" />
                     <ComboBox x:Name="ButtonValueColorComboBox" Header="Button value color" Width="200" HorizontalAlignment="Left"
                               ToolTipService.ToolTip="The color of each MENU grid button's current setting" />
+                </StackPanel>
+
+                <!-- Hub: the iPad's Desktop hub (Services/Hub/HubServer.cs). The
+                     switch applies on Save; the status and clients are live. -->
+                <StackPanel x:Name="HubTab" Spacing="12" Visibility="Collapsed">
+                    <ToggleSwitch x:Name="HubEnabledSwitch" Header="Allow iPad connections" />
+                    <TextBlock Text="Lets the iPad's Desktop hub route connect to this app over Tailscale or the local network (other addresses are refused). For now it only shows this app's state; the iPad's controls do nothing yet."
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
+                    <TextBlock x:Name="HubPortText" />
+                    <TextBlock x:Name="HubStatusText" />
+                    <TextBlock Text="Connected clients" FontWeight="SemiBold" />
+                    <TextBlock x:Name="HubNoClientsText" Text="None" Foreground="Gray" />
+                    <ListView x:Name="HubClientsList" SelectionMode="None" MaxHeight="140" />
+                    <TextBlock Text="Windows Firewall has to allow inbound TCP 8765 for FTX1RemoteWindows.exe. Tailscale's adapter is often a Public network, so allow Public as well as Private when Windows asks (or see the README)."
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- About: version + update check (notify-only). -->

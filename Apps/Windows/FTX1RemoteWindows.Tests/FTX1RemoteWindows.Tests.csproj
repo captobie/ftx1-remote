@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tests for the hub's wire code (Apps/Windows/README.md, "Desktop hub for
+    the iPad"). Compiles the files under test directly rather than
+    referencing the WinUI app, so it builds and runs with a plain
+    `dotnet test` — keep those files free of WinUI types.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>FTX1RemoteWindows.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\FTX1RemoteWindows\Services\Hub\WireModels.cs" Link="Linked\WireModels.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\Hub\HubAddressFilter.cs" Link="Linked\HubAddressFilter.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\RigState.cs" Link="Linked\RigState.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\RigMode.cs" Link="Linked\RigMode.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\BandPlan.cs" Link="Linked\BandPlan.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\MemoryScan.cs" Link="Linked\MemoryScan.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\FilterModels.cs" Link="Linked\FilterModels.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\MeterScale.cs" Link="Linked\MeterScale.cs" />
+    <!-- FilterModels.cs's NarrowWidthPreset refers to the catalog, which needs the tone tables. -->
+    <Compile Include="..\FTX1RemoteWindows\Models\DeepSettingsCatalog.cs" Link="Linked\DeepSettingsCatalog.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\RigToneTables.cs" Link="Linked\RigToneTables.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.0" />
+  </ItemGroup>
+
+</Project>

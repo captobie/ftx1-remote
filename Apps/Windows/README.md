@@ -1305,7 +1305,7 @@ lists it.
   picker, switching sides mid-scan, a Mem List recall mid-scan, a scan
   started from the front panel, and both boxes with TX:SUB and no scan.
 
-## Desktop hub for the iPad (plan, 2026-10-15; not started)
+## Desktop hub for the iPad (plan, 2026-10-15; phase 1 done 2026-10-15)
 
 Goal: the iPad's hub route (renamed "Desktop hub" on 2026-10-15, raw
 `connectionRoute` value still `macHub`) can connect to this app the way it
@@ -1348,6 +1348,68 @@ already using, Local or Remote.
   answered to the asking client only, outside that order. A dropped PTT
   holder is unkeyed. "KY00" is sent if the last keyer player drops. TX
   audio has a 1.5 s silence watchdog.
+
+### Phase 1 status (2026-10-15: built, tested on this PC; not yet from a real iPad)
+
+- `Services/Hub/HubServer.cs` (Kestrel, `ListenAnyIP(8765)`, dual-mode,
+  path "/"), `Services/Hub/HubAddressFilter.cs` (the address rule below,
+  IPv4-mapped IPv6 unwrapped first; refusals logged as "hub: refused …"
+  with a 403 before the upgrade), `Services/Hub/WireModels.cs`
+  (`RigStatePushWire`/`RigStateWire`, `HubWire`, `RigStateWireMapper`),
+  `MainWindow.Hub.cs` and Settings → **Hub** (`AppSettings.HubEnabled`,
+  off by default; the switch applies on Save like the other tabs, the
+  listening state and client list are live).
+- **Pushes**: one 100 ms timer on the UI thread serializes the state and
+  publishes it when the JSON changed. Each poll stamps
+  `RigState.LastUpdated` (it was never updated before), so every poll is
+  pushed, and a UI action that changes `_lastState` goes out within
+  100 ms; at most 10/s. Each client keeps only the newest unsent push
+  (bounded channel of 1, drop oldest) and gets the latest one on connect.
+  The hub runs whether or not the rig is connected; disconnected it pushes
+  the last known state.
+- **Mapping differences** from the plan's "field for field": `mode` is
+  `C4FM` while `MainIsC4fm`, else the mode, else `UNKNOWN` (Swift's own
+  placeholder; the field is required). `band` comes from
+  `BandPlan.BandContaining`. `singleReceive`/`splitEnabled`/`txSide` come
+  from MainWindow's slow-tier fields, `aprsActive`/`aprsLastCallsign` from
+  the same rule as the VFO boxes' APRS line (callsign only while active and
+  heard < 5 s ago). Never sent, since this app doesn't have them:
+  `cwMessageStatus` (the CW page's PLAY/RECORD are the app's recorder, not
+  the rig's "RI" P3) and `txwEnabled`.
+- **Inbound frames** are logged ("hub: client N sent (ignored, read-only
+  hub)") and dropped.
+- **Tests**: `Apps/Windows/FTX1RemoteWindows.Tests` (xUnit, net8.0,
+  compiles `WireModels.cs`, `HubAddressFilter.cs` and the models they need
+  as linked files; run with `dotnet test` from that folder, the .NET 10
+  SDK by full path on the test PC). Every Swift fixture decodes and
+  re-encodes to equal JSON (key order ignored, numbers by value); the C#
+  property set equals `full`'s keys both ways; the address filter's
+  allow/refuse lists; and `WritesWindowsFixture` writes
+  `Tests/WireFixtures/windows/windows-state-push.json` from the real
+  mapper (re-run it after any mapper change and commit the file).
+  **Not yet run**: the Mac's `HubWireFixtureTests` against that file.
+- **Tested here** (Remote mode, rig on the Pi): the push arrives on
+  connect and after every poll at ws://localhost:8765 (~25 pushes in 20 s,
+  live frequency/mode/meters/MENU/filter values), a client ping gets a
+  pong, a non-"/" path gets 400, Settings → Hub shows listening and the
+  client appearing and leaving, and turning the switch off/on through Save
+  stops and restarts the listener. Not tested: a refusal from a real
+  outside address (unit-tested only), Local mode, a real iPad over
+  Tailscale or the LAN.
+
+**Windows Firewall.** The app is unpackaged, so Windows asks "Allow
+FTX1RemoteWindows to communicate on these networks?" the first time the
+hub listens. Tick **Public** as well as Private: Tailscale's adapter is
+usually classed as a Public network, and a LAN adapter may be too. If the
+prompt was dismissed, or to add the rule by hand (admin PowerShell, with
+the path of the exe you run):
+
+```powershell
+New-NetFirewallRule -DisplayName "FTX1Remote hub (TCP 8765)" -Direction Inbound -Protocol TCP -LocalPort 8765 -Action Allow -Profile Any -Program "C:\path	o\FTX1RemoteWindows.exe"
+```
+
+The app's own address filter still refuses anything outside loopback,
+Tailscale and the private ranges, whatever the firewall allows.
 
 ### Where this app's gap is
 
@@ -1478,7 +1540,8 @@ the command path.
   the WebSocket wire protocol were deliberately *not* ported — this app
   never speaks WebSocket (see "Why direct-to-Pi" above), so `RigCommand`'s
   JSON shape is irrelevant here; v1's C# `RigctldClient` calls rigctld
-  methods directly instead.
+  methods directly instead. (Superseded in part by "Desktop hub for the
+  iPad": the hub speaks it as a server; `RigCommand` arrives in phase 2.)
 - C4FM mode is not wired up in v1's `RigMode`/`RigctldClient.SetModeAsync`
   — it needs the same raw-CAT-passthrough special case
   `RigctldClient.swift`'s `setActiveModeC4FM()` uses, left out of this pass
@@ -1492,12 +1555,15 @@ the command path.
 ```
 Apps/Windows/Tools/
   cwnet_to_onnx.py             CWKit's CWNet.mlmodelc → Assets/CWNet.onnx, checked against its golden file
+Apps/Windows/FTX1RemoteWindows.Tests/
+  HubWireTests.cs              hub wire fixtures + address filter (xUnit; links the app's wire files)
 Apps/Windows/FTX1RemoteWindows/
   FTX1RemoteWindows.csproj   unpackaged WinUI 3, net8.0-windows10.0.19041.0
   app.manifest               DPI-awareness manifest (unpackaged apps need this)
   App.xaml(.cs)               standard WinUI 3 application entry point
   MainWindow.xaml(.cs)        v1 core-rig-control UI + poll loop + audio controls
   MainWindow.MemoryScan.cs    the rig's memory scan, MAIN/SUB (HubService.swift's scan parts)
+  MainWindow.Hub.cs           starts/stops the hub, pushes state (coalesced, ≤10/s)
   SettingsDialog.xaml(.cs)    Settings dialog (the Mac's SettingsView tabs)
   Controls/
     MenuGrid.cs                  MENU grid (port of MenuPageView.swift), all three pages
@@ -1561,6 +1627,9 @@ Apps/Windows/FTX1RemoteWindows/
     QsoLogger.cs                 Sends a QSO to HRD as ADIF over UDP, confirms it in the log (QSOLogger.swift)
     WorkedStationsStore.cs       Worked-before index for the CW window (WorkedStationsStore.swift)
     WebSdrAudioTap.cs            process-loopback capture of the WebSDR window's audio for the CW window (WebSDRAudioTap.swift)
+    Hub/HubServer.cs             the iPad's Desktop hub: Kestrel WebSocket server on 8765 (RigWebSocketServer.swift)
+    Hub/HubAddressFilter.cs      who may connect: loopback, Tailscale, private ranges
+    Hub/WireModels.cs            RigStatePush/RigState wire types + the RigState mapper (WireMessage.swift, RigState.swift)
   Assets/
     CWNet.onnx                    CWKit's neural CW model, converted by ../Tools/cwnet_to_onnx.py
   Settings/

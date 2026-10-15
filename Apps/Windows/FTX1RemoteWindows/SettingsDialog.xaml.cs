@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Services;
+using FTX1RemoteWindows.Services.Hub;
 using FTX1RemoteWindows.Settings;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -35,10 +36,11 @@ public sealed partial class SettingsDialog : ContentDialog
     /// `inUse`: what this session's last Local start launched
     /// (RigctldProcessController.LastResolution), shown when it differs
     /// from what the edited choice resolves to.
-    public SettingsDialog(Window owner, bool connected, RigctldBinary.Resolution? inUse = null)
+    public SettingsDialog(Window owner, bool connected, RigctldBinary.Resolution? inUse = null, HubServer? hub = null)
     {
         _owner = owner;
         _inUse = inUse;
+        _hub = hub;
         InitializeComponent();
         XamlRoot = owner.Content.XamlRoot;
         RequestedTheme = (owner.Content as FrameworkElement)?.RequestedTheme ?? ElementTheme.Default;
@@ -81,12 +83,21 @@ public sealed partial class SettingsDialog : ContentDialog
         Opened += (_, _) =>
         {
             _isOpen = true;
+            if (_hub is not null)
+            {
+                _hub.StatusChanged += OnHubStatusChanged;
+            }
+            RefreshHubStatus();
             RefreshVersions();
             RefreshHrdStatus();
         };
         Closed += (_, _) =>
         {
             _isOpen = false;
+            if (_hub is not null)
+            {
+                _hub.StatusChanged -= OnHubStatusChanged;
+            }
             _versionLookup?.Cancel();
         };
 
@@ -149,6 +160,10 @@ public sealed partial class SettingsDialog : ContentDialog
         // About
         VersionText.Text = $"Version {UpdateChecker.CurrentVersionText}";
         CheckAtLaunchCheckBox.IsChecked = AppSettings.CheckForUpdatesAtLaunch;
+
+        // Hub
+        HubEnabledSwitch.IsOn = AppSettings.HubEnabled;
+        HubPortText.Text = $"Port {HubServer.Port} (ws://<this PC's Tailscale name or LAN address>:{HubServer.Port})";
     }
 
     private void TabBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
@@ -162,7 +177,7 @@ public sealed partial class SettingsDialog : ContentDialog
         {
             ("Rigctld", RigctldTab), ("Audio", AudioTab), ("C4fm", C4fmTab), ("Aprs", AprsTab),
             ("Station", StationTab), ("Logbook", LogbookTab), ("Home", HomeTab), ("Polling", PollingTab), ("Appearance", AppearanceTab),
-            ("About", AboutTab),
+            ("Hub", HubTab), ("About", AboutTab),
         };
         foreach (var (t, panel) in tabs)
         {
@@ -307,6 +322,7 @@ public sealed partial class SettingsDialog : ContentDialog
         AppSettings.WpsdReflectorSeconds = NumberBoxValue(WpsdReflectorBox, AppSettings.WpsdReflectorSecondsSetting);
 
         AppSettings.CheckForUpdatesAtLaunch = CheckAtLaunchCheckBox.IsChecked == true;
+        AppSettings.HubEnabled = HubEnabledSwitch.IsOn;
 
         if (ThemeRadioButtons.SelectedItem is RadioButton { Tag: AppTheme theme })
         {
@@ -566,6 +582,32 @@ public sealed partial class SettingsDialog : ContentDialog
     // adopted.
 
     private bool _isOpen;
+
+    // Hub: the server's live state; the switch itself applies on Save.
+
+    private readonly HubServer? _hub;
+
+    private void OnHubStatusChanged() => DispatcherQueue.TryEnqueue(RefreshHubStatus);
+
+    private void RefreshHubStatus()
+    {
+        if (_hub is null)
+        {
+            return;
+        }
+        HubStatusText.Text = _hub.IsListening
+            ? $"Listening on port {HubServer.Port}."
+            : _hub.LastError is { } error
+                ? $"Not listening: {error}"
+                : "Not listening.";
+        var clients = _hub.Clients;
+        HubClientsList.Items.Clear();
+        foreach (var client in clients)
+        {
+            HubClientsList.Items.Add($"{client.Address} — connected {client.ConnectedAt:HH:mm:ss}");
+        }
+        HubNoClientsText.Visibility = clients.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
     private CancellationTokenSource? _versionLookup;
 
     private void RefreshVersionButton_Click(object sender, RoutedEventArgs e) => RefreshVersions();

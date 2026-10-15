@@ -107,6 +107,7 @@ public static class AppSettings
         public string HrdLogPath { get; set; } = "";
         public string HrdUdpHost { get; set; } = "";
         public int HrdUdpPort { get; set; }
+        public bool HubEnabled { get; set; }
     }
 
     /// One Polling-tab value: its default and allowed range. Every getter
@@ -654,6 +655,19 @@ public static class AppSettings
         set
         {
             _cache.CheckForUpdatesAtLaunch = value;
+            Save();
+        }
+    }
+
+    /// Settings → Hub's "Allow iPad connections": serve the Mac hub's
+    /// WebSocket protocol (Services/Hub/HubServer.cs). Off by default — once
+    /// commands land, anyone who can reach the port can key the rig.
+    public static bool HubEnabled
+    {
+        get => _cache.HubEnabled;
+        set
+        {
+            _cache.HubEnabled = value;
             Save();
         }
     }
