@@ -1,0 +1,12 @@
+{
+  "state" : {
+    "aprsActive" : false,
+    "aprsSubActive" : false,
+    "frequencyHz" : 7074000,
+    "lastUpdated" : 813758400,
+    "mode" : "PKTUSB",
+    "ptt" : false,
+    "transmitEnabled" : true
+  },
+  "type" : "state"
+}

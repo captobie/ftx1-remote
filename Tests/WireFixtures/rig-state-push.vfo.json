@@ -1,0 +1,27 @@
+{
+  "state" : {
+    "aprsActive" : false,
+    "aprsSubActive" : false,
+    "filterSide" : 0,
+    "frequencyHz" : 144390000,
+    "lastUpdated" : 813758400,
+    "memoryScan" : "stopped",
+    "memoryScanSide" : 1,
+    "mode" : "FM",
+    "ptt" : false,
+    "secondaryFrequencyHz" : 446000000,
+    "secondaryMode" : "C4FM",
+    "subVfoMemoryMode" : {
+      "vfo" : {
+
+      }
+    },
+    "transmitEnabled" : true,
+    "vfoMemoryMode" : {
+      "vfo" : {
+
+      }
+    }
+  },
+  "type" : "state"
+}

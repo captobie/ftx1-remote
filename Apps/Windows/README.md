@@ -1381,11 +1381,13 @@ the command path.
    Tailscale's adapter is often a *Public* network, so the README needs a
    firewall note. Test: the iPad's Desktop hub shows the Windows app's
    VFOs, meters and MENU values, and controls do nothing yet.
-   Add a C# round-trip test: a JSON fixture captured from the Mac's
-   `RigStatePush`, decoded and re-encoded by the DTOs. Also decode one of
-   this app's pushes with the Swift `JSONDecoder` (a small `swift test`
-   fixture) so that a missing required field shows up as a test failure,
-   not as a silent "Connecting…".
+   Tests both ways, through `Tests/WireFixtures/` (its README lists the
+   shapes that are easy to get wrong): a C# test that decodes the Swift-
+   made `rig-state-push.*.json` and re-encodes them to the same JSON
+   (ignoring key order), and C#-made pushes committed to
+   `Tests/WireFixtures/windows/`, which `HubWireFixtureTests` on the Mac
+   decodes the way the iPad does — so a missing required field fails a
+   test instead of leaving the iPad on "Connecting…".
 2. **Command path.** `Services/Hub/RigCommandDispatcher.cs`: parse
    `RigCommand` JSON and run each command through the *same* methods the
    Windows UI uses (`SetMainFrequencyAsync`, swap, V/M, memory channel,
