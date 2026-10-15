@@ -88,6 +88,7 @@ struct FTX1RemoteMacApp: App {
             CWWindowView()
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.cwReceiver)
+                .environmentObject(appDelegate.hub.cwWebSDRSource)
                 .environmentObject(appDelegate.hub.cwSender)
                 .environmentObject(appDelegate.hub.workedStations)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)

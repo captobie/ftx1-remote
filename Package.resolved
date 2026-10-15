@@ -1,0 +1,15 @@
+{
+  "originHash" : "0e353869fe252c7d2f24baa432c4328f57c2a0a41e7d60fe2b8780a6da6ebb23",
+  "pins" : [
+    {
+      "identity" : "cwdecode",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/captobie/cwdecode",
+      "state" : {
+        "revision" : "021e4d6e35a9f51d50e1446e6e5b726551814121",
+        "version" : "0.2.1"
+      }
+    }
+  ],
+  "version" : 3
+}

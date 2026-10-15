@@ -1078,6 +1078,42 @@ keys the rig and sends the iPad's microphone to the rig's USB audio input.
   checked only by build, not on screen (needs a live hub). iPhone and
   Windows are out of scope.
 
+## iPad CW decoder (phase 1, decode only, 2026-10-14; Simulator against the real Pi and a live Mac hub)
+
+User request: the Mac's CW decoder on the iPad, in a pane over the filter
+block + MENU grid (the APRS lists' area), opened by a **CW** button at the
+left of the top row's rig buttons, on both routes. Sending comes next
+(phase 2), as its own section under the tuning row, pausing the decoder
+through `CWReceiver.setSenderActive(_:)` as the Mac's `CWSender` does;
+phase 3 is sending on the hub route (needs new wire messages — the
+keyer-memory write and send queue live only in `HubService` today).
+
+- **`FTX1CW`**: a new SPM product/target (Mac + iPad only, like FT8Kit,
+  so the iPhone doesn't carry the Core ML model) with the shared
+  `CWReceiver`/`CWMeterStore`/`CWRigInfo` and the receive controls. It
+  depends on CWKit by URL (`Package.swift`, `upToNextMinor(from: "0.2.1")`
+  — keep it compatible with the Mac target's own Xcode reference to the
+  same repo). CWKit 0.2.1 (cwdecode `021e4d6`) only adds `.iOS(.v18)` to
+  its manifest; the model's ops need iOS 18 / macOS 15, so the package's
+  platforms went up to `"15.0"`/`"18.0"` (string form: tools 5.10 has no
+  `.v15`/`.v18`). The apps are at 26.5 anyway.
+- **Audio**: both view models call `onReceiveAudio` (FTX1Core can't name
+  `CWReceiver`) with every 8 kHz MAIN/SUB chunk, before the mute/transmit
+  checks — the hub relay as received, Pi direct after its downsamplers.
+  The App wires it to the one shared receiver (`ingest(pcm:...)`). 8 kHz
+  is the neural model's own rate, so unlike APRS the hub route loses
+  nothing. Decoding runs only while the pane shows on a connected route
+  (`CWPaneModifier`), which also forwards `CWRigInfo` (TX incl. the iPad's
+  own PTT press, KP pitch, modes). Only the pane observes the receiver,
+  so decoded text never re-renders the screen.
+- iPad leaves out the Mac's WebSDR source, Open Audio File, callsign links
+  and worked-before colors (no logbook on the iPad).
+- Verified in the Simulator: Pi direct and the hub route (Debug Mac app,
+  localhost) both decoding W1AW on 14.047.5 with the neural model loaded
+  on iOS; MAIN/SUB switch with the "not CW" note; Close restoring the
+  grid and the filter spectrum. The Mac's CW window still decodes after
+  the move. Not yet on a real iPad, not tried in landscape.
+
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
 A Windows app with the same kind of functionality as the Mac app. Talks
@@ -1550,8 +1586,9 @@ vendored here.
   `.mlpackage` resource's inner `model.mlmodel` instead and fails;
   cwdecode's `export.py` compiles it with `coremlcompiler`. Built Mac app:
   `Contents/Resources/CWKit_CWKit.bundle/.../CWNet.mlmodelc`.
-- **`CWReceiver`** (`Apps/Mac/FTX1RemoteMac/CWReceiver.swift`) is a plain
-  `let` on `HubService` (like `ft8Store`), fed by *both* audio taps
+- **`CWReceiver`** (`Sources/FTX1CW/CWReceiver.swift` since 2026-10-14,
+  shared with the iPad — see "iPad CW decoder") is a `lazy var` on
+  `HubService` (its own object, like `ft8Store`), fed by *both* audio taps
   unconditionally (before the APRS gates); it keeps only the selected
   channel (`CWAudioChannel`, persisted `cw.channel`) and drops everything
   while the window is closed (`start()`/`stop()` from `CWWindowView`'s
@@ -1563,6 +1600,10 @@ vendored here.
   changes at once) so they never re-render the decoded text. Settings are
   `cw.*` UserDefaults keys. Switching channel flushes the decoder and
   starts a new line.
+  The WebSDR source is the Mac-only `CWWebSDRSource` beside it, which
+  follows the receiver's `onSourceChanged` (running and channel) to run
+  the tap; the meters bar, tuning row and decoder picker are the shared
+  `FTX1CW` views (`CWReceiverControls.swift`).
 - **Open Audio File** (file dialog opens in the Recordings folder) pauses
   live decoding, decodes into the same text under a "— filename —" header,
   then live resumes. `pendingFlushes` counts `.finished` events from
@@ -2267,6 +2308,9 @@ WebSDR differences are in their own bullet at the end.
   lives in the Xcode-project Mac target, which — like the rest of this
   project — has no unit test target; verify that layer via hardware
   validation, same as every other CAT/audio feature.
+- `Sources/FTX1CW/` — the CW receiver on CWKit, shared by the Mac and the
+  iPad (separate product so the iPhone doesn't carry it) — see "iPad CW
+  decoder" above.
 - `Apps/Mac/FTX1RemoteMac/` — Mac app target source (canonical location;
   the Xcode project at `FTX1RemoteMac/FTX1RemoteMac.xcodeproj` points at
   this directory via a synchronized group, not a separate copy). Owns the
@@ -2278,7 +2322,7 @@ WebSDR differences are in their own bullet at the end.
   the shared `FTX1Core` `RemoteAudioStreamClient`) — Mac-only, see Architecture above. Also owns
   FT8 decoding (`FT8DecodeCoordinator`, `FT8Resampler`, `FT8Store`,
   `FT8Spot`, `FT8ListView`) — see "Digital modes — FT8" above. Also
-  owns CW decoding and sending (`CWReceiver`, `CWSender`, `CWWindowView`,
+  owns CW decoding and sending (`CWSender`, `CWWindowView`, `CWWebSDRSource`,
   `CWSendPane`, `WebSDRAudioTap`, on CWKit) — see "Digital
   modes — CW" above. Dense
   multi-pane UI (`ContentView`: VFO, meters, scope display,

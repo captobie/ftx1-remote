@@ -1,3 +1,4 @@
+import FTX1CW
 import FTX1Core
 import SwiftUI
 
@@ -75,6 +76,8 @@ struct HubControlView: View {
     @Environment(\.scenePhase) private var scenePhase
     /// S.LIST/M.LIST shown in place of the MENU grid (`APRSListPane`).
     @State private var aprsListKind: APRSListKind?
+    /// The CW decoder shown in place of the MENU grid (`CWPane`).
+    @State private var showingCW = false
 
     var body: some View {
         ScrollView {
@@ -140,7 +143,7 @@ struct HubControlView: View {
 
                 // The APRS pane covers the filter block and the grid both.
                 VStack(alignment: .leading, spacing: 16) {
-                    FilterPanel<RigClientViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && aprsListKind == nil)
+                    FilterPanel<RigClientViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && aprsListKind == nil && !showingCW)
                     MenuPageView<RigClientViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
                 }
                 .aprsListPane(
@@ -148,6 +151,12 @@ struct HubControlView: View {
                     stations: viewModel.aprsList?.stations ?? [],
                     messages: viewModel.aprsList?.messages ?? [],
                     onClearHistory: nil
+                )
+                .cwPane(
+                    isShowing: $showingCW,
+                    isConnected: viewModel.connectionState == .connected,
+                    rigInfo: CWRigInfo(state: viewModel.rigState, connected: viewModel.connectionState == .connected, transmitting: viewModel.isTransmitting),
+                    singleReceive: viewModel.rigState.singleReceive == true
                 )
             }
             .padding(32)
@@ -183,6 +192,8 @@ struct HubControlView: View {
         let state = viewModel.rigState
         let audioSwapped = state.audioChannelsSwapped == true
         return HStack(spacing: 12) {
+            CWPaneButton(isShowing: $showingCW, aprsListKind: $aprsListKind)
+
             MemoryScanButtons(state: state, isConnected: true, send: viewModel.send)
 
             // Against `.vfo`, not `.memory`, as on the Mac: the rig's other

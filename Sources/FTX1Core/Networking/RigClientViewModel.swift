@@ -46,6 +46,11 @@ public final class RigClientViewModel: ObservableObject, RigController {
     /// re-render only the display.
     public let filterSpectrum = FilterSpectrumStore()
 
+    /// Every 8 kHz receive chunk (`AudioStreamFormat`), MAIN and SUB, on
+    /// the main actor, before the mute/transmit checks — for the iPad's CW
+    /// decoder, which lives in `FTX1CW` and so can't be named here.
+    public var onReceiveAudio: (@MainActor (Data, FilterSide) -> Void)?
+
     /// Mirrors `HubService.isMainAudioMuted`/`isSubAudioMuted` on the Mac —
     /// same shape (`private(set)` + an explicit toggle method, since this
     /// is a discrete action rather than a continuously-adjustable value
@@ -128,6 +133,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     self.filterSpectrum.ingest(pcm: data, side: .main)
+                    self.onReceiveAudio?(data, .main)
                     guard !self.isMainAudioMuted, !self.isTransmitting else { return }
                     self.audioEngine.push(pcm: data)
                 }
@@ -136,6 +142,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     self.filterSpectrum.ingest(pcm: data, side: .sub)
+                    self.onReceiveAudio?(data, .sub)
                     guard !self.isSubAudioMuted, !self.isTransmitting else { return }
                     self.subAudioEngine.push(pcm: data)
                 }

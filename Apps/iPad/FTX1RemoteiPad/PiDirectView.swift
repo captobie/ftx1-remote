@@ -1,3 +1,4 @@
+import FTX1CW
 import FTX1Core
 import SwiftUI
 
@@ -51,6 +52,8 @@ struct PiDirectView: View {
     @Environment(\.scenePhase) private var scenePhase
     /// S.LIST/M.LIST shown in place of the MENU grid (`APRSListPane`).
     @State private var aprsListKind: APRSListKind?
+    /// The CW decoder shown in place of the MENU grid (`CWPane`).
+    @State private var showingCW = false
 
     var body: some View {
         ScrollView {
@@ -207,24 +210,35 @@ struct PiDirectView: View {
                 .lineLimit(1)
         }
 
-        if let store = viewModel.aprsStore {
-            ObservingAPRSStore(store: store) { store in
-                // The APRS pane covers the filter block and the grid both.
-                VStack(alignment: .leading, spacing: 16) {
-                    FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && aprsListKind == nil)
-                    MenuPageView<PiDirectViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
+        Group {
+            if let store = viewModel.aprsStore {
+                ObservingAPRSStore(store: store) { store in
+                    // The APRS pane covers the filter block and the grid both.
+                    VStack(alignment: .leading, spacing: 16) {
+                        FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && aprsListKind == nil && !showingCW)
+                        MenuPageView<PiDirectViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
+                    }
+                    .aprsListPane(
+                        kind: $aprsListKind,
+                        stations: store.stations,
+                        messages: store.messages,
+                        onClearHistory: store.clearHistory
+                    )
                 }
-                .aprsListPane(
-                    kind: $aprsListKind,
-                    stations: store.stations,
-                    messages: store.messages,
-                    onClearHistory: store.clearHistory
-                )
+            } else {
+                VStack(alignment: .leading, spacing: 16) {
+                    FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && !showingCW)
+                    MenuPageView<PiDirectViewModel>(showsPagePicker: false)
+                }
             }
-        } else {
-            FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected)
-            MenuPageView<PiDirectViewModel>(showsPagePicker: false)
         }
+        // Over the APRS pane's area too; the CW button closes the lists.
+        .cwPane(
+            isShowing: $showingCW,
+            isConnected: viewModel.connectionState == .connected,
+            rigInfo: CWRigInfo(state: viewModel.rigState, connected: viewModel.connectionState == .connected, transmitting: viewModel.isTransmitting),
+            singleReceive: viewModel.rigState.singleReceive == true
+        )
 
         Text("Direct to rigctld on the Pi, no Mac hub. Unlock to transmit (PTT, MOX, ANT TUNE); hold PTT to talk through the iPad's microphone. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed. Menu values refresh every ~10 s.")
             .font(.caption)
@@ -238,6 +252,8 @@ struct PiDirectView: View {
         let state = viewModel.rigState
         let scanning = state.memoryScan == .scanning || state.memoryScan == .paused
         return HStack(spacing: 12) {
+            CWPaneButton(isShowing: $showingCW, aprsListKind: $aprsListKind)
+
             MemoryScanButtons(state: state, isConnected: true, send: viewModel.send)
 
             // Against `.vfo`, not `.memory`, as on the Mac: the rig's other

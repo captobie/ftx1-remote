@@ -4,8 +4,8 @@ import PackageDescription
 let package = Package(
     name: "FTX1Core",
     platforms: [
-        .macOS(.v14),
-        .iOS(.v17)
+        .macOS("15.0"),
+        .iOS("18.0")
     ],
     products: [
         // The shared logic layer consumed by both the Mac (server/hub) app
@@ -22,16 +22,28 @@ let package = Package(
             name: "FT8Kit",
             targets: ["FT8Kit"]
         ),
+        // The CW receiver on CWKit (`captobie/cwdecode`), shared by the Mac
+        // and the iPad. Separate from FTX1Core for the same reason as
+        // FT8Kit: the iPhone doesn't decode CW and shouldn't carry the
+        // Core ML model.
+        .library(
+            name: "FTX1CW",
+            targets: ["FTX1CW"]
+        ),
     ],
     dependencies: [
-        // No external deps yet. If a WebSocket client/server abstraction
-        // beyond URLSessionWebSocketTask is needed later (e.g. for the Mac
-        // server side), consider swift-nio-based options here.
+        // CWKit. The Mac app target also names it in the Xcode project;
+        // keep the two requirements compatible.
+        .package(url: "https://github.com/captobie/cwdecode", .upToNextMinor(from: "0.2.1")),
     ],
     targets: [
         .target(
             name: "FTX1Core",
             dependencies: []
+        ),
+        .target(
+            name: "FTX1CW",
+            dependencies: ["FTX1Core", .product(name: "CWKit", package: "cwdecode")]
         ),
         .testTarget(
             name: "FTX1CoreTests",

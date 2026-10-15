@@ -1,5 +1,6 @@
 import Combine
 import CoreGraphics
+import FTX1CW
 import FTX1Core
 import Foundation
 import os
@@ -255,8 +256,15 @@ final class HubService: ObservableObject {
     /// picks the selected receiver itself and drops everything while the
     /// CW window is closed (`CWWindowView` calls `start()`/`stop()`). Its
     /// own object, like `ft8Store`, so decoded text never re-renders the
-    /// main window (`lazy` only so it can be handed `webSDRAudioRouting`).
-    lazy var cwReceiver = CWReceiver(webSDRAudioRouting: webSDRAudioRouting)
+    /// main window (`lazy` so it can attach `cwWebSDRSource`, the Mac-only
+    /// WebSDR source).
+    lazy var cwReceiver: CWReceiver = {
+        let receiver = CWReceiver(logSubsystem: "com.ftx1remote.mac")
+        cwWebSDRSource.attach(to: receiver)
+        return receiver
+    }()
+    /// The CW window's WebSDR source, following `cwReceiver`.
+    lazy var cwWebSDRSource = CWWebSDRSource(routing: webSDRAudioRouting)
     /// Where the WebSDR window's Mute goes while the CW window captures its
     /// audio — see `WebSDRAudioRouting`.
     let webSDRAudioRouting = WebSDRAudioRouting()
@@ -554,12 +562,7 @@ final class HubService: ObservableObject {
         // Modes only while connected: before the first read, `rigState`
         // holds placeholder values (`mode` is USB).
         cwRigCancellable = $rigState.combineLatest($connectionState)
-            .map { rig, connection in
-                let connected = connection == .connected
-                return CWRigInfo(transmitting: rig.ptt, pitchHz: rig.cwPitchHz,
-                                 mainMode: connected ? rig.mode : .unknown,
-                                 subMode: connected ? rig.secondaryMode : nil)
-            }
+            .map { rig, connection in CWRigInfo(state: rig, connected: connection == .connected) }
             .removeDuplicates()
             .sink { [weak self] info in self?.cwReceiver.rigInfoChanged(info) }
         // Throttled: a scan publishes once per channel. `latest: true` keeps

@@ -83,6 +83,11 @@ public final class PiDirectViewModel: ObservableObject {
     /// before the mute/transmit checks — see `FilterSpectrumStore`.
     public let filterSpectrum = FilterSpectrumStore()
 
+    /// Every downsampled 8 kHz receive chunk (`AudioStreamFormat`), MAIN and SUB, on
+    /// the main actor, before the mute/transmit checks — for the iPad's CW
+    /// decoder, which lives in `FTX1CW` and so can't be named here.
+    public var onReceiveAudio: (@MainActor (Data, FilterSide) -> Void)?
+
     public enum AudioState: Equatable {
         case off
         /// Connected (or retrying) but no samples lately — the Pi
@@ -462,8 +467,14 @@ public final class PiDirectViewModel: ObservableObject {
                 self.lastAudioAt = Date()
                 if self.audioState != .playing { self.audioState = .playing }
                 // Before the mute/transmit checks: a muted side still shows.
-                if !mainPCM.isEmpty { self.filterSpectrum.ingest(pcm: mainPCM, side: .main) }
-                if !subPCM.isEmpty { self.filterSpectrum.ingest(pcm: subPCM, side: .sub) }
+                if !mainPCM.isEmpty {
+                    self.filterSpectrum.ingest(pcm: mainPCM, side: .main)
+                    self.onReceiveAudio?(mainPCM, .main)
+                }
+                if !subPCM.isEmpty {
+                    self.filterSpectrum.ingest(pcm: subPCM, side: .sub)
+                    self.onReceiveAudio?(subPCM, .sub)
+                }
                 guard !self.isTransmitting else { return }
                 if !mainPCM.isEmpty, !self.isMainAudioMuted { self.mainAudioEngine.push(pcm: mainPCM) }
                 if !subPCM.isEmpty, !self.isSubAudioMuted { self.subAudioEngine.push(pcm: subPCM) }
