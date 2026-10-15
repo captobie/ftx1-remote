@@ -98,8 +98,8 @@ public sealed class FilterPanel : UserControl
         _shiftSlider = new CommitSlider(IFShift.Min, IFShift.Max, IFShift.StepHz, 180, "IF shift",
             rigValue: () => _state.IfShiftHz is { } hz ? IFShift.Snapped(hz) : null,
             onChanging: hz => _shiftLabel.Text = IFShift.Label(IFShift.Snapped(hz)),
-            onCommit: hz => _ = SendShiftAsync(IFShift.Snapped(hz)));
-        _shiftCenterButton.Click += (_, _) => _ = SendShiftAsync(0);
+            onCommit: hz => _ = SetShiftAsync(hz));
+        _shiftCenterButton.Click += (_, _) => _ = SetShiftAsync(0);
         _shiftGroup.Children.Add(Caption("Shift"));
         _shiftGroup.Children.Add(_shiftSlider.Slider);
         _shiftGroup.Children.Add(_shiftLabel);
@@ -111,39 +111,30 @@ public sealed class FilterPanel : UserControl
             valueHz: () => _state.ContourHz,
             label: IFContour.ContourLabel,
             snap: IFContour.SnappedContourHz,
-            onToggle: on => _ = SendAsync("Contour", () => _state.ContourEnabled = on,
-                (c, p1) => c.SetRawIntAsync($"CO{p1}0", on ? 1 : 0, 4)),
-            onCommit: hz => _ = CommitToggleSliderAsync(IFContour.Face.Contour, "Contour",
-                () => _state.ContourHz = hz, (c, p1) => c.SetRawIntAsync($"CO{p1}1", hz, 4),
-                () => _state.ContourEnabled, () => _state.ContourEnabled = true,
-                (c, p1) => c.SetRawIntAsync($"CO{p1}0", 1, 4)));
+            onToggle: on => _ = SetContourAsync(on),
+            onCommit: hz => _ = CommitToggleSliderAsync(IFContour.Face.Contour,
+                () => SetContourFrequencyAsync(hz), () => _state.ContourEnabled, () => SetContourAsync(true)));
         _apfRow = new ToggleSliderRow("APF", "Audio peak filter on/off", IFContour.ApfMinHz, IFContour.ApfMaxHz,
             IFContour.StepHz, idleHz: 0,
             isOn: () => _state.ApfEnabled,
             valueHz: () => _state.ApfHz,
             label: IFContour.ApfLabel,
             snap: IFContour.SnappedApfHz,
-            onToggle: on => _ = SendAsync("APF", () => _state.ApfEnabled = on,
-                (c, p1) => c.SetRawIntAsync($"CO{p1}2", on ? 1 : 0, 4)),
-            onCommit: hz => _ = CommitToggleSliderAsync(IFContour.Face.Apf, "APF",
-                () => _state.ApfHz = hz, (c, p1) => c.SetRawIntAsync($"CO{p1}3", IFContour.ApfCode(hz), 4),
-                () => _state.ApfEnabled, () => _state.ApfEnabled = true,
-                (c, p1) => c.SetRawIntAsync($"CO{p1}2", 1, 4)));
+            onToggle: on => _ = SetApfAsync(on),
+            onCommit: hz => _ = CommitToggleSliderAsync(IFContour.Face.Apf,
+                () => SetApfOffsetAsync(hz), () => _state.ApfEnabled, () => SetApfAsync(true)));
         _notchRow = new ToggleSliderRow("Notch", "Manual notch on/off", IFNotch.MinHz, IFNotch.MaxHz,
             IFNotch.StepHz, idleHz: IFNotch.MinHz,
             isOn: () => _state.NotchEnabled,
             valueHz: () => _state.NotchHz,
             label: IFNotch.Label,
             snap: IFNotch.SnappedHz,
-            onToggle: on => _ = SendAsync("Notch", () => _state.NotchEnabled = on,
-                (c, p1) => c.SetRawIntAsync($"BP{p1}0", on ? 1 : 0, 3)),
-            onCommit: hz => _ = CommitToggleSliderAsync(null, "Notch",
-                () => _state.NotchHz = hz, (c, p1) => c.SetRawIntAsync($"BP{p1}1", IFNotch.Code(hz), 3),
-                () => _state.NotchEnabled, () => _state.NotchEnabled = true,
-                (c, p1) => c.SetRawIntAsync($"BP{p1}0", 1, 3)));
+            onToggle: on => _ = SetNotchAsync(on),
+            onCommit: hz => _ = CommitToggleSliderAsync(null,
+                () => SetNotchFrequencyAsync(hz), () => _state.NotchEnabled, () => SetNotchAsync(true)));
 
         ToolTipService.SetToolTip(_narrowToggle, "Narrow filter on/off");
-        _narrowToggle.Click += (_, _) => _ = ToggleNarrowAsync();
+        _narrowToggle.Click += (_, _) => _ = SetNarrowAsync(_state.NarrowEnabled != true);
 
         _mainSideButton.Click += (_, _) => SelectSide(FilterSide.Main);
         _subSideButton.Click += (_, _) => SelectSide(FilterSide.Sub);
@@ -417,50 +408,82 @@ public sealed class FilterPanel : UserControl
         {
             return;
         }
-        _ = SendWidthAsync(index);
+        _ = SetWidthAsync(index);
     }
 
     private void StepWidth(bool narrower)
     {
         if (FilterWidthTable.NeighborIndex(_state.FilterWidthIndex ?? 0, _state.FilterMode, narrower) is { } target)
         {
-            _ = SendWidthAsync(target);
+            _ = SetWidthAsync(target);
         }
     }
 
+    // The selected side's filter settings. The controls above act through
+    // these, and so does the iPad's Desktop hub (Services/Hub/
+    // RigCommandDispatcher.cs), so the two can't drift apart. Frequencies
+    // are snapped to the rig's grid here, as the Mac's CommandQueue does.
+
     /// 3 digits: P2 ("0") + the 2-digit index, e.g. "SH0017".
-    private Task SendWidthAsync(int index) =>
+    public Task SetWidthAsync(int index) =>
         SendAsync("Filter width", () => _state.FilterWidthIndex = index, (c, p1) => c.SetRawIntAsync($"SH{p1}", index, 3));
 
-    private Task SendShiftAsync(int hz) =>
-        SendAsync("IF shift", () => _state.IfShiftHz = hz, (c, p1) => c.SetIFShiftHzAsync(int.Parse(p1), hz));
+    public Task SetShiftAsync(int hz)
+    {
+        var snapped = IFShift.Snapped(hz);
+        return SendAsync("IF shift", () => _state.IfShiftHz = snapped, (c, p1) => c.SetIFShiftHzAsync(int.Parse(p1), snapped));
+    }
+
+    public Task SetNotchAsync(bool on) =>
+        SendAsync("Notch", () => _state.NotchEnabled = on, (c, p1) => c.SetRawIntAsync($"BP{p1}0", on ? 1 : 0, 3));
+
+    public Task SetNotchFrequencyAsync(int hz)
+    {
+        var snapped = IFNotch.SnappedHz(hz);
+        return SendAsync("Notch", () => _state.NotchHz = snapped, (c, p1) => c.SetRawIntAsync($"BP{p1}1", IFNotch.Code(snapped), 3));
+    }
+
+    public Task SetContourAsync(bool on) =>
+        SendAsync("Contour", () => _state.ContourEnabled = on, (c, p1) => c.SetRawIntAsync($"CO{p1}0", on ? 1 : 0, 4));
+
+    public Task SetContourFrequencyAsync(int hz)
+    {
+        var snapped = IFContour.SnappedContourHz(hz);
+        return SendAsync("Contour", () => _state.ContourHz = snapped, (c, p1) => c.SetRawIntAsync($"CO{p1}1", snapped, 4));
+    }
+
+    public Task SetApfAsync(bool on) =>
+        SendAsync("APF", () => _state.ApfEnabled = on, (c, p1) => c.SetRawIntAsync($"CO{p1}2", on ? 1 : 0, 4));
+
+    public Task SetApfOffsetAsync(int hz)
+    {
+        var snapped = IFContour.SnappedApfHz(hz);
+        return SendAsync("APF", () => _state.ApfHz = snapped, (c, p1) => c.SetRawIntAsync($"CO{p1}3", IFContour.ApfCode(snapped), 4));
+    }
 
     /// A slider released on notch/contour/APF: the frequency, then "on" if
     /// it was off, so it appears where it was dropped. Dropped if a mode
     /// change switched CONTOUR ↔ APF mid-drag, so a contour frequency is
     /// never sent as an APF offset.
-    private async Task CommitToggleSliderAsync(IFContour.Face? face, string what,
-        Action applyValue, Func<RigctldClient, string, Task> sendValue,
-        Func<bool?> isOn, Action applyOn, Func<RigctldClient, string, Task> sendOn)
+    private async Task CommitToggleSliderAsync(IFContour.Face? face, Func<Task> setValue, Func<bool?> isOn, Func<Task> turnOn)
     {
         if (face is { } f && IFContour.FaceFor(_state.FilterMode) != f)
         {
             RefreshUI();
             return;
         }
-        await SendAsync(what, applyValue, sendValue);
+        await setValue();
         if (isOn() != true)
         {
-            await SendAsync(what, applyOn, sendOn);
+            await turnOn();
         }
     }
 
     /// NARROW moves the passband to the mode's narrow preset, so re-read
     /// the width right behind the write instead of waiting for the slow
     /// tier (HubService.refreshWidthAfterNarrow).
-    private async Task ToggleNarrowAsync()
+    public async Task SetNarrowAsync(bool on)
     {
-        var on = _state.NarrowEnabled != true;
         await SendAsync("Narrow", () => _state.NarrowEnabled = on, (c, p1) => c.SetRawBoolAsync($"NA{p1}", on));
         if (_client is not { } client)
         {
@@ -498,12 +521,14 @@ public sealed class FilterPanel : UserControl
         }
     }
 
-    private void SelectSide(FilterSide side)
+    /// MAIN/SUB. False (and nothing changes) for SUB in single-receive
+    /// display, where the SUB receiver isn't shown.
+    public bool SelectSide(FilterSide side)
     {
         if (side == FilterSide.Sub && _singleReceive == true)
         {
             RefreshUI();
-            return;
+            return false;
         }
         if (side != _state.FilterSide)
         {
@@ -514,6 +539,7 @@ public sealed class FilterPanel : UserControl
             RequestRefresh(TimeSpan.FromMilliseconds(200));
         }
         RefreshUI();
+        return true;
     }
 
     // UI

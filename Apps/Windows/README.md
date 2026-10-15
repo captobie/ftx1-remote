@@ -1305,7 +1305,7 @@ lists it.
   picker, switching sides mid-scan, a Mem List recall mid-scan, a scan
   started from the front panel, and both boxes with TX:SUB and no scan.
 
-## Desktop hub for the iPad (plan, 2026-10-15; phase 1 done 2026-10-15)
+## Desktop hub for the iPad (plan, 2026-10-15; phase 1 done 2026-10-15, phase 2 built 2026-10-15)
 
 Goal: the iPad's hub route (renamed "Desktop hub" on 2026-10-15, raw
 `connectionRoute` value still `macHub`) can connect to this app the way it
@@ -1396,6 +1396,91 @@ already using, Local or Remote.
   stops and restarts the listener. Then the user connected a real iPad's
   Desktop hub route to it, 2026-10-15, working. Not tested: a refusal from
   a real outside address (unit-tested only), Local mode.
+
+### Phase 2 status (2026-10-15: built and tested on the PC; the iPad checklist below is still to do)
+
+- **Parsing**: `Services/Hub/RigCommandWire.cs` turns a client's text
+  frame into one C# record per Swift `RigCommand` case (71), or says it's
+  `read_menu_item`/`cw_keyer` (logged and ignored until phases 4 and 6),
+  an unknown command (logged and ignored, as an older Mac hub does) or
+  invalid (wrong value shape, not JSON — logged, the connection stays up).
+  Binary frames are still logged and ignored (TX audio is phase 5).
+- **Running**: `Services/Hub/RigCommandDispatcher.cs` puts every client's
+  commands through one FIFO (like the Mac's `RigWebSocketServer`) and runs
+  each to completion on the UI thread before the next. Each goes through
+  the code the window's own control uses, so the window shows what the
+  iPad changed: MainWindow's methods behind the VFO entry, ⇄, TX:MAIN/SUB,
+  V/M, mode and band pickers, power slider, PTT release, Enable Transmit
+  switch, speaker override, memory list recall and Scan/Skip/Stop
+  (reached through `IHubRigHost`, implemented in `MainWindow.Hub.cs`);
+  `MenuGrid`'s and `FilterPanel`'s public setters, which their buttons
+  and sliders now call too (pulled out of the click handlers); the Deep
+  Settings dialog's `SetMenuItemAsync`. Where the window has no control,
+  the Mac's `CommandQueue` mapping: `set_secondary_mode` (raw "MD1<code>",
+  shown at once), C4FM on `set_mode` (raw "MD<active side>H"), `set_txw`
+  ("TS"), CW MESSAGE select/record/play ("LM0n"/"LM1"/"KY1n"),
+  `play_cw_text_memory` ("KY0n").
+- **Before a command runs** (`Services/Hub/HubCommandPolicy.cs`, pure and
+  unit-tested): `TransmitGate.BlockReason` for MOX on, ANT TUNE,
+  `play_cw_text_memory` 1-5 and `play_cw_message` 1-5 (stops never gated);
+  **PTT on is refused** ("PTT from the iPad arrives in phase 5": no TX
+  audio or unkey-on-disconnect yet), PTT off always goes through; values
+  the rig shouldn't get (outside the MENU grid control's range, a delay
+  that isn't one of the rig's, a ";" in a Deep Settings value, an unknown
+  band) are refused. Then the Mac's `memoryScanStop(for:scanSide:)` rule,
+  through MainWindow's own scan stop (restore the TX side, or keep it
+  before anything that transmits). Refusals are logged as "hub: client N:
+  <command> — refused: <reason>". With the rig not connected, commands
+  are dropped (logged) except Enable Transmit and the speaker override.
+- **Optimistic state**: as the Windows UI already does — MENU grid,
+  filter, RF power, TX side, V/M, a list recall, the scan state, Enable
+  Transmit, the speaker override — plus SUB's mode (the Mac does). The
+  push timer sends it within 100 ms, which is how the iPad's controls
+  update (it doesn't apply its own). MAIN/SUB frequency, MAIN's mode and
+  channel set/step wait for the next poll (≤ the poll interval), as they
+  do for the window's own controls.
+- **Fix from the phase 1 review**: `HubServer` serializes every send-side
+  call per client (`Client.SendLock`): the push loop, the receive loop's
+  close-handshake reply (bounded at 5 s) and `StopAsync`'s close. Before,
+  a close during a push threw `InvalidOperationException`.
+- **Different from the Mac hub**:
+  - `set_band`: the amateur bands only, at the band's default frequency;
+    no band memory (last frequency/mode/width) and no general-coverage
+    segments (refused as an unknown band). `set_freq` doesn't pick a mode
+    when entering a general-coverage segment either.
+  - `set_mode` goes through this app's "M currVFO <mode> 0", whose
+    passband 0 lets hamlib reset the width on a mode change (the Mac sends
+    -1, keeping the rig's own last width). Same as the window's mode picker.
+  - The MENU grid's slow-tier read covers only the page shown in *this*
+    window, so a front-panel change on another page reaches the iPad only
+    once that page is shown here; the iPad's own changes show at once
+    (optimistic).
+  - `play_cw_message 0` (stop) isn't gated; the Mac gates every
+    `play_cw_message`.
+  - Stricter value checks than the Mac (above).
+  - `refresh_memory_list` is logged and ignored until phase 4.
+- **Tests** (`FTX1RemoteWindows.Tests/HubCommandTests.cs`, with
+  `RigCommandWire.cs`, `HubCommandPolicy.cs`, `TransmitGate.cs` and
+  `RigDelayCode.cs` linked in): every entry of `rig-commands.json` parses
+  to the expected record and re-serializes to equal JSON, and the
+  fixture, the type table and the parser all have the same 71 names; bad
+  frames (wrong types, missing fields, out-of-range sides, not JSON)
+  classify as invalid without throwing; the gate, value and scan-stop
+  decisions. 187 tests pass.
+- **Tested here** (2026-10-15, a scripted WebSocket client on the PC):
+  rig not connected — `set_transmit_enabled` off/on moving the switch,
+  the push and the saved setting; PTT, MOX and ANT TUNE refused while
+  locked; unknown, invalid and `read_menu_item` frames logged with the
+  connection kept; the speaker override pushed both ways; a clean close.
+  Remote mode against the rig — ATT on/off, filter side SUB/MAIN (with
+  the re-read), MAIN and SUB mode re-set to their current values, each
+  in the next push, no errors. Nothing was keyed.
+- **To test with a real iPad, Remote and Local mode**: MAIN and SUB tune
+  and mode, band picker, swap and the speaker button, V/M, memory channel
+  set/step/recall from the list, Scan/Skip/Stop, every filter control on
+  MAIN and SUB, MENU grid values incl. RF POWER, the lock button (Enable
+  Transmit following on the PC), and PTT, MOX and ANT TUNE refused while
+  locked. No on-air transmit tests in this phase.
 
 **Windows Firewall.** The app is unpackaged, so Windows asks "Allow
 FTX1RemoteWindows to communicate on these networks?" the first time the

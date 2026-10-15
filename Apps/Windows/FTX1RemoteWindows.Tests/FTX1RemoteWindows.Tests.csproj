@@ -17,6 +17,10 @@
   <ItemGroup>
     <Compile Include="..\FTX1RemoteWindows\Services\Hub\WireModels.cs" Link="Linked\WireModels.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\Hub\HubAddressFilter.cs" Link="Linked\HubAddressFilter.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\Hub\RigCommandWire.cs" Link="Linked\RigCommandWire.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\Hub\HubCommandPolicy.cs" Link="Linked\HubCommandPolicy.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\TransmitGate.cs" Link="Linked\TransmitGate.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\RigDelayCode.cs" Link="Linked\RigDelayCode.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigState.cs" Link="Linked\RigState.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigMode.cs" Link="Linked\RigMode.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\BandPlan.cs" Link="Linked\BandPlan.cs" />

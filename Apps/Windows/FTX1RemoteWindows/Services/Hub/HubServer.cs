@@ -11,8 +11,11 @@ namespace FTX1RemoteWindows.Services.Hub;
 
 /// The Mac hub's WebSocket server (RigWebSocketServer.swift), so the iPad's
 /// "Desktop hub" route can connect to this app — Apps/Windows/README.md,
-/// "Desktop hub for the iPad". Phase 1: state pushes only. Inbound frames
-/// are logged and ignored.
+/// "Desktop hub for the iPad". State pushes go out (phase 1); a client's
+/// commands are parsed (RigCommandWire) and raised as
+/// <see cref="CommandReceived"/> for RigCommandDispatcher (phase 2). Binary
+/// frames (TX audio, phase 5), read_menu_item (phase 4) and cw_keyer
+/// (phase 6) are logged and ignored.
 ///
 /// Plain ws:// on every interface, path "/", port <see cref="Port"/> (the
 /// iPad's RigClientViewModel has it fixed). Connections from outside
@@ -22,7 +25,8 @@ namespace FTX1RemoteWindows.Services.Hub;
 /// just keeps handing it the latest state.
 ///
 /// Thread-safe: <see cref="Publish"/> may be called from any thread, and
-/// <see cref="StatusChanged"/> is raised on a pool thread.
+/// <see cref="StatusChanged"/> and <see cref="CommandReceived"/> are raised
+/// on a pool thread.
 public sealed class HubServer : IAsyncDisposable
 {
     public const int Port = 8765;
@@ -37,6 +41,11 @@ public sealed class HubServer : IAsyncDisposable
         /// it couldn't send in time rather than queuing them.
         public Channel<string> Outbox { get; } = Channel.CreateBounded<string>(
             new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropOldest });
+        /// A WebSocket takes one send at a time, and a close counts as a
+        /// send: CloseOutputAsync while SendAsync runs throws. Every
+        /// send-side call holds this — the send loop's pushes, the close
+        /// handshake's reply, StopAsync's close.
+        public SemaphoreSlim SendLock { get; } = new(1, 1);
     }
 
     private readonly object _gate = new();
@@ -52,6 +61,10 @@ public sealed class HubServer : IAsyncDisposable
 
     /// Raised when listening starts/stops or a client connects/disconnects.
     public event Action? StatusChanged;
+
+    /// A client's command, with the client's id, in the order that client
+    /// sent them.
+    public event Action<int, RigCommand>? CommandReceived;
 
     public IReadOnlyList<ClientInfo> Clients
     {
@@ -139,12 +152,13 @@ public sealed class HubServer : IAsyncDisposable
         {
             try
             {
-                await client.Socket.CloseOutputAsync(WebSocketCloseStatus.EndpointUnavailable, "Hub turned off",
-                    new CancellationTokenSource(TimeSpan.FromSeconds(1)).Token);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+                await CloseOutputAsync(client, WebSocketCloseStatus.EndpointUnavailable, "Hub turned off", timeout.Token);
             }
             catch
             {
-                // Already gone; StopAsync below aborts what's left.
+                // Already gone, or a send stuck past the timeout; StopAsync
+                // below aborts what's left.
             }
         }
         try
@@ -228,7 +242,7 @@ public sealed class HubServer : IAsyncDisposable
         }
     }
 
-    private static async Task ReceiveLoopAsync(Client client, CancellationToken cancellationToken)
+    private async Task ReceiveLoopAsync(Client client, CancellationToken cancellationToken)
     {
         var buffer = new byte[16 * 1024];
         var message = new MemoryStream();
@@ -237,10 +251,11 @@ public sealed class HubServer : IAsyncDisposable
             var result = await client.Socket.ReceiveAsync(buffer, cancellationToken);
             if (result.MessageType == WebSocketMessageType.Close)
             {
-                if (client.Socket.State == WebSocketState.CloseReceived)
-                {
-                    await client.Socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, cancellationToken);
-                }
+                // Bounded, so a push stuck on a dead connection can't hold
+                // the disconnect up.
+                using var closeTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                closeTimeout.CancelAfter(TimeSpan.FromSeconds(5));
+                await CloseOutputAsync(client, WebSocketCloseStatus.NormalClosure, null, closeTimeout.Token);
                 return;
             }
             message.Write(buffer, 0, result.Count);
@@ -248,30 +263,88 @@ public sealed class HubServer : IAsyncDisposable
             {
                 continue;
             }
-            // Phase 1 is read-only: commands (phase 2) and TX audio (phase
-            // 5) are logged and dropped.
             if (result.MessageType == WebSocketMessageType.Text)
             {
-                var text = Encoding.UTF8.GetString(message.GetBuffer(), 0, (int)message.Length);
-                AppLog.Write($"hub: client {client.Info.Id} sent (ignored, read-only hub): {(text.Length > 200 ? text[..200] + "…" : text)}");
+                HandleText(client, Encoding.UTF8.GetString(message.GetBuffer(), 0, (int)message.Length));
             }
             else
             {
-                AppLog.Write($"hub: client {client.Info.Id} sent a {message.Length}-byte binary frame (ignored, read-only hub)");
+                // TX audio (0x02) arrives in phase 5.
+                AppLog.Write($"hub: client {client.Info.Id} sent a {message.Length}-byte binary frame (ignored until phase 5)");
             }
             message.SetLength(0);
         }
     }
 
+    /// One text frame from a client. Never throws: a bad frame is logged
+    /// and the connection carries on, as with the Mac's server.
+    private void HandleText(Client client, string text)
+    {
+        var id = client.Info.Id;
+        try
+        {
+            var inbound = RigCommandWire.ParseInbound(text);
+            switch (inbound.Kind)
+            {
+                case InboundKind.Command:
+                    CommandReceived?.Invoke(id, inbound.Command!);
+                    break;
+                case InboundKind.MenuItemRead:
+                    AppLog.Write($"hub: client {id}: read_menu_item ignored (Deep Settings reads arrive in phase 4)");
+                    break;
+                case InboundKind.CwKeyer:
+                    AppLog.Write($"hub: client {id}: cw_keyer ignored (the CW keyer arrives in phase 6)");
+                    break;
+                default:
+                    AppLog.Write($"hub: client {id}: ignored ({inbound.Error}): {Truncated(text)}");
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"hub: client {id}: handling a frame failed ({ex.Message}): {Truncated(text)}");
+        }
+    }
+
+    private static string Truncated(string text) => text.Length > 200 ? text[..200] + "…" : text;
+
     private static async Task SendLoopAsync(Client client, CancellationToken cancellationToken)
     {
         await foreach (var json in client.Outbox.Reader.ReadAllAsync(cancellationToken))
         {
-            if (client.Socket.State != WebSocketState.Open)
+            await client.SendLock.WaitAsync(cancellationToken);
+            try
             {
-                return;
+                if (client.Socket.State != WebSocketState.Open)
+                {
+                    return;
+                }
+                await client.Socket.SendAsync(Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text, true, cancellationToken);
             }
-            await client.Socket.SendAsync(Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text, true, cancellationToken);
+            finally
+            {
+                client.SendLock.Release();
+            }
+        }
+    }
+
+    /// Our half of the close handshake, under the send lock so it can't
+    /// overlap a push. Skipped once our side has closed already (the
+    /// receive loop's reply and StopAsync can both get here).
+    private static async Task CloseOutputAsync(Client client, WebSocketCloseStatus status, string? description,
+        CancellationToken cancellationToken)
+    {
+        await client.SendLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (client.Socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
+            {
+                await client.Socket.CloseOutputAsync(status, description, cancellationToken);
+            }
+        }
+        finally
+        {
+            client.SendLock.Release();
         }
     }
 }

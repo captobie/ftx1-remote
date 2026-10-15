@@ -16,7 +16,7 @@ public class HubWireTests
     private static readonly string[] RequiredStateKeys =
         ["frequencyHz", "mode", "ptt", "lastUpdated", "aprsActive", "aprsSubActive", "transmitEnabled"];
 
-    private static string FixturesDir
+    internal static string FixturesDir
     {
         get
         {
@@ -257,7 +257,7 @@ public class HubWireTests
 
     /// Structural JSON equality, ignoring key order; numbers compared by
     /// value (813758400 == 813758400.0).
-    private static void AssertJsonEqual(JsonElement expected, JsonElement actual, string path)
+    internal static void AssertJsonEqual(JsonElement expected, JsonElement actual, string path)
     {
         Assert.True(expected.ValueKind == actual.ValueKind, $"{path}: {expected.ValueKind} vs {actual.ValueKind}");
         switch (expected.ValueKind)

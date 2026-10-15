@@ -1387,18 +1387,27 @@ release with the Windows zip also gets `releases\libusb-1.0.24.tar.bz2`
 MIT-style licence (mingw-w64 v12.0.0) ships as `COPYING-winpthreads.txt`.
 Details: `Apps/Windows/README.md`, "Bundled rigctld".
 
-**Desktop hub for the iPad (phase 1 of 6, 2026-10-15; tested on the PC,
-then connected from a real iPad by the user the same day)**: this app now also
+**Desktop hub for the iPad (phases 1-2 of 6, 2026-10-15; phase 1
+connected from a real iPad by the user the same day, phase 2 tested on
+the PC with a scripted client, not yet from the iPad)**: this app now also
 serves the Mac hub's WebSocket protocol on 8765 (`Services/Hub/`,
-Kestrel), so the iPad's "Desktop hub" route can show its state —
-read-only so far (inbound frames logged and ignored). Settings → Hub,
+Kestrel), so the iPad's "Desktop hub" route can show its state and,
+since phase 2, drive the rig: `RigCommandWire` parses all 71
+`RigCommand`s, `RigCommandDispatcher` runs them through one FIFO on the
+UI thread via the *same* methods the window's controls use (MainWindow
+through `IHubRigHost`, `MenuGrid`/`FilterPanel` public setters — put a
+new control's action there, not in its click handler), after
+`HubCommandPolicy`'s transmit gate, value checks and memory-scan
+stop-before rule. PTT on from the iPad is refused until phase 5; lists,
+menu reads, TX audio and the CW keyer are logged and ignored until
+phases 3-6. Settings → Hub,
 off by default; only loopback, Tailscale and private addresses are let
 in. This reverses "leaf client only" for this one feature. The wire
-types copy Swift's `RigState`; `Apps/Windows/FTX1RemoteWindows.Tests`
+types copy Swift's `RigState`/`RigCommand`; `Apps/Windows/FTX1RemoteWindows.Tests`
 checks them against `Tests/WireFixtures/` and writes
 `Tests/WireFixtures/windows/` for the Mac's `HubWireFixtureTests`.
-Phases, status and the firewall note: the README's "Desktop hub for
-the iPad".
+Phases, status, differences from the Mac hub and the firewall note: the
+README's "Desktop hub for the iPad".
 
 **The user's Windows test PC** — use these values in any commands given
 for it instead of placeholders: the FTX-1 is on **COM7** (COM4 before 2026-09-28) at **115200**

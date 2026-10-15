@@ -338,6 +338,7 @@ public sealed partial class MainWindow
             StatusText.Text = sub && _singleReceive == true
                 ? "SUB isn't shown in single-receive display"
                 : $"Put {SideName(sub)} in Memory mode to scan";
+            AppLog.Write($"memory scan: {SideName(sub)} start refused ({StatusText.Text})");
             return;
         }
         try

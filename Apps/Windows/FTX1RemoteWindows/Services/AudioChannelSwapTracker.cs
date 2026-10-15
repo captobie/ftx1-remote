@@ -36,6 +36,10 @@ public sealed class AudioChannelSwapTracker
 
     public void Toggle() => Set(!Swapped, "manual toggle");
 
+    /// The manual override with an explicit value — the Desktop hub's
+    /// set_audio_channels_swapped (the iPad's speaker button).
+    public void SetManually(bool swapped, string reason) => Set(swapped, reason);
+
     /// Call after the app's own swap command is sent. <paramref name="lastMain"/>
     /// and <paramref name="lastSub"/> are the last polled values; the
     /// baseline is moved to the swapped pair so the next poll, which reads

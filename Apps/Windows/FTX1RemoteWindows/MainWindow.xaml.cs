@@ -1249,7 +1249,10 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void SwapVfoButton_Click(object sender, RoutedEventArgs e)
+    private async void SwapVfoButton_Click(object sender, RoutedEventArgs e) => await SwapVfoAsync();
+
+    /// ⇄, and the Desktop hub's swap_active_vfo.
+    private async Task SwapVfoAsync()
     {
         if (_client is null)
         {
@@ -1330,13 +1333,15 @@ public sealed partial class MainWindow : Window
         tag.Background = new SolidColorBrush(txrx ? Microsoft.UI.Colors.Red : Microsoft.UI.Colors.Green);
     }
 
-    private async void TxSideButton_Click(object sender, RoutedEventArgs e)
+    private async void TxSideButton_Click(object sender, RoutedEventArgs e) => await SetTxSideAsync(_txSideSub != true);
+
+    /// TX:MAIN/SUB, and the Desktop hub's set_tx_side.
+    private async Task SetTxSideAsync(bool toSub)
     {
         if (_client is null)
         {
             return;
         }
-        var toSub = _txSideSub != true;
         // Chosen by the operator: not undone when a memory scan stops.
         _txSideBeforeScanSub = null;
         try
@@ -1482,7 +1487,12 @@ public sealed partial class MainWindow : Window
     /// the opposite (the project's rule since the "PR"/MIC EQ backwards-
     /// toggle bug). Compared against plain VFO, not Memory — see
     /// RigState.InVfoMode — so any sub-mode exits to VFO.
-    private async void VfoMemoryToggle_Click(object sender, RoutedEventArgs e)
+    private async void VfoMemoryToggle_Click(object sender, RoutedEventArgs e) =>
+        await SetVfoMemoryModeAsync(_lastState.InVfoMode);
+
+    /// V/M with an explicit target, also the Desktop hub's
+    /// set_vfo_memory_mode. Leaving puts back Main's last VFO (_lastVfoState).
+    private async Task SetVfoMemoryModeAsync(bool enterMemory)
     {
         if (_client is not { } client)
         {
@@ -1490,7 +1500,6 @@ public sealed partial class MainWindow : Window
             return;
         }
         await StopMemoryScanForAsync(client, onlySub: false, ScanStopTxSide.Restore);
-        var enterMemory = _lastState.InVfoMode;
         var restore = enterMemory ? null : _lastVfoState;
         _commandGeneration++;
         _swapTracker.ResetBaseline();
@@ -1664,6 +1673,17 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        await SetMainModeAsync(mode);
+    }
+
+    /// The mode picker, and the Desktop hub's set_mode. "M currVFO", so
+    /// like the Mac's .setMode it follows the active side.
+    private async Task SetMainModeAsync(RigMode mode)
+    {
+        if (_client is null)
+        {
+            return;
+        }
         await StopMemoryScanForAsync(_client, null, ScanStopTxSide.Restore);
         if (_client is null)
         {
@@ -1676,6 +1696,64 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             StatusText.Text = $"Set mode failed: {ex.Message}";
+        }
+    }
+
+    /// C4FM on the active side — the Mac's RigctldClient.setActiveModeC4FM
+    /// (raw "MD<side>H": hamlib's "M" has no C4FM on this rig). The mode
+    /// picker has no C4FM, so only the Desktop hub's set_mode sends this.
+    private async Task SetMainModeC4fmAsync()
+    {
+        if (_client is null)
+        {
+            return;
+        }
+        await StopMemoryScanForAsync(_client, null, ScanStopTxSide.Restore);
+        if (_client is not { } client)
+        {
+            return;
+        }
+        try
+        {
+            var p1 = (await client.SendAsync("v")).Trim() == "Sub" ? 1 : 0;
+            await client.SendRawFireAndForgetAsync($"MD{p1}H");
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Set mode failed: {ex.Message}";
+        }
+    }
+
+    /// SUB's mode by side, raw "MD1<code>" — the Mac's .setSecondaryMode,
+    /// sent only by the Desktop hub (this window has no SUB mode control).
+    /// Shown at once, as the Mac's applyOptimistically does; the slow
+    /// tier's "MD1" read confirms it.
+    private async Task SetSubModeAsync(RigMode? mode, bool c4fm)
+    {
+        if (_client is not { } client)
+        {
+            return;
+        }
+        var code = c4fm ? 'H' : mode is { } m ? m.CatModeCode() : (char?)null;
+        if (code is not { } c)
+        {
+            return;
+        }
+        await StopMemoryScanForAsync(client, onlySub: true, ScanStopTxSide.Restore);
+        _lastState.SubIsC4fm = c4fm;
+        if (mode is { } newMode)
+        {
+            _lastState.SubMode = newMode;
+        }
+        UpdateModeTags();
+        _filterPanel.RefreshUI();
+        try
+        {
+            await client.SendRawFireAndForgetAsync($"MD1{c}");
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Set SUB mode failed: {ex.Message}";
         }
     }
 
@@ -1692,6 +1770,16 @@ public sealed partial class MainWindow : Window
             return;
         }
         if (BandComboBox.SelectedItem is not ComboBoxItem { Tag: Band band })
+        {
+            return;
+        }
+        await SetBandAsync(band);
+    }
+
+    /// The band picker, and the Desktop hub's set_band.
+    private async Task SetBandAsync(Band band)
+    {
+        if (_client is null)
         {
             return;
         }
@@ -1768,6 +1856,13 @@ public sealed partial class MainWindow : Window
         _pttHeld = false;
         PttButton.ReleasePointerCaptures();
         UpdateTransmitControls();
+        await SendPttOffAsync();
+    }
+
+    /// PTT off: the button's release, and the Desktop hub's ptt false. Never
+    /// gated.
+    private async Task SendPttOffAsync()
+    {
         if (_client is not { } client)
         {
             return;
@@ -1808,15 +1903,21 @@ public sealed partial class MainWindow : Window
     /// Enable Transmit, applied at once and persisted. Switching it off
     /// mid-transmission unkeys the rig rather than only blocking the next
     /// key-up — the Mac's HubService.transmitEnabled didSet.
-    private async void TransmitEnabledSwitch_Toggled(object sender, RoutedEventArgs e)
+    private async void TransmitEnabledSwitch_Toggled(object sender, RoutedEventArgs e) =>
+        await SetTransmitEnabledAsync(TransmitEnabledSwitch.IsOn);
+
+    /// The switch, and the Desktop hub's set_transmit_enabled (the iPad's
+    /// lock button), which moves the switch too.
+    private async Task SetTransmitEnabledAsync(bool enabled)
     {
-        var enabled = TransmitEnabledSwitch.IsOn;
-        // Also fires when the constructor loads the saved value.
+        // Also reached when the constructor loads the saved value, and when
+        // the hub's change moves the switch below.
         if (enabled == AppSettings.TransmitEnabled)
         {
             return;
         }
         AppSettings.TransmitEnabled = enabled;
+        TransmitEnabledSwitch.IsOn = enabled;
         UpdateTransmitControls();
         if (!enabled)
         {
@@ -1895,7 +1996,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
-        await SendPowerLevelAsync(e.NewValue);
+        await SetPowerLevelAsync(e.NewValue / 100.0);
     }
 
     /// The ◀/▶ buttons beside the power slider: one whole watt (1% of
@@ -1920,21 +2021,29 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
-        await SendPowerLevelAsync(PowerSlider.Value);
+        await SetPowerLevelAsync(PowerSlider.Value / 100.0);
     }
 
-    private async Task SendPowerLevelAsync(double sliderValue)
+    /// RFPOWER, 0.0-1.0: the power slider, and the Desktop hub's set_power
+    /// (the iPad's RF POWER), which moves the slider too.
+    private async Task SetPowerLevelAsync(double level)
     {
         if (_client is null)
         {
             return;
         }
         _powerHoldUntil = DateTime.UtcNow + PowerHoldAfterSend;
-        _lastState.PowerLevel = sliderValue / 100.0;
+        _lastState.PowerLevel = level;
+        if (!_powerDragging && Math.Abs(PowerSlider.Value - level * 100) >= 0.05)
+        {
+            _suppressPowerEvents = true;
+            PowerSlider.Value = level * 100;
+            _suppressPowerEvents = false;
+        }
         _menuGrid.RefreshLabels();
         try
         {
-            await _client.SetPowerLevelAsync(sliderValue / 100.0);
+            await _client.SetPowerLevelAsync(level);
         }
         catch (Exception ex)
         {

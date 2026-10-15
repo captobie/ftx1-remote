@@ -67,6 +67,21 @@ public static class RigModeExtensions
     /// RigMode(catModeCode:). Codes hamlib reports under a name this enum
     /// lacks (CW-L, RTTY-U, DATA-L, FM-N, AM-N, PSK, DATA-FM-N) and C4FM
     /// ("H"/"I", see RigctldClient.IsC4fmAsync) return null.
+    /// The raw "MD" P2 code that sets this mode — RigState.swift's
+    /// catModeCode, the inverse of FromCatModeCode. C4FM is 'H' (C4FM-DN).
+    public static char CatModeCode(this RigMode mode) => mode switch
+    {
+        RigMode.Lsb => '1',
+        RigMode.Usb => '2',
+        RigMode.Cw => '3',
+        RigMode.Fm => '4',
+        RigMode.Am => '5',
+        RigMode.Rtty => '6',
+        RigMode.DataFm => 'A',
+        RigMode.DataUsb => 'C',
+        _ => throw new ArgumentOutOfRangeException(nameof(mode)),
+    };
+
     public static RigMode? FromCatModeCode(char code) => code switch
     {
         '1' => RigMode.Lsb,

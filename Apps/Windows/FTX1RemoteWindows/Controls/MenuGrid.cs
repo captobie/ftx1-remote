@@ -252,7 +252,10 @@ public sealed class MenuGrid : UserControl
 
     // SSB page (page 1/3). Item numbers are the rig's own, left to right,
     // top to bottom; see MenuPageView.menuButton(for:)'s doc comment for
-    // how each one was worked out and hardware-confirmed on the Mac.
+    // how each one was worked out and hardware-confirmed on the Mac. Every
+    // button acts through one of the public setters further down, which
+    // the iPad's Desktop hub (Services/Hub/RigCommandDispatcher.cs) calls
+    // too, so the two can't drift apart.
 
     private void BuildSsbPage()
     {
@@ -262,100 +265,65 @@ public sealed class MenuGrid : UserControl
         AddStepper(2, "D-LEVEL", () => DisplayLevelLabel(_state.DisplayLevel),
             current: () => _state.DisplayLevel ?? 0, min: -30, max: 30, step: 0.5,
             valueLabel: db => DisplayLevelLabel(db),
-            set: db => Send("D-LEVEL", () => _state.DisplayLevel = db,
-                c => c.SetSpectrumScopeLevelAsync(db)));
+            set: db => _ = SetDisplayLevelAsync(db));
 
-        // "SS"'s PEAK/MARKER sub-functions pack P3 ahead of four fixed "0"s.
-        AddCycle(3, "D-PEAK", () => _state.DisplayPeak is { } p ? $"LV{p + 1}" : "—", () =>
-        {
-            var next = ((_state.DisplayPeak ?? 0) + 1) % 5;
-            Send("D-PEAK", () => _state.DisplayPeak = next, c => c.SetRawPackedDigitAsync("SS01", next, 4));
-        });
+        AddCycle(3, "D-PEAK", () => _state.DisplayPeak is { } p ? $"LV{p + 1}" : "—",
+            () => _ = SetDisplayPeakAsync(((_state.DisplayPeak ?? 0) + 1) % 5));
 
-        AddToggle(4, "D-MARKER", () => _state.DisplayMarker, on =>
-            Send("D-MARKER", () => _state.DisplayMarker = on, c => c.SetRawPackedDigitAsync("SS02", on ? 1 : 0, 4)));
+        AddToggle(4, "D-MARKER", () => _state.DisplayMarker, on => _ = SetDisplayMarkerAsync(on));
 
         // No CAT command exists for D-COLOR (checked the whole manual).
         AddDisabled(5, "D-COLOR");
 
-        // "DA" sets contrast and both brightnesses in one command, so each
-        // stepper reads the current triple first and writes the other two
-        // back unchanged (CommandQueue.swift's .setDisplayContrast).
         AddStepper(6, "D-CONTRAST", () => IntLabel(_state.DisplayContrast),
             current: () => _state.DisplayContrast ?? 10, min: 0, max: 20, step: 1,
             valueLabel: v => $"{v:0}",
-            set: v => Send("D-CONTRAST", () => _state.DisplayContrast = (int)v, async c =>
-            {
-                var current = await ReadOrNull(() => c.GetDisplaySettingsAsync());
-                await c.SetDisplaySettingsAsync((int)v, current?.Brightness ?? 10, current?.LedBrightness ?? 10);
-            }));
+            set: v => _ = SetDisplayContrastAsync((int)v));
 
         AddStepper(7, "DIMMER", () => IntLabel(_state.DisplayDimmer),
             current: () => _state.DisplayDimmer ?? 10, min: 0, max: 20, step: 1,
             valueLabel: v => $"{v:0}",
-            set: v => Send("DIMMER", () => _state.DisplayDimmer = (int)v, async c =>
-            {
-                var current = await ReadOrNull(() => c.GetDisplaySettingsAsync());
-                await c.SetDisplaySettingsAsync(current?.Contrast ?? 10, (int)v, current?.LedBrightness ?? 10);
-            }));
+            set: v => _ = SetDisplayDimmerAsync((int)v));
 
         AddMox(8);
 
-        AddToggle(9, "ATT", () => _state.AttEnabled, on =>
-            Send("ATT", () => _state.AttEnabled = on, c => c.SetRawBoolAsync("RA0", on)));
+        AddToggle(9, "ATT", () => _state.AttEnabled, on => _ = SetAttAsync(on));
 
-        // "PA0": P1 fixed to HF/50, P2 = IPO/AMP1/AMP2.
-        AddCycle(10, "IPO/AMP", () => PreampLabel(_state.PreampMode), () =>
-        {
-            var next = ((_state.PreampMode ?? 0) + 1) % 3;
-            Send("IPO/AMP", () => _state.PreampMode = next, c => c.SetRawIntAsync("PA0", next, 1));
-        });
+        AddCycle(10, "IPO/AMP", () => PreampLabel(_state.PreampMode),
+            () => _ = SetPreampAsync(((_state.PreampMode ?? 0) + 1) % 3));
 
-        AddToggle(11, "DNF", () => _state.DnfEnabled, on =>
-            Send("DNF", () => _state.DnfEnabled = on, c => c.SetRawBoolAsync("BC0", on)));
+        AddToggle(11, "DNF", () => _state.DnfEnabled, on => _ = SetDnfAsync(on));
 
         // The read can report AUTO's sub-states (5/6); the set takes 0-4
         // only, so the cycle collapses them to AUTO before stepping.
-        AddCycle(12, "AGC", () => AgcLabel(_state.AgcMode), () =>
-        {
-            var next = (AgcCollapsedMode(_state.AgcMode) + 1) % 5;
-            Send("AGC", () => _state.AgcMode = next, c => c.SetRawIntAsync("GT0", next, 1));
-        });
+        AddCycle(12, "AGC", () => AgcLabel(_state.AgcMode),
+            () => _ = SetAgcAsync((AgcCollapsedMode(_state.AgcMode) + 1) % 5));
 
-        // "PR1": plain 0/1 — the manual's 1/2 is wrong (hardware-confirmed).
-        AddToggle(13, "MIC EQ", () => _state.MicEqEnabled, on =>
-            Send("MIC EQ", () => _state.MicEqEnabled = on, c => c.SetRawBoolAsync("PR1", on)));
+        AddToggle(13, "MIC EQ", () => _state.MicEqEnabled, on => _ = SetMicEqAsync(on));
 
         AddStepper(14, "PROC LEVEL", () => OffOrNumber(_state.ProcLevel),
             current: () => _state.ProcLevel ?? 50, min: 0, max: 100, step: 1,
             valueLabel: v => OffOrNumber((int)v),
-            set: v => Send("PROC LEVEL", () => _state.ProcLevel = (int)v, c => c.SetRawIntAsync("PL", (int)v, 3)));
+            set: v => _ = SetProcLevelAsync((int)v));
 
         AddAntennaTune(15);
 
-        // "AC10x": P1=1 is what works on this rig's internal tuner, not the
-        // manual's P1=0 (hardware-confirmed on the Mac; don't "fix" it).
-        AddToggle(16, "TUNER", () => _state.TunerEnabled, on =>
-            Send("TUNER", () => _state.TunerEnabled = on, c => c.SetRawBoolAsync("AC10", on)));
+        AddToggle(16, "TUNER", () => _state.TunerEnabled, on => _ = SetTunerAsync(on));
 
         // 17: no function on this page on the rig; left empty.
 
         AddStepper(18, "NB", () => OffOrNumber(_state.NbLevel),
             current: () => _state.NbLevel ?? 5, min: 0, max: 10, step: 1,
             valueLabel: v => OffOrNumber((int)v),
-            set: v => Send("NB", () => _state.NbLevel = (int)v, c => c.SetRawIntAsync("NL0", (int)v, 3)));
+            set: v => _ = SetNbLevelAsync((int)v));
 
         AddStepper(19, "DNR", () => OffOrNumber(_state.DnrLevel),
             current: () => _state.DnrLevel ?? 5, min: 0, max: 10, step: 1,
             valueLabel: v => OffOrNumber((int)v),
-            set: v => Send("DNR", () => _state.DnrLevel = (int)v, c => c.SetRawIntAsync("RL0", (int)v, 2)));
+            set: v => _ = SetDnrLevelAsync((int)v));
 
-        // No mnemonic: Table 3's HF ANT SELECT through "EX" 03/07/04.
-        AddCycle(20, "ANT", () => _state.AntSelect switch { 0 => "ANT1", 1 => "ANT2", _ => "—" }, () =>
-        {
-            var next = ((_state.AntSelect ?? 0) + 1) % 2;
-            Send("ANT", () => _state.AntSelect = next, c => c.SetMenuItemAsync(3, 7, 4, next.ToString()));
-        });
+        AddCycle(20, "ANT", () => _state.AntSelect switch { 0 => "ANT1", 1 => "ANT2", _ => "—" },
+            () => _ = SetAntSelectAsync(((_state.AntSelect ?? 0) + 1) % 2));
 
         // Works ("TS"), but disabled on the Mac too: nobody knows what it's for.
         AddDisabled(21, "TXW");
@@ -365,20 +333,19 @@ public sealed class MenuGrid : UserControl
         AddStepper(23, "MIC GAIN", () => IntLabel(_state.MicGain),
             current: () => _state.MicGain ?? 50, min: 0, max: 100, step: 1,
             valueLabel: v => $"{v:0}",
-            set: v => Send("MIC GAIN", () => _state.MicGain = (int)v, c => c.SetRawIntAsync("MG", (int)v, 3)));
+            set: v => _ = SetMicGainAsync((int)v));
 
         AddStepper(24, "AMC LEVEL", () => IntLabel(_state.AmcLevel),
             current: () => _state.AmcLevel ?? 50, min: 1, max: 100, step: 1,
             valueLabel: v => $"{v:0}",
-            set: v => Send("AMC LEVEL", () => _state.AmcLevel = (int)v, c => c.SetRawIntAsync("AO", (int)v, 3)));
+            set: v => _ = SetAmcLevelAsync((int)v));
 
-        AddToggle(25, "VOX", () => _state.VoxEnabled, on =>
-            Send("VOX", () => _state.VoxEnabled = on, c => c.SetRawBoolAsync("VX", on)));
+        AddToggle(25, "VOX", () => _state.VoxEnabled, on => _ = SetVoxAsync(on));
 
         AddStepper(26, "VOX GAIN", () => IntLabel(_state.VoxGain),
             current: () => _state.VoxGain ?? 50, min: 0, max: 100, step: 1,
             valueLabel: v => $"{v:0}",
-            set: v => Send("VOX GAIN", () => _state.VoxGain = (int)v, c => c.SetRawIntAsync("VG", (int)v, 3)));
+            set: v => _ = SetVoxGainAsync((int)v));
 
         // Steps through RigDelayCode's 0-33 codes, shown in ms.
         AddStepper(27, "VOX DELAY", () => _state.VoxDelayMs is { } ms ? $"{ms} ms" : "—",
@@ -388,7 +355,7 @@ public sealed class MenuGrid : UserControl
             {
                 if (RigDelayCode.Milliseconds((int)code) is { } ms)
                 {
-                    Send("VOX DELAY", () => _state.VoxDelayMs = ms, c => c.SetRawIntAsync("VD", (int)code, 2));
+                    _ = SetVoxDelayAsync(ms);
                 }
             });
 
@@ -402,29 +369,24 @@ public sealed class MenuGrid : UserControl
     {
         AddCell(1, "PAGE 2/3", () => "CW");
 
-        // "ML1" is MONI's level; "ML0" (its on/off) isn't used — a level of
-        // 0 already means off on the rig, so 0 shows as OFF.
         AddStepper(2, "MONI LEVEL", () => OffOrNumber(_state.MoniLevel),
             current: () => _state.MoniLevel ?? 50, min: 0, max: 100, step: 1,
             valueLabel: v => OffOrNumber((int)v),
-            set: v => Send("MONI LEVEL", () => _state.MoniLevel = (int)v, c => c.SetRawIntAsync("ML1", (int)v, 3)));
+            set: v => _ = SetMoniLevelAsync((int)v));
 
-        AddToggle(8, "KEYER", () => _state.KeyerEnabled, on =>
-            Send("KEYER", () => _state.KeyerEnabled = on, c => c.SetRawBoolAsync("KR", on)));
+        AddToggle(8, "KEYER", () => _state.KeyerEnabled, on => _ = SetKeyerAsync(on));
 
-        AddToggle(9, "BK-IN", () => _state.BreakIn, on =>
-            Send("BK-IN", () => _state.BreakIn = on, c => c.SetRawBoolAsync("BI", on)));
+        AddToggle(9, "BK-IN", () => _state.BreakIn, on => _ = SetBreakInAsync(on));
 
         AddStepper(10, "CW SPEED", () => _state.CwSpeedWpm is { } wpm ? $"{wpm} WPM" : "—",
             current: () => _state.CwSpeedWpm ?? 20, min: 4, max: 60, step: 1,
             valueLabel: v => $"{v:0} WPM",
-            set: v => Send("CW SPEED", () => _state.CwSpeedWpm = (int)v, c => c.SetRawIntAsync("KS", (int)v, 3)));
+            set: v => _ = SetCwSpeedAsync((int)v));
 
-        // "KP" is 00-75: 10 Hz steps above 300 Hz.
         AddStepper(11, "CW PITCH", () => _state.CwPitchHz is { } hz ? $"{hz} Hz" : "—",
             current: () => _state.CwPitchHz ?? 700, min: 300, max: 1050, step: 10,
             valueLabel: v => $"{v:0} Hz",
-            set: v => Send("CW PITCH", () => _state.CwPitchHz = (int)v, c => c.SetRawIntAsync("KP", ((int)v - 300) / 10, 2)));
+            set: v => _ = SetCwPitchAsync((int)v));
 
         // "SD" uses the same 00-33 code as VOX DELAY's "VD".
         AddStepper(12, "BK-DELAY", () => _state.BkDelayMs is { } ms ? $"{ms} ms" : "—",
@@ -434,17 +396,14 @@ public sealed class MenuGrid : UserControl
             {
                 if (RigDelayCode.Milliseconds((int)code) is { } ms)
                 {
-                    Send("BK-DELAY", () => _state.BkDelayMs = ms, c => c.SetRawIntAsync("SD", (int)code, 2));
+                    _ = SetBreakInDelayAsync(ms);
                 }
             });
 
-        // Momentary: "ZI0" zero-ins the MAIN side. Receive-only, so not
-        // transmit-gated (nor is it on the Mac).
         var zin = AddCell(13, "ZIN", () => "PUSH");
-        zin.Click += (_, _) => Send("ZIN", () => { }, c => c.SendRawFireAndForgetAsync("ZI0"));
+        zin.Click += (_, _) => _ = TriggerZeroInAsync();
 
-        AddToggle(14, "CW SPOT", () => _state.CwSpot, on =>
-            Send("CW SPOT", () => _state.CwSpot = on, c => c.SetRawBoolAsync("CS", on)));
+        AddToggle(14, "CW SPOT", () => _state.CwSpot, on => _ = SetCwSpotAsync(on));
 
         // CW MESSAGE memory: wired on the Mac but unreliable there, so it's
         // a disabled placeholder on both. Its play ("KY1") must pass
@@ -486,12 +445,8 @@ public sealed class MenuGrid : UserControl
         // MenuPageView's doc comment.
         AddDisabled(3, "T-CALL");
 
-        // "OS0": fixed MAIN-side P1.
-        AddCycle(6, "RPT SHIFT", () => RepeaterShiftLabel(_state.RepeaterShiftMode), () =>
-        {
-            var next = ((_state.RepeaterShiftMode ?? 0) + 1) % 4;
-            Send("RPT SHIFT", () => _state.RepeaterShiftMode = next, c => c.SetRawIntAsync("OS0", next, 1));
-        });
+        AddCycle(6, "RPT SHIFT", () => RepeaterShiftLabel(_state.RepeaterShiftMode),
+            () => _ = SetRepeaterShiftAsync(((_state.RepeaterShiftMode ?? 0) + 1) % 4));
 
         AddDisabled(7, "REV");
         AddDisabled(8, "DG-ID TX");
@@ -504,43 +459,29 @@ public sealed class MenuGrid : UserControl
         AddPair(11, "APRS", "S.LIST").Click += (_, _) => AprsListRequested?.Invoke(AprsListKind.Stations);
         AddPair(12, "APRS", "M.LIST").Click += (_, _) => AprsListRequested?.Invoke(AprsListKind.Messages);
 
-        // A plain rig setting over CAT (Table 3's BEACON TYPE, "EX" 07/01/01),
-        // so it works without APRS decoding.
-        AddCycle(13, "BEACON", () => _state.AprsBeaconType switch { 0 => "OFF", 1 => "AUTO", 2 => "SMART", _ => "—" }, () =>
-        {
-            var next = ((_state.AprsBeaconType ?? 0) + 1) % 3;
-            Send("BEACON", () => _state.AprsBeaconType = next, c => c.SetMenuItemAsync(7, 1, 1, next.ToString()));
-        });
+        AddCycle(13, "BEACON", () => _state.AprsBeaconType switch { 0 => "OFF", 1 => "AUTO", 2 => "SMART", _ => "—" },
+            () => _ = SetAprsBeaconTypeAsync(((_state.AprsBeaconType ?? 0) + 1) % 3));
 
         // Momentary "send beacon now": no mnemonic and no Table 3 entry, and
         // it transmits, so the Mac never probed for one either.
         AddDisabled(14, "BCN-TX");
 
-        // Table 3's FM CH STEP, "EX" 03/06/06.
-        AddCycle(15, "CH STEP", () => FmChannelStepLabel(_state.FmChannelStep), () =>
-        {
-            var next = ((_state.FmChannelStep ?? 0) + 1) % 6;
-            Send("CH STEP", () => _state.FmChannelStep = next, c => c.SetMenuItemAsync(3, 6, 6, next.ToString()));
-        });
+        AddCycle(15, "CH STEP", () => FmChannelStepLabel(_state.FmChannelStep),
+            () => _ = SetFmChannelStepAsync(((_state.FmChannelStep ?? 0) + 1) % 6));
 
-        // "CT0": fixed MAIN-side P1.
-        AddCycle(18, "SQL TYPE", () => SqlTypeLabel(_state.SquelchType), () =>
-        {
-            var next = ((_state.SquelchType ?? 0) + 1) % 6;
-            Send("SQL TYPE", () => _state.SquelchType = next, c => c.SetRawIntAsync("CT0", next, 1));
-        });
+        AddCycle(18, "SQL TYPE", () => SqlTypeLabel(_state.SquelchType),
+            () => _ = SetSquelchTypeAsync(((_state.SquelchType ?? 0) + 1) % 6));
 
-        // "CN00"/"CN01" take an index into the tone/code table. Defaults
-        // while unread are the Mac's: 100.0 Hz (index 12) and 023.
+        // Defaults while unread are the Mac's: 100.0 Hz (index 12) and 023.
         AddStepper(19, "TONE FREQ", () => ToneLabel(_state.CtcssToneIndex),
             current: () => _state.CtcssToneIndex ?? 12, min: 0, max: RigCtcssTone.AllValuesHz.Length - 1, step: 1,
             valueLabel: i => ToneLabel((int)i),
-            set: i => Send("TONE FREQ", () => _state.CtcssToneIndex = (int)i, c => c.SetRawIntAsync("CN00", (int)i, 3)));
+            set: i => _ = SetToneIndexAsync((int)i));
 
         AddStepper(20, "DCS", () => RigDcsCode.Code(_state.DcsCodeIndex ?? -1) ?? "—",
             current: () => _state.DcsCodeIndex ?? 0, min: 0, max: RigDcsCode.AllValues.Length - 1, step: 1,
             valueLabel: i => RigDcsCode.Code((int)i) ?? "—",
-            set: i => Send("DCS", () => _state.DcsCodeIndex = (int)i, c => c.SetRawIntAsync("CN01", (int)i, 3)));
+            set: i => _ = SetDcsIndexAsync((int)i));
 
         // No CAT for the rig's own HOME channels: tunes to the current band
         // group's HOME frequency instead (see HomeBand; editable in
@@ -566,6 +507,189 @@ public sealed class MenuGrid : UserControl
         AddDeepSettings(26, "DISPLAY", [4]);
         AddDeepSettings(27, "EXTENSION", [5]);
         AddDeepSettings(28, "APRS", [6, 7, 8]);
+    }
+
+    // Settings: what each button sends, with the value applied to the
+    // shared RigState at once (see SendAsync). Public for the Desktop hub,
+    // which runs the iPad's MENU grid through them. Values are the rig's
+    // (the hub checks ranges first, HubCommandPolicy.ValueProblem).
+
+    public Task SetDisplayLevelAsync(double db) =>
+        SendAsync("D-LEVEL", () => _state.DisplayLevel = db, c => c.SetSpectrumScopeLevelAsync(db));
+
+    // "SS"'s PEAK/MARKER sub-functions pack P3 ahead of four fixed "0"s.
+    public Task SetDisplayPeakAsync(int level) =>
+        SendAsync("D-PEAK", () => _state.DisplayPeak = level, c => c.SetRawPackedDigitAsync("SS01", level, 4));
+
+    public Task SetDisplayMarkerAsync(bool on) =>
+        SendAsync("D-MARKER", () => _state.DisplayMarker = on, c => c.SetRawPackedDigitAsync("SS02", on ? 1 : 0, 4));
+
+    // "DA" sets contrast and both brightnesses in one command, so each
+    // reads the current triple first and writes the other two back
+    // unchanged (CommandQueue.swift's .setDisplayContrast).
+    public Task SetDisplayContrastAsync(int value) =>
+        SendAsync("D-CONTRAST", () => _state.DisplayContrast = value, async c =>
+        {
+            var current = await ReadOrNull(() => c.GetDisplaySettingsAsync());
+            await c.SetDisplaySettingsAsync(value, current?.Brightness ?? 10, current?.LedBrightness ?? 10);
+        });
+
+    public Task SetDisplayDimmerAsync(int value) =>
+        SendAsync("DIMMER", () => _state.DisplayDimmer = value, async c =>
+        {
+            var current = await ReadOrNull(() => c.GetDisplaySettingsAsync());
+            await c.SetDisplaySettingsAsync(current?.Contrast ?? 10, value, current?.LedBrightness ?? 10);
+        });
+
+    public Task SetAttAsync(bool on) =>
+        SendAsync("ATT", () => _state.AttEnabled = on, c => c.SetRawBoolAsync("RA0", on));
+
+    // "PA0": P1 fixed to HF/50, P2 = IPO/AMP1/AMP2.
+    public Task SetPreampAsync(int mode) =>
+        SendAsync("IPO/AMP", () => _state.PreampMode = mode, c => c.SetRawIntAsync("PA0", mode, 1));
+
+    public Task SetDnfAsync(bool on) =>
+        SendAsync("DNF", () => _state.DnfEnabled = on, c => c.SetRawBoolAsync("BC0", on));
+
+    public Task SetAgcAsync(int mode) =>
+        SendAsync("AGC", () => _state.AgcMode = mode, c => c.SetRawIntAsync("GT0", mode, 1));
+
+    // "PR1": plain 0/1 — the manual's 1/2 is wrong (hardware-confirmed).
+    public Task SetMicEqAsync(bool on) =>
+        SendAsync("MIC EQ", () => _state.MicEqEnabled = on, c => c.SetRawBoolAsync("PR1", on));
+
+    public Task SetProcLevelAsync(int level) =>
+        SendAsync("PROC LEVEL", () => _state.ProcLevel = level, c => c.SetRawIntAsync("PL", level, 3));
+
+    // "AC10x": P1=1 is what works on this rig's internal tuner, not the
+    // manual's P1=0 (hardware-confirmed on the Mac; don't "fix" it).
+    public Task SetTunerAsync(bool on) =>
+        SendAsync("TUNER", () => _state.TunerEnabled = on, c => c.SetRawBoolAsync("AC10", on));
+
+    public Task SetNbLevelAsync(int level) =>
+        SendAsync("NB", () => _state.NbLevel = level, c => c.SetRawIntAsync("NL0", level, 3));
+
+    public Task SetDnrLevelAsync(int level) =>
+        SendAsync("DNR", () => _state.DnrLevel = level, c => c.SetRawIntAsync("RL0", level, 2));
+
+    // No mnemonic: Table 3's HF ANT SELECT through "EX" 03/07/04.
+    public Task SetAntSelectAsync(int antenna) =>
+        SendAsync("ANT", () => _state.AntSelect = antenna, c => c.SetMenuItemAsync(3, 7, 4, antenna.ToString()));
+
+    public Task SetMicGainAsync(int value) =>
+        SendAsync("MIC GAIN", () => _state.MicGain = value, c => c.SetRawIntAsync("MG", value, 3));
+
+    public Task SetAmcLevelAsync(int value) =>
+        SendAsync("AMC LEVEL", () => _state.AmcLevel = value, c => c.SetRawIntAsync("AO", value, 3));
+
+    public Task SetVoxAsync(bool on) =>
+        SendAsync("VOX", () => _state.VoxEnabled = on, c => c.SetRawBoolAsync("VX", on));
+
+    public Task SetVoxGainAsync(int value) =>
+        SendAsync("VOX GAIN", () => _state.VoxGain = value, c => c.SetRawIntAsync("VG", value, 3));
+
+    /// <paramref name="ms"/> must be one of RigDelayCode's values; anything
+    /// else sends nothing.
+    public Task SetVoxDelayAsync(int ms) => RigDelayCode.Code(ms) is { } code
+        ? SendAsync("VOX DELAY", () => _state.VoxDelayMs = ms, c => c.SetRawIntAsync("VD", code, 2))
+        : Task.CompletedTask;
+
+    // "ML1" is MONI's level; "ML0" (its on/off) isn't used — a level of
+    // 0 already means off on the rig, so 0 shows as OFF.
+    public Task SetMoniLevelAsync(int level) =>
+        SendAsync("MONI LEVEL", () => _state.MoniLevel = level, c => c.SetRawIntAsync("ML1", level, 3));
+
+    public Task SetKeyerAsync(bool on) =>
+        SendAsync("KEYER", () => _state.KeyerEnabled = on, c => c.SetRawBoolAsync("KR", on));
+
+    public Task SetBreakInAsync(bool on) =>
+        SendAsync("BK-IN", () => _state.BreakIn = on, c => c.SetRawBoolAsync("BI", on));
+
+    public Task SetCwSpeedAsync(int wpm) =>
+        SendAsync("CW SPEED", () => _state.CwSpeedWpm = wpm, c => c.SetRawIntAsync("KS", wpm, 3));
+
+    // "KP" is 00-75: 10 Hz steps above 300 Hz.
+    public Task SetCwPitchAsync(int hz) =>
+        SendAsync("CW PITCH", () => _state.CwPitchHz = hz, c => c.SetRawIntAsync("KP", (hz - 300) / 10, 2));
+
+    /// <paramref name="ms"/> must be one of RigDelayCode's values; anything
+    /// else sends nothing.
+    public Task SetBreakInDelayAsync(int ms) => RigDelayCode.Code(ms) is { } code
+        ? SendAsync("BK-DELAY", () => _state.BkDelayMs = ms, c => c.SetRawIntAsync("SD", code, 2))
+        : Task.CompletedTask;
+
+    // Momentary: "ZI0" zero-ins the MAIN side. Receive-only, so not
+    // transmit-gated (nor is it on the Mac).
+    public Task TriggerZeroInAsync() =>
+        SendAsync("ZIN", () => { }, c => c.SendRawFireAndForgetAsync("ZI0"));
+
+    public Task SetCwSpotAsync(bool on) =>
+        SendAsync("CW SPOT", () => _state.CwSpot = on, c => c.SetRawBoolAsync("CS", on));
+
+    // "OS0": fixed MAIN-side P1.
+    public Task SetRepeaterShiftAsync(int mode) =>
+        SendAsync("RPT SHIFT", () => _state.RepeaterShiftMode = mode, c => c.SetRawIntAsync("OS0", mode, 1));
+
+    // A plain rig setting over CAT (Table 3's BEACON TYPE, "EX" 07/01/01),
+    // so it works without APRS decoding.
+    public Task SetAprsBeaconTypeAsync(int type) =>
+        SendAsync("BEACON", () => _state.AprsBeaconType = type, c => c.SetMenuItemAsync(7, 1, 1, type.ToString()));
+
+    // Table 3's FM CH STEP, "EX" 03/06/06.
+    public Task SetFmChannelStepAsync(int step) =>
+        SendAsync("CH STEP", () => _state.FmChannelStep = step, c => c.SetMenuItemAsync(3, 6, 6, step.ToString()));
+
+    // "CT0": fixed MAIN-side P1.
+    public Task SetSquelchTypeAsync(int mode) =>
+        SendAsync("SQL TYPE", () => _state.SquelchType = mode, c => c.SetRawIntAsync("CT0", mode, 1));
+
+    // "CN00"/"CN01" take an index into the tone/code table.
+    public Task SetToneIndexAsync(int index) =>
+        SendAsync("TONE FREQ", () => _state.CtcssToneIndex = index, c => c.SetRawIntAsync("CN00", index, 3));
+
+    public Task SetDcsIndexAsync(int index) =>
+        SendAsync("DCS", () => _state.DcsCodeIndex = index, c => c.SetRawIntAsync("CN01", index, 3));
+
+    /// MOX. Only the "on" direction is gated; the reason is returned (and
+    /// shown) when it's refused.
+    public async Task<string?> SetMoxAsync(bool on)
+    {
+        if (on && GateReason(TransmitAction.MoxOn) is { } reason)
+        {
+            AppLog.Write($"transmit-gate: blocked MOX on ({reason}) at {_state.FrequencyHz} Hz");
+            StatusMessage?.Invoke(reason);
+            return reason;
+        }
+        await SendAsync("MOX", () => _state.MoxEnabled = on, async c =>
+        {
+            if (on && BeforeTransmitAsync is { } before)
+            {
+                await before();
+            }
+            await c.SetMoxAsync(on);
+        });
+        return null;
+    }
+
+    /// ANT TUNE, momentary ("AC103", tuning start). It keys the rig to
+    /// tune, hence the gate; the reason is returned when it's refused.
+    public async Task<string?> TriggerAntennaTuneAsync()
+    {
+        if (GateReason(TransmitAction.TriggerAntennaTune) is { } reason)
+        {
+            AppLog.Write($"transmit-gate: blocked ANT TUNE ({reason}) at {_state.FrequencyHz} Hz");
+            StatusMessage?.Invoke(reason);
+            return reason;
+        }
+        await SendAsync("ANT TUNE", () => { }, async c =>
+        {
+            if (BeforeTransmitAsync is { } before)
+            {
+                await before();
+            }
+            await c.SendRawFireAndForgetAsync("AC103");
+        });
+        return null;
     }
 
     /// The Deep Settings screen that's open, so a disconnect can close it.
@@ -643,11 +767,9 @@ public sealed class MenuGrid : UserControl
     /// The CW window's send pane: break-in and keyer speed, through the same
     /// path as the CW page's BK-IN and CW SPEED buttons (so a slow-tier read
     /// overlapping the set is dropped, and the buttons follow).
-    public void SetBreakIn(bool on) =>
-        Send("BK-IN", () => _state.BreakIn = on, c => c.SetRawBoolAsync("BI", on));
+    public void SetBreakIn(bool on) => _ = SetBreakInAsync(on);
 
-    public void SetCwSpeed(int wpm) =>
-        Send("CW SPEED", () => _state.CwSpeedWpm = wpm, c => c.SetRawIntAsync("KS", wpm, 3));
+    public void SetCwSpeed(int wpm) => _ = SetCwSpeedAsync(wpm);
 
     /// Break-in, keyer speed and CW pitch, read for the CW window while it's
     /// open and the CW page isn't on screen (that page reads them itself).
@@ -804,8 +926,8 @@ public sealed class MenuGrid : UserControl
     /// Applies the new value at once (so the button updates without
     /// waiting for the next slow poll, like the Mac's applyOptimistically),
     /// then sends it. A failed send is reported; the next poll puts the
-    /// rig's real value back.
-    private async void Send(string what, Action applyOptimistic, Func<RigctldClient, Task> command)
+    /// rig's real value back. Never throws.
+    private async Task SendAsync(string what, Action applyOptimistic, Func<RigctldClient, Task> command)
     {
         if (_client is not { } client)
         {
@@ -834,24 +956,7 @@ public sealed class MenuGrid : UserControl
     private void AddMox(int item)
     {
         var button = AddCell(item, "MOX", () => OnOff(_state.MoxEnabled));
-        button.Click += (_, _) =>
-        {
-            var on = !(_state.MoxEnabled ?? false);
-            if (on && GateReason(TransmitAction.MoxOn) is { } reason)
-            {
-                AppLog.Write($"transmit-gate: blocked MOX on ({reason}) at {_state.FrequencyHz} Hz");
-                StatusMessage?.Invoke(reason);
-                return;
-            }
-            Send("MOX", () => _state.MoxEnabled = on, async c =>
-            {
-                if (on && BeforeTransmitAsync is { } before)
-                {
-                    await before();
-                }
-                await c.SetMoxAsync(on);
-            });
-        };
+        button.Click += (_, _) => _ = SetMoxAsync(!(_state.MoxEnabled ?? false));
         _refreshers.Add(() =>
         {
             var reason = _state.MoxEnabled == true ? null : GateReason(TransmitAction.MoxOn);
@@ -860,28 +965,11 @@ public sealed class MenuGrid : UserControl
         });
     }
 
-    /// 15: ANT TUNE, momentary ("AC103", tuning start). It keys the rig to
-    /// tune, hence the gate.
+    /// 15: ANT TUNE.
     private void AddAntennaTune(int item)
     {
         var button = AddCell(item, "ANT TUNE", () => "PUSH");
-        button.Click += (_, _) =>
-        {
-            if (GateReason(TransmitAction.TriggerAntennaTune) is { } reason)
-            {
-                AppLog.Write($"transmit-gate: blocked ANT TUNE ({reason}) at {_state.FrequencyHz} Hz");
-                StatusMessage?.Invoke(reason);
-                return;
-            }
-            Send("ANT TUNE", () => { }, async c =>
-            {
-                if (BeforeTransmitAsync is { } before)
-                {
-                    await before();
-                }
-                await c.SendRawFireAndForgetAsync("AC103");
-            });
-        };
+        button.Click += (_, _) => _ = TriggerAntennaTuneAsync();
         _refreshers.Add(() =>
         {
             var reason = GateReason(TransmitAction.TriggerAntennaTune);
@@ -908,7 +996,7 @@ public sealed class MenuGrid : UserControl
         {
             var level = slider.Value / 100.0;
             PowerLevelSent?.Invoke(level);
-            Send("RF POWER", () => _state.PowerLevel = level, c => c.SetPowerLevelAsync(level));
+            _ = SendAsync("RF POWER", () => _state.PowerLevel = level, c => c.SetPowerLevelAsync(level));
         }
 
         slider.ValueChanged += (_, e) =>
