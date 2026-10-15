@@ -1078,7 +1078,7 @@ keys the rig and sends the iPad's microphone to the rig's USB audio input.
   checked only by build, not on screen (needs a live hub). iPhone and
   Windows are out of scope.
 
-## iPad CW decoder (phase 1, decode only, 2026-10-14; Simulator against the real Pi and a live Mac hub)
+## iPad CW decoder (phase 1, decode only, 2026-10-14; Simulator against the real Pi and a live Mac hub, then confirmed on a real iPad by the user the same day)
 
 User request: the Mac's CW decoder on the iPad, in a pane over the filter
 block + MENU grid (the APRS lists' area), opened by a **CW** button at the
@@ -1112,7 +1112,7 @@ keyer-memory write and send queue live only in `HubService` today).
   localhost) both decoding W1AW on 14.047.5 with the neural model loaded
   on iOS; MAIN/SUB switch with the "not CW" note; Close restoring the
   grid and the filter spectrum. The Mac's CW window still decodes after
-  the move. Not yet on a real iPad, not tried in landscape.
+  the move. Confirmed working on a real iPad by the user, 2026-10-14.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
