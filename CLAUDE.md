@@ -1318,6 +1318,21 @@ free Mac app and a radio".
   runs (`lsof -nP -iTCP -sTCP:LISTEN | grep FTX1Remot`, lowest port) —
   a second client can read the simulated rig's state directly.
 
+## iPad TestFlight prep (2026-10-15, not yet archived/uploaded)
+
+App Store/TestFlight requirements on the iPad target: `PrivacyInfo.xcprivacy`
+in `Apps/iPad/FTX1RemoteiPad/` (picked up by the synchronized group as a
+resource) declares the required-reason APIs the app uses — UserDefaults
+(CA92.1) and `ProcessInfo.systemUptime` in the Demo Mode simulator
+(SystemBootTime, 35F9.1); add a category there if a new required-reason API
+(file timestamps, disk space, …) lands in code the iPad links.
+`ITSAppUsesNonExemptEncryption = false` is in `FTX1RemoteiPad-Info.plist`
+(a custom key, so in the plist, not an `INFOPLIST_KEY_*` setting — see the
+Sparkle lesson); `CFBundleDisplayName` "FTX1 Remote" and
+`NSLocalNetworkUsageDescription` are build settings. Bump
+`CURRENT_PROJECT_VERSION` for every upload. Beta review note: "Tap Pi
+direct → Demo Mode"; arbitrary loads are for user-owned Tailscale hosts.
+
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
 A Windows app with the same kind of functionality as the Mac app. Talks
