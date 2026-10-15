@@ -58,7 +58,7 @@ public final class CWSender: ObservableObject {
     /// a callsign in the decoded text.
     @Published public var theirCall = ""
     @Published public var slot: Int {
-        didSet { UserDefaults.standard.set(slot, forKey: DefaultsKey.slot) }
+        didSet { SettingsStore.defaults.set(slot, forKey: DefaultsKey.slot) }
     }
     @Published public var macros: [CWMacro] {
         didSet { CWMacro.save(macros) }
@@ -93,7 +93,7 @@ public final class CWSender: ObservableObject {
     public init(link: any CWKeyerLink, logSubsystem: String) {
         self.link = link
         logger = Logger(subsystem: logSubsystem, category: "cw-sender")
-        let stored = UserDefaults.standard.integer(forKey: DefaultsKey.slot)
+        let stored = SettingsStore.defaults.integer(forKey: DefaultsKey.slot)
         slot = (1...5).contains(stored) ? stored : 1
         macros = CWMacro.load()
         watchPTT(of: link)
@@ -533,14 +533,14 @@ public struct CWMacro: Identifiable, Codable, Equatable, Sendable {
     private static let defaultsKey = "cw.macros"
 
     public static func load() -> [CWMacro] {
-        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+        guard let data = SettingsStore.defaults.data(forKey: defaultsKey),
               let macros = try? JSONDecoder().decode([CWMacro].self, from: data) else { return defaults }
         return macros
     }
 
     public static func save(_ macros: [CWMacro]) {
         if let data = try? JSONEncoder().encode(macros) {
-            UserDefaults.standard.set(data, forKey: defaultsKey)
+            SettingsStore.defaults.set(data, forKey: defaultsKey)
         }
     }
 }

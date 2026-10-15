@@ -24,6 +24,7 @@ struct ContentView: View {
     @EnvironmentObject private var piViewModel: PiDirectViewModel
     /// The CW pane's sender, pointed at the route in use.
     @EnvironmentObject private var cwSender: CWSender
+    @EnvironmentObject private var demo: DemoSession
     @AppStorage("connectionRoute") private var route: ConnectionRoute = .macHub
 
     var body: some View {
@@ -42,7 +43,15 @@ struct ContentView: View {
 
             switch route {
             case .macHub: HubControlView()
-            case .piDirect: PiDirectView()
+            case .piDirect:
+                // Demo Mode: the same screen on the demo's own objects;
+                // the real model stays as it was.
+                if let context = demo.context {
+                    PiDirectView(isDemo: true)
+                        .demoEnvironment(context)
+                } else {
+                    PiDirectView()
+                }
             }
         }
         .onChange(of: route, initial: true) { _, newRoute in
@@ -60,7 +69,8 @@ struct ContentView: View {
     }
 
     private var isConnected: Bool {
-        switch route {
+        if demo.context != nil { return true }
+        return switch route {
         case .macHub: hubViewModel.connectionState == .connected
         case .piDirect: piViewModel.connectionState == .connected
         }
@@ -282,4 +292,5 @@ struct HubControlView: View {
     ContentView()
         .environmentObject(RigClientViewModel())
         .environmentObject(PiDirectViewModel(logSubsystem: "com.ftx1remote.ipad"))
+        .environmentObject(DemoSession())
 }

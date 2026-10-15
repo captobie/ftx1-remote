@@ -18,12 +18,12 @@ public enum StationSettings {
     public static let gridSquareKey = "station.gridSquare"
 
     public static var callsign: String {
-        get { UserDefaults.standard.string(forKey: callsignKey) ?? "" }
-        set { UserDefaults.standard.set(newValue, forKey: callsignKey) }
+        get { SettingsStore.defaults.string(forKey: callsignKey) ?? "" }
+        set { SettingsStore.defaults.set(newValue, forKey: callsignKey) }
     }
 
     public static var gridSquare: String {
-        get { UserDefaults.standard.string(forKey: gridSquareKey) ?? "" }
-        set { UserDefaults.standard.set(newValue, forKey: gridSquareKey) }
+        get { SettingsStore.defaults.string(forKey: gridSquareKey) ?? "" }
+        set { SettingsStore.defaults.set(newValue, forKey: gridSquareKey) }
     }
 }

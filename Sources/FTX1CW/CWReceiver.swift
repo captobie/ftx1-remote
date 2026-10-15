@@ -58,7 +58,7 @@ public final class CWReceiver: ObservableObject {
     @Published public var channel: CWAudioChannel {
         didSet {
             guard channel != oldValue else { return }
-            UserDefaults.standard.set(channel.rawValue, forKey: DefaultsKey.channel)
+            SettingsStore.defaults.set(channel.rawValue, forKey: DefaultsKey.channel)
             // Flush what the old channel's decoder still holds; the next
             // audio starts a fresh one on the new channel.
             if isRunning, !isDecodingFile {
@@ -132,7 +132,7 @@ public final class CWReceiver: ObservableObject {
     ///     them falls back to MAIN.
     public init(logSubsystem: String, channels: [CWAudioChannel] = CWAudioChannel.allCases) {
         logger = Logger(subsystem: logSubsystem, category: "cw-decoder")
-        let defaults = UserDefaults.standard
+        let defaults = SettingsStore.defaults
         let fallback = PipelineSettings()
         defaults.register(defaults: [
             DefaultsKey.toneFrequency: fallback.toneFrequency,
@@ -380,7 +380,7 @@ public final class CWReceiver: ObservableObject {
     }
 
     private func settingsChanged() {
-        let defaults = UserDefaults.standard
+        let defaults = SettingsStore.defaults
         defaults.set(toneFrequency, forKey: DefaultsKey.toneFrequency)
         defaults.set(autoTune, forKey: DefaultsKey.autoTune)
         defaults.set(squelchDB, forKey: DefaultsKey.squelchDB)

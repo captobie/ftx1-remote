@@ -73,11 +73,11 @@ public enum HomeFrequencySettings {
     }
 
     public static func frequencyHz(for band: HomeBand) -> Int {
-        let stored = UserDefaults.standard.object(forKey: key(for: band)) as? Int
+        let stored = SettingsStore.defaults.object(forKey: key(for: band)) as? Int
         return stored ?? band.defaultFrequencyHz
     }
 
     public static func setFrequencyHz(_ hz: Int, for band: HomeBand) {
-        UserDefaults.standard.set(hz, forKey: key(for: band))
+        SettingsStore.defaults.set(hz, forKey: key(for: band))
     }
 }

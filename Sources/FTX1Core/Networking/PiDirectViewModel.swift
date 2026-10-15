@@ -153,20 +153,17 @@ public final class PiDirectViewModel: ObservableObject {
     /// publishes per channel) so a view observing this model sees it.
     @Published public private(set) var memoryListSnapshot: MemoryListSnapshot
 
-    /// Fixed, like the Mac's `.remote` mode — only the host is configurable.
-    private static let rigctldPort: UInt16 = 4532
     private static let pollInterval: Duration = .seconds(1)
     private static let reconnectDelay: Duration = .seconds(3)
-    private static let audioPort: UInt16 = 8532
     /// No samples for this long → `.waiting`. Chunks arrive ~21×/s.
     private static let audioStaleAfter: TimeInterval = 2
 
     /// This device's Enable Transmit for this route — the hub's toggle
     /// lives on the Mac, which isn't in the path. Persisted, off by
     /// default; turning it off while keyed unkeys at once.
-    @Published public var transmitEnabled = UserDefaults.standard.bool(forKey: PiDirectViewModel.transmitEnabledKey) {
+    @Published public var transmitEnabled = SettingsStore.defaults.bool(forKey: PiDirectViewModel.transmitEnabledKey) {
         didSet {
-            UserDefaults.standard.set(transmitEnabled, forKey: Self.transmitEnabledKey)
+            SettingsStore.defaults.set(transmitEnabled, forKey: Self.transmitEnabledKey)
             // `MenuPageView` gates MOX/ANT TUNE on the state's copy.
             rigState.transmitEnabled = transmitEnabled
             if !transmitEnabled, isTransmitting { abortTransmit(reason: "Enable Transmit turned off") }
@@ -192,7 +189,7 @@ public final class PiDirectViewModel: ObservableObject {
         return TransmitGate.blockReason(transmitEnabled: transmitEnabled, state: rigState)
     }
 
-    private var host = ""
+    private var endpoint = PiEndpoint(host: "")
     #if os(iOS)
     private lazy var microphone = MicrophoneTransmitter(logSubsystem: logSubsystem)
     #endif
@@ -358,18 +355,26 @@ public final class PiDirectViewModel: ObservableObject {
     /// `wpsdHost`: the WPSD hotspot to read the C4FM callsign/reflector
     /// from (only with `readsVFODetails`); empty leaves that lookup off.
     public func connect(toHost host: String, wpsdHost: String = "") {
-        let host = host.trimmingCharacters(in: .whitespaces)
+        connect(to: PiEndpoint(host: host), wpsdHost: wpsdHost)
+    }
+
+    /// `endpoint`: the Pi's three services — the real Pi's fixed ports, or
+    /// the iPad's Demo Mode simulator on loopback.
+    public func connect(to endpoint: PiEndpoint, wpsdHost: String = "") {
+        let host = endpoint.host.trimmingCharacters(in: .whitespaces)
         guard !host.isEmpty else {
             connectionState = .failed("Enter the Pi's hostname")
             return
         }
         disconnect()
-        self.host = host
+        var endpoint = endpoint
+        endpoint.host = host
+        self.endpoint = endpoint
         self.wpsdHost = wpsdHost.trimmingCharacters(in: .whitespaces)
         tick = 0
         menuReadCursor = 0
         filterReadCursor = 0
-        let rigctld = RigctldClient(host: host, port: Self.rigctldPort)
+        let rigctld = RigctldClient(host: host, port: endpoint.rigctldPort)
         self.rigctld = rigctld
         let queue = CommandQueue(rigctld: rigctld)
         self.queue = queue
@@ -394,9 +399,9 @@ public final class PiDirectViewModel: ObservableObject {
         }
         memoryList.rigctld = rigctld
         sessionTask = Task { [weak self] in
-            await self?.runSession(rigctld: rigctld, host: host)
+            await self?.runSession(rigctld: rigctld, endpoint: endpoint)
         }
-        startAudio(host: host)
+        startAudio(endpoint: endpoint)
     }
 
     public func disconnect() {
@@ -446,7 +451,7 @@ public final class PiDirectViewModel: ObservableObject {
         AudioPlaybackSettings.subIsMuted = isSubAudioMuted
     }
 
-    private func startAudio(host: String) {
+    private func startAudio(endpoint: PiEndpoint) {
         mainAudioEngine.start()
         if playsSubAudio { subAudioEngine.start() }
         lastAudioAt = nil
@@ -455,8 +460,8 @@ public final class PiDirectViewModel: ObservableObject {
         let mainDownsampler = PiAudioDownsampler()
         let subDownsampler = playsSubAudio ? PiAudioDownsampler() : nil
         let client = RemoteAudioStreamClient(
-            host: host,
-            port: Self.audioPort,
+            host: endpoint.host,
+            port: endpoint.audioPort,
             logSubsystem: logSubsystem
         ) { [weak self, channelSwap, aprsGate, aprsDecoderMain, aprsDecoderSub] left, right, sampleRate in
             // L/R follow the physical receivers, so after a swap R is Main.
@@ -828,7 +833,7 @@ public final class PiDirectViewModel: ObservableObject {
         // recording — see `TXAudioCapture`.
         mainAudioEngine.stop()
         subAudioEngine.stop()
-        let txClient = RemoteTXAudioClient(host: host, logSubsystem: logSubsystem)
+        let txClient = RemoteTXAudioClient(host: endpoint.host, port: endpoint.txAudioPort, logSubsystem: logSubsystem)
         Task { await txClient.start() }
         do {
             try microphone.start(
@@ -973,12 +978,12 @@ public final class PiDirectViewModel: ObservableObject {
 
     /// Connect, poll until the link dies, wait, retry — until cancelled by
     /// `disconnect()`.
-    private func runSession(rigctld: RigctldClient, host: String) async {
+    private func runSession(rigctld: RigctldClient, endpoint: PiEndpoint) async {
         while !Task.isCancelled {
             connectionState = .connecting
             do {
                 try await rigctld.connect()
-                logger.notice("connected to \(host, privacy: .public):\(Self.rigctldPort)")
+                logger.notice("connected to \(endpoint.host, privacy: .public):\(endpoint.rigctldPort)")
                 connectionState = .connected
                 try await pollUntilFailure(rigctld)
             } catch is CancellationError {
@@ -1233,6 +1238,25 @@ public final class PiDirectViewModel: ObservableObject {
         c4fmReflector = nil
         rigState.c4fmCallsign = nil
         rigState.c4fmReflector = nil
+    }
+}
+
+/// Where `PiDirectViewModel` finds the Pi's services: rigctld, the receive
+/// audio stream (`Pi/ftx1-audiostream.py`) and the transmit audio service
+/// (`Pi/ftx1-txaudio.py`). The real Pi's ports are fixed, like the Mac's
+/// `.remote` mode — only the host is configurable; Demo Mode's simulator
+/// listens on loopback ports the system picks.
+public struct PiEndpoint: Equatable, Sendable {
+    public var host: String
+    public var rigctldPort: UInt16
+    public var audioPort: UInt16
+    public var txAudioPort: UInt16
+
+    public init(host: String, rigctldPort: UInt16 = 4532, audioPort: UInt16 = 8532, txAudioPort: UInt16 = RemoteTXAudioClient.defaultPort) {
+        self.host = host
+        self.rigctldPort = rigctldPort
+        self.audioPort = audioPort
+        self.txAudioPort = txAudioPort
     }
 }
 

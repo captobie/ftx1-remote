@@ -18,24 +18,24 @@ public enum APRSSettings {
     public static let defaultMaxMessages = 1_000
 
     public static var enabled: Bool {
-        get { UserDefaults.standard.bool(forKey: enabledKey) }
-        set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
+        get { SettingsStore.defaults.bool(forKey: enabledKey) }
+        set { SettingsStore.defaults.set(newValue, forKey: enabledKey) }
     }
 
     public static var frequencyHz: Int {
         get {
-            let value = UserDefaults.standard.integer(forKey: frequencyHzKey)
+            let value = SettingsStore.defaults.integer(forKey: frequencyHzKey)
             return value == 0 ? defaultFrequencyHz : value
         }
-        set { UserDefaults.standard.set(newValue, forKey: frequencyHzKey) }
+        set { SettingsStore.defaults.set(newValue, forKey: frequencyHzKey) }
     }
 
     public static var toleranceHz: Int {
         get {
-            let value = UserDefaults.standard.integer(forKey: toleranceHzKey)
+            let value = SettingsStore.defaults.integer(forKey: toleranceHzKey)
             return value == 0 ? defaultToleranceHz : value
         }
-        set { UserDefaults.standard.set(newValue, forKey: toleranceHzKey) }
+        set { SettingsStore.defaults.set(newValue, forKey: toleranceHzKey) }
     }
 
     /// How many distinct stations/messages `APRSStore` keeps before
@@ -45,18 +45,18 @@ public enum APRSSettings {
     /// falling back to the default rather than evicting everything.
     public static var maxStations: Int {
         get {
-            let value = UserDefaults.standard.integer(forKey: maxStationsKey)
+            let value = SettingsStore.defaults.integer(forKey: maxStationsKey)
             return value > 0 ? value : defaultMaxStations
         }
-        set { UserDefaults.standard.set(newValue, forKey: maxStationsKey) }
+        set { SettingsStore.defaults.set(newValue, forKey: maxStationsKey) }
     }
 
     public static var maxMessages: Int {
         get {
-            let value = UserDefaults.standard.integer(forKey: maxMessagesKey)
+            let value = SettingsStore.defaults.integer(forKey: maxMessagesKey)
             return value > 0 ? value : defaultMaxMessages
         }
-        set { UserDefaults.standard.set(newValue, forKey: maxMessagesKey) }
+        set { SettingsStore.defaults.set(newValue, forKey: maxMessagesKey) }
     }
 
     /// Whether decoding should be active for the given VFO frequency —

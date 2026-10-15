@@ -15,8 +15,11 @@ public final class APRSStore: ObservableObject {
     @Published public private(set) var stations: [APRSStation] = []
     @Published public private(set) var messages: [APRSMessage] = []
 
+    /// Bound at init (see `APRSPersistence.currentFileURL`).
+    private let fileURL = APRSPersistence.currentFileURL
+
     public init() {
-        let loaded = APRSPersistence.load()
+        let loaded = APRSPersistence.load(from: fileURL)
         stations = loaded.stations
         messages = loaded.messages
         // Trim on load too, not just on record — covers a limit lowered
@@ -76,7 +79,7 @@ public final class APRSStore: ObservableObject {
     public func clearHistory() {
         stations = []
         messages = []
-        APRSPersistence.clear()
+        APRSPersistence.clear(fileURL)
     }
 
     /// Evicts the least-recently-heard stations once over
@@ -101,6 +104,6 @@ public final class APRSStore: ObservableObject {
     }
 
     private func persist() {
-        APRSPersistence.save(stations: stations, messages: messages)
+        APRSPersistence.save(stations: stations, messages: messages, to: fileURL)
     }
 }

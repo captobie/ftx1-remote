@@ -12,6 +12,8 @@ struct FTX1RemoteiPadApp: App {
     /// `ContentView` points it at `viewModel` (Mac hub) or `piViewModel`
     /// (Pi direct) with `CWSender.use(_:)`.
     @StateObject private var cwSender: CWSender
+    /// Demo Mode on the Pi-direct tab (`DemoSession`).
+    @StateObject private var demoSession = DemoSession()
 
     init() {
         let piViewModel = PiDirectViewModel(
@@ -34,6 +36,7 @@ struct FTX1RemoteiPadApp: App {
                 .environmentObject(piViewModel)
                 .environmentObject(cwReceiver)
                 .environmentObject(cwSender)
+                .environmentObject(demoSession)
                 // Both routes' 8 kHz receive audio to the CW decoder, which
                 // keeps only the selected receiver and only while its pane
                 // is open.

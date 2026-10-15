@@ -10,27 +10,27 @@ enum APRSPersistence {
         var messages: [APRSMessage]
     }
 
-    private static var fileURL: URL? {
-        guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
-        let directory = base.appendingPathComponent("FTX1Remote", isDirectory: true)
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appendingPathComponent("aprs-history.json")
+    /// The history file in the settings folder current right now
+    /// (`SettingsStore` — Demo Mode's while it runs). `APRSStore` takes it
+    /// once, at init, so it keeps writing where it read from.
+    static var currentFileURL: URL? {
+        SettingsStore.dataDirectory?.appendingPathComponent("aprs-history.json")
     }
 
-    static func load() -> (stations: [APRSStation], messages: [APRSMessage]) {
+    static func load(from fileURL: URL?) -> (stations: [APRSStation], messages: [APRSMessage]) {
         guard let fileURL, let data = try? Data(contentsOf: fileURL) else { return ([], []) }
         guard let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) else { return ([], []) }
         return (snapshot.stations, snapshot.messages)
     }
 
-    static func save(stations: [APRSStation], messages: [APRSMessage]) {
+    static func save(stations: [APRSStation], messages: [APRSMessage], to fileURL: URL?) {
         guard let fileURL else { return }
         let snapshot = Snapshot(stations: stations, messages: messages)
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         try? data.write(to: fileURL, options: .atomic)
     }
 
-    static func clear() {
+    static func clear(_ fileURL: URL?) {
         guard let fileURL else { return }
         try? FileManager.default.removeItem(at: fileURL)
     }

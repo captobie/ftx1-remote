@@ -21,10 +21,10 @@ public enum AudioPlaybackSettings {
 
     public static var volume: Double {
         get {
-            (UserDefaults.standard.object(forKey: volumeKey) as? Double) ?? 0.8
+            (SettingsStore.defaults.object(forKey: volumeKey) as? Double) ?? 0.8
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: volumeKey)
+            SettingsStore.defaults.set(newValue, forKey: volumeKey)
         }
     }
 
@@ -36,16 +36,16 @@ public enum AudioPlaybackSettings {
     /// on) pending further real-traffic tuning.
     public static var squelchThreshold: Double {
         get {
-            (UserDefaults.standard.object(forKey: squelchThresholdKey) as? Double) ?? 0.015
+            (SettingsStore.defaults.object(forKey: squelchThresholdKey) as? Double) ?? 0.015
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: squelchThresholdKey)
+            SettingsStore.defaults.set(newValue, forKey: squelchThresholdKey)
         }
     }
 
     public static var isMuted: Bool {
-        get { UserDefaults.standard.bool(forKey: isMutedKey) }
-        set { UserDefaults.standard.set(newValue, forKey: isMutedKey) }
+        get { SettingsStore.defaults.bool(forKey: isMutedKey) }
+        set { SettingsStore.defaults.set(newValue, forKey: isMutedKey) }
     }
 
     /// Same defaults as the Main-channel settings above — no evidence yet
@@ -54,25 +54,25 @@ public enum AudioPlaybackSettings {
     /// first use.
     public static var subVolume: Double {
         get {
-            (UserDefaults.standard.object(forKey: subVolumeKey) as? Double) ?? 0.8
+            (SettingsStore.defaults.object(forKey: subVolumeKey) as? Double) ?? 0.8
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: subVolumeKey)
+            SettingsStore.defaults.set(newValue, forKey: subVolumeKey)
         }
     }
 
     public static var subSquelchThreshold: Double {
         get {
-            (UserDefaults.standard.object(forKey: subSquelchThresholdKey) as? Double) ?? 0.015
+            (SettingsStore.defaults.object(forKey: subSquelchThresholdKey) as? Double) ?? 0.015
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: subSquelchThresholdKey)
+            SettingsStore.defaults.set(newValue, forKey: subSquelchThresholdKey)
         }
     }
 
     public static var subIsMuted: Bool {
-        get { UserDefaults.standard.bool(forKey: subIsMutedKey) }
-        set { UserDefaults.standard.set(newValue, forKey: subIsMutedKey) }
+        get { SettingsStore.defaults.bool(forKey: subIsMutedKey) }
+        set { SettingsStore.defaults.set(newValue, forKey: subIsMutedKey) }
     }
 
     /// Whether the rig's left/right USB audio channels are currently
@@ -82,7 +82,7 @@ public enum AudioPlaybackSettings {
     /// "whatever it was when the app last ran."
     public static let channelsSwappedKey = "audio.channelsSwapped"
     public static var channelsSwapped: Bool {
-        get { UserDefaults.standard.bool(forKey: channelsSwappedKey) }
-        set { UserDefaults.standard.set(newValue, forKey: channelsSwappedKey) }
+        get { SettingsStore.defaults.bool(forKey: channelsSwappedKey) }
+        set { SettingsStore.defaults.set(newValue, forKey: channelsSwappedKey) }
     }
 }

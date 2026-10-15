@@ -720,11 +720,12 @@ public final class SimulatedRig: @unchecked Sendable {
         }
     }
 
-    /// RF out: the power setting (10 W full scale) while keyed; in SSB it
-    /// follows the TX audio level, as speech would.
+    /// RF out: the power setting (100 W full scale, as the MENU grid's RF
+    /// POWER shows it) while keyed; in SSB it follows the TX audio level,
+    /// as speech would.
     private func outputWatts(_ now: TimeInterval) -> Double {
         guard isTransmitting(now) else { return 0 }
-        let full = rfPower * 10
+        let full = rfPower * 100
         switch effective(activeSide).mode {
         case "1", "2", "8", "C", "5", "D":
             guard ptt || registers["MX"] == "1" else { return full }
@@ -742,9 +743,9 @@ public final class SimulatedRig: @unchecked Sendable {
         case 2: return Self.raw(forStrengthDb: strengthDb(side: 1, now: now))
         case 3: return transmitting ? 40 : 0
         case 4: return transmitting ? 60 : 0
-        case 5: return Int(outputWatts(now) / 10 * 255)
+        case 5: return Int(outputWatts(now) / 100 * 255)
         case 6: return transmitting ? Int((swr - 1) * 64) : 0
-        case 7: return transmitting ? Int(30 + outputWatts(now) * 14) : 18
+        case 7: return transmitting ? Int(30 + outputWatts(now) * 1.4) : 18
         case 8: return 190
         default: return 0
         }

@@ -39,8 +39,17 @@ import SwiftUI
 ///
 /// Unlike the iPhone's `PiDirectView` (single focused VFO, Main audio
 /// only), this shows both receivers, as the hub screen does.
+///
+/// Demo Mode (2026-10-15): a "Demo Mode" button under the host fields,
+/// shown while disconnected, runs this same screen against a simulated Pi
+/// (`DemoSession`); `isDemo` is that copy, with a DEMO banner and "Exit
+/// Demo" in place of Connected.
 struct PiDirectView: View {
+    /// The Demo Mode copy of this screen (`ContentView` hands it the
+    /// demo's own objects).
+    var isDemo = false
     @EnvironmentObject private var viewModel: PiDirectViewModel
+    @EnvironmentObject private var demo: DemoSession
     @AppStorage("piHost") private var host: String = "ftx1pi"
     /// This device's own copy of the Mac's WPSD host key; empty = no C4FM
     /// callsign/reflector lookup.
@@ -58,8 +67,10 @@ struct PiDirectView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                if isDemo { DemoBanner() }
+
                 HStack {
-                    if viewModel.connectionState != .connected {
+                    if viewModel.connectionState != .connected && !isDemo {
                         TextField("Pi hostname (Tailscale)", text: $host)
                             .textFieldStyle(.roundedBorder)
                             .textInputAutocapitalization(.never)
@@ -81,6 +92,10 @@ struct PiDirectView: View {
                         Spacer()
                         rigButtons
                     }
+                }
+
+                if !isDemo, viewModel.connectionState == .disconnected {
+                    demoButton
                 }
 
                 if viewModel.connectionState == .connected, let problem = viewModel.transmitProblem {
@@ -242,7 +257,9 @@ struct PiDirectView: View {
             CWSendSection<PiDirectViewModel>()
         }
 
-        Text("Direct to rigctld on the Pi, no Mac hub. Unlock to transmit (PTT, MOX, ANT TUNE); hold PTT to talk through the iPad's microphone. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed. Menu values refresh every ~10 s.")
+        Text(isDemo
+             ? "Demo Mode: a simulated FTX-1 — a CW beacon on 14.047.5 MHz, APRS on 144.390 MHz, a 2 m repeater that comes up every 45 s on memory channel 2. Unlock to try PTT and CW sending; nothing leaves the iPad. Settings changed here are thrown away on Exit Demo."
+             : "Direct to rigctld on the Pi, no Mac hub. Unlock to transmit (PTT, MOX, ANT TUNE); hold PTT to talk through the iPad's microphone. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed. Menu values refresh every ~10 s.")
             .font(.caption)
             .foregroundStyle(.secondary)
     }
@@ -288,7 +305,49 @@ struct PiDirectView: View {
         .buttonStyle(.bordered)
     }
 
+    /// Under the host fields while disconnected: the same screen against a
+    /// simulated Pi (`DemoSession`).
+    private var demoButton: some View {
+        HStack(spacing: 12) {
+            Button {
+                demo.start()
+            } label: {
+                Label("Demo Mode", systemImage: "play.rectangle")
+            }
+            .buttonStyle(.bordered)
+            .disabled(demo.isStarting)
+            Text(demo.problem ?? "Try the app with a simulated radio — no FTX-1, Pi or Mac needed.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
     private var connectButton: some View {
+        if isDemo {
+            exitDemoButton
+        } else {
+            realConnectButton
+        }
+    }
+
+    /// In place of Connected while the demo runs, whatever the link state.
+    private var exitDemoButton: some View {
+        Button {
+            demo.stop()
+        } label: {
+            Text("Exit Demo")
+                .font(.headline)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.yellow)
+                .foregroundStyle(Color.black)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var realConnectButton: some View {
         Button {
             if viewModel.connectionState == .disconnected {
                 viewModel.connect(toHost: host, wpsdHost: wpsdHost)

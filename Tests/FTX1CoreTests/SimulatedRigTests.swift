@@ -338,7 +338,7 @@ final class SimulatedRigTests: XCTestCase {
         let ptt = try await client.getPTT()
         XCTAssertTrue(ptt)
         let watts = try await client.getLevel("RFPOWER_METER_WATTS")
-        XCTAssertEqual(watts, 5, "CW: full carrier at the 50% default")
+        XCTAssertEqual(watts, 50, "CW: full carrier at the 50% default")
         let swr = try await client.getLevel("SWR")
         XCTAssertEqual(try XCTUnwrap(swr), 1.25, accuracy: 0.001)
         let alc = try await client.getMeterReading(4)

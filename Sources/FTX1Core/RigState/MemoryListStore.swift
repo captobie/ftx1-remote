@@ -47,9 +47,12 @@ public final class MemoryListStore: ObservableObject {
         MemoryListSnapshot(entries: entries, scanned: lastScanned, scanningChannel: scanningChannel)
     }
 
+    /// Bound at init (see `MemoryListPersistence.currentFileURL`).
+    private let fileURL = MemoryListPersistence.currentFileURL
+
     public init(rigctld: RigctldClient? = nil) {
         self.rigctld = rigctld
-        let snapshot = MemoryListPersistence.load()
+        let snapshot = MemoryListPersistence.load(from: fileURL)
         entries = snapshot?.entries ?? []
         lastScanned = snapshot?.scanned
     }
@@ -101,7 +104,7 @@ public final class MemoryListStore: ObservableObject {
         }
         entries = found
         lastScanned = Date()
-        MemoryListPersistence.save(entries: found, scanned: lastScanned!)
+        MemoryListPersistence.save(entries: found, scanned: lastScanned!, to: fileURL)
     }
 }
 
@@ -126,19 +129,18 @@ private enum MemoryListPersistence {
         var scanned: Date
     }
 
-    private static var fileURL: URL? {
-        guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
-        let directory = base.appendingPathComponent("FTX1Remote", isDirectory: true)
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appendingPathComponent("memory-channels.json")
+    /// In the settings folder current right now (`SettingsStore` — Demo
+    /// Mode's while it runs); the store takes it once, at init.
+    static var currentFileURL: URL? {
+        SettingsStore.dataDirectory?.appendingPathComponent("memory-channels.json")
     }
 
-    static func load() -> Snapshot? {
+    static func load(from fileURL: URL?) -> Snapshot? {
         guard let fileURL, let data = try? Data(contentsOf: fileURL) else { return nil }
         return try? JSONDecoder().decode(Snapshot.self, from: data)
     }
 
-    static func save(entries: [MemoryChannelEntry], scanned: Date) {
+    static func save(entries: [MemoryChannelEntry], scanned: Date, to fileURL: URL?) {
         guard let fileURL, let data = try? JSONEncoder().encode(Snapshot(entries: entries, scanned: scanned)) else { return }
         try? data.write(to: fileURL, options: .atomic)
     }
