@@ -1387,8 +1387,8 @@ release with the Windows zip also gets `releases\libusb-1.0.24.tar.bz2`
 MIT-style licence (mingw-w64 v12.0.0) ships as `COPYING-winpthreads.txt`.
 Details: `Apps/Windows/README.md`, "Bundled rigctld".
 
-**Desktop hub for the iPad (phase 1 of 6, 2026-10-15; tested on the PC
-with a local client, not yet from a real iPad)**: this app now also
+**Desktop hub for the iPad (phase 1 of 6, 2026-10-15; tested on the PC,
+then connected from a real iPad by the user the same day)**: this app now also
 serves the Mac hub's WebSocket protocol on 8765 (`Services/Hub/`,
 Kestrel), so the iPad's "Desktop hub" route can show its state —
 read-only so far (inbound frames logged and ignored). Settings → Hub,

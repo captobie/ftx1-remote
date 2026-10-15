@@ -1349,7 +1349,7 @@ already using, Local or Remote.
   holder is unkeyed. "KY00" is sent if the last keyer player drops. TX
   audio has a 1.5 s silence watchdog.
 
-### Phase 1 status (2026-10-15: built, tested on this PC; not yet from a real iPad)
+### Phase 1 status (2026-10-15: built, tested on the PC, then from a real iPad by the user)
 
 - `Services/Hub/HubServer.cs` (Kestrel, `ListenAnyIP(8765)`, dual-mode,
   path "/"), `Services/Hub/HubAddressFilter.cs` (the address rule below,
@@ -1387,15 +1387,15 @@ already using, Local or Remote.
   allow/refuse lists; and `WritesWindowsFixture` writes
   `Tests/WireFixtures/windows/windows-state-push.json` from the real
   mapper (re-run it after any mapper change and commit the file).
-  **Not yet run**: the Mac's `HubWireFixtureTests` against that file.
+  The Mac's `HubWireFixtureTests` decodes that file (passed 2026-10-15).
 - **Tested here** (Remote mode, rig on the Pi): the push arrives on
   connect and after every poll at ws://localhost:8765 (~25 pushes in 20 s,
   live frequency/mode/meters/MENU/filter values), a client ping gets a
   pong, a non-"/" path gets 400, Settings → Hub shows listening and the
   client appearing and leaving, and turning the switch off/on through Save
-  stops and restarts the listener. Not tested: a refusal from a real
-  outside address (unit-tested only), Local mode, a real iPad over
-  Tailscale or the LAN.
+  stops and restarts the listener. Then the user connected a real iPad's
+  Desktop hub route to it, 2026-10-15, working. Not tested: a refusal from
+  a real outside address (unit-tested only), Local mode.
 
 **Windows Firewall.** The app is unpackaged, so Windows asks "Allow
 FTX1RemoteWindows to communicate on these networks?" the first time the
@@ -1405,7 +1405,7 @@ prompt was dismissed, or to add the rule by hand (admin PowerShell, with
 the path of the exe you run):
 
 ```powershell
-New-NetFirewallRule -DisplayName "FTX1Remote hub (TCP 8765)" -Direction Inbound -Protocol TCP -LocalPort 8765 -Action Allow -Profile Any -Program "C:\path	o\FTX1RemoteWindows.exe"
+New-NetFirewallRule -DisplayName "FTX1Remote hub (TCP 8765)" -Direction Inbound -Protocol TCP -LocalPort 8765 -Action Allow -Profile Any -Program "C:\path\to\FTX1RemoteWindows.exe"
 ```
 
 The app's own address filter still refuses anything outside loopback,
