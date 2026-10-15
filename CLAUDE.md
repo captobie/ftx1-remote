@@ -1232,6 +1232,92 @@ keyer-memory write and send queue live only in `HubService` today).
     (`defaults write com.ftx1remote.FTX1RemoteMac rigctld.transmitEnabled
     -bool NO`) and `defaults delete` it afterwards to restore.
 
+## Demo Mode (iPad, 2026-10-15; iPad Simulator only, not yet on a real iPad)
+
+A "Demo Mode" button on the iPad's Pi direct tab (own line under the Pi
+host / WPSD fields, only while disconnected) runs the Pi-direct screen
+against an in-process simulated Pi, for App Review and anyone without an
+FTX-1, Pi or Mac (user design). Simulate the Pi, not the app:
+`DemoPi` (`FTX1Core/Simulator/`) starts three `NWListener`s on
+127.0.0.1, system-picked ports (`LoopbackListener`; the iOS Simulator
+shares the Mac's loopback, so no fixed 4532 to clash with a real
+rigctld) — rigctld (`SimulatedRigctldServer` over `SimulatedRig`), the
+44.1 kHz stereo stream (`SimulatedAudioServer` + `SimulatedAudioSynth`)
+and a TX audio sink (`SimulatedTXAudioServer`) — and a fresh
+`PiDirectViewModel` connects to them through `PiEndpoint` (host + the
+three ports; the real Pi keeps 4532/8532/8533). Everything downstream is
+the real code; there is no mock `RigController`. While it runs: a yellow
+DEMO banner, "Exit Demo" in place of Connected, the route switch hidden.
+The hub route stays hardware-only.
+
+App Review note: "Tap Pi direct → Demo Mode; the Mac hub route needs our
+free Mac app and a radio".
+
+- **Settings isolation** (`SettingsStore`, `FTX1Core/Settings/`): the
+  persisted settings and files go through it — `AudioPlaybackSettings`
+  (mutes, VOL/SQL, `audio.channelsSwapped`), `APRSSettings`,
+  `StationSettings`, `WPSDSettings`, `HomeFrequency`,
+  `piDirect.transmitEnabled`, the `cw.*` keys (`CWReceiver`/`CWSender`),
+  `aprs-history.json` and `memory-channels.json` (both stores bind their
+  file at init, so a late write can't land elsewhere). `DemoSession`
+  (`Apps/iPad/DemoMode.swift`) points it at a wiped suite
+  (`com.ftx1remote.ipad.demo`) and `tmp/FTX1RemoteDemo/` *before* making
+  the demo's own model, CW receiver and sender (they read settings at
+  init), hands the screen the same suite (`.defaultAppStorage`), and on
+  exit points it back and deletes both. It never writes `piHost`; the
+  real model stays disconnected, so exiting shows the screen as it was.
+  Seeded in the demo only: APRS decoding on, station call DEMO / FN31.
+  Display preferences (theme, button colour, meter choice, step size)
+  are copied in. The transmit lock starts locked.
+- **Rig** (`SimulatedRig`): reply shapes from the app's parsers and
+  read-only probes of the Pi's rigctld (2026-10-15: SH, KM `…};`, RM, DA,
+  SS04, IS, CO, VM/MC, SC, RI0, `m currVFO` all matched). hamlib verbs
+  with VFO args, `W …; ;` reads (`\0`), `W …; 0` sets, lowercase `w` keyer
+  writes (0.4 s, "?;" over 50 chars), `\dump_caps` naming model 1051;
+  unknown raw → "?;". VS/FT one setting and `currVFO` follows it; SV
+  swaps contents while each receiver's L/R audio stays put (not in
+  single-receive display); "VM000" parks MAIN on the channel's values;
+  15 sample channels (2 m/70 cm, 144.390 APRS, NOAA, HF); memory scan
+  ~10 ch/s, pauses on a busy FM channel, resumes 1 s after it clears,
+  any stop stops both, scan moves VS/FT; per-side filter registers, SH
+  per mode; EX dictionary seeded from `DeepSettingsCatalog` (CW memories
+  TEXT, NAR WIDTH 500/1800 Hz); keyer: PTT 3 for the PARIS length at KS,
+  only with BK-IN on and in CW, "KY00" stops; RFPOWER 0.05 (5 W, read
+  ×100 W like the real rig); meters move while keyed (PO follows TX
+  audio in SSB).
+- **World** (`SimulatedWorld`, pure functions of time): practice-text CW
+  beacon on 14.047.5 (18 WPM), a 146.940 repeater up 8 s every 45 s
+  (CW ID + courtesy beep — what the scan stops on), APRS on 144.390
+  every 20–40 s (`APRSBurstEncoder`: AX.25 UI frames, APZFTX via
+  WIDE1-1, Bell 202; DEMO-n calls only, one message to DEMO), HF band
+  noise ~0.02 RMS (so SQL must come down), near-silent V/UHF FM.
+  **The synth keeps its own sample clock** (resyncs only past 0.25 s
+  drift): taking each 20 ms chunk's start from the wall clock made timer
+  jitter overlap/skip a few ms, which CW tolerated and AFSK didn't — APRS
+  never decoded until that was fixed.
+- **TX meters on Pi direct** (same commit series): with `readsSMeter`
+  the model reads the hub's TX meters while the rig reports TX, and the
+  iPad MAIN strip shows PO/SWR — for the real route too.
+- Tests: `SimulatedRigTests` (through the real `RigctldClient`/
+  `CommandQueue`), `SimulatedAudioTests`, `APRSBurstEncoderTests`
+  (round trip through the app's demodulator and `APRSDecoder`, incl.
+  server-like timer jitter).
+- **Verified in the iPad Simulator** (2026-10-15): demo enter/exit with
+  the real prefs and memory-list cache unchanged; tune (+1 kHz) and mode
+  (USB); filter width; MENU grid values; a Deep Settings write (APRS AF
+  MUTE) read back from the rig as "EX0601031"; memory list (15 channels)
+  and a pick; V/M in and out (VFO replayed); Scan MAIN pausing on CH 2
+  and resuming, Stop; swap with the audio parity flipping; CWKit decoding
+  the beacon (~700 Hz, 18 WPM); CW send with the lock open (PTT 3 for
+  ~8 s); PTT hold with PO/SWR on the MAIN strip and the decoder paused;
+  S.LIST filling (DEMO-1/-9, Sub). A normal Pi-direct connect to the real
+  Pi still works. Not checked: a real iPad, audio actually heard (the
+  Simulator plays it, not listened to), the iPhone (the simulator would
+  work for it; no UI there yet).
+- Testing tip: the demo's rigctld is reachable from the Mac while it
+  runs (`lsof -nP -iTCP -sTCP:LISTEN | grep FTX1Remot`, lowest port) —
+  a second client can read the simulated rig's state directly.
+
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
 A Windows app with the same kind of functionality as the Mac app. Talks
@@ -2429,6 +2515,10 @@ WebSDR differences are in their own bullet at the end.
   lives in the Xcode-project Mac target, which — like the rest of this
   project — has no unit test target; verify that layer via hardware
   validation, same as every other CAT/audio feature.
+- `Sources/FTX1Core/Simulator/` — the iPad Demo Mode's simulated Pi
+  (`DemoPi`, `SimulatedRig`, servers, audio synth, APRS encoder), also
+  usable as a test fixture; `Sources/FTX1Core/Settings/SettingsStore` —
+  where persisted settings live (see "Demo Mode").
 - `Sources/FTX1CW/` — the CW receiver and sender on CWKit, shared by the
   Mac and the iPad (separate product so the iPhone doesn't carry it) —
   see "iPad CW decoder" above.
