@@ -1318,7 +1318,7 @@ free Mac app and a radio".
   runs (`lsof -nP -iTCP -sTCP:LISTEN | grep FTX1Remot`, lowest port) —
   a second client can read the simulated rig's state directly.
 
-## iPad TestFlight prep (2026-10-15, not yet archived/uploaded)
+## iPad TestFlight prep (2026-10-15; 0.9 build 6 uploaded the same day)
 
 App Store/TestFlight requirements on the iPad target: `PrivacyInfo.xcprivacy`
 in `Apps/iPad/FTX1RemoteiPad/` (picked up by the synchronized group as a
@@ -1332,6 +1332,12 @@ Sparkle lesson); `CFBundleDisplayName` "FTX1 Remote" and
 `NSLocalNetworkUsageDescription` are build settings. Bump
 `CURRENT_PROJECT_VERSION` for every upload. Beta review note: "Tap Pi
 direct → Demo Mode"; arbitrary loads are for user-owned Tailscale hosts.
+Upload: archive with `-destination 'generic/platform=iOS'
+-allowProvisioningUpdates` to `build/FTX1RemoteiPad.xcarchive`, then
+`xcodebuild -exportArchive -exportOptionsPlist Scripts/ExportOptions-iOS.plist
+-allowProvisioningUpdates` (method app-store-connect, destination upload —
+the export itself uploads). The Mac's `Scripts/ExportOptions.plist` is
+Developer ID, keep them apart.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
