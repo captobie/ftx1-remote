@@ -112,6 +112,27 @@ final class WireMessageTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(CWKeyerReply.self, from: JSONEncoder().encode(failed)).error, "rejected")
     }
 
+    /// The keyer coordinator's lease actions ride on the same pair: an
+    /// acquire/release carries `action`, a write doesn't, and a refused
+    /// acquire names the holder in `busy`.
+    func testCWKeyerLeaseMessages() throws {
+        let acquire = CWKeyerRequest(id: 10, action: .acquire)
+        let data = try JSONEncoder().encode(acquire)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        XCTAssertEqual(json?["action"] as? String, "acquire")
+        XCTAssertEqual(try JSONDecoder().decode(CWKeyerRequest.self, from: data), acquire)
+        XCTAssertEqual(try JSONDecoder().decode(CWKeyerRequest.self, from: JSONEncoder().encode(CWKeyerRequest(id: 11, action: .release))).action, .release)
+        XCTAssertNil(try JSONDecoder().decode(CWKeyerRequest.self, from: JSONEncoder().encode(CWKeyerRequest(id: 12, slot: 1, text: "CQ"))).action)
+        // A request from before the lease (no "action" key) still decodes.
+        let old = Data(#"{"type":"cw_keyer","id":13,"slot":1,"text":"CQ"}"#.utf8)
+        XCTAssertNil(try JSONDecoder().decode(CWKeyerRequest.self, from: old).action)
+
+        let busy = CWKeyerReply(id: 10, stored: nil, error: nil, busy: "the Mac's CW window")
+        XCTAssertEqual(try JSONDecoder().decode(CWKeyerReply.self, from: JSONEncoder().encode(busy)).busy, "the Mac's CW window")
+        let granted = Data(#"{"type":"cw_keyer_reply","id":10}"#.utf8)
+        XCTAssertNil(try JSONDecoder().decode(CWKeyerReply.self, from: granted).busy)
+    }
+
     func testSetTransmitEnabledRoundTrip() throws {
         for enabled in [true, false] {
             let command = RigCommand.setTransmitEnabled(enabled)

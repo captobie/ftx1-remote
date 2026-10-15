@@ -771,6 +771,17 @@ final class HubService: ObservableObject {
         return nil
     }
 
+    /// The CW keyer lease for this Mac's own CW window — the server is the
+    /// coordinator, since it also sees every hub client's (see
+    /// `RigWebSocketServer.acquireKeyer`). nil = granted.
+    func acquireCWKeyerLease() async -> String? {
+        await server.acquireKeyer(.mac)
+    }
+
+    func releaseCWKeyerLease() {
+        Task { await server.releaseKeyer(.mac) }
+    }
+
     /// CW send pane: makes sure keyer memory `slot` is a TEXT memory (CW
     /// SETTING → KEYER → CW MEMORY 1-5, "EX" 02 02 06-10: 0 TEXT, 1
     /// MESSAGE); a MESSAGE slot would play recorded audio instead.

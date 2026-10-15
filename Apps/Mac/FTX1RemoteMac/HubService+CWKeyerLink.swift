@@ -25,4 +25,14 @@ extension HubService: CWKeyerLink {
     func playCWTextMemory(slot: Int) {
         send(.playCWTextMemory(slot: slot))
     }
+
+    /// Shared with hub clients through the server's coordinator, so this
+    /// window and an iPad take turns line by line.
+    func acquireCWKeyer() async throws -> String? {
+        await acquireCWKeyerLease()
+    }
+
+    func releaseCWKeyer() {
+        releaseCWKeyerLease()
+    }
 }

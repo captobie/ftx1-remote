@@ -257,15 +257,36 @@ public final class RigClientViewModel: ObservableObject, RigController {
         _ = try await keyerRequest(slot: slot, text: nil)
     }
 
+    /// The hub's CW keyer lease (`CWKeyerRequest` `.acquire`): nil when
+    /// granted, otherwise who has the keyer.
+    public func acquireCWKeyerLease() async throws -> String? {
+        let reply = try await keyerRequest { CWKeyerRequest(id: $0, action: .acquire) }
+        return reply.busy
+    }
+
+    /// Gives the lease back; doesn't wait for the answer (the hub also
+    /// drops it when this client disconnects, or after 30 s unused).
+    public func releaseCWKeyerLease() {
+        guard let client, connectionState == .connected else { return }
+        let id = nextKeyerRequestID
+        nextKeyerRequestID += 1
+        Task { try? await client.sendCWKeyer(CWKeyerRequest(id: id, action: .release)) }
+    }
+
     private func keyerRequest(slot: Int, text: String?) async throws -> String? {
+        try await keyerRequest { CWKeyerRequest(id: $0, slot: slot, text: text) }.stored
+    }
+
+    private func keyerRequest(_ make: (Int) -> CWKeyerRequest) async throws -> CWKeyerReply {
         guard let client, connectionState == .connected else { throw CWKeyerRequestError.notConnected }
         let id = nextKeyerRequestID
         nextKeyerRequestID += 1
+        let request = make(id)
         let reply = await withCheckedContinuation { continuation in
             pendingKeyerRequests[id] = continuation
             Task {
                 do {
-                    try await client.sendCWKeyer(CWKeyerRequest(id: id, slot: slot, text: text))
+                    try await client.sendCWKeyer(request)
                 } catch {
                     self.finishKeyerRequest(id, reply: nil)
                     return
@@ -276,7 +297,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
         }
         guard let reply else { throw CWKeyerRequestError.noReply }
         if let error = reply.error { throw CWKeyerRequestError.failed(error) }
-        return reply.stored
+        return reply
     }
 
     /// A no-op once that request has been answered (an answer after the

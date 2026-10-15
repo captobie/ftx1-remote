@@ -21,6 +21,13 @@ public protocol CWKeyerLink: AnyObject {
     func writeCWKeyerMemory(slot: Int, text: String) async throws -> String
     /// "KY0<slot>": plays the memory, or stops keying with slot 0.
     func playCWTextMemory(slot: Int)
+    /// The keyer lease (the hub's CW keyer coordinator, so the Mac's CW
+    /// window and the iPad's don't overwrite or restart each other): nil
+    /// when it's ours (granted or refreshed), otherwise who has it, e.g.
+    /// "the Mac's CW window". Taken before every chunk.
+    func acquireCWKeyer() async throws -> String?
+    /// Gives the lease back — after each line, and on Stop.
+    func releaseCWKeyer()
 }
 
 /// The send side of CW (the Mac's Tools → CW window, the iPad's CW pane on
@@ -69,6 +76,10 @@ public final class CWSender: ObservableObject {
     private var pttCancellable: AnyCancellable?
     private var lastPTTOnAt = Date.distantPast
     private var slotCheckedAsText: Int?
+    /// This sender holds the keyer lease: between the first chunk of a line
+    /// and its release. Stop only sends "KY00" then — a sender that's still
+    /// waiting for the keyer mustn't cut off whoever is keying.
+    private var holdsKeyer = false
     private let logger: Logger
 
     private static let maxItems = 200
@@ -152,7 +163,10 @@ public final class CWSender: ObservableObject {
         guard canStop else { return }
         runTask?.cancel()
         runTask = nil
-        link?.playCWTextMemory(slot: 0)
+        if holdsKeyer {
+            link?.playCWTextMemory(slot: 0)
+        }
+        releaseKeyer()
         for index in items.indices where items[index].isWaiting {
             items[index].state = .stopped
         }
@@ -189,9 +203,12 @@ public final class CWSender: ObservableObject {
             let id = items[index].id
             do {
                 try await send(itemID: id)
+                // Between lines, someone else may take the keyer.
+                releaseKeyer()
             } catch is CancellationError {
                 return
             } catch {
+                releaseKeyer()
                 guard let index = items.firstIndex(where: { $0.id == id }) else { return }
                 items[index].state = .failed(error.localizedDescription)
                 logger.error("send failed: \(error.localizedDescription, privacy: .public)")
@@ -208,6 +225,7 @@ public final class CWSender: ObservableObject {
         while let index = items.firstIndex(where: { $0.id == id }), items[index].sentChunks < items[index].chunks.count {
             let chunk = items[index].chunks[items[index].sentChunks]
             try await waitUntilSendable()
+            try await waitForKeyer()
             guard let link else { throw CancellationError() }
             items[index].state = .sending
 
@@ -249,6 +267,28 @@ public final class CWSender: ObservableObject {
             try await Task.sleep(for: .milliseconds(500))
         }
         guard link != nil else { throw CancellationError() }
+    }
+
+    /// Takes (or refreshes) the keyer lease, waiting while another sender
+    /// has it — the Mac's CW window and the iPad's take turns line by line.
+    private func waitForKeyer() async throws {
+        while true {
+            guard let link else { throw CancellationError() }
+            guard let holder = try await link.acquireCWKeyer() else {
+                holdsKeyer = true
+                return
+            }
+            activity = "Waiting: \(holder) is sending"
+            try await Task.sleep(for: .seconds(1))
+            // Whatever blocked before may have changed while waiting.
+            try await waitUntilSendable()
+        }
+    }
+
+    private func releaseKeyer() {
+        guard holdsKeyer else { return }
+        holdsKeyer = false
+        link?.releaseCWKeyer()
     }
 
     /// The rig keys the memory on its own; there's no "done" readback. Done

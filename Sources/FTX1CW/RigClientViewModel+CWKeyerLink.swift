@@ -32,4 +32,13 @@ extension RigClientViewModel: CWKeyerLink {
     public func playCWTextMemory(slot: Int) {
         send(.playCWTextMemory(slot: slot))
     }
+
+    /// Through the hub's coordinator (`CWKeyerRequest` `.acquire`).
+    public func acquireCWKeyer() async throws -> String? {
+        try await acquireCWKeyerLease()
+    }
+
+    public func releaseCWKeyer() {
+        releaseCWKeyerLease()
+    }
 }

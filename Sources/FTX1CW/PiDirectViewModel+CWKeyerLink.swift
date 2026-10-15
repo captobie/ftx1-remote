@@ -30,4 +30,10 @@ extension PiDirectViewModel: CWKeyerLink {
     public func playCWTextMemory(slot: Int) {
         send(.playCWTextMemory(slot: slot))
     }
+
+    /// No coordinator on this route: the hub isn't in the path (a Mac in
+    /// remote mode on the same Pi isn't coordinated with — known gap).
+    public func acquireCWKeyer() async throws -> String? { nil }
+
+    public func releaseCWKeyer() {}
 }

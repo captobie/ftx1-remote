@@ -51,6 +51,25 @@ actor RigWebSocketServer {
     /// holder — the rig would otherwise finish its up-to-50 characters.
     private var keyerPlayer: ObjectIdentifier?
 
+    // MARK: CW keyer coordinator
+
+    /// Who may use the rig's CW TEXT keyer memory right now: the Mac's own
+    /// CW window or one hub client (the iPad's CW send section). Each
+    /// sender takes it before every chunk and gives it back after each
+    /// line (`CWSender`), so two senders can't overwrite the memory or
+    /// restart each other's message mid-line ("KY" while one plays restarts
+    /// it). A client's write or play without it is refused; "KY00" (stop)
+    /// always goes through. Released after `keyerLeaseTimeout` with no
+    /// keyer activity, so a stuck or blocked sender can't hold it forever,
+    /// and when the holding client disconnects.
+    enum KeyerHolder: Equatable, Sendable {
+        case mac
+        case client(ObjectIdentifier)
+    }
+    private var keyerHolder: KeyerHolder?
+    private var keyerHolderActiveAt = Date.distantPast
+    private static let keyerLeaseTimeout: TimeInterval = 30
+
     /// Everything clients send, in arrival order: commands and transmit
     /// audio share one stream so a client's `.setPTT(true)` is always
     /// handled before its first audio frame (separate `Task`s per message
@@ -298,6 +317,24 @@ actor RigWebSocketServer {
                 self.reply(MenuItemPush(p1: request.p1, p2: request.p2, p3: request.p3, value: value), to: id)
             }
         case .cwKeyer(let request, let id):
+            switch request.action {
+            case .acquire:
+                let busy = acquireKeyer(.client(id))
+                reply(CWKeyerReply(id: request.id, stored: nil, error: nil, busy: busy), to: id)
+                return
+            case .release:
+                releaseKeyer(.client(id))
+                reply(CWKeyerReply(id: request.id, stored: nil, error: nil), to: id)
+                return
+            case nil:
+                break
+            }
+            guard holdsKeyer(.client(id)) else {
+                let who = keyerHolder.map { describe($0, to: .client(id)) } ?? "nobody"
+                reply(CWKeyerReply(id: request.id, stored: nil,
+                                   error: "The keyer isn't yours to write (held by \(who))"), to: id)
+                return
+            }
             // Off the stream too: a keyer write takes ~2 s over the Pi. The
             // client waits for this answer before it plays the memory, so
             // the play can't overtake the write.
@@ -312,6 +349,37 @@ actor RigWebSocketServer {
                 }
                 self.reply(reply, to: id)
             }
+        }
+    }
+
+    /// The keyer lease for `holder`: nil if granted (or already held —
+    /// that refreshes it), otherwise who has it, for the waiting sender.
+    func acquireKeyer(_ holder: KeyerHolder) -> String? {
+        if let current = keyerHolder, current != holder,
+           Date().timeIntervalSince(keyerHolderActiveAt) < Self.keyerLeaseTimeout {
+            return describe(current, to: holder)
+        }
+        keyerHolder = holder
+        keyerHolderActiveAt = Date()
+        return nil
+    }
+
+    func releaseKeyer(_ holder: KeyerHolder) {
+        if keyerHolder == holder { keyerHolder = nil }
+    }
+
+    /// Whether `holder` holds the lease now; refreshes it if so.
+    private func holdsKeyer(_ holder: KeyerHolder) -> Bool {
+        guard keyerHolder == holder,
+              Date().timeIntervalSince(keyerHolderActiveAt) < Self.keyerLeaseTimeout else { return false }
+        keyerHolderActiveAt = Date()
+        return true
+    }
+
+    private func describe(_ current: KeyerHolder, to asker: KeyerHolder) -> String {
+        switch current {
+        case .mac: "the Mac's CW window"
+        case .client: asker == .mac ? "a device on the hub" : "another device on the hub"
         }
     }
 
@@ -333,6 +401,10 @@ actor RigWebSocketServer {
             pttHolder = on ? id : (pttHolder == id ? nil : pttHolder)
         }
         if case .playCWTextMemory(let slot) = command {
+            // Playing needs the keyer lease (stopping never does).
+            if slot != 0, !holdsKeyer(.client(id)) {
+                return
+            }
             keyerPlayer = slot != 0 ? id : (keyerPlayer == id ? nil : keyerPlayer)
         }
         onCommandReceived?(command)
@@ -348,6 +420,7 @@ actor RigWebSocketServer {
             keyerPlayer = nil
             onCommandReceived?(.playCWTextMemory(slot: 0))
         }
+        releaseKeyer(.client(id))
     }
 }
 

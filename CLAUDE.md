@@ -1201,6 +1201,32 @@ keyer-memory write and send queue live only in `HubService` today).
     connected to the rig): correct locked state on connect, then unlock
     and relock from the iPad with the Mac's saved setting following
     (0 → 1 → 0). An older Mac app ignores the command.
+  - **CW keyer coordinator (2026-10-15, user request; scripted
+    two-client probe, then the Mac's CW window and the iPad sending at
+    the same time into a dummy load, tested by the user the same day,
+    working)**: the Mac's CW window and hub
+    clients used the same keyer slot uncoordinated, so one could
+    overwrite the memory or restart the other's message mid-line. Now
+    `RigWebSocketServer` (an actor, it sees every client and command)
+    holds one **keyer lease**: `KeyerHolder` `.mac` or `.client(id)`.
+    `CWSender` takes it before every chunk (`waitForKeyer`, through
+    `CWKeyerLink.acquireCWKeyer`; nil = ours, else who has it — shown as
+    "Waiting: the Mac's CW window is sending") and gives it back after
+    each line and on Stop, so senders take turns line by line. Stop sends
+    "KY00" only while that sender holds the lease, so a device that's
+    only waiting can't cut off the other's message. The server refuses a
+    client's keyer write (`"The keyer isn't yours…"`) and drops its
+    "KY0n" play without the lease; "KY00" always goes through. Released
+    after each line, on the holder's disconnect, or after 30 s with no
+    keyer activity (`keyerLeaseTimeout`; a refresh is any acquire, write
+    or play by the holder). Wire: `CWKeyerRequest.action` (`acquire`/
+    `release`, optional — absent = write/check as before) and
+    `CWKeyerReply.busy`; the Mac's own window goes straight to the actor
+    (`HubService.acquireCWKeyerLease`). Pi direct has no coordinator (its
+    link is always granted) — a Mac in remote mode on the same Pi isn't
+    coordinated with. Probe results: second client busy while the first
+    holds, its write refused, release → granted, holder disconnect →
+    granted.
   - The Mac's Enable Transmit is **on** when never saved
     (`RigctldSettings.transmitEnabled`), so for tests save it off first
     (`defaults write com.ftx1remote.FTX1RemoteMac rigctld.transmitEnabled

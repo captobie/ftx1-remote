@@ -881,11 +881,22 @@ public struct MenuItemPush: Codable, Sendable, Equatable {
 /// `RigCommand.playCWTextMemory`. Like `MenuItemReadRequest`, not a
 /// `RigCommand`: the answer (`CWKeyerReply`, same `id`) goes only to the
 /// client that asked, and a hub that predates it never answers.
+///
+/// With an `action`, it's about the keyer lease instead (the hub's CW
+/// keyer coordinator, `RigWebSocketServer`): `.acquire` asks for the keyer
+/// (granted, or `CWKeyerReply.busy` names who has it), `.release` gives it
+/// back. A write, check or play needs the lease.
 public struct CWKeyerRequest: Codable, Sendable, Equatable {
+    public enum Action: String, Codable, Sendable {
+        case acquire
+        case release
+    }
+
     public let type: String  // "cw_keyer"
     public let id: Int
     public let slot: Int
     public let text: String?
+    public let action: Action?
 
     public static let typeName = "cw_keyer"
 
@@ -894,23 +905,36 @@ public struct CWKeyerRequest: Codable, Sendable, Equatable {
         self.id = id
         self.slot = slot
         self.text = text
+        self.action = nil
+    }
+
+    public init(id: Int, action: Action) {
+        self.type = Self.typeName
+        self.id = id
+        self.slot = 0
+        self.text = nil
+        self.action = action
     }
 }
 
 /// Server -> client answer to a `CWKeyerRequest`: what the rig stored (a
-/// write), or `error` if it failed. Both nil after a successful TEXT check.
+/// write), or `error` if it failed. Both nil after a successful TEXT check
+/// or a granted acquire. `busy` answers an acquire the hub couldn't grant:
+/// who has the keyer, e.g. "the Mac's CW window".
 public struct CWKeyerReply: Codable, Sendable, Equatable {
     public let type: String  // "cw_keyer_reply"
     public let id: Int
     public let stored: String?
     public let error: String?
+    public let busy: String?
 
     public static let typeName = "cw_keyer_reply"
 
-    public init(id: Int, stored: String?, error: String?) {
+    public init(id: Int, stored: String?, error: String?, busy: String? = nil) {
         self.type = Self.typeName
         self.id = id
         self.stored = stored
         self.error = error
+        self.busy = busy
     }
 }
