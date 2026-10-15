@@ -684,7 +684,7 @@ A deliberate, contained exception to "mobile apps never talk to rigctld":
 the iPhone app (2026-10-05) and the iPad app (2026-10-06) can connect
 straight to the Pi's rigctld over Tailscale, without the Mac hub (user
 decision). Picked with a "Mac hub / Pi direct" segmented control at the
-top of each app's `ContentView` (`@AppStorage "connectionRoute"`);
+top of each app's `ContentView` (`@AppStorage "connectionRoute"`; labelled "Desktop hub / Pi direct" on the iPad since 2026-10-15, raw value still `macHub`);
 switching disconnects the side being left. On the iPad the control is
 hidden while the chosen route is connected (2026-10-09; back on
 disconnect, and during Pi direct's connecting/retrying). The Mac-hub path

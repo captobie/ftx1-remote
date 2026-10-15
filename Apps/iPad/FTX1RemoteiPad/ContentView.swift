@@ -2,19 +2,21 @@ import FTX1CW
 import FTX1Core
 import SwiftUI
 
-/// Top level: picks between the normal Mac-hub connection
+/// Top level: picks between the normal desktop-hub connection
 /// (`HubControlView`) and the Pi-direct proof of concept (`PiDirectView`),
 /// same switch as the iPhone's. Switching disconnects the side being left,
 /// so only one link is ever live. The switch is hidden while the chosen
 /// route is connected — disconnect to get it back.
 struct ContentView: View {
     enum ConnectionRoute: String, CaseIterable {
-        case macHub
+        // Raw value kept from when the hub was Mac-only, so a saved
+        // `connectionRoute` still reads back.
+        case desktopHub = "macHub"
         case piDirect
 
         var label: String {
             switch self {
-            case .macHub: "Mac hub"
+            case .desktopHub: "Desktop hub"
             case .piDirect: "Pi direct"
             }
         }
@@ -25,7 +27,7 @@ struct ContentView: View {
     /// The CW pane's sender, pointed at the route in use.
     @EnvironmentObject private var cwSender: CWSender
     @EnvironmentObject private var demo: DemoSession
-    @AppStorage("connectionRoute") private var route: ConnectionRoute = .macHub
+    @AppStorage("connectionRoute") private var route: ConnectionRoute = .desktopHub
 
     var body: some View {
         VStack(spacing: 0) {
@@ -42,7 +44,7 @@ struct ContentView: View {
             }
 
             switch route {
-            case .macHub: HubControlView()
+            case .desktopHub: HubControlView()
             case .piDirect:
                 // Demo Mode: the same screen on the demo's own objects;
                 // the real model stays as it was.
@@ -56,13 +58,13 @@ struct ContentView: View {
         }
         .onChange(of: route, initial: true) { _, newRoute in
             switch newRoute {
-            case .macHub: cwSender.use(hubViewModel)
+            case .desktopHub: cwSender.use(hubViewModel)
             case .piDirect: cwSender.use(piViewModel)
             }
         }
         .onChange(of: route) { _, newRoute in
             switch newRoute {
-            case .macHub: piViewModel.disconnect()
+            case .desktopHub: piViewModel.disconnect()
             case .piDirect: hubViewModel.disconnect()
             }
         }
@@ -71,7 +73,7 @@ struct ContentView: View {
     private var isConnected: Bool {
         if demo.context != nil { return true }
         return switch route {
-        case .macHub: hubViewModel.connectionState == .connected
+        case .desktopHub: hubViewModel.connectionState == .connected
         case .piDirect: piViewModel.connectionState == .connected
         }
     }
@@ -102,7 +104,7 @@ struct HubControlView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     if viewModel.connectionState != .connected {
-                        TextField("Mac hostname (Tailscale)", text: $host)
+                        TextField("Desktop hostname (Tailscale)", text: $host)
                             .textFieldStyle(.roundedBorder)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()

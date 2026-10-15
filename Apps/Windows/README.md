@@ -1305,6 +1305,155 @@ lists it.
   picker, switching sides mid-scan, a Mem List recall mid-scan, a scan
   started from the front panel, and both boxes with TX:SUB and no scan.
 
+## Desktop hub for the iPad (plan, 2026-10-15; not started)
+
+Goal: the iPad's hub route (renamed "Desktop hub" on 2026-10-15, raw
+`connectionRoute` value still `macHub`) can connect to this app the way it
+connects to the Mac's `HubService` today. **The iPad stays unchanged on the
+wire.** This app speaks the Mac hub's existing protocol
+(`WireMessage.swift`, `AudioStreamFormat`) as a WebSocket *server*. That
+reverses "This app is a leaf client only" for this one feature. Direct-to-Pi
+control stays the same: the hub sits on top of whichever rigctld this app is
+already using, Local or Remote.
+
+### What the iPad expects (the contract to match)
+
+- `ws://<host>:8765`, plain WebSocket, no path, no TLS
+  (`RigClientViewModel.init(port: 8765)`). The client sends WebSocket
+  pings as its heartbeat, so the server must answer them with pongs (any
+  RFC 6455 stack does this).
+- **Text frames, server → client**, decoded by trying each type in turn
+  (`RigWebSocketClient.handle`):
+  - `{"type":"state","state":{…}}`: the whole `RigState`. Swift decodes it
+    with synthesized `Codable`, so **`frequencyHz`, `mode`, `ptt`,
+    `lastUpdated`, `aprsActive`, `aprsSubActive` and `transmitEnabled`
+    are required**. The optional fields can be left out. `lastUpdated` uses
+    `JSONEncoder`'s default date format: **seconds since
+    2001-01-01T00:00:00Z as a Double**, not Unix time and not ISO-8601.
+    Modes use `RigMode`'s raw values (`USB`, `PKTUSB`, `FM-D`…), and
+    `vfoMemoryMode`/`memoryScan`/`filterSide`/`txMeters` use their Swift
+    enum/struct encodings. Copy the shapes from Swift. Don't guess them.
+  - `memory_list` (`MemoryListPush`), `aprs_list` (`APRSListPush`),
+    `menu_item` (`MenuItemPush`), `cw_keyer_reply` (`CWKeyerReply`).
+- **Text frames, client → server**: `{"cmd": "...", "value": ...}`
+  (`RigCommand`, ~75 commands), `read_menu_item` (`MenuItemReadRequest`),
+  `cw_keyer` (`CWKeyerRequest`, incl. `acquire`/`release`).
+- **Binary frames**: 1 tag byte + 8 kHz mono Int16LE PCM. `0x00` MAIN and
+  `0x01` SUB go server → client. `0x02` is TX audio, client → server, and
+  is accepted only from the PTT holder.
+- Behaviour the iPad relies on: a state push on connect and after every
+  change. Memory/APRS lists go out on connect and on change (APRS throttled
+  to one per 2 s, memory to one per 1 s). Commands and TX frames from one
+  client are handled in arrival order. Menu reads and keyer writes are
+  answered to the asking client only, outside that order. A dropped PTT
+  holder is unkeyed. "KY00" is sent if the last keyer player drops. TX
+  audio has a 1.5 s silence watchdog.
+
+### Where this app's gap is
+
+All the rig logic lives in `MainWindow`'s code-behind and in `MenuGrid`'s
+click handlers, and they call `RigctldClient` directly. There is no
+`RigCommand`, no command queue and no single "apply a command" path, unlike
+the Mac's `HubService.send(_:)` + `CommandQueue`. The C# `RigState`
+already has almost every field the wire needs (MENU grid, filters, V/M,
+scan, C4FM, meters), so the mapping is mostly renaming. Most of the work is
+the command path.
+
+### Phases (each one built, tested against the iPad and committed on its own)
+
+1. **Server + state push (read-only iPad).** `Services/Hub/HubServer.cs`
+   on ASP.NET Core Kestrel (`<FrameworkReference
+   Include="Microsoft.AspNetCore.App" />`, `app.UseWebSockets()`), on
+   `0.0.0.0:8765`. Kestrel is recommended over `HttpListener`, which needs
+   a `netsh http add urlacl` (admin) to bind anything but localhost, and
+   over a hand-rolled server. `Services/Hub/WireModels.cs` holds
+   `System.Text.Json` DTOs that copy `RigState`/`RigStatePush` field for
+   field, plus a `RigStateWire.From(RigState, …)` mapper. Push the state
+   after each `PollOnceAsync` and after each applied command (coalesced, at
+   most ~10/s). Add **Settings → Hub**: "Allow iPad connections" (off by
+   default), the port (8765), the listening state and the connected
+   clients. **Who may connect** (user decision): Tailscale and the local
+   network only. Kestrel binds every interface, and the server refuses any
+   connection whose remote address is outside loopback, Tailscale
+   (100.64.0.0/10, fd7a:115c:a1e0::/48) or the private ranges (10/8,
+   172.16/12, 192.168/16, 169.254/16, fc00::/7, fe80::/10), before the
+   WebSocket upgrade. Log every refusal. Windows Firewall asks the first time the app listens, and
+   Tailscale's adapter is often a *Public* network, so the README needs a
+   firewall note. Test: the iPad's Desktop hub shows the Windows app's
+   VFOs, meters and MENU values, and controls do nothing yet.
+   Add a C# round-trip test: a JSON fixture captured from the Mac's
+   `RigStatePush`, decoded and re-encoded by the DTOs. Also decode one of
+   this app's pushes with the Swift `JSONDecoder` (a small `swift test`
+   fixture) so that a missing required field shows up as a test failure,
+   not as a silent "Connecting…".
+2. **Command path.** `Services/Hub/RigCommandDispatcher.cs`: parse
+   `RigCommand` JSON and run each command through the *same* methods the
+   Windows UI uses (`SetMainFrequencyAsync`, swap, V/M, memory channel,
+   mode/band, filter, MENU grid setters). Pull those methods out of the
+   click handlers where needed, so the UI and the hub share one
+   implementation. Gates: `TransmitGate.BlockReason` for anything that
+   transmits (PTT, MOX, ANT TUNE, `playCWTextMemory`), and the memory-scan
+   stop-before rules from `MainWindow.MemoryScan.cs`. Unknown commands are
+   logged and ignored, which is how an older Mac hub behaves.
+   `setTransmitEnabled` sets this app's Enable Transmit switch (unkey + CW
+   stop when turned off), and `setAudioChannelsSwapped` sets
+   `AudioChannelSwapTracker`. Apply optimistically, then push. Test every
+   iPad control on both of this app's modes.
+3. **Receive audio relay.** Tap the samples `ChannelPlayer` already gets
+   from `RemoteAudioStreamClient`/`LocalAudioCapture`, after the swap
+   tracker, so MAIN/SUB are roles. Downsample to 8 kHz Int16 (NAudio's
+   `WdlResamplingSampleProvider`, one per channel, long-lived) and
+   broadcast 0x00/0x01 frames, ~20 ms chunks like the Mac. Mute and
+   squelch stay on the iPad. Same rule as the Mac: one Pi audio client, so
+   in Remote mode this app has to hold the stream (the iPad gets it
+   through here, not from the Pi). Test: both channels heard, across a
+   swap, with the filter spectrum on the iPad.
+4. **Lists and Deep Settings.** `memory_list` from `MemoryListStore`
+   (`refreshMemoryList` triggers a re-read). `aprs_list` from `AprsStore`
+   (same JSON as Swift's `APRSStation`/`APRSMessage`, incl. `source`).
+   `read_menu_item` → `RigctldClient` raw "EX" read, answered off the
+   ordered stream.
+5. **Transmit audio.** PTT holder tracking, so 0x02 frames are accepted
+   only from the client that keyed. Remote mode forwards them to the Pi's
+   `ftx1-txaudio.py` (:8533, a C# port of `RemoteTXAudioClient`, one
+   connection per transmission). Local mode plays them to a Settings →
+   Audio "Transmit audio output" device (empty = none, never the default
+   device). Add the 1.5 s silence watchdog and unkey when the holder
+   disconnects. Dummy load first.
+6. **CW keyer.** `cw_keyer` write/check (≤50 chars,
+   `CWText.allowed`, slot 1–5, refused before reaching the rig) through
+   `RigctldClient.WriteKeyerMemoryAsync`; "KY00" if the last player
+   drops. **No keyer lease in v1** (user decision): `acquire` is always
+   granted and `release` is a no-op, as on Pi direct, so this app's own CW
+   window and an iPad sending at the same time aren't coordinated (one can
+   overwrite the slot or restart the other's line). The Mac's lease
+   (`.windows`/`.client(id)`, 30 s timeout, shared with `CwSender`) is the
+   follow-up if that ever matters.
+
+### iPad-side follow-ups (small, no wire change)
+
+- Done 2026-10-15: segment label "Desktop hub", hostname field "Desktop
+  hostname (Tailscale)", Pi-direct footer "no desktop hub".
+- Still say "Mac" and become wrong once phase 1 lands: the lock button's
+  accessibility text and `transmitBlockReason` ("Transmit disabled on the
+  Mac"), `RigClientViewModel+CWKeyerLink` ("locked on the Mac"),
+  `CWKeyerRequestError` ("Not connected to the Mac", "update the Mac
+  app"), `APRSListPane` ("Decoded by the Mac"), and the keyer-busy text
+  "the Mac's CW window". Either reword them to "the desktop app", or add
+  an optional `hubName` to `RigState` ("Mac"/"Windows PC", absent from an
+  older hub = "desktop app") and build the text from it. The second option
+  is recommended: it's one optional field and reads better.
+- The iPhone's route switch still says "Mac hub". It's out of scope here,
+  but it's the same rename if wanted.
+
+### Decisions (user, 2026-10-15)
+
+- **Hub off by default**, behind Settings → Hub's "Allow iPad
+  connections" toggle (anyone who can reach the port can key the rig).
+- **Tailscale and local network only** — see phase 1 for the address
+  ranges. Public addresses are refused.
+- **No shared CW keying in v1** — see phase 6.
+
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
 - **APRS map** — see "APRS decode" above.

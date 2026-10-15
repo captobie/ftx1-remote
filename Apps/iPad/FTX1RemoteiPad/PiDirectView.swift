@@ -259,7 +259,7 @@ struct PiDirectView: View {
 
         Text(isDemo
              ? "Demo Mode: a simulated FTX-1 — a CW beacon on 14.047.5 MHz, APRS on 144.390 MHz, a 2 m repeater that comes up every 45 s on memory channel 2. Unlock to try PTT and CW sending; nothing leaves the iPad. Settings changed here are thrown away on Exit Demo."
-             : "Direct to rigctld on the Pi, no Mac hub. Unlock to transmit (PTT, MOX, ANT TUNE); hold PTT to talk through the iPad's microphone. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed. Menu values refresh every ~10 s.")
+             : "Direct to rigctld on the Pi, no desktop hub. Unlock to transmit (PTT, MOX, ANT TUNE); hold PTT to talk through the iPad's microphone. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed. Menu values refresh every ~10 s.")
             .font(.caption)
             .foregroundStyle(.secondary)
     }
