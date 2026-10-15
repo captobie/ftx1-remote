@@ -24,6 +24,13 @@ final class SimulatedAudioSynth: @unchecked Sendable {
     private var left = ChannelState(seed: 0x1234_5678)
     private var right = ChannelState(seed: 0x8765_4321)
     private var cachedBurst: (index: Int, samples: [Float])?
+    /// World time of the next sample. The stream's own clock, advanced by
+    /// exactly the samples rendered: taking each chunk's start from the
+    /// wall clock made consecutive chunks overlap or skip a few ms (timer
+    /// jitter, two chunks rendered back to back), which CW shrugs off but
+    /// 1200-baud AFSK doesn't. Resynced only when it drifts noticeably.
+    private var streamTime: Double?
+    private static let maxDrift = 0.25
 
     init(rig: SimulatedRig, sampleRate: Double = SimulatedAudioServer.sampleRate, aprsBurst: ((Int) -> [Float])? = nil) {
         self.rig = rig
@@ -34,8 +41,11 @@ final class SimulatedAudioSynth: @unchecked Sendable {
     /// Fills the next `left.count` samples of both channels.
     func render(left leftOut: inout [Float], right rightOut: inout [Float]) {
         let snapshot = rig.audioSnapshot()
-        render(snapshot.left, transmitting: snapshot.transmitting, start: snapshot.elapsed, state: &left, into: &leftOut)
-        render(snapshot.right, transmitting: snapshot.transmitting, start: snapshot.elapsed, state: &right, into: &rightOut)
+        var start = streamTime ?? snapshot.elapsed
+        if abs(start - snapshot.elapsed) > Self.maxDrift { start = snapshot.elapsed }
+        render(snapshot.left, transmitting: snapshot.transmitting, start: start, state: &left, into: &leftOut)
+        render(snapshot.right, transmitting: snapshot.transmitting, start: start, state: &right, into: &rightOut)
+        streamTime = start + Double(leftOut.count) / sampleRate
     }
 
     private func render(_ receiver: SimulatedRig.ReceiverAudio, transmitting: Bool, start: Double, state: inout ChannelState, into out: inout [Float]) {

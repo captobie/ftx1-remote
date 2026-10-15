@@ -17,7 +17,10 @@ public final class DemoPi: @unchecked Sendable {
         let rig = SimulatedRig()
         self.rig = rig
         rigctld = SimulatedRigctldServer(rig: rig)
-        let synth = SimulatedAudioSynth(rig: rig)
+        let world = rig.world
+        let synth = SimulatedAudioSynth(rig: rig) { index in
+            APRSBurstEncoder.render(world.aprsPacket(forBurst: index), sampleRate: SimulatedAudioServer.sampleRate)
+        }
         audio = SimulatedAudioServer { left, right in
             synth.render(left: &left, right: &right)
         }
