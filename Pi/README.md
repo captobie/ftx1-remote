@@ -1,229 +1,200 @@
-# Pi-side audio streaming (Option A, Remote mode)
+# Raspberry Pi setup
 
-`ftx1-audiostream.py` captures the FTX-1's audio-out (via the Pi's USB
-sound card, the same `plughw:1,0` device Direwolf already uses) and streams
-it as raw 44100Hz **interleaved-stereo** 16-bit PCM (Main=left, Sub=right)
-to whichever Mac client connects — see
-`Apps/Mac/FTX1RemoteMac/RemoteAudioStreamClient.swift` for the consumer,
-which de-interleaves it back into two parallel sample streams. Only the
-Main channel is consumed downstream today (waterfall/oscilloscope display,
-APRS decode, the Mac→iPad audio relay, Mac-local playback) — Sub is
-captured and verifiable (see below) but not yet wired into any of that; see
-the repo's CLAUDE.md, "Dual Main/Sub audio channels," for status. Runs
-alongside `rigctld.service` and `direwolf.service` as its own systemd unit,
-same pattern. (Note: `rigctld.service` and `direwolf.service` themselves are
-set up directly on the Pi and aren't tracked in this repo — only
-`ftx1-audiostream.py` and its supporting config live here.)
+Run the FTX-1 from a Raspberry Pi instead of plugging it into your Mac. The
+Pi sits next to the radio, connected by USB, and the FTX1Remote apps reach
+it over your network (Tailscale works well for access from anywhere):
 
-See also: the repo root [`README.md`](../README.md) and `CLAUDE.md` for how
-this fits into the app's overall architecture (Local vs. Remote
-`connectionMode`, what's still open).
+| Service | Port | What it does |
+| --- | --- | --- |
+| `rigctld` (Hamlib) | 4532 | Rig control: frequency, mode, menus, PTT |
+| `ftx1-audiostream.py` | 8532 | Streams the rig's receive audio (Main = left, Sub = right) |
+| `ftx1-txaudio.py` | 8533 | Plays transmit audio from the iPad into the rig; unkeys the rig if a client goes silent |
 
-Raised from an original 8kHz to 44100Hz on 2026-09-07 — 8kHz left the Mac's
-APRS demodulator too little timing resolution to reliably decode packets
-(see `ftx1-audiostream.py`'s own doc comment for the full reasoning); 44100
-matches what Direwolf itself already uses successfully on this exact
-hardware.
+The Mac app uses the Pi in **Remote** mode; the iPad and iPhone apps can also
+connect to it directly with **Pi direct**. The Pi sends audio to one client
+at a time.
 
-## Install
+Any Pi that runs Raspberry Pi OS will do (tested on a Pi 2B with Raspberry
+Pi OS 13 "trixie"). Use a good power supply: an under-powered Pi drops the
+radio's USB connection, which shows up in the apps as timeouts.
 
-From the Mac (this repo checkout), copy the two files to the Pi first:
+## 1. Prepare the Pi
+
+1. Install Raspberry Pi OS (Lite is fine), enable SSH, and log in.
+2. Connect the FTX-1 to the Pi with a USB cable and turn the radio on.
+3. On the radio, set the CAT-1 baud rate to **115200**.
+4. Optional: install Tailscale so you can reach the Pi from anywhere:
+
+   ```bash
+   curl -fsSL https://tailscale.com/install.sh | sh
+   sudo tailscale up
+   ```
+
+5. Install the packages you need:
+
+   ```bash
+   sudo apt update
+   sudo apt install -y build-essential python3-alsaaudio netcat-openbsd
+   ```
+
+## 2. Install Hamlib 4.7 or newer
+
+The FTX-1 (Hamlib model 1051) needs Hamlib 4.7 or newer. Distribution
+packages are often older, so build it from source. This takes a while on an
+older Pi.
 
 ```bash
-scp Pi/ftx1-audiostream.py Pi/ftx1-audiostream.service <user>@<pi-address>:~/
+cd ~
+wget https://github.com/Hamlib/Hamlib/releases/download/4.7.2/hamlib-4.7.2.tar.gz
+tar xzf hamlib-4.7.2.tar.gz
+cd hamlib-4.7.2
+./configure --prefix=/usr/local
+make -j"$(nproc)"
+sudo make install
+sudo ldconfig
 ```
 
-Then on the Pi:
+Check that it knows the FTX-1:
 
 ```bash
-sudo apt install python3-alsaaudio
-sudo useradd --system --group audio --no-create-home ftx1audio
+LD_LIBRARY_PATH=/usr/local/lib /usr/local/bin/rigctld --version
+LD_LIBRARY_PATH=/usr/local/lib /usr/local/bin/rigctld -l | grep 1051
+```
+
+## 3. Run rigctld as a service
+
+Find the radio's CAT port. The FTX-1 shows up as a CP2105 dual serial
+adapter; use the `if00-port0` entry:
+
+```bash
+ls -l /dev/serial/by-id/
+```
+
+Create a user for the service:
+
+```bash
+sudo useradd --system --no-create-home --groups dialout rigctld
+```
+
+Create `/etc/systemd/system/rigctld.service`, replacing the `-r` path with
+the one you found above:
+
+```ini
+[Unit]
+Description=Hamlib rigctld for Yaesu FTX-1
+After=network.target
+
+[Service]
+Type=simple
+User=rigctld
+Environment=LD_LIBRARY_PATH=/usr/local/lib
+ExecStart=/usr/local/bin/rigctld -m 1051 -r /dev/serial/by-id/usb-Silicon_Labs_CP2105_Dual_USB_to_UART_Bridge_Controller_XXXXXXXX-if00-port0 -s 115200 -t 4532 -o
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+```
+
+The `LD_LIBRARY_PATH` line makes sure rigctld uses the Hamlib you just
+built, not an older copy another package (such as Direwolf) may have
+installed. Keep `-o`: the apps expect it.
+
+Start it and check that it reads the radio's frequency:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now rigctld
+printf 'f currVFO\n' | nc -q 1 localhost 4532
+```
+
+You should get the frequency in Hz.
+
+## 4. Install the audio services
+
+From your computer, in this repository, copy the files to the Pi
+(replace `pi@ftx1pi` with your user and the Pi's hostname):
+
+```bash
+scp Pi/asound-ftx1.conf Pi/ftx1-audiostream.py Pi/ftx1-audiostream.service Pi/ftx1-txaudio.py Pi/ftx1-txaudio.service pi@ftx1pi:~/
+```
+
+Check the radio's sound card number on the Pi:
+
+```bash
+arecord -l
+```
+
+`asound-ftx1.conf` expects **card 1** (`hw:1,0`). If the radio's "USB Audio
+Device" has a different card number, change both `hw:1,0` lines in
+`~/asound-ftx1.conf` to match.
+
+Then, on the Pi:
+
+```bash
+sudo cp ~/asound-ftx1.conf /etc/asound.conf
+sudo useradd --system --no-create-home --groups audio ftx1audio
 sudo mkdir -p /opt/ftx1remote
-sudo cp ftx1-audiostream.py /opt/ftx1remote/
-sudo cp ftx1-audiostream.service /etc/systemd/system/
+sudo cp ~/ftx1-audiostream.py ~/ftx1-txaudio.py /opt/ftx1remote/
+sudo cp ~/ftx1-audiostream.service ~/ftx1-txaudio.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now ftx1-audiostream.service
+sudo systemctl enable --now ftx1-audiostream ftx1-txaudio
 ```
 
-## Verify
+If you already have an `/etc/asound.conf`, append the file's contents to it
+instead of replacing it.
+
+## 5. Check that everything runs
 
 ```bash
-sudo systemctl status ftx1-audiostream
-journalctl -u ftx1-audiostream -f
+systemctl status rigctld ftx1-audiostream ftx1-txaudio
+journalctl -u ftx1-audiostream -u ftx1-txaudio -n 20
 ```
 
-A quick manual test without the Mac app at all — from another machine (or
-the Pi itself), raw PCM should start flowing the moment you connect:
+Look for `listening on :8532` and `listening on :8533, playing into
+ftx1_tx`. To check that receive audio is flowing, run this from another
+machine. It should save about a second of audio:
 
 ```bash
-nc ftx1pi 8532 | head -c 176400 > /tmp/test.pcm   # ~1s of audio at 44100Hz/16-bit stereo
+nc ftx1pi 8532 | head -c 176400 > test.pcm
 ```
 
-## Updating to stereo (Main/Sub) capture
+## 6. Connect the apps
 
-**2026-09-18**: `CHANNELS` in `ftx1-audiostream.py` changed from `1` to
-`2`, and `asound-ftx1.conf`'s `ftx1_dsnoop` slave changed from `channels 1`
-to `channels 2` — see both files' doc comments for why (the old
-`channels 1` negotiation against genuinely 2-channel hardware turned out to
-*sum* Main+Sub rather than cleanly pick one channel). If your Pi already has
-an older deployment, redeploy both files together — they must agree on the
-wire format, same as `RemoteAudioStreamClient.swift` on the Mac side:
+- **Mac:** Settings → rigctld → Remote, enter the Pi's hostname, then restart
+  the app when it asks.
+- **iPad / iPhone:** choose **Pi direct** and enter the Pi's hostname.
 
-```bash
-scp Pi/ftx1-audiostream.py Pi/asound-ftx1.conf pi@ftx1pi:~/
+Before you transmit audio from the iPad, set **MOD SOURCE** to **USB** on the
+radio for each mode group you use (SSB, AM, FM, DATA), and set the level with
+**USB MOD GAIN**, watching ALC.
+
+## Optional: Direwolf
+
+Direwolf can share the radio's audio with these services. In
+`/etc/direwolf.conf`, set:
+
+```
+ADEVICE ftx1_shared ftx1_tx
 ```
 
-On the Pi:
+then `sudo systemctl restart direwolf`. Without this, Direwolf holds the
+sound card and the audio services fail with "Device or resource busy". Check
+that Direwolf still decodes packets with `journalctl -u direwolf -f`.
 
-```bash
-sudo cp ~/ftx1-audiostream.py /opt/ftx1remote/
-sudo tee /etc/asound.conf < ~/asound-ftx1.conf
-sudo systemctl restart direwolf
-sudo systemctl restart ftx1-audiostream
-```
+## Troubleshooting
 
-**Verify Direwolf specifically, not just that it's running** — this is the
-one part of this change with real risk to something else that already
-works. Direwolf's own APRS capture goes through the same `ftx1_shared`
-(`plug` over `ftx1_dsnoop`) device, and moving the dsnoop slave to a real
-2-channel source means `plug` now has to actually downmix/select down to
-whatever Direwolf asks for, instead of trivially passing through a
-1-channel source — untested ALSA behavior on this setup:
-
-```bash
-journalctl -u direwolf -f   # while known APRS traffic is present — confirm real decodes, not just "service active"
-```
-
-## Sharing the device with Direwolf
-
-**Confirmed conflict (2026-09-07)**, not just a theoretical risk: Direwolf
-holds `plughw:1,0` open continuously for its own APRS decode, so this
-script opening the same raw device fails immediately with `Device or
-resource busy` the moment a Mac client connects.
-
-Fix: `asound-ftx1.conf` sets up an ALSA `dsnoop`+`plug` device
-(`ftx1_shared`) that lets both processes read the same physical capture
-device at once, each with their own sample rate.
-
-```bash
-scp Pi/asound-ftx1.conf pi@ftx1pi:~/
-```
-
-On the Pi:
-
-```bash
-# Append to /etc/asound.conf (create it if it doesn't exist)
-cat asound-ftx1.conf | sudo tee -a /etc/asound.conf
-
-# Confirm what rate Direwolf is already successfully using, and match it
-# in asound-ftx1.conf's "rate 48000" line if different, before proceeding
-grep -i arate /etc/direwolf.conf
-
-# Point Direwolf's *capture* side at the shared device, but keep its
-# playback/TX side on the raw device directly — dsnoop (which ftx1_shared
-# is built on) only supports capture streams at all, and TX doesn't need
-# sharing anyway since ftx1-audiostream.py never does playback. Direwolf's
-# ADEVICE takes two arguments for exactly this asymmetric case: <input>
-# <output>. Confirmed necessary 2026-09-07 — a single-argument "ADEVICE
-# ftx1_shared" makes Direwolf try (and fail) to open the capture-only
-# dsnoop device for output too.
-sudo sed -i 's/^ADEVICE .*/ADEVICE ftx1_shared plughw:1,0/' /etc/direwolf.conf
-
-# Update this script's own DEVICE constant the same way (already done in
-# the repo as of this fix — re-copy ftx1-audiostream.py if you deployed it
-# before this change)
-scp Pi/ftx1-audiostream.py pi@ftx1pi:~/
-sudo cp ~/ftx1-audiostream.py /opt/ftx1remote/
-
-sudo systemctl restart direwolf
-sudo systemctl restart ftx1-audiostream
-sudo systemctl status direwolf ftx1-audiostream
-```
-
-**Second confirmed conflict (2026-09-07)**: `Permission denied [ftx1_shared]`
-— `direwolf` and `ftx1audio` are different Unix accounts, and dsnoop's IPC
-semaphore/shared-memory objects default to permissions that only let the
-*creating* user attach, so whichever of the two processes gets there second
-fails. Fixed by adding `ipc_perm 0666` to `asound-ftx1.conf`'s dsnoop block
-— already in the repo version, but if you deployed the file before this fix,
-you need the corrected copy. Since `/etc/asound.conf`'s entire content is
-just this one file's contents (nothing else was ever appended to it),
-**overwrite** rather than append this time:
-
-```bash
-scp Pi/asound-ftx1.conf pi@ftx1pi:~/
-```
-
-On the Pi:
-
-```bash
-sudo tee /etc/asound.conf < asound-ftx1.conf
-sudo systemctl restart direwolf
-sudo systemctl restart ftx1-audiostream
-sudo systemctl status direwolf ftx1-audiostream
-journalctl -u ftx1-audiostream -f
-```
-
-If `ftx1-audiostream` still fails after this, the next most likely culprit
-is the dsnoop slave's `rate 48000` not matching what the hardware/Direwolf
-actually use — adjust `asound-ftx1.conf`'s `rate` to match `grep -i arate
-/etc/direwolf.conf`'s output (or the hardware's native rate) and re-run the
-`tee`/restart steps above.
-
-## Transmit audio (`ftx1-txaudio.py`, port 8533)
-
-Plays an iPad's PTT microphone into the rig's USB audio input — sent by the
-iPad's Pi-direct route, or by the Mac hub in Remote mode relaying an iPad.
-Raw 8 kHz mono 16-bit LE, one client (one transmission) at a time. It never
-keys the rig; keying stays a rigctld command. It does **unkey** as a
-watchdog: `T currVFO 0` to the local rigctld when a transmission ends with
-no new one within 0.5 s, or when a connected client sends nothing for
-1.5 s. A client that crashes, loses the network or goes to sleep
-mid-transmission can't leave the rig keyed.
-
-The rig's **MOD SOURCE** menu (one per mode group: SSB, AM, FM, DATA) has
-to be **USB**, or AUTO if AUTO picks USB on a CAT key (to be confirmed on
-the rig), for this audio to be what goes out. Set the level with **USB MOD
-GAIN** in the same group, watching ALC.
-
-`asound-ftx1.conf` now also defines `ftx1_tx`, a `plug` over a `dmix` of
-the sound card's playback side, so the device can be shared. Point
-Direwolf's TX side at it too; otherwise a running Direwolf holds
-`plughw:1,0` and this service gets "Device or resource busy".
-
-From the Mac:
-
-```bash
-scp Pi/ftx1-txaudio.py Pi/ftx1-txaudio.service Pi/asound-ftx1.conf captobie@ftx1pi:~/
-```
-
-On the Pi (overwrite `/etc/asound.conf` as in the section above; it's only
-this file):
-
-```bash
-sudo tee /etc/asound.conf < asound-ftx1.conf
-sudo sed -i 's/^ADEVICE .*/ADEVICE ftx1_shared ftx1_tx/' /etc/direwolf.conf
-sudo cp ftx1-txaudio.py /opt/ftx1remote/
-sudo cp ftx1-txaudio.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now ftx1-txaudio.service
-sudo systemctl restart ftx1-audiostream
-sudo systemctl restart direwolf
-journalctl -u ftx1-txaudio -f
-```
-
-Expect `listening on :8533, playing into ftx1_tx`. Each transmission logs
-`transmission from …`, `transmission ended: client closed, N bytes` and,
-once it's over, `unkeyed (transmission over): rigctld replied 'RPRT 0'`.
-An occasional `underrun …, restarting playback` means audio arrived slower
-than real time (network stall); playback re-primes by itself.
-
-Tested 2026-10-09 against `plughw:1,0` with Direwolf stopped, using
-real-time silence (never a tone: VOX could key the rig) from the Mac over
-Tailscale: no underruns at real-time pace, unkey after each transmission,
-no unkey between two transmissions 0.2 s apart, and the 1.5 s silence
-watchdog. Deployed the same day and re-checked through `ftx1_tx` (dmix): plays at
-48 kHz stereo, no underruns at real-time pace, unkey afterwards, silence
-watchdog. Direwolf was disabled then, so coexistence with a running
-Direwolf is still untested: check `journalctl -u direwolf` for audio
-errors and that a transmission still plays.
+- **No reply from rigctld, or timeouts in the apps:** check `systemctl
+  status rigctld`, that the radio is on, and the radio's CAT-1 baud rate. If
+  the Pi's power supply is weak, `vcgencmd get_throttled` shows something
+  other than `0x0` and `journalctl -k` shows USB disconnects. Replace the
+  power supply, then power-cycle the radio and run `sudo systemctl restart
+  rigctld`.
+- **`Device or resource busy`:** another program has the sound card open.
+  Point it at `ftx1_shared` (receive) and `ftx1_tx` (transmit) instead of
+  `hw:1,0` or `plughw:1,0`.
+- **`Permission denied [ftx1_shared]`:** an old ALSA config without
+  `ipc_perm` was in use. Install the current `asound-ftx1.conf` and reboot the
+  Pi.
+- **The app says it's waiting for audio:** another client (Mac, iPad or
+  Windows app) already has the audio stream. Disconnect it.
