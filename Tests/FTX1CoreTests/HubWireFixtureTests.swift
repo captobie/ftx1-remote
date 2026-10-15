@@ -119,6 +119,116 @@ final class HubWireFixtureTests: XCTestCase {
         }
     }
 
+    /// One of every `RigCommand`, as the iPad sends it. Values are ordinary
+    /// examples, chosen so each payload shape shows (negative numbers,
+    /// fractions, nested objects, enum raw values).
+    static let allCommands: [RigCommand] = [
+        .setFrequency(hz: 14_074_000),
+        .setSecondaryFrequency(hz: 146_940_000),
+        .swapActiveVFO,
+        .setMode(.dataUSB),
+        .setSecondaryMode(.c4fm),
+        .setPTT(true),
+        .setBand("20m"),
+        .setPowerLevel(0.25),
+        .setBreakIn(true),
+        .setKeyer(true),
+        .setCWSpeed(wpm: 18),
+        .setCWPitch(hz: 700),
+        .setBreakInDelay(ms: 300),
+        .setCWSpot(false),
+        .triggerZeroIn,
+        .setMoniLevel(level: 50),
+        .selectCWMessageChannel(2),
+        .setCWMessageRecording(false),
+        .playCWMessage(channel: 3),
+        .playCWTextMemory(slot: 1),
+        .setMox(false),
+        .setAtt(true),
+        .setPreamp(mode: 2),
+        .setTuner(true),
+        .triggerAntennaTune,
+        .setDisplayContrast(10),
+        .setDisplayDimmer(15),
+        .setDisplayLevel(-5.5),
+        .setDisplayPeak(2),
+        .setDisplayMarker(true),
+        .setMicGain(50),
+        .setAMCLevel(30),
+        .setVox(false),
+        .setVoxGain(40),
+        .setVoxDelay(ms: 500),
+        .setDNF(true),
+        .setAGC(mode: 2),
+        .setMicEQ(false),
+        .setProcLevel(25),
+        .setNBLevel(3),
+        .setDNRLevel(4),
+        .setFilterWidth(9),
+        .setIFShift(hz: -120),
+        .setNotch(true),
+        .setNotchFrequency(hz: 1500),
+        .setContour(false),
+        .setContourFrequency(hz: 800),
+        .setAPF(true),
+        .setAPFOffset(hz: -20),
+        .setNarrow(true),
+        .setFilterSide(.sub),
+        .setAntSelect(1),
+        .setTXW(false),
+        .setTXSide(.sub),
+        .setSquelchType(1),
+        .setToneFreq(index: 12),
+        .setDCSCode(index: 3),
+        .setRepeaterShift(mode: 2),
+        .setAPRSBeaconType(0),
+        .setFMChannelStep(5),
+        .setMenuItem(p1: 6, p2: 1, p3: 3, rawValue: "1"),
+        .setVFOMemoryMode(memory: true),
+        .setMemoryChannel(2),
+        .stepMemoryChannel(up: true),
+        .setSubMemoryChannel(100),
+        .stepSubMemoryChannel(up: false),
+        .recallMemoryChannel(channel: 278, sub: true),
+        .setMemoryScan(.up, side: .main),
+        .refreshMemoryList,
+        .setAudioChannelsSwapped(true),
+        .setTransmitEnabled(false),
+    ]
+
+    private static let commandsFile = "rig-commands.json"
+
+    func testCommandsFixtureMatchesRigCommand() throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        var encoded = try encoder.encode(Self.allCommands)
+        encoded.append(0x0A)
+        let url = Self.fixtures.appendingPathComponent(Self.commandsFile)
+        if ProcessInfo.processInfo.environment["REGENERATE_WIRE_FIXTURES"] == "1" {
+            try encoded.write(to: url)
+            return
+        }
+        let onDisk = try Data(contentsOf: url)
+        XCTAssertEqual(
+            String(decoding: onDisk, as: UTF8.self), String(decoding: encoded, as: UTF8.self),
+            "\(Self.commandsFile) is out of date with RigCommand — regenerate it and tell the Windows hub"
+        )
+        let decoded = try JSONDecoder().decode([RigCommand].self, from: onDisk)
+        XCTAssertEqual(decoded, Self.allCommands)
+    }
+
+    /// A new `RigCommand` has to be added to `allCommands` (and so to the
+    /// fixture the Windows hub tests against).
+    func testCommandsFixtureCoversEveryCommand() throws {
+        let data = try Data(contentsOf: Self.fixtures.appendingPathComponent(Self.commandsFile))
+        let objects = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
+        let names = Set(objects.compactMap { $0["cmd"] as? String })
+        let expected = Set(RigCommand.CommandName.allCases.map(\.rawValue))
+        XCTAssertEqual(objects.count, expected.count, "one example per command")
+        XCTAssertEqual(names.subtracting(expected), [], "unknown commands in the fixture")
+        XCTAssertEqual(expected.subtracting(names), [], "commands missing from allCommands")
+    }
+
     /// Pushes written by the Windows hub's C# code. None yet is fine.
     func testWindowsHubPushesDecode() throws {
         let dir = Self.fixtures.appendingPathComponent("windows")

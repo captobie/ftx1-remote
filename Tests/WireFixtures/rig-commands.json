@@ -1,0 +1,293 @@
+[
+  {
+    "cmd" : "set_freq",
+    "value" : 14074000
+  },
+  {
+    "cmd" : "set_secondary_freq",
+    "value" : 146940000
+  },
+  {
+    "cmd" : "swap_active_vfo"
+  },
+  {
+    "cmd" : "set_mode",
+    "value" : "PKTUSB"
+  },
+  {
+    "cmd" : "set_secondary_mode",
+    "value" : "C4FM"
+  },
+  {
+    "cmd" : "ptt",
+    "value" : true
+  },
+  {
+    "cmd" : "set_band",
+    "value" : "20m"
+  },
+  {
+    "cmd" : "set_power",
+    "value" : 0.25
+  },
+  {
+    "cmd" : "set_break_in",
+    "value" : true
+  },
+  {
+    "cmd" : "set_keyer",
+    "value" : true
+  },
+  {
+    "cmd" : "set_cw_speed",
+    "value" : 18
+  },
+  {
+    "cmd" : "set_cw_pitch",
+    "value" : 700
+  },
+  {
+    "cmd" : "set_bk_delay",
+    "value" : 300
+  },
+  {
+    "cmd" : "set_cw_spot",
+    "value" : false
+  },
+  {
+    "cmd" : "zero_in"
+  },
+  {
+    "cmd" : "set_moni_level",
+    "value" : 50
+  },
+  {
+    "cmd" : "select_cw_message_channel",
+    "value" : 2
+  },
+  {
+    "cmd" : "set_cw_message_recording",
+    "value" : false
+  },
+  {
+    "cmd" : "play_cw_message",
+    "value" : 3
+  },
+  {
+    "cmd" : "play_cw_text_memory",
+    "value" : 1
+  },
+  {
+    "cmd" : "set_mox",
+    "value" : false
+  },
+  {
+    "cmd" : "set_att",
+    "value" : true
+  },
+  {
+    "cmd" : "set_preamp",
+    "value" : 2
+  },
+  {
+    "cmd" : "set_tuner",
+    "value" : true
+  },
+  {
+    "cmd" : "trigger_antenna_tune"
+  },
+  {
+    "cmd" : "set_display_contrast",
+    "value" : 10
+  },
+  {
+    "cmd" : "set_display_dimmer",
+    "value" : 15
+  },
+  {
+    "cmd" : "set_display_level",
+    "value" : -5.5
+  },
+  {
+    "cmd" : "set_display_peak",
+    "value" : 2
+  },
+  {
+    "cmd" : "set_display_marker",
+    "value" : true
+  },
+  {
+    "cmd" : "set_mic_gain",
+    "value" : 50
+  },
+  {
+    "cmd" : "set_amc_level",
+    "value" : 30
+  },
+  {
+    "cmd" : "set_vox",
+    "value" : false
+  },
+  {
+    "cmd" : "set_vox_gain",
+    "value" : 40
+  },
+  {
+    "cmd" : "set_vox_delay",
+    "value" : 500
+  },
+  {
+    "cmd" : "set_dnf",
+    "value" : true
+  },
+  {
+    "cmd" : "set_agc",
+    "value" : 2
+  },
+  {
+    "cmd" : "set_mic_eq",
+    "value" : false
+  },
+  {
+    "cmd" : "set_proc_level",
+    "value" : 25
+  },
+  {
+    "cmd" : "set_nb_level",
+    "value" : 3
+  },
+  {
+    "cmd" : "set_dnr_level",
+    "value" : 4
+  },
+  {
+    "cmd" : "set_filter_width",
+    "value" : 9
+  },
+  {
+    "cmd" : "set_if_shift",
+    "value" : -120
+  },
+  {
+    "cmd" : "set_notch",
+    "value" : true
+  },
+  {
+    "cmd" : "set_notch_freq",
+    "value" : 1500
+  },
+  {
+    "cmd" : "set_contour",
+    "value" : false
+  },
+  {
+    "cmd" : "set_contour_freq",
+    "value" : 800
+  },
+  {
+    "cmd" : "set_apf",
+    "value" : true
+  },
+  {
+    "cmd" : "set_apf_offset",
+    "value" : -20
+  },
+  {
+    "cmd" : "set_narrow",
+    "value" : true
+  },
+  {
+    "cmd" : "set_filter_side",
+    "value" : 1
+  },
+  {
+    "cmd" : "set_ant_select",
+    "value" : 1
+  },
+  {
+    "cmd" : "set_txw",
+    "value" : false
+  },
+  {
+    "cmd" : "set_tx_side",
+    "value" : 1
+  },
+  {
+    "cmd" : "set_squelch_type",
+    "value" : 1
+  },
+  {
+    "cmd" : "set_tone_freq",
+    "value" : 12
+  },
+  {
+    "cmd" : "set_dcs_code",
+    "value" : 3
+  },
+  {
+    "cmd" : "set_repeater_shift",
+    "value" : 2
+  },
+  {
+    "cmd" : "set_aprs_beacon_type",
+    "value" : 0
+  },
+  {
+    "cmd" : "set_fm_channel_step",
+    "value" : 5
+  },
+  {
+    "cmd" : "set_menu_item",
+    "value" : {
+      "p1" : 6,
+      "p2" : 1,
+      "p3" : 3,
+      "rawValue" : "1"
+    }
+  },
+  {
+    "cmd" : "set_vfo_memory_mode",
+    "value" : true
+  },
+  {
+    "cmd" : "set_memory_channel",
+    "value" : 2
+  },
+  {
+    "cmd" : "step_memory_channel",
+    "value" : true
+  },
+  {
+    "cmd" : "set_sub_memory_channel",
+    "value" : 100
+  },
+  {
+    "cmd" : "step_sub_memory_channel",
+    "value" : false
+  },
+  {
+    "cmd" : "recall_memory_channel",
+    "value" : {
+      "channel" : 278,
+      "sub" : true
+    }
+  },
+  {
+    "cmd" : "set_memory_scan",
+    "value" : {
+      "direction" : "up",
+      "side" : 0
+    }
+  },
+  {
+    "cmd" : "refresh_memory_list"
+  },
+  {
+    "cmd" : "set_audio_channels_swapped",
+    "value" : true
+  },
+  {
+    "cmd" : "set_transmit_enabled",
+    "value" : false
+  }
+]

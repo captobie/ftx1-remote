@@ -11,6 +11,9 @@ Shared between the Swift package and the Windows app's hub (see
   - `minimal`: only the required fields — `frequencyHz`, `mode`, `ptt`,
     `lastUpdated`, `aprsActive`, `aprsSubActive`, `transmitEnabled`.
   - `vfo`: the enum shapes `full` can't show at the same time.
+- `rig-commands.json`: one of every `RigCommand` (`{"cmd": …, "value": …}`)
+  as the iPad sends it. `HubWireFixtureTests` fails if a command is
+  added to `WireMessage.swift` without an example here.
 - `windows/*.json` are pushes produced by the Windows hub's C# code,
   committed from the Windows PC. `swift test --filter HubWireFixtureTests`
   on the Mac decodes each one the way the iPad does.

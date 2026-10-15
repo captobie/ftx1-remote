@@ -340,7 +340,9 @@ public enum RigCommand: Sendable, Equatable {
         case value
     }
 
-    private enum CommandName: String, Codable {
+    // Internal (not private) so HubWireFixtureTests can check that
+    // Tests/WireFixtures/rig-commands.json covers every command.
+    enum CommandName: String, Codable, CaseIterable {
         case setFreq = "set_freq"
         case setSecondaryFreq = "set_secondary_freq"
         case swapActiveVFO = "swap_active_vfo"
