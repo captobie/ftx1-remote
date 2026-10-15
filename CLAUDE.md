@@ -1078,7 +1078,7 @@ keys the rig and sends the iPad's microphone to the rig's USB audio input.
   checked only by build, not on screen (needs a live hub). iPhone and
   Windows are out of scope.
 
-## iPad CW decoder (phase 1 decode, 2026-10-14, confirmed on a real iPad; phase 2 sending on Pi direct, 2026-10-14, Simulator only)
+## iPad CW decoder (phase 1 decode, 2026-10-14, confirmed on a real iPad; phase 2 sending on Pi direct, 2026-10-14, transmit-tested by the user)
 
 User request: the Mac's CW decoder on the iPad, in a pane over the filter
 block + MENU grid (the APRS lists' area), opened by a **CW** button at the
@@ -1114,8 +1114,8 @@ keyer-memory write and send queue live only in `HubService` today).
   grid and the filter spectrum. The Mac's CW window still decodes after
   the move. Confirmed working on a real iPad by the user, 2026-10-14.
 - **Phase 2, sending on Pi direct (2026-10-14; Simulator against the real
-  Pi with transmit locked — nothing keyed, nothing written to the keyer
-  memory; not yet on the air or into a dummy load)**: `CWSendSection`
+  Pi with transmit locked first, then a transmit test by the user from
+  the iPad the same day, working)**: `CWSendSection`
   (`Apps/iPad/`, generic over `RigController` for its rig-reading parts so
   phase 3 can reuse it) under the tuning row, Pi direct only (the hub
   screen's `cwPane` has no send section; the pane area grows to ≥780 pt
