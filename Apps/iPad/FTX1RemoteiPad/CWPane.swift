@@ -10,14 +10,16 @@ import SwiftUI
 /// (`onReceiveAudio`), and decodes only while this pane is showing on a
 /// connected route.
 ///
-/// Receive only for now. The send controls are meant to go in a section of
-/// their own under the tuning row (see the Mac's `CWSendPane`), pausing
-/// the decoder through `CWReceiver.setSenderActive(_:)` as the Mac's do.
-struct CWPane: View {
+/// Sending (phase 2, Pi direct only): `CWSendSection` under the tuning
+/// row, on the shared `CWSender`, which pauses the decoder while it runs
+/// (`CWReceiver.setSenderActive(_:)`). The hub route has no send section
+/// yet (phase 3 needs wire messages for the keyer).
+struct CWPane<SendSection: View>: View {
     @EnvironmentObject private var receiver: CWReceiver
     @Binding var isShowing: Bool
     /// The rig is in single-receive display: no SUB.
     let singleReceive: Bool
+    let sendSection: SendSection
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,6 +30,10 @@ struct CWPane: View {
             CWDecodedText(text: receiver.decodedText, tentative: receiver.tentativeText)
             Divider()
             CWTuningControls(meters: receiver.meters)
+            if SendSection.self != EmptyView.self {
+                Divider()
+                sendSection
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
@@ -148,26 +154,42 @@ extension View {
     /// `aprsListPane` does. Also runs the decoder: on while the pane shows
     /// on a connected route (`isConnected`), off otherwise, and keeps it
     /// told about TX, the CW pitch and the modes (`rigInfo`).
-    func cwPane(isShowing: Binding<Bool>, isConnected: Bool, rigInfo: CWRigInfo, singleReceive: Bool) -> some View {
-        modifier(CWPaneModifier(isShowing: isShowing, isConnected: isConnected, rigInfo: rigInfo, singleReceive: singleReceive))
+    /// `sendSection` goes under the tuning row (`CWSendSection` on Pi
+    /// direct); with one, the area is given at least `sendingMinHeight` so
+    /// the decoded text keeps room.
+    func cwPane<SendSection: View>(
+        isShowing: Binding<Bool>, isConnected: Bool, rigInfo: CWRigInfo, singleReceive: Bool,
+        @ViewBuilder sendSection: () -> SendSection = { EmptyView() }
+    ) -> some View {
+        modifier(CWPaneModifier(isShowing: isShowing, isConnected: isConnected, rigInfo: rigInfo,
+                                singleReceive: singleReceive, sendSection: sendSection()))
     }
 }
 
-private struct CWPaneModifier: ViewModifier {
+/// With the send section the pane needs more than the filter block + MENU
+/// grid it covers (~490 pt in portrait): decoded text, tuning row, then
+/// keyer controls, macros, the send log and the input line.
+private let sendingMinHeight: CGFloat = 780
+
+private struct CWPaneModifier<SendSection: View>: ViewModifier {
     @EnvironmentObject private var receiver: CWReceiver
     @Binding var isShowing: Bool
     let isConnected: Bool
     let rigInfo: CWRigInfo
     let singleReceive: Bool
+    let sendSection: SendSection
+
+    private var hasSendSection: Bool { SendSection.self != EmptyView.self }
 
     func body(content: Content) -> some View {
         content
+            .frame(minHeight: isShowing && hasSendSection ? sendingMinHeight : nil, alignment: .top)
             .opacity(isShowing ? 0 : 1)
             .allowsHitTesting(!isShowing)
             .accessibilityHidden(isShowing)
             .overlay {
                 if isShowing {
-                    CWPane(isShowing: $isShowing, singleReceive: singleReceive)
+                    CWPane(isShowing: $isShowing, singleReceive: singleReceive, sendSection: sendSection)
                 }
             }
             .onChange(of: isShowing && isConnected, initial: true) { _, decoding in

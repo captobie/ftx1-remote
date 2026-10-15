@@ -1,3 +1,4 @@
+import FTX1CW
 import FTX1Core
 import SwiftUI
 
@@ -58,7 +59,7 @@ struct CWSendPane: View {
             }
             .keyboardShortcut(.cancelAction)
             .help("Stop keying now and drop everything queued (Esc)")
-            .disabled(!sender.isSending && !sender.items.contains(where: \.isWaiting))
+            .disabled(!sender.canStop)
         }
         .labelStyle(.titleAndIcon)
         .padding(.horizontal)
@@ -200,7 +201,7 @@ private struct CWSendStatus: View {
             } else if let activity = sender.activity {
                 ProgressView().controlSize(.small)
                 Text(activity)
-            } else if let block = CWSender.blockReason(hub: hub) {
+            } else if let block = sender.block {
                 Label("Can't send: \(block.message)", systemImage: "exclamationmark.triangle")
                 if block == .breakInOff {
                     Button("Turn On BK-IN") { hub.send(.setBreakIn(true)) }

@@ -171,6 +171,8 @@ public final class PiDirectViewModel: ObservableObject {
             rigState.transmitEnabled = transmitEnabled
             if !transmitEnabled, isTransmitting { abortTransmit(reason: "Enable Transmit turned off") }
             if !transmitEnabled, rigState.moxEnabled == true { send(.setMox(false)) }
+            // The CW sender's keyer memory (stopping it is always allowed).
+            if !transmitEnabled, cwKeyerUsed { send(.playCWTextMemory(slot: 0)) }
         }
     }
     public static let transmitEnabledKey = "piDirect.transmitEnabled"
@@ -195,6 +197,10 @@ public final class PiDirectViewModel: ObservableObject {
     private lazy var microphone = MicrophoneTransmitter(logSubsystem: logSubsystem)
     #endif
     private var unkeyTask: Task<Void, Never>?
+    /// A CW TEXT keyer memory was played this session (the iPad's CW send
+    /// section), so a lock or a disconnect also sends "KY00": the rig would
+    /// otherwise finish its up-to-50 characters on its own.
+    private var cwKeyerUsed = false
 
     private let logSubsystem: String
     private let logger: Logger
@@ -396,6 +402,8 @@ public final class PiDirectViewModel: ObservableObject {
     public func disconnect() {
         let wasTransmitting = isTransmitting
         let wasMox = rigState.moxEnabled == true
+        let wasKeyerUsed = cwKeyerUsed
+        cwKeyerUsed = false
         stopTransmitLocally()
         sessionTask?.cancel()
         sessionTask = nil
@@ -405,6 +413,7 @@ public final class PiDirectViewModel: ObservableObject {
                 // nothing on the Pi would end it after this link is gone.
                 if wasTransmitting { _ = try? await rigctld.send("T currVFO 0") }
                 if wasMox { try? await rigctld.setRawBool("MX", false) }
+                if wasKeyerUsed { try? await rigctld.setRawInt("KY0", 0, digits: 1) }
                 await rigctld.disconnect()
             }
         }
@@ -589,6 +598,23 @@ public final class PiDirectViewModel: ObservableObject {
                 logger.notice("refusing \(String(describing: command), privacy: .public): \(reason, privacy: .public)")
                 return
             }
+        case .playCWTextMemory(let slot):
+            // The CW send section's keyer memory play ("KY0<slot>"), iPad
+            // only. Playing keys the rig: same gate as PTT. "KY00" (stop)
+            // always goes through.
+            guard readsMenuSettings else {
+                logger.notice("ignoring unsupported command \(String(describing: command), privacy: .public)")
+                return
+            }
+            if slot != 0 {
+                if let reason = transmitBlockReason {
+                    logger.notice("refusing CW keyer memory \(slot): \(reason, privacy: .public)")
+                    return
+                }
+                cwKeyerUsed = true
+            }
+            Task { await queue.enqueue(command) }
+            return
         case _ where readsMenuSettings && Self.isMenuSetting(command):
             break
         case .setFilterSide(let side) where readsFilters:
@@ -1237,6 +1263,30 @@ private final class APRSGateFlags: @unchecked Sendable {
 
 /// Lets the shared `MenuPageView` run on this route (the iPad's Pi-direct
 /// screen). Recording keeps the protocol's unsupported default.
+// MARK: - CW keyer memory (the iPad's CW send section)
+
+extension PiDirectViewModel {
+    /// Writes CW TEXT keyer memory `slot` and returns what the rig stored
+    /// (`RigctldClient.writeKeyerMemory`). Straight over the rigctld link,
+    /// like `HubService.writeCWKeyerMemory`; doesn't transmit.
+    public func writeCWKeyerMemory(slot: Int, text: String) async throws -> String {
+        guard readsMenuSettings, connectionState == .connected, let rigctld else { throw RigctldError.notConnected }
+        return try await rigctld.writeKeyerMemory(slot: slot, text: text)
+    }
+
+    /// Makes sure keyer memory `slot` is a TEXT memory (CW SETTING → KEYER
+    /// → CW MEMORY 1-5, "EX" 02 02 06-10: 0 TEXT, 1 MESSAGE), as
+    /// `HubService.ensureCWTextMemory` does.
+    public func ensureCWTextMemory(slot: Int) async throws {
+        guard readsMenuSettings, connectionState == .connected, let rigctld else { throw RigctldError.notConnected }
+        let value = try await rigctld.getMenuItem(p1: 2, p2: 2, p3: 5 + slot)
+        if value != "0" {
+            logger.notice("CW MEMORY \(slot) was \(value ?? "unreadable", privacy: .public); setting it to TEXT")
+            try await rigctld.setMenuItem(p1: 2, p2: 2, p3: 5 + slot, rawValue: "0")
+        }
+    }
+}
+
 extension PiDirectViewModel: RigController {
     public var supportsDeepSettings: Bool { readsMenuSettings }
 

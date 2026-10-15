@@ -3,15 +3,36 @@ import Foundation
 import FTX1Core
 import os
 
-/// The send side of the Tools → CW window (v2): typed lines and macros are
-/// keyed by the rig's own keyer, through one dedicated CW TEXT keyer memory
-/// (`slot`, default 1): write up to 50 characters there (`KM`, via
-/// `HubService.writeCWKeyerMemory`), play it (`KY0<slot>`, the
-/// transmit-gated `RigCommand.playCWTextMemory`), wait for the rig to
-/// finish, repeat. The rig does the timing, so network lag can't distort
-/// the CW. What that costs: about 2 s per write (see `RigctldClient.
-/// writeKeyerMemory`) plus finish detection, so a line longer than 50
-/// characters has a pause of a few seconds between chunks.
+/// What `CWSender` needs from a route to the rig: the Mac's `HubService`,
+/// or the iPad's Pi-direct `PiDirectViewModel`. Each route checks its own
+/// transmit gate (`cwSendBlock`) and plays the memory through its own
+/// transmit-gated `RigCommand.playCWTextMemory`.
+@MainActor
+public protocol CWKeyerLink: AnyObject {
+    var cwRigState: RigState { get }
+    var cwRigStatePublisher: AnyPublisher<RigState, Never> { get }
+    /// Why the rig can't send right now, or nil. Checked before every
+    /// chunk; the queue waits (rather than failing) while there's a reason.
+    var cwSendBlock: CWSendBlock? { get }
+    /// Makes sure keyer memory `slot` is a TEXT memory (a MESSAGE slot
+    /// would play recorded audio instead).
+    func ensureCWTextMemory(slot: Int) async throws
+    /// Writes CW TEXT keyer memory `slot`; returns what the rig stored.
+    func writeCWKeyerMemory(slot: Int, text: String) async throws -> String
+    /// "KY0<slot>": plays the memory, or stops keying with slot 0.
+    func playCWTextMemory(slot: Int)
+}
+
+/// The send side of CW (the Mac's Tools → CW window, the iPad's CW pane on
+/// Pi direct): typed lines and macros are keyed by the rig's own keyer,
+/// through one dedicated CW TEXT keyer memory (`slot`, default 1): write up
+/// to 50 characters there (`KM`, via `CWKeyerLink.writeCWKeyerMemory`),
+/// play it (`KY0<slot>`, the transmit-gated `RigCommand.
+/// playCWTextMemory`), wait for the rig to finish, repeat. The rig does the
+/// timing, so network lag can't distort the CW. What that costs: about 2 s
+/// per write (see `RigctldClient.writeKeyerMemory`) plus finish detection,
+/// so a line longer than 50 characters has a pause of a few seconds
+/// between chunks.
 ///
 /// Everything here was probed on the real rig, 2026-10-02 (dummy load):
 /// the rig keys only with break-in on; it appends the "}" end marker
@@ -19,27 +40,28 @@ import os
 /// character in `CWText.allowed`; PTT reads 3 while keying, with the odd
 /// spurious 0; a second play while one runs restarts the message (so
 /// chunks go strictly one after another); "KY00" stops it.
-final class CWSender: ObservableObject {
-    @Published private(set) var items: [CWSendItem] = []
+@MainActor
+public final class CWSender: ObservableObject {
+    @Published public private(set) var items: [CWSendItem] = []
     /// What the rig is doing for the send pane right now, e.g. "Writing
     /// keyer memory…" — nil when idle.
-    @Published private(set) var activity: String?
-    /// The station being worked ("Their call" in the Log QSO pane), for `{CALL}` in
-    /// macros; also filled by clicking a callsign in the decoded text.
-    @Published var theirCall = ""
-    @Published var slot: Int {
+    @Published public private(set) var activity: String?
+    /// The station being worked (the Mac's Log QSO pane, the iPad's send
+    /// section), for `{CALL}` in macros; on the Mac also filled by clicking
+    /// a callsign in the decoded text.
+    @Published public var theirCall = ""
+    @Published public var slot: Int {
         didSet { UserDefaults.standard.set(slot, forKey: DefaultsKey.slot) }
     }
-    @Published var macros: [CWMacro] {
+    @Published public var macros: [CWMacro] {
         didSet { CWMacro.save(macros) }
     }
 
-    /// Set by `CWReceiver`'s owner: true from the first write of a run until
-    /// the queue is done, so the decoder can pause (see `CWReceiver.
-    /// setSenderActive`).
-    var onActiveChanged: ((Bool) -> Void)?
+    /// Set by the app: true from the first write of a run until the queue
+    /// is done, so the decoder can pause (see `CWReceiver.setSenderActive`).
+    public var onActiveChanged: ((Bool) -> Void)?
 
-    private weak var hub: HubService?
+    private weak var link: (any CWKeyerLink)?
     private var runTask: Task<Void, Never>?
     /// Which run `runTask` is, so a cancelled run finishing late can't
     /// clear a newer one's state.
@@ -47,20 +69,23 @@ final class CWSender: ObservableObject {
     private var pttCancellable: AnyCancellable?
     private var lastPTTOnAt = Date.distantPast
     private var slotCheckedAsText: Int?
+    private let logger: Logger
 
-    private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "cw-sender")
     private static let maxItems = 200
 
     private enum DefaultsKey {
         static let slot = "cw.keyerSlot"
     }
 
-    init(hub: HubService) {
-        self.hub = hub
+    /// - Parameter logSubsystem: the app's `os.Logger` subsystem; category
+    ///   "cw-sender".
+    public init(link: any CWKeyerLink, logSubsystem: String) {
+        self.link = link
+        logger = Logger(subsystem: logSubsystem, category: "cw-sender")
         let stored = UserDefaults.standard.integer(forKey: DefaultsKey.slot)
         slot = (1...5).contains(stored) ? stored : 1
         macros = CWMacro.load()
-        pttCancellable = hub.$rigState
+        pttCancellable = link.cwRigStatePublisher
             .map(\.ptt)
             .removeDuplicates()
             .sink { [weak self] ptt in
@@ -68,13 +93,19 @@ final class CWSender: ObservableObject {
             }
     }
 
-    var isSending: Bool { runTask != nil }
+    public var isSending: Bool { runTask != nil }
+
+    /// Something can be stopped: a run, or lines still queued.
+    public var canStop: Bool { isSending || items.contains(where: \.isWaiting) }
+
+    /// Why the rig can't send right now, or nil — for the pane's status line.
+    public var block: CWSendBlock? { link?.cwSendBlock }
 
     // MARK: - Queueing
 
     /// Queues a typed line. Returns why nothing was queued, if so.
     @discardableResult
-    func enqueue(_ line: String) -> String? {
+    public func enqueue(_ line: String) -> String? {
         let prepared = CWText.prepare(line)
         guard !prepared.text.isEmpty else {
             return prepared.dropped.isEmpty ? nil : "Nothing the keyer can send in that line"
@@ -87,41 +118,29 @@ final class CWSender: ObservableObject {
 
     /// A macro with its placeholders filled in, for the pane to put in the
     /// send line (macros don't send directly — user decision 2026-10-03, so
-    /// the text can be edited first).
-    func text(for macro: CWMacro) -> Result<String, CWMacro.Problem> {
-        macro.expanded(myCall: StationSettings.callsign, myGrid: StationSettings.gridSquare, theirCall: theirCall)
+    /// the text can be edited first). `stationSettings` says where the
+    /// user sets their own call and grid, for the message when one is empty.
+    public func text(for macro: CWMacro, stationSettings: String = "Settings → Station") -> Result<String, CWMacro.Problem> {
+        macro.expanded(myCall: StationSettings.callsign, myGrid: StationSettings.gridSquare, theirCall: theirCall,
+                       stationSettings: stationSettings)
     }
 
     /// Stops keying at once and drops everything not yet sent.
-    func stop() {
-        guard runTask != nil || items.contains(where: \.isWaiting) else { return }
+    public func stop() {
+        guard canStop else { return }
         runTask?.cancel()
         runTask = nil
-        hub?.send(.playCWTextMemory(slot: 0))
+        link?.playCWTextMemory(slot: 0)
         for index in items.indices where items[index].isWaiting {
             items[index].state = .stopped
         }
         activity = nil
         onActiveChanged?(false)
-        Self.logger.info("stopped")
+        logger.info("stopped")
     }
 
-    func clearLog() {
+    public func clearLog() {
         items.removeAll { !$0.isWaiting }
-    }
-
-    // MARK: - Why sending can't happen
-
-    /// Why the rig can't send right now, or nil. Checked before every
-    /// chunk; the queue waits (rather than failing) while there's a reason.
-    static func blockReason(hub: HubService) -> CWSendBlock? {
-        let rig = hub.rigState
-        if hub.connectionState != .connected { return .notConnected }
-        if !hub.transmitEnabled { return .transmitDisabled }
-        if rig.mode != .cw { return .notCW(rig.mode) }
-        if BandPlan.band(containing: rig.frequencyHz) == nil { return .outsideBand }
-        if rig.breakIn == false { return .breakInOff }
-        return nil
     }
 
     // MARK: - The send loop
@@ -153,7 +172,7 @@ final class CWSender: ObservableObject {
             } catch {
                 guard let index = items.firstIndex(where: { $0.id == id }) else { return }
                 items[index].state = .failed(error.localizedDescription)
-                Self.logger.error("send failed: \(error.localizedDescription, privacy: .public)")
+                logger.error("send failed: \(error.localizedDescription, privacy: .public)")
                 // Don't carry on with later lines out of order.
                 for later in items.indices where items[later].isWaiting {
                     items[later].state = .stopped
@@ -167,31 +186,31 @@ final class CWSender: ObservableObject {
         while let index = items.firstIndex(where: { $0.id == id }), items[index].sentChunks < items[index].chunks.count {
             let chunk = items[index].chunks[items[index].sentChunks]
             try await waitUntilSendable()
-            guard let hub else { throw CancellationError() }
+            guard let link else { throw CancellationError() }
             items[index].state = .sending
 
             if slotCheckedAsText != slot {
                 activity = "Checking keyer memory \(slot)…"
-                try await hub.ensureCWTextMemory(slot: slot)
+                try await link.ensureCWTextMemory(slot: slot)
                 slotCheckedAsText = slot
             }
             activity = "Writing keyer memory \(slot)…"
-            let stored = try await hub.writeCWKeyerMemory(slot: slot, text: chunk)
+            let stored = try await link.writeCWKeyerMemory(slot: slot, text: chunk)
             try Task.checkCancellation()
             if stored != chunk {
-                Self.logger.notice("keyer memory holds \"\(stored, privacy: .public)\", sent \"\(chunk, privacy: .public)\"")
+                logger.notice("keyer memory holds \"\(stored, privacy: .public)\", sent \"\(chunk, privacy: .public)\"")
             }
 
             // The rig may have changed (TX disabled, band, BK-IN) during
             // the ~2 s write.
-            if let block = Self.blockReason(hub: hub) {
+            if let block = link.cwSendBlock {
                 throw CWSendError.blocked(block.message)
             }
-            let wpm = max(hub.rigState.cwSpeedWpm ?? 20, 4)
+            let wpm = max(link.cwRigState.cwSpeedWpm ?? 20, 4)
             let expected = CWText.duration(of: chunk, wpm: wpm)
             activity = "Sending at \(wpm) WPM…"
             let startedAt = Date()
-            hub.send(.playCWTextMemory(slot: slot))
+            link.playCWTextMemory(slot: slot)
             try await waitUntilKeyed(startedAt: startedAt, expected: expected)
             guard let index = items.firstIndex(where: { $0.id == id }) else { return }
             items[index].sentChunks += 1
@@ -203,11 +222,11 @@ final class CWSender: ObservableObject {
 
     /// Waits while something blocks sending (showing it in the pane).
     private func waitUntilSendable() async throws {
-        while let hub, let block = Self.blockReason(hub: hub) {
+        while let link, let block = link.cwSendBlock {
             activity = "Waiting: \(block.message)"
             try await Task.sleep(for: .milliseconds(500))
         }
-        guard hub != nil else { throw CancellationError() }
+        guard link != nil else { throw CancellationError() }
     }
 
     /// The rig keys the memory on its own; there's no "done" readback. Done
@@ -217,17 +236,17 @@ final class CWSender: ObservableObject {
     private func waitUntilKeyed(startedAt: Date, expected: TimeInterval) async throws {
         while true {
             try await Task.sleep(for: .milliseconds(250))
-            guard let hub else { throw CancellationError() }
+            guard let link else { throw CancellationError() }
             let elapsed = Date().timeIntervalSince(startedAt)
-            let pttOn = hub.rigState.ptt
+            let pttOn = link.cwRigState.ptt
             if elapsed >= expected * 0.9, !pttOn, Date().timeIntervalSince(lastPTTOnAt) >= 1 {
                 if lastPTTOnAt < startedAt {
-                    Self.logger.notice("no TX seen while the keyer memory played (break-in off?)")
+                    logger.notice("no TX seen while the keyer memory played (break-in off?)")
                 }
                 return
             }
             if elapsed > expected * 1.5 + 5 {
-                Self.logger.notice("keying still not finished after \(elapsed, format: .fixed(precision: 1)) s (expected \(expected, format: .fixed(precision: 1)) s); moving on")
+                logger.notice("keying still not finished after \(elapsed, format: .fixed(precision: 1)) s (expected \(expected, format: .fixed(precision: 1)) s); moving on")
                 return
             }
         }
@@ -236,8 +255,8 @@ final class CWSender: ObservableObject {
 
 // MARK: - Items
 
-struct CWSendItem: Identifiable, Equatable {
-    enum State: Equatable {
+public struct CWSendItem: Identifiable, Equatable, Sendable {
+    public enum State: Equatable, Sendable {
         case queued
         case sending
         case sent
@@ -245,32 +264,36 @@ struct CWSendItem: Identifiable, Equatable {
         case failed(String)
     }
 
-    let id = UUID()
+    public let id = UUID()
     /// What will be keyed, after `CWText.prepare`.
-    let text: String
+    public let text: String
     /// `text` with prosigns written the way they're typed (`<BT>`, not
     /// `=`), for the log.
-    var displayText: String { CWText.display(text) }
-    let chunks: [String]
+    public var displayText: String { CWText.display(text) }
+    public let chunks: [String]
     /// Characters left out because the keyer can't send them.
-    let dropped: String
-    var sentChunks = 0
-    var state = State.queued
+    public let dropped: String
+    public internal(set) var sentChunks = 0
+    public internal(set) var state = State.queued
 
-    var isWaiting: Bool { state == .queued || state == .sending }
+    public var isWaiting: Bool { state == .queued || state == .sending }
 }
 
-enum CWSendBlock: Equatable {
+public enum CWSendBlock: Equatable, Sendable {
     case notConnected
     case transmitDisabled
+    /// A route's own transmit gate said no (the iPad's Pi direct:
+    /// `PiDirectViewModel.transmitBlockReason`), with its reason.
+    case transmitBlocked(String)
     case notCW(RigMode)
     case outsideBand
     case breakInOff
 
-    var message: String {
+    public var message: String {
         switch self {
         case .notConnected: "the rig isn't connected"
         case .transmitDisabled: "transmit is turned off (Settings → rigctld → Enable Transmit)"
+        case .transmitBlocked(let reason): reason.prefix(1).lowercased() + reason.dropFirst()
         case .notCW(let mode): "the rig is in \(mode.displayName), not CW"
         case .outsideBand: "the rig is outside the amateur bands"
         case .breakInOff: "break-in is off — the rig only keys its memory with BK-IN on"
@@ -278,10 +301,10 @@ enum CWSendBlock: Equatable {
     }
 }
 
-enum CWSendError: LocalizedError {
+public enum CWSendError: LocalizedError {
     case blocked(String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .blocked(let reason): "Not sent: \(reason)"
         }
@@ -291,22 +314,22 @@ enum CWSendError: LocalizedError {
 // MARK: - Text
 
 /// Turning typed text into what the FTX-1's keyer memory takes.
-enum CWText {
+public enum CWText {
     /// Every character here was keyed correctly by the rig (2026-10-02).
     /// ";" can never be allowed: it ends the CAT command.
-    static let allowed = Set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 /?,.=+-()@:")
+    public static let allowed = Set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 /?,.=+-()@:")
 
     /// Prosigns in angle brackets, sent as the punctuation the keyer keys
     /// for them. Others (e.g. <SK>) have no single character the keyer is
     /// known to take, so their letters are sent as a word.
-    static let prosigns: [String: String] = ["<BT>": "=", "<AR>": "+", "<KN>": "("]
+    public static let prosigns: [String: String] = ["<BT>": "=", "<AR>": "+", "<KN>": "("]
 
-    static let memoryLength = 50
+    public static let memoryLength = 50
 
     /// Keyed text with the prosign characters written back in angle
     /// brackets, for display. A typed "=" also shows as <BT> — it's the
     /// same character on the air.
-    static func display(_ keyed: String) -> String {
+    public static func display(_ keyed: String) -> String {
         var text = ""
         for character in keyed {
             if let prosign = prosigns.first(where: { $0.value == String(character) })?.key {
@@ -320,7 +343,7 @@ enum CWText {
 
     /// Uppercased, prosigns mapped, other characters dropped, whitespace
     /// collapsed. `dropped` lists what was removed, for the pane to show.
-    static func prepare(_ line: String) -> (text: String, dropped: String) {
+    public static func prepare(_ line: String) -> (text: String, dropped: String) {
         var text = line.uppercased()
         for (prosign, character) in prosigns {
             text = text.replacingOccurrences(of: prosign, with: character)
@@ -343,7 +366,7 @@ enum CWText {
 
     /// Splits at word boundaries into pieces of at most `memoryLength`
     /// characters (a longer word is cut).
-    static func chunks(_ text: String) -> [String] {
+    public static func chunks(_ text: String) -> [String] {
         var chunks: [String] = []
         var current = ""
         for word in text.split(separator: " ").map(String.init) {
@@ -370,7 +393,7 @@ enum CWText {
     /// 1 or 3 units with 1-unit gaps, 3 units between characters, 7 between
     /// words). The rig may weight or space differently; this only sets
     /// when finish detection starts looking.
-    static func duration(of text: String, wpm: Int) -> TimeInterval {
+    public static func duration(of text: String, wpm: Int) -> TimeInterval {
         var units = 0
         for (index, word) in text.split(separator: " ").enumerated() {
             if index > 0 { units += 7 }
@@ -397,27 +420,34 @@ enum CWText {
 
 // MARK: - Macros
 
-struct CWMacro: Identifiable, Codable, Equatable {
-    var id = UUID()
-    var label: String
-    var text: String
+public struct CWMacro: Identifiable, Codable, Equatable, Sendable {
+    public var id = UUID()
+    public var label: String
+    public var text: String
 
-    enum Problem: Error {
+    public init(label: String, text: String) {
+        self.label = label
+        self.text = text
+    }
+
+    public enum Problem: Error {
         case missing(String)
 
-        var message: String {
+        public var message: String {
             switch self {
             case .missing(let what): "\(what) is empty"
             }
         }
     }
 
-    /// `{MYCALL}`/`{MYGRID}` from Settings → Station, `{CALL}` from the
+    /// `{MYCALL}`/`{MYGRID}` from `StationSettings` (set under
+    /// `stationSettings`), `{CALL}` from the
     /// pane's Their call field.
-    func expanded(myCall: String, myGrid: String, theirCall: String) -> Result<String, Problem> {
+    public func expanded(myCall: String, myGrid: String, theirCall: String,
+                         stationSettings: String = "Settings → Station") -> Result<String, Problem> {
         let values: [(String, String, String)] = [
-            ("{MYCALL}", myCall, "Your callsign (Settings → Station)"),
-            ("{MYGRID}", myGrid, "Your grid square (Settings → Station)"),
+            ("{MYCALL}", myCall, "Your callsign (\(stationSettings))"),
+            ("{MYGRID}", myGrid, "Your grid square (\(stationSettings))"),
             ("{CALL}", theirCall, "Their call"),
         ]
         var result = text
@@ -429,7 +459,7 @@ struct CWMacro: Identifiable, Codable, Equatable {
         return .success(result)
     }
 
-    static let defaults: [CWMacro] = [
+    public static let defaults: [CWMacro] = [
         CWMacro(label: "CQ", text: "CQ CQ CQ DE {MYCALL} {MYCALL} K"),
         CWMacro(label: "Answer", text: "{CALL} DE {MYCALL} {MYCALL} K"),
         CWMacro(label: "Report", text: "{CALL} DE {MYCALL} TNX FER CALL <BT> UR RST 599 599 <BT> BK"),
@@ -440,13 +470,13 @@ struct CWMacro: Identifiable, Codable, Equatable {
 
     private static let defaultsKey = "cw.macros"
 
-    static func load() -> [CWMacro] {
+    public static func load() -> [CWMacro] {
         guard let data = UserDefaults.standard.data(forKey: defaultsKey),
               let macros = try? JSONDecoder().decode([CWMacro].self, from: data) else { return defaults }
         return macros
     }
 
-    static func save(_ macros: [CWMacro]) {
+    public static func save(_ macros: [CWMacro]) {
         if let data = try? JSONEncoder().encode(macros) {
             UserDefaults.standard.set(data, forKey: defaultsKey)
         }

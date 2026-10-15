@@ -270,7 +270,7 @@ final class HubService: ObservableObject {
     let webSDRAudioRouting = WebSDRAudioRouting()
     /// Tools → CW's send pane (keys the rig's CW TEXT keyer memory) — see
     /// `CWSender`. `lazy` so it can be handed `self`.
-    lazy var cwSender = CWSender(hub: self)
+    lazy var cwSender = CWSender(link: self, logSubsystem: "com.ftx1remote.mac")
     /// Worked-before for the CW window — see `WorkedStationsStore`.
     /// `lazy` so it can be handed `$rigState`.
     lazy var workedStations = WorkedStationsStore(rigState: $rigState)

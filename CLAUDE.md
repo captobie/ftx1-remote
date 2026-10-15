@@ -1078,7 +1078,7 @@ keys the rig and sends the iPad's microphone to the rig's USB audio input.
   checked only by build, not on screen (needs a live hub). iPhone and
   Windows are out of scope.
 
-## iPad CW decoder (phase 1, decode only, 2026-10-14; Simulator against the real Pi and a live Mac hub, then confirmed on a real iPad by the user the same day)
+## iPad CW decoder (phase 1 decode, 2026-10-14, confirmed on a real iPad; phase 2 sending on Pi direct, 2026-10-14, Simulator only)
 
 User request: the Mac's CW decoder on the iPad, in a pane over the filter
 block + MENU grid (the APRS lists' area), opened by a **CW** button at the
@@ -1113,6 +1113,47 @@ keyer-memory write and send queue live only in `HubService` today).
   on iOS; MAIN/SUB switch with the "not CW" note; Close restoring the
   grid and the filter spectrum. The Mac's CW window still decodes after
   the move. Confirmed working on a real iPad by the user, 2026-10-14.
+- **Phase 2, sending on Pi direct (2026-10-14; Simulator against the real
+  Pi with transmit locked — nothing keyed, nothing written to the keyer
+  memory; not yet on the air or into a dummy load)**: `CWSendSection`
+  (`Apps/iPad/`, generic over `RigController` for its rig-reading parts so
+  phase 3 can reuse it) under the tuning row, Pi direct only (the hub
+  screen's `cwPane` has no send section; the pane area grows to ≥780 pt
+  when it has one): keyer WPM stepper, BK-IN, the memory slot, Macros
+  (sheet: macro list plus this iPad's own call/grid — `StationSettings`,
+  since the iPad has no Settings → Station), Clear, Stop, a Their call
+  field for `{CALL}`, macro buttons that fill the line, the send log, the
+  status line and the input. No click-to-fill from the decoded text and
+  no logging on the iPad.
+  - `CWSender`, `CWText`, `CWMacro`, `CWSendItem`, `CWSendBlock` moved
+    from the Mac target to `Sources/FTX1CW/CWSender.swift`. The sender
+    drives a `CWKeyerLink` (rig state + publisher, `cwSendBlock`, ensure
+    TEXT memory, write memory, play/stop "KY0n"): `HubService` on the
+    Mac (same rules as before), `PiDirectViewModel` on the iPad
+    (`PiDirectViewModel+CWKeyerLink.swift` in FTX1CW, since FTX1Core
+    can't name the protocol). The App owns one `CWSender` bound to
+    `piViewModel`; it pauses the decoder (`onActiveChanged` →
+    `setSenderActive`) and is stopped when the lock goes on or the link
+    drops.
+  - Pi direct's gate (`cwSendBlock`): connected, this route's lock
+    (`.transmitBlocked`, which names the lock button), its
+    `transmitBlockReason` (TX-side band, not while scanning), not while
+    PTT is held, MAIN in CW, BK-IN not off. `PiDirectViewModel.send`
+    accepts `.playCWTextMemory` (iPad only, `readsMenuSettings`): a play
+    goes through `transmitBlockReason`, "KY00" always; `writeCWKeyerMemory`/
+    `ensureCWTextMemory` go straight over its rigctld link. Locking or
+    disconnecting after a play this session also sends "KY00"
+    (`cwKeyerUsed`), since the rig would otherwise finish its up-to-50
+    characters on its own. BK-IN and KS come from the existing menu reads
+    (~9 s a pass), so the BK-IN check can lag a front-panel change.
+  - Seen in the Simulator: blocked status naming the lock, a queued line
+    waiting ("Waiting: transmit is locked…") with decoding paused, Stop
+    marking it stopped and resuming decoding, `{MYCALL}` refused while
+    unset, the Macros sheet, BK-IN reading the rig's state. Simulator
+    gotcha found on the way: `simctl spawn … defaults` reads a different
+    domain from the app's own — check `Library/Preferences/<bundle>.plist`
+    in `simctl get_app_container … data` for the real value (it said the
+    lock was open when `defaults` said closed).
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
@@ -1649,7 +1690,10 @@ vendored here.
   done**: live decoding on the rig (MAIN, SUB, and across a swap).
 - **v2: CW send pane (2026-10-02, tested on the rig into a dummy load by
   the user)**: `CWSendPane` below the receive pane (`VSplitView`), driven
-  by `CWSender` (a `lazy var` on `HubService`, sibling of `cwReceiver`).
+  by `CWSender` (a `lazy var` on `HubService`, sibling of `cwReceiver`;
+  in `Sources/FTX1CW/` since 2026-10-14, shared with the iPad — it drives
+  any `CWKeyerLink`, which `HubService+CWKeyerLink.swift` implements with
+  the block rules below, see "iPad CW decoder").
   Line at a time (Return queues), 6 editable macros that fill the send
   line rather than send (user decision 2026-10-03, so they can be edited
   first; appended after a space if the line has text; cursor left at the
@@ -2308,9 +2352,9 @@ WebSDR differences are in their own bullet at the end.
   lives in the Xcode-project Mac target, which — like the rest of this
   project — has no unit test target; verify that layer via hardware
   validation, same as every other CAT/audio feature.
-- `Sources/FTX1CW/` — the CW receiver on CWKit, shared by the Mac and the
-  iPad (separate product so the iPhone doesn't carry it) — see "iPad CW
-  decoder" above.
+- `Sources/FTX1CW/` — the CW receiver and sender on CWKit, shared by the
+  Mac and the iPad (separate product so the iPhone doesn't carry it) —
+  see "iPad CW decoder" above.
 - `Apps/Mac/FTX1RemoteMac/` — Mac app target source (canonical location;
   the Xcode project at `FTX1RemoteMac/FTX1RemoteMac.xcodeproj` points at
   this directory via a synchronized group, not a separate copy). Owns the
@@ -2322,7 +2366,8 @@ WebSDR differences are in their own bullet at the end.
   the shared `FTX1Core` `RemoteAudioStreamClient`) — Mac-only, see Architecture above. Also owns
   FT8 decoding (`FT8DecodeCoordinator`, `FT8Resampler`, `FT8Store`,
   `FT8Spot`, `FT8ListView`) — see "Digital modes — FT8" above. Also
-  owns CW decoding and sending (`CWSender`, `CWWindowView`, `CWWebSDRSource`,
+  owns CW decoding and sending (`CWWindowView`, `CWWebSDRSource`,
+  `HubService+CWKeyerLink`,
   `CWSendPane`, `WebSDRAudioTap`, on CWKit) — see "Digital
   modes — CW" above. Dense
   multi-pane UI (`ContentView`: VFO, meters, scope display,
