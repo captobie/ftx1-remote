@@ -1349,7 +1349,7 @@ free Mac app and a radio".
   runs (`lsof -nP -iTCP -sTCP:LISTEN | grep FTX1Remot`, lowest port) —
   a second client can read the simulated rig's state directly.
 
-## iPad TestFlight prep (2026-10-15; 0.9 build 6 uploaded the same day)
+## iPad TestFlight prep (2026-10-15; 0.9 build 6 uploaded the same day, build 7 on 2026-10-16 with the PTT key-before-mic fix)
 
 App Store/TestFlight requirements on the iPad target: `PrivacyInfo.xcprivacy`
 in `Apps/iPad/FTX1RemoteiPad/` (picked up by the synchronized group as a
