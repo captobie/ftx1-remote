@@ -1388,8 +1388,10 @@ MIT-style licence (mingw-w64 v12.0.0) ships as `COPYING-winpthreads.txt`.
 Details: `Apps/Windows/README.md`, "Bundled rigctld".
 
 **Desktop hub for the iPad (phases 1-2 of 6, 2026-10-15; phase 1
-connected from a real iPad by the user the same day, phase 2 tested on
-the PC with a scripted client, not yet from the iPad)**: this app now also
+connected from a real iPad by the user the same day, phase 2 tested
+from a real iPad by the user in Remote mode, Local mode not yet; note
+the iPad sends its JSON as *binary* frames — only a 0x02-tagged binary
+frame is TX audio)**: this app now also
 serves the Mac hub's WebSocket protocol on 8765 (`Services/Hub/`,
 Kestrel), so the iPad's "Desktop hub" route can show its state and,
 since phase 2, drive the rig: `RigCommandWire` parses all 71

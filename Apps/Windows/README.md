@@ -1397,7 +1397,7 @@ already using, Local or Remote.
   Desktop hub route to it, 2026-10-15, working. Not tested: a refusal from
   a real outside address (unit-tested only), Local mode.
 
-### Phase 2 status (2026-10-15: built and tested on the PC; the iPad checklist below is still to do)
+### Phase 2 status (2026-10-15: built, tested on the PC, then from a real iPad by the user in Remote mode; Local mode not yet)
 
 - **Parsing**: `Services/Hub/RigCommandWire.cs` turns a client's text
   frame into one C# record per Swift `RigCommand` case (71), or says it's
@@ -1475,12 +1475,26 @@ already using, Local or Remote.
   Remote mode against the rig — ATT on/off, filter side SUB/MAIN (with
   the re-read), MAIN and SUB mode re-set to their current values, each
   in the next push, no errors. Nothing was keyed.
-- **To test with a real iPad, Remote and Local mode**: MAIN and SUB tune
-  and mode, band picker, swap and the speaker button, V/M, memory channel
-  set/step/recall from the list, Scan/Skip/Stop, every filter control on
-  MAIN and SUB, MENU grid values incl. RF POWER, the lock button (Enable
-  Transmit following on the PC), and PTT, MOX and ANT TUNE refused while
-  locked. No on-air transmit tests in this phase.
+- **Tested from a real iPad by the user, Remote mode (2026-10-15)**, each
+  command confirmed in app.log: the lock button both ways (Enable
+  Transmit, the switch and the saved setting following, PTT/MOX forced
+  off on lock); PTT, MOX and ANT TUNE while locked (the iPad blocks them
+  itself and sends nothing, so the hub's refusal is covered by the tests
+  and the scripted check above); MAIN and SUB frequency and mode; the
+  band picker (30 m and back); swap both ways (audio flag following) and
+  the speaker button both ways; V/M in and out (VFO restored); MAIN
+  channel set (a list tap sends `set_memory_channel` — the iPad never
+  sends `recall_memory_channel`) and step, SUB channel step; Scan MAIN,
+  pause, Skip (the same scan again), Stop; WIDTH, SHIFT, N/W, NOTCH
+  (toggle and drag) and APF (toggle and drag) on MAIN, N/W on SUB, the
+  MAIN/SUB switch; MENU grid RF POWER (PC slider following), TUNER, ATT,
+  CW SPEED, TONE FREQ, RPT SHIFT. All working, nothing keyed.
+  - Found on the way and fixed (1437f38): the iPad sends its JSON as
+    **binary** frames, which the first build dropped as TX audio.
+  - Deep Settings: the iPad can't show or change values until its reads
+    work (phase 4), so writes from it are untested too.
+  - Not tried: Local mode, a SUB channel picked from the list, CONTOUR
+    (MAIN was in CW), the iPad's Scan SUB.
 
 **Windows Firewall.** The app is unpackaged, so Windows asks "Allow
 FTX1RemoteWindows to communicate on these networks?" the first time the
