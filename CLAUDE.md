@@ -1023,24 +1023,29 @@ keys the rig and sends the iPad's microphone to the rig's USB audio input.
   press only asks for microphone access and keys nothing. The unkey goes
   out 300 ms after release (`MicrophoneTransmitter.unkeyDelay`) so the
   tail isn't cut off. Receive playback is muted while keyed.
-  **The session is `.playAndRecord` only during a press**: the receive
-  `AudioPlaybackEngine`s are stopped for the press and restarted on
-  `.playback` afterwards. A first version set `.playAndRecord` for the
-  whole session, and every Pi-direct connect in the Simulator aborted in
-  CoreAudio ("Initialize: RPC timeout. Apparently deadlocked") while
-  starting playback. That was probably not the category's fault: the same
-  abort hit a Pi-direct connect on `.playback` (2026-10-09). Its crash
-  report shows the main thread in `AudioPlaybackEngine.start()` →
-  `engine.outputNode`, waiting on the in-process AURemoteIO server, which
-  waits on a lock held by iOS's UI-sound renderer starting up
-  (`AQIONodeManager::StartImmortalDeviceRunner`). That renderer was stuck
-  in a call to the host Mac's `coreaudiod` (`HALC_ProxyObject::
-  SetPropertyData`). It's a Simulator/host problem. A real iPad doesn't
-  route audio through the Mac's `coreaudiod`, so it shouldn't hit this.
-  App code can't catch it either, since AudioToolbox `abort()`s on any
-  thread. If it happens, run `sudo killall coreaudiod` on the Mac, then
-  restart the Simulator. Whether a *press* has the same problem in the
-  Simulator isn't known yet (no press with transmit unlocked was made).
+  **One shared `.playAndRecord` session, receive kept running
+  (2026-10-16, build-verified; not yet on the iPad)**: `SharedAudioSession`
+  (`FTX1Core/Audio/`) is the session for both receive players and the
+  mic, reference-counted (the last user deactivates). Until then the
+  players used `.playback` and each press stopped both, switched to
+  `.playAndRecord` and started the mic on the main thread; a release did
+  the reverse. On a real iPad Air (4th gen) that was a 3.9 s main-thread
+  hang per press (each player stop deactivated the session under the
+  other's running I/O, ~1 s each, plus ~1 s mic start), so a press was
+  released before the mic ran and sent no frames (`sudo log collect
+  --device-udid …` from the iPad: "Hang detected: 3.89s", the mic engine
+  stopped 3 ms after starting). Now a press only starts the input engine,
+  on `TXAudioCapture`'s own serial queue (`MicrophoneTransmitter.start` is
+  async; a stop during the start runs right after it); receive keeps
+  playing, muted while keyed. The older Simulator note: a first version
+  that held `.playAndRecord` for the whole session saw every Pi-direct
+  connect in the Simulator abort in CoreAudio ("Initialize: RPC timeout.
+  Apparently deadlocked"), but the same abort later hit a `.playback`
+  connect too — its crash report shows the main thread in
+  `AudioPlaybackEngine.start()` → `engine.outputNode`, waiting on iOS's
+  UI-sound renderer, itself stuck in a call to the host Mac's
+  `coreaudiod`. A Simulator/host problem: if it happens, run `sudo
+  killall coreaudiod` on the Mac, then restart the Simulator.
   Both views release PTT when the scene leaves `.active`.
 - **Key first, then the microphone (2026-10-16, build-verified; not yet
   re-tried on the iPad)**: `startTransmit()` used to queue the key as a

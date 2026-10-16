@@ -25,18 +25,20 @@ public final class MicrophoneTransmitter {
 
     public var isRunning: Bool { capture != nil }
 
-    /// Throws if the microphone can't start; nothing is left running then.
-    /// `finish` runs once after the last chunk has been sunk.
+    /// Returns once the microphone runs; throws if it can't start, and
+    /// nothing is left running then. The start runs off the main actor
+    /// (`TXAudioCapture`'s queue), and a `stop()` while it's under way
+    /// stops the microphone right after it comes up. `finish` runs once
+    /// after the last chunk has been sunk.
     public func start(
         sink: @escaping @Sendable (Data) async -> Void,
         finish: @escaping @Sendable () async -> Void = {}
-    ) throws {
+    ) async throws {
         stop()
         let (stream, continuation) = AsyncStream<Data>.makeStream(bufferingPolicy: .bufferingNewest(50))
         let capture = TXAudioCapture(logSubsystem: logSubsystem) { pcm in
             continuation.yield(pcm)
         }
-        try capture.start()
         self.capture = capture
         self.continuation = continuation
         consumer = Task {
@@ -44,6 +46,12 @@ public final class MicrophoneTransmitter {
                 await sink(pcm)
             }
             await finish()
+        }
+        do {
+            try await capture.start()
+        } catch {
+            if self.capture === capture { stop() }
+            throw error
         }
     }
 

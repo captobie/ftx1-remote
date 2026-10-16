@@ -31,6 +31,10 @@ public final class AudioPlaybackEngine {
     private var converter: AVAudioConverter?
     private var playbackFormat: AVAudioFormat?
     private var isRunning = false
+    #if os(iOS)
+    /// This player's share of `SharedAudioSession`, released on `stop()`.
+    private var holdsSession = false
+    #endif
     /// Throttles the "push while not running" diagnostic below to once per
     /// not-running streak, rather than once per ~50ms audio chunk.
     private var hasLoggedPushWhileNotRunning = false
@@ -97,13 +101,16 @@ public final class AudioPlaybackEngine {
         guard !isRunning else { return }
 
         #if os(iOS)
+        // Shared with the other player and the transmit microphone (see
+        // `SharedAudioSession`), so starting or stopping one doesn't
+        // reconfigure the session under the others.
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default)
-            try session.setActive(true)
+            try SharedAudioSession.acquire()
+            holdsSession = true
         } catch {
             // Playback can still work without an explicit category on some
             // configurations — not worth failing start() over.
+            Self.logger.error("audio session: \(String(describing: error), privacy: .public)")
         }
         #endif
 
@@ -126,7 +133,10 @@ public final class AudioPlaybackEngine {
             sampleRate: AudioStreamFormat.sampleRate,
             channels: 1,
             interleaved: true
-        ), let newConverter = AVAudioConverter(from: wireFormat, to: format) else { return }
+        ), let newConverter = AVAudioConverter(from: wireFormat, to: format) else {
+            releaseSessionIfHeld()
+            return
+        }
         converter = newConverter
 
         prebuffer.removeAll()
@@ -163,7 +173,17 @@ public final class AudioPlaybackEngine {
             Self.logger.error("engine.start() failed: \(String(describing: error), privacy: .public)")
             engine.disconnectNodeInput(player)
             engine.disconnectNodeInput(gateMixer)
+            releaseSessionIfHeld()
         }
+    }
+
+    private func releaseSessionIfHeld() {
+        #if os(iOS)
+        if holdsSession {
+            holdsSession = false
+            SharedAudioSession.release()
+        }
+        #endif
     }
 
     private static let logger = Logger(subsystem: "com.ftx1remote", category: "audio-playback")
@@ -184,9 +204,7 @@ public final class AudioPlaybackEngine {
         hasPrimed = false
         isRunning = false
 
-        #if os(iOS)
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        #endif
+        releaseSessionIfHeld()
     }
 
     /// One chunk of raw Int16 mono PCM at `AudioStreamFormat.sampleRate`, as

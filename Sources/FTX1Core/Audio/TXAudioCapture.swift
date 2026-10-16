@@ -8,27 +8,29 @@ import os
 /// carries over chunk boundaries), handed to `onChunk` about every 20 ms.
 /// Runs only while PTT is held — `start()` on press, `stop()` on release.
 ///
-/// The session is `.playAndRecord` only while this runs: `start()` switches
-/// to it and `stop()` deactivates it, and the models stop their receive
-/// `AudioPlaybackEngine`s for the length of a press (receive audio is muted
-/// while keyed anyway, so the rig's monitor audio can't feed back into
-/// the mic) and restart them — back on `.playback` — afterwards. Listening
-/// never runs on a record-capable session. A Simulator connect deadlocked
-/// in CoreAudio when it did, and it would also move the route and show
-/// the mic indicator for no reason.
+/// The session is `SharedAudioSession`'s `.playAndRecord`, already active
+/// while receive plays, so a press only starts this input engine — no
+/// category switch and no stopping the receive players (the models mute
+/// them while keyed, so the rig's monitor audio can't feed back into the
+/// mic). Starting and stopping run on this capture's own serial queue,
+/// never the main thread: on a real iPad Air the old main-thread version
+/// froze the UI for ~4 s per press (see `SharedAudioSession`).
 ///
 /// No echo cancellation (`.voiceChat` would also duck and reroute audio);
 /// muting the receive side covers what it would be for.
 ///
-/// `@unchecked Sendable`: `start()`/`stop()` come from the main actor; the
-/// tap runs on the audio thread and touches only the downsampler and
-/// `onChunk`, both fixed at init.
+/// `@unchecked Sendable`: the engine and `isRunning` are touched only on
+/// `queue` (`start()` and `stop()` both hop there, in call order, so a
+/// stop right after a start runs after it); the tap runs on the audio
+/// thread and touches only the downsampler and `onChunk`, both fixed at
+/// init.
 public final class TXAudioCapture: @unchecked Sendable {
     public enum CaptureError: Error {
         case noInput
     }
 
     private let engine = AVAudioEngine()
+    private let queue = DispatchQueue(label: "com.ftx1remote.tx-audio-capture", qos: .userInitiated)
     private let downsampler = PiAudioDownsampler()
     private let onChunk: @Sendable (Data) -> Void
     private let logger: Logger
@@ -48,17 +50,37 @@ public final class TXAudioCapture: @unchecked Sendable {
         AVAudioApplication.shared.recordPermission == .granted
     }
 
-    public func start() throws {
+    /// Starts the microphone on `queue`; returns once it runs (or throws).
+    public func start() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            queue.async {
+                do {
+                    try self.startOnQueue()
+                    continuation.resume()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Stops the microphone on `queue`, after any start already queued.
+    public func stop() {
+        queue.async { self.stopOnQueue() }
+    }
+
+    private func startOnQueue() throws {
         guard !isRunning else { return }
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothA2DP])
-        try session.setActive(true)
+        try SharedAudioSession.acquire()
 
         let input = engine.inputNode
         // On iOS the tap has to use the node's output format (the macOS
         // `inputFormat` workaround in AudioCaptureEngine doesn't apply).
         let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0, format.channelCount > 0 else { throw CaptureError.noInput }
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            SharedAudioSession.release()
+            throw CaptureError.noInput
+        }
         let sampleRate = format.sampleRate
         let downsampler = downsampler
         let onChunk = onChunk
@@ -73,19 +95,21 @@ public final class TXAudioCapture: @unchecked Sendable {
             try engine.start()
         } catch {
             input.removeTap(onBus: 0)
+            SharedAudioSession.release()
             throw error
         }
         isRunning = true
         logger.notice("microphone started at \(sampleRate, privacy: .public) Hz")
     }
 
-    public func stop() {
+    private func stopOnQueue() {
         guard isRunning else { return }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         isRunning = false
-        // The receive engines' next start() puts the category back.
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        // Receive keeps the session if it's playing; the last user
+        // deactivates it.
+        SharedAudioSession.release()
         logger.notice("microphone stopped")
     }
 }

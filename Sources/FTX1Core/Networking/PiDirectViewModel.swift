@@ -845,19 +845,19 @@ public final class PiDirectViewModel: ObservableObject {
             }
             guard !Task.isCancelled, self.isTransmitting else { return }
             self.micStartTask = nil
-            self.startMicrophone()
+            await self.startMicrophone()
         }
     }
 
-    private func startMicrophone() {
-        // Off for the press (muted anyway) so the session can switch to
-        // recording — see `TXAudioCapture`.
-        mainAudioEngine.stop()
-        subAudioEngine.stop()
+    /// Receive keeps playing through the press (muted while keyed): the
+    /// shared session is already `.playAndRecord`, so this only starts the
+    /// input engine, off the main actor (see `SharedAudioSession`,
+    /// `TXAudioCapture`). A release meanwhile stops it once it's up.
+    private func startMicrophone() async {
         let txClient = RemoteTXAudioClient(host: endpoint.host, port: endpoint.txAudioPort, logSubsystem: logSubsystem)
         Task { await txClient.start() }
         do {
-            try microphone.start(
+            try await microphone.start(
                 sink: { pcm in await txClient.send(pcm) },
                 finish: { await txClient.finish() }
             )
@@ -877,7 +877,6 @@ public final class PiDirectViewModel: ObservableObject {
         micStartTask?.cancel()
         micStartTask = nil
         microphone.stop()
-        resumeReceiveAudio()
         unkeyTask = Task { [weak self] in
             try? await Task.sleep(for: MicrophoneTransmitter.unkeyDelay)
             guard let self, !Task.isCancelled else { return }
@@ -904,20 +903,11 @@ public final class PiDirectViewModel: ObservableObject {
         #if os(iOS)
         if microphone.isRunning {
             microphone.stop()
-            resumeReceiveAudio()
         }
         #endif
         unkeyTask?.cancel()
         unkeyTask = nil
         isTransmitting = false
-    }
-
-    /// Back on `.playback` after a press (the audio stream is still up);
-    /// muted until the unkey lands. `disconnect()` stops them right after.
-    private func resumeReceiveAudio() {
-        guard audioClient != nil else { return }
-        mainAudioEngine.start()
-        if playsSubAudio { subAudioEngine.start() }
     }
 
     /// The manual override for `audioChannelsSwapped`, for when the tracked

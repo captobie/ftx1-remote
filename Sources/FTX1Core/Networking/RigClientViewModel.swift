@@ -345,17 +345,18 @@ public final class RigClientViewModel: ObservableObject, RigController {
             if needsKey { try? await client.send(.setPTT(true)) }
             guard let self, !Task.isCancelled, self.isTransmitting else { return }
             self.micStartTask = nil
-            self.startMicrophone(client)
+            await self.startMicrophone(client)
         }
     }
 
-    private func startMicrophone(_ client: RigWebSocketClient) {
-        // Off for the press (muted anyway) so the session can switch to
-        // recording — see `TXAudioCapture`.
-        audioEngine.stop()
-        subAudioEngine.stop()
+    /// Receive keeps playing through the press (muted while keyed, see
+    /// `onAudioData`): the shared session is already `.playAndRecord`, so
+    /// this only starts the input engine, off the main actor (see
+    /// `SharedAudioSession`, `TXAudioCapture`). A release meanwhile
+    /// (`stopTransmit` → `microphone.stop()`) stops it once it's up.
+    private func startMicrophone(_ client: RigWebSocketClient) async {
         do {
-            try microphone.start { pcm in
+            try await microphone.start { pcm in
                 try? await client.sendTXAudio(pcm)
             }
         } catch {
@@ -373,7 +374,6 @@ public final class RigClientViewModel: ObservableObject, RigController {
         micStartTask?.cancel()
         micStartTask = nil
         microphone.stop()
-        resumeReceiveAudio()
         unkeyTask = Task { [weak self] in
             try? await Task.sleep(for: MicrophoneTransmitter.unkeyDelay)
             guard let self, !Task.isCancelled else { return }
@@ -381,13 +381,6 @@ public final class RigClientViewModel: ObservableObject, RigController {
             self.isTransmitting = false
             self.unkeyTask = nil
         }
-    }
-
-    /// Back on `.playback` after a press; muted until the unkey lands.
-    private func resumeReceiveAudio() {
-        guard connectionState == .connected else { return }
-        audioEngine.start()
-        subAudioEngine.start()
     }
     #endif
 
