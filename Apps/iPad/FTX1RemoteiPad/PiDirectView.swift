@@ -51,6 +51,8 @@ struct PiDirectView: View {
     @EnvironmentObject private var viewModel: PiDirectViewModel
     @EnvironmentObject private var demo: DemoSession
     @AppStorage("piHost") private var host: String = "ftx1pi"
+    /// Pis this iPad has connected to (`RecentHostField`).
+    @AppStorage(RecentHosts.piKey) private var recentHosts: String = ""
     /// This device's own copy of the Mac's WPSD host key; empty = no C4FM
     /// callsign/reflector lookup.
     @AppStorage(WPSDSettings.hostKey) private var wpsdHost: String = ""
@@ -71,10 +73,7 @@ struct PiDirectView: View {
 
                 HStack {
                     if viewModel.connectionState != .connected && !isDemo {
-                        TextField("Pi hostname (Tailscale)", text: $host)
-                            .textFieldStyle(.roundedBorder)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
+                        RecentHostField(placeholder: "Pi hostname (Tailscale)", host: $host, recentHosts: $recentHosts.recentHostList)
                         TextField("WPSD hotspot (optional, C4FM callsign)", text: $wpsdHost)
                             .textFieldStyle(.roundedBorder)
                             .textInputAutocapitalization(.never)
@@ -91,6 +90,13 @@ struct PiDirectView: View {
                         transmitEnableButton
                         Spacer()
                         rigButtons
+                    }
+                }
+                .zIndex(1)
+                .onChange(of: viewModel.connectionState) { _, state in
+                    // The demo connects to loopback ports, not `host`.
+                    if state == .connected && !isDemo {
+                        recentHosts = RecentHosts.encode(RecentHosts.remember(host, in: RecentHosts.decode(recentHosts)))
                     }
                 }
 

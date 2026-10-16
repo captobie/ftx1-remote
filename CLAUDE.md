@@ -803,6 +803,15 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   now reserves one hidden caption2 line. Verified: SUB's "CH 1 Pi-STAR",
   RX/TXRX tags, the reflector, equal box heights. Confirmed on the real
   iPad by the user the same day, all fields showing.
+- **Remembered hosts (2026-10-15, Simulator-checked; remembering on a
+  real connect not yet tried)**: both iPad screens' host fields are
+  `RecentHostField` (`Apps/iPad/`): while focused, a drop-down of the
+  hosts that route has connected to (newest first, up to 10; keys
+  `hubHost.recent`/`piHost.recent`, newline-separated). A row fills the
+  field without connecting; its ✕ forgets it. A host is remembered when
+  its connection reaches Connected (never in Demo Mode). The drop-down is
+  an overlay, so the field's row needs `.zIndex(1)` to draw over what
+  follows.
 - **iPad cleanup (2026-10-09, build-verified only)**: the Pi-direct
   screen's audio status line shows only the "Waiting for audio…" warning;
   "Audio from the Pi"/"Audio off" are gone. (The route switch hiding

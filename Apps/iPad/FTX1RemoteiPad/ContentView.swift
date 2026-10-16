@@ -89,6 +89,8 @@ struct ContentView: View {
 struct HubControlView: View {
     @EnvironmentObject private var viewModel: RigClientViewModel
     @AppStorage("hubHost") private var host: String = ""
+    /// Hubs this iPad has connected to (`RecentHostField`).
+    @AppStorage(RecentHosts.hubKey) private var recentHosts: String = ""
     @AppStorage(AudioPlaybackSettings.volumeKey) private var mainAudioVolume: Double = 0.8
     @AppStorage(AudioPlaybackSettings.squelchThresholdKey) private var mainAudioSquelchThreshold: Double = 0.015
     @AppStorage(AudioPlaybackSettings.subVolumeKey) private var subAudioVolume: Double = 0.8
@@ -104,10 +106,7 @@ struct HubControlView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     if viewModel.connectionState != .connected {
-                        TextField("Desktop hostname (Tailscale)", text: $host)
-                            .textFieldStyle(.roundedBorder)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
+                        RecentHostField(placeholder: "Desktop hostname (Tailscale)", host: $host, recentHosts: $recentHosts.recentHostList)
                     }
                     connectButton
                     if viewModel.connectionState == .connected {
@@ -120,6 +119,12 @@ struct HubControlView: View {
                         transmitEnabledIndicator
                         Spacer()
                         rigButtons
+                    }
+                }
+                .zIndex(1)
+                .onChange(of: viewModel.connectionState) { _, state in
+                    if state == .connected {
+                        recentHosts = RecentHosts.encode(RecentHosts.remember(host, in: RecentHosts.decode(recentHosts)))
                     }
                 }
 
