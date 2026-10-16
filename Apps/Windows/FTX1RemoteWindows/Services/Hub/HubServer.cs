@@ -13,9 +13,10 @@ namespace FTX1RemoteWindows.Services.Hub;
 /// "Desktop hub" route can connect to this app — Apps/Windows/README.md,
 /// "Desktop hub for the iPad". State pushes go out (phase 1); a client's
 /// commands are parsed (RigCommandWire) and raised as
-/// <see cref="CommandReceived"/> for RigCommandDispatcher (phase 2). Binary
-/// frames (TX audio, phase 5), read_menu_item (phase 4) and cw_keyer
-/// (phase 6) are logged and ignored.
+/// <see cref="CommandReceived"/> for RigCommandDispatcher (phase 2); MAIN/SUB
+/// receive audio frames go out through <see cref="BroadcastAudio"/>
+/// (phase 3). TX audio frames (phase 5), read_menu_item (phase 4) and
+/// cw_keyer (phase 6) are logged and ignored.
 ///
 /// Plain ws:// on every interface, path "/", port <see cref="Port"/> (the
 /// iPad's RigClientViewModel has it fixed). Connections from outside
@@ -24,7 +25,8 @@ namespace FTX1RemoteWindows.Services.Hub;
 /// rigctld connection: MainWindow starts/stops it with Settings → Hub and
 /// just keeps handing it the latest state.
 ///
-/// Thread-safe: <see cref="Publish"/> may be called from any thread, and
+/// Thread-safe: <see cref="Publish"/> and <see cref="BroadcastAudio"/> may
+/// be called from any thread, and
 /// <see cref="StatusChanged"/> and <see cref="CommandReceived"/> are raised
 /// on a pool thread.
 public sealed class HubServer : IAsyncDisposable
@@ -33,8 +35,24 @@ public sealed class HubServer : IAsyncDisposable
 
     public sealed record ClientInfo(int Id, string Address, DateTime ConnectedAt);
 
+    /// ~0.5 s of receive audio per client: MAIN and SUB each send a frame
+    /// per 2048-sample chunk (~46 ms at 44.1 kHz, ~43 ms at 48 kHz).
+    private const int AudioQueueFrames = 24;
+    private static readonly TimeSpan AudioDropLogInterval = TimeSpan.FromSeconds(5);
+
     private sealed class Client
     {
+        public Client()
+        {
+            AudioOutbox = Channel.CreateBounded<byte[]>(
+                new BoundedChannelOptions(AudioQueueFrames)
+                {
+                    FullMode = BoundedChannelFullMode.DropOldest,
+                    SingleReader = true,
+                },
+                _ => AudioDropped());
+        }
+
         public required ClientInfo Info { get; init; }
         public required WebSocket Socket { get; init; }
         /// Only the newest state matters, so a slow client skips the ones
@@ -46,10 +64,35 @@ public sealed class HubServer : IAsyncDisposable
         /// send-side call holds this — the send loop's pushes, the close
         /// handshake's reply, StopAsync's close.
         public SemaphoreSlim SendLock { get; } = new(1, 1);
+
+        /// Receive audio frames, separate from <see cref="Outbox"/> (which
+        /// keeps only the newest push and would drop audio). A client that
+        /// falls behind loses its oldest frames, so the delay can't grow
+        /// past ~0.5 s.
+        public Channel<byte[]> AudioOutbox { get; }
+
+        private int _droppedFrames;
+        private long _lastDropLog;
+
+        private void AudioDropped()
+        {
+            var dropped = Interlocked.Increment(ref _droppedFrames);
+            var now = Environment.TickCount64;
+            if (now - Interlocked.Read(ref _lastDropLog) < AudioDropLogInterval.TotalMilliseconds)
+            {
+                return;
+            }
+            Interlocked.Exchange(ref _lastDropLog, now);
+            Interlocked.Exchange(ref _droppedFrames, 0);
+            AppLog.Write($"hub: client {Info.Id} is behind on audio — dropped {dropped} oldest frame(s)");
+        }
     }
 
     private readonly object _gate = new();
     private readonly Dictionary<int, Client> _clients = [];
+    /// <see cref="_clients"/> for the audio path, replaced under the gate on
+    /// every connect/disconnect so a broadcast needn't take the lock.
+    private volatile Client[] _audioClients = [];
     private int _nextClientId;
     private WebApplication? _app;
     private string? _latestState;
@@ -176,6 +219,21 @@ public sealed class HubServer : IAsyncDisposable
 
     public ValueTask DisposeAsync() => new(StopAsync());
 
+    /// Whether any client is connected — the audio taps skip encoding when
+    /// not.
+    public bool HasClients => _audioClients.Length > 0;
+
+    /// One receive audio frame (AudioStreamFormat: tag 0x00 MAIN / 0x01
+    /// SUB, then 8 kHz Int16LE PCM) to every connected client, as the Mac's
+    /// broadcastAudio/broadcastSubAudio.
+    public void BroadcastAudio(byte[] frame)
+    {
+        foreach (var client in _audioClients)
+        {
+            client.AudioOutbox.Writer.TryWrite(frame);
+        }
+    }
+
     /// The current state push as JSON. Sent to every client now and to each
     /// new client on connect.
     public void Publish(string stateJson)
@@ -203,6 +261,7 @@ public sealed class HubServer : IAsyncDisposable
         lock (_gate)
         {
             _clients[client.Info.Id] = client;
+            _audioClients = [.. _clients.Values];
             if (_latestState is { } state)
             {
                 client.Outbox.Writer.TryWrite(state);
@@ -213,6 +272,7 @@ public sealed class HubServer : IAsyncDisposable
 
         using var done = CancellationTokenSource.CreateLinkedTokenSource(aborted);
         var sender = SendLoopAsync(client, done.Token);
+        var audioSender = AudioSendLoopAsync(client, done.Token);
         try
         {
             await ReceiveLoopAsync(client, done.Token);
@@ -225,17 +285,19 @@ public sealed class HubServer : IAsyncDisposable
         {
             done.Cancel();
             client.Outbox.Writer.TryComplete();
+            client.AudioOutbox.Writer.TryComplete();
             try
             {
-                await sender;
+                await Task.WhenAll(sender, audioSender);
             }
             catch
             {
-                // The send loop's own failure is the disconnect.
+                // A send loop's own failure is the disconnect.
             }
             lock (_gate)
             {
                 _clients.Remove(client.Info.Id);
+                _audioClients = [.. _clients.Values];
             }
             AppLog.Write($"hub: client {client.Info.Id} ({client.Info.Address}) disconnected");
             StatusChanged?.Invoke();
@@ -325,6 +387,26 @@ public sealed class HubServer : IAsyncDisposable
                     return;
                 }
                 await client.Socket.SendAsync(Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text, true, cancellationToken);
+            }
+            finally
+            {
+                client.SendLock.Release();
+            }
+        }
+    }
+
+    private static async Task AudioSendLoopAsync(Client client, CancellationToken cancellationToken)
+    {
+        await foreach (var frame in client.AudioOutbox.Reader.ReadAllAsync(cancellationToken))
+        {
+            await client.SendLock.WaitAsync(cancellationToken);
+            try
+            {
+                if (client.Socket.State != WebSocketState.Open)
+                {
+                    return;
+                }
+                await client.Socket.SendAsync(frame, WebSocketMessageType.Binary, true, cancellationToken);
             }
             finally
             {

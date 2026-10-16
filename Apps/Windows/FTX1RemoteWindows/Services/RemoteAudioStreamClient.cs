@@ -90,6 +90,9 @@ public sealed class RemoteAudioStreamClient : IAudioSource
 
     public int SampleRate => StreamSampleRate;
 
+    /// The Pi always streams stereo.
+    public bool HasSubChannel => true;
+
     public void Start()
     {
         if (_loopTask is not null)

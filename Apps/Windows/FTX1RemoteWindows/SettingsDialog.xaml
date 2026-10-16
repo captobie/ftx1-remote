@@ -252,10 +252,12 @@
                      switch applies on Save; the status and clients are live. -->
                 <StackPanel x:Name="HubTab" Spacing="12" Visibility="Collapsed">
                     <ToggleSwitch x:Name="HubEnabledSwitch" Header="Allow iPad connections" />
-                    <TextBlock Text="Lets the iPad's Desktop hub route connect to this app over Tailscale or the local network (other addresses are refused). For now it only shows this app's state; the iPad's controls do nothing yet."
+                    <TextBlock Text="Lets the iPad's Desktop hub route connect to this app over Tailscale or the local network (other addresses are refused). The iPad shows this app's state, controls the rig through it and hears its MAIN/SUB audio; transmitting, the memory/APRS lists, Deep Settings values and CW sending from the iPad aren't supported yet."
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                     <TextBlock x:Name="HubPortText" />
                     <TextBlock x:Name="HubStatusText" />
+                    <TextBlock x:Name="HubAudioOffText" Visibility="Collapsed" TextWrapping="Wrap"
+                               Text="Audio is off on this PC, so the iPad hears nothing. Turn on Audio in the main window (with the rig connected)." />
                     <TextBlock Text="Connected clients" FontWeight="SemiBold" />
                     <TextBlock x:Name="HubNoClientsText" Text="None" Foreground="Gray" />
                     <ListView x:Name="HubClientsList" SelectionMode="None" MaxHeight="140" />

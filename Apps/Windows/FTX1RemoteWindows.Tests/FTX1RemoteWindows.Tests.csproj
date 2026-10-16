@@ -19,6 +19,7 @@
     <Compile Include="..\FTX1RemoteWindows\Services\Hub\HubAddressFilter.cs" Link="Linked\HubAddressFilter.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\Hub\RigCommandWire.cs" Link="Linked\RigCommandWire.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\Hub\HubCommandPolicy.cs" Link="Linked\HubCommandPolicy.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\Hub\HubAudioEncoder.cs" Link="Linked\HubAudioEncoder.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\TransmitGate.cs" Link="Linked\TransmitGate.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigDelayCode.cs" Link="Linked\RigDelayCode.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigState.cs" Link="Linked\RigState.cs" />
@@ -35,6 +36,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
+    <!-- HubAudioEncoder uses its WdlResampler; same version as the app. -->
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.0" />
   </ItemGroup>
 

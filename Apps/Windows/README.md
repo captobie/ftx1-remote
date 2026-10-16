@@ -1305,7 +1305,7 @@ lists it.
   picker, switching sides mid-scan, a Mem List recall mid-scan, a scan
   started from the front panel, and both boxes with TX:SUB and no scan.
 
-## Desktop hub for the iPad (plan, 2026-10-15; phase 1 done 2026-10-15, phase 2 built 2026-10-15)
+## Desktop hub for the iPad (plan, 2026-10-15; phase 1 done 2026-10-15, phase 2 built 2026-10-15, phase 3 built 2026-10-16)
 
 Goal: the iPad's hub route (renamed "Desktop hub" on 2026-10-15, raw
 `connectionRoute` value still `macHub`) can connect to this app the way it
@@ -1496,6 +1496,59 @@ already using, Local or Remote.
   - Not tried: Local mode, a SUB channel picked from the list, CONTOUR
     (MAIN was in CW), the iPad's Scan SUB.
 
+### Phase 3 status (2026-10-16: built, tested on the PC, then from a real iPad by the user in Remote mode; Local mode, CW decoding and a long run not yet)
+
+- **Tap**: `Route` in `MainWindow.xaml.cs` (the audio source's callback,
+  never the UI thread) calls `RelayHubAudio` (`MainWindow.Hub.cs`) with
+  MAIN and SUB as roles, i.e. after `AudioChannelSwapTracker`, and before
+  this app's own mute/volume/squelch (`ChannelPlayer.Push` only reads the
+  samples), for both sources. SUB goes out only when the source really
+  has a second channel (`IAudioSource.HasSubChannel`: always for the Pi,
+  from the capture format in Local mode), so a mono input sends MAIN only,
+  as on the Mac. Nothing is encoded while no client is connected
+  (`HubServer.HasClients`).
+- **Encoder**: `Services/Hub/HubAudioEncoder.cs`, one per channel,
+  long-lived (rebuilt on an input-rate change): float → 8000 Hz mono
+  Int16LE, one frame per incoming 2048-sample chunk (~46 ms at 44.1 kHz,
+  ~43 ms at 48 kHz). NAudio's `WdlResampler` in windowed-sinc mode, 512
+  taps: flat to 3.5 kHz (±0.05 dB) and ≥45 dB down at 4.4 kHz at both
+  44.1 and 48 kHz input. Its default IIR mode (what
+  `WdlResamplingSampleProvider` uses, and what the plan above suggested)
+  measured −2 dB already at 2 kHz, too soft for the iPad's CW decoder and
+  0–4 kHz spectrum. Filter latency ~45 output samples (~6 ms).
+- **Sending**: binary frames, tag 0x00 MAIN / 0x01 SUB, broadcast to
+  every client (`HubServer.BroadcastAudio`). Each client has its own audio
+  queue beside the state outbox: 24 frames (~0.5 s of both channels),
+  dropping the **oldest** when a slow client falls behind ("hub: client N
+  is behind on audio — dropped …", at most every 5 s per client), sent
+  through the same per-client `SendLock`.
+- **Remote mode**: this app is the Pi's one audio client, so the iPad
+  hears audio only while this app's Audio is on (unchanged); Settings →
+  Hub says "Audio is off on this PC, so the iPad hears nothing" when it
+  isn't running (as of opening the dialog).
+- **Tests** (`FTX1RemoteWindows.Tests/HubAudioTests.cs`, encoder linked
+  in, NAudio.Core 2.2.1 referenced): output rate, per-frame length, tone
+  (1000 ± 1 Hz) and level (−6 dBFS in, peak within 3 %) from a sine at
+  44100 and 48000 Hz in 2048-sample chunks; passband and alias rejection;
+  a rate change; the tag. `WritesWindowsAudioFixture` writes
+  `Tests/WireFixtures/windows/audio-main-1000hz-from44100.bin` (7954
+  samples) and `audio-sub-1000hz-from48000.bin` (7957) through the real
+  encoder — re-run and commit after any encoder change. 196 tests pass.
+- **Tested here** (Remote mode, rig on the Pi): a scripted client over
+  20 s got 431 MAIN and 430 SUB frames (21.5/s each, ~8000 samples/s each)
+  alongside the state pushes. **CPU** (Debug build, 12-core PC, % of one
+  core): 4.7–5.1 % with no client, 6.6 % with one local scripted client,
+  6.6 % with the real iPad connected over Tailscale.
+- **Tested from a real iPad by the user, Remote mode (2026-10-16)**: MAIN
+  and SUB both heard; per-channel mute/VOL/SQL; audio following an app
+  swap and the speaker swap button; the filter spectrum moving on MAIN and
+  SUB. All working. **Not tried yet**: the iPad's CW pane decoding on this
+  route, a ~10-minute run for growing delay, Local mode.
+- **Different from the Mac**: frames are ~43–46 ms (the sources' 2048-
+  sample chunks) — the Mac's are the same size; the plan's "~20 ms" was
+  wrong. The audio queue's drop-oldest bound is new (the Mac's
+  `broadcastAudio` hands every frame to `NWConnection.send` with no queue limit of its own).
+
 **Windows Firewall.** The app is unpackaged, so Windows asks "Allow
 FTX1RemoteWindows to communicate on these networks?" the first time the
 hub listens. Tick **Public** as well as Private: Tailscale's adapter is
@@ -1562,7 +1615,7 @@ the command path.
    stop when turned off), and `setAudioChannelsSwapped` sets
    `AudioChannelSwapTracker`. Apply optimistically, then push. Test every
    iPad control on both of this app's modes.
-3. **Receive audio relay.** Tap the samples `ChannelPlayer` already gets
+3. **Receive audio relay** (done, see "Phase 3 status"). Tap the samples `ChannelPlayer` already gets
    from `RemoteAudioStreamClient`/`LocalAudioCapture`, after the swap
    tracker, so MAIN/SUB are roles. Downsample to 8 kHz Int16 (NAudio's
    `WdlResamplingSampleProvider`, one per channel, long-lived) and

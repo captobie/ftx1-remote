@@ -36,11 +36,15 @@ public sealed partial class SettingsDialog : ContentDialog
     /// `inUse`: what this session's last Local start launched
     /// (RigctldProcessController.LastResolution), shown when it differs
     /// from what the edited choice resolves to.
-    public SettingsDialog(Window owner, bool connected, RigctldBinary.Resolution? inUse = null, HubServer? hub = null)
+    /// `hubAudioRunning`: whether this app's audio is on, which the iPad's
+    /// receive audio comes through (Settings → Hub says so when it isn't).
+    public SettingsDialog(Window owner, bool connected, RigctldBinary.Resolution? inUse = null, HubServer? hub = null,
+        bool hubAudioRunning = true)
     {
         _owner = owner;
         _inUse = inUse;
         _hub = hub;
+        _hubAudioRunning = hubAudioRunning;
         InitializeComponent();
         XamlRoot = owner.Content.XamlRoot;
         RequestedTheme = (owner.Content as FrameworkElement)?.RequestedTheme ?? ElementTheme.Default;
@@ -586,6 +590,7 @@ public sealed partial class SettingsDialog : ContentDialog
     // Hub: the server's live state; the switch itself applies on Save.
 
     private readonly HubServer? _hub;
+    private readonly bool _hubAudioRunning;
 
     private void OnHubStatusChanged() => DispatcherQueue.TryEnqueue(RefreshHubStatus);
 
@@ -607,6 +612,7 @@ public sealed partial class SettingsDialog : ContentDialog
             HubClientsList.Items.Add($"{client.Address} — connected {client.ConnectedAt:HH:mm:ss}");
         }
         HubNoClientsText.Visibility = clients.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        HubAudioOffText.Visibility = _hubAudioRunning ? Visibility.Collapsed : Visibility.Visible;
     }
     private CancellationTokenSource? _versionLookup;
 

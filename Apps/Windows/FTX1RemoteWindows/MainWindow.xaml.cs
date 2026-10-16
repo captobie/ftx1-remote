@@ -502,7 +502,7 @@ public sealed partial class MainWindow : Window
 
     private async void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SettingsDialog(this, IsConnected, _rigctldProcess.LastResolution, _hub);
+        var dialog = new SettingsDialog(this, IsConnected, _rigctldProcess.LastResolution, _hub, HubAudioRunning);
         SettingsButton.IsEnabled = false;
         try
         {
@@ -2473,11 +2473,15 @@ public sealed partial class MainWindow : Window
 
         // The source's channels are physical L/R; after a Main/Sub swap they
         // go to the opposite roles (see AudioChannelSwapTracker).
+        IAudioSource? routedSource = null;
         void Route(float[] left, float[] right)
         {
             var swapped = _audioChannelsSwapped;
             var main = swapped ? right : left;
             var sub = swapped ? left : right;
+            // The iPad's Desktop hub, before this app's own mute/volume/
+            // squelch (the iPad applies its own), as the Mac relays.
+            RelayHubAudio(main, sub, routedSource?.HasSubChannel ?? false, _audioSampleRate);
             _mainPlayer.Push(main);
             _subPlayer.Push(sub);
             // Same routed channels, so the waterfall follows a swap too.
@@ -2532,6 +2536,7 @@ public sealed partial class MainWindow : Window
         }
 
         _audioSource = source;
+        routedSource = source;
         _audioSampleRate = source.SampleRate;
         StartPlayback();
         source.Start();

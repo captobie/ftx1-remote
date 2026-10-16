@@ -1396,9 +1396,9 @@ release with the Windows zip also gets `releases\libusb-1.0.24.tar.bz2`
 MIT-style licence (mingw-w64 v12.0.0) ships as `COPYING-winpthreads.txt`.
 Details: `Apps/Windows/README.md`, "Bundled rigctld".
 
-**Desktop hub for the iPad (phases 1-2 of 6, 2026-10-15; phase 1
-connected from a real iPad by the user the same day, phase 2 tested
-from a real iPad by the user in Remote mode, Local mode not yet; note
+**Desktop hub for the iPad (phases 1-3 of 6, 2026-10-15/16; phase 1
+connected from a real iPad by the user the same day, phases 2 and 3
+tested from a real iPad by the user in Remote mode, Local mode not yet; note
 the iPad sends its JSON as *binary* frames — only a 0x02-tagged binary
 frame is TX audio)**: this app now also
 serves the Mac hub's WebSocket protocol on 8765 (`Services/Hub/`,
@@ -1409,9 +1409,12 @@ UI thread via the *same* methods the window's controls use (MainWindow
 through `IHubRigHost`, `MenuGrid`/`FilterPanel` public setters — put a
 new control's action there, not in its click handler), after
 `HubCommandPolicy`'s transmit gate, value checks and memory-scan
-stop-before rule. PTT on from the iPad is refused until phase 5; lists,
-menu reads, TX audio and the CW keyer are logged and ignored until
-phases 3-6. Settings → Hub,
+stop-before rule. Since phase 3 it relays MAIN/SUB receive audio
+(`HubAudioEncoder`: WDL sinc resampler to 8 kHz, tapped after the swap
+and before this app's own mute/squelch; per-client ~0.5 s drop-oldest
+audio queue; in Remote mode only while this app's Audio is on). PTT on
+from the iPad is refused until phase 5; lists, menu reads, TX audio and
+the CW keyer are logged and ignored until phases 4-6. Settings → Hub,
 off by default; only loopback, Tailscale and private addresses are let
 in. This reverses "leaf client only" for this one feature. The wire
 types copy Swift's `RigState`/`RigCommand`; `Apps/Windows/FTX1RemoteWindows.Tests`

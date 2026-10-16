@@ -59,6 +59,10 @@ public sealed class LocalAudioCapture : IAudioSource
 
     public int SampleRate { get; }
 
+    /// Set from the capture format each time capture starts.
+    public bool HasSubChannel => _hasSubChannel;
+    private volatile bool _hasSubChannel;
+
     /// Active capture devices, for the picker.
     public static List<(string Id, string Name)> ListDevices()
     {
@@ -218,6 +222,7 @@ public sealed class LocalAudioCapture : IAudioSource
         }
         var channels = format.Channels;
         var bytesPerFrame = format.BlockAlign;
+        _hasSubChannel = channels >= 2;
 
         var stopped = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         capture.DataAvailable += (_, e) =>

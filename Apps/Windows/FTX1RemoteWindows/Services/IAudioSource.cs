@@ -13,6 +13,11 @@ public interface IAudioSource : IAsyncDisposable
     /// source's lifetime once <see cref="Start"/> has returned.
     int SampleRate { get; }
 
+    /// Whether the right (Sub) channel is real audio: false for a mono
+    /// input device, whose right channel is zeros. Safe to read from the
+    /// source's own callback.
+    bool HasSubChannel { get; }
+
     void Start();
 
     Task StopAsync();
