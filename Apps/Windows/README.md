@@ -1335,7 +1335,7 @@ already using, Local or Remote.
     enum/struct encodings. Copy the shapes from Swift. Don't guess them.
   - `memory_list` (`MemoryListPush`), `aprs_list` (`APRSListPush`),
     `menu_item` (`MenuItemPush`), `cw_keyer_reply` (`CWKeyerReply`).
-- **Text frames, client → server**: `{"cmd": "...", "value": ...}`
+- **JSON frames, client → server** (the iPad sends them as *binary* frames, `URLSessionWebSocketTask` `.data`; a binary frame is TX audio only when it starts with 0x02): `{"cmd": "...", "value": ...}`
   (`RigCommand`, ~75 commands), `read_menu_item` (`MenuItemReadRequest`),
   `cw_keyer` (`CWKeyerRequest`, incl. `acquire`/`release`).
 - **Binary frames**: 1 tag byte + 8 kHz mono Int16LE PCM. `0x00` MAIN and

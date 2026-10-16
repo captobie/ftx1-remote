@@ -263,14 +263,19 @@ public sealed class HubServer : IAsyncDisposable
             {
                 continue;
             }
-            if (result.MessageType == WebSocketMessageType.Text)
+            // The iPad sends its JSON (commands, menu reads, keyer requests)
+            // as *binary* frames (URLSessionWebSocketTask .data); only a
+            // 0x02-tagged binary frame is TX audio — the Mac's
+            // RigWebSocketServer tells them apart the same way.
+            var frame = new ArraySegment<byte>(message.GetBuffer(), 0, (int)message.Length);
+            if (result.MessageType == WebSocketMessageType.Binary && RigCommandWire.IsTxAudioFrame(frame))
             {
-                HandleText(client, Encoding.UTF8.GetString(message.GetBuffer(), 0, (int)message.Length));
+                // TX audio arrives in phase 5.
+                AppLog.Write($"hub: client {client.Info.Id} sent a {message.Length}-byte TX audio frame (ignored until phase 5)");
             }
             else
             {
-                // TX audio (0x02) arrives in phase 5.
-                AppLog.Write($"hub: client {client.Info.Id} sent a {message.Length}-byte binary frame (ignored until phase 5)");
+                HandleText(client, Encoding.UTF8.GetString(frame));
             }
             message.SetLength(0);
         }

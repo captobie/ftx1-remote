@@ -196,6 +196,21 @@ public class HubCommandTests
         Assert.False(string.IsNullOrEmpty(inbound.Error));
     }
 
+    /// The iPad sends commands as binary frames of JSON; only a
+    /// 0x02-tagged binary frame with audio after the tag is TX audio.
+    [Fact]
+    public void BinaryJsonIsACommandAndOnlyTaggedFramesAreAudio()
+    {
+        var json = System.Text.Encoding.UTF8.GetBytes("""{"cmd":"set_transmit_enabled","value":false}""");
+        Assert.False(RigCommandWire.IsTxAudioFrame(json));
+        Assert.Equal(new SetTransmitEnabled(false),
+            RigCommandWire.ParseInbound(System.Text.Encoding.UTF8.GetString(json)).Command);
+        Assert.True(RigCommandWire.IsTxAudioFrame(new byte[] { 0x02, 0x10, 0x00 }));
+        Assert.False(RigCommandWire.IsTxAudioFrame(new byte[] { 0x02 }));
+        Assert.False(RigCommandWire.IsTxAudioFrame(new byte[] { 0x00, 0x10, 0x00 }));
+        Assert.False(RigCommandWire.IsTxAudioFrame([]));
+    }
+
     [Fact]
     public void RequestMessagesAreRecognized()
     {

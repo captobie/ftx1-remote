@@ -335,7 +335,15 @@ public static class RigCommandWire
         return p;
     }
 
-    /// Classifies one text frame. A `"type"` field marks the request/reply
+    /// AudioStreamFormat.txAudioTag: a binary frame starting with it (and
+    /// carrying audio after it) is a client's TX audio. Every other frame,
+    /// text or binary, is JSON — the iPad sends its commands as binary.
+    public const byte TxAudioTag = 0x02;
+
+    /// AudioStreamFormat.isTXAudioFrame.
+    public static bool IsTxAudioFrame(ReadOnlySpan<byte> frame) => frame.Length > 1 && frame[0] == TxAudioTag;
+
+    /// Classifies one JSON frame (text, or binary without the TX audio tag). A `"type"` field marks the request/reply
     /// messages kept beside RigCommand (as the Mac's server tries them
     /// first); anything else is a command.
     public static InboundMessage ParseInbound(string text)
