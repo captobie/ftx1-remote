@@ -229,6 +229,53 @@ final class HubWireFixtureTests: XCTestCase {
         XCTAssertEqual(expected.subtracting(names), [], "commands missing from allCommands")
     }
 
+    /// Receive-audio frames written by the Windows hub's C# code (phase 3):
+    /// `windows/audio-<main|sub>-<tone>hz-<anything>.bin`, each one
+    /// WebSocket frame as the iPad receives it — tag byte, then Int16LE
+    /// mono PCM at 8 kHz — made by the hub's real downsampler from 1 s of
+    /// a −6 dBFS sine at `<tone>` Hz. Checks the tag, that 1 s came out as
+    /// ~8000 samples (the output rate), the tone's frequency (the rate
+    /// again, and no aliasing) and its level (no gain or clipping). None
+    /// yet is fine.
+    func testWindowsHubAudioFrames() throws {
+        let dir = Self.fixtures.appendingPathComponent("windows")
+        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+        let pattern = try Regex(#"audio-(main|sub)-(\d+)hz-.*\.bin"#, as: (Substring, Substring, Substring).self)
+        for url in files {
+            guard let match = url.lastPathComponent.wholeMatch(of: pattern) else { continue }
+            let name = url.lastPathComponent
+            let data = try Data(contentsOf: url)
+            let expectedTag = match.1 == "main" ? AudioStreamFormat.audioTag : AudioStreamFormat.subAudioTag
+            XCTAssertEqual(data.first, expectedTag, "\(name): tag byte")
+            let isRightKind = match.1 == "main"
+                ? AudioStreamFormat.isAudioFrame(data) : AudioStreamFormat.isSubAudioFrame(data)
+            XCTAssertTrue(isRightKind, "\(name): the iPad wouldn't read this as \(match.1) audio")
+            let pcm = AudioStreamFormat.payload(of: data)
+            XCTAssertEqual(pcm.count % 2, 0, "\(name): PCM isn't whole Int16 samples")
+            let samples: [Double] = stride(from: pcm.startIndex, to: pcm.endIndex - 1, by: 2).map {
+                Double(Int16(bitPattern: UInt16(pcm[$0]) | UInt16(pcm[$0 + 1]) << 8))
+            }
+            XCTAssertEqual(Double(samples.count), AudioStreamFormat.sampleRate, accuracy: 80,
+                           "\(name): 1 s of input should be ~8000 samples at 8 kHz")
+
+            // Skip the resampler's start-up transient, then count rising
+            // zero crossings over whole seconds' worth of what's left.
+            let body = Array(samples.dropFirst(400))
+            guard body.count > 4000 else { continue }
+            var crossings: [Int] = []
+            for i in 1..<body.count where body[i - 1] < 0 && body[i] >= 0 { crossings.append(i) }
+            let tone = Double(match.2)!
+            if let first = crossings.first, let last = crossings.last, crossings.count > 10 {
+                let measured = Double(crossings.count - 1) * AudioStreamFormat.sampleRate / Double(last - first)
+                XCTAssertEqual(measured, tone, accuracy: tone * 0.01, "\(name): tone frequency")
+            } else {
+                XCTFail("\(name): no tone found")
+            }
+            let peak = body.map(abs).max() ?? 0
+            XCTAssertEqual(peak / 32768, 0.5, accuracy: 0.1, "\(name): a −6 dBFS sine should peak near half scale")
+        }
+    }
+
     /// Pushes written by the Windows hub's C# code. None yet is fine.
     func testWindowsHubPushesDecode() throws {
         let dir = Self.fixtures.appendingPathComponent("windows")

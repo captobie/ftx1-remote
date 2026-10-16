@@ -17,6 +17,13 @@ Shared between the Swift package and the Windows app's hub (see
 - `windows/*.json` are pushes produced by the Windows hub's C# code,
   committed from the Windows PC. `swift test --filter HubWireFixtureTests`
   on the Mac decodes each one the way the iPad does.
+- `windows/audio-<main|sub>-<tone>hz-<label>.bin` (phase 3): one receive
+  audio frame each, exactly as the hub sends it (tag `0x00` MAIN / `0x01`
+  SUB, then Int16LE mono PCM at 8 kHz), made by the hub's real
+  downsampler from 1 s of a −6 dBFS sine at `<tone>` Hz at the input
+  rate named in `<label>` (e.g. `audio-main-1000hz-from44100.bin`). The
+  Swift test checks the tag, ~8000 samples, the tone within 1 % and a
+  peak near half scale.
 
 Shapes that are easy to get wrong in C#:
 
