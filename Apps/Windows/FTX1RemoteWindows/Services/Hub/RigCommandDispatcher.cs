@@ -37,6 +37,8 @@ public interface IHubRigHost
     Task StopMemoryScanFromButtonAsync();
     Task SetTransmitEnabledAsync(bool enabled);
     void SetAudioChannelsSwapped(bool swapped);
+    /// Starts the memory list re-read; says what happened, for the log.
+    string RefreshMemoryList();
 }
 
 /// Runs the iPad's commands (Apps/Windows/README.md, "Desktop hub for the
@@ -102,7 +104,10 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
                 host.SetAudioChannelsSwapped(s.On);
                 return;
             case RefreshMemoryList:
-                Log("ignored (the memory list arrives in phase 4)");
+                // The Mem List window's Refresh; a read already running
+                // isn't started again (the iPad asks on its own when it has
+                // no list yet).
+                Log(host.RefreshMemoryList());
                 return;
         }
 

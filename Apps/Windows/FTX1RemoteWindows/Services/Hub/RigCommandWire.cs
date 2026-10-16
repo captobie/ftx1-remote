@@ -218,7 +218,8 @@ public enum InboundKind
     Invalid,
 }
 
-public sealed record InboundMessage(InboundKind Kind, RigCommand? Command = null, string? Error = null);
+public sealed record InboundMessage(InboundKind Kind, RigCommand? Command = null, string? Error = null,
+    MenuItemReadRequestWire? MenuRead = null);
 
 /// Parses and encodes <see cref="RigCommand"/>s. Never throws on bad input:
 /// the hub's receive loop has to survive whatever a client sends.
@@ -368,7 +369,7 @@ public static class RigCommandWire
             {
                 return type.GetString() switch
                 {
-                    "read_menu_item" => new InboundMessage(InboundKind.MenuItemRead),
+                    "read_menu_item" => ParseMenuItemRead(root),
                     "cw_keyer" => new InboundMessage(InboundKind.CwKeyer),
                     var other => new InboundMessage(InboundKind.Invalid, Error: $"unknown message type \"{other}\""),
                 };
@@ -392,6 +393,22 @@ public static class RigCommandWire
                 return new InboundMessage(InboundKind.Invalid, Error: $"{name}: bad value: {ex.Message}");
             }
         }
+    }
+
+    /// `{"type":"read_menu_item","p1":…,"p2":…,"p3":…}`: each P an integer
+    /// (Swift's Int), else invalid. The 0–99 range is checked when it's
+    /// answered (MenuItemReadRequestWire.IsValidAddress), since an
+    /// out-of-range read still gets its unreadable answer.
+    private static InboundMessage ParseMenuItemRead(JsonElement root)
+    {
+        int? P(string name) => root.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number
+            && p.TryGetInt32(out var value) ? value : null;
+        if (P("p1") is not { } p1 || P("p2") is not { } p2 || P("p3") is not { } p3)
+        {
+            return new InboundMessage(InboundKind.Invalid, Error: "read_menu_item: p1, p2 and p3 must be integers");
+        }
+        return new InboundMessage(InboundKind.MenuItemRead,
+            MenuRead: new MenuItemReadRequestWire { P1 = p1, P2 = p2, P3 = p3 });
     }
 
     /// The command as Swift's encoder writes it: `{"cmd":…,"value":…}`, with

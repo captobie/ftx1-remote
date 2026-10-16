@@ -1305,7 +1305,7 @@ lists it.
   picker, switching sides mid-scan, a Mem List recall mid-scan, a scan
   started from the front panel, and both boxes with TX:SUB and no scan.
 
-## Desktop hub for the iPad (plan, 2026-10-15; phase 1 done 2026-10-15, phase 2 built 2026-10-15, phase 3 built 2026-10-16)
+## Desktop hub for the iPad (plan, 2026-10-15; phase 1 done 2026-10-15, phase 2 built 2026-10-15, phase 3 built 2026-10-16, phase 4 built 2026-10-16)
 
 Goal: the iPad's hub route (renamed "Desktop hub" on 2026-10-15, raw
 `connectionRoute` value still `macHub`) can connect to this app the way it
@@ -1458,7 +1458,7 @@ already using, Local or Remote.
   - `play_cw_message 0` (stop) isn't gated; the Mac gates every
     `play_cw_message`.
   - Stricter value checks than the Mac (above).
-  - `refresh_memory_list` is logged and ignored until phase 4.
+  - `refresh_memory_list` is logged and ignored until phase 4 (now handled, see "Phase 4 status").
 - **Tests** (`FTX1RemoteWindows.Tests/HubCommandTests.cs`, with
   `RigCommandWire.cs`, `HubCommandPolicy.cs`, `TransmitGate.cs` and
   `RigDelayCode.cs` linked in): every entry of `rig-commands.json` parses
@@ -1492,7 +1492,8 @@ already using, Local or Remote.
   - Found on the way and fixed (1437f38): the iPad sends its JSON as
     **binary** frames, which the first build dropped as TX audio.
   - Deep Settings: the iPad can't show or change values until its reads
-    work (phase 4), so writes from it are untested too.
+    work (phase 4), so writes from it are untested too (tested with
+    phase 4).
   - Not tried: Local mode, a SUB channel picked from the list, CONTOUR
     (MAIN was in CW), the iPad's Scan SUB.
 
@@ -1548,6 +1549,67 @@ already using, Local or Remote.
   sample chunks) — the Mac's are the same size; the plan's "~20 ms" was
   wrong. The audio queue's drop-oldest bound is new (the Mac's
   `broadcastAudio` hands every frame to `NWConnection.send` with no queue limit of its own).
+
+### Phase 4 status (2026-10-16: built, tested on the PC, then from a real iPad by the user in Remote mode; Local mode not yet)
+
+- **Wire**: `Services/Hub/HubListWire.cs` — `MemoryListPushWire`
+  (`memory_list`: entries `channel`/`frequencyHz`/`modeCode`/`toneMode`/
+  `shift`/`tag`, plus `scanned` = when the last full read finished and
+  `scanningChannel` while a read runs), `AprsListPushWire` (`aprs_list`,
+  the whole history, `source` "main"/"sub", the message `id` is
+  `AprsMessage.Id`, stored with the message so it's the same in every
+  push), `MenuItemReadRequestWire`/`MenuItemPushWire`, and
+  `HubListWireMapper` from the stores' own models. Dates are 2001-seconds,
+  nil fields left out, a blank tag sent as none.
+- **Pushes**: `MainWindow.Hub.cs` marks a `HubPushThrottle` dirty on
+  `MemoryListStore.EntriesChanged`/`StatusChanged` (so read progress goes
+  out too) and `AprsStore.Changed`; the 100 ms hub timer sends each when
+  due, the first change at once and later ones coalesced: memory at most
+  once a second, APRS every 2 s, the Mac's rates. A push identical to the
+  last one isn't re-sent. Both are sent when the hub starts and to each
+  client on connect. `HubServer` gives each client a newest-wins slot per
+  list beside the state slot, so one kind can't replace another, and an
+  ordered reply queue (256, then dropped and logged) for menu answers.
+- **`refresh_memory_list`** starts the Mem List window's Refresh
+  (`MemoryListStore.Refresh`); while a read runs it's logged as "already
+  reading the list" and not started twice, and disconnected it's dropped.
+  The window, if open, shows the progress.
+- **`read_menu_item`**: parsed by `RigCommandWire` (p1–p3 must be
+  integers, else invalid and logged), answered by `HubServer` straight off
+  the receive loop — not through the command FIFO — to the asking client
+  only, with `RigctldClient.GetMenuItemAsync` (the Deep Settings dialog's
+  read; the client's round-trip lock still orders the I/O). P outside
+  0–99, no rig, a failed read or a reply without the prefix: answered
+  with no `value` key. Successful reads aren't logged; failures are.
+- APRS decoding stays as Settings → APRS sets it on this PC.
+- **Tests** (`FTX1RemoteWindows.Tests/HubListTests.cs`; `HubServer.cs`,
+  `HubListWire.cs`, `MemoryChannelEntry.cs`, `AprsModels.cs` linked in,
+  ASP.NET Core referenced, `TestAppLog.cs` standing in for `AppLog` so
+  tests don't write to app.log): the six Swift fixtures round-trip;
+  malformed and out-of-range reads; the throttles; the real `HubServer` on
+  loopback — a read answered to the asker only (a second client gets
+  nothing), out-of-range and throwing reads unreadable, and list pushes
+  surviving state pushes on connect and in a burst. Writes
+  `Tests/WireFixtures/windows/memory-list-push.json`, `aprs-list-push.json`,
+  `menu-item-push.json`, `menu-item-push.unreadable.json` from the real
+  mappers (stores not used: they read and write the user's own files) —
+  re-run and commit after any change to `HubListWire.cs`. 218 tests pass.
+- **Tested here** (scripted client, rig not connected): memory and APRS
+  lists and the state on connect, a read answered unreadable (incl. out of
+  range), `refresh_memory_list` dropped while disconnected.
+- **Tested from a real iPad by the user, Remote mode (2026-10-16)**: the
+  memory list in the MAIN and SUB popovers; Refresh (app.log: "reading the
+  list", then 278 channels in 65 s); SUB channel picks from the list
+  (`set_sub_memory_channel`) tuning the rig; S.LIST/M.LIST filled with the
+  right Source; Deep Settings values on the tabs and writes on four pages,
+  incl. APRS AF MUTE (EX06 01 03) on then off read back on the iPad and in
+  this app's dialog. All working. **Not tried**: Local mode, a MAIN
+  channel picked from the list on this route (none in the log; MAIN
+  channel set was tested in phase 2).
+- **Different from the Mac**: memory/APRS pushes go out on the hub's
+  100 ms tick rather than straight from the store, so a change can wait up
+  to 100 ms longer; identical pushes are skipped; the menu reply queue is
+  bounded.
 
 **Windows Firewall.** The app is unpackaged, so Windows asks "Allow
 FTX1RemoteWindows to communicate on these networks?" the first time the
@@ -1624,7 +1686,7 @@ the command path.
    in Remote mode this app has to hold the stream (the iPad gets it
    through here, not from the Pi). Test: both channels heard, across a
    swap, with the filter spectrum on the iPad.
-4. **Lists and Deep Settings.** `memory_list` from `MemoryListStore`
+4. **Lists and Deep Settings** (done, see "Phase 4 status"). `memory_list` from `MemoryListStore`
    (`refreshMemoryList` triggers a re-read). `aprs_list` from `AprsStore`
    (same JSON as Swift's `APRSStation`/`APRSMessage`, incl. `source`).
    `read_menu_item` → `RigctldClient` raw "EX" read, answered off the

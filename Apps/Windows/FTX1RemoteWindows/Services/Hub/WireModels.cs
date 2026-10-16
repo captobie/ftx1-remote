@@ -209,6 +209,13 @@ public static class HubWire
     public static string Serialize(RigStatePushWire push) => JsonSerializer.Serialize(push, JsonOptions);
 
     public static RigStatePushWire? Deserialize(string json) => JsonSerializer.Deserialize<RigStatePushWire>(json, JsonOptions);
+
+    /// The list pushes and menu replies (HubListWire.cs), same options.
+    public static string Serialize<T>(T message) => JsonSerializer.Serialize(message, JsonOptions);
+
+    public static T? Deserialize<T>(string json) => JsonSerializer.Deserialize<T>(json, JsonOptions);
+
+    public static DateTimeOffset FromSwiftDate(double seconds) => ReferenceDate.AddSeconds(seconds);
 }
 
 /// Models/RigState (+ <see cref="HubStateExtras"/>) → the wire. A field this

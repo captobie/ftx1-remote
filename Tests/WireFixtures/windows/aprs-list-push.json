@@ -1,0 +1,39 @@
+{
+  "type": "aprs_list",
+  "stations": [
+    {
+      "callsign": "W1AW-9",
+      "latitude": 41.7147,
+      "longitude": -72.7272,
+      "symbolTable": "/",
+      "symbolCode": ">",
+      "comment": "Mobile 146.520",
+      "lastHeardAt": 813754800,
+      "source": "main"
+    },
+    {
+      "callsign": "K6NA-7",
+      "lastHeardAt": 813754830,
+      "source": "sub"
+    }
+  ],
+  "messages": [
+    {
+      "id": "6F1C2A4E-2222-4A2B-9C3D-000000000001",
+      "from": "W1AW-9",
+      "to": "DEMO",
+      "text": "Hello from Windows",
+      "messageID": "12",
+      "receivedAt": 813754800,
+      "source": "main"
+    },
+    {
+      "id": "6F1C2A4E-2222-4A2B-9C3D-000000000002",
+      "from": "K6NA-7",
+      "to": "BLNA",
+      "text": "Net tonight 2000",
+      "receivedAt": 813754860,
+      "source": "sub"
+    }
+  ]
+}

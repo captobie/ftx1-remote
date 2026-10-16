@@ -15,7 +15,10 @@ namespace FTX1RemoteWindows.Services.Hub;
 /// commands are parsed (RigCommandWire) and raised as
 /// <see cref="CommandReceived"/> for RigCommandDispatcher (phase 2); MAIN/SUB
 /// receive audio frames go out through <see cref="BroadcastAudio"/>
-/// (phase 3). TX audio frames (phase 5), read_menu_item (phase 4) and
+/// (phase 3); the memory list and APRS history go out through
+/// <see cref="PublishMemoryList"/>/<see cref="PublishAprsList"/>, and a
+/// client's read_menu_item is answered to that client alone through
+/// <see cref="MenuItemReader"/> (phase 4). TX audio frames (phase 5) and
 /// cw_keyer (phase 6) are logged and ignored.
 ///
 /// Plain ws:// on every interface, path "/", port <see cref="Port"/> (the
@@ -25,8 +28,8 @@ namespace FTX1RemoteWindows.Services.Hub;
 /// rigctld connection: MainWindow starts/stops it with Settings → Hub and
 /// just keeps handing it the latest state.
 ///
-/// Thread-safe: <see cref="Publish"/> and <see cref="BroadcastAudio"/> may
-/// be called from any thread, and
+/// Thread-safe: <see cref="Publish"/>, the list publishes and
+/// <see cref="BroadcastAudio"/> may be called from any thread, and
 /// <see cref="StatusChanged"/> and <see cref="CommandReceived"/> are raised
 /// on a pool thread.
 public sealed class HubServer : IAsyncDisposable
@@ -39,6 +42,10 @@ public sealed class HubServer : IAsyncDisposable
     /// per 2048-sample chunk (~46 ms at 44.1 kHz, ~43 ms at 48 kHz).
     private const int AudioQueueFrames = 24;
     private static readonly TimeSpan AudioDropLogInterval = TimeSpan.FromSeconds(5);
+    /// Menu replies waiting to go out to one client. Deep Settings reads a
+    /// tab's items at once (a few dozen), each answered once; past this a
+    /// reply is dropped (logged) and the iPad's read times out.
+    private const int ReplyQueueLimit = 256;
 
     private sealed class Client
     {
@@ -57,8 +64,21 @@ public sealed class HubServer : IAsyncDisposable
         public required WebSocket Socket { get; init; }
         /// Only the newest state matters, so a slow client skips the ones
         /// it couldn't send in time rather than queuing them.
-        public Channel<string> Outbox { get; } = Channel.CreateBounded<string>(
-            new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropOldest });
+        public Channel<string> Outbox { get; } = NewestOnly();
+        /// The memory list and APRS history pushes: each kind its own
+        /// newest-wins slot, so neither a state push nor the other list can
+        /// replace one before it's sent.
+        public Channel<string> MemoryListOutbox { get; } = NewestOnly();
+        public Channel<string> AprsListOutbox { get; } = NewestOnly();
+        /// Answers to this client's own requests (menu_item), in order, none
+        /// replaced by a later one.
+        public Channel<string> ReplyOutbox { get; } = Channel.CreateBounded<string>(
+            new BoundedChannelOptions(ReplyQueueLimit) { FullMode = BoundedChannelFullMode.DropWrite, SingleReader = true });
+
+        private static Channel<string> NewestOnly() => Channel.CreateBounded<string>(
+            new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true });
+
+        public IEnumerable<Channel<string>> TextOutboxes => [Outbox, MemoryListOutbox, AprsListOutbox, ReplyOutbox];
         /// A WebSocket takes one send at a time, and a close counts as a
         /// send: CloseOutputAsync while SendAsync runs throws. Every
         /// send-side call holds this — the send loop's pushes, the close
@@ -96,8 +116,29 @@ public sealed class HubServer : IAsyncDisposable
     private int _nextClientId;
     private WebApplication? _app;
     private string? _latestState;
+    private string? _latestMemoryList;
+    private string? _latestAprsList;
+    private readonly int _port;
+    private readonly bool _loopbackOnly;
 
-    /// Listening on <see cref="Port"/>.
+    /// <paramref name="port"/>/<paramref name="loopbackOnly"/> are for the
+    /// tests; the app always uses <see cref="Port"/> on every interface.
+    public HubServer(int port = Port, bool loopbackOnly = false)
+    {
+        _port = port;
+        _loopbackOnly = loopbackOnly;
+    }
+
+    /// Reads one Deep Settings item (P1, P2, P3) for a client's
+    /// read_menu_item: the raw value, or null when it can't be read. Called
+    /// off the command FIFO, on a pool thread; may throw (answered as
+    /// unreadable).
+    public Func<int, int, int, Task<string?>>? MenuItemReader { get; set; }
+
+    /// The port it listens on: <see cref="Port"/> except in the tests.
+    public int ListenPort => _port;
+
+    /// Listening on <see cref="ListenPort"/>.
     public bool IsListening { get; private set; }
     /// Why the last start failed (e.g. the port is taken); null otherwise.
     public string? LastError { get; private set; }
@@ -133,7 +174,17 @@ public sealed class HubServer : IAsyncDisposable
         });
         builder.Logging.ClearProviders();
         // IPv6Any in dual mode: IPv4 clients arrive as ::ffff:a.b.c.d.
-        builder.WebHost.ConfigureKestrel(o => o.ListenAnyIP(Port));
+        builder.WebHost.ConfigureKestrel(o =>
+        {
+            if (_loopbackOnly)
+            {
+                o.ListenLocalhost(_port);
+            }
+            else
+            {
+                o.ListenAnyIP(_port);
+            }
+        });
         var app = builder.Build();
         app.Use(async (context, next) =>
         {
@@ -167,14 +218,14 @@ public sealed class HubServer : IAsyncDisposable
         catch (Exception ex)
         {
             LastError = ex is IOException { InnerException: { } inner } ? inner.Message : ex.Message;
-            AppLog.Write($"hub: couldn't listen on port {Port}: {ex.Message}");
+            AppLog.Write($"hub: couldn't listen on port {_port}: {ex.Message}");
             await app.DisposeAsync();
             StatusChanged?.Invoke();
             return;
         }
         _app = app;
         IsListening = true;
-        AppLog.Write($"hub: listening on port {Port}");
+        AppLog.Write($"hub: listening on port {_port}");
         StatusChanged?.Invoke();
     }
 
@@ -250,6 +301,35 @@ public sealed class HubServer : IAsyncDisposable
         }
     }
 
+    /// The memory list push (MemoryListPushWire) to every client now and to
+    /// each new client on connect. The caller throttles (1 s).
+    public void PublishMemoryList(string json) => PublishList(json, isMemory: true);
+
+    /// The APRS history push (AprsListPushWire), likewise. The caller
+    /// throttles (2 s).
+    public void PublishAprsList(string json) => PublishList(json, isMemory: false);
+
+    private void PublishList(string json, bool isMemory)
+    {
+        List<Client> clients;
+        lock (_gate)
+        {
+            if (isMemory)
+            {
+                _latestMemoryList = json;
+            }
+            else
+            {
+                _latestAprsList = json;
+            }
+            clients = [.. _clients.Values];
+        }
+        foreach (var client in clients)
+        {
+            (isMemory ? client.MemoryListOutbox : client.AprsListOutbox).Writer.TryWrite(json);
+        }
+    }
+
     private async Task RunClientAsync(WebSocket socket, IPAddress? remote, CancellationToken aborted)
     {
         var address = remote is { IsIPv4MappedToIPv6: true } ? remote.MapToIPv4() : remote;
@@ -266,13 +346,21 @@ public sealed class HubServer : IAsyncDisposable
             {
                 client.Outbox.Writer.TryWrite(state);
             }
+            if (_latestMemoryList is { } memoryList)
+            {
+                client.MemoryListOutbox.Writer.TryWrite(memoryList);
+            }
+            if (_latestAprsList is { } aprsList)
+            {
+                client.AprsListOutbox.Writer.TryWrite(aprsList);
+            }
         }
         AppLog.Write($"hub: client {client.Info.Id} connected from {client.Info.Address}");
         StatusChanged?.Invoke();
 
         using var done = CancellationTokenSource.CreateLinkedTokenSource(aborted);
-        var sender = SendLoopAsync(client, done.Token);
-        var audioSender = AudioSendLoopAsync(client, done.Token);
+        var senders = client.TextOutboxes.Select(outbox => SendLoopAsync(client, outbox, done.Token))
+            .Append(AudioSendLoopAsync(client, done.Token)).ToList();
         try
         {
             await ReceiveLoopAsync(client, done.Token);
@@ -284,11 +372,14 @@ public sealed class HubServer : IAsyncDisposable
         finally
         {
             done.Cancel();
-            client.Outbox.Writer.TryComplete();
+            foreach (var outbox in client.TextOutboxes)
+            {
+                outbox.Writer.TryComplete();
+            }
             client.AudioOutbox.Writer.TryComplete();
             try
             {
-                await Task.WhenAll(sender, audioSender);
+                await Task.WhenAll(senders);
             }
             catch
             {
@@ -357,7 +448,11 @@ public sealed class HubServer : IAsyncDisposable
                     CommandReceived?.Invoke(id, inbound.Command!);
                     break;
                 case InboundKind.MenuItemRead:
-                    AppLog.Write($"hub: client {id}: read_menu_item ignored (Deep Settings reads arrive in phase 4)");
+                    // Off the receive loop and the command FIFO, as on the
+                    // Mac: a read is a rigctld round trip, and commands
+                    // behind it shouldn't wait (RigctldClient's own lock
+                    // still orders the I/O).
+                    _ = AnswerMenuItemReadAsync(client, inbound.MenuRead!);
                     break;
                 case InboundKind.CwKeyer:
                     AppLog.Write($"hub: client {id}: cw_keyer ignored (the CW keyer arrives in phase 6)");
@@ -373,11 +468,38 @@ public sealed class HubServer : IAsyncDisposable
         }
     }
 
+    /// Reads the item and answers the asking client alone. Never throws:
+    /// anything that goes wrong is an unreadable answer (no "value").
+    private async Task AnswerMenuItemReadAsync(Client client, MenuItemReadRequestWire request)
+    {
+        string? value = null;
+        if (!request.IsValidAddress)
+        {
+            AppLog.Write($"hub: client {client.Info.Id}: read_menu_item {request.P1}/{request.P2}/{request.P3} — out of range, answered unreadable");
+        }
+        else if (MenuItemReader is { } read)
+        {
+            try
+            {
+                value = await read(request.P1, request.P2, request.P3).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write($"hub: client {client.Info.Id}: read EX{request.P1:00}{request.P2:00}{request.P3:00} failed: {ex.Message}");
+            }
+        }
+        var reply = HubWire.Serialize(new MenuItemPushWire { P1 = request.P1, P2 = request.P2, P3 = request.P3, Value = value });
+        if (!client.ReplyOutbox.Writer.TryWrite(reply) && !client.ReplyOutbox.Reader.Completion.IsCompleted)
+        {
+            AppLog.Write($"hub: client {client.Info.Id}: menu reply dropped (reply queue full)");
+        }
+    }
+
     private static string Truncated(string text) => text.Length > 200 ? text[..200] + "…" : text;
 
-    private static async Task SendLoopAsync(Client client, CancellationToken cancellationToken)
+    private static async Task SendLoopAsync(Client client, Channel<string> outbox, CancellationToken cancellationToken)
     {
-        await foreach (var json in client.Outbox.Reader.ReadAllAsync(cancellationToken))
+        await foreach (var json in outbox.Reader.ReadAllAsync(cancellationToken))
         {
             await client.SendLock.WaitAsync(cancellationToken);
             try

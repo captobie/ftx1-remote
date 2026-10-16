@@ -20,6 +20,11 @@
     <Compile Include="..\FTX1RemoteWindows\Services\Hub\RigCommandWire.cs" Link="Linked\RigCommandWire.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\Hub\HubCommandPolicy.cs" Link="Linked\HubCommandPolicy.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\Hub\HubAudioEncoder.cs" Link="Linked\HubAudioEncoder.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\Hub\HubListWire.cs" Link="Linked\HubListWire.cs" />
+    <!-- The real server, on loopback, for the menu-read routing test; AppLog is a stub here (TestAppLog.cs) so tests don't write to the app's log. -->
+    <Compile Include="..\FTX1RemoteWindows\Services\Hub\HubServer.cs" Link="Linked\HubServer.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\MemoryChannelEntry.cs" Link="Linked\MemoryChannelEntry.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\AprsModels.cs" Link="Linked\AprsModels.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\TransmitGate.cs" Link="Linked\TransmitGate.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigDelayCode.cs" Link="Linked\RigDelayCode.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigState.cs" Link="Linked\RigState.cs" />
@@ -31,6 +36,11 @@
     <!-- FilterModels.cs's NarrowWidthPreset refers to the catalog, which needs the tone tables. -->
     <Compile Include="..\FTX1RemoteWindows\Models\DeepSettingsCatalog.cs" Link="Linked\DeepSettingsCatalog.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigToneTables.cs" Link="Linked\RigToneTables.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- HubServer runs on Kestrel. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>

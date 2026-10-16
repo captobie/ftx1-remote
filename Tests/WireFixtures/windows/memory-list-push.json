@@ -1,0 +1,38 @@
+{
+  "type": "memory_list",
+  "list": {
+    "entries": [
+      {
+        "channel": 1,
+        "frequencyHz": 146520000,
+        "modeCode": "4",
+        "toneMode": 0,
+        "shift": 0,
+        "tag": "CALL 2M"
+      },
+      {
+        "channel": 2,
+        "frequencyHz": 146940000,
+        "modeCode": "4",
+        "toneMode": 2,
+        "shift": 2
+      },
+      {
+        "channel": 3,
+        "frequencyHz": 446000000,
+        "modeCode": "4",
+        "toneMode": 0,
+        "shift": 0
+      },
+      {
+        "channel": 101,
+        "frequencyHz": 14074000,
+        "modeCode": "C",
+        "toneMode": 0,
+        "shift": 0,
+        "tag": "FT8 20M"
+      }
+    ],
+    "scanned": 813754800
+  }
+}

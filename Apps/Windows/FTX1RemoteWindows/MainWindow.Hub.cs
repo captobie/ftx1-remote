@@ -11,8 +11,10 @@ namespace FTX1RemoteWindows;
 /// iPad"): Services/Hub/HubServer.cs pushes this window's state (phase 1)
 /// and hands the iPad's commands to Services/Hub/RigCommandDispatcher.cs,
 /// which runs them through this window's own methods (phase 2, the
-/// IHubRigHost members at the end), and relays MAIN/SUB receive audio
-/// (phase 3, <see cref="RelayHubAudio"/>).
+/// IHubRigHost members at the end), relays MAIN/SUB receive audio
+/// (phase 3, <see cref="RelayHubAudio"/>), and pushes the memory list and
+/// APRS history and answers Deep Settings reads (phase 4,
+/// <see cref="PushHubListsIfDue"/>, <see cref="ReadMenuItemForHubAsync"/>).
 ///
 /// The hub runs whenever Settings → Hub allows it, connected to the rig or
 /// not, so an iPad stays connected across rigctld reconnects. Pushes are
@@ -30,6 +32,12 @@ public sealed partial class MainWindow : IHubRigHost
     private string? _hubLastJson;
     private readonly HubAudioEncoder _hubMainEncoder = new();
     private readonly HubAudioEncoder _hubSubEncoder = new();
+    /// The Mac's rates: memory list at most once a second, APRS history at
+    /// most every 2 s.
+    private readonly HubPushThrottle _hubMemoryListThrottle = new(TimeSpan.FromSeconds(1));
+    private readonly HubPushThrottle _hubAprsListThrottle = new(TimeSpan.FromSeconds(2));
+    private string? _hubLastMemoryListJson;
+    private string? _hubLastAprsListJson;
 
     private void InitHub()
     {
@@ -39,7 +47,17 @@ public sealed partial class MainWindow : IHubRigHost
         DispatcherQueue.TryEnqueue(() => _ = _hubDispatcher.RunAsync());
         _hubTimer = DispatcherQueue.CreateTimer();
         _hubTimer.Interval = TimeSpan.FromMilliseconds(100);
-        _hubTimer.Tick += (_, _) => PushHubStateIfChanged();
+        _hubTimer.Tick += (_, _) =>
+        {
+            PushHubStateIfChanged();
+            PushHubListsIfDue();
+        };
+        // Progress (scanningChannel) as well as contents: the iPad shows
+        // the read running.
+        _memoryListStore.EntriesChanged += _hubMemoryListThrottle.MarkDirty;
+        _memoryListStore.StatusChanged += _hubMemoryListThrottle.MarkDirty;
+        _aprsStore.Changed += _hubAprsListThrottle.MarkDirty;
+        _hub.MenuItemReader = ReadMenuItemForHubAsync;
         if (AppSettings.HubEnabled)
         {
             _ = StartHubAsync();
@@ -70,6 +88,12 @@ public sealed partial class MainWindow : IHubRigHost
         {
             _hubLastJson = null;
             PushHubStateIfChanged();
+            // Both lists at once, so the first client gets them on connect.
+            _hubLastMemoryListJson = null;
+            _hubLastAprsListJson = null;
+            _hubMemoryListThrottle.MarkDirty();
+            _hubAprsListThrottle.MarkDirty();
+            PushHubListsIfDue();
             _hubTimer?.Start();
         }
     }
@@ -103,6 +127,55 @@ public sealed partial class MainWindow : IHubRigHost
         _hubLastJson = json;
         _hub.Publish(json);
     }
+
+    /// The memory list and APRS history, each when it changed and its
+    /// throttle allows (UI thread: both stores live there). A push whose
+    /// JSON equals the last one isn't sent again.
+    private void PushHubListsIfDue()
+    {
+        if (!_hub.IsListening)
+        {
+            return;
+        }
+        var now = Environment.TickCount64;
+        if (_hubMemoryListThrottle.TakeDue(now))
+        {
+            PublishIfChanged(ref _hubLastMemoryListJson, "memory list", () => HubListWireMapper.MemoryList(
+                _memoryListStore.Entries, _memoryListStore.LastScanned, _memoryListStore.ScanningChannel), _hub.PublishMemoryList);
+        }
+        if (_hubAprsListThrottle.TakeDue(now))
+        {
+            PublishIfChanged(ref _hubLastAprsListJson, "APRS list",
+                () => HubListWireMapper.AprsList(_aprsStore.Stations, _aprsStore.Messages), _hub.PublishAprsList);
+        }
+    }
+
+    private static void PublishIfChanged<T>(ref string? last, string what, Func<T> build, Action<string> publish)
+    {
+        string json;
+        try
+        {
+            json = HubWire.Serialize(build());
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"hub: {what} encode failed: {ex.Message}");
+            return;
+        }
+        if (json == last)
+        {
+            return;
+        }
+        last = json;
+        publish(json);
+    }
+
+    /// A Deep Settings item for a client's read_menu_item — the same read as
+    /// this app's Deep Settings dialog (the raw P4, null if the rig doesn't
+    /// answer with it). From the hub's thread, off the command FIFO; the
+    /// client serializes it with everything else on the link.
+    private Task<string?> ReadMenuItemForHubAsync(int p1, int p2, int p3) =>
+        _client is { } client ? client.GetMenuItemAsync(p1, p2, p3) : Task.FromResult<string?>(null);
 
     /// Receive audio for the iPad, from the audio source's callback (never
     /// the UI thread): MAIN and SUB as roles (after the swap), before this
@@ -198,4 +271,20 @@ public sealed partial class MainWindow : IHubRigHost
     /// moves this window's toggle and saves it.
     void IHubRigHost.SetAudioChannelsSwapped(bool swapped) =>
         _swapTracker.SetManually(swapped, "manual toggle from a hub client");
+
+    /// The Mem List window's Refresh (the window, if open, shows the read's
+    /// progress too).
+    string IHubRigHost.RefreshMemoryList()
+    {
+        if (_memoryListStore.IsScanning)
+        {
+            return "already reading the list";
+        }
+        if (_client is null)
+        {
+            return "dropped: not connected to the rig";
+        }
+        _memoryListStore.Refresh(() => _client);
+        return "reading the list";
+    }
 }
