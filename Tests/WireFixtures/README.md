@@ -11,12 +11,21 @@ Shared between the Swift package and the Windows app's hub (see
   - `minimal`: only the required fields — `frequencyHz`, `mode`, `ptt`,
     `lastUpdated`, `aprsActive`, `aprsSubActive`, `transmitEnabled`.
   - `vfo`: the enum shapes `full` can't show at the same time.
+- `memory-list-push.json`, `memory-list-push.scanning.json` (while the
+  hub is still reading the list: `scanningChannel`, no `scanned`),
+  `aprs-list-push.json`, `menu-item-read-request.json` (iPad → hub),
+  `menu-item-push.json` and `menu-item-push.unreadable.json` (no `value`
+  key at all when the item can't be read): phase 4's messages, made by
+  `FTX1Core`.
 - `rig-commands.json`: one of every `RigCommand` (`{"cmd": …, "value": …}`)
   as the iPad sends it. `HubWireFixtureTests` fails if a command is
   added to `WireMessage.swift` without an example here.
 - `windows/*.json` are pushes produced by the Windows hub's C# code,
   committed from the Windows PC. `swift test --filter HubWireFixtureTests`
-  on the Mac decodes each one the way the iPad does.
+  on the Mac checks each one is read by the iPad as the kind its `type`
+  says (the iPad tries state, memory_list, aprs_list, menu_item,
+  cw_keyer_reply in that order and silently drops what none takes), then
+  decodes it strictly as that type.
 - `windows/audio-<main|sub>-<tone>hz-<label>.bin` (phase 3): one receive
   audio frame each, exactly as the hub sends it (tag `0x00` MAIN / `0x01`
   SUB, then Int16LE mono PCM at 8 kHz), made by the hub's real
@@ -27,7 +36,8 @@ Shared between the Swift package and the Windows app's hub (see
 
 Shapes that are easy to get wrong in C#:
 
-- `lastUpdated`: a number of **seconds since 2001-01-01T00:00:00Z**
+- `lastUpdated` (and every other date: `scanned`, `lastHeardAt`,
+  `receivedAt`): a number of **seconds since 2001-01-01T00:00:00Z**
   (Swift's default `Date` encoding), not Unix time, not a string.
   813758400 = 2026-10-15T12:00:00Z; Unix seconds − 978307200.
 - `vfoMemoryMode`/`subVfoMemoryMode`: `{"vfo":{}}`, `{"memory":{}}` or

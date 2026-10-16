@@ -1,0 +1,15 @@
+{
+  "list" : {
+    "entries" : [
+      {
+        "channel" : 1,
+        "frequencyHz" : 146520000,
+        "modeCode" : "4",
+        "shift" : 0,
+        "toneMode" : 0
+      }
+    ],
+    "scanningChannel" : 37
+  },
+  "type" : "memory_list"
+}

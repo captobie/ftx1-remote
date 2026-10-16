@@ -276,17 +276,128 @@ final class HubWireFixtureTests: XCTestCase {
         }
     }
 
-    /// Pushes written by the Windows hub's C# code. None yet is fine.
+    // MARK: Lists and Deep Settings reads (phase 4)
+
+    /// Seconds since 2001 like `lastUpdated`: 2026-10-15T11:00:00Z.
+    private static let heardAt = Date(timeIntervalSinceReferenceDate: 813_754_800)
+
+    static var memoryListPush: MemoryListPush {
+        MemoryListPush(list: MemoryListSnapshot(
+            entries: [
+                MemoryChannelEntry(channel: 1, frequencyHz: 146_520_000, modeCode: "4", toneMode: 0, shift: 0, tag: "CALL 2M"),
+                MemoryChannelEntry(channel: 2, frequencyHz: 146_940_000, modeCode: "4", toneMode: 2, shift: 2, tag: nil),
+                MemoryChannelEntry(channel: 101, frequencyHz: 14_074_000, modeCode: "C", toneMode: 0, shift: 0, tag: "FT8 20M"),
+            ],
+            scanned: heardAt,
+            scanningChannel: nil
+        ))
+    }
+
+    /// While the hub is reading the list: `scanningChannel` set, no
+    /// `scanned` date yet.
+    static var memoryListScanningPush: MemoryListPush {
+        MemoryListPush(list: MemoryListSnapshot(
+            entries: [MemoryChannelEntry(channel: 1, frequencyHz: 146_520_000, modeCode: "4", toneMode: 0, shift: 0, tag: nil)],
+            scanned: nil,
+            scanningChannel: 37
+        ))
+    }
+
+    static var aprsListPush: APRSListPush {
+        APRSListPush(
+            stations: [
+                APRSStation(callsign: "W1AW-9", latitude: 41.7147, longitude: -72.7272, symbolTable: "/", symbolCode: ">",
+                            comment: "Mobile 146.520", lastHeardAt: heardAt, source: .main),
+                APRSStation(callsign: "K6NA-7", lastHeardAt: heardAt.addingTimeInterval(30), source: .sub),
+            ],
+            messages: [
+                APRSMessage(id: "6F1C2A4E-1111-4A2B-9C3D-000000000001", from: "W1AW-9", to: "DEMO",
+                            text: "Hello from the hub", messageID: "12", receivedAt: heardAt, source: .main),
+                APRSMessage(id: "6F1C2A4E-1111-4A2B-9C3D-000000000002", from: "K6NA-7", to: "BLNA",
+                            text: "Net tonight 2000", receivedAt: heardAt.addingTimeInterval(60), source: .sub),
+            ]
+        )
+    }
+
+    private static let otherCases: [(file: String, encode: () throws -> Data, check: (Data) throws -> Void)] = [
+        ("memory-list-push.json", { try encode(memoryListPush) },
+         { XCTAssertEqual(try JSONDecoder().decode(MemoryListPush.self, from: $0), memoryListPush) }),
+        ("memory-list-push.scanning.json", { try encode(memoryListScanningPush) },
+         { XCTAssertEqual(try JSONDecoder().decode(MemoryListPush.self, from: $0), memoryListScanningPush) }),
+        ("aprs-list-push.json", { try encode(aprsListPush) },
+         { XCTAssertEqual(try JSONDecoder().decode(APRSListPush.self, from: $0), aprsListPush) }),
+        ("menu-item-read-request.json", { try encode(MenuItemReadRequest(p1: 6, p2: 1, p3: 3)) },
+         { XCTAssertEqual(try JSONDecoder().decode(MenuItemReadRequest.self, from: $0), MenuItemReadRequest(p1: 6, p2: 1, p3: 3)) }),
+        ("menu-item-push.json", { try encode(MenuItemPush(p1: 6, p2: 1, p3: 3, value: "1")) },
+         { XCTAssertEqual(try JSONDecoder().decode(MenuItemPush.self, from: $0), MenuItemPush(p1: 6, p2: 1, p3: 3, value: "1")) }),
+        ("menu-item-push.unreadable.json", { try encode(MenuItemPush(p1: 6, p2: 1, p3: 3, value: nil)) },
+         { XCTAssertEqual(try JSONDecoder().decode(MenuItemPush.self, from: $0), MenuItemPush(p1: 6, p2: 1, p3: 3, value: nil)) }),
+    ]
+
+    private static func encode(_ value: some Encodable) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        var data = try encoder.encode(value)
+        data.append(0x0A)
+        return data
+    }
+
+    func testListAndMenuFixturesMatchSwift() throws {
+        let regenerate = ProcessInfo.processInfo.environment["REGENERATE_WIRE_FIXTURES"] == "1"
+        for (file, encode, check) in Self.otherCases {
+            let url = Self.fixtures.appendingPathComponent(file)
+            let encoded = try encode()
+            if regenerate {
+                try encoded.write(to: url)
+                continue
+            }
+            let onDisk = try Data(contentsOf: url)
+            XCTAssertEqual(String(decoding: onDisk, as: UTF8.self), String(decoding: encoded, as: UTF8.self),
+                           "\(file) is out of date — regenerate it and tell the Windows hub")
+            try check(onDisk)
+        }
+    }
+
+    // MARK: What the Windows hub wrote
+
+    /// What `RigWebSocketClient.handle(_:)` does with a JSON frame: it tries
+    /// each push in this order and takes the first that decodes (the list,
+    /// menu and keyer pushes also need the right `type`). A frame nothing
+    /// takes is dropped without a word on the iPad.
+    private static func iPadReading(_ data: Data) -> String? {
+        let decoder = JSONDecoder()
+        if (try? decoder.decode(RigStatePush.self, from: data)) != nil { return "state" }
+        if (try? decoder.decode(MemoryListPush.self, from: data)) != nil { return "memory_list" }
+        if let push = try? decoder.decode(APRSListPush.self, from: data), push.type == APRSListPush.typeName { return "aprs_list" }
+        if let push = try? decoder.decode(MenuItemPush.self, from: data), push.type == MenuItemPush.typeName { return "menu_item" }
+        if let reply = try? decoder.decode(CWKeyerReply.self, from: data), reply.type == CWKeyerReply.typeName { return "cw_keyer_reply" }
+        return nil
+    }
+
+    /// Pushes written by the Windows hub's C# code: each must be read by the
+    /// iPad as the kind its own `type` says, and decode strictly as that
+    /// type (so a missing required field fails here, not silently on the
+    /// iPad). None yet is fine.
     func testWindowsHubPushesDecode() throws {
         let dir = Self.fixtures.appendingPathComponent("windows")
         let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
         for url in files where url.pathExtension == "json" {
+            let name = url.lastPathComponent
             let data = try Data(contentsOf: url)
+            let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let type = try XCTUnwrap(object?["type"] as? String, "\(name): no \"type\"")
+            XCTAssertEqual(Self.iPadReading(data), type, "\(name): the iPad doesn't read this as \"\(type)\"")
             do {
-                let push = try JSONDecoder().decode(RigStatePush.self, from: data)
-                XCTAssertEqual(push.type, "state", url.lastPathComponent)
+                switch type {
+                case "state": _ = try JSONDecoder().decode(RigStatePush.self, from: data)
+                case "memory_list": _ = try JSONDecoder().decode(MemoryListPush.self, from: data)
+                case "aprs_list": _ = try JSONDecoder().decode(APRSListPush.self, from: data)
+                case "menu_item": _ = try JSONDecoder().decode(MenuItemPush.self, from: data)
+                case "cw_keyer_reply": _ = try JSONDecoder().decode(CWKeyerReply.self, from: data)
+                default: XCTFail("\(name): unknown type \"\(type)\"")
+                }
             } catch {
-                XCTFail("\(url.lastPathComponent) doesn't decode as the iPad decodes it: \(error)")
+                XCTFail("\(name) doesn't decode as the iPad decodes it: \(error)")
             }
         }
     }

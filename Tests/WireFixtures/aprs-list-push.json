@@ -1,0 +1,39 @@
+{
+  "messages" : [
+    {
+      "from" : "W1AW-9",
+      "id" : "6F1C2A4E-1111-4A2B-9C3D-000000000001",
+      "messageID" : "12",
+      "receivedAt" : 813754800,
+      "source" : "main",
+      "text" : "Hello from the hub",
+      "to" : "DEMO"
+    },
+    {
+      "from" : "K6NA-7",
+      "id" : "6F1C2A4E-1111-4A2B-9C3D-000000000002",
+      "receivedAt" : 813754860,
+      "source" : "sub",
+      "text" : "Net tonight 2000",
+      "to" : "BLNA"
+    }
+  ],
+  "stations" : [
+    {
+      "callsign" : "W1AW-9",
+      "comment" : "Mobile 146.520",
+      "lastHeardAt" : 813754800,
+      "latitude" : 41.7147,
+      "longitude" : -72.7272,
+      "source" : "main",
+      "symbolCode" : ">",
+      "symbolTable" : "/"
+    },
+    {
+      "callsign" : "K6NA-7",
+      "lastHeardAt" : 813754830,
+      "source" : "sub"
+    }
+  ],
+  "type" : "aprs_list"
+}
