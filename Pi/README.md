@@ -196,5 +196,11 @@ that Direwolf still decodes packets with `journalctl -u direwolf -f`.
 - **`Permission denied [ftx1_shared]`:** an old ALSA config without
   `ipc_perm` was in use. Install the current `asound-ftx1.conf` and reboot the
   Pi.
+- **Transmit audio fails with `unable to initialize sum ring buffer` /
+  `Invalid argument [ftx1_tx]`** in `journalctl -u ftx1-txaudio` (the rig
+  keys, then unkeys at once): `ftx1_dmix`'s `ipc_key` collides with the
+  receive side's while an app holds the audio stream. Use the current
+  `asound-ftx1.conf` (`ipc_key 4600`), then `sudo systemctl restart
+  ftx1-txaudio` (and Direwolf, if it uses `ftx1_tx`).
 - **The app says it's waiting for audio:** another client (Mac, iPad or
   Windows app) already has the audio stream. Disconnect it.
