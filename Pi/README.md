@@ -1,6 +1,6 @@
 # Raspberry Pi setup
 
-Run the FTX-1 from a Raspberry Pi instead of plugging it into your Mac. The
+Run the FTX-1 from a Raspberry Pi instead of plugging it into your computer. The
 Pi sits next to the radio, connected by USB, and the FTX1Remote apps reach
 it over your network (Tailscale works well for access from anywhere):
 
