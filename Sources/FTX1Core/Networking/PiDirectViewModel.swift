@@ -194,6 +194,10 @@ public final class PiDirectViewModel: ObservableObject {
     private lazy var microphone = MicrophoneTransmitter(logSubsystem: logSubsystem)
     #endif
     private var unkeyTask: Task<Void, Never>?
+    /// A press's key on its way to the command queue, with the microphone
+    /// started after it (see `startTransmit`). Cancelled by a release
+    /// before then.
+    private var micStartTask: Task<Void, Never>?
     /// A CW TEXT keyer memory was played this session (the iPad's CW send
     /// section), so a lock or a disconnect also sends "KY00": the rig would
     /// otherwise finish its up-to-50 characters on its own.
@@ -822,14 +826,30 @@ public final class PiDirectViewModel: ObservableObject {
             }
             return
         }
-        if let unkeyTask {
-            // Pressed again within the unkey delay: still keyed, carry on.
-            unkeyTask.cancel()
-            self.unkeyTask = nil
-        } else {
-            send(.setPTT(true))
-        }
+        // Pressed again within the unkey delay: still keyed, carry on.
+        let needsKey = unkeyTask == nil
+        unkeyTask?.cancel()
+        unkeyTask = nil
         isTransmitting = true
+        // The key goes to the command queue first, then the microphone
+        // starts. Starting it blocks the main actor for up to a second on a
+        // real iPad; with the key queued behind it, the rig keyed that late
+        // and a short press sent no audio (2026-10-16). The queue runs the
+        // rigctld round trip off the main actor, alongside the mic start.
+        micStartTask?.cancel()
+        micStartTask = Task { [weak self] in
+            guard let self else { return }
+            if needsKey, let queue = self.queue {
+                self.rigState.ptt = true
+                await queue.enqueue(.setPTT(true))
+            }
+            guard !Task.isCancelled, self.isTransmitting else { return }
+            self.micStartTask = nil
+            self.startMicrophone()
+        }
+    }
+
+    private func startMicrophone() {
         // Off for the press (muted anyway) so the session can switch to
         // recording — see `TXAudioCapture`.
         mainAudioEngine.stop()
@@ -853,6 +873,9 @@ public final class PiDirectViewModel: ObservableObject {
     /// has played out.
     public func stopTransmit() {
         guard isTransmitting, unkeyTask == nil else { return }
+        // Released before the microphone started: it won't start now.
+        micStartTask?.cancel()
+        micStartTask = nil
         microphone.stop()
         resumeReceiveAudio()
         unkeyTask = Task { [weak self] in
@@ -876,6 +899,8 @@ public final class PiDirectViewModel: ObservableObject {
     /// Closing the TX audio connection also lets the Pi's watchdog unkey
     /// when the rigctld link is the thing that died.
     private func stopTransmitLocally() {
+        micStartTask?.cancel()
+        micStartTask = nil
         #if os(iOS)
         if microphone.isRunning {
             microphone.stop()

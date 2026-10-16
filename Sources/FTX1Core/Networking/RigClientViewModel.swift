@@ -92,6 +92,9 @@ public final class RigClientViewModel: ObservableObject, RigController {
     #if os(iOS)
     private let microphone = MicrophoneTransmitter(logSubsystem: "com.ftx1remote.client")
     private var unkeyTask: Task<Void, Never>?
+    /// A press's key on its way out, with the microphone started after it
+    /// (see `startTransmit`). Cancelled by a release before then.
+    private var micStartTask: Task<Void, Never>?
     #endif
 
     public init(port: UInt16 = 8765) {
@@ -167,6 +170,8 @@ public final class RigClientViewModel: ObservableObject, RigController {
         // The hub unkeys a client that leaves holding PTT, but say so
         // anyway rather than rely on it.
         if isTransmitting {
+            micStartTask?.cancel()
+            micStartTask = nil
             microphone.stop()
             unkeyTask?.cancel()
             unkeyTask = nil
@@ -323,14 +328,28 @@ public final class RigClientViewModel: ObservableObject, RigController {
             }
             return
         }
-        if let unkeyTask {
-            // Pressed again within the unkey delay: still keyed, carry on.
-            unkeyTask.cancel()
-            self.unkeyTask = nil
-        } else {
-            send(.setPTT(true))
-        }
+        // Pressed again within the unkey delay: still keyed, carry on.
+        let needsKey = unkeyTask == nil
+        unkeyTask?.cancel()
+        unkeyTask = nil
         isTransmitting = true
+        // The key goes out first, then the microphone starts. Starting it
+        // (stopping receive playback, switching the session to
+        // .playAndRecord, starting the input engine) blocks the main actor
+        // for up to a second on a real iPad; with the key queued behind it,
+        // the rig keyed that late and a short press sent no audio
+        // (2026-10-16). Awaiting the send also keeps the hub's order: the
+        // key before this client's first audio frame.
+        micStartTask?.cancel()
+        micStartTask = Task { [weak self] in
+            if needsKey { try? await client.send(.setPTT(true)) }
+            guard let self, !Task.isCancelled, self.isTransmitting else { return }
+            self.micStartTask = nil
+            self.startMicrophone(client)
+        }
+    }
+
+    private func startMicrophone(_ client: RigWebSocketClient) {
         // Off for the press (muted anyway) so the session can switch to
         // recording — see `TXAudioCapture`.
         audioEngine.stop()
@@ -350,6 +369,9 @@ public final class RigClientViewModel: ObservableObject, RigController {
     /// has played out.
     public func stopTransmit() {
         guard isTransmitting, unkeyTask == nil else { return }
+        // Released before the microphone started: it won't start now.
+        micStartTask?.cancel()
+        micStartTask = nil
         microphone.stop()
         resumeReceiveAudio()
         unkeyTask = Task { [weak self] in
@@ -391,6 +413,8 @@ public final class RigClientViewModel: ObservableObject, RigController {
         // The link is gone, so there's no one to unkey through: the hub
         // unkeys a client that drops while holding PTT.
         if state != .connected, isTransmitting {
+            micStartTask?.cancel()
+            micStartTask = nil
             microphone.stop()
             unkeyTask?.cancel()
             unkeyTask = nil

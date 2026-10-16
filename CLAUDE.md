@@ -1042,6 +1042,28 @@ keys the rig and sends the iPad's microphone to the rig's USB audio input.
   restart the Simulator. Whether a *press* has the same problem in the
   Simulator isn't known yet (no press with transmit unlocked was made).
   Both views release PTT when the scene leaves `.active`.
+- **Key first, then the microphone (2026-10-16, build-verified; not yet
+  re-tried on the iPad)**: `startTransmit()` used to queue the key as a
+  main-actor Task and then start the microphone synchronously (stop
+  receive playback, `.playAndRecord`, input engine — up to ~1 s on a real
+  iPad), so the key went out only after all that: found through the
+  Windows hub, where presses keyed late and short ones sent no audio.
+  Both models now send the key from `micStartTask` (the hub route awaits
+  `client.send`, which also keeps the key ahead of the first 0x02 frame;
+  Pi direct awaits the `CommandQueue` enqueue, whose rigctld round trip
+  runs off the main actor) and start the mic after it; a release before
+  then cancels the mic start, and every stop path cancels it too.
+- **Pi `ftx1_tx` failed whenever a receive client held :8532 (found
+  2026-10-16)**: `journalctl -u ftx1-txaudio` showed "unable to initialize
+  sum ring buffer" / "Invalid argument [ftx1_tx]" on every transmission
+  since the 2026-10-10 reboot (the 2026-10-09 test had no receive client
+  open). Reproduced with `aplay -D ftx1_tx` silence: fine alone, failing
+  with an `nc ftx1pi 8532` open. alsa-lib 1.2.14 shifts the IPC keys (the
+  dsnoop's segment shows as 8620, not 4522) and dmix uses key + 1 for its
+  sum buffer, which landed on the dsnoop's small segment. `asound-ftx1.conf`
+  now uses `ipc_key 4600` for `ftx1_dmix` (tested with the stream open);
+  to install it on the Pi: `/etc/asound.conf` from the repo file, then
+  `sudo systemctl restart ftx1-txaudio`.
 - **Hub route**: the iPad sends `AudioStreamFormat.txAudioTag` (0x02)
   binary frames on the existing WebSocket. `RigWebSocketServer` puts
   commands and TX frames through one ordered stream (`Inbound`) so a
