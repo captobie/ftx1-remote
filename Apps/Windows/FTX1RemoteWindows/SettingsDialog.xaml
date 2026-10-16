@@ -118,6 +118,11 @@
                               ToolTipService.ToolTip="Where the radio's audio plays. Picking your speakers here keeps it there even when Windows switches its default output (e.g. to the radio when it's plugged in)." />
                     <TextBlock Text="A change applies on Save, also while connected."
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
+                    <ComboBox x:Name="TxAudioOutputComboBox" Header="Transmit audio output (Local mode)" Width="440" HorizontalAlignment="Left"
+                              DropDownOpened="TxAudioOutputComboBox_DropDownOpened"
+                              ToolTipService.ToolTip="The FTX-1's USB audio as a Windows playback device (usually &quot;Speakers (USB Audio Device)&quot;)" />
+                    <TextBlock Text="Where an iPad's microphone plays while it holds PTT through the Desktop hub: pick the radio's USB audio. None sends nothing (Windows' default output is never used). In Remote mode it goes to the Pi (port 8533) instead. The rig's MOD SOURCE for the mode has to be USB."
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- C4FM -->

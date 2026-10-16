@@ -26,7 +26,17 @@ public interface IHubRigHost
     Task SetMainModeC4fmAsync();
     Task SetSubModeAsync(RigMode? mode, bool c4fm);
     Task SetBandAsync(Band band);
-    Task SendPttOffAsync();
+    /// Keys the rig for a hub client (the window PTT button's "T 1") and
+    /// marks it keyed through the hub, so that client's TX frames are sent
+    /// on. Gate and scan stop already done.
+    Task KeyFromHubAsync(int clientId);
+    /// Unkeys (never gated) and ends the hub's TX audio; the reason is
+    /// logged ("holder release", "holder disconnect", the watchdog's).
+    Task UnkeyFromHubAsync(string reason);
+    /// One TX audio frame's payload from the PTT holder.
+    void TxAudioFromHub(int clientId, byte[] pcm);
+    /// The client the rig is keyed for through the hub, or null.
+    int? HubKeyedBy { get; }
     Task SetPowerLevelAsync(double level);
     Task SetTxSideAsync(bool sub);
     Task SetVfoMemoryModeAsync(bool memory);
@@ -60,30 +70,76 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
     /// loop blocking.
     private const int QueueLimit = 256;
 
-    private readonly Channel<(int ClientId, RigCommand Command)> _queue = Channel.CreateBounded<(int, RigCommand)>(
+    /// What goes through the FIFO: commands, the PTT holder's TX audio
+    /// (phase 5) — in the same queue, so a client's ptt=true has keyed the
+    /// rig before its first frame is looked at — and unkeys the app
+    /// synthesizes (holder disconnect, the silence watchdog).
+    private abstract record Item(int ClientId);
+    private sealed record CommandItem(int ClientId, RigCommand Command) : Item(ClientId);
+    private sealed record TxAudioItem(int ClientId, byte[] Pcm) : Item(ClientId);
+    private sealed record UnkeyItem(int ClientId, string Reason) : Item(ClientId);
+
+    private readonly Channel<Item> _queue = Channel.CreateBounded<Item>(
         new BoundedChannelOptions(QueueLimit) { SingleReader = true, FullMode = BoundedChannelFullMode.Wait });
 
     /// From the hub's receive loops, on any thread.
     public void Enqueue(int clientId, RigCommand command)
     {
-        if (!_queue.Writer.TryWrite((clientId, command)))
+        if (!_queue.Writer.TryWrite(new CommandItem(clientId, command)))
         {
             AppLog.Write($"hub: client {clientId}: {command} dropped (command queue full)");
+        }
+    }
+
+    /// The PTT holder's TX audio (HubServer.TxAudioReceived), on any thread.
+    public void EnqueueTxAudio(int clientId, byte[] pcm)
+    {
+        if (!_queue.Writer.TryWrite(new TxAudioItem(clientId, pcm)))
+        {
+            AppLog.Write($"hub: client {clientId}: TX audio frame dropped (command queue full)");
+        }
+    }
+
+    /// The PTT holder disconnected (HubServer.PttHolderDisconnected).
+    public void EnqueueHolderDisconnected(int clientId) =>
+        EnqueueUnkey(clientId, $"client {clientId}, holder disconnect");
+
+    /// An unkey the app decided on (the silence watchdog), behind whatever is
+    /// queued already. Always accepted: the queue's limit is for clients.
+    public void EnqueueUnkey(int clientId, string reason)
+    {
+        if (!_queue.Writer.TryWrite(new UnkeyItem(clientId, reason)))
+        {
+            // Full of a flood from some client; unkey out of order rather
+            // than not at all.
+            AppLog.Write($"hub: command queue full — unkeying at once ({reason})");
+            _ = host.UnkeyFromHubAsync(reason);
         }
     }
 
     /// The FIFO. Start once, on the UI thread: its awaits resume there.
     public async Task RunAsync()
     {
-        await foreach (var (clientId, command) in _queue.Reader.ReadAllAsync())
+        await foreach (var item in _queue.Reader.ReadAllAsync())
         {
             try
             {
-                await ExecuteAsync(clientId, command);
+                switch (item)
+                {
+                    case CommandItem c:
+                        await ExecuteAsync(c.ClientId, c.Command);
+                        break;
+                    case TxAudioItem a:
+                        host.TxAudioFromHub(a.ClientId, a.Pcm);
+                        break;
+                    case UnkeyItem u:
+                        await host.UnkeyFromHubAsync(u.Reason);
+                        break;
+                }
             }
             catch (Exception ex)
             {
-                AppLog.Write($"hub: client {clientId}: {command} failed: {ex.Message}");
+                AppLog.Write($"hub: client {item.ClientId}: {item} failed: {ex.Message}");
             }
         }
     }
@@ -139,8 +195,16 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
             case SetMode c: await host.SetMainModeAsync(RigModeExtensions.FromRawValue(c.Mode)!.Value); break;
             case SetSecondaryMode c: await host.SetSubModeAsync(RigModeExtensions.FromRawValue(c.Mode), c.Mode == HubMode.C4fm); break;
             case SetBand c: await host.SetBandAsync(BandPlan.BandNamed(c.Band)!); break;
-            // PTT on is refused above (HubCommandPolicy.PttNotYet).
-            case SetPtt: await host.SendPttOffAsync(); break;
+            // Through the gate and scan stop above; keys like this window's
+            // PTT button.
+            case SetPtt { On: true }: await host.KeyFromHubAsync(clientId); break;
+            // Any client's release unkeys (the Mac forwards it too); only
+            // the holder's clears the holder (HubServer).
+            case SetPtt:
+                await host.UnkeyFromHubAsync(host.HubKeyedBy == clientId
+                    ? $"client {clientId}, holder release"
+                    : $"release from client {clientId}");
+                break;
             case SetPowerLevel c: await host.SetPowerLevelAsync(c.Value); break;
             case SetTxSide c: await host.SetTxSideAsync(c.Side == FilterSide.Sub); break;
 

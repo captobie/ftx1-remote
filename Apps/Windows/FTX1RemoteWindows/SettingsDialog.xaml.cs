@@ -108,6 +108,7 @@ public sealed partial class SettingsDialog : ContentDialog
         // Audio
         RefreshAudioInputs();
         RefreshAudioOutputs();
+        RefreshTxAudioOutputs();
 
         // C4FM
         WpsdEnabledCheckBox.IsChecked = AppSettings.WpsdEnabled;
@@ -289,6 +290,12 @@ public sealed partial class SettingsDialog : ContentDialog
         {
             AppSettings.SetAudioOutputDevice(outputId, outputId.Length == 0 ? "" : (string)output.Content);
             AudioOutputChanged = true;
+        }
+        if (TxAudioOutputComboBox.SelectedItem is ComboBoxItem { Tag: string txOutputId } txOutput
+            && txOutputId != AppSettings.TxAudioOutputDeviceId)
+        {
+            // Read on each transmission's first frame, so no restart needed.
+            AppSettings.SetTxAudioOutputDevice(txOutputId, txOutputId.Length == 0 ? "" : (string)txOutput.Content);
         }
 
         AppSettings.WpsdEnabled = WpsdEnabledCheckBox.IsChecked == true;
@@ -872,6 +879,39 @@ public sealed partial class SettingsDialog : ContentDialog
             AudioOutputComboBox.Items.Add(selected);
         }
         AudioOutputComboBox.SelectedItem = selected;
+    }
+
+    private void TxAudioOutputComboBox_DropDownOpened(object sender, object e) => RefreshTxAudioOutputs();
+
+    /// "None" first (never Windows' default: the iPad's microphone mustn't
+    /// end up on the speakers, or on the rig by accident), then the active
+    /// output devices; a saved device that isn't plugged in stays listed,
+    /// marked.
+    private void RefreshTxAudioOutputs()
+    {
+        var keepId = TxAudioOutputComboBox.SelectedItem is ComboBoxItem { Tag: string current }
+            ? current
+            : AppSettings.TxAudioOutputDeviceId;
+        TxAudioOutputComboBox.Items.Clear();
+        var noneItem = new ComboBoxItem { Content = "None", Tag = "" };
+        TxAudioOutputComboBox.Items.Add(noneItem);
+        var selected = noneItem;
+        foreach (var (id, name) in AudioPlayback.ListOutputDevices())
+        {
+            var item = new ComboBoxItem { Content = name, Tag = id };
+            TxAudioOutputComboBox.Items.Add(item);
+            if (id == keepId)
+            {
+                selected = item;
+            }
+        }
+        if (keepId.Length > 0 && ReferenceEquals(selected, noneItem))
+        {
+            var name = keepId == AppSettings.TxAudioOutputDeviceId ? AppSettings.TxAudioOutputDeviceName : keepId;
+            selected = new ComboBoxItem { Content = $"{name} (not connected)", Tag = keepId };
+            TxAudioOutputComboBox.Items.Add(selected);
+        }
+        TxAudioOutputComboBox.SelectedItem = selected;
     }
 
     // Polling tab.

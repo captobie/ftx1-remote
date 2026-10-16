@@ -62,6 +62,8 @@ public static class AppSettings
         public string LocalAudioDeviceName { get; set; } = "";
         public string AudioOutputDeviceId { get; set; } = "";
         public string AudioOutputDeviceName { get; set; } = "";
+        public string TxAudioOutputDeviceId { get; set; } = "";
+        public string TxAudioOutputDeviceName { get; set; } = "";
         public bool AudioChannelsSwapped { get; set; }
         public ChannelAudio MainAudio { get; set; } = new();
         public ChannelAudio SubAudio { get; set; } = new();
@@ -307,6 +309,21 @@ public static class AppSettings
     public static string AudioOutputDeviceName => _cache.AudioOutputDeviceName;
 
     public static string LocalAudioDeviceName => _cache.LocalAudioDeviceName;
+
+    /// Local mode's "Transmit audio output": where a Desktop hub client's
+    /// microphone plays (the rig's USB audio input, as a Windows playback
+    /// device). "" = none — never Windows' default output. The Mac's
+    /// TXAudioOutputSettings.
+    public static void SetTxAudioOutputDevice(string id, string name)
+    {
+        _cache.TxAudioOutputDeviceId = id;
+        _cache.TxAudioOutputDeviceName = name;
+        Save();
+    }
+
+    public static string TxAudioOutputDeviceId => _cache.TxAudioOutputDeviceId;
+
+    public static string TxAudioOutputDeviceName => _cache.TxAudioOutputDeviceName;
 
     /// What each S-meter's lower scale shows while transmitting (see
     /// Controls/SMeter). PO by default, like the rig; Main and Sub are

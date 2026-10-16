@@ -18,8 +18,10 @@ namespace FTX1RemoteWindows.Services.Hub;
 /// (phase 3); the memory list and APRS history go out through
 /// <see cref="PublishMemoryList"/>/<see cref="PublishAprsList"/>, and a
 /// client's read_menu_item is answered to that client alone through
-/// <see cref="MenuItemReader"/> (phase 4). TX audio frames (phase 5) and
-/// cw_keyer (phase 6) are logged and ignored.
+/// <see cref="MenuItemReader"/> (phase 4); the PTT holder is tracked and
+/// its TX audio frames raised as <see cref="TxAudioReceived"/>, in the same
+/// order as its commands (phase 5). cw_keyer (phase 6) is logged and
+/// ignored.
 ///
 /// Plain ws:// on every interface, path "/", port <see cref="Port"/> (the
 /// iPad's RigClientViewModel has it fixed). Connections from outside
@@ -30,8 +32,12 @@ namespace FTX1RemoteWindows.Services.Hub;
 ///
 /// Thread-safe: <see cref="Publish"/>, the list publishes and
 /// <see cref="BroadcastAudio"/> may be called from any thread, and
-/// <see cref="StatusChanged"/> and <see cref="CommandReceived"/> are raised
-/// on a pool thread.
+/// <see cref="StatusChanged"/>, <see cref="CommandReceived"/>,
+/// <see cref="TxAudioReceived"/> and <see cref="PttHolderDisconnected"/> are
+/// raised on a pool thread. Each client's commands and TX frames are raised
+/// one at a time from its receive loop, in arrival order, so a handler that
+/// queues them (RigCommandDispatcher's one FIFO) keeps a ptt=true ahead of
+/// that client's first frame.
 public sealed class HubServer : IAsyncDisposable
 {
     public const int Port = 8765;
@@ -93,6 +99,20 @@ public sealed class HubServer : IAsyncDisposable
 
         private int _droppedFrames;
         private long _lastDropLog;
+        private long? _lastTxDropLog;
+
+        /// TX audio from a client that isn't the PTT holder, logged at most
+        /// every 5 s. Receive loop only.
+        public void LogTxDropped()
+        {
+            var now = Environment.TickCount64;
+            if (_lastTxDropLog is { } last && now - last < AudioDropLogInterval.TotalMilliseconds)
+            {
+                return;
+            }
+            _lastTxDropLog = now;
+            AppLog.Write($"hub: client {Info.Id}: TX audio dropped (not the PTT holder)");
+        }
 
         private void AudioDropped()
         {
@@ -120,6 +140,12 @@ public sealed class HubServer : IAsyncDisposable
     private string? _latestAprsList;
     private readonly int _port;
     private readonly bool _loopbackOnly;
+    /// The client whose ptt=true came last, the Mac's pttHolder: only its
+    /// TX frames are passed on, only its own ptt=false clears it, and its
+    /// disconnect raises <see cref="PttHolderDisconnected"/> (the unkey). Set
+    /// on the press whether or not the gate then lets it key, as on the Mac.
+    /// Under <see cref="_gate"/>.
+    private int? _pttHolder;
 
     /// <paramref name="port"/>/<paramref name="loopbackOnly"/> are for the
     /// tests; the app always uses <see cref="Port"/> on every interface.
@@ -149,6 +175,27 @@ public sealed class HubServer : IAsyncDisposable
     /// A client's command, with the client's id, in the order that client
     /// sent them.
     public event Action<int, RigCommand>? CommandReceived;
+
+    /// A TX audio frame's payload (8 kHz mono Int16LE, the 0x02 tag
+    /// stripped) from the PTT holder, in order with its commands. Frames
+    /// from anyone else are dropped here.
+    public event Action<int, byte[]>? TxAudioReceived;
+
+    /// The PTT holder disconnected: the rig must be unkeyed (the Mac's
+    /// remove() sends .setPTT(false)). Raised after its last command/frame.
+    public event Action<int>? PttHolderDisconnected;
+
+    /// The current PTT holder's client id, or null.
+    public int? PttHolder
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _pttHolder;
+            }
+        }
+    }
 
     public IReadOnlyList<ClientInfo> Clients
     {
@@ -385,12 +432,23 @@ public sealed class HubServer : IAsyncDisposable
             {
                 // A send loop's own failure is the disconnect.
             }
+            bool wasHolder;
             lock (_gate)
             {
                 _clients.Remove(client.Info.Id);
                 _audioClients = [.. _clients.Values];
+                wasHolder = _pttHolder == client.Info.Id;
+                if (wasHolder)
+                {
+                    _pttHolder = null;
+                }
             }
             AppLog.Write($"hub: client {client.Info.Id} ({client.Info.Address}) disconnected");
+            if (wasHolder)
+            {
+                AppLog.Write($"hub: client {client.Info.Id} held PTT — unkeying");
+                PttHolderDisconnected?.Invoke(client.Info.Id);
+            }
             StatusChanged?.Invoke();
         }
     }
@@ -423,8 +481,7 @@ public sealed class HubServer : IAsyncDisposable
             var frame = new ArraySegment<byte>(message.GetBuffer(), 0, (int)message.Length);
             if (result.MessageType == WebSocketMessageType.Binary && RigCommandWire.IsTxAudioFrame(frame))
             {
-                // TX audio arrives in phase 5.
-                AppLog.Write($"hub: client {client.Info.Id} sent a {message.Length}-byte TX audio frame (ignored until phase 5)");
+                HandleTxAudio(client, frame);
             }
             else
             {
@@ -445,6 +502,17 @@ public sealed class HubServer : IAsyncDisposable
             switch (inbound.Kind)
             {
                 case InboundKind.Command:
+                    if (inbound.Command is SetPtt ptt)
+                    {
+                        // The Mac's rule: a press makes this client the
+                        // holder; only the holder's own release clears it
+                        // (another client's release still unkeys the rig,
+                        // but doesn't take over the holder).
+                        lock (_gate)
+                        {
+                            _pttHolder = ptt.On ? id : (_pttHolder == id ? null : _pttHolder);
+                        }
+                    }
                     CommandReceived?.Invoke(id, inbound.Command!);
                     break;
                 case InboundKind.MenuItemRead:
@@ -466,6 +534,24 @@ public sealed class HubServer : IAsyncDisposable
         {
             AppLog.Write($"hub: client {id}: handling a frame failed ({ex.Message}): {Truncated(text)}");
         }
+    }
+
+    /// A 0x02 frame: passed on only from the PTT holder (the Mac's
+    /// RigWebSocketServer.handle), from this client's receive loop so it
+    /// stays behind the client's earlier commands.
+    private void HandleTxAudio(Client client, ArraySegment<byte> frame)
+    {
+        bool isHolder;
+        lock (_gate)
+        {
+            isHolder = _pttHolder == client.Info.Id;
+        }
+        if (!isHolder)
+        {
+            client.LogTxDropped();
+            return;
+        }
+        TxAudioReceived?.Invoke(client.Info.Id, frame.AsSpan(1).ToArray());
     }
 
     /// Reads the item and answers the asking client alone. Never throws:

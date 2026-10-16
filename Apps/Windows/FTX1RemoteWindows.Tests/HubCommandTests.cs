@@ -226,9 +226,16 @@ public class HubCommandTests
     private const long InBand = 14_074_000;
     private const long OutOfBand = 15_000_000;
 
+    // Phase 5: PTT on goes through the transmit gate like MOX.
     [Fact]
-    public void PttOnIsRefusedInPhase2EvenWhenTransmitIsOn() =>
-        Assert.Equal(HubCommandPolicy.PttNotYet, HubCommandPolicy.RefusalReason(new SetPtt(true), true, InBand));
+    public void PttOnIsGatedByEnableTransmitAndBand()
+    {
+        Assert.Null(HubCommandPolicy.RefusalReason(new SetPtt(true), true, InBand));
+        Assert.Equal("Transmit disabled", HubCommandPolicy.RefusalReason(new SetPtt(true), false, InBand));
+        Assert.Equal("Transmit disabled: outside an amateur band", HubCommandPolicy.RefusalReason(new SetPtt(true), true, OutOfBand));
+        Assert.Equal(TransmitAction.PttOn, HubCommandPolicy.TransmitActionFor(new SetPtt(true)));
+        Assert.Equal(HubScanStop.Keep, HubCommandPolicy.MemoryScanStop(new SetPtt(true), scanSub: true));
+    }
 
     [Theory]
     [MemberData(nameof(UnkeyCommands))]

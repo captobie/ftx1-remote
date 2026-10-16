@@ -1396,7 +1396,7 @@ release with the Windows zip also gets `releases\libusb-1.0.24.tar.bz2`
 MIT-style licence (mingw-w64 v12.0.0) ships as `COPYING-winpthreads.txt`.
 Details: `Apps/Windows/README.md`, "Bundled rigctld".
 
-**Desktop hub for the iPad (phases 1-4 of 6, 2026-10-15/16; phase 1
+**Desktop hub for the iPad (phases 1-5 of 6, 2026-10-15/16; phase 1
 connected from a real iPad by the user the same day, phases 2-4
 tested from a real iPad by the user in Remote mode, Local mode not yet; note
 the iPad sends its JSON as *binary* frames — only a 0x02-tagged binary
@@ -1416,9 +1416,15 @@ audio queue; in Remote mode only while this app's Audio is on). Since
 phase 4 it pushes the memory list (1/s) and APRS history (every 2 s) from
 `MemoryListStore`/`AprsStore` (`HubListWire.cs`, own per-client slots),
 runs `refresh_memory_list` as the Mem List Refresh, and answers
-`read_menu_item` to the asker alone, off the FIFO. PTT on from the iPad
-is refused until phase 5; TX audio and the CW keyer are logged and
-ignored until phases 5-6. Settings → Hub,
+`read_menu_item` to the asker alone, off the FIFO. Since phase 5
+(tested against a fake Pi on the PC; one real press found the Pi
+resetting :8533, an open item; no on-air test yet) PTT from the iPad
+keys through the transmit gate, `HubServer` tracks the Mac's PTT holder
+(unkey on its disconnect), the holder's 0x02 frames share the command
+FIFO, and `HubTransmitAudio` sends them to the Pi (`RemoteTxAudioClient`,
+:8533, one connection per transmission) or to Settings → Audio →
+Transmit audio output (`LocalTxAudioPlayer`; None = nothing), with the
+1.5 s silence watchdog. The CW keyer is logged and ignored until phase 6. Settings → Hub,
 off by default; only loopback, Tailscale and private addresses are let
 in. This reverses "leaf client only" for this one feature. The wire
 types copy Swift's `RigState`/`RigCommand`; `Apps/Windows/FTX1RemoteWindows.Tests`

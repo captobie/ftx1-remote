@@ -14,7 +14,10 @@ namespace FTX1RemoteWindows;
 /// IHubRigHost members at the end), relays MAIN/SUB receive audio
 /// (phase 3, <see cref="RelayHubAudio"/>), and pushes the memory list and
 /// APRS history and answers Deep Settings reads (phase 4,
-/// <see cref="PushHubListsIfDue"/>, <see cref="ReadMenuItemForHubAsync"/>).
+/// <see cref="PushHubListsIfDue"/>, <see cref="ReadMenuItemForHubAsync"/>),
+/// and keys the rig for the iPad's PTT and sends its microphone to the
+/// Pi's ftx1-txaudio.py (Remote) or the Transmit audio output (Local)
+/// (phase 5, <see cref="_hubTx"/> and the PTT members at the end).
 ///
 /// The hub runs whenever Settings → Hub allows it, connected to the rig or
 /// not, so an iPad stays connected across rigctld reconnects. Pushes are
@@ -38,11 +41,17 @@ public sealed partial class MainWindow : IHubRigHost
     private readonly HubPushThrottle _hubAprsListThrottle = new(TimeSpan.FromSeconds(2));
     private string? _hubLastMemoryListJson;
     private string? _hubLastAprsListJson;
+    /// Transmit audio for a hub client's PTT: keyed state, sink, silence
+    /// watchdog. UI thread only.
+    private HubTransmitAudio? _hubTx;
 
     private void InitHub()
     {
         _hubDispatcher = new RigCommandDispatcher(this);
+        _hubTx = new HubTransmitAudio(OpenHubTxSink);
         _hub.CommandReceived += _hubDispatcher.Enqueue;
+        _hub.TxAudioReceived += _hubDispatcher.EnqueueTxAudio;
+        _hub.PttHolderDisconnected += _hubDispatcher.EnqueueHolderDisconnected;
         // The FIFO's awaits resume on the UI thread it starts on.
         DispatcherQueue.TryEnqueue(() => _ = _hubDispatcher.RunAsync());
         _hubTimer = DispatcherQueue.CreateTimer();
@@ -51,6 +60,7 @@ public sealed partial class MainWindow : IHubRigHost
         {
             PushHubStateIfChanged();
             PushHubListsIfDue();
+            CheckHubTxWatchdog();
         };
         // Progress (scanningChannel) as well as contents: the iPad shows
         // the read running.
@@ -77,6 +87,7 @@ public sealed partial class MainWindow : IHubRigHost
         else if (!AppSettings.HubEnabled && _hub.IsListening)
         {
             _hubTimer?.Stop();
+            await UnkeyIfHubKeyedAsync("hub turned off");
             await _hub.StopAsync();
         }
     }
@@ -234,6 +245,120 @@ public sealed partial class MainWindow : IHubRigHost
             AprsSubLastCallsign: Heard(_aprsSubLastHeard));
     }
 
+    // Phase 5: PTT and transmit audio from a hub client.
+
+    /// The silence watchdog, from the 100 ms hub timer: keyed for a hub
+    /// client and no frame for 1.5 s → unkey, through the FIFO.
+    private void CheckHubTxWatchdog()
+    {
+        if (_hubTx is { KeyedBy: { } client } tx && tx.TakeSilenceExpired(Environment.TickCount64))
+        {
+            _hubDispatcher?.EnqueueUnkey(client, $"client {client}, watchdog: transmit audio stopped while keyed — unkeying");
+        }
+    }
+
+    /// Where a transmission's audio goes, opened on its first frame: the Pi
+    /// in Remote mode, the Transmit audio output in Local mode (never the
+    /// default output). Null (logged) when there's nowhere to send it.
+    private ITxAudioSink? OpenHubTxSink()
+    {
+        if (_connectedMode == ConnectionMode.Remote)
+        {
+            var remote = new RemoteTxAudioClient(_connectedHost);
+            remote.Start();
+            AppLog.Write($"hub: transmit audio → Pi {_connectedHost}:{RemoteTxAudioClient.DefaultPort}");
+            return remote;
+        }
+        var local = LocalTxAudioPlayer.Open(AppSettings.TxAudioOutputDeviceId, AppSettings.TxAudioOutputDeviceName, out var error);
+        if (local is null)
+        {
+            AppLog.Write($"hub: transmit audio dropped: {error}");
+        }
+        return local;
+    }
+
+    /// Ends hub TX audio after an unkey this window made itself (its PTT
+    /// release, the lock, a disconnect), logging why if it was keyed for a
+    /// hub client. The rig unkey is the caller's.
+    private void EndHubTransmit(string reason)
+    {
+        if (_hubTx?.Unkeyed() is { } client)
+        {
+            AppLog.Write($"hub: unkey — client {client} ({reason})");
+        }
+    }
+
+    /// Unkeys the rig if it's keyed for a hub client (the hub stopping).
+    private async Task UnkeyIfHubKeyedAsync(string reason)
+    {
+        if (_hubTx?.IsKeyed == true)
+        {
+            await ((IHubRigHost)this).UnkeyFromHubAsync(reason);
+        }
+    }
+
+    int? IHubRigHost.HubKeyedBy => _hubTx?.KeyedBy;
+
+    async Task IHubRigHost.KeyFromHubAsync(int clientId)
+    {
+        if (_client is not { } client || _hubTx is not { } tx)
+        {
+            return;
+        }
+        AppLog.Write($"hub: key — client {clientId} (holder press) at {_lastState.FrequencyHz} Hz");
+        // Marked before the round trip, as the window's button sets
+        // _pttHeld: the frames queued behind this command are looked at
+        // only after it completes anyway.
+        tx.Keyed(clientId, Environment.TickCount64);
+        _lastState.Ptt = true;
+        UpdateTransmitControls();
+        try
+        {
+            await client.SetPttAsync(true);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"hub: key for client {clientId} failed: {ex.Message}");
+            tx.Unkeyed();
+            _lastState.Ptt = false;
+            UpdateTransmitControls();
+        }
+    }
+
+    async Task IHubRigHost.UnkeyFromHubAsync(string reason)
+    {
+        var was = _hubTx?.Unkeyed();
+        AppLog.Write(was is null ? $"hub: unkey ({reason})" : $"hub: unkey — {reason}");
+        await SendPttOffAsync();
+    }
+
+    void IHubRigHost.TxAudioFromHub(int clientId, byte[] pcm)
+    {
+        if (_hubTx is not { } tx)
+        {
+            return;
+        }
+        if (tx.Frame(clientId, pcm, Environment.TickCount64) == TxFrameResult.DroppedNotKeyed)
+        {
+            LogHubTxDropped(clientId);
+        }
+    }
+
+    private long? _hubTxDropLoggedAt;
+
+    /// Frames from the holder while the rig isn't keyed for it (a refused
+    /// press, after an unkey), at most every 5 s.
+    private void LogHubTxDropped(int clientId)
+    {
+        var now = Environment.TickCount64;
+        if (_hubTxDropLoggedAt is { } last && now - last < 5000)
+        {
+            return;
+        }
+        _hubTxDropLoggedAt = now;
+        AppLog.Write($"hub: client {clientId}: TX audio dropped (the rig isn't keyed for it through the hub)");
+    }
+
     // IHubRigHost: the dispatcher's way in, each member the method this
     // window's own control uses.
 
@@ -256,7 +381,6 @@ public sealed partial class MainWindow : IHubRigHost
     Task IHubRigHost.SetMainModeC4fmAsync() => SetMainModeC4fmAsync();
     Task IHubRigHost.SetSubModeAsync(RigMode? mode, bool c4fm) => SetSubModeAsync(mode, c4fm);
     Task IHubRigHost.SetBandAsync(Band band) => SetBandAsync(band);
-    Task IHubRigHost.SendPttOffAsync() => SendPttOffAsync();
     Task IHubRigHost.SetPowerLevelAsync(double level) => SetPowerLevelAsync(level);
     Task IHubRigHost.SetTxSideAsync(bool sub) => SetTxSideAsync(sub);
     Task IHubRigHost.SetVfoMemoryModeAsync(bool memory) => SetVfoMemoryModeAsync(memory);

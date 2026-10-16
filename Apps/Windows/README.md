@@ -1305,7 +1305,7 @@ lists it.
   picker, switching sides mid-scan, a Mem List recall mid-scan, a scan
   started from the front panel, and both boxes with TX:SUB and no scan.
 
-## Desktop hub for the iPad (plan, 2026-10-15; phase 1 done 2026-10-15, phase 2 built 2026-10-15, phase 3 built 2026-10-16, phase 4 built 2026-10-16)
+## Desktop hub for the iPad (plan, 2026-10-15; phase 1 done 2026-10-15, phase 2 built 2026-10-15, phase 3 built 2026-10-16, phase 4 built 2026-10-16, phase 5 built 2026-10-16)
 
 Goal: the iPad's hub route (renamed "Desktop hub" on 2026-10-15, raw
 `connectionRoute` value still `macHub`) can connect to this app the way it
@@ -1423,8 +1423,8 @@ already using, Local or Remote.
 - **Before a command runs** (`Services/Hub/HubCommandPolicy.cs`, pure and
   unit-tested): `TransmitGate.BlockReason` for MOX on, ANT TUNE,
   `play_cw_text_memory` 1-5 and `play_cw_message` 1-5 (stops never gated);
-  **PTT on is refused** ("PTT from the iPad arrives in phase 5": no TX
-  audio or unkey-on-disconnect yet), PTT off always goes through; values
+  PTT on was refused until phase 5 (now gated like MOX, see "Phase 5
+  status"), PTT off always goes through; values
   the rig shouldn't get (outside the MENU grid control's range, a delay
   that isn't one of the rig's, a ";" in a Deep Settings value, an unknown
   band) are refused. Then the Mac's `memoryScanStop(for:scanSide:)` rule,
@@ -1610,6 +1610,101 @@ already using, Local or Remote.
   100 ms tick rather than straight from the store, so a change can wait up
   to 100 ms longer; identical pushes are skipped; the menu reply queue is
   bounded.
+
+### Phase 5 status (2026-10-16: built and tested on the PC against a fake Pi; one real press from the iPad found an open item; no on-air test yet)
+
+- **PTT from the hub**: `ptt true` goes through `HubCommandPolicy`'s
+  transmit gate like MOX (this app's Enable Transmit, MAIN in an amateur
+  band — the window's own PTT check), stops a running memory scan first
+  (keeping the TX side), then keys with the window PTT button's
+  `SetPttAsync(true)`. `ptt false` always goes through, from any client,
+  as on the Mac.
+- **PTT holder** (`HubServer`, the Mac's `pttHolder`): a client's
+  `ptt true` makes it the holder (also when the gate then refuses it);
+  only its own `ptt false` clears it; when it disconnects, `HubServer`
+  raises `PttHolderDisconnected` and the rig is unkeyed. 0x02 frames from
+  anyone else are dropped in the receive loop ("TX audio dropped (not the
+  PTT holder)", at most every 5 s per client).
+- **Order**: the holder's frames are raised from its receive loop
+  (`TxAudioReceived`) into `RigCommandDispatcher`'s one FIFO beside the
+  commands, so a `ptt true` has keyed the rig before that client's first
+  frame is looked at.
+- **TX audio state** (`Services/Hub/HubTransmitAudio.cs`, UI thread, time
+  passed in): "keyed through the hub" is set when this app keys for a
+  client, not by the poll; frames go on only from that client while it's
+  set, else they're dropped (and an open sink closed). One sink per
+  transmission, opened on its first frame, finished on any unkey.
+  - **Remote**: `Services/RemoteTxAudioClient.cs`, a port of
+    `RemoteTXAudioClient.swift`: raw PCM to `<Pi host>:8533`, one TCP
+    connection per transmission, up to 0.5 s (8000 bytes, the newest)
+    held while connecting, `Shutdown(Send)` on finish so the Pi plays out
+    and its own 0.5 s grace applies; finished before connecting = dropped.
+    Writes go out from a background task, never the UI thread.
+  - **Local**: `Services/LocalTxAudioPlayer.cs` on Settings → Audio →
+    **Transmit audio output** (`AppSettings.TxAudioOutputDeviceId`; "None"
+    = nothing sent, never Windows' default): WASAPI shared, 8 kHz → the
+    device's mix rate, no squelch or volume, starts after a 60 ms
+    prebuffer, plays out (≤1 s) after the unkey. No device or unplugged:
+    "hub: transmit audio dropped: no Transmit audio output device set
+    (Settings → Audio)", once per transmission.
+- **Watchdog**: keyed through the hub and no frame for 1.5 s → unkey
+  ("watchdog: transmit audio stopped while keyed — unkeying"), checked on
+  the hub's 100 ms timer, so 1.5–1.6 s after the last frame.
+- **Other unkeys** end the sink too: Enable Transmit off (the PC's switch
+  or the iPad's lock), this window's PTT release, disconnecting from the
+  rig, turning the hub off, closing the window.
+- **Log** ("hub: …"): `key — client N (holder press) at <Hz>`; `unkey —
+  client N, holder release` / `release from client N` / `holder
+  disconnect` / `watchdog: …` / `(lock: Enable Transmit turned off)` /
+  `(disconnecting from the rig)` / `(hub turned off)`; `transmit audio →
+  Pi host:8533`; the sink's `tx-audio: connected …` / `finish — N bytes
+  sent`.
+- **Tests** (`FTX1RemoteWindows.Tests/HubTransmitTests.cs`;
+  `HubTransmitAudio.cs` and `RemoteTxAudioClient.cs` linked in): frames
+  while unkeyed or from another client dropped, one sink per
+  transmission, one open attempt when there's no sink, the watchdog at
+  1500 ms and not while frames keep coming (also counted from the key);
+  through the real `HubServer` on loopback, the holder rules (another
+  client's release passes but doesn't clear the holder, holder disconnect
+  raised, a non-holder's isn't), non-holder frames dropped, `ptt
+  true`/20 frames/`ptt false` arriving in order with frames after the
+  release dropped; the Remote sink against a local listener (pending
+  audio flushed on connect, only the newest 8000 bytes held, one
+  connection per transmission, finish before connect = no connection).
+  `PttOnIsGatedByEnableTransmitAndBand` replaces the phase 2 refusal
+  test. 233 tests pass.
+- **Tested here** (2026-10-16, the app pointed at a fake Pi on 127.0.0.1 —
+  a scripted rigctld answering the poll with MAIN on 14.074 MHz and
+  logging `T`, plus a :8533 sink counting bytes — and a scripted client
+  sending 20 ms frames in real time; nothing reached the radio): a normal
+  press (key 2 ms after `ptt true` arrived, one connection, 32000 bytes =
+  2.00 s, closed on release, then the unkey); audio stopping with the
+  socket open (watchdog unkey 1.505 s after the last frame); a second
+  client's frames dropped while the first held; another client's release
+  unkeying (the holder's later frames then dropped); the lock while keyed;
+  the holder dropping its TCP connection (unkey within 1 ms); `ptt true`
+  while locked (refused, frames dropped). Every press opened exactly one
+  Pi connection.
+- **With the iPad** (user, Remote mode): Enable Transmit off blocks PTT on
+  the iPad (it sends nothing). Two presses before the dummy-load step
+  keyed and unkeyed the rig with no audio: the iPad sends `ptt true` late
+  and no frames, the same on its Pi-direct route — an iPad-side delay,
+  being looked at on the Mac; this app keys within a few ms of the
+  command. One press into a dummy load (05:11:42): frames arrived, the
+  connection to `ftx1pi:8533` opened, and **the Pi reset it ~80 ms
+  later**; the hub's watchdog unkeyed 3 s after the key. A reset with
+  audio unread followed by the Pi's own unkey is what `ftx1-txaudio.py`
+  does when `play_client` throws (likely opening `ftx1_tx`): check
+  `journalctl -u ftx1-txaudio` on the Pi. **Not done**: the on-air test
+  (PO with speech, the ~300 ms tail, Wi-Fi pull and backgrounding
+  mid-press) and Local mode.
+- **Different from the Mac**: the watchdog also counts from the key, so a
+  client that keys and never sends audio is unkeyed after 1.5 s (the Mac
+  arms it on the first frame only). A front-panel unkey mid-press doesn't
+  end the sink (the Mac drops it on the next frame once a poll reads PTT
+  off; the poll's occasional spurious 0 during TX would cut a
+  transmission here). "No device" is logged once per transmission, not
+  per frame. The Pi connection's writes run off the UI thread.
 
 **Windows Firewall.** The app is unpackaged, so Windows asks "Allow
 FTX1RemoteWindows to communicate on these networks?" the first time the

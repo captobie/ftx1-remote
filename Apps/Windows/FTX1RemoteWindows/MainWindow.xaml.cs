@@ -1856,6 +1856,8 @@ public sealed partial class MainWindow : Window
         _pttHeld = false;
         PttButton.ReleasePointerCaptures();
         UpdateTransmitControls();
+        // The release unkeys the rig whoever keyed it, an iPad included.
+        EndHubTransmit("PTT released on this PC");
         await SendPttOffAsync();
     }
 
@@ -1884,7 +1886,11 @@ public sealed partial class MainWindow : Window
     /// awaits don't need this thread) since the window may be going away.
     private void UnkeyBeforeDisconnect()
     {
-        if (!_pttHeld || _client is not { } client)
+        // Keyed for a hub client counts too: its holder would otherwise
+        // stay keyed with nobody left to unkey (the Pi's watchdog aside).
+        var hubKeyed = _hubTx?.IsKeyed == true;
+        EndHubTransmit("disconnecting from the rig");
+        if (!(_pttHeld || hubKeyed) || _client is not { } client)
         {
             return;
         }
@@ -1921,8 +1927,11 @@ public sealed partial class MainWindow : Window
         UpdateTransmitControls();
         if (!enabled)
         {
-            // As on the Mac, turning transmit off also stops the CW sender.
+            // As on the Mac, turning transmit off also stops the CW sender,
+            // and a hub client's transmission (ForceUnkeyAsync sends the
+            // unkey).
             _cwSender.Stop();
+            EndHubTransmit("lock: Enable Transmit turned off");
             await ForceUnkeyAsync();
         }
     }

@@ -19,11 +19,6 @@ public enum HubScanStop
 /// and memoryScanStop(for:scanSide:).
 public static class HubCommandPolicy
 {
-    /// Phase 2 has no TX audio and no unkey when the keying client drops,
-    /// so a client can't key PTT yet (Apps/Windows/README.md, "Desktop hub
-    /// for the iPad"). Unkeying always goes through.
-    public const string PttNotYet = "PTT from the iPad arrives in phase 5";
-
     /// The transmit gate's action for a command that keys the rig, in its
     /// keying direction only; null for everything else. Stops ("KY00",
     /// "KY10", MOX/PTT off) are never gated.
@@ -42,10 +37,6 @@ public static class HubCommandPolicy
     /// and on the Mac.
     public static string? RefusalReason(RigCommand command, bool transmitEnabled, long mainFrequencyHz)
     {
-        if (command is SetPtt { On: true })
-        {
-            return PttNotYet;
-        }
         if (TransmitActionFor(command) is { } action
             && TransmitGate.BlockReason(action, transmitEnabled, mainFrequencyHz) is { } reason)
         {
