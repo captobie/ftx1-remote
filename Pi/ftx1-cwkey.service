@@ -1,0 +1,13 @@
+[Unit]
+Description=FTX1Remote straight-key CW (hub key events -> RTS/DTR on the rig's second USB port)
+After=network.target rigctld.service
+
+[Service]
+Type=simple
+User=ftx1cw
+ExecStart=/usr/bin/python3 /opt/ftx1remote/ftx1-cwkey.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
