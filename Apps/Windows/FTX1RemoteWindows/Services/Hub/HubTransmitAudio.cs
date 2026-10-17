@@ -23,6 +23,16 @@ public enum TxFrameResult
     DroppedNoSink,
 }
 
+/// Which watchdog rule fired (<see cref="HubTransmitAudio.TakeWatchdogExpiry"/>).
+public enum TxWatchdogExpiry
+{
+    None,
+    /// Keyed, and no first frame within <see cref="HubTransmitAudio.FirstFrameLimit"/>.
+    NoFirstFrame,
+    /// Frames came, then none for <see cref="HubTransmitAudio.SilenceLimit"/>.
+    Silence,
+}
+
 /// The hub's transmit audio state (Apps/Windows/README.md, "Desktop hub for
 /// the iPad", phase 5) — the Mac's HubService.handleTXAudio/endTXAudio and
 /// its silence watchdog, as a plain class driven by MainWindow on the UI
@@ -43,9 +53,16 @@ public sealed class HubTransmitAudio(Func<ITxAudioSink?> openSink)
     /// SILENCE_LIMIT.
     public static readonly TimeSpan SilenceLimit = TimeSpan.FromMilliseconds(1500);
 
+    /// How long after the key the first frame may take. The iPad keys
+    /// first and starts its microphone after (~0.3–1 s), so the silence
+    /// rule only starts with that first frame; this still unkeys a client
+    /// that keys and never sends audio (the Mac doesn't).
+    public static readonly TimeSpan FirstFrameLimit = TimeSpan.FromSeconds(5);
+
     private ITxAudioSink? _sink;
     private bool _sinkUnavailable;
-    private long _lastAudioAtMs;
+    private long _keyedAtMs;
+    private long? _lastAudioAtMs;
     private bool _silenceReported;
 
     /// The client the rig is keyed for through the hub, or null.
@@ -56,13 +73,13 @@ public sealed class HubTransmitAudio(Func<ITxAudioSink?> openSink)
     /// A sink is open (a transmission's audio is flowing to it).
     public bool HasSink => _sink is not null;
 
-    /// The rig was just keyed for <paramref name="clientId"/>. The watchdog
-    /// counts from here too, so a client that keys and never sends audio is
-    /// unkeyed as well (the Mac arms it on the first frame only).
+    /// The rig was just keyed for <paramref name="clientId"/>: the first
+    /// frame is due within <see cref="FirstFrameLimit"/>.
     public void Keyed(int clientId, long nowMs)
     {
         KeyedBy = clientId;
-        _lastAudioAtMs = nowMs;
+        _keyedAtMs = nowMs;
+        _lastAudioAtMs = null;
         _silenceReported = false;
         _sinkUnavailable = false;
     }
@@ -112,17 +129,21 @@ public sealed class HubTransmitAudio(Func<ITxAudioSink?> openSink)
         return TxFrameResult.Sent;
     }
 
-    /// True once when keyed through the hub and no frame has arrived for
-    /// <see cref="SilenceLimit"/>; the caller unkeys. Polled (the hub's
-    /// 100 ms timer), so it fires 1.5–1.6 s after the last frame.
-    public bool TakeSilenceExpired(long nowMs)
+    /// Once per transmission, when the caller should unkey: no first frame
+    /// within <see cref="FirstFrameLimit"/> of the key, or, after one, no
+    /// frame for <see cref="SilenceLimit"/>. Polled (the hub's 100 ms
+    /// timer), so it fires up to 100 ms after the limit.
+    public TxWatchdogExpiry TakeWatchdogExpiry(long nowMs)
     {
-        if (!IsKeyed || _silenceReported || nowMs - _lastAudioAtMs < SilenceLimit.TotalMilliseconds)
+        if (!IsKeyed || _silenceReported)
         {
-            return false;
+            return TxWatchdogExpiry.None;
         }
-        _silenceReported = true;
-        return true;
+        var expiry = _lastAudioAtMs is { } last
+            ? (nowMs - last >= SilenceLimit.TotalMilliseconds ? TxWatchdogExpiry.Silence : TxWatchdogExpiry.None)
+            : (nowMs - _keyedAtMs >= FirstFrameLimit.TotalMilliseconds ? TxWatchdogExpiry.NoFirstFrame : TxWatchdogExpiry.None);
+        _silenceReported = expiry != TxWatchdogExpiry.None;
+        return expiry;
     }
 
     private void EndSink()

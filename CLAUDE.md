@@ -1466,14 +1466,15 @@ phase 4 it pushes the memory list (1/s) and APRS history (every 2 s) from
 `MemoryListStore`/`AprsStore` (`HubListWire.cs`, own per-client slots),
 runs `refresh_memory_list` as the Mem List Refresh, and answers
 `read_menu_item` to the asker alone, off the FIFO. Since phase 5
-(tested against a fake Pi on the PC; one real press found the Pi
-resetting :8533, an open item; no on-air test yet) PTT from the iPad
+(tested against a fake Pi on the PC, then into a dummy load from a real
+iPad, 2026-10-17, after the Pi's ALSA ipc_key and the iPad's late key
+were fixed) PTT from the iPad
 keys through the transmit gate, `HubServer` tracks the Mac's PTT holder
 (unkey on its disconnect), the holder's 0x02 frames share the command
 FIFO, and `HubTransmitAudio` sends them to the Pi (`RemoteTxAudioClient`,
 :8533, one connection per transmission) or to Settings → Audio →
-Transmit audio output (`LocalTxAudioPlayer`; None = nothing), with the
-1.5 s silence watchdog. The CW keyer is logged and ignored until phase 6. Settings → Hub,
+Transmit audio output (`LocalTxAudioPlayer`; None = nothing), with a
+watchdog (first frame within 5 s of the key, then 1.5 s of silence). The CW keyer is logged and ignored until phase 6. Settings → Hub,
 off by default; only loopback, Tailscale and private addresses are let
 in. This reverses "leaf client only" for this one feature. The wire
 types copy Swift's `RigState`/`RigCommand`; `Apps/Windows/FTX1RemoteWindows.Tests`

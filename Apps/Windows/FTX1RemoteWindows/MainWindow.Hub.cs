@@ -247,13 +247,24 @@ public sealed partial class MainWindow : IHubRigHost
 
     // Phase 5: PTT and transmit audio from a hub client.
 
-    /// The silence watchdog, from the 100 ms hub timer: keyed for a hub
-    /// client and no frame for 1.5 s → unkey, through the FIFO.
+    /// The TX audio watchdog, from the 100 ms hub timer: keyed for a hub
+    /// client and no first frame within 5 s of the key, or no frame for
+    /// 1.5 s after one → unkey, through the FIFO.
     private void CheckHubTxWatchdog()
     {
-        if (_hubTx is { KeyedBy: { } client } tx && tx.TakeSilenceExpired(Environment.TickCount64))
+        if (_hubTx is not { KeyedBy: { } client } tx)
         {
-            _hubDispatcher?.EnqueueUnkey(client, $"client {client}, watchdog: transmit audio stopped while keyed — unkeying");
+            return;
+        }
+        var reason = tx.TakeWatchdogExpiry(Environment.TickCount64) switch
+        {
+            TxWatchdogExpiry.NoFirstFrame => "watchdog: no transmit audio within 5 s of the key — unkeying",
+            TxWatchdogExpiry.Silence => "watchdog: transmit audio stopped while keyed — unkeying",
+            _ => null,
+        };
+        if (reason is not null)
+        {
+            _hubDispatcher?.EnqueueUnkey(client, $"client {client}, {reason}");
         }
     }
 

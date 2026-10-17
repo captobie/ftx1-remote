@@ -107,42 +107,71 @@ public class HubTransmitTests
     {
         var (tx, _) = NewTx();
         tx.Keyed(1, 0);
-        for (long t = 0; t <= 5000; t += 40)
+        // The iPad keys first and starts its microphone after: first frame
+        // 0.8 s in, then steadily for 10 s.
+        for (long t = 800; t <= 10_800; t += 40)
         {
             tx.Frame(1, [0, 0], t);
-            Assert.False(tx.TakeSilenceExpired(t + 20));
+            Assert.Equal(TxWatchdogExpiry.None, tx.TakeWatchdogExpiry(t + 20));
         }
     }
 
     [Fact]
-    public void WatchdogFiresOnceAt1500MsOfSilence()
-    {
-        var (tx, _) = NewTx();
-        tx.Keyed(1, 0);
-        tx.Frame(1, [0, 0], 1000);
-        Assert.False(tx.TakeSilenceExpired(2499));
-        Assert.True(tx.TakeSilenceExpired(2500));
-        Assert.False(tx.TakeSilenceExpired(2600));
-        Assert.False(tx.TakeSilenceExpired(9000));
-    }
-
-    [Fact]
-    public void WatchdogCountsFromTheKeyWhenNoFrameEverArrives()
+    public void NoUnkeyAt1500MsAfterTheKeyBeforeTheFirstFrame()
     {
         var (tx, _) = NewTx();
         tx.Keyed(1, 10_000);
-        Assert.False(tx.TakeSilenceExpired(11_499));
-        Assert.True(tx.TakeSilenceExpired(11_500));
+        Assert.Equal(TxWatchdogExpiry.None, tx.TakeWatchdogExpiry(11_500));
+        Assert.Equal(TxWatchdogExpiry.None, tx.TakeWatchdogExpiry(14_999));
+        // A slow microphone start: the first frame 4.9 s after the key.
+        tx.Frame(1, [0, 0], 14_900);
+        Assert.Equal(TxWatchdogExpiry.None, tx.TakeWatchdogExpiry(15_100));
+    }
+
+    [Fact]
+    public void UnkeyAt5sWhenNoFrameEverArrives()
+    {
+        var (tx, _) = NewTx();
+        tx.Keyed(1, 10_000);
+        Assert.Equal(TxWatchdogExpiry.None, tx.TakeWatchdogExpiry(14_999));
+        Assert.Equal(TxWatchdogExpiry.NoFirstFrame, tx.TakeWatchdogExpiry(15_000));
+        Assert.Equal(TxWatchdogExpiry.None, tx.TakeWatchdogExpiry(15_100));
+    }
+
+    [Fact]
+    public void AfterTheFirstFrameUnkeyOnceAt1500MsOfSilence()
+    {
+        var (tx, _) = NewTx();
+        tx.Keyed(1, 0);
+        tx.Frame(1, [0, 0], 600);
+        tx.Frame(1, [0, 0], 1000);
+        Assert.Equal(TxWatchdogExpiry.None, tx.TakeWatchdogExpiry(2499));
+        Assert.Equal(TxWatchdogExpiry.Silence, tx.TakeWatchdogExpiry(2500));
+        Assert.Equal(TxWatchdogExpiry.None, tx.TakeWatchdogExpiry(2600));
+        Assert.Equal(TxWatchdogExpiry.None, tx.TakeWatchdogExpiry(9000));
+    }
+
+    [Fact]
+    public void ANewPressWaitsForItsOwnFirstFrame()
+    {
+        var (tx, _) = NewTx();
+        tx.Keyed(1, 0);
+        tx.Frame(1, [0, 0], 500);
+        tx.Unkeyed();
+        tx.Keyed(1, 10_000);
+        // The last press's frame doesn't count: 1.5 s rule not armed yet.
+        Assert.Equal(TxWatchdogExpiry.None, tx.TakeWatchdogExpiry(12_000));
+        Assert.Equal(TxWatchdogExpiry.NoFirstFrame, tx.TakeWatchdogExpiry(15_000));
     }
 
     [Fact]
     public void WatchdogIsQuietWhileUnkeyed()
     {
         var (tx, _) = NewTx();
-        Assert.False(tx.TakeSilenceExpired(100_000));
+        Assert.Equal(TxWatchdogExpiry.None, tx.TakeWatchdogExpiry(100_000));
         tx.Keyed(1, 0);
         tx.Unkeyed();
-        Assert.False(tx.TakeSilenceExpired(100_000));
+        Assert.Equal(TxWatchdogExpiry.None, tx.TakeWatchdogExpiry(100_000));
     }
 
     // HubServer: PTT holder and order

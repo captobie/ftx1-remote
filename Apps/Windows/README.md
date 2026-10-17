@@ -1611,7 +1611,7 @@ already using, Local or Remote.
   to 100 ms longer; identical pushes are skipped; the menu reply queue is
   bounded.
 
-### Phase 5 status (2026-10-16: built and tested on the PC against a fake Pi; one real press from the iPad found an open item; no on-air test yet)
+### Phase 5 status (2026-10-16: built and tested on the PC against a fake Pi; 2026-10-17: transmit audio into a dummy load from a real iPad, Remote mode)
 
 - **PTT from the hub**: `ptt true` goes through `HubCommandPolicy`'s
   transmit gate like MOX (this app's Enable Transmit, MAIN in an amateur
@@ -1647,9 +1647,12 @@ already using, Local or Remote.
     prebuffer, plays out (≤1 s) after the unkey. No device or unplugged:
     "hub: transmit audio dropped: no Transmit audio output device set
     (Settings → Audio)", once per transmission.
-- **Watchdog**: keyed through the hub and no frame for 1.5 s → unkey
-  ("watchdog: transmit audio stopped while keyed — unkeying"), checked on
-  the hub's 100 ms timer, so 1.5–1.6 s after the last frame.
+- **Watchdog** (checked on the hub's 100 ms timer, so up to 100 ms
+  late): from the key, the first frame may take up to 5 s — the iPad
+  keys first and starts its microphone after, ~0.3–1 s later — else
+  unkey ("watchdog: no transmit audio within 5 s of the key —
+  unkeying"); from the first frame on, no frame for 1.5 s → unkey
+  ("watchdog: transmit audio stopped while keyed — unkeying").
 - **Other unkeys** end the sink too: Enable Transmit off (the PC's switch
   or the iPad's lock), this window's PTT release, disconnecting from the
   rig, turning the hub off, closing the window.
@@ -1662,8 +1665,11 @@ already using, Local or Remote.
 - **Tests** (`FTX1RemoteWindows.Tests/HubTransmitTests.cs`;
   `HubTransmitAudio.cs` and `RemoteTxAudioClient.cs` linked in): frames
   while unkeyed or from another client dropped, one sink per
-  transmission, one open attempt when there's no sink, the watchdog at
-  1500 ms and not while frames keep coming (also counted from the key);
+  transmission, one open attempt when there's no sink; the watchdog:
+  no unkey 1.5 s after the key before a first frame (nor for a first
+  frame at 4.9 s), unkey at 5 s with no frame, after a first frame unkey
+  once 1.5 s after the last one, a new press waiting for its own first
+  frame, steady frames never unkeying;
   through the real `HubServer` on loopback, the holder rules (another
   client's release passes but doesn't clear the holder, holder disconnect
   raised, a non-holder's isn't), non-holder frames dropped, `ptt
@@ -1672,7 +1678,7 @@ already using, Local or Remote.
   audio flushed on connect, only the newest 8000 bytes held, one
   connection per transmission, finish before connect = no connection).
   `PttOnIsGatedByEnableTransmitAndBand` replaces the phase 2 refusal
-  test. 233 tests pass.
+  test. 235 tests pass.
 - **Tested here** (2026-10-16, the app pointed at a fake Pi on 127.0.0.1 —
   a scripted rigctld answering the poll with MAIN on 14.074 MHz and
   logging `T`, plus a :8533 sink counting bytes — and a scripted client
@@ -1686,21 +1692,32 @@ already using, Local or Remote.
   while locked (refused, frames dropped). Every press opened exactly one
   Pi connection.
 - **With the iPad** (user, Remote mode): Enable Transmit off blocks PTT on
-  the iPad (it sends nothing). Two presses before the dummy-load step
-  keyed and unkeyed the rig with no audio: the iPad sends `ptt true` late
-  and no frames, the same on its Pi-direct route — an iPad-side delay,
-  being looked at on the Mac; this app keys within a few ms of the
-  command. One press into a dummy load (05:11:42): frames arrived, the
-  connection to `ftx1pi:8533` opened, and **the Pi reset it ~80 ms
-  later**; the hub's watchdog unkeyed 3 s after the key. A reset with
-  audio unread followed by the Pi's own unkey is what `ftx1-txaudio.py`
-  does when `play_client` throws (likely opening `ftx1_tx`): check
-  `journalctl -u ftx1-txaudio` on the Pi. **Not done**: the on-air test
-  (PO with speech, the ~300 ms tail, Wi-Fi pull and backgrounding
-  mid-press) and Local mode.
-- **Different from the Mac**: the watchdog also counts from the key, so a
-  client that keys and never sends audio is unkeyed after 1.5 s (the Mac
-  arms it on the first frame only). A front-panel unkey mid-press doesn't
+  the iPad (it sends nothing). The first real presses (2026-10-16) found
+  two problems outside this app, both fixed since:
+  - **The Pi reset :8533** ~80 ms after each connect: `ftx1_dmix`'s
+    `ipc_key` in `Pi/asound-ftx1.conf` collided with the receive
+    dsnoop's whenever an app held :8532 (this app always does in Remote
+    mode), so every transmission failed with "unable to initialize sum
+    ring buffer" and the Pi unkeyed. Fixed with `ipc_key 4600` (dc4ad4a),
+    installed on the Pi.
+  - **The iPad keyed late and sent no frames**: it started the
+    microphone, freezing its main thread (3.9 s a press on an iPad Air),
+    before the queued key went out. It now sends the key first (a76b7ea)
+    and starts the microphone off the main thread with one shared
+    `.playAndRecord` session (65c84c5); TestFlight 0.9 (8). The key now
+    arrives ahead of the first frame, hence the watchdog's 5 s
+    first-frame allowance (it counted 1.5 s from the key before).
+- **Retested 2026-10-17** (user, iPad 0.9 (8), dummy load, USB with MOD
+  SOURCE USB, this app holding the :8532 receive stream): two presses,
+  each keyed 1 ms after `ptt true` arrived, the first frame ~0.17 s
+  later, one connection to `ftx1pi:8533` with no reset, 11152 and 20676
+  bytes (0.70 s and 1.29 s of speech) sent, finished on the holder
+  release; unkeyed on release, locked afterwards. **Not done**: a long
+  press, PO and the ~300 ms tail checked on the rig, Wi-Fi pull and
+  backgrounding mid-press, Local mode.
+- **Different from the Mac**: a client that keys and never sends audio is
+  unkeyed 5 s after the key (the Mac arms its watchdog on the first
+  frame only, so it never unkeys that case). A front-panel unkey mid-press doesn't
   end the sink (the Mac drops it on the next frame once a poll reads PTT
   off; the poll's occasional spurious 0 during TX would cut a
   transmission here). "No device" is logged once per transmission, not
