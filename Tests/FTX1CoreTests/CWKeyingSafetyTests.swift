@@ -83,6 +83,7 @@ final class CWKeyingSafetyTests: XCTestCase {
         safety.tick(now: 0.5)
         XCTAssertFalse(safety.keyed)
         XCTAssertEqual(safety.latch, .heartbeatTimeout)
+        XCTAssertNil(safety.nextDeadline, "no deadline left to fire once expired")
         // Heartbeats resume while still held: stays up.
         safety.heard(at: 0.6, now: 0.6)
         XCTAssertFalse(safety.keyed)

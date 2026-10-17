@@ -49,6 +49,8 @@ public struct CWKeyingSafety: Sendable {
     public private(set) var keyerReady = false
     public private(set) var blockReason: String?
     private var lastHeard: Double?
+    /// The heartbeat timeout has passed (so its deadline is not pending).
+    private var heartbeatExpired = false
 
     /// The operator's key, as played out by the jitter buffer.
     public private(set) var requested = false
@@ -121,12 +123,13 @@ public struct CWKeyingSafety: Sendable {
     /// When `tick` next has to run for a timeout to fire on time.
     public var nextDeadline: Double? {
         var deadlines: [Double] = []
-        if linkUp, let lastHeard { deadlines.append(lastHeard + heartbeatTimeout) }
+        if linkUp, !heartbeatExpired, let lastHeard { deadlines.append(lastHeard + heartbeatTimeout) }
         if keyed, let keyedSince { deadlines.append(keyedSince + maxKeyDown) }
         return deadlines.min()
     }
 
     private mutating func update(now: Double) {
+        heartbeatExpired = lastHeard.map { now - $0 >= heartbeatTimeout } ?? true
         if requested, latch == nil {
             if let cutoff = cutoff(now: now) {
                 latch = cutoff
