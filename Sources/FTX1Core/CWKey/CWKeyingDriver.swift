@@ -11,7 +11,18 @@ import os
 /// The keyer is opened when armed and closed when disarmed, so the
 /// keying port is only held (and the rig only exposed to it) while the
 /// operator means to key.
-public final class CWKeyingDriver: @unchecked Sendable {
+/// What `StraightKeyController` drives: the local RTS/DTR driver below, or
+/// `CWRemoteKeyingDriver` (keying on the Pi).
+public protocol CWKeyingDriving: AnyObject, Sendable {
+    func start()
+    func setArmed(_ armed: Bool)
+    func setBlockReason(_ reason: String?)
+    func setPlayoutDelay(_ seconds: Double)
+    func setMaxKeyDown(_ seconds: Double)
+    func shutdown()
+}
+
+public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
     public struct Snapshot: Sendable, Equatable {
         public var link: CWKeyLinkState = .closed
         public var armed = false

@@ -2,12 +2,7 @@
 import Darwin
 import Foundation
 
-/// Which modem-control line keys the rig — the FTX-1's CW SETTING → MODE
-/// CW → PC KEYING menu (OFF / RTS / DTR) has to name the same one.
-public enum CWKeyingLine: String, CaseIterable, Sendable, Codable {
-    case rts = "RTS"
-    case dtr = "DTR"
-
+extension CWKeyingLine {
     var bit: Int32 {
         switch self {
         case .rts: TIOCM_RTS

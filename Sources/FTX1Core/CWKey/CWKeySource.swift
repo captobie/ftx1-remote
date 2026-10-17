@@ -65,3 +65,11 @@ public struct CWMonotonicClock: CWHostClock {
         Double(DispatchTime.now().uptimeNanoseconds) / 1_000_000_000
     }
 }
+
+/// Which modem-control line keys the rig — the FTX-1's CW SETTING → MODE
+/// CW → PC KEYING menu (OFF / RTS / DTR) has to name the same one. Used on
+/// the Mac (`ModemLineCWKeyer`) and sent to the Pi (`cw_hello`).
+public enum CWKeyingLine: String, CaseIterable, Sendable, Codable {
+    case rts = "RTS"
+    case dtr = "DTR"
+}

@@ -24,6 +24,8 @@ public struct CWKeyingSafety: Sendable {
         case keyerUnavailable
         case blocked(String)
         case maxKeyDown
+        /// Reported by the far end (the Pi's keyer), as display text.
+        case remote(String)
 
         /// For the UI.
         public var description: String {
@@ -34,6 +36,7 @@ public struct CWKeyingSafety: Sendable {
             case .keyerUnavailable: "Keying port not open"
             case .blocked(let reason): reason
             case .maxKeyDown: "Key held too long — release the key"
+            case .remote(let reason): reason
             }
         }
     }
