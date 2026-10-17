@@ -11,10 +11,16 @@ nonisolated enum StraightKeySettings {
     static let keyingLineKey = "cw.straightKey.keyingLine"
     static let invertedPolarityKey = "cw.straightKey.invertedPolarity"
     static let playoutDelayMsKey = "cw.straightKey.playoutDelayMs"
+    static let remotePlayoutDelayMsKey = "cw.straightKey.remotePlayoutDelayMs"
+    static let remoteHeartbeatTimeoutMsKey = "cw.straightKey.remoteHeartbeatTimeoutMs"
     static let maxKeyDownSecondsKey = "cw.straightKey.maxKeyDownSeconds"
 
     static let playoutDelayRange = 20...1000
     static let maxKeyDownRange = 1...60
+    static let remoteHeartbeatRange = 300...5000
+    /// Remote mode's defaults leave room for Tailscale's jitter.
+    static let defaultRemotePlayoutDelayMs = 300
+    static let defaultRemoteHeartbeatTimeoutMs = 1000
 
     /// The Arduino key interface's port; empty = not set.
     static var interfacePort: String {
@@ -41,14 +47,28 @@ nonisolated enum StraightKeySettings {
         set { UserDefaults.standard.set(newValue, forKey: invertedPolarityKey) }
     }
 
-    static var playoutDelayMs: Int {
-        get {
-            guard UserDefaults.standard.object(forKey: playoutDelayMsKey) != nil else {
-                return Int(CWJitterBuffer.defaultPlayoutDelay * 1000)
-            }
-            return UserDefaults.standard.integer(forKey: playoutDelayMsKey).clampedTo(playoutDelayRange)
+    /// Local and Remote are stored apart.
+    static func playoutDelayMs(remote: Bool) -> Int {
+        let key = remote ? remotePlayoutDelayMsKey : playoutDelayMsKey
+        guard UserDefaults.standard.object(forKey: key) != nil else {
+            return remote ? defaultRemotePlayoutDelayMs : Int(CWJitterBuffer.defaultPlayoutDelay * 1000)
         }
-        set { UserDefaults.standard.set(newValue.clampedTo(playoutDelayRange), forKey: playoutDelayMsKey) }
+        return UserDefaults.standard.integer(forKey: key).clampedTo(playoutDelayRange)
+    }
+
+    static func setPlayoutDelayMs(_ value: Int, remote: Bool) {
+        UserDefaults.standard.set(value.clampedTo(playoutDelayRange),
+                                  forKey: remote ? remotePlayoutDelayMsKey : playoutDelayMsKey)
+    }
+
+    static var remoteHeartbeatTimeoutMs: Int {
+        get {
+            guard UserDefaults.standard.object(forKey: remoteHeartbeatTimeoutMsKey) != nil else {
+                return defaultRemoteHeartbeatTimeoutMs
+            }
+            return UserDefaults.standard.integer(forKey: remoteHeartbeatTimeoutMsKey).clampedTo(remoteHeartbeatRange)
+        }
+        set { UserDefaults.standard.set(newValue.clampedTo(remoteHeartbeatRange), forKey: remoteHeartbeatTimeoutMsKey) }
     }
 
     static var maxKeyDownSeconds: Int {

@@ -51,7 +51,11 @@ struct StraightKeyView: View {
             }
 
             Section {
-                portPicker("Rig keying port", selection: $key.keyingPort)
+                if StraightKeyController.isRemote {
+                    LabeledContent("Pi keyer", value: key.piKeyerAddress)
+                } else {
+                    portPicker("Rig keying port", selection: $key.keyingPort)
+                }
                 Picker("Line", selection: $key.keyingLine) {
                     ForEach(CWKeyingLine.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }
@@ -63,7 +67,9 @@ struct StraightKeyView: View {
             } header: {
                 Text("Keying port")
             } footer: {
-                Text("The rig's second USB port (\"Standard COM Port\"), not rigctld's. On the rig set CW SETTING → MODE CW → PC KEYING to \(key.keyingLine.rawValue), and leave RPTT SELECT there OFF. Changing these disarms.")
+                Text(StraightKeyController.isRemote
+                     ? "Remote mode: the Pi's ftx1-cwkey service keys the rig's second USB port and plays your timing out there. On the rig set CW SETTING → MODE CW → PC KEYING to \(key.keyingLine.rawValue), and leave RPTT SELECT there OFF. Changing these disarms."
+                     : "The rig's second USB port (\"Standard COM Port\"), not rigctld's. On the rig set CW SETTING → MODE CW → PC KEYING to \(key.keyingLine.rawValue), and leave RPTT SELECT there OFF. Changing these disarms.")
                     .foregroundStyle(.secondary)
             }
 
@@ -74,11 +80,16 @@ struct StraightKeyView: View {
                 Stepper(value: $key.maxKeyDownSeconds, in: StraightKeySettings.maxKeyDownRange) {
                     LabeledContent("Max key-down", value: "\(key.maxKeyDownSeconds) s")
                 }
+                if StraightKeyController.isRemote {
+                    Stepper(value: $key.remoteHeartbeatTimeoutMs, in: StraightKeySettings.remoteHeartbeatRange, step: 100) {
+                        LabeledContent("Pi keys up after silence of", value: "\(key.remoteHeartbeatTimeoutMs) ms")
+                    }
+                }
             }
         }
         .formStyle(.grouped)
         .frame(width: 460)
-        .frame(minHeight: 700)
+        .frame(minHeight: 720)
         .onAppear { ports = key.availablePorts() }
     }
 
