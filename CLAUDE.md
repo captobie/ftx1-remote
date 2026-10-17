@@ -1395,7 +1395,7 @@ drops the line if the app dies — only safe with normal polarity). Mac:
 `start()`, shut down first in `stop()`) gates on Local mode, rig
 connected and `TransmitGate`; Armed is never persisted. Seen with the
 real Arduino: banner 1.6 s after open (UNO reset), heartbeat arrival
-jitter 0–4 ms. Sketch v0.2 (2026-10-17): the user's key chattered ~15 ms in 3–5 ms pieces on closing, past v0.1's 3 ms lockout, keying a broken tail (piezo too); now a change is taken only after 10 ms of contact quiet (a clean edge still passes at once). A re-capture showed no edge under 89 ms.
+jitter 0–4 ms. Sketch v0.2 (2026-10-17): the user's key chattered ~15 ms in 3–5 ms pieces on closing, past v0.1's 3 ms lockout, keying a broken tail (piezo too); now a change is taken only after 10 ms of contact quiet (a clean edge still passes at once). A re-capture showed no edge under 89 ms; on-air audio confirmed clean by the user the same day.
 
 **Remote mode (2026-10-17)**: the keying port is the Pi's, so
 `CWRemoteKeyingDriver` forwards the Arduino's lines (device ms untouched)
@@ -1410,7 +1410,7 @@ heartbeat timeout (Remote default 1 s; Remote playout default 300 ms,
 stored apart from Local's). Tests: `CWRemoteKeyingDriverTests` (fake Pi
 server), `Pi/tests/` (python3 -m unittest), and a scratch cross-check of
 the Swift driver against the real script showed element lengths within
-1–2 ms. **Deployed on ftx1pi 2026-10-17** (`ftx1-cwkey.service` enabled, user `ftx1cw`, listening on 8534; the user ran the sudo steps — sudo there needs their password). Not yet keyed on the rig in Remote mode. The hub WebSocket relay from iPad/Windows is still schema only.
+1–2 ms. **Deployed on ftx1pi 2026-10-17** (`ftx1-cwkey.service` enabled, user `ftx1cw`, listening on 8534; the user ran the sudo steps — sudo there needs their password). Rig-tested by the user in Remote mode the same day: keying works and stops when the Mac app disconnects. The hub WebSocket relay from iPad/Windows is still schema only.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
