@@ -269,12 +269,13 @@ remote relay yet (draft schema: `docs/cw-protocol.md`).
 |---|---|---|
 | **PC KEYING** | **RTS** (or DTR), the same line as the window's *Line* | Keys CW from the USB port's control line (EX 02 01 14; default OFF) |
 | **RPTT SELECT** | **OFF** | Otherwise the same line also acts as PTT |
-| BK-IN | On (semi or full) | Probably needed to transmit, as for the rig's keyer memories; not yet verified for PC keying |
 
 The other modes' RPTT SELECT (SSB/AM/FM/DATA/RTTY, presets) should stay OFF.
+BK-IN can be on or off: PC keying transmits either way (rig-tested,
+2026-10-17), unlike the rig's keyer memories, which need it on.
 Which USB port is which: the FTX-1 shows up as a CP2105 with two ports,
 `…C50` (the "Enhanced COM Port", CAT-1, rigctld's) and `…C51` (the
-"Standard COM Port", CAT-2, used for keying). Confirm on your machine; the
+"Standard COM Port", CAT-2) — `…C51` is the keying port (rig-tested). The
 window refuses to arm on rigctld's own ports.
 
 ### In the window

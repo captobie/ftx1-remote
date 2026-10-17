@@ -1375,14 +1375,14 @@ Upload: archive with `-destination 'generic/platform=iOS'
 the export itself uploads). The Mac's `Scripts/ExportOptions.plist` is
 Developer ID, keep them apart.
 
-## Straight-key CW (Mac, Local mode, started 2026-10-17; Arduino link tested, not yet keyed on the rig)
+## Straight-key CW (Mac, Local mode, 2026-10-17; rig-tested by the user the same day)
 
 Tools → Straight Key: the Arduino interface (`cw_keyer/cw_keyer.ino`,
 115200, lines `I`/`D`/`U`/`H`/`S`) keys the rig by RTS/DTR on its second
-USB port (CP2105 "Standard COM Port", CAT-2 — `…C51` here; never
-rigctld's CAT port). Menu: CW SETTING → MODE CW → PC KEYING = the same
-line, RPTT SELECT OFF (from the CAT/Advance manuals; not yet tried on the
-rig). Code in `Sources/FTX1Core/CWKey/`: `CWKeyLineAssembler`,
+USB port (CP2105 "Standard COM Port", CAT-2 — `…C51`, rig-confirmed;
+never rigctld's CAT port). Menu: CW SETTING → MODE CW → PC KEYING = the
+same line, RPTT SELECT OFF. Works with BK-IN on *and* off (rig-tested),
+unlike the keyer memories, which need BK-IN on. Code in `Sources/FTX1Core/CWKey/`: `CWKeyLineAssembler`,
 `CWDeviceClockUnwrapper`, `CWClockSync` (min filter over 2 s — the UNO's
 resonator drifts up to ~0.5%), `CWJitterBuffer` (playout at device time +
 offset + delay, keeps spacing when late, catches up only on spaces >
