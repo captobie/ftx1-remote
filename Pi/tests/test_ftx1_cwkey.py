@@ -114,11 +114,16 @@ class PlayoutTests(unittest.TestCase):
 
 
 class FakeKeyer:
+    """`line` is the adapter's real line state; `fail_sets` makes that many
+    set_keyed calls raise (like a CP2105 EPROTO) without changing it."""
     instances = []
 
     def __init__(self, line, inverted, fail_open=False):
         self.line, self.inverted, self.fail_open = line, inverted, fail_open
         self.calls, self.opened, self.closed = [], False, False
+        self.line_asserted = False
+        self.fail_sets = 0
+        self.reopens = 0
         self.lock = threading.Lock()
         FakeKeyer.instances.append(self)
 
@@ -126,18 +131,58 @@ class FakeKeyer:
         if self.fail_open:
             raise OSError("no such device")
         self.opened = True
+        self.closed = False
+        self.line_asserted = False
 
     def set_keyed(self, keyed):
         with self.lock:
+            if self.fail_sets > 0:
+                self.fail_sets -= 1
+                raise OSError(71, "Protocol error")
+            self.line_asserted = keyed
             self.calls.append((keyed, time.monotonic()))
 
-    def close(self):
+    def is_released(self):
+        return not self.line_asserted
+
+    def release(self):
+        self.set_keyed(False)
+        if not self.is_released():
+            raise OSError("still keyed")
+
+    def reopen(self):
+        self.reopens += 1
+        self.close_fd()
+        self.open()
+
+    def close_fd(self):
         self.closed = True
+
+    def close(self):
+        self.close_fd()
 
     @property
     def keyed(self):
         with self.lock:
-            return bool(self.calls) and self.calls[-1][0]
+            return self.line_asserted
+
+
+class ReleaserTests(unittest.TestCase):
+    def test_retries_until_confirmed_and_reopens(self):
+        keyer = FakeKeyer("RTS", False)
+        keyer.open()
+        keyer.line_asserted = True       # stuck down
+        keyer.fail_sets = 7
+        releaser = cwkey.Releaser()
+        releaser.add(keyer, 0.0, "test")
+        t = 0.0
+        while releaser.busy() and t < 1.0:
+            releaser.tick(t)
+            t += cwkey.Releaser.RETRY
+        self.assertFalse(releaser.busy())
+        self.assertFalse(keyer.line_asserted)
+        self.assertGreaterEqual(keyer.reopens, 1)
+        self.assertTrue(keyer.closed)
 
 
 class ServerTests(unittest.TestCase):
@@ -277,6 +322,35 @@ class ServerTests(unittest.TestCase):
         self.key(client, True)
         self.assertTrue(self.wait(lambda: keyer.keyed))
         client.close()
+
+    def test_failed_key_up_is_retried_until_released(self):
+        client = self.connect()
+        self.heartbeat(client)
+        self.key(client, True)
+        self.assertTrue(self.wait(lambda: FakeKeyer.instances and FakeKeyer.instances[0].keyed))
+        keyer = FakeKeyer.instances[0]
+        keyer.fail_sets = 6                 # the key-up and several retries fail
+        self.key(client, False)
+        self.assertTrue(self.wait(lambda: not keyer.keyed))
+        self.assertTrue(self.wait(lambda: keyer.closed))
+        # Keying stays off for this session, reported to the client.
+        statuses = self.read_status(client)
+        self.assertTrue(any(s["error"] and "failed" in s["error"] for s in statuses))
+        self.heartbeat(client)
+        self.key(client, True)
+        time.sleep(0.3)
+        self.assertFalse(keyer.keyed)
+        client.close()
+
+    def test_release_continues_after_the_client_leaves(self):
+        client = self.connect()
+        self.heartbeat(client)
+        self.key(client, True)
+        self.assertTrue(self.wait(lambda: FakeKeyer.instances and FakeKeyer.instances[0].keyed))
+        keyer = FakeKeyer.instances[0]
+        keyer.fail_sets = 20
+        client.close()                     # key-up on disconnect fails at first
+        self.assertTrue(self.wait(lambda: not keyer.keyed, timeout=3))
 
     def test_port_open_failure_reported(self):
         original = cwkey.ModemLineKeyer

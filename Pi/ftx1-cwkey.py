@@ -32,6 +32,13 @@ t + offset + playout delay. The same rules as the Mac's local path
     maximum, or when the port fails; each cutoff holds the line up until
     the operator's next key-up
 
+Every key-up is read back from the adapter (TIOCMGET). If setting or
+confirming the line fails — a USB control transfer to the CP2105 can fail
+mid-transmission — the session stops keying and the Releaser keeps
+retrying the key-up (reopening the port as needed) until the line reads
+back as up, even after the session ends. Set FTX1_CW_LOG_KEYS=1 to log
+every line change.
+
 The keying port is opened when a session starts (cw_hello) and closed when
 it ends. HUPCL is set, so if this process dies the kernel drops the lines —
 key-up with normal polarity. Opening a tty raises DTR/RTS until we clear
@@ -69,6 +76,8 @@ DEFAULT_PLAYOUT = 0.3
 DEFAULT_HEARTBEAT = 1.0
 DEFAULT_MAX_KEY_DOWN = 5.0
 MAX_LINE_BYTES = 512
+# FTX1_CW_LOG_KEYS=1 logs every line change (diagnostics; ~10 lines/s while sending).
+LOG_KEYS = os.environ.get("FTX1_CW_LOG_KEYS") == "1"
 
 
 def log(message):
@@ -104,6 +113,8 @@ class ModemLineKeyer:
             self.fd = fd
             self._lines(self.other, False)
             self.set_keyed(False)
+            if not self.is_released():
+                raise OSError("line still keyed after opening")
         except OSError:
             os.close(fd)
             self.fd = None
@@ -114,17 +125,93 @@ class ModemLineKeyer:
         fcntl.ioctl(self.fd, request, struct.pack("I", bits))
 
     def set_keyed(self, keyed):
+        if self.fd is None:
+            raise OSError("keying port not open")
         self._lines(self.bit, keyed != self.inverted)
 
+    def is_released(self):
+        """Reads the line back from the adapter (TIOCMGET)."""
+        if self.fd is None:
+            raise OSError("keying port not open")
+        bits = struct.unpack("I", fcntl.ioctl(self.fd, termios.TIOCMGET, struct.pack("I", 0)))[0]
+        asserted = bool(bits & self.bit)
+        return asserted == self.inverted
+
+    def release(self):
+        """Key-up, confirmed by reading the line back; raises if not."""
+        self.set_keyed(False)
+        if not self.is_released():
+            raise OSError("line still keyed after key-up")
+
+    def reopen(self):
+        """Closes (HUPCL drops the lines) and opens again, which clears
+        both lines."""
+        self.close_fd()
+        self.open()
+
+    def close_fd(self):
+        if self.fd is not None:
+            os.close(self.fd)
+            self.fd = None
+
     def close(self):
+        """Best-effort key-up and close. Callers that must know the line
+        is up use release() first (Session.close_keyer)."""
         if self.fd is None:
             return
         try:
             self.set_keyed(False)
         except OSError:
             pass
-        os.close(self.fd)
-        self.fd = None
+        self.close_fd()
+
+
+class Releaser:
+    """Keeps trying to unkey keyers whose key-up failed or couldn't be
+    confirmed — a USB control transfer to the CP2105 can fail (seen
+    2026-10-17: "failed set request 0x7 status: -71", EPROTO, mid-
+    transmission, most likely RF on the USB cable), and then RTS may still
+    be asserted with the rig transmitting. Until the line reads back as up
+    this retries every RETRY s (reopening the port every REOPEN_EVERY
+    tries), never gives up, and outlives the session that failed."""
+
+    RETRY = 0.02
+    REOPEN_EVERY = 5
+
+    def __init__(self):
+        self.pending = []   # dicts: keyer, tries, since, next_at, logged_at
+
+    def add(self, keyer, now, reason):
+        log(f"releasing the keying line ({reason})")
+        self.pending.append({"keyer": keyer, "tries": 0, "since": now, "next_at": now, "logged_at": now})
+
+    def busy(self):
+        return bool(self.pending)
+
+    def next_deadline(self):
+        return min(p["next_at"] for p in self.pending) if self.pending else None
+
+    def tick(self, now):
+        for entry in list(self.pending):
+            if entry["next_at"] > now:
+                continue
+            keyer = entry["keyer"]
+            entry["tries"] += 1
+            try:
+                if entry["tries"] % self.REOPEN_EVERY == 0:
+                    keyer.reopen()
+                keyer.release()
+            except OSError as exc:
+                entry["next_at"] = now + self.RETRY
+                if now - entry["logged_at"] >= 1.0:
+                    entry["logged_at"] = now
+                    log(f"line still not confirmed up after {entry['tries']} tries"
+                        f" ({now - entry['since']:.1f} s): {exc}")
+                continue
+            keyer.close_fd()
+            self.pending.remove(entry)
+            log(f"keying line released and confirmed after {entry['tries']} tries"
+                f" ({(now - entry['since']) * 1000:.0f} ms)")
 
 
 # ---------------------------------------------------------------- logic
@@ -246,7 +333,8 @@ class Playout:
 # ---------------------------------------------------------------- server
 
 class Session:
-    def __init__(self, sock, addr, make_keyer, clock):
+    def __init__(self, sock, addr, make_keyer, clock, releaser=None):
+        self.releaser = releaser if releaser is not None else Releaser()
         self.sock = sock
         self.addr = addr
         self.make_keyer = make_keyer
@@ -293,19 +381,34 @@ class Session:
         if want == self.line_keyed or self.keyer is None:
             return
         try:
-            self.keyer.set_keyed(want)
+            if want:
+                self.keyer.set_keyed(True)
+            else:
+                self.keyer.release()       # key-up is read back
             self.line_keyed = want
+            if LOG_KEYS:
+                log(f"line {'down' if want else 'up'}")
         except OSError as exc:
+            # The line's state is unknown: stop keying for this session and
+            # make sure it ends up released.
             self.error = f"Keying port failed: {exc}"
             log(self.error)
-            self.close_keyer()
+            keyer, self.keyer = self.keyer, None
+            self.line_keyed = False
+            self.releaser.add(keyer, self.clock(), str(exc))
             self.playout.keyer_ok = False
             self.playout.tick(self.clock())
 
     def close_keyer(self):
+        """Closes the keyer with its line confirmed up, else hands it to
+        the releaser."""
         if self.keyer is not None:
-            self.keyer.close()
-            self.keyer = None
+            keyer, self.keyer = self.keyer, None
+            try:
+                keyer.release()
+                keyer.close_fd()
+            except OSError as exc:
+                self.releaser.add(keyer, self.clock(), f"on close: {exc}")
         self.line_keyed = False
 
     def hello(self, message, now):
@@ -324,6 +427,13 @@ class Session:
             clamp(message.get("maxKeyDownMs", DEFAULT_MAX_KEY_DOWN * 1000) / 1000.0, MAX_KEY_DOWN_RANGE),
         )
         self.playout.last_heard = now
+        if self.releaser.busy():
+            self.error = "Still releasing the keying line after a port error — try again shortly"
+            self.playout.keyer_ok = False
+            log(f"session from {self.addr[0]} refused: {self.error}")
+            self.expected_seq = (message.get("seq", 0) + 1) & 0xFFFFFFFF
+            self.status(force=True)
+            return
         keyer = self.make_keyer(line, bool(message.get("inverted", False)))
         try:
             keyer.open()
@@ -421,10 +531,13 @@ def make_modem_keyer(line, inverted):
 def serve(listener, make_keyer=make_modem_keyer, clock=time.monotonic, should_stop=lambda: False):
     """Serves one client at a time on `listener` until should_stop()."""
     session = None
+    releaser = Releaser()
     while not should_stop():
         timeout = 0.5
+        deadlines = [releaser.next_deadline()]
         if session is not None:
-            deadline = session.next_deadline()
+            deadlines.append(session.next_deadline())
+        for deadline in deadlines:
             if deadline is not None:
                 timeout = max(0.0, min(timeout, deadline - clock()))
         readable = [listener] + ([session.sock] if session else [])
@@ -433,7 +546,7 @@ def serve(listener, make_keyer=make_modem_keyer, clock=time.monotonic, should_st
             sock, addr = listener.accept()
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             if session is None:
-                session = Session(sock, addr, make_keyer, clock)
+                session = Session(sock, addr, make_keyer, clock, releaser)
                 log(f"client {addr[0]} connected")
             else:
                 busy = Session(sock, addr, make_keyer, clock)
@@ -456,9 +569,16 @@ def serve(listener, make_keyer=make_modem_keyer, clock=time.monotonic, should_st
                 continue
         if session is not None:
             session.tick()
+        releaser.tick(clock())
     if session is not None:
         session.end("shutting down")
         session.sock.close()
+    # Don't exit with a line we couldn't confirm up (bounded, so systemd
+    # can still stop the service; HUPCL drops it on exit regardless).
+    end = clock() + 3.0
+    while releaser.busy() and clock() < end:
+        releaser.tick(clock())
+        time.sleep(Releaser.RETRY)
 
 
 def main():
