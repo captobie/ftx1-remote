@@ -1410,7 +1410,7 @@ heartbeat timeout (Remote default 1 s; Remote playout default 300 ms,
 stored apart from Local's). Tests: `CWRemoteKeyingDriverTests` (fake Pi
 server), `Pi/tests/` (python3 -m unittest), and a scratch cross-check of
 the Swift driver against the real script showed element lengths within
-1–2 ms. The hub WebSocket relay from iPad/Windows is still schema only.
+1–2 ms. **Deployed on ftx1pi 2026-10-17** (`ftx1-cwkey.service` enabled, user `ftx1cw`, listening on 8534; the user ran the sudo steps — sudo there needs their password). Not yet keyed on the rig in Remote mode. The hub WebSocket relay from iPad/Windows is still schema only.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
