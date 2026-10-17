@@ -1395,7 +1395,7 @@ drops the line if the app dies — only safe with normal polarity). Mac:
 `start()`, shut down first in `stop()`) gates on Local mode, rig
 connected and `TransmitGate`; Armed is never persisted. Seen with the
 real Arduino: banner 1.6 s after open (UNO reset), heartbeat arrival
-jitter 0–4 ms.
+jitter 0–4 ms. Sketch v0.2 (2026-10-17): the user's key chattered ~15 ms in 3–5 ms pieces on closing, past v0.1's 3 ms lockout, keying a broken tail (piezo too); now a change is taken only after 10 ms of contact quiet (a clean edge still passes at once). A re-capture showed no edge under 89 ms.
 
 **Remote mode (2026-10-17)**: the keying port is the Pi's, so
 `CWRemoteKeyingDriver` forwards the Arduino's lines (device ms untouched)

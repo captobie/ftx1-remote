@@ -1,5 +1,5 @@
 /*
-  FTX-1 Remote CW key interface - v0.1 (Arduino UNO R3 prototype)
+  FTX-1 Remote CW key interface - v0.2 (Arduino UNO R3 prototype)
 
   Role: operator-side input device. Reads a paddle and/or a straight key,
   runs an iambic keyer, plays a local sidetone, and reports key-down/key-up
@@ -47,30 +47,44 @@ const uint8_t  PIN_STRAIGHT = 4;
 const uint8_t  PIN_SIDETONE = 8;
 const uint8_t  PIN_POT      = A0;
 const uint16_t SIDETONE_HZ  = 600;
-const uint32_t DEBOUNCE_US  = 3000;  // lockout after an accepted edge
+const uint32_t QUIET_US     = 10000; // contact must be still this long between accepted edges
 const uint8_t  WPM_MIN      = 5;
 const uint8_t  WPM_MAX      = 50;
 const uint32_t HEARTBEAT_MS = 250;
 
-// ---------- Debounced input (zero added latency: first edge passes, bounces are ignored) ----------
+// ---------- Debounced input ----------
+// Zero added latency on a clean edge: a change after the contact has been
+// still for QUIET_US is accepted at once. Any change before that is bounce
+// and restarts the quiet timer, so a burst of chatter never reaches the
+// output. If the chatter settles on the other state, that state is taken
+// once it has been still for QUIET_US.
+//
+// A fixed 3 ms lockout after each edge (v0.1) wasn't enough: a real
+// straight key chattered for ~15 ms in 3-5 ms pieces as it closed, each
+// piece just past the lockout, which keyed short extra blips (heard as a
+// broken tail on air and on the sidetone). Measured 2026-10-17.
 struct Input {
   uint8_t  pin = 0;
-  bool     pressed = false;
-  uint32_t lastEdgeUs = 0;
+  bool     pressed = false;      // debounced state
+  bool     raw = false;          // last reading
+  uint32_t lastRawChangeUs = 0;  // when the reading last changed
 
   void begin(uint8_t p) {
     pin = p;
     pinMode(pin, INPUT_PULLUP);
-    pressed = (digitalRead(pin) == LOW);
-    lastEdgeUs = micros() - DEBOUNCE_US;
+    raw = pressed = (digitalRead(pin) == LOW);
+    lastRawChangeUs = micros() - QUIET_US;
   }
 
   void update(uint32_t nowUs) {
-    if ((uint32_t)(nowUs - lastEdgeUs) < DEBOUNCE_US) return;
-    bool p = (digitalRead(pin) == LOW);
-    if (p != pressed) {
-      pressed = p;
-      lastEdgeUs = nowUs;
+    bool r = (digitalRead(pin) == LOW);
+    bool quiet = (uint32_t)(nowUs - lastRawChangeUs) >= QUIET_US;
+    if (r != raw) {
+      raw = r;
+      lastRawChangeUs = nowUs;
+      if (quiet && r != pressed) pressed = r;   // clean edge: no delay
+    } else if (quiet && r != pressed) {
+      pressed = r;                               // settled after chatter
     }
   }
 };
