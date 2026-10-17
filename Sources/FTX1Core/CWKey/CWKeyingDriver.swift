@@ -27,6 +27,8 @@ public final class CWKeyingDriver: @unchecked Sendable {
         public var keyerError: String?
         public var deviceStatus: CWKeyDeviceStatus?
         public var restartCount = 0
+
+        public init() {}
     }
 
     private let queue = DispatchQueue(label: "com.ftx1remote.cw-keying", qos: .userInteractive)
@@ -215,16 +217,16 @@ public final class CWKeyingDriver: @unchecked Sendable {
 
     private func publish() {
         let now = clock.now()
-        let snapshot = Snapshot(
-            link: engine.link,
-            armed: engine.safety.armed,
-            keyed: lineKeyed,
-            operatorKeyDown: engine.operatorKeyDown,
-            cutoff: engine.safety.cutoff(now: now),
-            latch: engine.safety.latch,
-            keyerError: keyerError,
-            deviceStatus: engine.deviceStatus,
-            restartCount: engine.restartCount)
+        var snapshot = Snapshot()
+        snapshot.link = engine.link
+        snapshot.armed = engine.safety.armed
+        snapshot.keyed = lineKeyed
+        snapshot.operatorKeyDown = engine.operatorKeyDown
+        snapshot.cutoff = engine.safety.cutoff(now: now)
+        snapshot.latch = engine.safety.latch
+        snapshot.keyerError = keyerError
+        snapshot.deviceStatus = engine.deviceStatus
+        snapshot.restartCount = engine.restartCount
         guard snapshot != lastSnapshot else { return }
         lastSnapshot = snapshot
         onSnapshot(snapshot)

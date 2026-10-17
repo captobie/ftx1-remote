@@ -40,6 +40,9 @@ struct FTX1RemoteMacApp: App {
                 Button("CW") {
                     openWindow(id: "cw")
                 }
+                Button("Straight Key") {
+                    openWindow(id: "straight-key")
+                }
                 Divider()
                 Button("WebSDR") {
                     openWindow(id: "websdr-follow")
@@ -93,6 +96,15 @@ struct FTX1RemoteMacApp: App {
                 .environmentObject(appDelegate.hub.workedStations)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
+
+        // Tools → Straight Key. The keying itself runs whether or not this
+        // window is open (`StraightKeyController`).
+        Window("Straight Key", id: "straight-key") {
+            StraightKeyView()
+                .environmentObject(appDelegate.hub.straightKey)
+                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+        }
+        .windowResizability(.contentSize)
 
         // Tools → WebSDR. Passes `hub` in directly rather than via the
         // environment — `WebSDRFollowView` needs it in `init` to build its

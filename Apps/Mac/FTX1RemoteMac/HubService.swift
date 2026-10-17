@@ -271,6 +271,10 @@ final class HubService: ObservableObject {
     /// Tools → CW's send pane (keys the rig's CW TEXT keyer memory) — see
     /// `CWSender`. `lazy` so it can be handed `self`.
     lazy var cwSender = CWSender(link: self, logSubsystem: "com.ftx1remote.mac")
+    /// Tools → Straight Key: the Arduino key interface keying the rig over
+    /// RTS/DTR — see `StraightKeyController`. Started in `start()`, so the
+    /// key interface connects at launch (disarmed).
+    lazy var straightKey = StraightKeyController(rigState: $rigState, connection: $connectionState)
     /// Worked-before for the CW window — see `WorkedStationsStore`.
     /// `lazy` so it can be handed `$rigState`.
     lazy var workedStations = WorkedStationsStore(rigState: $rigState)
@@ -593,6 +597,7 @@ final class HubService: ObservableObject {
     /// the rigctld link — mobile/local clients can connect immediately and
     /// see "rig offline" rather than being unable to reach the Mac at all.
     func start() {
+        straightKey.start()
         Task { [weak self, commandQueue] in
             await commandQueue.setOnCommandApplied { command, appliedSide in
                 Task { @MainActor in
@@ -731,6 +736,8 @@ final class HubService: ObservableObject {
     /// App-termination lifecycle: stops the WebSocket server and ensures
     /// rigctld isn't left running as an orphaned child process.
     func stop() {
+        // First: unkeys and closes the keying port before anything else.
+        straightKey.shutdown()
         stopRigctld()
         stopFT8Decoding()
         cwReceiver.stop()

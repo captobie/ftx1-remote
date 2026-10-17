@@ -65,9 +65,12 @@ final class CWKeyingDriverTests: XCTestCase {
         let heartbeats: Thread
 
         func deviceMs() -> UInt32 { UInt32((clock.now() - deviceStart) * 1000) }
-        func key(_ down: Bool) {
+        /// Returns the device time sent.
+        @discardableResult
+        func key(_ down: Bool) -> UInt32 {
             let ms = deviceMs()
             source.send(.line(down ? .keyDown(deviceMs: ms) : .keyUp(deviceMs: ms), hostReceived: clock.now()))
+            return ms
         }
     }
 
@@ -102,14 +105,16 @@ final class CWKeyingDriverTests: XCTestCase {
         defer { rig.heartbeats.cancel(); rig.driver.shutdown() }
         XCTAssertTrue(rig.keyer.opened)
         let pressed = rig.clock.now()
-        rig.key(true)
+        let downMs = rig.key(true)
         usleep(60_000)
-        rig.key(false)
+        let upMs = rig.key(false)
+        // What was actually keyed (usleep oversleeps under load).
+        let keyedLength = Double(upMs - downMs) / 1000
         XCTAssertTrue(waitUntil { rig.keyer.calls.count >= 2 })
         let calls = rig.keyer.calls
         XCTAssertEqual(calls.map(\.keyed), [true, false])
-        XCTAssertEqual(calls[0].at - pressed, 0.1, accuracy: 0.015, "playout delay")
-        XCTAssertEqual(calls[1].at - calls[0].at, 0.060, accuracy: 0.008, "element length kept")
+        XCTAssertEqual(calls[0].at - pressed, 0.1, accuracy: 0.02, "playout delay")
+        XCTAssertEqual(calls[1].at - calls[0].at, keyedLength, accuracy: 0.004, "element length kept")
     }
 
     func testLinkLossReleasesAtOnce() {

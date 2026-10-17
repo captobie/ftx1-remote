@@ -67,13 +67,15 @@ public final class SerialCWKeySource: CWKeySource, @unchecked Sendable {
         }
     }
 
-    /// Switches to another port (restarting if running).
+    /// Switches to another port (restarting if running). An empty path
+    /// leaves the source idle (`.closed`) until a port is set.
     public func setPath(_ newPath: String) {
         queue.async { [self] in
             guard newPath != path else { return }
             path = newPath
             guard running else { return }
             closePort()
+            report(.closed)
             // After the cancel handler has closed the old descriptor.
             queue.async { [self] in openPort() }
         }
@@ -96,6 +98,10 @@ public final class SerialCWKeySource: CWKeySource, @unchecked Sendable {
     private func openPort() {
         guard running, port == nil else { return }
         generation += 1
+        guard !path.isEmpty else {
+            report(.closed)   // no port chosen: nothing to retry
+            return
+        }
         let opened = POSIXSerialPort(path: path)
         do {
             try opened.open(baudRate: speed_t(B115200))
