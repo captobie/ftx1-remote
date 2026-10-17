@@ -44,12 +44,18 @@ public protocol CWKeySource: AnyObject, Sendable {
 
 /// Drives the rig's key line.
 public protocol CWKeyer: AnyObject {
-    /// Opens the keying port with the line up.
+    /// Opens the keying port with the line up (confirmed).
     func open() throws
     /// Sets the key line. A throw means the line state is unknown: the
-    /// caller treats the keyer as unavailable and closes it.
+    /// caller must get it released (`release`, `reopen`) before giving up
+    /// on the keyer.
     func setKeyed(_ keyed: Bool) throws
-    /// Releases the line (best effort) and closes.
+    /// Key-up, confirmed by reading the line back; throws if it can't be
+    /// set or still reads as key-down.
+    func release() throws
+    /// Closes and opens the port again (which leaves the line up).
+    func reopen() throws
+    /// Releases the line (best effort, unconfirmed) and closes.
     func close()
 }
 

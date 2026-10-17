@@ -18,23 +18,45 @@ final class CWKeyingDriverTests: XCTestCase {
         func send(_ event: CWKeySourceEvent) { continuation.yield(event) }
     }
 
+    /// `isKeyed` is the adapter's real line. `failSets` makes that many
+    /// `setKeyed` calls throw (like the CP2105's EPROTO) without changing
+    /// it; `failNextSet` is one.
     final class FakeKeyer: CWKeyer, @unchecked Sendable {
         private let lock = NSLock()
         private var _calls: [(keyed: Bool, at: Double)] = []
-        private(set) var opened = false
-        private(set) var closed = false
-        var failNextSet = false
+        private var _line = false
+        private var _failSets = 0
+        private var _opened = false
+        private var _closed = false
+        private var _reopens = 0
         let clock = CWMonotonicClock()
         var calls: [(keyed: Bool, at: Double)] { lock.withLock { _calls } }
-        var isKeyed: Bool { lock.withLock { _calls.last?.keyed ?? false } }
-        func open() throws { lock.withLock { opened = true } }
+        var isKeyed: Bool { lock.withLock { _line } }
+        var opened: Bool { lock.withLock { _opened } }
+        var closed: Bool { lock.withLock { _closed } }
+        var reopens: Int { lock.withLock { _reopens } }
+        var failNextSet: Bool {
+            get { lock.withLock { _failSets > 0 } }
+            set { lock.withLock { _failSets = newValue ? 1 : 0 } }
+        }
+        func failSets(_ count: Int) { lock.withLock { _failSets = count } }
+        func open() throws { lock.withLock { _opened = true; _closed = false; _line = false } }
         func setKeyed(_ keyed: Bool) throws {
             try lock.withLock {
-                if failNextSet { failNextSet = false; throw SerialPortError.closed }
+                if _failSets > 0 { _failSets -= 1; throw SerialPortError.modemLines(path: "fake", errno: EPROTO) }
+                _line = keyed
                 _calls.append((keyed, clock.now()))
             }
         }
-        func close() { lock.withLock { closed = true } }
+        func release() throws {
+            try setKeyed(false)
+            if isKeyed { throw ModemLineError.stillKeyed("fake") }
+        }
+        func reopen() throws {
+            lock.withLock { _reopens += 1; _closed = true }
+            try open()
+        }
+        func close() { lock.withLock { _closed = true } }
     }
 
     private func waitUntil(timeout: Double = 2, _ condition: () -> Bool) -> Bool {
@@ -170,6 +192,41 @@ final class CWKeyingDriverTests: XCTestCase {
         XCTAssertTrue(waitUntil { !rig.keyer.isKeyed })
         XCTAssertEqual(rig.keyer.calls.last!.at - keyedAt, 0.3, accuracy: 0.02)
         XCTAssertTrue(waitUntil { rig.snapshots.last?.latch == .maxKeyDown })
+    }
+
+    /// The key-up fails (and so do the next retries): the line still ends
+    /// up released, through a reopen, and keying stays off until re-armed.
+    func testFailedKeyUpIsRetriedUntilReleased() {
+        let rig = makeRig()
+        defer { rig.heartbeats.cancel(); rig.driver.shutdown() }
+        rig.key(true)
+        XCTAssertTrue(waitUntil { rig.keyer.isKeyed })
+        rig.keyer.failSets(7)
+        rig.key(false)
+        XCTAssertTrue(waitUntil { !rig.keyer.isKeyed && rig.keyer.closed })
+        XCTAssertGreaterThanOrEqual(rig.keyer.reopens, 1)
+        XCTAssertTrue(waitUntil { rig.snapshots.last?.keyerError?.contains("released") == true })
+        rig.key(true)
+        usleep(300_000)
+        XCTAssertFalse(rig.keyer.isKeyed, "no keying until re-armed")
+    }
+
+    /// Disarming while the release is still failing doesn't stop it, and
+    /// arming is refused until the line is confirmed up.
+    func testReleaseOutlivesDisarmAndBlocksArming() {
+        let rig = makeRig()
+        defer { rig.heartbeats.cancel(); rig.driver.shutdown() }
+        rig.key(true)
+        XCTAssertTrue(waitUntil { rig.keyer.isKeyed })
+        rig.keyer.failSets(25)            // ~0.5 s of failures
+        rig.key(false)
+        XCTAssertTrue(waitUntil { rig.snapshots.last?.keyerError?.contains("releasing") == true })
+        rig.driver.setArmed(false)
+        rig.driver.setArmed(true)
+        XCTAssertTrue(waitUntil { rig.snapshots.last?.keyerError?.contains("Still releasing") == true })
+        XCTAssertTrue(waitUntil { !rig.keyer.isKeyed && rig.keyer.closed })
+        rig.driver.setArmed(true)
+        XCTAssertTrue(waitUntil { rig.snapshots.last?.armed == true })
     }
 
     func testKeyerFailureStopsKeyingUntilRearmed() {

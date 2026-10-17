@@ -31,6 +31,11 @@ extension CWKeyingLine {
 ///
 /// The other line is held cleared, so it can't trigger the menu's RPTT
 /// SELECT if that is set to it.
+///
+/// `release` and `open` read the line back (`TIOCMGET`): a USB control
+/// transfer to the CP2105 can fail mid-transmission (seen on the Pi,
+/// 2026-10-17: "failed set request 0x7 status: -71"), and then the line
+/// may still be keyed. `CWKeyingDriver` retries until it reads up.
 public final class ModemLineCWKeyer: CWKeyer {
     public let path: String
     public let line: CWKeyingLine
@@ -50,7 +55,7 @@ public final class ModemLineCWKeyer: CWKeyer {
         try port.open(baudRate: nil)
         do {
             try port.setModemLines(line.other.bit, asserted: false)
-            try setKeyed(false)
+            try release()
         } catch {
             port.close()
             throw error
@@ -61,10 +66,44 @@ public final class ModemLineCWKeyer: CWKeyer {
         try port.setModemLines(line.bit, asserted: keyed != invertedPolarity)
     }
 
+    /// Key-up, then read back. A driver that can't report the lines at all
+    /// (`ENOTTY`/`EINVAL` from `TIOCMGET`) leaves it unconfirmed, as
+    /// before the read-back existed — `readBackSupported` turns false so
+    /// the caller can say so.
+    public func release() throws {
+        try setKeyed(false)
+        let bits: Int32
+        do {
+            bits = try port.modemLines()
+        } catch SerialPortError.modemLines(_, let code) where code == ENOTTY || code == EINVAL {
+            readBackSupported = false
+            return
+        }
+        let asserted = (bits & line.bit) != 0
+        guard asserted == invertedPolarity else { throw ModemLineError.stillKeyed(path) }
+    }
+
+    /// False once the driver has refused `TIOCMGET`: key-ups unconfirmed.
+    public private(set) var readBackSupported = true
+
+    public func reopen() throws {
+        port.close()
+        try open()
+    }
+
     public func close() {
         guard port.isOpen else { return }
         try? setKeyed(false)
         port.close()
+    }
+}
+public enum ModemLineError: Error, CustomStringConvertible {
+    case stillKeyed(String)
+
+    public var description: String {
+        switch self {
+        case .stillKeyed(let path): "\(path): the line still reads keyed after key-up"
+        }
     }
 }
 #endif

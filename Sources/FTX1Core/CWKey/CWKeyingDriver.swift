@@ -11,6 +11,13 @@ import os
 /// The keyer is opened when armed and closed when disarmed, so the
 /// keying port is only held (and the rig only exposed to it) while the
 /// operator means to key.
+///
+/// Every key-up is confirmed (`CWKeyer.release` reads the line back). If
+/// setting or confirming the line fails, keying stops and the keyer is
+/// kept and retried every `releaseRetry` (reopened every
+/// `releaseReopenEvery`th try) until the line reads up — through disarm,
+/// and with arming refused meanwhile. A failed USB control transfer must
+/// never leave the rig transmitting.
 /// What `StraightKeyController` drives: the local RTS/DTR driver below, or
 /// `CWRemoteKeyingDriver` (keying on the Pi).
 public protocol CWKeyingDriving: AnyObject, Sendable {
@@ -56,6 +63,10 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
     private var keyerError: String?
     private var lastSnapshot: Snapshot?
     private var timer: DispatchSourceTimer?
+    /// A keyer whose line couldn't be confirmed up, being retried.
+    private var releasing: (keyer: CWKeyer, reason: String, tries: Int, since: Double, nextAt: Double, loggedAt: Double)?
+    public static let releaseRetry = 0.02
+    public static let releaseReopenEvery = 5
     private var consumer: Task<Void, Never>?
     private var shutDown = false
 
@@ -100,6 +111,11 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
             let now = clock.now()
             if armed {
                 guard keyer == nil else { return }
+                guard releasing == nil else {
+                    keyerError = "Still releasing the keying line after a port error — try again shortly"
+                    update()
+                    return
+                }
                 guard let newKeyer = makeKeyer() else {
                     keyerError = "No keying port selected"
                     update()
@@ -113,6 +129,11 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
                     engine.setKeyerReady(true, now: now)
                     engine.setArmed(true, now: now)
                     logger.notice("armed")
+                    #if os(macOS)
+                    if let modem = newKeyer as? ModemLineCWKeyer, !modem.readBackSupported {
+                        logger.error("the serial driver can't report RTS/DTR (TIOCMGET): key-ups are not confirmed")
+                    }
+                    #endif
                 } catch {
                     keyerError = "\(error)"
                     logger.error("arming failed: \(String(describing: error), privacy: .public)")
@@ -159,6 +180,13 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
             engine.setArmed(false, now: clock.now())
             apply()
             closeKeyer()
+            // Don't quit with a line we couldn't confirm up (bounded; HUPCL
+            // drops it at exit regardless).
+            let giveUp = clock.now() + 3
+            while releasing != nil, clock.now() < giveUp {
+                releaseTick(now: clock.now())
+                if releasing != nil { usleep(UInt32(Self.releaseRetry * 1_000_000)) }
+            }
             timer?.cancel()
             timer = nil
             consumer?.cancel()
@@ -184,6 +212,7 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
         if let deadline = engine.nextDeadline, now - deadline > 0.005 {
             logger.debug("timer late by \((now - deadline) * 1000, format: .fixed(precision: 1)) ms")
         }
+        releaseTick(now: now)
         engine.tick(now: now)
         update()
     }
@@ -191,7 +220,7 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
     /// Applies the engine's key state, reschedules the timer, publishes.
     private func update() {
         apply()
-        if let deadline = engine.nextDeadline {
+        if let deadline = [engine.nextDeadline, releasing?.nextAt].compactMap({ $0 }).min() {
             let nanoseconds = UInt64(max(0, deadline) * 1_000_000_000)
             timer?.schedule(deadline: DispatchTime(uptimeNanoseconds: nanoseconds), repeating: .never, leeway: .nanoseconds(0))
         } else {
@@ -208,22 +237,67 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
             return
         }
         do {
-            try keyer.setKeyed(wanted)
+            if wanted {
+                try keyer.setKeyed(true)
+            } else {
+                try keyer.release()   // read back
+            }
             lineKeyed = wanted
         } catch {
-            // The line state is unknown: close (HUPCL drops it) and stop
-            // keying until re-armed.
-            keyerError = "\(error)"
+            // The line state is unknown: stop keying until re-armed, and
+            // keep at it until the line reads up.
             logger.error("keying failed: \(String(describing: error), privacy: .public)")
-            closeKeyer()
+            self.keyer = nil
+            lineKeyed = false
+            startReleasing(keyer, reason: "\(error)")
             engine.setKeyerReady(false, now: clock.now())
         }
     }
 
+    /// Closes the keyer with its line confirmed up, else keeps it for
+    /// `releaseTick`.
     private func closeKeyer() {
-        keyer?.close()
-        keyer = nil
         lineKeyed = false
+        guard let keyer else { return }
+        self.keyer = nil
+        do {
+            try keyer.release()
+            keyer.close()
+        } catch {
+            startReleasing(keyer, reason: "on close: \(error)")
+        }
+    }
+
+    private func startReleasing(_ keyer: CWKeyer, reason: String) {
+        let now = clock.now()
+        logger.error("releasing the keying line (\(reason, privacy: .public))")
+        keyerError = "Keying port failed (\(reason)) — releasing the line"
+        releasing = (keyer, reason, 0, now, now, now)
+    }
+
+    private func releaseTick(now: Double) {
+        guard var entry = releasing, now >= entry.nextAt else { return }
+        entry.tries += 1
+        do {
+            if entry.tries % Self.releaseReopenEvery == 0 {
+                try entry.keyer.reopen()
+            }
+            try entry.keyer.release()
+        } catch {
+            entry.nextAt = now + Self.releaseRetry
+            if now - entry.loggedAt >= 1 {
+                entry.loggedAt = now
+                logger.error("keying line still not confirmed up after \(entry.tries) tries: \(String(describing: error), privacy: .public)")
+                keyerError = "Keying port failed (\(entry.reason)) — still releasing the line, \(entry.tries) tries"
+            }
+            releasing = entry
+            return
+        }
+        entry.keyer.close()
+        releasing = nil
+        let ms = Int((now - entry.since) * 1000)
+        logger.notice("keying line released and confirmed after \(entry.tries) tries (\(ms) ms)")
+        keyerError = "Keying port failed (\(entry.reason)); the line was released — re-arm to key again"
     }
 
     private func publish() {
