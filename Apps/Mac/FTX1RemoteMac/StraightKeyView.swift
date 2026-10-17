@@ -78,6 +78,7 @@ struct StraightKeyView: View {
         }
         .formStyle(.grouped)
         .frame(width: 460)
+        .frame(minHeight: 700)
         .onAppear { ports = key.availablePorts() }
     }
 

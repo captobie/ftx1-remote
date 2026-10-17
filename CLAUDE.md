@@ -1375,6 +1375,28 @@ Upload: archive with `-destination 'generic/platform=iOS'
 the export itself uploads). The Mac's `Scripts/ExportOptions.plist` is
 Developer ID, keep them apart.
 
+## Straight-key CW (Mac, Local mode, started 2026-10-17; Arduino link tested, not yet keyed on the rig)
+
+Tools → Straight Key: the Arduino interface (`cw_keyer/cw_keyer.ino`,
+115200, lines `I`/`D`/`U`/`H`/`S`) keys the rig by RTS/DTR on its second
+USB port (CP2105 "Standard COM Port", CAT-2 — `…C51` here; never
+rigctld's CAT port). Menu: CW SETTING → MODE CW → PC KEYING = the same
+line, RPTT SELECT OFF (from the CAT/Advance manuals; not yet tried on the
+rig). Code in `Sources/FTX1Core/CWKey/`: `CWKeyLineAssembler`,
+`CWDeviceClockUnwrapper`, `CWClockSync` (min filter over 2 s — the UNO's
+resonator drifts up to ~0.5%), `CWJitterBuffer` (playout at device time +
+offset + delay, keeps spacing when late, catches up only on spaces >
+0.3 s), `CWKeyingSafety` (every cutoff latches until the operator's next
+key-up), `CWStraightKeyEngine` (pure, fake-clock tested), and macOS-only
+`SerialCWKeySource`/`ModemLineCWKeyer`/`CWKeyingDriver` (user-interactive
+queue, strict dispatch timer; keyer port open only while armed; `HUPCL`
+drops the line if the app dies — only safe with normal polarity). Mac:
+`StraightKeyController` (a `lazy var` on `HubService`, started in
+`start()`, shut down first in `stop()`) gates on Local mode, rig
+connected and `TransmitGate`; Armed is never persisted. Seen with the
+real Arduino: banner 1.6 s after open (UNO reset), heartbeat arrival
+jitter 0–4 ms. Remote relay: schema only, `docs/cw-protocol.md`.
+
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
 A Windows app with the same kind of functionality as the Mac app. Talks

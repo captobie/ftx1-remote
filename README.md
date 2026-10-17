@@ -244,14 +244,79 @@ an ALSA `dsnoop` share) are set up directly on the Pi, not tracked here.
 Single dense multi-pane window (no menu bar extra): VFO A/B, S/SWR meters,
 waterfall/oscilloscope with per-channel (Main/Sub) mute and volume/squelch
 sliders, band/mode selectors, filter controls and display, and the numbered
-MENU grid all visible at once. A **Tools** menu opens FT8, CW, WebSDR and
-the APRS windows. A tabbed Settings sheet covers rigctld connection
+MENU grid all visible at once. A **Tools** menu opens FT8, CW, Straight Key,
+WebSDR and the APRS windows. A tabbed Settings sheet covers rigctld connection
 (Local/Remote mode), Audio (input/output device pickers), Station, C4FM
 (WPSD hotspot lookup), APRS (enable, frequency/tolerance, retention
 limits), Polling, Home Freq, Appearance and Updates. Deep Settings opens as a
 separate window from the MENU grid's page-3 items. APRS station/message
 history opens in its own S.LIST/M.LIST windows. Real control happens here
 as well as from mobile — the Mac isn't monitor-only.
+
+## Straight-key CW (Mac, Local mode)
+
+Tools → **Straight Key** keys the FTX-1 from a straight key on the Arduino
+interface (`cw_keyer/cw_keyer.ino`, USB serial, 115200). The Mac plays each
+key-down/up out at the operator's original spacing (a playout delay, 150 ms
+by default) by toggling **RTS or DTR on the rig's second USB serial port**.
+The CAT port stays rigctld's. The Arduino plays its own sidetone; the Mac
+makes none. It needs **Local mode** (the rig's USB on the Mac); there's no
+remote relay yet (draft schema: `docs/cw-protocol.md`).
+
+### Radio settings (CW SETTING → MODE CW)
+
+| Menu item | Set to | Why |
+|---|---|---|
+| **PC KEYING** | **RTS** (or DTR), the same line as the window's *Line* | Keys CW from the USB port's control line (EX 02 01 14; default OFF) |
+| **RPTT SELECT** | **OFF** | Otherwise the same line also acts as PTT |
+| BK-IN | On (semi or full) | Probably needed to transmit, as for the rig's keyer memories; not yet verified for PC keying |
+
+The other modes' RPTT SELECT (SSB/AM/FM/DATA/RTTY, presets) should stay OFF.
+Which USB port is which: the FTX-1 shows up as a CP2105 with two ports,
+`…C50` (the "Enhanced COM Port", CAT-1, rigctld's) and `…C51` (the
+"Standard COM Port", CAT-2, used for keying). Confirm on your machine; the
+window refuses to arm on rigctld's own ports.
+
+### In the window
+
+- **Key interface → Port**: the Arduino (`cu.usbmodem…`). *Link* shows
+  "Connected (FTX1CW v1)" ~1.6 s after opening (the UNO resets on open).
+  The **Key** dot follows your key even while disarmed, so you can practise.
+- **Armed**: off at every launch. Arming opens the keying port; disarming
+  closes it. The **Line** dot is the actual keying line.
+- **Keying port / Line / polarity**: the rig's second port, RTS or DTR.
+  Keep **normal polarity** (line asserted = key down): then closing the
+  port, unplugging or the app crashing all drop the line, i.e. key-up.
+  Changing any of these disarms.
+- **Playout delay** (default 150 ms) and **Max key-down** (default 5 s).
+
+Keying is refused or cut off (and stays up until you release the key) when:
+disarmed; the Arduino isn't connected or has sent nothing for 500 ms; the
+keying port fails; the rig isn't connected; Mac's **Enable Transmit** is
+off; the transmitting VFO is outside an amateur band; the key is held past
+the maximum. A non-CW transmitting mode shows a warning but isn't blocked.
+
+### Testing keying safely
+
+1. Dummy load on the antenna jack, RF power at minimum (5 W or less), CW
+   mode, a quiet frequency inside a band.
+2. Before setting PC KEYING: pick the ports, arm, and press the key. The
+   Line dot should follow the key with the playout delay. The rig must not
+   transmit (PC KEYING still OFF) — and also watch the rig at the moment
+   you arm: opening the port briefly raises DTR/RTS before the app clears
+   them.
+3. Disarm, set PC KEYING to the chosen line (RPTT SELECT OFF), arm again.
+   Key a few characters and check the rig's TX indicator and power meter
+   follow, with your spacing.
+4. Check the cutoffs: hold the key past 5 s (TX stops, and stays stopped
+   until you release); unplug the Arduino mid-press (TX stops at once);
+   toggle Armed and Enable Transmit off mid-press.
+5. Only then: a real antenna.
+
+Code: `Sources/FTX1Core/CWKey/` (parser, clock sync, jitter buffer, safety,
+engine; serial source, RTS/DTR keyer and driver behind `#if os(macOS)`),
+Mac UI in `StraightKey*.swift`. Logs: subsystem `com.ftx1remote.mac`,
+category `cw-key`.
 
 ## Not yet built / open
 
