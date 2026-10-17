@@ -9,6 +9,7 @@ it over your network (Tailscale works well for access from anywhere):
 | `rigctld` (Hamlib) | 4532 | Rig control: frequency, mode, menus, PTT |
 | `ftx1-audiostream.py` | 8532 | Streams the rig's receive audio (Main = left, Sub = right) |
 | `ftx1-txaudio.py` | 8533 | Plays transmit audio from the iPad into the rig; unkeys the rig if a client goes silent |
+| `ftx1-cwkey.py` | 8534 | Straight-key CW from the Mac: plays the key's timing out and sets RTS/DTR on the rig's second USB port |
 
 The Mac app uses the Pi in **Remote** mode; the iPad and iPhone apps can also
 connect to it directly with **Pi direct**. The Pi sends audio to one client
@@ -143,6 +144,40 @@ sudo systemctl enable --now ftx1-audiostream ftx1-txaudio
 
 If you already have an `/etc/asound.conf`, append the file's contents to it
 instead of replacing it.
+
+## 4b. Install the straight-key service (optional)
+
+For the Mac's Tools → Straight Key in Remote mode. It keys the rig with RTS
+or DTR on the radio's *second* USB serial port (CP2105 interface 1, the
+"Standard COM Port"); rigctld keeps interface 0. Check the by-id name
+(the `-if01-` one):
+
+```bash
+ls -l /dev/serial/by-id/
+```
+
+If its serial number isn't `01C7A9C5`, set `FTX1_CW_DEVICE` to that path
+with an `Environment=` line in the unit. Then copy and install:
+
+```bash
+scp Pi/ftx1-cwkey.py Pi/ftx1-cwkey.service pi@ftx1pi:~/
+```
+
+```bash
+sudo useradd --system --no-create-home --groups dialout ftx1cw
+sudo mkdir -p /opt/ftx1remote
+sudo cp ~/ftx1-cwkey.py /opt/ftx1remote/
+sudo cp ~/ftx1-cwkey.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now ftx1-cwkey
+journalctl -u ftx1-cwkey -n 5
+```
+
+Look for `listening on :8534`. On the radio set CW SETTING → MODE CW →
+**PC KEYING** to the line chosen in the Mac's window (RTS by default) and
+**RPTT SELECT** to OFF. The port is only opened while the Mac is armed;
+opening it briefly raises DTR/RTS before the script clears them. The
+script's tests run anywhere: `python3 -m unittest discover -s Pi/tests`.
 
 ## 5. Check that everything runs
 

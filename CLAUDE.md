@@ -1395,7 +1395,22 @@ drops the line if the app dies — only safe with normal polarity). Mac:
 `start()`, shut down first in `stop()`) gates on Local mode, rig
 connected and `TransmitGate`; Armed is never persisted. Seen with the
 real Arduino: banner 1.6 s after open (UNO reset), heartbeat arrival
-jitter 0–4 ms. Remote relay: schema only, `docs/cw-protocol.md`.
+jitter 0–4 ms.
+
+**Remote mode (2026-10-17)**: the keying port is the Pi's, so
+`CWRemoteKeyingDriver` forwards the Arduino's lines (device ms untouched)
+as `docs/cw-protocol.md`'s JSON (`cw_hello` carries line/polarity/delay/
+timeouts) over TCP 8534 to `Pi/ftx1-cwkey.py`, which runs the same playout
+and safety in Python (stdlib only; `/dev/serial/by-id/…01C7A9C5-if01-
+port0`; user `ftx1cw` in dialout) — so Tailscale jitter lands before the
+buffer. The Mac only holds a session while armed + key interface
+connected + not blocked; `cw_bye` (sent as the stream's last data, then
+cancel) or a dropped socket keys up at once, silence after the
+heartbeat timeout (Remote default 1 s; Remote playout default 300 ms,
+stored apart from Local's). Tests: `CWRemoteKeyingDriverTests` (fake Pi
+server), `Pi/tests/` (python3 -m unittest), and a scratch cross-check of
+the Swift driver against the real script showed element lengths within
+1–2 ms. The hub WebSocket relay from iPad/Windows is still schema only.
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 

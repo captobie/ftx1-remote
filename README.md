@@ -253,15 +253,23 @@ separate window from the MENU grid's page-3 items. APRS station/message
 history opens in its own S.LIST/M.LIST windows. Real control happens here
 as well as from mobile — the Mac isn't monitor-only.
 
-## Straight-key CW (Mac, Local mode)
+## Straight-key CW (Mac; Local or Remote mode)
 
 Tools → **Straight Key** keys the FTX-1 from a straight key on the Arduino
 interface (`cw_keyer/cw_keyer.ino`, USB serial, 115200). The Mac plays each
 key-down/up out at the operator's original spacing (a playout delay, 150 ms
 by default) by toggling **RTS or DTR on the rig's second USB serial port**.
 The CAT port stays rigctld's. The Arduino plays its own sidetone; the Mac
-makes none. It needs **Local mode** (the rig's USB on the Mac); there's no
-remote relay yet (draft schema: `docs/cw-protocol.md`).
+makes none.
+
+- **Local mode** (the rig's USB on the Mac): the Mac plays the timing out
+  and toggles the line itself.
+- **Remote mode** (the rig's USB on the Pi): the Mac forwards the Arduino's
+  events, with their own timestamps, to `Pi/ftx1-cwkey.py` (port 8534), and
+  the Pi plays them out and toggles the line — so Tailscale's jitter is
+  absorbed before the line, not after. Default playout delay 300 ms;
+  the Pi keys up if it hears nothing for 1 s (both adjustable). Install the
+  Pi service per `Pi/README.md` §4b. Messages: `docs/cw-protocol.md`.
 
 ### Radio settings (CW SETTING → MODE CW)
 
@@ -285,15 +293,19 @@ window refuses to arm on rigctld's own ports.
   The **Key** dot follows your key even while disarmed, so you can practise.
 - **Armed**: off at every launch. Arming opens the keying port; disarming
   closes it. The **Line** dot is the actual keying line.
-- **Keying port / Line / polarity**: the rig's second port, RTS or DTR.
+- **Keying port / Line / polarity**: the rig's second port (Local mode;
+  in Remote mode it's the Pi's, shown as "Pi keyer"), RTS or DTR.
   Keep **normal polarity** (line asserted = key down): then closing the
   port, unplugging or the app crashing all drop the line, i.e. key-up.
   Changing any of these disarms.
-- **Playout delay** (default 150 ms) and **Max key-down** (default 5 s).
+- **Playout delay** (default 150 ms Local, 300 ms Remote, stored apart),
+  **Max key-down** (default 5 s) and, Remote only, how long the Pi waits
+  without hearing from the Mac before it keys up (default 1 s).
 
 Keying is refused or cut off (and stays up until you release the key) when:
-disarmed; the Arduino isn't connected or has sent nothing for 500 ms; the
-keying port fails; the rig isn't connected; Mac's **Enable Transmit** is
+disarmed; the Arduino isn't connected or has sent nothing for 500 ms
+(Remote: the Pi heard nothing for its timeout, or the connection to the
+Pi dropped); the keying port fails; the rig isn't connected; Mac's **Enable Transmit** is
 off; the transmitting VFO is outside an amateur band; the key is held past
 the maximum. A non-CW transmitting mode shows a warning but isn't blocked.
 
@@ -312,11 +324,15 @@ the maximum. A non-CW transmitting mode shows a warning but isn't blocked.
 4. Check the cutoffs: hold the key past 5 s (TX stops, and stays stopped
    until you release); unplug the Arduino mid-press (TX stops at once);
    toggle Armed and Enable Transmit off mid-press.
-5. Only then: a real antenna.
+5. Remote mode, same steps, plus: quit the Mac app mid-press (key-up at
+   once, from the closed connection) and drop the Mac's network mid-press
+   (key-up within the Pi's 1 s timeout).
+6. Only then: a real antenna.
 
 Code: `Sources/FTX1Core/CWKey/` (parser, clock sync, jitter buffer, safety,
-engine; serial source, RTS/DTR keyer and driver behind `#if os(macOS)`),
-Mac UI in `StraightKey*.swift`. Logs: subsystem `com.ftx1remote.mac`,
+engine; serial source, RTS/DTR keyer and driver behind `#if os(macOS)`;
+`CWRemoteKeyingDriver` for Remote mode), `Pi/ftx1-cwkey.py` (+ tests in
+`Pi/tests/`), Mac UI in `StraightKey*.swift`. Logs: subsystem `com.ftx1remote.mac`,
 category `cw-key`.
 
 ## Not yet built / open

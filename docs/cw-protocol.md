@@ -1,21 +1,33 @@
-# Straight-key CW over the hub WebSocket (draft, not implemented)
+# Relayed straight-key CW messages
 
-Status: **schema only.** Today the straight key reaches the hub over USB
-serial from the Arduino interface (`cw_keyer/cw_keyer.ino`). This document
-fixes the WebSocket messages a remote client (iPad, iPhone, Windows) will
-use later to relay the same key events to the hub, so the C# and Swift
-clients can be written against one definition. Nothing here is sent or
-accepted yet.
+Status: **implemented hub → Pi; the hub's WebSocket side not yet.**
 
-The hub plays remote key events through exactly the same path as the
-serial ones (`CWStraightKeyEngine` in `Sources/FTX1Core/CWKey/`): clock
-sync, jitter buffer, safety cutoffs, then the RTS/DTR keying line. Each
-message below maps onto one line of the serial protocol, so a hub-side
-`WebSocketCWKeySource` is just another `CWKeySource`.
+The straight key reaches the Mac hub over USB serial from the Arduino
+interface (`cw_keyer/cw_keyer.ino`). These messages relay its events
+elsewhere, so the Swift, Python and C# sides share one definition:
+
+- **Hub → Pi (implemented, 2026-10-17)**: in Remote mode the rig's keying
+  port is on the Pi, so the Mac (`CWRemoteKeyingDriver`) forwards the
+  Arduino's events to `Pi/ftx1-cwkey.py` on **TCP 8534**, newline-
+  delimited JSON, and the Pi plays them out and keys the line. `t` is the
+  Arduino's own `millis()`, passed through.
+- **Client → hub WebSocket (not yet)**: a remote client (iPad, iPhone,
+  Windows) relaying its own key to the hub, described below as the hub's
+  side; nothing accepts these on the WebSocket yet.
+
+Wherever these land, the receiver runs the same playout as the Mac's
+local path (`CWStraightKeyEngine` in `Sources/FTX1Core/CWKey/`; the Pi's
+Python port follows it).
+
+Each message below maps onto one line of the serial protocol, so a
+hub-side `WebSocketCWKeySource` will be just another `CWKeySource`.
 
 ## Transport
 
-- The hub's existing WebSocket (port 8765), JSON objects. Clients may send
+- To the Pi: TCP 8534, one JSON object per line ("\n"), TCP_NODELAY on
+  both ends. One client at a time; a second gets a `cw_status` with
+  `holder: false` and is closed.
+- To the hub (future): the hub's existing WebSocket (port 8765), JSON objects. Clients may send
   them as text or binary frames (the iPad already sends JSON as binary);
   only a binary frame starting with a tag byte `0x00`–`0x02` is audio
   (`AudioStreamFormat`), so a JSON frame always starts with `{`.
@@ -43,13 +55,22 @@ All three carry `seq` and, except `cw_hello`, `t`.
 ### `cw_hello` — start of a key session
 
 ```json
-{"type": "cw_hello", "seq": 0, "id": "iPad", "version": 1}
+{"type": "cw_hello", "seq": 0, "id": "Mac", "version": 1,
+ "line": "RTS", "inverted": false, "playoutDelayMs": 300,
+ "heartbeatTimeoutMs": 1000, "maxKeyDownMs": 5000}
 ```
 
-Sent when the client's key input starts (and after every reconnect).
-`id`: free-form, for the hub's log/UI. `version`: this protocol, 1. The
-hub resets its clock sync and releases any key held for this client
-(serial equivalent: the `I,FTX1CW,1` banner).
+Sent when the client's key input starts, after every reconnect, and when
+the key interface restarts (its banner). `id`: free-form, for the log/UI.
+`version`: this protocol, 1. The receiver resets its clock sync and
+releases any key held for this client (serial equivalent: the
+`I,FTX1CW,1` banner).
+
+The other fields configure the session; all optional (Pi defaults in
+brackets, clamped to the range): `line` "RTS"/"DTR" ["RTS"], `inverted`
+[false], `playoutDelayMs` [300, 20–1000], `heartbeatTimeoutMs` [1000,
+300–5000], `maxKeyDownMs` [5000, 1000–60000]. The Pi opens its keying port
+on `cw_hello` and closes it when the session ends.
 
 ### `cw` — key down / up
 
@@ -70,9 +91,10 @@ is ignored.
 
 Every 250 ms for as long as the session is open, key up or down (serial:
 `H,<ms>`). It feeds the clock sync while the key is idle and proves the
-client is alive: the hub forces key-up when it has heard nothing from the
-keying client for 500 ms (on a WAN link this will likely need to be
-longer, see below).
+client is alive: the receiver forces key-up when it has heard nothing
+from the keying client for the heartbeat timeout (the Pi: 1 s by default,
+for Tailscale's jitter). The Mac forwards the Arduino's own heartbeats, so
+a stalled Arduino, Mac or network all end the same way.
 
 ### `cw_bye` — end of session (optional)
 
@@ -89,8 +111,14 @@ WebSocket does the same.
 
 ```json
 {"type": "cw_status", "armed": true, "keyed": false, "holder": true,
- "cutoff": null, "playoutDelayMs": 400}
+ "cutoff": null, "latched": null, "error": null, "playoutDelayMs": 300}
 ```
+
+From the Pi: after `cw_hello` and whenever a field changes. `latched`:
+why the current press is held up until the key is released (e.g. "Key
+held too long — release the key"), else null. `error`: the keying port
+failed or couldn't be opened, else null. The fields below are the hub
+WebSocket's version of the same message.
 
 Sent to a client after its `cw_hello`, and whenever any field changes.
 `armed`: the hub's Arm toggle. `keyed`: the keying line (for an on-screen
@@ -110,9 +138,9 @@ for its slot still keeps its keyed distance from the previous one; only
 word-length spaces (> 0.3 s) shrink to catch up.
 
 Over Tailscale the delay varies far more than over USB (tens of ms, more on
-cellular), so the playout delay for remote clients needs to be larger —
-probably 300–500 ms, chosen per source — and the heartbeat timeout will
-need to be longer than 500 ms. To be settled when the relay is built.
+cellular), so the playout delay for remote clients needs to be larger:
+the Mac's Remote mode defaults to 300 ms and a 1 s heartbeat timeout,
+both adjustable in Tools → Straight Key.
 
 ## Safety rules the relay must keep
 
