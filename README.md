@@ -309,6 +309,15 @@ Pi dropped); the keying port fails; the rig isn't connected; Mac's **Enable Tran
 off; the transmitting VFO is outside an amateur band; the key is held past
 the maximum. A non-CW transmitting mode shows a warning but isn't blocked.
 
+**RF feedback guard**: if RF from the rig gets into the key lead, each
+transmitted element comes back as a "press" one playout delay later and
+keys the rig again, a loop that keeps going after a single tap. Its
+presses repeat with a machine-steady period (the playout delay plus
+transport); a hand on a straight key doesn't. After 4 such periods in a
+row (within 6 ms) the Mac disarms and says "RF feedback detected". The
+cure is at the key: a ferrite on the key lead (a large one fixed it here),
+or 10 nF from D4 to GND plus a 4.7 kΩ pull-up at the Arduino.
+
 ### Testing keying safely
 
 1. Dummy load on the antenna jack, RF power at minimum (5 W or less), CW

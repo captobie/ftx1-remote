@@ -211,6 +211,26 @@ final class CWRemoteKeyingDriverTests: XCTestCase {
         XCTAssertFalse(snapshots.last.keyed)
     }
 
+    /// Machine-steady marks at the Remote loop period: the Mac disarms,
+    /// which ends the Pi session with a bye.
+    func testRFFeedbackDisarmsAndEndsThePiSession() throws {
+        let pi = try FakePi()
+        let (driver, source, snapshots) = make(pi)
+        defer { driver.shutdown() }
+        driver.setArmed(true)
+        XCTAssertTrue(waitUntil { pi.types == ["cw_hello"] })
+        for index in 0..<7 {
+            let start = UInt32(10_000 + index * 310)
+            source.send(.line(.keyDown(deviceMs: start), hostReceived: 0))
+            source.send(.line(.keyUp(deviceMs: start + 190), hostReceived: 0))
+        }
+        XCTAssertTrue(waitUntil { pi.types.last == "cw_bye" && pi.closed == 1 })
+        XCTAssertFalse(snapshots.last.armed)
+        XCTAssertEqual(snapshots.last.keyerError, CWKeyingDriver.feedbackMessage)
+        driver.setArmed(true)
+        XCTAssertTrue(waitUntil { pi.connections == 2 && snapshots.last.keyerError == nil })
+    }
+
     func testShutdownSendsBye() throws {
         let pi = try FakePi()
         let (driver, _, _) = make(pi)

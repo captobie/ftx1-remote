@@ -17,11 +17,16 @@ public struct CWStraightKeyEngine: Sendable {
     public private(set) var deviceStatus: CWKeyDeviceStatus?
     /// Times the device restarted while connected (banner or clock jump).
     public private(set) var restartCount = 0
+    /// RF feedback check (`CWFeedbackDetector`). When it trips, the engine
+    /// disarms itself and `feedbackDetected` stays true until re-armed.
+    public private(set) var feedback: CWFeedbackDetector
+    public var feedbackDetected: Bool { feedback.tripped }
 
     public init(playoutDelay: Double = CWJitterBuffer.defaultPlayoutDelay,
                 heartbeatTimeout: Double = CWKeyingSafety.defaultHeartbeatTimeout,
                 maxKeyDown: Double = CWKeyingSafety.defaultMaxKeyDown) {
         buffer = CWJitterBuffer(playoutDelay: playoutDelay)
+        feedback = CWFeedbackDetector(loopDelay: playoutDelay)
         safety = CWKeyingSafety(heartbeatTimeout: heartbeatTimeout, maxKeyDown: maxKeyDown)
     }
 
@@ -42,6 +47,7 @@ public struct CWStraightKeyEngine: Sendable {
 
     public mutating func setPlayoutDelay(_ seconds: Double) {
         buffer.playoutDelay = seconds
+        feedback.loopDelay = seconds
     }
 
     public mutating func setMaxKeyDown(_ seconds: Double, now: Double) {
@@ -50,6 +56,7 @@ public struct CWStraightKeyEngine: Sendable {
     }
 
     public mutating func setArmed(_ armed: Bool, now: Double) {
+        if armed { feedback.reset() }
         safety.setArmed(armed, now: now)
     }
 
@@ -107,10 +114,17 @@ public struct CWStraightKeyEngine: Sendable {
         sync.add(deviceMs: unwrapped.ms, hostReceived: received)
         safety.heard(at: received, now: now)
         guard let offset = sync.offset else { return }
+        let down: Bool
         switch line {
-        case .keyDown: buffer.enqueue(down: true, deviceMs: unwrapped.ms, offset: offset, now: now)
-        case .keyUp: buffer.enqueue(down: false, deviceMs: unwrapped.ms, offset: offset, now: now)
-        default: break
+        case .keyDown: down = true
+        case .keyUp: down = false
+        default: return
+        }
+        buffer.enqueue(down: down, deviceMs: unwrapped.ms, offset: offset, now: now)
+        if feedback.operatorChanged(down: down, at: Double(unwrapped.ms) / 1000) {
+            // The rig is keying itself through the key lead: stop.
+            buffer.flush()
+            safety.setArmed(false, now: now)
         }
     }
 
@@ -124,6 +138,7 @@ public struct CWStraightKeyEngine: Sendable {
         }
         sync.reset()
         buffer.flush()
+        feedback.clearHistory()   // a new clock; a trip stays until re-armed
         if safety.requested {
             safety.request(down: false, now: now)
         }

@@ -229,6 +229,23 @@ final class CWKeyingDriverTests: XCTestCase {
         XCTAssertTrue(waitUntil { rig.snapshots.last?.armed == true })
     }
 
+    /// Machine-steady marks at the loop period (as RF feedback makes):
+    /// the driver disarms, closes the port and says why.
+    func testRFFeedbackDisarms() {
+        let rig = makeRig(playoutDelay: 0.1)
+        defer { rig.heartbeats.cancel(); rig.driver.shutdown() }
+        let base = rig.deviceMs()
+        for index in 0..<7 {
+            let start = base + UInt32(index * 112)
+            rig.source.send(.line(.keyDown(deviceMs: start), hostReceived: rig.clock.now()))
+            rig.source.send(.line(.keyUp(deviceMs: start + 50), hostReceived: rig.clock.now()))
+        }
+        XCTAssertTrue(waitUntil { rig.snapshots.last?.keyerError?.contains("RF feedback") == true })
+        XCTAssertEqual(rig.snapshots.last?.armed, false)
+        XCTAssertTrue(rig.keyer.closed)
+        XCTAssertFalse(rig.keyer.isKeyed)
+    }
+
     func testKeyerFailureStopsKeyingUntilRearmed() {
         let rig = makeRig()
         defer { rig.heartbeats.cancel(); rig.driver.shutdown() }

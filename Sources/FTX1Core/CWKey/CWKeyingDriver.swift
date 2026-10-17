@@ -203,8 +203,24 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
             logger.info("link \(String(describing: state), privacy: .public)")
         }
         engine.ingest(event, now: clock.now())
+        handleFeedback()
         update()
     }
+
+    /// The engine disarmed itself on RF feedback: finish the disarm here
+    /// (line up, port closed) and say why.
+    private func handleFeedback() {
+        guard engine.feedbackDetected, keyer != nil else { return }
+        logger.error("RF feedback detected: the key input is following the rig's own keying — disarmed")
+        apply()
+        closeKeyer()
+        engine.setKeyerReady(false, now: clock.now())
+        keyerError = Self.feedbackMessage
+    }
+
+    public static let feedbackMessage =
+        "RF feedback detected: the key input was following the rig's own transmissions, so keying stopped and the key was disarmed. Check the key lead's ferrite, then re-arm."
+
 
     private func timerFired() {
         guard !shutDown else { return }

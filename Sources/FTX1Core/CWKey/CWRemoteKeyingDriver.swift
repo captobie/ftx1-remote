@@ -62,6 +62,11 @@ public final class CWRemoteKeyingDriver: CWKeyingDriving, @unchecked Sendable {
     private var consumer: Task<Void, Never>?
     private var shutDown = false
     private var lastSnapshot: CWKeyingDriver.Snapshot?
+    /// RF feedback check on the operator's events (`CWFeedbackDetector`):
+    /// a trip disarms, which ends the Pi session (key-up there).
+    private var deviceClock = CWDeviceClockUnwrapper()
+    private var feedback: CWFeedbackDetector
+    private var feedbackMessage: String?
 
     public init(source: CWKeySource, host: String, port: UInt16 = defaultPort, clientID: String,
                 settings: Settings, logSubsystem: String,
@@ -72,6 +77,7 @@ public final class CWRemoteKeyingDriver: CWKeyingDriving, @unchecked Sendable {
         self.clientID = clientID
         self.settings = settings
         self.onSnapshot = onSnapshot
+        feedback = CWFeedbackDetector(loopDelay: settings.playoutDelay)
         logger = Logger(subsystem: logSubsystem, category: "cw-key")
     }
 
@@ -92,6 +98,10 @@ public final class CWRemoteKeyingDriver: CWKeyingDriving, @unchecked Sendable {
     public func setArmed(_ armed: Bool) {
         queue.async { [self] in
             self.armed = armed
+            if armed {
+                feedback.reset()
+                feedbackMessage = nil
+            }
             logger.notice("\(armed ? "armed" : "disarmed", privacy: .public) (Pi keyer \(self.host, privacy: .public))")
             reconcile()
         }
@@ -108,6 +118,7 @@ public final class CWRemoteKeyingDriver: CWKeyingDriving, @unchecked Sendable {
     public func setSettings(_ settings: Settings) {
         queue.async { [self] in
             self.settings = settings
+            feedback.loopDelay = settings.playoutDelay
             if connectionReady { sendHello() }
         }
     }
@@ -115,6 +126,7 @@ public final class CWRemoteKeyingDriver: CWKeyingDriving, @unchecked Sendable {
     public func setPlayoutDelay(_ seconds: Double) {
         queue.async { [self] in
             settings.playoutDelay = seconds
+            feedback.loopDelay = seconds
             if connectionReady { sendHello() }
         }
     }
@@ -297,20 +309,35 @@ public final class CWRemoteKeyingDriver: CWKeyingDriving, @unchecked Sendable {
             switch line {
             case .banner:
                 operatorKeyDown = false
+                deviceClock.reset()
+                feedback.clearHistory()
                 if connectionReady { sendHello() }   // device restarted: new session on the Pi
             case .keyDown(let ms):
                 operatorKeyDown = true
                 send(CWKeyWire.Key(seq: nextSeq(), t: ms, down: true))
+                checkFeedback(down: true, ms: ms)
             case .keyUp(let ms):
                 operatorKeyDown = false
                 send(CWKeyWire.Key(seq: nextSeq(), t: ms, down: false))
+                checkFeedback(down: false, ms: ms)
             case .heartbeat(let ms):
+                _ = deviceClock.unwrap(ms)
                 send(CWKeyWire.Heartbeat(seq: nextSeq(), t: ms))
             case .status(let status):
                 deviceStatus = status
             }
             publish()
         }
+    }
+
+    private func checkFeedback(down: Bool, ms: UInt32) {
+        let unwrapped = deviceClock.unwrap(ms)
+        if unwrapped.restarted { feedback.clearHistory() }
+        guard armed, feedback.operatorChanged(down: down, at: Double(unwrapped.ms) / 1000) else { return }
+        logger.error("RF feedback detected: the key input is following the rig's own keying — disarmed")
+        feedbackMessage = CWKeyingDriver.feedbackMessage
+        armed = false
+        reconcile()   // cw_bye: the Pi keys up
     }
 
     private func publish() {
@@ -332,7 +359,7 @@ public final class CWRemoteKeyingDriver: CWKeyingDriving, @unchecked Sendable {
             snapshot.cutoff = .remote(cutoff)
         }
         snapshot.latch = piStatus?.latched.map { .remote($0) }
-        snapshot.keyerError = piStatus?.error ?? (armed ? connectionError : nil)
+        snapshot.keyerError = feedbackMessage ?? piStatus?.error ?? (armed ? connectionError : nil)
         guard snapshot != lastSnapshot else { return }
         lastSnapshot = snapshot
         onSnapshot(snapshot)
