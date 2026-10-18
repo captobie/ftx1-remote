@@ -332,7 +332,20 @@ final class HubWireFixtureTests: XCTestCase {
          { XCTAssertEqual(try JSONDecoder().decode(MenuItemPush.self, from: $0), MenuItemPush(p1: 6, p2: 1, p3: 3, value: "1")) }),
         ("menu-item-push.unreadable.json", { try encode(MenuItemPush(p1: 6, p2: 1, p3: 3, value: nil)) },
          { XCTAssertEqual(try JSONDecoder().decode(MenuItemPush.self, from: $0), MenuItemPush(p1: 6, p2: 1, p3: 3, value: nil)) }),
+        // Phase 6: the CW keyer pair (iPad → hub requests, hub → iPad replies).
+        cwKeyer("cw-keyer-request.write.json", CWKeyerRequest(id: 7, slot: 1, text: "CQ CQ DE W1AW K")),
+        cwKeyer("cw-keyer-request.check.json", CWKeyerRequest(id: 8, slot: 1, text: nil)),
+        cwKeyer("cw-keyer-request.acquire.json", CWKeyerRequest(id: 9, action: .acquire)),
+        cwKeyer("cw-keyer-request.release.json", CWKeyerRequest(id: 10, action: .release)),
+        cwKeyer("cw-keyer-reply.stored.json", CWKeyerReply(id: 7, stored: "CQ CQ DE W1AW K", error: nil)),
+        cwKeyer("cw-keyer-reply.checked.json", CWKeyerReply(id: 8, stored: nil, error: nil)),
+        cwKeyer("cw-keyer-reply.error.json", CWKeyerReply(id: 7, stored: nil, error: "Keyer memory 9 doesn't exist (1–5)")),
+        cwKeyer("cw-keyer-reply.busy.json", CWKeyerReply(id: 9, stored: nil, error: nil, busy: "the Mac's CW window")),
     ]
+
+    private static func cwKeyer<T: Codable & Equatable>(_ file: String, _ value: T) -> (file: String, encode: () throws -> Data, check: (Data) throws -> Void) {
+        (file, { try encode(value) }, { XCTAssertEqual(try JSONDecoder().decode(T.self, from: $0), value) })
+    }
 
     private static func encode(_ value: some Encodable) throws -> Data {
         let encoder = JSONEncoder()

@@ -17,6 +17,12 @@ Shared between the Swift package and the Windows app's hub (see
   `menu-item-push.json` and `menu-item-push.unreadable.json` (no `value`
   key at all when the item can't be read): phase 4's messages, made by
   `FTX1Core`.
+- `cw-keyer-request.*.json` (iPad → hub: `write` with text, `check` with
+  no text = make the slot a TEXT memory, `acquire`/`release` with slot 0)
+  and `cw-keyer-reply.*.json` (hub → iPad: `stored` = what the rig kept,
+  `checked` = success with no fields but `id`/`type` — also what a granted
+  `acquire` or a `release` gets, `error`, `busy`): phase 6's pair. A reply
+  carries the request's `id`; the iPad matches on it.
 - `rig-commands.json`: one of every `RigCommand` (`{"cmd": …, "value": …}`)
   as the iPad sends it. `HubWireFixtureTests` fails if a command is
   added to `WireMessage.swift` without an example here.
