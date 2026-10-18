@@ -274,7 +274,7 @@ final class HubService: ObservableObject {
     /// Tools → CW's send pane (keys the rig's CW TEXT keyer memory) — see
     /// `CWSender`. `lazy` so it can be handed `self`.
     lazy var cwSender = CWSender(link: self, logSubsystem: "com.ftx1remote.mac")
-    /// Tools → Straight Key: the Arduino key interface keying the rig over
+    /// Tools → CW Key: the Arduino key interface keying the rig over
     /// RTS/DTR — see `StraightKeyController`. Started in `start()`, so the
     /// key interface connects at launch (disarmed).
     lazy var straightKey = StraightKeyController(rigState: $rigState, connection: $connectionState)

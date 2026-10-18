@@ -73,6 +73,86 @@ final class CWFeedbackDetectorTests: XCTestCase {
         XCTAssertFalse(detector.tripped)
     }
 
+    // MARK: - Paddle (the interface's iambic keyer)
+
+    /// Keyer elements as the sketch sends them: chained from the scheduled
+    /// end, reported in whole ms (±1 ms rounding). `pattern` is in dits.
+    static func keyerRun(_ pattern: [Int], wpm: Int, start: Double = 10, jitterMs: [Double] = [0, 1, -1, 0, 1]) -> [(Bool, Double)] {
+        let dit = 1.2 / Double(wpm)
+        var t = start
+        var events: [(Bool, Double)] = []
+        for (index, units) in pattern.enumerated() {
+            let j = jitterMs[index % jitterMs.count] / 1000
+            events.append((true, t + j))
+            events.append((false, t + Double(units) * dit - j))
+            t += Double(units + 1) * dit
+        }
+        return events
+    }
+
+    /// Without the keyer's speed, a dah run at 20 WPM (period 240 ms) looks
+    /// like the loop at the 150 ms Local delay — the reason for the exemption.
+    func testKeyerDahRunTripsWithoutTheKeyerSpeed() {
+        var detector = CWFeedbackDetector(loopDelay: 0.15)
+        for (down, time) in Self.keyerRun(Array(repeating: 3, count: 8), wpm: 20) {
+            detector.operatorChanged(down: down, at: time)
+        }
+        XCTAssertTrue(detector.tripped)
+    }
+
+    func testKeyerRunsNeverTripAtTheKeyerSpeed() {
+        let patterns: [[Int]] = [
+            Array(repeating: 3, count: 10),          // 00
+            Array(repeating: 1, count: 12),          // held dit paddle
+            [1, 3, 1, 3, 1, 3, 1, 3, 1, 3],          // squeeze
+            [3, 1, 3, 1, 3, 3, 1, 3, 3, 1, 1, 3],
+        ]
+        for delay in [0.05, 0.15, 0.3, 0.5] {
+            for wpm in [8, 12, 16, 20, 25, 32, 40] {
+                for pattern in patterns {
+                    var detector = CWFeedbackDetector(loopDelay: delay)
+                    detector.keyerWPM = wpm
+                    for (down, time) in Self.keyerRun(pattern, wpm: wpm) {
+                        XCTAssertFalse(detector.operatorChanged(down: down, at: time), "delay \(delay), \(wpm) WPM, \(pattern)")
+                    }
+                }
+            }
+        }
+    }
+
+    /// The real loop still trips whatever speed the keyer is set to.
+    func testRealLoopTripsAtAnyKeyerSpeed() {
+        for wpm in 5...50 {
+            var detector = CWFeedbackDetector(loopDelay: 0.3)
+            detector.keyerWPM = wpm
+            for (down, up) in zip(Self.loopDowns, Self.loopUps) {
+                detector.operatorChanged(down: true, at: down)
+                detector.operatorChanged(down: false, at: up)
+            }
+            XCTAssertTrue(detector.tripped, "\(wpm) WPM")
+        }
+    }
+
+    /// The keyer at one speed but the interface reporting another (a status
+    /// lost, say): no exemption, so the guard still works as before.
+    func testKeyerRunAtAnotherSpeedIsNotExempt() {
+        var detector = CWFeedbackDetector(loopDelay: 0.15)
+        detector.keyerWPM = 25
+        for (down, time) in Self.keyerRun(Array(repeating: 3, count: 8), wpm: 20) {
+            detector.operatorChanged(down: down, at: time)
+        }
+        XCTAssertTrue(detector.tripped)
+    }
+
+    /// The engine picks the speed up from the interface's "S" line.
+    func testEngineTakesTheKeyerSpeedFromStatus() {
+        var engine = CWStraightKeyEngine(playoutDelay: 0.15)
+        engine.setArmed(true, now: 0)
+        engine.ingest(.line(.status(CWKeyDeviceStatus(wpm: 20, iambicModeB: true, paddleReversed: false,
+                                                      sidetoneOn: true, deviceMs: 1)), hostReceived: 0), now: 0)
+        XCTAssertEqual(engine.feedback.keyerWPM, 20)
+    }
+
     // MARK: - Engine, with a simulated loop
 
     /// One tap, then every time the engine's line goes down/up the key

@@ -100,7 +100,10 @@ public struct CWStraightKeyEngine: Sendable {
             if sessionStarted { restartCount += 1 }
             restart(now: now)
         }
-        if case .status(let status) = line { deviceStatus = status }
+        if case .status(let status) = line {
+            deviceStatus = status
+            feedback.keyerWPM = status.wpm
+        }
         guard let deviceMs = line.deviceMs else {
             safety.heard(at: received, now: now)
             return

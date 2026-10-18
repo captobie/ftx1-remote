@@ -325,6 +325,7 @@ public final class CWRemoteKeyingDriver: CWKeyingDriving, @unchecked Sendable {
                 send(CWKeyWire.Heartbeat(seq: nextSeq(), t: ms))
             case .status(let status):
                 deviceStatus = status
+                feedback.keyerWPM = status.wpm
             }
             publish()
         }

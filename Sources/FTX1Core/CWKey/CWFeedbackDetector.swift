@@ -17,15 +17,26 @@ import Foundation
 /// `maxTransport`.
 ///
 /// Only the operator's own events (the key interface's clock, seconds) are
-/// needed, so the hub runs it in both modes. Known limit, for when the
-/// paddle path returns: an electronic keyer's dit run is just as steady,
-/// and would trip it if its period (two dit lengths) fell inside that
-/// band — e.g. 7–16 WPM at the 150 ms Local delay.
+/// needed, so the hub runs it in both modes.
+///
+/// The paddle's iambic keyer (in the key interface) is just as steady: a
+/// dah run at 20 WPM repeats every 240 ms, inside the Local band. So a run
+/// that looks like keyer output at `keyerWPM` — every mark one or three
+/// dits, every gap one dit, within `keyerTolerance` — never trips. Keyer
+/// elements are timed by the interface itself and reported in its own ms,
+/// so real ones match to a millisecond or two; a straight-key echo would
+/// need the operator's original mark *and* the loop to land on keyer units
+/// by chance. Known gap: RF in the *paddle* leads makes the keyer send real
+/// keyer elements, and a loop of exactly two (or four) dits looks just like
+/// a held paddle — that one can't be told apart.
 public struct CWFeedbackDetector: Sendable {
     public var loopDelay: Double
     public var spread: Double
     public var requiredPeriods: Int
     public var maxTransport: Double
+    /// The key interface's keyer speed (its "S" line); nil = unknown, no
+    /// keyer exemption.
+    public var keyerWPM: Int?
 
     private var marks: [(down: Double, up: Double)] = []
     private var openDown: Double?
@@ -34,6 +45,7 @@ public struct CWFeedbackDetector: Sendable {
     public static let defaultSpread = 0.006
     public static let defaultRequiredPeriods = 4
     public static let defaultMaxTransport = 0.25
+    public static let keyerTolerance = 0.003
 
     public init(loopDelay: Double, spread: Double = defaultSpread,
                 requiredPeriods: Int = defaultRequiredPeriods, maxTransport: Double = defaultMaxTransport) {
@@ -61,10 +73,22 @@ public struct CWFeedbackDetector: Sendable {
         let band = loopDelay...(loopDelay + maxTransport)
         if (downPeriods + upPeriods).allSatisfy({ band.contains($0) }),
            downPeriods.max()! - downPeriods.min()! <= spread,
-           upPeriods.max()! - upPeriods.min()! <= spread {
+           upPeriods.max()! - upPeriods.min()! <= spread,
+           !looksLikeKeyer() {
             tripped = true
         }
         return tripped
+    }
+
+    /// Every mark in the window one or three dits long and every gap one
+    /// dit, at the keyer's speed (the sketch: dit = 1.2 s / WPM).
+    private func looksLikeKeyer() -> Bool {
+        guard let keyerWPM, keyerWPM > 0 else { return false }
+        let dit = 1.2 / Double(keyerWPM)
+        func near(_ value: Double, _ target: Double) -> Bool { abs(value - target) <= Self.keyerTolerance }
+        let marksOK = marks.allSatisfy { near($0.up - $0.down, dit) || near($0.up - $0.down, 3 * dit) }
+        let gapsOK = zip(marks, marks.dropFirst()).allSatisfy { near($1.down - $0.up, dit) }
+        return marksOK && gapsOK
     }
 
     /// Forgets the marks (the device clock restarted) but not a trip.

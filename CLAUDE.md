@@ -1377,7 +1377,7 @@ Developer ID, keep them apart.
 
 ## Straight-key CW (Mac, Local mode, 2026-10-17; rig-tested by the user the same day)
 
-Tools → Straight Key: the Arduino interface (`cw_keyer/cw_keyer.ino`,
+Tools → CW Key (Straight Key until 2026-10-18): the Arduino interface (`cw_keyer/cw_keyer.ino`,
 115200, lines `I`/`D`/`U`/`H`/`S`) keys the rig by RTS/DTR on its second
 USB port (CP2105 "Standard COM Port", CAT-2 — `…C51`, rig-confirmed;
 never rigctld's CAT port). Menu: CW SETTING → MODE CW → PC KEYING = the
@@ -1396,6 +1396,8 @@ drops the line if the app dies — only safe with normal polarity). Mac:
 connected and `TransmitGate`; Armed is never persisted. Seen with the
 real Arduino: banner 1.6 s after open (UNO reset), heartbeat arrival
 jitter 0–4 ms. Sketch v0.2 (2026-10-17): the user's key chattered ~15 ms in 3–5 ms pieces on closing, past v0.1's 3 ms lockout, keying a broken tail (piezo too); now a change is taken only after 10 ms of contact quiet (a clean edge still passes at once). A re-capture showed no edge under 89 ms; on-air audio confirmed clean by the user the same day.
+
+**Paddle (2026-10-18; tested by the user on the rig in Remote mode the same day: settings, replug resend, Follow, long dah runs not tripping the guard)**: the sketch's own iambic keyer (D2/D3, stereo lead) reports its elements as the same `D`/`U` lines, so paddle and straight key share the whole keying path; the window is **Tools → CW Key** now (window id still `straight-key`). Its Paddle keyer section — speed (or Follow the rig's keyer speed, `RigState.cwSpeedWpm` clamped to the sketch's 5–50), iambic A/B, reverse, interface sidetone (`cw.straightKey.keyer*`/`iambicModeB`/`paddleReversed`/`sidetoneOn`) — goes out as `W`/`MA`/`MB`/`R`/`T` whenever the interface connects or an `S` line disagrees (`StraightKeyController.syncKeyerSettings`, at most one batch a second; the Mac's settings beat a speed pot). `CWFeedbackDetector` exempts a run that looks like keyer output at the `S` line's WPM (marks 1 or 3 dits, gaps 1 dit, ±3 ms) — without that, a dah run at 12–32 WPM tripped it at the Local delay. Known gap: RF in the *paddle* leads makes real keyer elements, and a loop of exactly 2 or 4 dits looks like a held paddle. Long paddle runs (TTTTT) brought back the Pi's CP2105 EPROTO (`cp210x ttyUSB1: failed … -71`, no under-voltage) — RF on the Pi↔rig USB cable; the releaser confirmed key-up each time, and keying stays off until re-armed. Fix is a ferrite on that cable.
 
 **Remote mode (2026-10-17)**: the keying port is the Pi's, so
 `CWRemoteKeyingDriver` forwards the Arduino's lines (device ms untouched)

@@ -40,7 +40,7 @@ struct FTX1RemoteMacApp: App {
                 Button("CW") {
                     openWindow(id: "cw")
                 }
-                Button("Straight Key") {
+                Button("CW Key") {
                     openWindow(id: "straight-key")
                 }
                 Divider()
@@ -98,9 +98,10 @@ struct FTX1RemoteMacApp: App {
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
 
-        // Tools → Straight Key. The keying itself runs whether or not this
-        // window is open (`StraightKeyController`).
-        Window("Straight Key", id: "straight-key") {
+        // Tools → CW Key (straight key and paddle; the id dates from before
+        // the paddle). The keying itself runs whether or not this window is
+        // open (`StraightKeyController`).
+        Window("CW Key", id: "straight-key") {
             StraightKeyView()
                 .environmentObject(appDelegate.hub.straightKey)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)

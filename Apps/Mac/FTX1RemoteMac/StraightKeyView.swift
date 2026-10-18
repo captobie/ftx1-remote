@@ -1,9 +1,9 @@
 import FTX1Core
 import SwiftUI
 
-/// Tools → Straight Key: the Arduino key interface's link, the Armed
-/// toggle, key/line indicators, and the keying port settings. See
-/// `StraightKeyController`.
+/// Tools → CW Key: the Arduino key interface's link, its paddle keyer's
+/// settings, the Armed toggle, key/line indicators, and the keying port
+/// settings. See `StraightKeyController`.
 struct StraightKeyView: View {
     @EnvironmentObject private var key: StraightKeyController
     @State private var ports: [String] = []
@@ -17,7 +17,7 @@ struct StraightKeyView: View {
                 }
                 if let status = key.snapshot.deviceStatus {
                     LabeledContent("Device") {
-                        Text("Sidetone \(status.sidetoneOn ? "on" : "off") · keyer \(status.wpm) WPM")
+                        Text("Keyer \(status.wpm) WPM · mode \(status.iambicModeB ? "B" : "A")\(status.paddleReversed ? " · reversed" : "") · sidetone \(status.sidetoneOn ? "on" : "off")")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -26,6 +26,27 @@ struct StraightKeyView: View {
                     indicator("Line", on: key.snapshot.keyed, color: .red)
                     Spacer()
                 }
+            }
+
+            Section {
+                Toggle("Follow the rig's keyer speed", isOn: $key.keyerFollowsRig)
+                if key.keyerFollowsRig {
+                    LabeledContent("Speed", value: key.rigKeyerWPM.map { "\(key.effectiveKeyerWPM) WPM (rig \($0))" } ?? "Waiting for the rig's speed…")
+                } else {
+                    stepper("Speed", "\(key.keyerWPM) WPM", value: $key.keyerWPM, in: StraightKeySettings.keyerWPMRange)
+                }
+                Picker("Iambic mode", selection: $key.iambicModeB) {
+                    Text("A").tag(false)
+                    Text("B").tag(true)
+                }
+                .pickerStyle(.segmented)
+                Toggle("Reverse paddle (dit ↔ dah)", isOn: $key.paddleReversed)
+                Toggle("Sidetone on the interface", isOn: $key.sidetoneOn)
+            } header: {
+                Text("Paddle keyer")
+            } footer: {
+                Text("The keyer runs in the key interface; these are sent to it whenever it connects. The straight key works alongside the paddle.")
+                    .foregroundStyle(.secondary)
             }
 
             Section("Keying") {
@@ -74,22 +95,19 @@ struct StraightKeyView: View {
             }
 
             Section("Timing") {
-                Stepper(value: $key.playoutDelayMs, in: StraightKeySettings.playoutDelayRange, step: 10) {
-                    LabeledContent("Playout delay", value: "\(key.playoutDelayMs) ms")
-                }
-                Stepper(value: $key.maxKeyDownSeconds, in: StraightKeySettings.maxKeyDownRange) {
-                    LabeledContent("Max key-down", value: "\(key.maxKeyDownSeconds) s")
-                }
+                stepper("Playout delay", "\(key.playoutDelayMs) ms", value: $key.playoutDelayMs,
+                        in: StraightKeySettings.playoutDelayRange, step: 10)
+                stepper("Max key-down", "\(key.maxKeyDownSeconds) s", value: $key.maxKeyDownSeconds,
+                        in: StraightKeySettings.maxKeyDownRange)
                 if StraightKeyController.isRemote {
-                    Stepper(value: $key.remoteHeartbeatTimeoutMs, in: StraightKeySettings.remoteHeartbeatRange, step: 100) {
-                        LabeledContent("Pi keys up after silence of", value: "\(key.remoteHeartbeatTimeoutMs) ms")
-                    }
+                    stepper("Pi keys up after silence of", "\(key.remoteHeartbeatTimeoutMs) ms",
+                            value: $key.remoteHeartbeatTimeoutMs, in: StraightKeySettings.remoteHeartbeatRange, step: 100)
                 }
             }
         }
         .formStyle(.grouped)
         .frame(width: 460)
-        .frame(minHeight: 720)
+        .frame(minHeight: 900)
         .onAppear { ports = key.availablePorts() }
     }
 
@@ -119,6 +137,19 @@ struct StraightKeyView: View {
             }
             .buttonStyle(.borderless)
             .help("Refresh the port list")
+        }
+    }
+
+    /// A labelled row with its value on the right, next to the stepper's
+    /// arrows — a `Stepper` wrapping a `LabeledContent` puts the value right
+    /// after the label instead, leaving the row's value column empty.
+    private func stepper(_ title: String, _ value: String, value binding: Binding<Int>,
+                         in range: ClosedRange<Int>, step: Int = 1) -> some View {
+        LabeledContent(title) {
+            HStack(spacing: 6) {
+                Text(value).monospacedDigit()
+                Stepper(title, value: binding, in: range, step: step).labelsHidden()
+            }
         }
     }
 

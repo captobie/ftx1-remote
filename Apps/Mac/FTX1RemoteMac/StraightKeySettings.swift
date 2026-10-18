@@ -1,7 +1,7 @@
 import FTX1Core
 import Foundation
 
-/// Tools → Straight Key's settings, backed by `UserDefaults` directly
+/// Tools → CW Key's settings, backed by `UserDefaults` directly
 /// (same pattern as `LogbookSettings`) so the keying driver's queue can
 /// read them. `nonisolated`: `CWKeyingDriver` builds its keyer off the
 /// main actor. Armed is deliberately not stored — it's off at every launch.
@@ -14,10 +14,17 @@ nonisolated enum StraightKeySettings {
     static let remotePlayoutDelayMsKey = "cw.straightKey.remotePlayoutDelayMs"
     static let remoteHeartbeatTimeoutMsKey = "cw.straightKey.remoteHeartbeatTimeoutMs"
     static let maxKeyDownSecondsKey = "cw.straightKey.maxKeyDownSeconds"
+    static let keyerWPMKey = "cw.straightKey.keyerWPM"
+    static let keyerFollowsRigKey = "cw.straightKey.keyerFollowsRig"
+    static let iambicModeBKey = "cw.straightKey.iambicModeB"
+    static let paddleReversedKey = "cw.straightKey.paddleReversed"
+    static let sidetoneOnKey = "cw.straightKey.sidetoneOn"
 
     static let playoutDelayRange = 20...1000
     static let maxKeyDownRange = 1...60
     static let remoteHeartbeatRange = 300...5000
+    /// The sketch's own "W" range.
+    static let keyerWPMRange = 5...50
     /// Remote mode's defaults leave room for Tailscale's jitter.
     static let defaultRemotePlayoutDelayMs = 300
     static let defaultRemoteHeartbeatTimeoutMs = 1000
@@ -80,6 +87,42 @@ nonisolated enum StraightKeySettings {
         }
         set { UserDefaults.standard.set(newValue.clampedTo(maxKeyDownRange), forKey: maxKeyDownSecondsKey) }
     }
+
+    // The paddle keyer in the key interface. Sent to it whenever it
+    // connects or reports something else (`StraightKeyController`); the
+    // sketch's own boot defaults are 20 WPM, mode B, not reversed,
+    // sidetone on, so these default to the same.
+
+    static var keyerWPM: Int {
+        get {
+            guard UserDefaults.standard.object(forKey: keyerWPMKey) != nil else { return 20 }
+            return UserDefaults.standard.integer(forKey: keyerWPMKey).clampedTo(keyerWPMRange)
+        }
+        set { UserDefaults.standard.set(newValue.clampedTo(keyerWPMRange), forKey: keyerWPMKey) }
+    }
+
+    /// The paddle's speed follows the rig's keyer speed ("KS").
+    static var keyerFollowsRig: Bool {
+        get { UserDefaults.standard.bool(forKey: keyerFollowsRigKey) }
+        set { UserDefaults.standard.set(newValue, forKey: keyerFollowsRigKey) }
+    }
+
+    static var iambicModeB: Bool {
+        get { UserDefaults.standard.object(forKey: iambicModeBKey) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: iambicModeBKey) }
+    }
+
+    static var paddleReversed: Bool {
+        get { UserDefaults.standard.bool(forKey: paddleReversedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: paddleReversedKey) }
+    }
+
+    static var sidetoneOn: Bool {
+        get { UserDefaults.standard.object(forKey: sidetoneOnKey) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: sidetoneOnKey) }
+    }
+
+    static func clampedKeyerWPM(_ wpm: Int) -> Int { wpm.clampedTo(keyerWPMRange) }
 
     /// `/dev/tty.X` and `/dev/cu.X` are the same device; rigctld's saved
     /// path uses `tty.`.
