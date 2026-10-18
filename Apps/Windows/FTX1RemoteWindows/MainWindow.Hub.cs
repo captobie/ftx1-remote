@@ -17,7 +17,11 @@ namespace FTX1RemoteWindows;
 /// <see cref="PushHubListsIfDue"/>, <see cref="ReadMenuItemForHubAsync"/>),
 /// and keys the rig for the iPad's PTT and sends its microphone to the
 /// Pi's ftx1-txaudio.py (Remote) or the Transmit audio output (Local)
-/// (phase 5, <see cref="_hubTx"/> and the PTT members at the end).
+/// (phase 5, <see cref="_hubTx"/> and the PTT members at the end), and
+/// writes the CW keyer memory for the iPad's CW pane and stops the keyer
+/// when its player drops, the lock goes on, the hub stops or the rig is
+/// disconnected, confirming each stop (phase 6, <see cref="_hubKeyer"/> and
+/// the keyer members at the end).
 ///
 /// The hub runs whenever Settings → Hub allows it, connected to the rig or
 /// not, so an iPad stays connected across rigctld reconnects. Pushes are
@@ -44,6 +48,9 @@ public sealed partial class MainWindow : IHubRigHost
     /// Transmit audio for a hub client's PTT: keyed state, sink, silence
     /// watchdog. UI thread only.
     private HubTransmitAudio? _hubTx;
+    /// Hub clients' keyer plays: played since the last stop, and whether the
+    /// rig's TX is that play. UI thread only.
+    private readonly HubKeyerTracker _hubKeyer = new();
 
     private void InitHub()
     {
@@ -52,6 +59,9 @@ public sealed partial class MainWindow : IHubRigHost
         _hub.CommandReceived += _hubDispatcher.Enqueue;
         _hub.TxAudioReceived += _hubDispatcher.EnqueueTxAudio;
         _hub.PttHolderDisconnected += _hubDispatcher.EnqueueHolderDisconnected;
+        _hub.KeyerPlayerDisconnected += _hubDispatcher.EnqueueKeyerPlayerDisconnected;
+        _hub.CwKeyerHandler = WriteHubKeyerAsync;
+        _hub.StatusChanged += () => DispatcherQueue.TryEnqueue(RefreshKeyerForNewHubClient);
         // The FIFO's awaits resume on the UI thread it starts on.
         DispatcherQueue.TryEnqueue(() => _ = _hubDispatcher.RunAsync());
         _hubTimer = DispatcherQueue.CreateTimer();
@@ -88,6 +98,7 @@ public sealed partial class MainWindow : IHubRigHost
         {
             _hubTimer?.Stop();
             await UnkeyIfHubKeyedAsync("hub turned off");
+            await StopHubKeyerIfPlayedAsync("hub turned off");
             await _hub.StopAsync();
         }
     }
@@ -368,6 +379,86 @@ public sealed partial class MainWindow : IHubRigHost
         }
         _hubTxDropLoggedAt = now;
         AppLog.Write($"hub: client {clientId}: TX audio dropped (the rig isn't keyed for it through the hub)");
+    }
+
+    // Phase 6: the CW keyer for the iPad's CW pane.
+
+    /// A client's cw_keyer write (text) or TEXT check (no text), already
+    /// checked by HubKeyerPolicy — the same calls as this app's own
+    /// CwSender. From the hub's thread, off the command FIFO; the client's
+    /// round-trip lock orders it with everything else on the link. Throws
+    /// with a readable message, which goes back as the reply's error.
+    private async Task<string?> WriteHubKeyerAsync(int slot, string? text)
+    {
+        var client = _client ?? throw new InvalidOperationException("Not connected to the rig");
+        if (text is null)
+        {
+            await CwSender.EnsureTextMemoryAsync(client, slot);
+            return null;
+        }
+        return await client.WriteKeyerMemoryAsync(slot, text);
+    }
+
+    private int _hubClientCount;
+
+    /// BK-IN, keyer speed and pitch as soon as a client connects, rather than
+    /// at the next slow poll: the iPad's CW pane blocks on BK-IN and times
+    /// its chunks by the speed, both from the pushed state. The slow tier
+    /// keeps them current while a client stays connected.
+    private void RefreshKeyerForNewHubClient()
+    {
+        var count = _hub.Clients.Count;
+        var grew = count > _hubClientCount;
+        _hubClientCount = count;
+        if (grew && _client is { } client)
+        {
+            _ = _menuGrid.RefreshKeyerAsync(client);
+        }
+    }
+
+    /// The lock, hub off and disconnect: a confirmed "KY00" if a hub client
+    /// played the keyer since the last stop.
+    private async Task StopHubKeyerIfPlayedAsync(string reason)
+    {
+        if (_hubKeyer.PlayedSinceStop)
+        {
+            await ((IHubRigHost)this).StopHubKeyerConfirmedAsync(reason);
+        }
+    }
+
+    string? IHubRigHost.KeyerPlayRefusal() => HubKeyerPolicy.PlayRefusal(
+        windowPtt: _pttHeld,
+        mox: _lastState.MoxEnabled == true,
+        hubPtt: _hubTx?.IsKeyed == true,
+        rigTransmitting: _lastState.Ptt,
+        hubKeyerActive: _hubKeyer.Active);
+
+    void IHubRigHost.KeyerPlayed() => _hubKeyer.Played(Environment.TickCount64);
+
+    void IHubRigHost.KeyerStopped() => _hubKeyer.Stopped();
+
+    /// "KY00", then the rig's TX state ~1 s later, retried and finally PTT
+    /// off (HubKeyerStop) — every try and the result in app.log. A stop that
+    /// couldn't be confirmed also goes on the status line.
+    async Task IHubRigHost.StopHubKeyerConfirmedAsync(string reason)
+    {
+        if (_client is not { } client)
+        {
+            AppLog.Write($"hub: keyer stop — not connected to the rig, nothing sent ({reason})");
+            _hubKeyer.Stopped();
+            return;
+        }
+        var result = await HubKeyerStop.RunAsync(reason,
+            sendStop: () => client.SetRawIntAsync("KY0", 0, 1),
+            readTransmitting: async () => await client.GetPttAsync(),
+            pttOff: () => client.SetPttAsync(false),
+            delay: d => Task.Delay(d),
+            log: AppLog.Write);
+        _hubKeyer.Stopped();
+        if (result is HubKeyerStopResult.StillTransmitting or HubKeyerStopResult.Unconfirmed)
+        {
+            StatusText.Text = "The keyer may still be transmitting — check the rig";
+        }
     }
 
     // IHubRigHost: the dispatcher's way in, each member the method this

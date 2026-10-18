@@ -313,7 +313,7 @@ public sealed class CwSender
     /// The slot must be a TEXT memory (CW SETTING → KEYER → CW MEMORY 1-5,
     /// "EX" 02 02 06-10: 0 TEXT, 1 MESSAGE); a MESSAGE slot would play
     /// recorded audio instead — HubService.ensureCWTextMemory.
-    private static async Task EnsureTextMemoryAsync(RigctldClient client, int slot)
+    internal static async Task EnsureTextMemoryAsync(RigctldClient client, int slot)
     {
         var value = await client.GetMenuItemAsync(2, 2, 5 + slot);
         if (value != "0")

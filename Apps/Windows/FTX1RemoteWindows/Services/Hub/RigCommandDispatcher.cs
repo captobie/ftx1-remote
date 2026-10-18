@@ -49,6 +49,16 @@ public interface IHubRigHost
     void SetAudioChannelsSwapped(bool swapped);
     /// Starts the memory list re-read; says what happened, for the log.
     string RefreshMemoryList();
+    /// Why a hub client's keyer play mustn't start now (something else is
+    /// transmitting — HubKeyerPolicy.PlayRefusal), or null.
+    string? KeyerPlayRefusal();
+    /// A hub client's "KY0n" (n ≠ 0) went out.
+    void KeyerPlayed();
+    /// A hub client's "KY00" went out.
+    void KeyerStopped();
+    /// "KY00" the hub sends on its own, confirmed by reading the rig's TX
+    /// state and retried (HubKeyerStop).
+    Task StopHubKeyerConfirmedAsync(string reason);
 }
 
 /// Runs the iPad's commands (Apps/Windows/README.md, "Desktop hub for the
@@ -78,6 +88,7 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
     private sealed record CommandItem(int ClientId, RigCommand Command) : Item(ClientId);
     private sealed record TxAudioItem(int ClientId, byte[] Pcm) : Item(ClientId);
     private sealed record UnkeyItem(int ClientId, string Reason) : Item(ClientId);
+    private sealed record KeyerStopItem(int ClientId, string Reason) : Item(ClientId);
 
     private readonly Channel<Item> _queue = Channel.CreateBounded<Item>(
         new BoundedChannelOptions(QueueLimit) { SingleReader = true, FullMode = BoundedChannelFullMode.Wait });
@@ -117,6 +128,19 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
         }
     }
 
+    /// The client that last played the keyer disconnected
+    /// (HubServer.KeyerPlayerDisconnected): a confirmed "KY00", behind its
+    /// last command so a play still queued can't start after it.
+    public void EnqueueKeyerPlayerDisconnected(int clientId)
+    {
+        var reason = $"client {clientId}, keyer player disconnect";
+        if (!_queue.Writer.TryWrite(new KeyerStopItem(clientId, reason)))
+        {
+            AppLog.Write($"hub: command queue full — stopping the keyer at once ({reason})");
+            _ = host.StopHubKeyerConfirmedAsync(reason);
+        }
+    }
+
     /// The FIFO. Start once, on the UI thread: its awaits resume there.
     public async Task RunAsync()
     {
@@ -134,6 +158,9 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
                         break;
                     case UnkeyItem u:
                         await host.UnkeyFromHubAsync(u.Reason);
+                        break;
+                    case KeyerStopItem k:
+                        await host.StopHubKeyerConfirmedAsync(k.Reason);
                         break;
                 }
             }
@@ -170,6 +197,13 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
         if (HubCommandPolicy.RefusalReason(command, host.TransmitEnabled, host.MainFrequencyHz) is { } reason)
         {
             Log($"refused: {reason}");
+            return;
+        }
+        // Not over another transmitter: a keyer play would key on top of
+        // it (or, for a straight key through the Pi, under it).
+        if (command is PlayCwTextMemory { Value: not 0 } && host.KeyerPlayRefusal() is { } busy)
+        {
+            Log($"refused: {busy}");
             return;
         }
         if (host.Client is not { } client)
@@ -251,8 +285,18 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
             case SetCwMessageRecording c: await client.SetRawBoolAsync("LM1", c.On); break;
             case PlayCwMessage c: await client.SetRawIntAsync("KY1", c.Value, 1); break;
             // The CW send pane's own "KY0n" (CwSender). The keyer memory
-            // write that goes before it is cw_keyer, phase 6.
-            case PlayCwTextMemory c: await client.SetRawIntAsync("KY0", c.Value, 1); break;
+            // write that goes before it is cw_keyer (HubServer, phase 6).
+            case PlayCwTextMemory c:
+                await client.SetRawIntAsync("KY0", c.Value, 1);
+                if (c.Value == 0)
+                {
+                    host.KeyerStopped();
+                }
+                else
+                {
+                    host.KeyerPlayed();
+                }
+                break;
 
             // MENU grid, FM page
             case SetRepeaterShift c: await menu.SetRepeaterShiftAsync(c.Value); break;

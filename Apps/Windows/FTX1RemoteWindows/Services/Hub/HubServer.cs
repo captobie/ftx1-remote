@@ -20,8 +20,10 @@ namespace FTX1RemoteWindows.Services.Hub;
 /// client's read_menu_item is answered to that client alone through
 /// <see cref="MenuItemReader"/> (phase 4); the PTT holder is tracked and
 /// its TX audio frames raised as <see cref="TxAudioReceived"/>, in the same
-/// order as its commands (phase 5). cw_keyer (phase 6) is logged and
-/// ignored.
+/// order as its commands (phase 5); a client's cw_keyer request is
+/// answered to that client alone through <see cref="CwKeyerHandler"/>, and
+/// the client that last played the keyer is tracked so its disconnect can
+/// stop it (<see cref="KeyerPlayerDisconnected"/>, phase 6).
 ///
 /// Plain ws:// on every interface, path "/", port <see cref="Port"/> (the
 /// iPad's RigClientViewModel has it fixed). Connections from outside
@@ -76,7 +78,7 @@ public sealed class HubServer : IAsyncDisposable
         /// replace one before it's sent.
         public Channel<string> MemoryListOutbox { get; } = NewestOnly();
         public Channel<string> AprsListOutbox { get; } = NewestOnly();
-        /// Answers to this client's own requests (menu_item), in order, none
+        /// Answers to this client's own requests (menu_item, cw_keyer_reply), in order, none
         /// replaced by a later one.
         public Channel<string> ReplyOutbox { get; } = Channel.CreateBounded<string>(
             new BoundedChannelOptions(ReplyQueueLimit) { FullMode = BoundedChannelFullMode.DropWrite, SingleReader = true });
@@ -146,6 +148,11 @@ public sealed class HubServer : IAsyncDisposable
     /// on the press whether or not the gate then lets it key, as on the Mac.
     /// Under <see cref="_gate"/>.
     private int? _pttHolder;
+    /// The client whose play_cw_text_memory 1-5 came last, the Mac's
+    /// keyerPlayer: its own play 0 clears it, and its disconnect raises
+    /// <see cref="KeyerPlayerDisconnected"/> (the "KY00"). Set whether or not
+    /// the play then passes the gate, as on the Mac. Under <see cref="_gate"/>.
+    private int? _keyerPlayer;
 
     /// <paramref name="port"/>/<paramref name="loopbackOnly"/> are for the
     /// tests; the app always uses <see cref="Port"/> on every interface.
@@ -160,6 +167,14 @@ public sealed class HubServer : IAsyncDisposable
     /// off the command FIFO, on a pool thread; may throw (answered as
     /// unreadable).
     public Func<int, int, int, Task<string?>>? MenuItemReader { get; set; }
+
+    /// Writes CW TEXT keyer memory <c>slot</c> with <c>text</c> and returns
+    /// what the rig stored, or (text null) makes the slot a TEXT memory and
+    /// returns null — for a client's cw_keyer, already checked by
+    /// <see cref="HubKeyerPolicy.RequestRefusal"/>. Called off the command
+    /// FIFO, on a pool thread; throws with a readable message on failure
+    /// (sent back as the reply's error). Null = no rig to write to.
+    public Func<int, string?, Task<string?>>? CwKeyerHandler { get; set; }
 
     /// The port it listens on: <see cref="Port"/> except in the tests.
     public int ListenPort => _port;
@@ -184,6 +199,22 @@ public sealed class HubServer : IAsyncDisposable
     /// The PTT holder disconnected: the rig must be unkeyed (the Mac's
     /// remove() sends .setPTT(false)). Raised after its last command/frame.
     public event Action<int>? PttHolderDisconnected;
+
+    /// The client that last played the keyer disconnected without stopping
+    /// it: send "KY00" (the Mac's remove()). Raised after its last command.
+    public event Action<int>? KeyerPlayerDisconnected;
+
+    /// The client that last played the keyer, or null.
+    public int? KeyerPlayer
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _keyerPlayer;
+            }
+        }
+    }
 
     /// The current PTT holder's client id, or null.
     public int? PttHolder
@@ -433,6 +464,7 @@ public sealed class HubServer : IAsyncDisposable
                 // A send loop's own failure is the disconnect.
             }
             bool wasHolder;
+            bool wasKeyerPlayer;
             lock (_gate)
             {
                 _clients.Remove(client.Info.Id);
@@ -442,12 +474,22 @@ public sealed class HubServer : IAsyncDisposable
                 {
                     _pttHolder = null;
                 }
+                wasKeyerPlayer = _keyerPlayer == client.Info.Id;
+                if (wasKeyerPlayer)
+                {
+                    _keyerPlayer = null;
+                }
             }
             AppLog.Write($"hub: client {client.Info.Id} ({client.Info.Address}) disconnected");
             if (wasHolder)
             {
                 AppLog.Write($"hub: client {client.Info.Id} held PTT — unkeying");
                 PttHolderDisconnected?.Invoke(client.Info.Id);
+            }
+            if (wasKeyerPlayer)
+            {
+                AppLog.Write($"hub: client {client.Info.Id} played the keyer last — stopping it");
+                KeyerPlayerDisconnected?.Invoke(client.Info.Id);
             }
             StatusChanged?.Invoke();
         }
@@ -513,6 +555,14 @@ public sealed class HubServer : IAsyncDisposable
                             _pttHolder = ptt.On ? id : (_pttHolder == id ? null : _pttHolder);
                         }
                     }
+                    else if (inbound.Command is PlayCwTextMemory play)
+                    {
+                        // The Mac's keyerPlayer rule, as for the PTT holder.
+                        lock (_gate)
+                        {
+                            _keyerPlayer = play.Value != 0 ? id : (_keyerPlayer == id ? null : _keyerPlayer);
+                        }
+                    }
                     CommandReceived?.Invoke(id, inbound.Command!);
                     break;
                 case InboundKind.MenuItemRead:
@@ -523,7 +573,10 @@ public sealed class HubServer : IAsyncDisposable
                     _ = AnswerMenuItemReadAsync(client, inbound.MenuRead!);
                     break;
                 case InboundKind.CwKeyer:
-                    AppLog.Write($"hub: client {id}: cw_keyer ignored (the CW keyer arrives in phase 6)");
+                    // Off the receive loop and the command FIFO, like a menu
+                    // read: a keyer write takes ~2 s over the Pi. The iPad
+                    // waits for the reply before it plays, so order holds.
+                    _ = AnswerCwKeyerAsync(client, inbound.CwKeyer!);
                     break;
                 default:
                     AppLog.Write($"hub: client {id}: ignored ({inbound.Error}): {Truncated(text)}");
@@ -578,6 +631,58 @@ public sealed class HubServer : IAsyncDisposable
         if (!client.ReplyOutbox.Writer.TryWrite(reply) && !client.ReplyOutbox.Reader.Completion.IsCompleted)
         {
             AppLog.Write($"hub: client {client.Info.Id}: menu reply dropped (reply queue full)");
+        }
+    }
+
+    /// Answers a client's cw_keyer to that client alone, with its id. Never
+    /// throws. No keyer lease here (README, phase 6): acquire is always
+    /// granted and release does nothing, so this PC's own CW window and an
+    /// iPad aren't coordinated.
+    private async Task AnswerCwKeyerAsync(Client client, CwKeyerRequestWire request)
+    {
+        var id = client.Info.Id;
+        var reply = new CwKeyerReplyWire { Id = request.Id };
+        switch (request.Action)
+        {
+            case CwKeyerRequestWire.AcquireAction:
+                AppLog.Write($"hub: client {id}: keyer acquire — granted (no keyer lease on Windows)");
+                break;
+            case CwKeyerRequestWire.ReleaseAction:
+                AppLog.Write($"hub: client {id}: keyer release (no keyer lease on Windows)");
+                break;
+            default:
+                var what = request.Text is null ? $"TEXT check of keyer memory {request.Slot}" : $"keyer memory {request.Slot} write";
+                if (HubKeyerPolicy.RequestRefusal(request.Slot, request.Text) is { } refusal)
+                {
+                    AppLog.Write($"hub: client {id}: {what} — refused: {refusal}");
+                    reply.Error = refusal;
+                }
+                else if (CwKeyerHandler is not { } handler)
+                {
+                    AppLog.Write($"hub: client {id}: {what} — refused: not connected to the rig");
+                    reply.Error = "Not connected to the rig";
+                }
+                else
+                {
+                    try
+                    {
+                        reply.Stored = await handler(request.Slot, request.Text).ConfigureAwait(false);
+                        AppLog.Write(request.Text is null
+                            ? $"hub: client {id}: {what} — done"
+                            : $"hub: client {id}: {what} — stored \"{reply.Stored}\"");
+                    }
+                    catch (Exception ex)
+                    {
+                        AppLog.Write($"hub: client {id}: {what} failed: {ex.Message}");
+                        reply.Stored = null;
+                        reply.Error = string.IsNullOrWhiteSpace(ex.Message) ? "The keyer memory write failed" : ex.Message;
+                    }
+                }
+                break;
+        }
+        if (!client.ReplyOutbox.Writer.TryWrite(HubWire.Serialize(reply)) && !client.ReplyOutbox.Reader.Completion.IsCompleted)
+        {
+            AppLog.Write($"hub: client {id}: keyer reply dropped (reply queue full)");
         }
     }
 

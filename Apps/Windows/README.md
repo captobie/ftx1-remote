@@ -1305,7 +1305,14 @@ lists it.
   picker, switching sides mid-scan, a Mem List recall mid-scan, a scan
   started from the front panel, and both boxes with TX:SUB and no scan.
 
-## Desktop hub for the iPad (plan, 2026-10-15; phase 1 done 2026-10-15, phase 2 built 2026-10-15, phase 3 built 2026-10-16, phase 4 built 2026-10-16, phase 5 built 2026-10-16)
+## Desktop hub for the iPad (complete 2026-10-18: phase 1 done 2026-10-15, phase 2 built 2026-10-15, phase 3 built 2026-10-16, phase 4 built 2026-10-16, phase 5 built 2026-10-16, phase 6 built 2026-10-18)
+
+**Status**: all six phases built and tested from a real iPad in Remote
+mode. Untested across the plan: Local mode for every phase, the iPad's CW
+pane *decoding* on this route, a ~10-minute audio run, a long PTT press
+with PO and the tail checked on the rig, Wi-Fi loss/backgrounding during
+a PTT press, several iPads at once. Known gaps: Wi-Fi loss noticed after
+~20 s, and no keyer lease (both in "Phase 6 status").
 
 Goal: the iPad's hub route (renamed "Desktop hub" on 2026-10-15, raw
 `connectionRoute` value still `macHub`) can connect to this app the way it
@@ -1723,6 +1730,98 @@ already using, Local or Remote.
   transmission here). "No device" is logged once per transmission, not
   per frame. The Pi connection's writes run off the UI thread.
 
+### Phase 6 status (2026-10-18: built, tested on the PC, then from a real iPad into a dummy load by the user, Remote mode)
+
+- **`cw_keyer`** (`Services/Hub/HubKeyer.cs`, `HubServer.AnswerCwKeyerAsync`):
+  parsed by `RigCommandWire` (`id`/`slot` integers, `text` a string or
+  absent, `action` acquire/release or absent; anything else invalid and
+  logged), answered off the receive loop and the command FIFO, like a
+  menu read, to the asking client alone with its `id`.
+  - **Write** (slot + text): `HubKeyerPolicy.RequestRefusal` first —
+    slot 1–5, text non-empty, ≤50 characters, every one in
+    `AllowedCharacters` (= Swift's `CWText.allowed` and `CwText.Allowed`,
+    a test compares all three; lowercase is refused, as on the Mac — the
+    iPad uppercases first). Refusals never reach the rig: "Keyer memory 9
+    doesn't exist (1–5)", "The keyer can't send ";" (allowed: …)", "Too
+    long for the keyer memory: 51 characters (50 at most)", "Nothing to
+    write: the text is empty". Then `RigctldClient.WriteKeyerMemoryAsync`
+    (this app's own `CwSender` write), reply `stored` = the rig's "KM"
+    read-back, or `error` = the exception's message.
+  - **Check** (no text): `CwSender.EnsureTextMemoryAsync` (EX 02 02 05+slot
+    → 0 TEXT), plain reply or `error`.
+  - **Acquire/release**: no keyer lease (user decision) — acquire always
+    granted (no `busy`), release does nothing, both logged.
+  - No rig connected: `error` "Not connected to the rig".
+- **Keyer player** (`HubServer`, the Mac's `keyerPlayer`): the client whose
+  `play_cw_text_memory` 1–5 came last; its own play 0 clears it. On its
+  disconnect `KeyerPlayerDisconnected` → a confirmed stop through the
+  command FIFO (behind its last command).
+- **Confirmed stops** (`HubKeyerStop`, the straight key's lesson): every
+  "KY00" the hub sends on its own — the player's disconnect, and, if any
+  hub client played since the last stop (`HubKeyerTracker.PlayedSinceStop`),
+  the lock (this PC's switch or the iPad's), hub off and disconnecting
+  from the rig (before the client is disposed). "KY00", ~1 s, read PTT
+  (`t currVFO`); still transmitting → "KY00" again, 5 tries in all ~1 s
+  apart, then `T currVFO 0` and one last read. Logged as "hub: keyer stop
+  (KY00) try N — <reason>", "hub: keyer stop confirmed (try N)", "hub:
+  keyer still transmitting after N tries", "… sent PTT off", and a
+  failure as "KEYER STILL TRANSMITTING …" / "COULDN'T CONFIRM …" (also
+  on the status line). An unreadable state never counts as stopped. A
+  client's own Stop (play 0) is forwarded as is, not confirmed.
+- **Not over another transmitter**: a client's play 1–5 is refused
+  (`HubKeyerPolicy.PlayRefusal`, logged "refused: …") while this window's
+  PTT is held, MOX is on, a hub client is keyed with PTT, or the last poll
+  read TX that isn't the hub's own keyer play (`HubKeyerTracker.Active`:
+  from the play until PTT has read off for 1 s, after a 2 s start grace —
+  rides out the rig's odd spurious 0). That covers a straight key through
+  the Pi's ftx1-cwkey and this PC's own CW window while it's keying, but
+  only as fresh as the poll.
+- **Pushed state**: `ptt` is the poll's `t currVFO` (any nonzero = on, so
+  keyer TX 3 counts). BK-IN/keyer speed/pitch are now read when a hub
+  client connects and on every slow poll while one is connected (before,
+  only while the CW page or this PC's CW window was open, so a fresh iPad
+  could see `breakIn` missing and not block on it).
+- **Tests** (`FTX1RemoteWindows.Tests/HubKeyerTests.cs`, `HubKeyer.cs`
+  linked in): the eight Swift `cw-keyer-*` fixtures round-trip, the four
+  requests parse; malformed requests invalid; the write checks (slot 0/6/9,
+  empty, 51, ";", lowercase, newline, "<"); the allowed set against Swift
+  and `CwSender.cs`; the play refusal and the tracker; the stop
+  (confirmed at once, retried, five failures → PTT off, still transmitting,
+  dead link → unconfirmed); through the real server: replies to the asker
+  only with its id, acquire granted to two clients at once, no rig and a
+  throwing write as `error`, the player's disconnect raised (not a
+  non-player's, not after its own stop). `WritesWindowsKeyerReplyFixtures`
+  writes `Tests/WireFixtures/windows/cw-keyer-reply.stored.json`,
+  `.checked.json`, `.error.json` from the real server's replies — re-run
+  and commit after any change to the reply code. 287 tests pass.
+- **Tested here** (scripted client, rig connected through the Pi, Enable
+  Transmit off, nothing played): TEXT check answered in 0.16 s; a write
+  stored and read back in 2.2 s; slot 9 and ";" refused with their
+  messages; acquire/release plain; pushes with `breakIn`, `cwSpeedWpm`,
+  `mode` CW.
+- **Tested from a real iPad by the user** (TestFlight 0.9 (8), dummy
+  load, 20 m CW, BK-IN on): locked — the pane blocks, nothing keyed;
+  unlocked — short lines keyed and the next waited; a 66-character line
+  as two chunks (50 + 18) back to back; Stop mid-line; the lock mid-line
+  (T 0/MX0, then KY00 confirmed on try 1, 1.8 s after the lock); BK-IN off
+  — no write or play; iPad Wi-Fi off mid-line (see below). Locked
+  afterwards.
+- **Known gaps**:
+  - **Wi-Fi loss is noticed late** (~20 s): a dropped Wi-Fi doesn't close
+    the connection, and .NET answers the iPad's pings itself, so the hub
+    only sees the client gone when TCP gives up. In the test the rig
+    finished the (≤50-character) message on its own; KY00 then went out
+    and was confirmed on try 1. A stalled-send check was considered and
+    left out (user decision).
+  - **Not coordinated with this PC's CW window**: no keyer lease, so both
+    sending at once can overwrite the slot or restart each other's line
+    (the play refusal above only catches it while the rig reads TX).
+  - Not tried: Local mode, several iPads at once.
+- **Different from the Mac**: no lease (`busy` never sent); the
+  self-sent stops are confirmed and retried (the Mac sends one "KY00");
+  the play refusal over another transmitter is new; refusal messages are
+  per reason rather than the Mac's one "refused the text".
+
 **Windows Firewall.** The app is unpackaged, so Windows asks "Allow
 FTX1RemoteWindows to communicate on these networks?" the first time the
 hub listens. Tick **Public** as well as Private: Tailscale's adapter is
@@ -1810,7 +1909,7 @@ the command path.
    Audio "Transmit audio output" device (empty = none, never the default
    device). Add the 1.5 s silence watchdog and unkey when the holder
    disconnects. Dummy load first.
-6. **CW keyer.** `cw_keyer` write/check (≤50 chars,
+6. **CW keyer** (done, see "Phase 6 status"). `cw_keyer` write/check (≤50 chars,
    `CWText.allowed`, slot 1–5, refused before reaching the rig) through
    `RigctldClient.WriteKeyerMemoryAsync`; "KY00" if the last player
    drops. **No keyer lease in v1** (user decision): `acquire` is always
@@ -1889,7 +1988,9 @@ Apps/Windows/FTX1RemoteWindows/
   App.xaml(.cs)               standard WinUI 3 application entry point
   MainWindow.xaml(.cs)        v1 core-rig-control UI + poll loop + audio controls
   MainWindow.MemoryScan.cs    the rig's memory scan, MAIN/SUB (HubService.swift's scan parts)
-  MainWindow.Hub.cs           starts/stops the hub, pushes state (coalesced, ≤10/s)
+  MainWindow.Hub.cs           starts/stops the hub, pushes state (coalesced, ≤10/s), hub PTT and CW keyer
+  Services/Hub/               the hub: HubServer, RigCommandWire/Dispatcher, HubCommandPolicy, wire models,
+                              audio encoder, TX audio, HubKeyer (cw_keyer checks, confirmed keyer stop)
   SettingsDialog.xaml(.cs)    Settings dialog (the Mac's SettingsView tabs)
   Controls/
     MenuGrid.cs                  MENU grid (port of MenuPageView.swift), all three pages

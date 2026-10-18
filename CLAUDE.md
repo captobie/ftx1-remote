@@ -1460,9 +1460,8 @@ release with the Windows zip also gets `releases\libusb-1.0.24.tar.bz2`
 MIT-style licence (mingw-w64 v12.0.0) ships as `COPYING-winpthreads.txt`.
 Details: `Apps/Windows/README.md`, "Bundled rigctld".
 
-**Desktop hub for the iPad (phases 1-5 of 6, 2026-10-15/16; phase 1
-connected from a real iPad by the user the same day, phases 2-4
-tested from a real iPad by the user in Remote mode, Local mode not yet; note
+**Desktop hub for the iPad (all 6 phases, 2026-10-15–18; each tested from
+a real iPad by the user in Remote mode, Local mode not yet; note
 the iPad sends its JSON as *binary* frames — only a 0x02-tagged binary
 frame is TX audio)**: this app now also
 serves the Mac hub's WebSocket protocol on 8765 (`Services/Hub/`,
@@ -1489,7 +1488,16 @@ keys through the transmit gate, `HubServer` tracks the Mac's PTT holder
 FIFO, and `HubTransmitAudio` sends them to the Pi (`RemoteTxAudioClient`,
 :8533, one connection per transmission) or to Settings → Audio →
 Transmit audio output (`LocalTxAudioPlayer`; None = nothing), with a
-watchdog (first frame within 5 s of the key, then 1.5 s of silence). The CW keyer is logged and ignored until phase 6. Settings → Hub,
+watchdog (first frame within 5 s of the key, then 1.5 s of silence). Since
+phase 6 (2026-10-18, dummy load from a real iPad) `cw_keyer` writes/checks
+the keyer memory off the FIFO (`HubKeyer.cs`: slot 1–5, ≤50
+`CWText.allowed` characters, refused before the rig), with **no keyer
+lease** (acquire always granted — this PC's CW window and an iPad aren't
+coordinated); the last player's disconnect, the lock, hub off and rig
+disconnect send a **confirmed** "KY00" (read PTT, up to 5 tries, then
+`T currVFO 0`, every try logged); a play is refused while something else
+transmits. Known gap: a dropped iPad Wi-Fi is noticed only after ~20 s
+(user decision not to add a stalled-send check). Settings → Hub,
 off by default; only loopback, Tailscale and private addresses are let
 in. This reverses "leaf client only" for this one feature. The wire
 types copy Swift's `RigState`/`RigCommand`; `Apps/Windows/FTX1RemoteWindows.Tests`

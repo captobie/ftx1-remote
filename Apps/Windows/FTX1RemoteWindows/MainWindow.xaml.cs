@@ -761,6 +761,8 @@ public sealed partial class MainWindow : Window
         AppLog.Write($"connection: disconnecting{(reason is null ? "" : $" — {reason}")}");
         _pollTimer.Stop();
         UnkeyBeforeDisconnect();
+        // Before the client goes: the stop needs it to send and confirm.
+        await StopHubKeyerIfPlayedAsync("disconnecting from the rig");
         await StopAudioAsync();
         var client = _client;
         _client = null;
@@ -1051,7 +1053,10 @@ public sealed partial class MainWindow : Window
             await _filterPanel.RefreshFromRigAsync(client);
             // The CW window's speed/BK-IN/pitch, unless the CW page has
             // just read them.
-            if (_cwWindow is not null)
+            // Also while a hub client is connected: the iPad's CW pane
+            // blocks on BK-IN and times its chunks by the keyer speed, both
+            // from the pushed state.
+            if (_cwWindow is not null || _hub.HasClients)
             {
                 await _menuGrid.RefreshKeyerAsync(client);
             }
@@ -1933,6 +1938,7 @@ public sealed partial class MainWindow : Window
             _cwSender.Stop();
             EndHubTransmit("lock: Enable Transmit turned off");
             await ForceUnkeyAsync();
+            await StopHubKeyerIfPlayedAsync("lock: Enable Transmit turned off");
         }
     }
 
@@ -1980,6 +1986,7 @@ public sealed partial class MainWindow : Window
         // the CW sender's finish detection reads PTT from.
         PushRigStateToCw();
         _cwSender.OnPtt(_lastState.Ptt);
+        _hubKeyer.OnPtt(_lastState.Ptt, Environment.TickCount64);
         var keyed = _pttHeld || _lastState.Ptt;
         var reason = TransmitGate.BlockReason(TransmitAction.PttOn, AppSettings.TransmitEnabled, _lastState.FrequencyHz);
         PttButton.Opacity = reason is null || keyed ? 1 : 0.4;

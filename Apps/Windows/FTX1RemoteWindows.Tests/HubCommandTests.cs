@@ -217,7 +217,7 @@ public class HubCommandTests
         Assert.Equal(InboundKind.MenuItemRead,
             RigCommandWire.ParseInbound("""{"type":"read_menu_item","p1":6,"p2":1,"p3":3}""").Kind);
         Assert.Equal(InboundKind.CwKeyer,
-            RigCommandWire.ParseInbound("""{"type":"cw_keyer","id":"x","slot":1,"text":"CQ"}""").Kind);
+            RigCommandWire.ParseInbound("""{"type":"cw_keyer","id":7,"slot":1,"text":"CQ"}""").Kind);
     }
 
     // Gates (HubCommandPolicy.RefusalReason). 14.074 MHz is in 20 m;

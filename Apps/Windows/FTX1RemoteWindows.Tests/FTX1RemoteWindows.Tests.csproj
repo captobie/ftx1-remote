@@ -26,6 +26,8 @@
     <!-- Phase 5: transmit audio state and the Pi sink. -->
     <Compile Include="..\FTX1RemoteWindows\Services\Hub\HubTransmitAudio.cs" Link="Linked\HubTransmitAudio.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\RemoteTxAudioClient.cs" Link="Linked\RemoteTxAudioClient.cs" />
+    <!-- Phase 6: the CW keyer pair, write checks, keyer tracker and confirmed stop. -->
+    <Compile Include="..\FTX1RemoteWindows\Services\Hub\HubKeyer.cs" Link="Linked\HubKeyer.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\MemoryChannelEntry.cs" Link="Linked\MemoryChannelEntry.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\AprsModels.cs" Link="Linked\AprsModels.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\TransmitGate.cs" Link="Linked\TransmitGate.cs" />

@@ -219,7 +219,7 @@ public enum InboundKind
 }
 
 public sealed record InboundMessage(InboundKind Kind, RigCommand? Command = null, string? Error = null,
-    MenuItemReadRequestWire? MenuRead = null);
+    MenuItemReadRequestWire? MenuRead = null, CwKeyerRequestWire? CwKeyer = null);
 
 /// Parses and encodes <see cref="RigCommand"/>s. Never throws on bad input:
 /// the hub's receive loop has to survive whatever a client sends.
@@ -370,7 +370,7 @@ public static class RigCommandWire
                 return type.GetString() switch
                 {
                     "read_menu_item" => ParseMenuItemRead(root),
-                    "cw_keyer" => new InboundMessage(InboundKind.CwKeyer),
+                    "cw_keyer" => ParseCwKeyer(root),
                     var other => new InboundMessage(InboundKind.Invalid, Error: $"unknown message type \"{other}\""),
                 };
             }
@@ -409,6 +409,47 @@ public static class RigCommandWire
         }
         return new InboundMessage(InboundKind.MenuItemRead,
             MenuRead: new MenuItemReadRequestWire { P1 = p1, P2 = p2, P3 = p3 });
+    }
+
+    /// `{"type":"cw_keyer","id":…,"slot":…,"text":…,"action":…}` as Swift's
+    /// CWKeyerRequest decodes it: `id` and `slot` integers, `text` a string
+    /// or absent/null, `action` "acquire"/"release" or absent/null. Anything
+    /// else is invalid (logged, not answered — the iPad never sends it).
+    /// Slot and text are checked when it's answered
+    /// (HubKeyerPolicy.RequestRefusal), so a bad one gets its error reply.
+    private static InboundMessage ParseCwKeyer(JsonElement root)
+    {
+        int? Int(string name) => root.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number
+            && p.TryGetInt32(out var value) ? value : null;
+        bool OptionalString(string name, out string? value)
+        {
+            value = null;
+            if (!root.TryGetProperty(name, out var p) || p.ValueKind == JsonValueKind.Null)
+            {
+                return true;
+            }
+            if (p.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
+            value = p.GetString();
+            return true;
+        }
+        if (Int("id") is not { } id || Int("slot") is not { } slot)
+        {
+            return new InboundMessage(InboundKind.Invalid, Error: "cw_keyer: id and slot must be integers");
+        }
+        if (!OptionalString("text", out var text))
+        {
+            return new InboundMessage(InboundKind.Invalid, Error: "cw_keyer: text must be a string");
+        }
+        if (!OptionalString("action", out var action)
+            || action is not (null or CwKeyerRequestWire.AcquireAction or CwKeyerRequestWire.ReleaseAction))
+        {
+            return new InboundMessage(InboundKind.Invalid, Error: "cw_keyer: action must be \"acquire\" or \"release\"");
+        }
+        return new InboundMessage(InboundKind.CwKeyer,
+            CwKeyer: new CwKeyerRequestWire { Id = id, Slot = slot, Text = text, Action = action });
     }
 
     /// The command as Swift's encoder writes it: `{"cmd":…,"value":…}`, with
