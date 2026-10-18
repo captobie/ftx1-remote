@@ -1116,7 +1116,7 @@ keys the rig and sends the iPad's microphone to the rig's USB audio input.
   checked only by build, not on screen (needs a live hub). iPhone and
   Windows are out of scope.
 
-## iPad CW decoder (phase 1 decode, 2026-10-14, confirmed on a real iPad; phase 2 sending on Pi direct, transmit-tested by the user; phase 3 sending on the hub route, transmit-tested by the user)
+## iPad CW decoder (phase 1 decode, 2026-10-14, confirmed on a real iPad; phase 2 sending on Pi direct, transmit-tested by the user; phase 3 sending on the hub route, transmit-tested by the user; CW sent on the air from the iPad, user-confirmed by 2026-10-18)
 
 User request: the Mac's CW decoder on the iPad, in a pane over the filter
 block + MENU grid (the APRS lists' area), opened by a **CW** button at the
@@ -1268,7 +1268,7 @@ keyer-memory write and send queue live only in `HubService` today).
     (`defaults write com.ftx1remote.FTX1RemoteMac rigctld.transmitEnabled
     -bool NO`) and `defaults delete` it afterwards to restore.
 
-## Demo Mode (iPad, 2026-10-15; iPad Simulator only, not yet on a real iPad)
+## Demo Mode (iPad, 2026-10-15; tested on a real iPad by the user by 2026-10-18)
 
 A "Demo Mode" button on the iPad's Pi direct tab (own line under the Pi
 host / WPSD fields, only while disconnected) runs the Pi-direct screen
@@ -1347,9 +1347,9 @@ free Mac app and a radio".
   the beacon (~700 Hz, 18 WPM); CW send with the lock open (PTT 3 for
   ~8 s); PTT hold with PO/SWR on the MAIN strip and the decoder paused;
   S.LIST filling (DEMO-1/-9, Sub). A normal Pi-direct connect to the real
-  Pi still works. Not checked: a real iPad, audio actually heard (the
-  Simulator plays it, not listened to), the iPhone (the simulator would
-  work for it; no UI there yet).
+  Pi still works. Since tested on a real iPad by the user (by
+  2026-10-18). Not checked: the iPhone (the simulator would work for it;
+  no UI there yet; the iPhone isn't in 1.0).
 - Testing tip: the demo's rigctld is reachable from the Mac while it
   runs (`lsof -nP -iTCP -sTCP:LISTEN | grep FTX1Remot`, lowest port) —
   a second client can read the simulated rig's state directly.
@@ -1921,11 +1921,8 @@ pattern as the APRS windows.
   see that test file's doc comment). `FT8ResampleFidelityTests.swift`
   covers the 44100→12000 streaming resample path. The full Mac app target
   builds clean via `xcodebuild` with `FT8Kit` linked (iOS target
-  unaffected, confirmed by also building it). **Not yet done**: real FT8
-  sub-band hardware validation against live traffic (compare against
-  WSJT-X on the same audio, soak test, confirm NTP-clock assumption,
-  check `.remote`/Pi audio timing specifically) — same shape as every
-  other CAT/audio feature's hardware-validation step in this project.
+  unaffected, confirmed by also building it). **Live traffic**: tested by the
+  user on real FT8 traffic and working (by 2026-10-18).
 
 ## Digital modes — CW (decode v1 + send v2, 2026-10-02)
 
