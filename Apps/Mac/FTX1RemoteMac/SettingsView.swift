@@ -531,9 +531,8 @@ private struct HomeFrequencySettingsTab: View {
     }
 }
 
-/// The operator's own callsign/grid — see `StationSettings`. Currently only
-/// consumed by `FT8Spot` (stamped onto each decoded spot for a future PSK
-/// Reporter upload, not built yet). Applies instantly via `@AppStorage`,
+/// The operator's own callsign/grid — see `StationSettings`. Used by the
+/// FT8 window's PSK Reporter upload, the CW macros and the logbook. Applies instantly via `@AppStorage`,
 /// same reasoning as the other non-rigctld tabs: an empty or malformed
 /// value just means a blank/garbage reporter field later, not a broken
 /// process launch.

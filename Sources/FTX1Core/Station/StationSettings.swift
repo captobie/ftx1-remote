@@ -6,13 +6,11 @@ import Foundation
 /// construction in `HubService`) can read it too. Lives in `FTX1Core`
 /// rather than a single app target on the same reasoning as
 /// `AppearanceSettings`: any future app target that identifies the
-/// operator (a PSK Reporter uploader, most immediately) needs the same
-/// values.
+/// operator needs the same values.
 ///
-/// Nothing read this before FT8 needed a "my callsign/grid" to stamp onto
-/// each `FT8Spot` for a future PSK Reporter upload — the values aren't
-/// validated against real callsign/grid syntax here; garbage in just means
-/// a garbage report later, same as leaving the field blank.
+/// The Mac's PSK Reporter upload reports as this callsign/grid and won't
+/// run while either is empty. The values aren't validated against real
+/// callsign/grid syntax here; garbage in just means a garbage report.
 public enum StationSettings {
     public static let callsignKey = "station.callsign"
     public static let gridSquareKey = "station.gridSquare"

@@ -1875,12 +1875,33 @@ pattern as the APRS windows.
   parsed callsign/grid/report fields, plus `reporterCallsign`/
   `reporterGrid` from the new `StationSettings` (`Sources/FTX1Core/Station/`
   — the operator's own callsign/grid, which nothing in the app stored
-  before this) — carried specifically for a **future PSK Reporter
-  uploader, not built yet**. `FT8Store` (session-only, no disk
+  before this) — the receiver identity for the PSK Reporter upload
+  below. `FT8Store` (session-only, no disk
   persistence unlike `APRSStore`) is a separate `ObservableObject`
   exposed as a plain `let` on `HubService`, same "don't `@Published` it
   on `HubService` itself" isolation as `ScopeFrameStore`/`APRSStore` —
   spots arrive in bursts of up to a few dozen per ~15s cycle.
+- **PSK Reporter upload (2026-10-18; spec example datagrams matched
+  byte for byte, uploader checked against a local IPFIX listener, then
+  live-tested by the user the same day: spots on pskreporter.info)**: an "Upload to PSK Reporter" checkbox in
+  the FT8 window (`ft8.pskReporterEnabled`, remembered, off by default —
+  user decision), disabled until Settings → Station has a callsign and
+  grid. `PSKReporterPacket` (`FTX1Core/PSKReporter/`, unit-tested) builds
+  pskdev.html's IPFIX datagrams to `report.pskreporter.info:4739` with
+  the doc's SNR-less 6-field sender descriptor (call, frequency, mode,
+  informationSource 1, locator — empty when the message had none —,
+  time): **no SNR** (user decision; ours is score × 0.5, see above).
+  `PSKReporterUploader` (Mac, `lazy var pskReporter` on `HubService`)
+  runs with the decoder (`start`/`stop` from `startFT8Decoding`/
+  `stopFT8Decoding`); drops hashed `<…>` calls, our own call, dial 0, a
+  "grid" that isn't a 4-character square (RR73), and any slot the rig
+  transmitted in; a call is queued once per hour per band unless it
+  newly carries a grid; sends every 5 min + 0–30 s jitter from start,
+  at once when a full datagram (≤1400 B) is waiting, and on window close.
+  One `NWConnection` (one source port) for the app session, descriptors
+  in its first 3 datagrams and hourly, sequence = reports sent. Logs
+  under "pskreporter". Debug builds: `pskReporter.hostOverride` sends to
+  another host (port 4739) for testing.
 - **Extensibility for FT4/future modes deliberately minimal, not
   speculative**: upstream already shares the same LDPC(174,91) code and
   `ftx_protocol_t`/slot-timing constants between FT4 and FT8
@@ -2572,8 +2593,8 @@ WebSDR differences are in their own bullet at the end.
     the same settings the Mac's Settings sheet writes.
   - `Station/` — `StationSettings`: the operator's own callsign/grid
     square, `UserDefaults`-backed same as `AppearanceSettings`. Added for
-    FT8 (`FT8Spot`'s `reporterCallsign`/`reporterGrid`, for a future PSK
-    Reporter uploader), lives here rather than the Mac app target on the
+    FT8 (`FT8Spot`'s `reporterCallsign`/`reporterGrid`, the PSK Reporter
+    upload's receiver), lives here rather than the Mac app target on the
     same "future app target will want it too" reasoning as `Appearance/`.
   - `Networking/` — `WireMessage` (`RigCommand`/`RigStatePush`, the JSON wire
     protocol), `RigctldClient` (Mac-only, TCP to rigctld, incl. raw CAT

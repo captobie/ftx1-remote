@@ -10,10 +10,15 @@ import SwiftUI
 struct FT8ListView: View {
     @EnvironmentObject private var hub: HubService
     @EnvironmentObject private var store: FT8Store
+    @EnvironmentObject private var pskReporter: PSKReporterUploader
+    @AppStorage(StationSettings.callsignKey) private var myCallsign = ""
+    @AppStorage(StationSettings.gridSquareKey) private var myGrid = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             statusHeader
+            Divider()
+            pskReporterBar
             Divider()
             Table(store.spots.sorted { $0.utcTimestamp > $1.utcTimestamp }) {
                 TableColumn("Time") { spot in
@@ -73,6 +78,57 @@ struct FT8ListView: View {
             }
             .padding(8)
         }
+    }
+
+    private var stationIsSet: Bool {
+        !myCallsign.trimmingCharacters(in: .whitespaces).isEmpty
+            && !myGrid.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// The upload toggle and what it's doing. Without a callsign and grid
+    /// in Settings → Station there's nothing to report as, so the toggle
+    /// is disabled and says why.
+    private var pskReporterBar: some View {
+        HStack(spacing: 12) {
+            Toggle("Upload to PSK Reporter", isOn: $pskReporter.isEnabled)
+                .toggleStyle(.checkbox)
+                .disabled(!stationIsSet)
+            Group {
+                if !stationIsSet {
+                    Text("Set your callsign and grid in Settings → Station")
+                } else if let error = pskReporter.lastError {
+                    Text("Upload failed: \(error)").foregroundStyle(.red)
+                } else if pskReporter.isEnabled {
+                    pskReporterStatus
+                }
+            }
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            Spacer()
+            if stationIsSet, let url = pskReporterMapURL {
+                Link("View on PSK Reporter", destination: url)
+                    .font(.callout)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+    }
+
+    private var pskReporterStatus: some View {
+        var parts = ["\(pskReporter.pendingCount) queued", "\(pskReporter.sentThisSession) sent"]
+        if let last = pskReporter.lastUploadAt {
+            parts.append("last upload \(last.formatted(date: .omitted, time: .shortened))")
+        }
+        if let next = pskReporter.nextUploadAt {
+            parts.append("next \(next.formatted(date: .omitted, time: .shortened))")
+        }
+        return Text(parts.joined(separator: " · "))
+    }
+
+    private var pskReporterMapURL: URL? {
+        var components = URLComponents(string: "https://pskreporter.info/pskmap.html")
+        components?.queryItems = [URLQueryItem(name: "callsign", value: myCallsign.trimmingCharacters(in: .whitespaces).uppercased())]
+        return components?.url
     }
 
     private var statusLabel: some View {

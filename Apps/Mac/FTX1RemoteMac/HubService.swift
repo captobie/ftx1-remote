@@ -251,6 +251,9 @@ final class HubService: ObservableObject {
     /// always-on frequency-gate pattern.
     private let ft8Coordinator = FT8DecodeCoordinator()
     let ft8Store = FT8Store()
+    /// The FT8 window's "Upload to PSK Reporter" — fed every decode cycle,
+    /// runs with the decoder. `lazy` so it can watch `$rigState` (PTT).
+    lazy var pskReporter = PSKReporterUploader(rigState: $rigState)
 
     /// Tools → CW's decoder. Fed both audio taps unconditionally below; it
     /// picks the selected receiver itself and drops everything while the
@@ -550,6 +553,7 @@ final class HubService: ObservableObject {
             guard let self else { return }
             let spots = coordinatorSpots.map { FT8Spot(coordinatorSpot: $0) }
             self.ft8Store.record(spots)
+            self.pskReporter.enqueue(spots)
         }
         ft8Coordinator.onCycleStatusChanged = { [weak self] status in
             self?.ft8Store.updateCycleStatus(status)
@@ -802,12 +806,14 @@ final class HubService: ObservableObject {
 
     func startFT8Decoding() {
         ft8Coordinator.start()
+        pskReporter.start()
     }
 
     /// Called from the Tools/FT8 window's `.onDisappear`, and as a safety
     /// net from `stop()` in case the app quits with that window still open.
     func stopFT8Decoding() {
         ft8Coordinator.stop()
+        pskReporter.stop()
     }
 
     /// What the on/off switch calls: launches rigctld (clearing out any

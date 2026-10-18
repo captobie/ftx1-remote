@@ -3,9 +3,7 @@ import FTX1Core
 import Foundation
 
 /// One decoded FT8 message, mapped from `FT8Kit.RawMessage` into the shape
-/// this app displays and — eventually — would report to PSK Reporter (not
-/// built yet; `reporterCallsign`/`reporterGrid` exist so that later addition
-/// doesn't need to touch this model again). Mac-only, same reasoning as
+/// this app displays and reports to PSK Reporter (`PSKReporterUploader`). Mac-only, same reasoning as
 /// `AudioCaptureEngine`/`APRSStation`: audio-derived, not shared with
 /// mobile targets.
 struct FT8Spot: Identifiable, Equatable {

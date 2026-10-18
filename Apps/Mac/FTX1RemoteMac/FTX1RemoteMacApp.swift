@@ -80,6 +80,7 @@ struct FTX1RemoteMacApp: App {
             FT8ListView()
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.ft8Store)
+                .environmentObject(appDelegate.hub.pskReporter)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
 
