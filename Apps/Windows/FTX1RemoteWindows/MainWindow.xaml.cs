@@ -506,7 +506,7 @@ public sealed partial class MainWindow : Window
         SettingsButton.IsEnabled = false;
         try
         {
-            if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            if (!await dialog.ShowAsync())
             {
                 return;
             }

@@ -1,5 +1,4 @@
 using FTX1RemoteWindows.Models;
-using FTX1RemoteWindows.Settings;
 using Microsoft.UI.Dispatching;
 
 namespace FTX1RemoteWindows.Services;
@@ -12,7 +11,8 @@ namespace FTX1RemoteWindows.Services;
 /// Owned by the CW window and running while it's open: the log's files are
 /// checked every few seconds and the index rebuilt when they changed. HRD
 /// writes in WAL mode, so the -wal file's date and size count as well as
-/// the main file's.
+/// the main file's (Log4OM uses a rollback journal: the main file changes).
+/// A change of logbook in Settings changes the path, so it's picked up too.
 public sealed class WorkedStationsStore : IDisposable
 {
     public WorkedStations Worked { get; private set; } = WorkedStations.Empty;
@@ -69,7 +69,7 @@ public sealed class WorkedStationsStore : IDisposable
 
     private void ReloadIfChanged()
     {
-        if (AppSettings.Logbook != LogbookKind.HrdLogbook)
+        if (LogbookPrograms.Current is not { } program)
         {
             Show(WorkedStations.Empty, "No logbook selected", null);
             return;
@@ -80,9 +80,9 @@ public sealed class WorkedStationsStore : IDisposable
         }
         _isLoading = true;
         var loaded = _loadedStamp;
-        // Everything that touches HRD's settings or log runs off the UI
-        // thread: the log can be large and lives in (OneDrive) Documents.
-        Task.Run(() => Load(loaded)).ContinueWith(task => _dispatcher.TryEnqueue(() =>
+        // Everything that touches the program's settings or log runs off the
+        // UI thread: the log can be large and lives in (OneDrive) Documents.
+        Task.Run(() => Load(program, loaded)).ContinueWith(task => _dispatcher.TryEnqueue(() =>
         {
             _isLoading = false;
             if (_disposed)
@@ -115,11 +115,11 @@ public sealed class WorkedStationsStore : IDisposable
     /// `loaded`), or why the log can't be read.
     private sealed record LoadResult(string? Stamp, List<WorkedStations.Qso>? Qsos, string? Problem);
 
-    private static LoadResult Load(string? loaded)
+    private static LoadResult Load(ILogbookProgram program, string? loaded)
     {
-        if (HrdLogbook.LogPath is not { } path)
+        if (program.LogPath is not { } path)
         {
-            return new LoadResult(null, null, HrdLogbook.UnreadableDatabaseReason() ?? "HRD's log file wasn't found");
+            return new LoadResult(null, null, program.MissingLogReason);
         }
         var stamp = Stamp(path);
         if (stamp == loaded)
@@ -128,9 +128,9 @@ public sealed class WorkedStationsStore : IDisposable
         }
         try
         {
-            return new LoadResult(stamp, HrdLogbook.ReadWorkedQsos(path), null);
+            return new LoadResult(stamp, program.ReadWorkedQsos(path), null);
         }
-        catch (HrdLogbook.LogException e)
+        catch (LogbookDatabase.LogException e)
         {
             return new LoadResult(stamp, null, e.Message);
         }

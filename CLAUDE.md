@@ -1615,6 +1615,15 @@ is SQLite (`.hrdsql`, `TABLE_HRD_CONTACTS_V07`), read-only. Tested by
 script (one TE5T QSO, logged correctly) and in the built app while
 disconnected; not yet logged from the app on the air. See the README's
 "Logbook — HRD Logbook".
+**Log4OM** was added as a second logbook 2026-10-20 (`Services/
+Log4OmLogbook.cs`; HRD and Log4OM both behind `ILogbookProgram`): the
+same ADIF-over-UDP datagram to a Log4OM "ADIF_MESSAGE" UDP inbound
+connection (2236 on the user's PC), worked-before from its SQLite `Log`
+table (freq in kHz), and a Lookup button through its XML remote control
+(UDP 2241, `SetCallsign`, which replies). Tested against the running
+Log4OM 2.42.1 by script and a harness over the app's own files; the
+built app's Settings tab and Lookup button not yet. See the README's
+"Logbook — Log4OM".
 The memory scan (MAIN and SUB, Scan/Skip next to Mem List) was ported
 2026-10-06 (`MainWindow.MemoryScan.cs`, `Models/MemoryScan.cs`), with the
 same read-by-side poll fix as the Mac (the boxes traded places with TX on

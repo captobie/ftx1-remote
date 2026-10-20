@@ -18,11 +18,13 @@ public enum ConnectionMode
 
 /// Which external logbook the CW window logs to and reads worked-before
 /// from (Settings → Logbook) — the Mac's LogbookSettings.Logger, which has
-/// MacLoggerDX where this has HRD Logbook (Services/HrdLogbook.cs).
+/// MacLoggerDX where this has HRD Logbook (Services/HrdLogbook.cs) and
+/// Log4OM (Services/Log4OmLogbook.cs).
 public enum LogbookKind
 {
     None,
     HrdLogbook,
+    Log4Om,
 }
 
 /// Persists this app's settings: the connection mode, the Pi's Tailscale
@@ -109,6 +111,9 @@ public static class AppSettings
         public string HrdLogPath { get; set; } = "";
         public string HrdUdpHost { get; set; } = "";
         public int HrdUdpPort { get; set; }
+        public string Log4OmLogPath { get; set; } = "";
+        public string Log4OmUdpHost { get; set; } = "";
+        public int Log4OmUdpPort { get; set; }
         public bool HubEnabled { get; set; }
     }
 
@@ -731,6 +736,40 @@ public static class AppSettings
         set
         {
             _cache.HrdUdpPort = value;
+            Save();
+        }
+    }
+
+    /// A Log4OM log file picked by hand; empty means Log4OM's own
+    /// (Log4OmLogbook.DetectedLogPath).
+    public static string Log4OmLogPath
+    {
+        get => _cache.Log4OmLogPath;
+        set
+        {
+            _cache.Log4OmLogPath = value;
+            Save();
+        }
+    }
+
+    /// Where QSOs (and Lookup requests) are sent; empty means this PC.
+    public static string Log4OmUdpHost
+    {
+        get => _cache.Log4OmUdpHost;
+        set
+        {
+            _cache.Log4OmUdpHost = value;
+            Save();
+        }
+    }
+
+    /// 0 means the port of Log4OM's ADIF_MESSAGE UDP inbound connection.
+    public static int Log4OmUdpPort
+    {
+        get => _cache.Log4OmUdpPort is >= 1 and <= 65535 ? _cache.Log4OmUdpPort : 0;
+        set
+        {
+            _cache.Log4OmUdpPort = value;
             Save();
         }
     }

@@ -28,8 +28,9 @@ public readonly record struct CwTransmitter(long FrequencyHz, RigMode? Mode, boo
 /// button); time off is the moment Log QSO is clicked. After the logbook
 /// confirms the QSO the fields clear for the next one (the Mac's user
 /// decision); anything short of that keeps them so it can be checked and
-/// retried. No Lookup button, unlike the Mac's: HRD Logbook has no way
-/// found to be asked for one, and looks the call up itself on receipt.
+/// retried. The Lookup button (left of Their call, as on the Mac) shows only
+/// for Log4OM, through its remote control; HRD Logbook has no way found to
+/// be asked for one, and looks the call up itself on receipt.
 public sealed class CwLogPane : UserControl
 {
     private const string DefaultRst = "599";
@@ -51,11 +52,13 @@ public sealed class CwLogPane : UserControl
     private readonly ProgressRing _resultRing = new() { Width = 14, Height = 14, IsActive = false };
     private readonly TextBlock _resultText = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly Button _logButton = new();
+    private readonly Button _lookupButton = new() { Padding = new Thickness(8, 4, 8, 4) };
 
     private readonly DispatcherQueueTimer _rigTimer;
     private DateTimeOffset? _timeOn;
     private string _shownCall = "";
     private bool _isLogging;
+    private bool _isLookingUp;
     private bool _updating;
 
     private enum ResultKind { Success, Warning, Failure }
@@ -132,6 +135,16 @@ public sealed class CwLogPane : UserControl
     private StackPanel BuildCallRow()
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        var lookup = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        lookup.Children.Add(new FontIcon { Glyph = "", FontSize = 12 });
+        lookup.Children.Add(new TextBlock { Text = "Lookup" });
+        _lookupButton.Content = lookup;
+        _lookupButton.Visibility = Visibility.Collapsed;
+        ToolTipService.SetToolTip(_lookupButton, "Look the call up in Log4OM (fills its call field)");
+        AutomationProperties.SetName(_lookupButton, "Lookup");
+        _lookupButton.Click += async (_, _) => await LookUpAsync();
+        row.Children.Add(_lookupButton);
+
         ToolTipService.SetToolTip(_theirCallBox, "The station you're working — also {CALL} in macros. Click a callsign in the decoded text to fill it in.");
         AutomationProperties.SetName(_theirCallBox, "Their call");
         _theirCallBox.TextChanged += (_, _) =>
@@ -234,6 +247,7 @@ public sealed class CwLogPane : UserControl
             _updating = false;
         }
         _logButton.IsEnabled = !_isLogging && call.Length > 0;
+        _lookupButton.IsEnabled = !_isLookingUp && call.Length > 0;
         if (call == _shownCall)
         {
             return;
@@ -308,11 +322,32 @@ public sealed class CwLogPane : UserControl
         _rigText.Foreground = (Brush)Application.Current.Resources[tx is null ? "TextFillColorTertiaryBrush" : "TextFillColorPrimaryBrush"];
         _worked.SetBand(tx is { FrequencyHz: > 0 } f ? BandPlan.BandContaining(f.FrequencyHz)?.Name : null);
 
-        var none = AppSettings.Logbook == LogbookKind.None;
-        _destinationText.Text = none ? "No logbook — choose one in Settings → Logbook" : "To HRD Logbook";
-        _destinationText.Foreground = none
+        var program = LogbookPrograms.Current;
+        _destinationText.Text = program is null ? "No logbook — choose one in Settings → Logbook" : $"To {program.Name}";
+        _destinationText.Foreground = program is null
             ? new SolidColorBrush(Microsoft.UI.Colors.DarkOrange)
             : (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        _lookupButton.Visibility = program is { SupportsLookup: true } ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private async Task LookUpAsync()
+    {
+        var call = NormalizedCall;
+        if (call.Length == 0 || _isLookingUp)
+        {
+            return;
+        }
+        _isLookingUp = true;
+        _lookupButton.IsEnabled = false;
+        var problem = await QsoLogger.LookUpAsync(call);
+        _isLookingUp = false;
+        _lookupButton.IsEnabled = NormalizedCall.Length > 0;
+        // A log in progress owns the result line.
+        if (!_isLogging)
+        {
+            SetResult(problem is null ? ResultKind.Success : ResultKind.Failure,
+                problem ?? $"{call} sent to Log4OM for lookup");
+        }
     }
 
     private void SetResult(ResultKind? kind, string? text)
@@ -390,7 +425,7 @@ public sealed class CwLogPane : UserControl
                 }
                 break;
             case QsoLogOutcome.SentUnconfirmed(var reason):
-                SetResult(ResultKind.Warning, $"{reason} — check HRD Logbook before logging {call} again");
+                SetResult(ResultKind.Warning, $"{reason} — check {LogbookPrograms.Current?.Name ?? "the logbook"} before logging {call} again");
                 break;
             case QsoLogOutcome.Failed(var reason):
                 SetResult(ResultKind.Failure, reason);

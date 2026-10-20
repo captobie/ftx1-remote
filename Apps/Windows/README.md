@@ -112,8 +112,13 @@ Local:   Windows app  ──TCP 127.0.0.1:4532──►  rigctld.exe (spawned or
 ## Settings
 
 `SettingsDialog.xaml(.cs)`, opened by the **Settings** button next to
-Connect: a `ContentDialog` with the Mac's tabs (`SettingsView.swift`) along
-a `SelectorBar`. Stored in `settings.json` (`Settings/AppSettings.cs`).
+Connect: a window with the Mac's tabs (`SettingsView.swift`) along
+a `SelectorBar`. Since 2026-10-20 it's a resizable `Window` (minimum
+860×560, owned by the main window, which is disabled with `EnableWindow`
+while it's open — `OverlappedPresenter.IsModal` left the main window
+usable), not a `ContentDialog`: that can't be resized and is capped by the
+main window's size, which clipped the tab bar ("Appearan…") and the
+Logbook tab's Log4OM row. Escape = Cancel. Stored in `settings.json` (`Settings/AppSettings.cs`).
 Unlike the Mac, where only the rigctld tab waits for Done, nothing is
 written until **Save**, and Cancel discards every tab. What Save changed is
 applied at once, also while connected, except the rigctld tab (below).
@@ -1178,6 +1183,58 @@ Logbook 6.9.0.18083 on the user's PC, not from documentation:
   JA1XYZ/ZL2AB uncolored. **Not yet done**: logging a QSO from the app
   with the rig connected, and the green this-band case on the air.
 
+## Logbook — Log4OM (2026-10-20)
+
+A second choice in Settings → Logbook, beside HRD. Same Log QSO pane,
+worked-before colors and send-then-confirm flow; both programs go through
+`ILogbookProgram` (`Services/LogbookProgram.cs`, with the shared read-only
+SQLite helper `LogbookDatabase`), so `QsoLogger` and `WorkedStationsStore`
+don't care which. Worked out against Log4OM 2.42.1.0 on the user's PC — its
+settings file, its assemblies' enum/type names (reflection only) and live
+tests — not from documentation:
+
+- **QSOs go in as ADIF text over UDP**, the same datagram as HRD's, to a
+  Log4OM **UDP inbound connection of type ADIF_MESSAGE** (Settings →
+  Program Configuration → Software Integration → Connections). There is
+  none until the user adds one (port 2236 on that PC); it listens on
+  0.0.0.0. A QSO was in the log within a second, every field right; Log4OM
+  replaces `programid` with its own and looks the call up itself.
+- **Lookup button** (Log4OM only, left of Their call, as on the Mac):
+  Log4OM's **remote control** (UDP, port 2241, on by default) takes an XML
+  `RemoteControlRequest` (`MessageId` GUID, `RemoteControlMessage`,
+  `Callsign`, …) and answers the sender with a `RemoteControlResponse`
+  (`Done`, `ErrorMessage`) — so unlike UDP logging, a lookup is
+  confirmed. `SetCallsign` fills Log4OM's call field; `Alive` is used by the
+  Settings status card. Its `WorkedBefore` request also works
+  (`WorkedSameBandMode`/`WorkedSameMode`/`Undefined`) but answers one call
+  at a time, so worked-before reads the log file like HRD's. The other
+  requests (`SetTxFrequency`, `SetMode`, `ClearUI`, …) aren't used.
+- **Settings**: `%APPDATA%\Log4OM2\user\config.json`, the running
+  configuration (`RunningConfigurationId` → `UserConfigs[]`):
+  `DbConfiguration` (`DatabaseType` 1 SQLite / 2 MySQL / 3 MariaDB,
+  `Path`), `Connections[]` (`NetworkConnectionType` 1 = UDP inbound,
+  `NetworkInboundMessageType` 1 = ADIF_MESSAGE, `SourcePort`, `Enabled`),
+  `RemoteControlEnabled`/`RemoteControlPort`. The file also holds service
+  passwords: read only the keys above. Process name `L4ONG`.
+- **Reading the log**: SQLite, table `Log`: `callsign` (COLLATE NOCASE),
+  `band` ("40m"), `mode`, `freq` in **kHz** (7030.5), `qsodate` UTC text
+  ("2026-10-20 14:05:13Z"). Rollback journal, not WAL. MySQL/MariaDB logs
+  aren't read (the tab says so).
+- **Settings → Logbook**: the log file (Log4OM's open log by default,
+  Browse… / Use Log4OM's), host/port overrides (empty = this PC and the
+  ADIF_MESSAGE connection's port; the host also applies to Lookup), and a
+  status card: running, receiving, remote control answering, the log's
+  QSO/station counts. `Services/Log4OmLogbook.cs`.
+- Tested 2026-10-20 against the running Log4OM: by script, the ADIF route
+  and the remote-control requests; in a scratch harness compiling the
+  app's own logbook files (with a stand-in `AppSettings`): the config read,
+  the log read (QSO count, this band / other band / `/P` / never), a QSO
+  logged and confirmed (14.0453 MHz → 14045.3, 20m), the unconfirmed reason
+  for a port with nothing listening, `Alive`, and Lookup answered
+  `Done`. The Windows app builds clean. **Not yet done**: the Settings tab
+  and the CW window's Lookup button in the built app, and logging from the
+  app with the rig connected.
+
 ## Recordings (the CW page's PLAY/RECORD, 2026-10-03)
 
 The Mac's `AudioRecorder` + `RecordingsListView`. Like the Mac, the CW
@@ -1991,7 +2048,7 @@ Apps/Windows/FTX1RemoteWindows/
   MainWindow.Hub.cs           starts/stops the hub, pushes state (coalesced, ≤10/s), hub PTT and CW keyer
   Services/Hub/               the hub: HubServer, RigCommandWire/Dispatcher, HubCommandPolicy, wire models,
                               audio encoder, TX audio, HubKeyer (cw_keyer checks, confirmed keyer stop)
-  SettingsDialog.xaml(.cs)    Settings dialog (the Mac's SettingsView tabs)
+  SettingsDialog.xaml(.cs)    Settings window (the Mac's SettingsView tabs)
   Controls/
     MenuGrid.cs                  MENU grid (port of MenuPageView.swift), all three pages
     SMeter.cs                    analog S/TX meter (port of SMeterView.swift) + METER picker

@@ -4,8 +4,10 @@ using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Services;
 using FTX1RemoteWindows.Services.Hub;
 using FTX1RemoteWindows.Settings;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Windows.Storage.Pickers;
 
 namespace FTX1RemoteWindows;
@@ -19,11 +21,21 @@ namespace FTX1RemoteWindows;
 /// changed (see the *Changed properties). The rigctld tab is read-only
 /// while connected, as the main-window fields were: a mode or port change
 /// mid-session would describe a connection that isn't the one in use.
-public sealed partial class SettingsDialog : ContentDialog
+///
+/// A window of its own, modal to the main window (as the ContentDialog it
+/// used to be was) but resizable: a ContentDialog can't be resized and is
+/// capped by its owner's size, which clipped the wider tabs.
+public sealed partial class SettingsDialog : Window
 {
     private static readonly int[] BaudRates = [4800, 9600, 19200, 38400, 57600, 115200];
 
+    /// Wide enough for the whole tab bar and the logbook rows.
+    private const int MinimumWidth = 860;
+    private const int MinimumHeight = 560;
+
     private readonly Window _owner;
+    private readonly TaskCompletionSource<bool> _result = new();
+    private bool _saved;
     private readonly List<(HomeBand Band, TextBox Box)> _homeFields = [];
 
     public bool AudioInputChanged { get; private set; }
@@ -46,11 +58,9 @@ public sealed partial class SettingsDialog : ContentDialog
         _hub = hub;
         _hubAudioRunning = hubAudioRunning;
         InitializeComponent();
-        XamlRoot = owner.Content.XamlRoot;
-        RequestedTheme = (owner.Content as FrameworkElement)?.RequestedTheme ?? ElementTheme.Default;
-        // ContentDialog caps its width at 548 by default — too narrow for
-        // the tab bar and the rigctld path.
-        Resources["ContentDialogMaxWidth"] = 720.0;
+        RootGrid.RequestedTheme = AppSettings.Theme.ElementTheme();
+        RootGrid.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
+        ConfigureWindow();
 
         // rigctld
         ConnectedNote.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
@@ -84,7 +94,7 @@ public sealed partial class SettingsDialog : ContentDialog
         PiHostBox.TextChanged += (_, _) => RefreshVersions();
         // The choice box refreshes from its SelectionChanged handler.
         ModelNumberBox.ValueChanged += (_, _) => RefreshVersions();
-        Opened += (_, _) =>
+        Opened += () =>
         {
             _isOpen = true;
             if (_hub is not null)
@@ -94,6 +104,7 @@ public sealed partial class SettingsDialog : ContentDialog
             RefreshHubStatus();
             RefreshVersions();
             RefreshHrdStatus();
+            RefreshLog4OmStatus();
         };
         Closed += (_, _) =>
         {
@@ -103,6 +114,8 @@ public sealed partial class SettingsDialog : ContentDialog
                 _hub.StatusChanged -= OnHubStatusChanged;
             }
             _versionLookup?.Cancel();
+            ReleaseOwner();
+            _result.TrySetResult(_saved);
         };
 
         // Audio
@@ -122,10 +135,14 @@ public sealed partial class SettingsDialog : ContentDialog
         ConfigureNumberBox(AprsMaxMessagesBox, AppSettings.AprsMaxMessagesSetting, AppSettings.AprsMaxMessages);
 
         // Logbook
-        LogbookComboBox.SelectedIndex = AppSettings.Logbook == LogbookKind.HrdLogbook ? 1 : 0;
+        LogbookComboBox.SelectedItem = LogbookComboBox.Items.OfType<ComboBoxItem>()
+            .First(i => (string)i.Tag == AppSettings.Logbook.ToString());
         HrdLogPathBox.Text = AppSettings.HrdLogPath;
         HrdHostBox.Text = AppSettings.HrdUdpHost;
         HrdPortBox.Value = AppSettings.HrdUdpPort > 0 ? AppSettings.HrdUdpPort : double.NaN;
+        Log4OmLogPathBox.Text = AppSettings.Log4OmLogPath;
+        Log4OmHostBox.Text = AppSettings.Log4OmUdpHost;
+        Log4OmPortBox.Value = AppSettings.Log4OmUdpPort > 0 ? AppSettings.Log4OmUdpPort : double.NaN;
         UpdateLogbookPanel();
 
         // Home Freq
@@ -171,6 +188,70 @@ public sealed partial class SettingsDialog : ContentDialog
         HubPortText.Text = $"Port {HubServer.Port} (ws://<this PC's Tailscale name or LAN address>:{HubServer.Port})";
     }
 
+    /// Raised once the window is shown (the ContentDialog's Opened).
+    private event Action? Opened;
+
+    /// Shows the window modal to the owner; true when it closed with Save.
+    public Task<bool> ShowAsync()
+    {
+        Activate();
+        // Modal the Win32 way: OverlappedPresenter.IsModal left the main
+        // window usable (checked with IsWindowEnabled).
+        EnableWindow(OwnerHandle, false);
+        Opened?.Invoke();
+        return _result.Task;
+    }
+
+    private IntPtr OwnerHandle => WinRT.Interop.WindowNative.GetWindowHandle(_owner);
+
+    /// Re-enables the owner before this window goes away, so Windows hands
+    /// the focus back to it rather than to some other app.
+    private void ReleaseOwner() => EnableWindow(OwnerHandle, true);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
+    private static extern IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr value);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool EnableWindow(IntPtr hwnd, bool enable);
+
+    private const int GwlpHwndParent = -8;
+
+    /// Owned by the main window (stays above it), resizable, centered on it.
+    private void ConfigureWindow()
+    {
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        SetWindowLongPtr(hwnd, GwlpHwndParent, OwnerHandle);
+        // The title bar's close button: Window.Close() from Save/Cancel
+        // doesn't raise this, so those release the owner themselves.
+        AppWindow.Closing += (_, _) => ReleaseOwner();
+        var scale = GetDpiForWindow(hwnd) / 96.0;
+        var presenter = OverlappedPresenter.CreateForDialog();
+        presenter.IsResizable = true;
+        presenter.IsMaximizable = true;
+        presenter.IsMinimizable = false;
+        presenter.PreferredMinimumWidth = (int)(MinimumWidth * scale);
+        presenter.PreferredMinimumHeight = (int)(MinimumHeight * scale);
+        AppWindow.SetPresenter(presenter);
+
+        var width = (int)(MinimumWidth * scale);
+        var height = (int)(680 * scale);
+        var owner = _owner.AppWindow;
+        AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(
+            owner.Position.X + Math.Max(0, (owner.Size.Width - width) / 2),
+            owner.Position.Y + Math.Max(0, (owner.Size.Height - height) / 2),
+            width,
+            height));
+    }
+
+    private void CancelButton_Click(object sender, RoutedEventArgs e)
+    {
+        ReleaseOwner();
+        Close();
+    }
+
     private void TabBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
         ShowTab(sender.SelectedItem?.Tag as string ?? "Rigctld");
@@ -197,7 +278,19 @@ public sealed partial class SettingsDialog : ContentDialog
 
     // Save.
 
-    private void SaveButton_Click(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+    private void SaveButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Validate())
+        {
+            _saved = true;
+            ReleaseOwner();
+            Close();
+        }
+    }
+
+    /// Checks every field and, only if all are valid, writes them; false
+    /// leaves the window open with the error shown.
+    private bool Validate()
     {
         // Validate everything before writing anything, so a bad field
         // leaves every setting as it was.
@@ -214,15 +307,13 @@ public sealed partial class SettingsDialog : ContentDialog
                 && !double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out mhz))
             {
                 Fail("Home", $"{band.Name}: \"{text}\" isn't a frequency in MHz.");
-                args.Cancel = true;
-                return;
+                return false;
             }
             var hz = (long)Math.Round(mhz * 1_000_000);
             if (hz < band.LowHz || hz > band.HighHz)
             {
                 Fail("Home", $"{band.Name}: {FormatMHz(hz)} MHz is outside the band group ({FormatMHz(band.LowHz)}–{FormatMHz(band.HighHz)} MHz).");
-                args.Cancel = true;
-                return;
+                return false;
             }
             homeFrequencies.Add((band, hz));
         }
@@ -235,15 +326,13 @@ public sealed partial class SettingsDialog : ContentDialog
                 && !double.TryParse(aprsFrequencyText, NumberStyles.Float, CultureInfo.CurrentCulture, out aprsMhz))
             {
                 Fail("Aprs", $"\"{aprsFrequencyText}\" isn't a frequency in MHz.");
-                args.Cancel = true;
-                return;
+                return false;
             }
             aprsFrequencyHz = (long)Math.Round(aprsMhz * 1_000_000);
             if (aprsFrequencyHz <= 0)
             {
                 Fail("Aprs", "The APRS frequency has to be above 0 MHz.");
-                args.Cancel = true;
-                return;
+                return false;
             }
         }
 
@@ -251,16 +340,18 @@ public sealed partial class SettingsDialog : ContentDialog
         if (gridSquare.Length > 0 && Maidenhead.Coordinates(gridSquare) is null)
         {
             Fail("Station", $"\"{gridSquare}\" isn't a Maidenhead grid square (e.g. FN31 or FN31pr).");
-            args.Cancel = true;
-            return;
+            return false;
         }
 
         var hrdHost = HrdHostBox.Text.Trim();
-        if (hrdHost.Contains(' ') || hrdHost.Contains('/'))
+        var log4OmHost = Log4OmHostBox.Text.Trim();
+        foreach (var host in new[] { hrdHost, log4OmHost })
         {
-            Fail("Logbook", $"\"{hrdHost}\" isn't a host name or address.");
-            args.Cancel = true;
-            return;
+            if (host.Contains(' ') || host.Contains('/'))
+            {
+                Fail("Logbook", $"\"{host}\" isn't a host name or address.");
+                return false;
+            }
         }
 
         if (ConnectionModeComboBox.IsEnabled)
@@ -315,6 +406,9 @@ public sealed partial class SettingsDialog : ContentDialog
         AppSettings.HrdLogPath = HrdLogPathBox.Text.Trim().Trim('"');
         AppSettings.HrdUdpHost = hrdHost;
         AppSettings.HrdUdpPort = double.IsNaN(HrdPortBox.Value) ? 0 : (int)Math.Round(HrdPortBox.Value);
+        AppSettings.Log4OmLogPath = Log4OmLogPathBox.Text.Trim().Trim('"');
+        AppSettings.Log4OmUdpHost = log4OmHost;
+        AppSettings.Log4OmUdpPort = double.IsNaN(Log4OmPortBox.Value) ? 0 : (int)Math.Round(Log4OmPortBox.Value);
 
         AppSettings.AprsEnabled = AprsEnabledCheckBox.IsChecked == true;
         AppSettings.AprsFrequencyHz = aprsFrequencyHz;
@@ -343,6 +437,7 @@ public sealed partial class SettingsDialog : ContentDialog
         {
             AppSettings.ButtonValueColor = color;
         }
+        return true;
     }
 
     private void Fail(string tab, string message)
@@ -368,8 +463,8 @@ public sealed partial class SettingsDialog : ContentDialog
 
     // APRS tab.
 
-    /// Only one ContentDialog can be open at a time, so instead of the Mac's
-    /// confirmation dialog the button arms the clear and Save carries it out
+    /// Instead of the Mac's confirmation dialog (from when Settings was a
+    /// ContentDialog, and couldn't open another) the button arms the clear and Save carries it out
     /// (Cancel still backs out); a second click disarms it.
     private void AprsClearHistoryButton_Click(object sender, RoutedEventArgs e)
     {
@@ -383,21 +478,27 @@ public sealed partial class SettingsDialog : ContentDialog
     // Logbook tab.
 
     private LogbookKind SelectedLogbook =>
-        LogbookComboBox.SelectedItem is ComboBoxItem { Tag: "HrdLogbook" } ? LogbookKind.HrdLogbook : LogbookKind.None;
+        LogbookComboBox.SelectedItem is ComboBoxItem { Tag: string tag } && Enum.TryParse<LogbookKind>(tag, out var kind)
+            ? kind
+            : LogbookKind.None;
 
     private void LogbookComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateLogbookPanel();
         RefreshHrdStatus();
+        RefreshLog4OmStatus();
     }
 
-    private void UpdateLogbookPanel() =>
+    private void UpdateLogbookPanel()
+    {
         HrdSettingsPanel.Visibility = SelectedLogbook == LogbookKind.HrdLogbook ? Visibility.Visible : Visibility.Collapsed;
+        Log4OmSettingsPanel.Visibility = SelectedLogbook == LogbookKind.Log4Om ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     private async void BrowseHrdLogButton_Click(object sender, RoutedEventArgs e)
     {
         var picker = new FileOpenPicker();
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(_owner));
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
         picker.FileTypeFilter.Add(".hrdsql");
         picker.FileTypeFilter.Add("*");
         var file = await picker.PickSingleFileAsync();
@@ -449,9 +550,9 @@ public sealed partial class SettingsDialog : ContentDialog
             {
                 receiving = $"Off in HRD (UDP9/ADIF receive, port {port}) — turn it on (see above)";
             }
-            else if (host is "127.0.0.1" or "localhost" or "::1")
+            else if (LogbookPrograms.IsLocalHost(host))
             {
-                receiving = HrdLogbook.IsListening(port)
+                receiving = LogbookPrograms.IsListening(port)
                     ? $"Listening on UDP {port} — QSOs go to {host}:{port}"
                     : $"Nothing is listening on UDP {port} on this PC";
             }
@@ -469,10 +570,10 @@ public sealed partial class SettingsDialog : ContentDialog
             {
                 try
                 {
-                    var (qsos, stations) = HrdLogbook.Summary(path);
+                    var (qsos, stations) = LogbookDatabase.Summary(HrdLogbook.Program, path);
                     log = $"{qsos:N0} QSOs with {stations:N0} stations, read only\n{path}";
                 }
-                catch (HrdLogbook.LogException ex)
+                catch (LogbookDatabase.LogException ex)
                 {
                     log = $"{ex.Message}\n{path}";
                 }
@@ -490,6 +591,118 @@ public sealed partial class SettingsDialog : ContentDialog
         HrdLogPathBox.PlaceholderText = status.detectedPath ?? "HRD's log wasn't found";
         HrdHostBox.PlaceholderText = status.receiver?.Address ?? "127.0.0.1";
         HrdPortBox.PlaceholderText = status.receiver is { Port: > 0 } r ? r.Port.ToString(CultureInfo.InvariantCulture) : "";
+    }
+
+    private async void BrowseLog4OmLogButton_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new FileOpenPicker();
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+        picker.FileTypeFilter.Add(".sqlite");
+        picker.FileTypeFilter.Add("*");
+        var file = await picker.PickSingleFileAsync();
+        if (file is not null)
+        {
+            Log4OmLogPathBox.Text = file.Path;
+            RefreshLog4OmStatus();
+        }
+    }
+
+    private void UseLog4OmLogButton_Click(object sender, RoutedEventArgs e)
+    {
+        Log4OmLogPathBox.Text = "";
+        RefreshLog4OmStatus();
+    }
+
+    private void RefreshLog4OmButton_Click(object sender, RoutedEventArgs e) => RefreshLog4OmStatus();
+
+    private int _log4OmStatusGeneration;
+
+    /// HRD's card for Log4OM, plus whether its remote control (the Log
+    /// pane's Lookup) answers. Follows the typed fields, unsaved; read off
+    /// the UI thread.
+    private async void RefreshLog4OmStatus()
+    {
+        if (SelectedLogbook != LogbookKind.Log4Om)
+        {
+            return;
+        }
+        var generation = ++_log4OmStatusGeneration;
+        var typedPath = Log4OmLogPathBox.Text.Trim().Trim('"');
+        var typedHost = Log4OmHostBox.Text.Trim();
+        var typedPort = double.IsNaN(Log4OmPortBox.Value) ? 0 : (int)Math.Round(Log4OmPortBox.Value);
+        Log4OmRunningText.Text = Log4OmReceiverText.Text = Log4OmRemoteText.Text = Log4OmLogText.Text = "Checking…";
+        var status = await Task.Run(async () =>
+        {
+            var config = Log4OmLogbook.ReadConfig();
+            var detectedPath = Log4OmLogbook.DetectedLogPath();
+            var host = typedHost.Length > 0 ? typedHost : "127.0.0.1";
+            var local = LogbookPrograms.IsLocalHost(host);
+            var adif = config?.Adif;
+            var port = typedPort > 0 ? typedPort : adif?.Port ?? 0;
+            string receiving;
+            if (port == 0)
+            {
+                receiving = "No ADIF_MESSAGE UDP inbound connection in Log4OM — add one (see above)";
+            }
+            else if (typedPort == 0 && adif is { Enabled: false })
+            {
+                receiving = $"Log4OM's \"{adif.Name}\" connection (port {port}) is off — turn it on";
+            }
+            else if (local)
+            {
+                receiving = LogbookPrograms.IsListening(port)
+                    ? $"Listening on UDP {port} — QSOs go to {host}:{port}"
+                    : $"Nothing is listening on UDP {port} on this PC";
+            }
+            else
+            {
+                receiving = $"QSOs go to {host}:{port} (another computer; not checked)";
+            }
+
+            var remotePort = config?.RemoteControlPort ?? Log4OmLogbook.DefaultRemoteControlPort;
+            string remote;
+            if (local && config is { RemoteControlEnabled: false })
+            {
+                remote = "Log4OM's remote control is off — turn it on for the Lookup button";
+            }
+            else
+            {
+                remote = await Log4OmLogbook.AliveAsync(host, remotePort) is { Done: true }
+                    ? $"Remote control answering on {host}:{remotePort}"
+                    : $"No answer from remote control on {host}:{remotePort}";
+            }
+
+            var path = typedPath.Length > 0 ? typedPath : detectedPath;
+            string log;
+            if (path is null)
+            {
+                log = Log4OmLogbook.UnreadableDatabaseReason();
+            }
+            else
+            {
+                try
+                {
+                    var (qsos, stations) = LogbookDatabase.Summary(Log4OmLogbook.Program, path);
+                    log = $"{qsos:N0} QSOs with {stations:N0} stations, read only\n{path}";
+                }
+                catch (LogbookDatabase.LogException ex)
+                {
+                    log = $"{ex.Message}\n{path}";
+                }
+            }
+            var running = Log4OmLogbook.IsRunning ? "Running" : "Not running";
+            return (running, receiving, remote, log, adif, detectedPath);
+        });
+        if (generation != _log4OmStatusGeneration)
+        {
+            return;
+        }
+        Log4OmRunningText.Text = status.running;
+        Log4OmReceiverText.Text = status.receiving;
+        Log4OmRemoteText.Text = status.remote;
+        Log4OmLogText.Text = status.log;
+        Log4OmLogPathBox.PlaceholderText = status.detectedPath ?? "Log4OM's log wasn't found";
+        Log4OmPortBox.PlaceholderText = status.adif is { Port: > 0 } a ? a.Port.ToString(CultureInfo.InvariantCulture) : "";
     }
 
     // rigctld tab.
@@ -574,7 +787,7 @@ public sealed partial class SettingsDialog : ContentDialog
         // Browse…
         var picker = new FileOpenPicker();
         // Unpackaged WinUI 3 pickers need the owning window's HWND.
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(_owner));
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
         picker.FileTypeFilter.Add(".exe");
         var file = await picker.PickSingleFileAsync();
         FillRigctldChoices(file is null ? _rigctldChoice : RigctldBinary.Choice.ForPath(file.Path));

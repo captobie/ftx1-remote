@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text;
 using FTX1RemoteWindows.Models;
-using FTX1RemoteWindows.Settings;
 
 namespace FTX1RemoteWindows.Services;
 
@@ -11,18 +10,19 @@ public abstract record QsoLogOutcome
 {
     /// Found in the logbook's file afterward.
     public sealed record Logged : QsoLogOutcome;
-    /// Sent, but not (yet) in the log — HRD not running, its ADIF receiver
-    /// off, or the log can't be read here.
+    /// Sent, but not (yet) in the log — the program not running, its ADIF
+    /// receiver off, or the log can't be read here.
     public sealed record SentUnconfirmed(string Reason) : QsoLogOutcome;
     public sealed record Failed(string Reason) : QsoLogOutcome;
 }
 
 /// Sends a finished QSO to the logbook chosen in Settings → Logbook — the
-/// Mac's QSOLogger. For HRD Logbook that's one UDP datagram of ADIF text
-/// to its ADIF receiver (see HrdLogbook); UDP gets no answer, so the QSO is
-/// then looked for in HRD's log to confirm it arrived. Unlike the Mac
-/// there's no Lookup: HRD has no way found to be asked for one from
-/// outside, but it looks up a received call itself.
+/// Mac's QSOLogger. For HRD Logbook and Log4OM alike that's one UDP
+/// datagram of ADIF text to the program's ADIF receiver (see HrdLogbook,
+/// Log4OmLogbook); UDP gets no answer, so the QSO is then looked for in
+/// the program's log to confirm it arrived. Lookup is Log4OM's only: HRD
+/// has no way found to be asked for one from outside, but looks up a
+/// received call itself.
 public static class QsoLogger
 {
     /// How long to look for the QSO in the log after sending.
@@ -30,13 +30,13 @@ public static class QsoLogger
 
     public static async Task<QsoLogOutcome> LogAsync(LoggedQso qso)
     {
-        if (AppSettings.Logbook != LogbookKind.HrdLogbook)
+        if (LogbookPrograms.Current is not { } program)
         {
             return new QsoLogOutcome.Failed("No logbook is selected in Settings → Logbook");
         }
-        if (HrdLogbook.Destination() is not { } destination)
+        if (program.Destination() is not { } destination)
         {
-            return new QsoLogOutcome.Failed("HRD's ADIF receiver port isn't known — turn on its UDP9/ADIF receive (see Settings → Logbook)");
+            return new QsoLogOutcome.Failed(program.MissingDestinationReason);
         }
         var (host, port) = destination;
         try
@@ -53,18 +53,16 @@ public static class QsoLogger
                 ? $"Couldn't find the host {host}"
                 : $"Couldn't send to {host}:{port}: {e.Message}");
         }
-        AppLog.Write($"Logbook: sent {qso.Call} ({qso.Mode}, {qso.FrequencyHz} Hz) to {host}:{port}");
-        return await ConfirmAsync(qso, port);
+        AppLog.Write($"Logbook: sent {qso.Call} ({qso.Mode}, {qso.FrequencyHz} Hz) to {program.Name} at {host}:{port}");
+        return await ConfirmAsync(program, qso, host, port);
     }
 
     /// Polls the log until the QSO shows up or the timeout passes.
-    private static async Task<QsoLogOutcome> ConfirmAsync(LoggedQso qso, int port)
+    private static async Task<QsoLogOutcome> ConfirmAsync(ILogbookProgram program, LoggedQso qso, string host, int port)
     {
-        if (HrdLogbook.LogPath is not { } path)
+        if (program.LogPath is not { } path)
         {
-            return new QsoLogOutcome.SentUnconfirmed(HrdLogbook.UnreadableDatabaseReason() is { } why
-                ? $"Sent, but {why} to check it"
-                : "Sent, but HRD's log file wasn't found to check it");
+            return new QsoLogOutcome.SentUnconfirmed($"Sent, but {program.MissingLogReason} to check it");
         }
         var clock = Stopwatch.StartNew();
         string? lastError = null;
@@ -73,14 +71,14 @@ public static class QsoLogger
             await Task.Delay(500);
             try
             {
-                if (await Task.Run(() => HrdLogbook.ContainsQso(qso.Call, qso.Start, path)))
+                if (await Task.Run(() => program.ContainsQso(qso.Call, qso.Start, path)))
                 {
-                    AppLog.Write($"Logbook: {qso.Call} confirmed in the HRD log");
+                    AppLog.Write($"Logbook: {qso.Call} confirmed in the {program.Name} log");
                     return new QsoLogOutcome.Logged();
                 }
                 lastError = null;
             }
-            catch (HrdLogbook.LogException e)
+            catch (LogbookDatabase.LogException e)
             {
                 lastError = e.Message;
             }
@@ -91,14 +89,31 @@ public static class QsoLogger
         {
             return new QsoLogOutcome.SentUnconfirmed($"Sent, but the log couldn't be checked: {lastError}");
         }
-        var reason = !HrdLogbook.IsRunning
-            ? "HRD Logbook isn't running"
-            : HrdLogbook.Receiver() is { Enabled: false }
-                ? "HRD's UDP9/ADIF receive is off"
-                : !HrdLogbook.IsListening(port)
-                    ? $"nothing is listening on UDP {port}"
-                    : $"it didn't show up in the log within {ConfirmationTimeout.TotalSeconds:0} s";
-        AppLog.Write($"Logbook: {qso.Call} not found in the HRD log: {reason}");
+        var reason = await Task.Run(() => program.UnconfirmedReason(host, port));
+        AppLog.Write($"Logbook: {qso.Call} not found in the {program.Name} log: {reason}");
         return new QsoLogOutcome.SentUnconfirmed($"Sent, but {reason}");
+    }
+
+    /// Asks Log4OM to fill its call field and look the call up — the Mac's
+    /// Lookup (there through WSJT-X's Status message to MacLoggerDX). Null
+    /// when it worked, else why not.
+    public static async Task<string?> LookUpAsync(string call)
+    {
+        if (LogbookPrograms.Current is not { SupportsLookup: true } program)
+        {
+            return "Lookup needs Log4OM as the logbook";
+        }
+        var reply = await Log4OmLogbook.SetCallsignAsync(call);
+        AppLog.Write($"Logbook: lookup of {call} in {program.Name}: {(reply is null ? "no answer" : reply.Done ? "done" : reply.Error ?? "refused")}");
+        if (reply is null)
+        {
+            var (host, port) = Log4OmLogbook.RemoteControlEndpoint();
+            return await Task.Run(() => !Log4OmLogbook.IsRunning && LogbookPrograms.IsLocalHost(host)
+                ? "Log4OM isn't running"
+                : Log4OmLogbook.ReadConfig() is { RemoteControlEnabled: false }
+                    ? "Log4OM's remote control is off — turn it on in its Program Configuration"
+                    : $"Log4OM didn't answer on UDP {port}");
+        }
+        return reply.Done ? null : $"Log4OM refused the lookup: {reply.Error ?? "no reason given"}";
     }
 }

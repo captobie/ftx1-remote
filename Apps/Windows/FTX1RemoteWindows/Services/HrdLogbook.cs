@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Net.NetworkInformation;
 using System.Xml.Linq;
 using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Settings;
@@ -145,19 +144,35 @@ public static class HrdLogbook
         }
     }
 
-    /// Whether anything on this PC has the UDP port open — HRD's receiver,
-    /// when it's the one that's running. Only meaningful for a local host.
-    public static bool IsListening(int port) =>
-        IPGlobalProperties.GetIPGlobalProperties().GetActiveUdpListeners().Any(e => e.Port == port);
+    /// HRD as QsoLogger and WorkedStationsStore see it.
+    public static readonly ILogbookProgram Program = new HrdProgram();
 
-    /// Why the log couldn't be read, in words for the window.
-    public sealed class LogException(string message, Exception? inner = null) : Exception(message, inner);
+    private sealed class HrdProgram : ILogbookProgram
+    {
+        public string Name => "HRD Logbook";
+        public string? LogPath => HrdLogbook.LogPath;
+        public string MissingLogReason => UnreadableDatabaseReason() ?? "HRD's log file wasn't found";
+        public (string Host, int Port)? Destination() => HrdLogbook.Destination();
+        public string MissingDestinationReason =>
+            "HRD's ADIF receiver port isn't known — turn on its UDP9/ADIF receive (see Settings → Logbook)";
+        public string UnconfirmedReason(string host, int port) =>
+            !IsRunning
+                ? "HRD Logbook isn't running"
+                : Receiver() is { Enabled: false }
+                    ? "HRD's UDP9/ADIF receive is off"
+                    : LogbookPrograms.IsLocalHost(host) && !LogbookPrograms.IsListening(port)
+                        ? $"nothing is listening on UDP {port}"
+                        : $"it didn't show up in the log within {QsoLogger.ConfirmationTimeout.TotalSeconds:0} s";
+        public List<WorkedStations.Qso> ReadWorkedQsos(string path) => HrdLogbook.ReadWorkedQsos(path);
+        public bool ContainsQso(string call, DateTimeOffset start, string path) => HrdLogbook.ContainsQso(call, start, path);
+        public bool SupportsLookup => false;
+    }
 
     /// Every QSO in the log, for worked-before. Off the UI thread: the log
     /// can be large and lives in the user's (OneDrive) Documents.
     public static List<WorkedStations.Qso> ReadWorkedQsos(string path)
     {
-        return Query(path, connection =>
+        return LogbookDatabase.Query(path, connection =>
         {
             var table = ContactsTable(connection);
             using var command = connection.CreateCommand();
@@ -187,7 +202,7 @@ public static class HrdLogbook
     /// reply.
     public static bool ContainsQso(string call, DateTimeOffset start, string path)
     {
-        return Query(path, connection =>
+        return LogbookDatabase.Query(path, connection =>
         {
             var table = ContactsTable(connection);
             using var command = connection.CreateCommand();
@@ -205,49 +220,16 @@ public static class HrdLogbook
         });
     }
 
-    /// QSO and station counts for Settings → Logbook.
-    public static (int Qsos, int Stations) Summary(string path)
-    {
-        var qsos = ReadWorkedQsos(path);
-        return (qsos.Count, new WorkedStations(qsos).StationCount);
-    }
-
-    private static T Query<T>(string path, Func<SqliteConnection, T> body)
-    {
-        if (!File.Exists(path))
-        {
-            throw new LogException($"No log file at {path}");
-        }
-        var builder = new SqliteConnectionStringBuilder
-        {
-            DataSource = path,
-            Mode = SqliteOpenMode.ReadOnly,
-            Pooling = false,
-            DefaultTimeout = 5,
-        };
-        try
-        {
-            using var connection = new SqliteConnection(builder.ToString());
-            connection.Open();
-            return body(connection);
-        }
-        catch (SqliteException e)
-        {
-            throw new LogException($"Couldn't read the log: {e.Message}", e);
-        }
-    }
-
     /// The newest TABLE_HRD_CONTACTS_V* table (V07 in HRD 6.9).
     private static string ContactsTable(SqliteConnection connection)
     {
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'TABLE_HRD_CONTACTS_V%' ORDER BY name DESC LIMIT 1";
         return command.ExecuteScalar() as string
-            ?? throw new LogException("This isn't an HRD log (no TABLE_HRD_CONTACTS table)");
+            ?? throw new LogbookDatabase.LogException("This isn't an HRD log (no TABLE_HRD_CONTACTS table)");
     }
 
-    private static string Text(SqliteDataReader reader, int column) =>
-        reader.IsDBNull(column) ? "" : Convert.ToString(reader.GetValue(column), CultureInfo.InvariantCulture)?.Trim() ?? "";
+    private static string Text(SqliteDataReader reader, int column) => LogbookDatabase.Text(reader, column);
 
     private static long? Hz(SqliteDataReader reader, int column) =>
         long.TryParse(Text(reader, column), NumberStyles.Integer, CultureInfo.InvariantCulture, out var hz) && hz > 0 ? hz : null;
