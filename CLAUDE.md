@@ -1578,8 +1578,8 @@ Remote mode (MAIN and SUB), working well; Local mode not yet rig-tested.
 The APRS map was added 2026-10-21 (`Controls/AprsMapWindow.cs`, the APRS
 drop-down's Map): Leaflet 1.9.4 (vendored in `Assets/AprsMap/`, BSD-2)
 over OpenStreetMap tiles in WebView2 — the Mac's map stays MapKit.
-Checked against saved history via the DevTools protocol, not yet live;
-see the README's "APRS decode".
+Tested by the user the same day, working; see the README's "APRS
+decode".
 The WebSDR window was ported 2026-10-01 (`Controls/WebSdrWindow.cs`,
 `Services/WebSdrFollowModel.cs` + `SdrPageBridge.cs`, WebView2): everything
 the Mac's has, checked against a fake rigctld and public KiwiSDR/WebSDR

@@ -880,7 +880,8 @@ well; Local mode not yet tested on the rig.
   heavy use would need another tile provider). Tested against the PC's
   saved history (5 positioned stations, popups, the Sub/Main filter)
   through the DevTools protocol (`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=
-  --remote-debugging-port=…`); not yet with packets arriving live.
+  --remote-debugging-port=…`), then tested by the user the same day,
+  working.
 
 Still to check on the rig: the same in Local mode (the PC's own sound-card
 input).
