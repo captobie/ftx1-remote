@@ -106,6 +106,7 @@ public sealed partial class MainWindow : Window
     private readonly AprsStore _aprsStore = new();
     /// The open S.LIST/M.LIST windows, at most one of each.
     private readonly Dictionary<AprsListKind, AprsListWindow> _aprsWindows = [];
+    private AprsMapWindow? _aprsMapWindow;
     /// The WebSDR window, while open (one at a time, like the Mac's Window
     /// scene).
     private WebSdrWindow? _webSdrWindow;
@@ -440,6 +441,7 @@ public sealed partial class MainWindow : Window
             {
                 window.Close();
             }
+            _aprsMapWindow?.Close();
             _webSdrWindow?.Close();
             _cwWindow?.Close();
             _recordingsWindow?.Close();
@@ -574,6 +576,7 @@ public sealed partial class MainWindow : Window
         {
             window.ApplyTheme();
         }
+        _aprsMapWindow?.ApplyTheme();
         _webSdrWindow?.ApplyTheme();
         _cwWindow?.ApplyTheme();
         _recordingsWindow?.ApplyTheme();
@@ -2248,6 +2251,18 @@ public sealed partial class MainWindow : Window
         window.Activate();
     }
 
+    /// The APRS drop-down's Map: one window, brought to the front if it's
+    /// already open.
+    private void ShowAprsMap()
+    {
+        if (_aprsMapWindow is null)
+        {
+            _aprsMapWindow = new AprsMapWindow(_aprsStore);
+            _aprsMapWindow.Closed += (_, _) => _aprsMapWindow = null;
+        }
+        _aprsMapWindow.Activate();
+    }
+
     // Recording (the CW page's PLAY/RECORD)
 
     /// PLAY (and the WebSDR window's Recordings button): one Recordings
@@ -2471,6 +2486,8 @@ public sealed partial class MainWindow : Window
     private void AprsStationsMenuItem_Click(object sender, RoutedEventArgs e) => ShowAprsList(AprsListKind.Stations);
 
     private void AprsMessagesMenuItem_Click(object sender, RoutedEventArgs e) => ShowAprsList(AprsListKind.Messages);
+
+    private void AprsMapMenuItem_Click(object sender, RoutedEventArgs e) => ShowAprsMap();
 
     // Audio (Pi :8532)
 

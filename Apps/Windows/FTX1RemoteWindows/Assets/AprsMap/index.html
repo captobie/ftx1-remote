@@ -1,0 +1,118 @@
+<!doctype html>
+<!--
+  The APRS map page (Controls/AprsMapWindow.cs): Leaflet over OpenStreetMap's
+  standard tiles, served from the app folder through a WebView2 virtual host.
+  The window posts the stations as JSON ({type: "stations", stations, fit} or
+  {type: "fit"}); the page never reads anything else and sends nothing back.
+  Text from decoded packets only ever goes in through textContent.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="leaflet.css">
+<style>
+  html, body, #map { height: 100%; margin: 0; }
+  body { font-family: "Segoe UI", sans-serif; }
+  .call-label {
+    background: rgba(255, 255, 255, 0.85);
+    border: none;
+    box-shadow: none;
+    padding: 0 3px;
+    font: 600 11px Consolas, monospace;
+  }
+  .call-label::before { display: none; }
+  .popup-call { font: 600 14px Consolas, monospace; }
+  .popup-line { color: #555; font-size: 12px; margin-top: 2px; }
+  .popup-comment { font-size: 12px; margin-top: 4px; max-width: 260px; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="leaflet.js"></script>
+<script>
+  // The Mac's marker tints: blue for Main, orange for Sub.
+  const colors = { Main: "#1e6fd9", Sub: "#e8770e" };
+
+  const map = L.map("map", { worldCopyJump: true }).setView([39, -98], 4);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(map);
+  L.control.scale().addTo(map);
+
+  const layer = L.layerGroup().addTo(map);
+  let stations = [];
+
+  function relative(iso) {
+    const seconds = (Date.now() - Date.parse(iso)) / 1000;
+    if (seconds < 60) return "just now";
+    if (seconds < 3600) return Math.floor(seconds / 60) + " min ago";
+    if (seconds < 86400) return Math.floor(seconds / 3600) + " h ago";
+    return Math.floor(seconds / 86400) + " d ago";
+  }
+
+  function line(className, text) {
+    const div = document.createElement("div");
+    div.className = className;
+    div.textContent = text;
+    return div;
+  }
+
+  // Built when opened, so "last heard" is current.
+  function popupContent(s) {
+    const div = document.createElement("div");
+    div.appendChild(line("popup-call", s.call));
+    div.appendChild(line("popup-line", s.lat.toFixed(4) + ", " + s.lon.toFixed(4)
+      + (s.symbol ? "  ·  symbol " + s.symbol : "")));
+    div.appendChild(line("popup-line", s.source + "  ·  " + relative(s.heard)));
+    if (s.comment) div.appendChild(line("popup-comment", s.comment));
+    return div;
+  }
+
+  function draw() {
+    // Keep the station whose popup is open open across a redraw.
+    let openCall = null;
+    layer.eachLayer(m => { if (m.isPopupOpen()) openCall = m.options.call; });
+    layer.clearLayers();
+    for (const s of stations) {
+      const marker = L.circleMarker([s.lat, s.lon], {
+        call: s.call,
+        radius: 7,
+        weight: 2,
+        color: "#fff",
+        fillColor: colors[s.source] || colors.Main,
+        fillOpacity: 0.95,
+      });
+      marker.bindTooltip(s.call, { permanent: true, direction: "right", offset: [8, 0], className: "call-label" });
+      marker.bindPopup(() => popupContent(s));
+      marker.addTo(layer);
+      if (s.call === openCall) marker.openPopup();
+    }
+  }
+
+  // The Mac's fitAllStations: one station → ~20 km across, several → their
+  // bounds with a margin, never closer than the single-station view.
+  function fit() {
+    if (stations.length === 0) return;
+    if (stations.length === 1) {
+      map.setView([stations[0].lat, stations[0].lon], 11);
+      return;
+    }
+    const bounds = L.latLngBounds(stations.map(s => [s.lat, s.lon]));
+    map.fitBounds(bounds.pad(0.2), { maxZoom: 11 });
+  }
+
+  window.chrome.webview.addEventListener("message", e => {
+    const msg = e.data;
+    if (msg.type === "stations") {
+      stations = msg.stations;
+      draw();
+      if (msg.fit) fit();
+    } else if (msg.type === "fit") {
+      fit();
+    }
+  });
+</script>
+</body>
+</html>

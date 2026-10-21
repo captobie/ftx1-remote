@@ -861,8 +861,26 @@ well; Local mode not yet tested on the rig.
   APRS frequency, and the last station decoded on that receiver for 5 s
   (the Mac's `aprsActive`/`aprsLastCallsign`); C4FM's caller display
   takes precedence.
-- Not ported: the Mac's APRS Map window (MapKit). A Windows map would need
-  WebView2 plus a tile source, which is its own decision.
+- **APRS map (2026-10-21)**: the APRS drop-down's **Map**
+  (`Controls/AprsMapWindow.cs`), the Mac's APRS Map on OpenStreetMap
+  instead of Apple Maps: every station in the history with a position,
+  blue for Main and orange for Sub, labelled with its callsign; a click
+  shows position, symbol, source, last heard and comment. All/Main/Sub
+  filter, Fit All; fits once when opened (or at the first position heard
+  while open), never by itself after that. The page is
+  `Assets/AprsMap/index.html` with [Leaflet](https://leafletjs.com) 1.9.4
+  (BSD-2-Clause, `leaflet.js`/`leaflet.css` from the npm tarball, integrity
+  checked against the registry, licence as `LICENSE-leaflet.txt`), served
+  from the app folder through a WebView2 virtual host
+  (`aprs-map.ftx1remote.example`) in the shared WebView2 profile; the
+  window posts the stations to it as JSON. Only the tiles come from the
+  network (`tile.openstreetmap.org`; its tile usage policy wants an
+  identifying user agent, so this web view's ends in
+  `FTX1RemoteWindows/<version>`, plus the attribution the page shows —
+  heavy use would need another tile provider). Tested against the PC's
+  saved history (5 positioned stations, popups, the Sub/Main filter)
+  through the DevTools protocol (`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=
+  --remote-debugging-port=…`); not yet with packets arriving live.
 
 Still to check on the rig: the same in Local mode (the PC's own sound-card
 input).

@@ -413,6 +413,11 @@ Its CW decoders are CWKit's, translated to C#, and
 `Apps/Windows/Tools/cwnet_to_onnx.py`; it runs with
 [ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT, Microsoft),
 also a NuGet package (`Microsoft.ML.OnnxRuntime`).
+Its APRS map uses [Leaflet](https://github.com/Leaflet/Leaflet) 1.9.4
+(BSD-2-Clause, Volodymyr Agafonkin and CloudMade), vendored unmodified in
+`Apps/Windows/FTX1RemoteWindows/Assets/AprsMap/` with its licence, and map
+tiles from [OpenStreetMap](https://www.openstreetmap.org/copyright)
+(© OpenStreetMap contributors, ODbL).
 It ships `rigctld.exe` from [Hamlib](https://github.com/Hamlib/Hamlib)
 4.7.2 — Hamlib's own official Windows build (`hamlib-w64-4.7.2.zip`),
 vendored unmodified by `Apps/Windows/Tools/fetch-rigctld.ps1` into

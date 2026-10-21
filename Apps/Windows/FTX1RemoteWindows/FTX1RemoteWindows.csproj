@@ -52,6 +52,8 @@
     <Content Include="Assets\CWNet.onnx" CopyToOutputDirectory="PreserveNewest" />
     <!-- Also set on the window at runtime (MainWindow), since WinUI windows don't pick up the exe icon by themselves. -->
     <Content Include="Assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The APRS map page and its vendored Leaflet 1.9.4 (BSD-2-Clause) — Controls/AprsMapWindow.cs. -->
+    <Content Include="Assets\AprsMap\*" CopyToOutputDirectory="PreserveNewest" />
     <!--
       Hamlib's official Windows rigctld.exe + the DLLs it loads + its licence
       files (Vendor\hamlib, from Apps/Windows/Tools/fetch-rigctld.ps1), for
