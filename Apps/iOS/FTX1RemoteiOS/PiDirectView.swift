@@ -3,7 +3,8 @@ import SwiftUI
 
 /// The Pi-direct proof of concept's screen (see `PiDirectViewModel`):
 /// MAIN frequency/mode with tune and mode change, SUB and TX state shown
-/// read-only, plus Main audio from the Pi's stream with a mute button.
+/// read-only, MAIN's S-meter, plus Main audio from the Pi's stream with a
+/// mute button.
 /// Receive-only — no PTT.
 struct PiDirectView: View {
     @EnvironmentObject private var viewModel: PiDirectViewModel
@@ -42,6 +43,12 @@ struct PiDirectView: View {
                     frequencyHz: viewModel.rigState.frequencyHz,
                     mode: viewModel.rigState.mode.displayName,
                     onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }
+                )
+                BarSMeterView(
+                    label: "MAIN",
+                    smeterDb: viewModel.rigState.smeterDb,
+                    txReadings: MeterReadings(powerWatts: viewModel.rigState.powerWatts, swr: viewModel.rigState.swr, tx: viewModel.rigState.txMeters),
+                    ptt: viewModel.rigState.ptt
                 )
                 statusLine
                 audioRow

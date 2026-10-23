@@ -208,7 +208,8 @@ public final class PiDirectViewModel: ObservableObject {
     /// The iPad plays Sub (right channel) too; the iPhone leaves it out.
     private let playsSubAudio: Bool
     /// Adds MAIN's "STRENGTH" and SUB's "RM2" reads per poll tick, for
-    /// screens that show both S-meters (the iPad) — plus, while the rig
+    /// screens with S-meters (both on the iPad, MAIN's on the iPhone, which
+    /// pays for the unused "RM2" too) — plus, while the rig
     /// transmits, the hub's TX meters (PO, SWR, COMP/ALC/ID/VDD).
     private let readsSMeter: Bool
     /// Adds everything else the Mac's VFO boxes show (the iPad): TX/RX

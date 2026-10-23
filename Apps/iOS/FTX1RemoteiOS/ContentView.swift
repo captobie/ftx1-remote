@@ -74,10 +74,15 @@ struct HubControlView: View {
                     mode: viewModel.rigState.mode.displayName,
                     onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }
                 )
-                if let swr = viewModel.rigState.swr {
-                    Text("SWR \(swr, specifier: "%.2f")")
-                        .font(.system(.body, design: .monospaced))
-                }
+                // Same bar as the iPad's MAIN strip; while transmitting it
+                // shows the TX meter (tap to pick) with the SWR under it,
+                // so there's no separate SWR line any more.
+                BarSMeterView(
+                    label: "MAIN",
+                    smeterDb: viewModel.rigState.smeterDb,
+                    txReadings: MeterReadings(powerWatts: viewModel.rigState.powerWatts, swr: viewModel.rigState.swr, tx: viewModel.rigState.txMeters),
+                    ptt: viewModel.rigState.ptt
+                )
                 pttButton
                 modeGrid
             }

@@ -783,6 +783,14 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   SUB bar there is correct. Unclear whether the rig reports SUB's meter
   in C4FM (one 15 s probe read 0, maybe between transmissions). Not yet
   tried: the TX display on the rig, a real iPad.
+- **iPhone MAIN S-meter (2026-10-22, Simulator against the real Pi on
+  Pi direct, then confirmed on a real iPhone by the user the same day)**: user request. The iPad
+  strip's meter row moved to `FTX1Core/UI/BarSMeterView.swift` (bar, S
+  readout, TX meter + picker while transmitting); `ChannelStrip` wraps it
+  with the mute/SQL/VOL controls. The iPhone shows it for MAIN under the
+  frequency on both routes (the hub screen's standalone SWR line is gone,
+  as on the iPad), and its `PiDirectViewModel` now passes `readsSMeter:
+  true` — which also reads SUB's unused "RM2". SUB's meter: not yet.
 - **iPad VFO boxes at Mac parity (2026-10-09, Simulator against the real
   Pi and WPSD hotspot)**: `PiDirectViewModel(readsVFODetails: true)` (iPad
   only; the iPhone is unchanged) adds the rest of what the Mac's
