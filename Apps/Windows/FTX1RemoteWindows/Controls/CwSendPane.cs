@@ -24,6 +24,8 @@ public sealed class CwWindowLink
     /// The side the rig transmits on (SUB's with TX:SUB or split), for the
     /// Log QSO pane; null while disconnected.
     public required Func<CwTransmitter?> Transmitter { get; init; }
+    /// The send pane's Monitor switch (a local sidetone, see CwMonitor).
+    public required CwMonitor Monitor { get; init; }
 }
 
 /// The CW window's send pane — the Mac's CWSendPane (Apps/Mac/
@@ -174,6 +176,19 @@ public sealed class CwSendPane : UserControl
         header.Children.Add(left);
 
         var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        var monitorSwitch = new ToggleSwitch
+        {
+            Header = null,
+            OnContent = "Monitor",
+            OffContent = "Monitor",
+            IsOn = _link.Monitor.IsEnabled,
+            MinWidth = 0,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        monitorSwitch.Toggled += (_, _) => _link.Monitor.IsEnabled = monitorSwitch.IsOn;
+        ToolTipService.SetToolTip(monitorSwitch, "Play a sidetone on this PC while the rig's keyer sends, at the rig's speed and CW pitch — for when the rig is remote and there's nothing to hear");
+        AutomationProperties.SetName(monitorSwitch, "Monitor");
+        right.Children.Add(monitorSwitch);
         var macrosButton = new Button();
         SetContent(macrosButton, "", "Macros…");
         ToolTipService.SetToolTip(macrosButton, "Edit the macro buttons");

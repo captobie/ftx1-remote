@@ -17,6 +17,8 @@ public sealed class CwRigLink
     public required Func<int?> SpeedWpm { get; init; }
     /// Whether the last poll saw the rig transmitting.
     public required Func<bool> Ptt { get; init; }
+    /// The rig's CW pitch ("KP") in Hz, if read — for the CW monitor.
+    public Func<int?>? PitchHz { get; init; }
     /// Awaited right before each chunk keys ("KY0n"): MainWindow stops a
     /// running memory scan there, as before PTT. Not part of BlockReason,
     /// which the pane also reads just to show its status.
@@ -48,6 +50,10 @@ public sealed class CwSender
     /// True from the first write of a run until the queue is done, so the
     /// decoder can pause (CwReceiver.SetSenderActive).
     public event Action<bool>? ActiveChanged;
+    /// A chunk was just played on the rig (its text, the rig's WPM and CW
+    /// pitch), or null when Stop cut keying off — for the CW monitor, a
+    /// local sidetone for when the rig is remote (the Mac's onKeying).
+    public event Action<CwKeyingChunk?>? Keying;
 
     private readonly CwRigLink _rig;
     private readonly List<CwSendItem> _items = [];
@@ -175,6 +181,7 @@ public sealed class CwSender
             // Never gated: stopping must always get through.
             _ = SendQuietlyAsync(() => client.SetRawIntAsync("KY0", 0, 1));
         }
+        Keying?.Invoke(null);
         foreach (var item in _items.Where(i => i.IsWaiting))
         {
             item.State = CwSendState.Stopped;
@@ -302,6 +309,7 @@ public sealed class CwSender
             }
             var startedAt = DateTime.UtcNow;
             await client.SetRawIntAsync("KY0", slot, 1);
+            Keying?.Invoke(new CwKeyingChunk(chunk, wpm, _rig.PitchHz?.Invoke()));
             await WaitUntilKeyedAsync(startedAt, expected, token);
             item.SentChunks++;
             Changed?.Invoke();
@@ -421,6 +429,10 @@ public enum CwSendBlockKind
     BreakInOff,
 }
 
+/// One chunk the rig's keyer is sending (<see cref="CwSender.Keying"/>);
+/// <paramref name="PitchHz"/> is the rig's CW pitch ("KP"), null until read.
+public sealed record CwKeyingChunk(string Text, int Wpm, int? PitchHz);
+
 /// Turning typed text into what the FTX-1's keyer memory takes (the Mac's
 /// CWText).
 public static class CwText
@@ -511,27 +523,40 @@ public static class CwText
     /// 1.2/wpm s; elements are 1 or 3 units with 1-unit gaps, 3 units
     /// between characters, 7 between words). The rig may weight or space
     /// differently; this only sets when finish detection starts looking.
-    public static double Duration(string text, int wpm)
+    public static double Duration(string text, int wpm) =>
+        Keying(text).Sum(run => run.Units) * 1.2 / wpm;
+
+    /// <paramref name="text"/> as key-down/key-up runs in dit units, PARIS
+    /// timing (see <see cref="Duration"/>), starting and ending with a
+    /// key-down — for finish detection and the CW monitor.
+    public static List<(bool Down, int Units)> Keying(string text)
     {
-        var units = 0;
+        var runs = new List<(bool Down, int Units)>();
         var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         for (var index = 0; index < words.Length; index++)
         {
             if (index > 0)
             {
-                units += 7;
+                runs.Add((false, 7));
             }
             for (var position = 0; position < words[index].Length; position++)
             {
                 if (position > 0)
                 {
-                    units += 3;
+                    runs.Add((false, 3));
                 }
                 var pattern = Morse.GetValueOrDefault(words[index][position], "....");
-                units += pattern.Sum(c => c == '-' ? 3 : 1) + pattern.Length - 1;
+                for (var element = 0; element < pattern.Length; element++)
+                {
+                    if (element > 0)
+                    {
+                        runs.Add((false, 1));
+                    }
+                    runs.Add((true, pattern[element] == '-' ? 3 : 1));
+                }
             }
         }
-        return units * 1.2 / wpm;
+        return runs;
     }
 
     private static readonly Dictionary<char, string> Morse = new()

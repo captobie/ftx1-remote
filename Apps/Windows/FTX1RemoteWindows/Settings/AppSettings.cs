@@ -99,6 +99,7 @@ public static class AppSettings
         public bool CwAutoTune { get; set; } = true;
         public double CwSquelchDb { get; set; } = 12;
         public int CwKeyerSlot { get; set; } = 1;
+        public bool CwMonitor { get; set; }
         public CwDecoderKind CwDecoder { get; set; } = CwDecoderKind.Neural;
         public List<CwMacro>? CwMacros { get; set; }
         public WebSdrFavorite? WebSdrPickedStation { get; set; }
@@ -806,6 +807,18 @@ public static class AppSettings
         set
         {
             _cache.CwDecoder = value;
+            Save();
+        }
+    }
+
+    /// The send pane's Monitor switch (the Mac's cw.monitor), off by
+    /// default — see CwMonitor.
+    public static bool CwMonitor
+    {
+        get => _cache.CwMonitor;
+        set
+        {
+            _cache.CwMonitor = value;
             Save();
         }
     }

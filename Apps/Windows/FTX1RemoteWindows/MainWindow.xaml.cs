@@ -116,6 +116,8 @@ public sealed partial class MainWindow : Window
     /// The CW window's send pane (the Mac's HubService.cwSender); keeps
     /// sending a queued line when the window closes.
     private readonly CwSender _cwSender;
+    /// The CW window's Monitor: a local sidetone for what _cwSender keys.
+    private readonly CwMonitor _cwMonitor;
     private CwWindow? _cwWindow;
     /// The CW page's RECORD (the Mac's HubService.audioRecorder): fed Main
     /// from the audio thread, a no-op while not recording.
@@ -291,9 +293,12 @@ public sealed partial class MainWindow : Window
             BlockReason = CwSendBlockReason,
             SpeedWpm = () => _lastState.CwSpeedWpm,
             Ptt = () => _lastState.Ptt,
+            PitchHz = () => _lastState.CwPitchHz,
             BeforeKeyAsync = StopMemoryScanBeforeTransmitAsync,
         });
         _cwSender.ActiveChanged += _cwReceiver.SetSenderActive;
+        _cwMonitor = new CwMonitor(DispatcherQueue);
+        _cwSender.Keying += _cwMonitor.Handle;
         WireAprsDecoder(_aprsMainDecoder, AprsSource.Main);
         WireAprsDecoder(_aprsSubDecoder, AprsSource.Sub);
 
@@ -444,6 +449,7 @@ public sealed partial class MainWindow : Window
             _aprsMapWindow?.Close();
             _webSdrWindow?.Close();
             _cwWindow?.Close();
+            _cwMonitor.Stop();
             _recordingsWindow?.Close();
             _memoryListStore.Cancel();
             _memoryListWindow?.Close();
@@ -2348,6 +2354,7 @@ public sealed partial class MainWindow : Window
                 SetBreakIn = _menuGrid.SetBreakIn,
                 SetSpeed = _menuGrid.SetCwSpeed,
                 Transmitter = CwTransmitterNow,
+                Monitor = _cwMonitor,
             });
             _cwWindow.Closed += (_, _) => _cwWindow = null;
             PushRigStateToCw();

@@ -1607,6 +1607,10 @@ golden file). The WebSDR window is a third CW source
 browser process tree), tested with a local CW page, not yet against a real
 WebSDR; unlike the Mac, a muted WebSDR can't be decoded (Windows has no
 mute that keeps the capture fed — user decision).
+The send pane's Monitor sidetone (the Mac's `CWMonitor`) was ported
+2026-10-22 (`Services/CwMonitor.cs`, `CwSender.Keying`, `CwText.Keying`);
+tested on the air by the user the same day. See the README's
+"CW window".
 CW window logging was ported 2026-10-09 with **HRD Logbook** (Ham Radio
 Deluxe 6.9, on the user's PC) in MacLoggerDX's place: Log QSO pane
 (`Controls/CwLogPane.cs`, Their call moved there from the send pane),

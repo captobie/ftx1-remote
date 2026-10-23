@@ -1132,6 +1132,17 @@ and CLAUDE.md's "v2: CW send pane" have the rig facts this relies on):
   dropped "É", a macro refused for an empty callsign, AGN? filling the
   line, and clicking a decoded W1AW filling Their call. Not yet on the
   rig.
+- **Monitor (2026-10-22, tested on the air by the user the same day)**:
+  the Mac's CW monitor. A switch in the send pane's header
+  (`CwMonitor` in settings.json, off by default) plays a local sidetone
+  for each chunk on the audio output (Settings → Audio, Windows' default
+  when unset). `Services/CwMonitor.cs` renders the chunk from
+  `CwText.Keying` (PARIS timing, also behind `CwText.Duration` now) at the
+  rig's KS and KP (700 Hz until read) when `CwSender.Keying` fires at the
+  "KY0n", and plays it through its own `WasapiOut`. So it runs a network
+  hop ahead of the rig and ignores the rig's weighting. Stop cuts it off.
+  It never plays into the rig's own USB audio (the same check as
+  Recordings).
 
 ## Logbook — HRD Logbook (CW window Log QSO pane, 2026-10-09)
 
@@ -2126,6 +2137,7 @@ Apps/Windows/FTX1RemoteWindows/
     CwNeuralDecoder.cs           CWKit's neural CW decoder: spectrogram, resampler, streaming CTC, ONNX model, pipeline (Neural/)
     CwReceiver.cs                CW decode worker + window state (CWReceiver.swift + CWKit's PipelineRunner)
     CwSender.cs                  CW send queue via the rig's keyer memory, CwText, macros, callsign finder (CWSender/CWCallsigns.swift)
+    CwMonitor.cs                 CW send pane's local sidetone (CWMonitor.swift)
     HrdLogbook.cs                HRD Logbook: its settings, ADIF receiver, SQLite log reads (MacLoggerDX.swift's counterpart)
     QsoLogger.cs                 Sends a QSO to HRD as ADIF over UDP, confirms it in the log (QSOLogger.swift)
     WorkedStationsStore.cs       Worked-before index for the CW window (WorkedStationsStore.swift)
