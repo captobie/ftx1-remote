@@ -2063,6 +2063,17 @@ vendored here.
     "KY00" stops at once; "KM<n>;" alone is a read, so a slot can't be
     emptied (" " is the closest). PTT reads 3 throughout keying incl. word
     gaps, with the odd spurious 0.
+  - **Monitor (2026-10-22, tested on the air by the user the same
+    day)**: a switch in the send pane's header (`cw.monitor`, off by
+    default) plays a local sidetone for each chunk on the Mac's audio
+    output (Settings → Audio's device) — with the rig on the Pi there's
+    nothing to hear while the keyer sends. `CWMonitor` (a `let` on
+    `HubService`, its own environment object so the pane doesn't observe
+    the hub) renders the chunk from `CWText.keying(of:)` (PARIS timing) at
+    the rig's KS and KP (700 Hz until read) when `CWSender.onKeying` fires
+    at the play command, so it runs a network hop ahead of the rig and
+    ignores the rig's weighting; Stop cuts it off. The CW Key window
+    doesn't use it (the key interface has its own sidetone).
   - **Finish detection** (`CWSender.waitUntilKeyed`): ≥90% of the PARIS-
     timed duration at the rig's WPM has passed and PTT has read off for
     ≥1 s; capped at 1.5× + 5 s. Gap between chunks heard as ~1–2 s.

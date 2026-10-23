@@ -39,6 +39,7 @@ struct CWSendPane: View {
             Text("Send").font(.headline)
             CWKeyerControls()
             Spacer()
+            CWMonitorToggle()
             Button {
                 isEditingMacros = true
             } label: {
@@ -143,6 +144,19 @@ private struct MacroShortcut: ViewModifier {
         } else {
             content
         }
+    }
+}
+
+/// The Monitor switch: a local sidetone at the rig's speed and pitch, for
+/// hearing what's sent when the rig is remote (`CWMonitor`).
+private struct CWMonitorToggle: View {
+    @EnvironmentObject private var monitor: CWMonitor
+
+    var body: some View {
+        Toggle("Monitor", isOn: $monitor.isEnabled)
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .help("Play a sidetone on this Mac while the rig's keyer sends, at the rig's speed and CW pitch — for when the rig is remote and there's nothing to hear")
     }
 }
 

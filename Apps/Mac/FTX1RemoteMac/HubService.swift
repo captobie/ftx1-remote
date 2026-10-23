@@ -274,6 +274,8 @@ final class HubService: ObservableObject {
     /// Tools → CW's send pane (keys the rig's CW TEXT keyer memory) — see
     /// `CWSender`. `lazy` so it can be handed `self`.
     lazy var cwSender = CWSender(link: self, logSubsystem: "com.ftx1remote.mac")
+    /// The CW window's Monitor: a local sidetone for what `cwSender` keys.
+    let cwMonitor = CWMonitor()
     /// Tools → CW Key: the Arduino key interface keying the rig over
     /// RTS/DTR — see `StraightKeyController`. Started in `start()`, so the
     /// key interface connects at launch (disarmed).
@@ -567,6 +569,9 @@ final class HubService: ObservableObject {
         cwSender.onActiveChanged = { [weak self] active in
             self?.cwReceiver.setSenderActive(active)
         }
+        cwSender.onKeying = { [weak self] chunk in
+            self?.cwMonitor.handle(chunk)
+        }
         // Modes only while connected: before the first read, `rigState`
         // holds placeholder values (`mode` is USB).
         cwRigCancellable = $rigState.combineLatest($connectionState)
@@ -745,6 +750,7 @@ final class HubService: ObservableObject {
         stopRigctld()
         stopFT8Decoding()
         cwReceiver.stop()
+        cwMonitor.stop()
         webSocketServerTask?.cancel()
         webSocketServerTask = nil
         Task { [server] in await server.stop() }

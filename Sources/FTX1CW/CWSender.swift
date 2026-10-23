@@ -67,6 +67,10 @@ public final class CWSender: ObservableObject {
     /// Set by the app: true from the first write of a run until the queue
     /// is done, so the decoder can pause (see `CWReceiver.setSenderActive`).
     public var onActiveChanged: ((Bool) -> Void)?
+    /// Set by the app: a chunk was just played on the rig (its text, the
+    /// rig's WPM and CW pitch), or nil when Stop cut keying off — for the
+    /// Mac's CW monitor, a local sidetone for when the rig is remote.
+    public var onKeying: ((CWKeyingChunk?) -> Void)?
 
     private weak var link: (any CWKeyerLink)?
     private var runTask: Task<Void, Never>?
@@ -166,6 +170,7 @@ public final class CWSender: ObservableObject {
         if holdsKeyer {
             link?.playCWTextMemory(slot: 0)
         }
+        onKeying?(nil)
         releaseKeyer()
         for index in items.indices where items[index].isWaiting {
             items[index].state = .stopped
@@ -251,6 +256,7 @@ public final class CWSender: ObservableObject {
             activity = "Sending at \(wpm) WPM…"
             let startedAt = Date()
             link.playCWTextMemory(slot: slot)
+            onKeying?(CWKeyingChunk(text: chunk, wpm: wpm, pitchHz: link.cwRigState.cwPitchHz))
             try await waitUntilKeyed(startedAt: startedAt, expected: expected)
             guard let index = items.firstIndex(where: { $0.id == id }) else { return }
             items[index].sentChunks += 1
@@ -313,6 +319,14 @@ public final class CWSender: ObservableObject {
             }
         }
     }
+}
+
+/// One chunk the rig's keyer is sending (`CWSender.onKeying`).
+public struct CWKeyingChunk: Equatable, Sendable {
+    public let text: String
+    public let wpm: Int
+    /// The rig's CW pitch (`KP`), nil until read.
+    public let pitchHz: Int?
 }
 
 // MARK: - Items
@@ -456,16 +470,27 @@ public enum CWText {
     /// words). The rig may weight or space differently; this only sets
     /// when finish detection starts looking.
     public static func duration(of text: String, wpm: Int) -> TimeInterval {
-        var units = 0
+        let units = keying(of: text).reduce(0) { $0 + $1.units }
+        return Double(units) * 1.2 / Double(wpm)
+    }
+
+    /// `text` as key-down/key-up runs in dit units, PARIS timing (see
+    /// `duration(of:wpm:)`), starting and ending with a key-down — for
+    /// finish detection and the Mac's CW monitor.
+    public static func keying(of text: String) -> [(down: Bool, units: Int)] {
+        var runs: [(down: Bool, units: Int)] = []
         for (index, word) in text.split(separator: " ").enumerated() {
-            if index > 0 { units += 7 }
+            if index > 0 { runs.append((false, 7)) }
             for (position, character) in word.enumerated() {
-                if position > 0 { units += 3 }
+                if position > 0 { runs.append((false, 3)) }
                 let pattern = morse[character] ?? "...."
-                units += pattern.reduce(0) { $0 + ($1 == "-" ? 3 : 1) } + pattern.count - 1
+                for (element, symbol) in pattern.enumerated() {
+                    if element > 0 { runs.append((false, 1)) }
+                    runs.append((true, symbol == "-" ? 3 : 1))
+                }
             }
         }
-        return Double(units) * 1.2 / Double(wpm)
+        return runs
     }
 
     private static let morse: [Character: String] = [
