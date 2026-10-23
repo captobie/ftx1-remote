@@ -2035,7 +2035,7 @@ public sealed partial class MainWindow : Window
     private void PowerStep_Click(object sender, RoutedEventArgs e)
     {
         var step = int.Parse((string)((Button)sender).Tag);
-        PowerSlider.Value = Math.Clamp(Math.Round(PowerSlider.Value) + step, 0, 100);
+        PowerSlider.Value = Math.Clamp(Math.Round(PowerSlider.Value) + step, RigState.MinimumPowerLevel * 100, 100);
     }
 
     private async void PowerSlider_PointerDone(object sender, PointerRoutedEventArgs e)
@@ -2061,6 +2061,7 @@ public sealed partial class MainWindow : Window
         {
             return;
         }
+        level = Math.Clamp(level, RigState.MinimumPowerLevel, 1);
         _powerHoldUntil = DateTime.UtcNow + PowerHoldAfterSend;
         _lastState.PowerLevel = level;
         if (!_powerDragging && Math.Abs(PowerSlider.Value - level * 100) >= 0.05)

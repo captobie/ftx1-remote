@@ -230,6 +230,7 @@ public sealed class RigctldClient : IAsyncDisposable
     /// .setPowerLevel case ("L currVFO RFPOWER <level:F3>").
     public async Task SetPowerLevelAsync(double level, CancellationToken cancellationToken = default)
     {
+        level = Math.Clamp(level, RigState.MinimumPowerLevel, 1);
         _ = await SendAsync($"L {CurrentVfoArg} RFPOWER {level:F3}", cancellationToken).ConfigureAwait(false);
     }
 

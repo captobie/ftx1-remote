@@ -778,7 +778,8 @@ public struct MenuPageView<Controller: RigController>: View {
         }
     }
 
-    /// SSB button 22, RF POWER (0-100% output power, relative to whatever
+    /// SSB button 22, RF POWER (5-100% output power — the rig's floor is
+    /// 5 W, `RigState.minimumPowerLevel` — relative to whatever
     /// per-band MAX POWER ceiling applies — a separate setting, under Deep
     /// Settings' OPERATION SETTING category, not this button). This is the
     /// one popover control that uses a `Slider` rather than a `Stepper`
@@ -805,14 +806,14 @@ public struct MenuPageView<Controller: RigController>: View {
                     Button { stepRFPower(by: -1) } label: {
                         Image(systemName: "chevron.left")
                     }
-                    .disabled(displayedRFPowerLevel <= 0)
+                    .disabled(displayedRFPowerLevel <= RigState.minimumPowerLevel)
                     .help("Decrease RF power by 1 W")
                     Slider(
                         value: Binding(
                             get: { displayedRFPowerLevel },
                             set: { localRFPowerLevel = $0 }
                         ),
-                        in: 0...1,
+                        in: RigState.minimumPowerLevel...1,
                         onEditingChanged: { editing in
                             if editing {
                                 localRFPowerLevel = displayedRFPowerLevel
@@ -847,7 +848,7 @@ public struct MenuPageView<Controller: RigController>: View {
     /// `rigState` optimistically the way `HubService` does).
     private func stepRFPower(by steps: Int) {
         let current = (displayedRFPowerLevel * 100).rounded()
-        let next = min(max(current + Double(steps), 0), 100) / 100
+        let next = min(max(current + Double(steps), RigState.minimumPowerLevel * 100), 100) / 100
         steppedRFPowerLevel = next
         hub.send(.setPowerLevel(next))
     }
@@ -1260,7 +1261,7 @@ public struct MenuPageView<Controller: RigController>: View {
 
     private var displayedRFPowerLevel: Double {
         if isDraggingRFPower { return localRFPowerLevel }
-        return steppedRFPowerLevel ?? hub.rigState.powerLevel ?? 0
+        return max(steppedRFPowerLevel ?? hub.rigState.powerLevel ?? 0, RigState.minimumPowerLevel)
     }
 
     private static func rfPowerLabel(_ level: Double?) -> String {

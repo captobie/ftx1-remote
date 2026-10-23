@@ -343,7 +343,7 @@ public final class SimulatedRig: @unchecked Sendable {
             return level(words[2], side: vfo, now: now)
         case "L":
             guard words.count >= 4, words[2] == "RFPOWER", let value = Double(words[3]) else { return .lines("RPRT -11") }
-            rfPower = min(max(value, 0), 1)
+            rfPower = min(max(value, RigState.minimumPowerLevel), 1)
             return .ok
         case "v":
             return .lines(activeSide == 0 ? "Main" : "Sub")

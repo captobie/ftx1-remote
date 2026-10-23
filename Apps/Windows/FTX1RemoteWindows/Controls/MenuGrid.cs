@@ -981,14 +981,14 @@ public sealed class MenuGrid : UserControl
     private string? GateReason(TransmitAction action) =>
         TransmitGate.BlockReason(action, AppSettings.TransmitEnabled, _state.FrequencyHz);
 
-    /// 22: RF POWER (the "RFPOWER" level, 0-100%). A slider rather than a
+    /// 22: RF POWER (the "RFPOWER" level, 5-100%; the rig's floor is 5 W). A slider rather than a
     /// stepper, as on the Mac: sends once on release (or per key press),
     /// not per drag tick.
     private void AddRfPower(int item)
     {
         var button = AddCell(item, "RF POWER", () => RfPowerLabel(_state.PowerLevel));
         var valueText = new TextBlock { FontFamily = ValueFont, HorizontalAlignment = HorizontalAlignment.Center };
-        var slider = new Slider { Minimum = 0, Maximum = 100, Width = 200 };
+        var slider = new Slider { Minimum = RigState.MinimumPowerLevel * 100, Maximum = 100, Width = 200 };
         var dragging = false;
         var suppress = false;
 
@@ -1038,7 +1038,7 @@ public sealed class MenuGrid : UserControl
             };
             ToolTipService.SetToolTip(b, tip);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, tip);
-            b.Click += (_, _) => slider.Value = Math.Clamp(Math.Round(slider.Value) + step, 0, 100);
+            b.Click += (_, _) => slider.Value = Math.Clamp(Math.Round(slider.Value) + step, RigState.MinimumPowerLevel * 100, 100);
             return b;
         }
         var row = new StackPanel
@@ -1060,7 +1060,7 @@ public sealed class MenuGrid : UserControl
         flyout.Opening += (_, _) =>
         {
             suppress = true;
-            slider.Value = (_state.PowerLevel ?? 0) * 100;
+            slider.Value = (_state.PowerLevel ?? RigState.MinimumPowerLevel) * 100;
             suppress = false;
             valueText.Text = RfPowerLabel(slider.Value / 100.0);
         };

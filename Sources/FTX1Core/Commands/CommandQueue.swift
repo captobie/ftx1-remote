@@ -127,7 +127,8 @@ public actor CommandQueue {
             // here unresolved, there's no meaningful rigctld call to make.
             _ = band
         case .setPowerLevel(let level):
-            _ = try await rigctld.send("L \(Self.currentVFOArg) RFPOWER \(String(format: "%.3f", level))")
+            let clamped = min(max(level, RigState.minimumPowerLevel), 1)
+            _ = try await rigctld.send("L \(Self.currentVFOArg) RFPOWER \(String(format: "%.3f", clamped))")
         case .setBreakIn(let on):
             try await rigctld.setRawBool("BI", on)
         case .setKeyer(let on):

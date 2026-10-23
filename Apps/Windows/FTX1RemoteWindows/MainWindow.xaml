@@ -353,7 +353,7 @@
                                 AutomationProperties.Name="Decrease power by 1 W" ToolTipService.ToolTip="Decrease RF power by 1 W">
                             <FontIcon Glyph="&#xE76B;" FontSize="10" />
                         </Button>
-                        <Slider Grid.Column="1" x:Name="PowerSlider" Minimum="0" Maximum="100" ValueChanged="PowerSlider_ValueChanged" />
+                        <Slider Grid.Column="1" x:Name="PowerSlider" Minimum="5" Maximum="100" ValueChanged="PowerSlider_ValueChanged" />
                         <Button Grid.Column="2" Tag="1" Click="PowerStep_Click" Padding="6,4" VerticalAlignment="Center"
                                 AutomationProperties.Name="Increase power by 1 W" ToolTipService.ToolTip="Increase RF power by 1 W">
                             <FontIcon Glyph="&#xE76C;" FontSize="10" />

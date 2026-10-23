@@ -21,6 +21,10 @@ public struct RigState: Codable, Equatable, Sendable {
     /// The RFPOWER *setting* (0.0–1.0, relative), not the metered output —
     /// that's `powerWatts`.
     public var powerLevel: Double?
+    /// The lowest RFPOWER the FTX-1 accepts: 5 W (0.05 of its 100 W scale).
+    /// Below that it just stays at 5 W, so no control offers less and
+    /// `CommandQueue` clamps anything lower that still arrives.
+    public static let minimumPowerLevel = 0.05
     /// CW break-in (the FTX-1's raw "BI" CAT command) — nil until the first
     /// successful read, same as the other optional fields above.
     public var breakIn: Bool?

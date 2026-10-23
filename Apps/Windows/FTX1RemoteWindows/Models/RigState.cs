@@ -31,6 +31,12 @@ public sealed class RigState
     /// that's PowerWatts. Same distinction as RigState.swift's powerLevel.
     public double? PowerLevel { get; set; }
 
+    /// The lowest RFPOWER the FTX-1 accepts: 5 W (0.05 of its 100 W scale).
+    /// Below that it just stays at 5 W, so no control offers less and
+    /// RigctldClient.SetPowerLevelAsync clamps anything lower — same as
+    /// RigState.swift's minimumPowerLevel.
+    public const double MinimumPowerLevel = 0.05;
+
     // V/M memory mode (RigState.swift's vfoMemoryMode/memoryChannel/
     // memoryChannelTag and their sub* counterparts).
 
