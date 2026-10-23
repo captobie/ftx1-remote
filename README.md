@@ -69,7 +69,7 @@ in C#.
 - **Commands are serialized** through `CommandQueue`, since rigctld handles
   one request/response cycle at a time.
 - **A transmit-safety interlock gates everything that can key the radio**
-  (PTT, MOX, ANT TUNE, CW keyer plays, straight-key keying): an **Enable
+  (PTT, MOX, ANT TUNE, CW keyer plays, CW key/paddle keying): an **Enable
   Transmit** lock plus an amateur-band check on the transmitting side
   (`TransmitGate`). On the Mac it sits in `HubService.send(...)` and covers
   hub clients too (the iPad's hub screen can toggle it); Pi direct has its
@@ -144,7 +144,7 @@ in C#.
     and worked-before colors from its log. The iPad has the same decoder
     and sender in a pane (no logging); Windows has its own port, logging to
     HRD Logbook.
-  - **Straight Key** — see below.
+  - **CW Key** (straight key or iambic paddle) — see below.
   - **WebSDR**: embeds a KiwiSDR, classic WebSDR or OpenWebRX receiver,
     follows the rig's frequency, can tune the rig from the page, and
     records audio.
@@ -180,7 +180,7 @@ Sources/FTX1Core/
 │                  MicrophoneTransmitter, SharedAudioSession, FilterSpectrum
 ├── APRS/          AFSKDemodulator, AX25Frame, APRSPacket, APRSDecoder,
 │                  APRSStore, APRSPersistence, APRSSettings
-├── CWKey/         straight-key keying: line parser, clock sync, jitter
+├── CWKey/         CW key/paddle keying: line parser, clock sync, jitter
 │                  buffer, safety, feedback detector, engine; serial source,
 │                  RTS/DTR keyer and drivers (macOS), CWRemoteKeyingDriver
 ├── Logbook/       LoggedQSO, ADIFRecord, ADIFMode, WSJTXMessage,
@@ -217,7 +217,7 @@ map, the FT8 files (`FT8DecodeCoordinator`, `FT8Store`, `FT8ListView`,
 `CWLogPane`, `CWWebSDRSource`, `WebSDRAudioTap`), the logbook
 (`MacLoggerDX`, `QSOLogger`, `WorkedStationsStore`), the WebSDR window
 (`WebSDRFollowModel`, `KiwiWebView`, `SDRPageBridge`, directories and
-favorites), `MemoryListView`, the straight key (`StraightKey*`),
+favorites), `MemoryListView`, the CW key window (`StraightKey*`),
 `ContentView` and `SettingsView`.
 
 **iPad app** (`Apps/iPad/FTX1RemoteiPad/`): `ContentView` (the Desktop hub /
@@ -234,7 +234,7 @@ view (frequency, SWR, PTT, mode grid) on either route — no MENU grid.
 
 **`Pi/`** holds the deployable Pi-side pieces, each a Python script with its
 systemd unit: `ftx1-audiostream.py` (receive audio, 8532),
-`ftx1-txaudio.py` (transmit audio, 8533) and `ftx1-cwkey.py` (straight-key
+`ftx1-txaudio.py` (transmit audio, 8533) and `ftx1-cwkey.py` (CW key/paddle
 keying, 8534), plus the ALSA config (`asound-ftx1.conf`) that lets them
 share the rig's codec with Direwolf. Deploy per `Pi/README.md`.
 `rigctld.service`/`direwolf.service` are set up directly on the Pi, not
@@ -245,7 +245,7 @@ tracked here.
 Single dense window: VFO A/B, S/SWR meters, waterfall/oscilloscope with
 per-channel (Main/Sub) mute and volume/squelch sliders, band/mode selectors,
 filter controls and display, memory list and scan buttons, and the numbered
-MENU grid, all visible at once. The **Tools** menu opens FT8, CW, Straight
+MENU grid, all visible at once. The **Tools** menu opens FT8, CW, CW
 Key, WebSDR and the APRS list/messages/map windows. Settings has tabs for
 rigctld (Local/Remote mode, which rigctld), Audio (input/output devices,
 transmit audio output), C4FM (WPSD hotspot), APRS, Station, Logbook, Home
@@ -263,10 +263,14 @@ with Deep Settings. The FM page's S.LIST/M.LIST and the **CW** button open
 the APRS lists and the CW decoder/sender in place of the filter block and
 grid. Demo Mode is on the Pi direct tab.
 
-## Straight-key CW (Mac; Local or Remote mode)
+## CW key and paddle (Mac; Local or Remote mode)
 
-Tools → **Straight Key** keys the FTX-1 from a straight key on the Arduino
-interface (`cw_keyer/cw_keyer.ino`, USB serial, 115200). The Mac plays each
+Tools → **CW Key** keys the FTX-1 from a straight key or an iambic paddle on
+the Arduino interface (`cw_keyer/cw_keyer.ino`, USB serial, 115200: paddle
+dit/dah on D2/D3 from a 3.5 mm TRS jack, straight key on D4; both can be
+connected at once). The paddle's iambic keyer runs on the Arduino, which
+reports its elements as the same key-down/up events as the straight key,
+so everything after it is shared. The Mac plays each
 key-down/up out at the operator's original spacing (a playout delay, 150 ms
 by default) by toggling **RTS or DTR on the rig's second USB serial port**.
 The CAT port stays rigctld's. The Arduino plays its own sidetone; the Mac
@@ -311,6 +315,12 @@ window refuses to arm on rigctld's own ports.
 - **Playout delay** (default 150 ms Local, 300 ms Remote, stored apart),
   **Max key-down** (default 5 s) and, Remote only, how long the Pi waits
   without hearing from the Mac before it keys up (default 1 s).
+- **Paddle keyer**: speed (5–50 WPM), or **Follow the rig's keyer speed**
+  (the rig's KS, clamped to 5–50); **Iambic mode** A or B; **Reverse
+  paddle** (dit ↔ dah); **Sidetone on the interface**. These are sent to
+  the Arduino whenever it connects, and again if it reports different
+  values (e.g. after its speed pot is turned — the window's settings win).
+  The line under the Link shows what the interface is actually using.
 
 Keying is refused or cut off (and stays up until you release the key) when:
 disarmed; the Arduino isn't connected or has sent nothing for 500 ms
@@ -325,8 +335,17 @@ keys the rig again, a loop that keeps going after a single tap. Its
 presses repeat with a machine-steady period (the playout delay plus
 transport); a hand on a straight key doesn't. After 4 such periods in a
 row (within 6 ms) the Mac disarms and says "RF feedback detected". The
-cure is at the key: a ferrite on the key lead (a large one fixed it here),
-or 10 nF from D4 to GND plus a 4.7 kΩ pull-up at the Arduino.
+paddle keyer's own output is just as steady, so a run that matches the
+keyer's timing at the interface's WPM (marks of 1 or 3 dits, 1-dit gaps)
+is exempt. The cure is at the key: a ferrite on the key or paddle lead (a
+large one fixed it here), or 10 nF from D4 to GND plus a 4.7 kΩ pull-up at
+the Arduino. Known limit: RF in the *paddle* leads makes real keyer
+elements, which the guard can't tell from your own.
+
+Long paddle runs in Remote mode can also put RF on the Pi↔radio USB cable,
+where the CP2105 rejects a line change (`cp210x … -71` in the Pi's
+`journalctl -k`). The Pi retries until the line reads key-up and keeps
+keying off until you re-arm; a ferrite on that USB cable is the fix.
 
 ### Testing keying safely
 
@@ -356,9 +375,8 @@ category `cw-key`.
 
 ## Not yet built / open
 
-- For 1.0 (Mac, Windows, iPad; the iPhone app isn't in 1.0): a paddle input
-  for the Mac's straight-key window, and the straight key's hub relay so the
-  iPad/Windows can key remotely (the wire messages exist, nothing uses them
+- For 1.0 (Mac, Windows, iPad; the iPhone app isn't in 1.0): the CW key's
+  hub relay so the iPad/Windows can key remotely (the wire messages exist, nothing uses them
   yet).
 - iPad transmit audio (PTT + microphone) hasn't been on the air yet, and
   the newest PTT fixes haven't been re-tried on a real iPad.
