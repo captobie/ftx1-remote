@@ -58,7 +58,7 @@ public sealed class CwSendPane : UserControl
     private readonly TextBlock _statusText = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly Button _breakInOnButton = new() { Content = "Turn On BK-IN", Padding = new Thickness(8, 2, 8, 3) };
 
-    private readonly TextBox _lineBox = new() { PlaceholderText = "Type a line and press Enter to send", FontFamily = new FontFamily("Consolas") };
+    private readonly TextBox _lineBox = new() { PlaceholderText = "Type a line and press Enter to send", CharacterCasing = CharacterCasing.Upper, FontFamily = new FontFamily("Consolas") };
     private readonly Button _sendButton = new() { Content = "Send" };
 
     private readonly DispatcherQueueTimer _rigTimer;
@@ -298,7 +298,8 @@ public sealed class CwSendPane : UserControl
             return;
         }
         var current = _lineBox.Text.Trim();
-        _lineBox.Text = current.Length == 0 ? text : current + " " + text;
+        // Uppercase like typed text (CharacterCasing only covers typing).
+        _lineBox.Text = (current.Length == 0 ? text : current + " " + text).ToUpperInvariant();
         _note = null;
         _lineBox.Focus(FocusState.Programmatic);
         _lineBox.Select(_lineBox.Text.Length, 0);
