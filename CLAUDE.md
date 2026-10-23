@@ -2106,8 +2106,8 @@ vendored here.
     at the play command, so it runs a network hop ahead of the rig and
     ignores the rig's weighting; Stop cuts it off. The CW Key window
     doesn't use it (the key interface has its own sidetone).
-    **iPad (2026-10-23, Simulator in Demo Mode — toggled, a line sent,
-    no errors; not yet heard on a real iPad)**: a Monitor button at the
+    **iPad (2026-10-23, tested live on a real iPad by the user the same
+    day)**: a Monitor button at the
     right end of `CWSendSection`'s Their call/macro row (the header row is
     full in portrait), both routes. The App owns one monitor fed by its
     `CWSender.onKeying`; Demo Mode makes its own (`cw.monitor` is copied
