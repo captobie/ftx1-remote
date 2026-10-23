@@ -275,7 +275,7 @@ final class HubService: ObservableObject {
     /// `CWSender`. `lazy` so it can be handed `self`.
     lazy var cwSender = CWSender(link: self, logSubsystem: "com.ftx1remote.mac")
     /// The CW window's Monitor: a local sidetone for what `cwSender` keys.
-    let cwMonitor = CWMonitor()
+    let cwMonitor = CWMonitor(logSubsystem: "com.ftx1remote.mac")
     /// Tools → CW Key: the Arduino key interface keying the rig over
     /// RTS/DTR — see `StraightKeyController`. Started in `start()`, so the
     /// key interface connects at launch (disarmed).
@@ -569,6 +569,7 @@ final class HubService: ObservableObject {
         cwSender.onActiveChanged = { [weak self] active in
             self?.cwReceiver.setSenderActive(active)
         }
+        cwMonitor.outputDeviceID = { AudioOutputDeviceLister.deviceID(forUID: AudioOutputSettings.deviceUID) }
         cwSender.onKeying = { [weak self] chunk in
             self?.cwMonitor.handle(chunk)
         }

@@ -1,28 +1,40 @@
 import AVFoundation
-import AudioToolbox
 import Combine
-import CoreAudio
-import FTX1CW
+import FTX1Core
 import os
 
-/// The CW window's Monitor: a local sidetone for what the send pane keys.
-/// With the rig remote (on the Pi) there's nothing to hear while its keyer
-/// memory plays, so each chunk `CWSender` plays is synthesized here at the
-/// rig's keyer speed and CW pitch (`KS`/`KP`) and played on the Mac's audio
-/// output (Settings → Audio, same device as the rig's receive audio).
+#if os(macOS)
+import AudioToolbox
+import CoreAudio
+#endif
+
+/// The send pane's Monitor (the Mac's CW window, the iPad's CW pane): a
+/// local sidetone for what the rig's keyer sends. With the rig remote (on
+/// the Pi) there's nothing to hear while its keyer memory plays, so each
+/// chunk `CWSender` plays is synthesized here at the rig's keyer speed and
+/// CW pitch (`KS`/`KP`) and played locally — on the Mac, on the output
+/// picked in Settings → Audio (`outputDeviceID`); on the iPad, through
+/// `SharedAudioSession` like the receive players.
 ///
 /// It's a model of the keying, not a copy of it: PARIS timing from
 /// `CWText.keying(of:)`, started when the play command is sent, so it runs
 /// a network hop ahead of the rig and ignores the rig's weighting. Stop
-/// cuts it off with the rig. Not for the CW Key window: the key interface
-/// has its own sidetone.
-final class CWMonitor: ObservableObject {
-    @Published var isEnabled: Bool = UserDefaults.standard.bool(forKey: DefaultsKey.enabled) {
+/// cuts it off with the rig. Not for the Mac's CW Key window: the key
+/// interface has its own sidetone.
+@MainActor
+public final class CWMonitor: ObservableObject {
+    @Published public var isEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(isEnabled, forKey: DefaultsKey.enabled)
+            SettingsStore.defaults.set(isEnabled, forKey: Self.enabledKey)
             if !isEnabled { stop() }
         }
     }
+
+    #if os(macOS)
+    /// The output device to play on, looked up at each start; nil = the
+    /// system default.
+    public var outputDeviceID: (() -> AudioDeviceID?)?
+    #endif
 
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
@@ -30,10 +42,20 @@ final class CWMonitor: ObservableObject {
     /// Which chunk is playing, so a finished one can't stop the engine
     /// under a newer one.
     private var generation = 0
-    private let logger = Logger(subsystem: "com.ftx1remote.mac", category: "cw-monitor")
+    #if os(iOS)
+    /// This monitor's share of `SharedAudioSession`, while the engine runs.
+    private var holdsSession = false
+    #endif
+    private let logger: Logger
 
-    private enum DefaultsKey {
-        static let enabled = "cw.monitor"
+    /// Off by default, remembered.
+    public static let enabledKey = "cw.monitor"
+
+    /// - Parameter logSubsystem: the app's `os.Logger` subsystem; category
+    ///   "cw-monitor".
+    public init(logSubsystem: String) {
+        logger = Logger(subsystem: logSubsystem, category: "cw-monitor")
+        isEnabled = SettingsStore.defaults.bool(forKey: Self.enabledKey)
     }
 
     /// The rig's default pitch, used until `KP` has been read.
@@ -43,17 +65,24 @@ final class CWMonitor: ObservableObject {
     nonisolated private static let rampSeconds = 0.005
 
     /// A chunk the rig is starting to key, or nil when keying was stopped.
-    func handle(_ chunk: CWKeyingChunk?) {
+    public func handle(_ chunk: CWKeyingChunk?) {
         guard let chunk else { stop(); return }
         guard isEnabled else { return }
         play(chunk)
     }
 
-    func stop() {
+    public func stop() {
         generation += 1
-        guard engine.isRunning else { return }
-        player.stop()
-        engine.stop()
+        if engine.isRunning {
+            player.stop()
+            engine.stop()
+        }
+        #if os(iOS)
+        if holdsSession {
+            holdsSession = false
+            SharedAudioSession.release()
+        }
+        #endif
     }
 
     private func play(_ chunk: CWKeyingChunk) {
@@ -80,10 +109,10 @@ final class CWMonitor: ObservableObject {
         } else {
             engine.disconnectNodeOutput(player)
         }
+        #if os(macOS)
         // Set the device before reading its format and starting (see
         // `AudioPlaybackEngine.setOutputDevice`).
-        if let deviceID = AudioOutputDeviceLister.deviceID(forUID: AudioOutputSettings.deviceUID),
-           let audioUnit = engine.outputNode.audioUnit {
+        if let deviceID = outputDeviceID?(), let audioUnit = engine.outputNode.audioUnit {
             var mutableDeviceID = deviceID
             let status = AudioUnitSetProperty(
                 audioUnit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
@@ -92,6 +121,16 @@ final class CWMonitor: ObservableObject {
                 logger.error("output device: OSStatus \(status, privacy: .public)")
             }
         }
+        #else
+        if !holdsSession {
+            do {
+                try SharedAudioSession.acquire()
+                holdsSession = true
+            } catch {
+                logger.error("audio session: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        #endif
         let hardwareRate = engine.outputNode.outputFormat(forBus: 0).sampleRate
         guard let format = AVAudioFormat(standardFormatWithSampleRate: hardwareRate > 0 ? hardwareRate : 48000,
                                          channels: 1) else { return false }
@@ -102,6 +141,7 @@ final class CWMonitor: ObservableObject {
             return true
         } catch {
             logger.error("engine start failed: \(error.localizedDescription, privacy: .public)")
+            stop()
             return false
         }
     }

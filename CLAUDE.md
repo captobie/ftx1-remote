@@ -2098,13 +2098,21 @@ vendored here.
     day)**: a switch in the send pane's header (`cw.monitor`, off by
     default) plays a local sidetone for each chunk on the Mac's audio
     output (Settings → Audio's device) — with the rig on the Pi there's
-    nothing to hear while the keyer sends. `CWMonitor` (a `let` on
+    nothing to hear while the keyer sends. `CWMonitor` (`Sources/FTX1CW/`
+    since 2026-10-23, shared with the iPad; on the Mac a `let` on
     `HubService`, its own environment object so the pane doesn't observe
     the hub) renders the chunk from `CWText.keying(of:)` (PARIS timing) at
     the rig's KS and KP (700 Hz until read) when `CWSender.onKeying` fires
     at the play command, so it runs a network hop ahead of the rig and
     ignores the rig's weighting; Stop cuts it off. The CW Key window
     doesn't use it (the key interface has its own sidetone).
+    **iPad (2026-10-23, Simulator in Demo Mode — toggled, a line sent,
+    no errors; not yet heard on a real iPad)**: a Monitor button at the
+    right end of `CWSendSection`'s Their call/macro row (the header row is
+    full in portrait), both routes. The App owns one monitor fed by its
+    `CWSender.onKeying`; Demo Mode makes its own (`cw.monitor` is copied
+    into the demo suite). On iOS it plays through `SharedAudioSession`,
+    held only while a chunk plays.
   - **Finish detection** (`CWSender.waitUntilKeyed`): ≥90% of the PARIS-
     timed duration at the rig's WPM has passed and PTT has read off for
     ≥1 s; capped at 1.5× + 5 s. Gap between chunks heard as ~1–2 s.

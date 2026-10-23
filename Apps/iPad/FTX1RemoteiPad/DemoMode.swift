@@ -27,14 +27,17 @@ final class DemoSession: ObservableObject {
         let viewModel: PiDirectViewModel
         let cwReceiver: CWReceiver
         let cwSender: CWSender
+        let cwMonitor: CWMonitor
         let defaults: UserDefaults
         fileprivate var subscriptions: Set<AnyCancellable> = []
 
-        fileprivate init(pi: DemoPi, viewModel: PiDirectViewModel, cwReceiver: CWReceiver, cwSender: CWSender, defaults: UserDefaults) {
+        fileprivate init(pi: DemoPi, viewModel: PiDirectViewModel, cwReceiver: CWReceiver, cwSender: CWSender, cwMonitor: CWMonitor,
+                         defaults: UserDefaults) {
             self.pi = pi
             self.viewModel = viewModel
             self.cwReceiver = cwReceiver
             self.cwSender = cwSender
+            self.cwMonitor = cwMonitor
             self.defaults = defaults
         }
     }
@@ -54,6 +57,7 @@ final class DemoSession: ObservableObject {
     private static let copiedPreferences = [
         AppearanceSettings.themeKey, AppearanceSettings.buttonValueColorKey,
         MeterSettings.key, MeterSettings.subKey, "ui.frequencyStepSize",
+        CWMonitor.enabledKey,
     ]
 
     func start() {
@@ -99,7 +103,10 @@ final class DemoSession: ObservableObject {
             cwReceiver.ingest(pcm: pcm, sampleRate: AudioStreamFormat.sampleRate, channel: side == .main ? .main : .sub)
         }
         cwSender.onActiveChanged = { cwReceiver.setSenderActive($0) }
-        let context = Context(pi: pi, viewModel: viewModel, cwReceiver: cwReceiver, cwSender: cwSender, defaults: defaults)
+        let cwMonitor = CWMonitor(logSubsystem: "com.ftx1remote.ipad")
+        cwSender.onKeying = { cwMonitor.handle($0) }
+        let context = Context(pi: pi, viewModel: viewModel, cwReceiver: cwReceiver, cwSender: cwSender,
+                              cwMonitor: cwMonitor, defaults: defaults)
         // As the App does for the real route: locking or losing the link
         // stops the sender.
         viewModel.$transmitEnabled
@@ -120,6 +127,7 @@ final class DemoSession: ObservableObject {
         guard let context else { return }
         context.subscriptions.removeAll()
         context.cwSender.stop()
+        context.cwMonitor.stop()
         context.cwReceiver.stop()
         context.viewModel.disconnect()
         self.context = nil
@@ -150,6 +158,7 @@ extension View {
         environmentObject(context.viewModel)
             .environmentObject(context.cwReceiver)
             .environmentObject(context.cwSender)
+            .environmentObject(context.cwMonitor)
             .defaultAppStorage(context.defaults)
     }
 }

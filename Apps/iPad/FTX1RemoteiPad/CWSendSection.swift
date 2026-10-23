@@ -64,8 +64,9 @@ struct CWSendSection<Controller: RigController>: View {
         .padding(.vertical, 8)
     }
 
-    /// Their call (for `{CALL}`) and the macro buttons, scrolling sideways
-    /// if there are many.
+    /// Their call (for `{CALL}`), the macro buttons, scrolling sideways if
+    /// there are many, and the Monitor switch (the header row is full in
+    /// portrait).
     private var macroRow: some View {
         HStack(spacing: 8) {
             TextField("Their call", text: $sender.theirCall)
@@ -81,6 +82,7 @@ struct CWSendSection<Controller: RigController>: View {
                     }
                 }
             }
+            CWMonitorButton()
         }
         .buttonStyle(.bordered)
         .padding(.horizontal)
@@ -174,6 +176,27 @@ private struct CWKeyerControls<Controller: RigController>: View {
             .fixedSize()
             .disabled(sender.isSending)
         }
+    }
+}
+
+/// The Monitor switch: a local sidetone at the rig's speed and pitch while
+/// its keyer sends, for when there's nothing to hear from the rig
+/// (`CWMonitor`). Drawn like BK-IN: filled while on.
+private struct CWMonitorButton: View {
+    @EnvironmentObject private var monitor: CWMonitor
+
+    var body: some View {
+        Button {
+            monitor.isEnabled.toggle()
+        } label: {
+            Label("Monitor", systemImage: monitor.isEnabled ? "speaker.wave.2.fill" : "speaker.slash")
+                .fontWeight(monitor.isEnabled ? .bold : .regular)
+                .foregroundStyle(monitor.isEnabled ? Color.white : Color.primary)
+        }
+        .buttonStyle(.bordered)
+        .fixedSize()
+        .tint(monitor.isEnabled ? .accentColor : nil)
+        .accessibilityLabel(monitor.isEnabled ? "Sidetone monitor on; tap to turn off" : "Sidetone monitor off; tap to turn on")
     }
 }
 

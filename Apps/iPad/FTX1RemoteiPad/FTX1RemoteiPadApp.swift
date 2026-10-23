@@ -12,6 +12,8 @@ struct FTX1RemoteiPadApp: App {
     /// `ContentView` points it at `viewModel` (Mac hub) or `piViewModel`
     /// (Pi direct) with `CWSender.use(_:)`.
     @StateObject private var cwSender: CWSender
+    /// The send section's Monitor sidetone, fed by `cwSender`.
+    @StateObject private var cwMonitor = CWMonitor(logSubsystem: "com.ftx1remote.ipad")
     /// Demo Mode on the Pi-direct tab (`DemoSession`).
     @StateObject private var demoSession = DemoSession()
 
@@ -36,6 +38,7 @@ struct FTX1RemoteiPadApp: App {
                 .environmentObject(piViewModel)
                 .environmentObject(cwReceiver)
                 .environmentObject(cwSender)
+                .environmentObject(cwMonitor)
                 .environmentObject(demoSession)
                 // Both routes' 8 kHz receive audio to the CW decoder, which
                 // keeps only the selected receiver and only while its pane
@@ -50,6 +53,8 @@ struct FTX1RemoteiPadApp: App {
                     piViewModel.onReceiveAudio = feed
                     // No decoding the operator's own sidetone while sending.
                     cwSender.onActiveChanged = { receiver.setSenderActive($0) }
+                    let monitor = cwMonitor
+                    cwSender.onKeying = { monitor.handle($0) }
                 }
                 // As on the Mac: locking transmit, or the link going away,
                 // stops the sender and drops what's queued — only for the
