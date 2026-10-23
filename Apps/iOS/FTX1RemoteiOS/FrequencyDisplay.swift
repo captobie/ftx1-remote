@@ -6,7 +6,8 @@ import SwiftUI
 /// bigger and standalone (no side-by-side VFO A/B pairing; see repo root
 /// CLAUDE.md on why the iPhone view stays focused rather than dense).
 struct FrequencyDisplay: View {
-    let frequencyHz: Int
+    /// nil or 0 before the first read (SUB's can be nil) shows dashes.
+    let frequencyHz: Int?
     let mode: String
     let onSetFrequency: (Int) -> Void
 
@@ -22,7 +23,7 @@ struct FrequencyDisplay: View {
                 .contentShape(Rectangle())
                 .onTapGesture { isEditing = true }
                 .popover(isPresented: $isEditing) {
-                    FrequencyEntryView(currentHz: frequencyHz, onSetFrequency: onSetFrequency)
+                    FrequencyEntryView(currentHz: frequencyHz ?? 0, onSetFrequency: onSetFrequency)
                 }
         }
         .frame(maxWidth: .infinity)
@@ -45,6 +46,7 @@ struct FrequencyDisplay: View {
     /// Grouped like the rig's own display (e.g. "147.380.000") rather than
     /// a plain Hz count, so it reads the way a radio operator expects.
     private var formattedFrequency: String {
+        guard let frequencyHz, frequencyHz > 0 else { return "--.---.---" }
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = "."

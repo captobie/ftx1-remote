@@ -1,9 +1,25 @@
 import FTX1Core
 import SwiftUI
 
+/// Which receiver the iPhone screens show — one at a time, for space.
+enum DisplaySide: String, CaseIterable {
+    case main
+    case sub
+
+    static let storageKey = "iphone.displaySide"
+
+    var label: String {
+        switch self {
+        case .main: "MAIN"
+        case .sub: "SUB"
+        }
+    }
+}
+
 /// Top level: picks between the normal Mac-hub connection and the
 /// Pi-direct proof of concept (`PiDirectView`). Switching disconnects the
-/// side being left, so only one link is ever live.
+/// side being left, so only one link is ever live. While the chosen route
+/// is connected, the route switch gives way to the MAIN/SUB selector.
 struct ContentView: View {
     enum ConnectionRoute: String, CaseIterable {
         case macHub
@@ -20,12 +36,31 @@ struct ContentView: View {
     @EnvironmentObject private var hubViewModel: RigClientViewModel
     @EnvironmentObject private var piViewModel: PiDirectViewModel
     @AppStorage("connectionRoute") private var route: ConnectionRoute = .macHub
+    @AppStorage(DisplaySide.storageKey) private var side: DisplaySide = .main
+
+    /// Connecting/retrying still shows the route switch, as on the iPad.
+    private var isConnected: Bool {
+        switch route {
+        case .macHub: hubViewModel.connectionState == .connected
+        case .piDirect: piViewModel.connectionState == .connected
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Connection", selection: $route) {
-                ForEach(ConnectionRoute.allCases, id: \.self) { route in
-                    Text(route.label).tag(route)
+            Group {
+                if isConnected {
+                    Picker("Receiver", selection: $side) {
+                        ForEach(DisplaySide.allCases, id: \.self) { side in
+                            Text(side.label).tag(side)
+                        }
+                    }
+                } else {
+                    Picker("Connection", selection: $route) {
+                        ForEach(ConnectionRoute.allCases, id: \.self) { route in
+                            Text(route.label).tag(route)
+                        }
+                    }
                 }
             }
             .pickerStyle(.segmented)
@@ -53,6 +88,7 @@ struct ContentView: View {
 struct HubControlView: View {
     @EnvironmentObject private var viewModel: RigClientViewModel
     @AppStorage("hubHost") private var host: String = ""
+    @AppStorage(DisplaySide.storageKey) private var side: DisplaySide = .main
     @State private var isPTTPressed = false
 
     var body: some View {
@@ -69,29 +105,11 @@ struct HubControlView: View {
             connectButton
 
             if viewModel.connectionState == .connected {
-                FrequencyDisplay(
-                    frequencyHz: viewModel.rigState.frequencyHz,
-                    mode: viewModel.rigState.mode.displayName,
-                    onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }
-                )
-                // Same bar as the iPad's MAIN strip; while transmitting it
-                // shows the TX meter (tap to pick) with the SWR under it,
-                // so there's no separate SWR line any more.
-                BarSMeterView(
-                    label: "MAIN",
-                    smeterDb: viewModel.rigState.smeterDb,
-                    txReadings: MeterReadings(powerWatts: viewModel.rigState.powerWatts, swr: viewModel.rigState.swr, tx: viewModel.rigState.txMeters),
-                    ptt: viewModel.rigState.ptt
-                )
+                SideDisplay(side: side, state: viewModel.rigState, send: viewModel.send)
                 pttButton
-                modeGrid
             }
         }
         .padding(24)
-    }
-
-    private var modeGrid: some View {
-        ModeGrid(selected: viewModel.rigState.mode) { viewModel.send(.setMode($0)) }
     }
 
     /// Momentary press-and-hold, not a toggle — keys on touch-down and
@@ -159,6 +177,55 @@ struct HubControlView: View {
         }
         .buttonStyle(.plain)
         .disabled(viewModel.connectionState != .connected && host.isEmpty)
+    }
+}
+
+/// The selected receiver's frequency, S-meter and mode grid — MAIN's or
+/// SUB's, tuned with `.setFrequency`/`.setMode` or their SUB
+/// counterparts. Shared by the hub and Pi-direct screens; `extra` goes
+/// between the meter and the mode grid (Pi direct's audio controls).
+struct SideDisplay<Extra: View>: View {
+    let side: DisplaySide
+    let state: RigState
+    let send: (RigCommand) -> Void
+    @ViewBuilder var extra: Extra
+
+    init(side: DisplaySide, state: RigState, send: @escaping (RigCommand) -> Void, @ViewBuilder extra: () -> Extra = { EmptyView() }) {
+        self.side = side
+        self.state = state
+        self.send = send
+        self.extra = extra()
+    }
+
+    var body: some View {
+        switch side {
+        case .main:
+            FrequencyDisplay(
+                frequencyHz: state.frequencyHz,
+                mode: state.mode.displayName,
+                onSetFrequency: { send(.setFrequency(hz: $0)) }
+            )
+            // Same bar as the iPad's MAIN strip; while transmitting it
+            // shows the TX meter (tap to pick) with the SWR under it.
+            BarSMeterView(
+                label: "MAIN",
+                smeterDb: state.smeterDb,
+                txReadings: MeterReadings(powerWatts: state.powerWatts, swr: state.swr, tx: state.txMeters),
+                ptt: state.ptt
+            )
+            extra
+            ModeGrid(selected: state.mode) { send(.setMode($0)) }
+        case .sub:
+            FrequencyDisplay(
+                frequencyHz: state.secondaryFrequencyHz,
+                mode: state.secondaryMode?.displayName ?? "—",
+                onSetFrequency: { send(.setSecondaryFrequency(hz: $0)) }
+            )
+            // The TX readings are Main's, so SUB always shows its S-meter.
+            BarSMeterView(label: "SUB", smeterDb: state.subSmeterDb, txReadings: nil, ptt: state.ptt)
+            extra
+            ModeGrid(selected: state.secondaryMode ?? .unknown) { send(.setSecondaryMode($0)) }
+        }
     }
 }
 

@@ -2,16 +2,20 @@ import FTX1Core
 import SwiftUI
 
 /// The Pi-direct proof of concept's screen (see `PiDirectViewModel`):
-/// MAIN frequency/mode with tune and mode change, SUB and TX state shown
-/// read-only, MAIN's S-meter, plus Main audio from the Pi's stream with a
-/// mute button.
+/// the selected receiver's (MAIN or SUB, `DisplaySide`) frequency, mode
+/// and S-meter, tunable, plus its audio from the Pi's stream with mute,
+/// VOL and SQL. Both channels play, each by its own mute; the controls
+/// shown are the selected side's.
 /// Receive-only — no PTT.
 struct PiDirectView: View {
     @EnvironmentObject private var viewModel: PiDirectViewModel
     @AppStorage("piHost") private var host: String = "ftx1pi"
-    /// Same persisted keys as the iPad's Main audio controls.
-    @AppStorage(AudioPlaybackSettings.volumeKey) private var volume: Double = 0.8
-    @AppStorage(AudioPlaybackSettings.squelchThresholdKey) private var squelchThreshold: Double = 0.015
+    @AppStorage(DisplaySide.storageKey) private var side: DisplaySide = .main
+    /// Same persisted keys as the iPad's audio controls.
+    @AppStorage(AudioPlaybackSettings.volumeKey) private var mainVolume: Double = 0.8
+    @AppStorage(AudioPlaybackSettings.squelchThresholdKey) private var mainSquelchThreshold: Double = 0.015
+    @AppStorage(AudioPlaybackSettings.subVolumeKey) private var subVolume: Double = 0.8
+    @AppStorage(AudioPlaybackSettings.subSquelchThresholdKey) private var subSquelchThreshold: Double = 0.015
 
     /// Upper bound of the squelch slider's displayed range, as on the iPad:
     /// the slider shows `range - threshold`, so left is open (the
@@ -39,21 +43,10 @@ struct PiDirectView: View {
             }
 
             if viewModel.connectionState == .connected {
-                FrequencyDisplay(
-                    frequencyHz: viewModel.rigState.frequencyHz,
-                    mode: viewModel.rigState.mode.displayName,
-                    onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }
-                )
-                BarSMeterView(
-                    label: "MAIN",
-                    smeterDb: viewModel.rigState.smeterDb,
-                    txReadings: MeterReadings(powerWatts: viewModel.rigState.powerWatts, swr: viewModel.rigState.swr, tx: viewModel.rigState.txMeters),
-                    ptt: viewModel.rigState.ptt
-                )
-                statusLine
-                audioRow
-                audioSliders
-                ModeGrid(selected: viewModel.rigState.mode) { viewModel.send(.setMode($0)) }
+                SideDisplay(side: side, state: viewModel.rigState, send: viewModel.send) {
+                    audioRow
+                    audioSliders
+                }
                 Text("Receive only — direct to rigctld on the Pi, no Mac hub.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -62,38 +55,27 @@ struct PiDirectView: View {
         .padding(24)
     }
 
-    private var statusLine: some View {
-        HStack {
-            if let subHz = viewModel.rigState.secondaryFrequencyHz {
-                Text("SUB \(Self.format(subHz)) \(viewModel.rigState.secondaryMode?.displayName ?? "")")
-            }
-            Spacer()
-            if viewModel.rigState.ptt {
-                Text("TX")
-                    .bold()
-                    .padding(.horizontal, 6)
-                    .background(Color.red)
-                    .foregroundStyle(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-            }
-        }
-        .font(.system(.body, design: .monospaced))
+    private var isMuted: Bool {
+        side == .main ? viewModel.isMainAudioMuted : viewModel.isSubAudioMuted
     }
+
+    private var volume: Binding<Double> { side == .main ? $mainVolume : $subVolume }
+    private var squelchThreshold: Binding<Double> { side == .main ? $mainSquelchThreshold : $subSquelchThreshold }
 
     private var audioRow: some View {
         HStack(spacing: 12) {
             Button {
-                viewModel.toggleMainAudioMuted()
+                if side == .main { viewModel.toggleMainAudioMuted() } else { viewModel.toggleSubAudioMuted() }
             } label: {
-                Image(systemName: viewModel.isMainAudioMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                     .font(.title3)
                     .frame(width: 44, height: 36)
-                    .background(viewModel.isMainAudioMuted ? Color.orange.opacity(0.85) : Color.gray.opacity(0.25))
-                    .foregroundStyle(viewModel.isMainAudioMuted ? Color.white : Color.primary)
+                    .background(isMuted ? Color.orange.opacity(0.85) : Color.gray.opacity(0.25))
+                    .foregroundStyle(isMuted ? Color.white : Color.primary)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(viewModel.isMainAudioMuted ? "Unmute audio" : "Mute audio")
+            .accessibilityLabel(isMuted ? "Unmute \(side.label) audio" : "Mute \(side.label) audio")
 
             Text(audioStatus)
                 .font(.footnote)
@@ -106,24 +88,31 @@ struct PiDirectView: View {
         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
             GridRow {
                 Text("VOL").font(.caption.monospaced())
-                Slider(value: $volume, in: 0...1)
+                Slider(value: volume, in: 0...1)
             }
             GridRow {
                 Text("SQL").font(.caption.monospaced())
                 Slider(
                     value: Binding(
-                        get: { Self.squelchDisplayRange - squelchThreshold },
-                        set: { squelchThreshold = Self.squelchDisplayRange - $0 }
+                        get: { Self.squelchDisplayRange - squelchThreshold.wrappedValue },
+                        set: { squelchThreshold.wrappedValue = Self.squelchDisplayRange - $0 }
                     ),
                     in: 0...Self.squelchDisplayRange
                 )
             }
         }
-        .onChange(of: volume, initial: true) { _, newValue in
+        // Both engines, whichever side is shown: each plays all the time.
+        .onChange(of: mainVolume, initial: true) { _, newValue in
             viewModel.mainAudioEngine.volume = Float(newValue)
         }
-        .onChange(of: squelchThreshold, initial: true) { _, newValue in
+        .onChange(of: mainSquelchThreshold, initial: true) { _, newValue in
             viewModel.mainAudioEngine.squelchThreshold = Float(newValue)
+        }
+        .onChange(of: subVolume, initial: true) { _, newValue in
+            viewModel.subAudioEngine.volume = Float(newValue)
+        }
+        .onChange(of: subSquelchThreshold, initial: true) { _, newValue in
+            viewModel.subAudioEngine.squelchThreshold = Float(newValue)
         }
     }
 
@@ -131,7 +120,7 @@ struct PiDirectView: View {
         switch viewModel.audioState {
         case .off: "Audio off"
         case .waiting: "Waiting for audio — is the Mac using the Pi's stream?"
-        case .playing: viewModel.isMainAudioMuted ? "Main audio (muted)" : "Main audio"
+        case .playing: isMuted ? "\(side.label) audio (muted)" : "\(side.label) audio"
         }
     }
 
@@ -171,12 +160,5 @@ struct PiDirectView: View {
         case .connecting, .failed: .orange
         case .connected: .green
         }
-    }
-
-    private static func format(_ hz: Int) -> String {
-        let mhz = hz / 1_000_000
-        let khz = (hz / 1_000) % 1_000
-        let rest = hz % 1_000
-        return String(format: "%d.%03d.%03d", mhz, khz, rest)
     }
 }

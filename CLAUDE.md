@@ -790,7 +790,22 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   with the mute/SQL/VOL controls. The iPhone shows it for MAIN under the
   frequency on both routes (the hub screen's standalone SWR line is gone,
   as on the iPad), and its `PiDirectViewModel` now passes `readsSMeter:
-  true` — which also reads SUB's unused "RM2". SUB's meter: not yet.
+  true` — which also reads SUB's unused "RM2". SUB's meter: see below.
+- **iPhone MAIN/SUB selector (2026-10-22, Simulator against the real Pi
+  on Pi direct, then confirmed on a real iPhone by the user the same
+  day)**:
+  user request, for space. One side at a time: while the chosen route
+  is connected, the "Mac hub / Pi direct" switch at the top gives way to
+  a MAIN/SUB segmented control (`DisplaySide`, `@AppStorage
+  "iphone.displaySide"`); it comes back on disconnect and during Pi
+  direct's connecting/retrying. `SideDisplay` (iPhone's `ContentView.
+  swift`, both routes) shows the side's frequency (SUB tunes with
+  `.setSecondaryFrequency`), its `BarSMeterView` (SUB: `subSmeterDb`, no
+  TX meter) and mode grid (`.setSecondaryMode`); `FrequencyDisplay` shows
+  dashes for nil/0. On Pi direct the iPhone now passes `playsSubAudio:
+  true`: both channels play, each by its own mute, and the mute/VOL/SQL
+  row shown is the selected side's (same keys as the iPad's). The old
+  SUB/TX status line is gone (MAIN's bar shows TX).
 - **iPad VFO boxes at Mac parity (2026-10-09, Simulator against the real
   Pi and WPSD hotspot)**: `PiDirectViewModel(readsVFODetails: true)` (iPad
   only; the iPhone is unchanged) adds the rest of what the Mac's
