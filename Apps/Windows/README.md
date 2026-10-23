@@ -327,13 +327,14 @@ build; it runs under emulation there).
   both ship the same Hamlib version.
   - **libusb-1.0.dll** is libusb **1.0.24** (its version resource: build
     11584, the official release build), LGPL-2.1-or-later — the text in
-    `COPYING.LIB`. Hamlib's tarball doesn't contain it, so the Windows
-    half of each release also uploads libusb's own release tarball,
+    `COPYING.LIB`. Hamlib's tarball doesn't contain it, so each
+    release also carries libusb's own release tarball,
     `libusb-1.0.24.tar.bz2` (sha256 `7efd2685f7b327326dcfb85cee426d9b8
     71fd70e22caa15bb68d595ce2a2b12a`, from libusb's GitHub release; its
     `.asc` checked: good signature from Chris Dickens, key
     `98928A68DEC3549C96F865B04658AEE82B5E6442`). Kept in the gitignored
-    `releases/` on the Windows PC, like the Mac's Hamlib tarball.
+    `releases/` on the Mac (attached by `release-mac.sh`'s `gh release
+    create` line, which refuses to start without it) and on the Windows PC.
   - **libwinpthread-1.dll** is the MinGW-w64 runtime, MIT-style: notice
     only, no source obligation. The zip has no licence text for it, so
     winpthreads' `COPYING` from mingw-w64 **v12.0.0** — the version Debian
@@ -2215,8 +2216,10 @@ for the same Hamlib version.
    gh release upload v<version> C:\Tools\FTX1Remote-Windows-<version>-x64.zip --repo captobie/ftx1-remote
    ```
 
-   Also upload libusb's source tarball (LGPL source offer for the bundled
-   `libusb-1.0.dll`, see "Bundled rigctld"), from the repo root:
+   libusb's source tarball (LGPL source offer for the bundled
+   `libusb-1.0.dll`, see "Bundled rigctld") is attached by the Mac half's
+   `gh release create` line, from the Mac's `releases/`; check it's on the
+   release. Only if it isn't, upload this PC's copy from the repo root:
 
    ```powershell
    gh release upload v<version> releases\libusb-1.0.24.tar.bz2 --repo captobie/ftx1-remote

@@ -58,9 +58,12 @@ over Tailscale, without needing to be physically near the rig.
     separate executable over TCP = mere aggregation): ship `COPYING`,
     `COPYING.LIB`, `LICENSE` (done by the bundle phase); attach the exact
     Hamlib source tarball and `Scripts/build-rigctld.sh` to every GitHub
-    release that ships it (`release-mac.sh` prints them in the `gh
-    release create` line and warns if `releases/hamlib-<ver>.tar.gz` is
-    missing); README "Third-party code" entry.
+    release that ships it, plus libusb's for the Windows zip
+    (`release-mac.sh` puts all three in the `gh release create` line and,
+    before building, refuses to start unless `releases/hamlib-<ver>.tar.gz`
+    and `releases/libusb-1.0.24.tar.bz2` are there with the right sha256 —
+    Hamlib's from `build-rigctld.sh`'s `DEFAULT_SHA256`); README
+    "Third-party code" entry.
   - **New Hamlib version**: download `hamlib-X.Y.Z.tar.gz` (the release
     tarball, not GitHub's "Source code" archives — those need automake/
     libtool) and check its sha256 against the release page; run
@@ -1480,8 +1483,9 @@ responsive rigctld for another model. Keep the bundled Hamlib version
 equal to the Mac's: the one source tarball on the combined release is
 the source offer for both. The Windows zip also carries `libusb-1.0.dll`
 (libusb 1.0.24, LGPL), whose source isn't in Hamlib's tarball: each
-release with the Windows zip also gets `releases\libusb-1.0.24.tar.bz2`
-(signature-checked, gitignored, on the Windows PC). winpthreads'
+release with the Windows zip also gets `libusb-1.0.24.tar.bz2`
+(signature-checked, in the gitignored `releases/` on the Mac and the
+Windows PC; attached by `release-mac.sh`'s `gh release create` line). winpthreads'
 MIT-style licence (mingw-w64 v12.0.0) ships as `COPYING-winpthreads.txt`.
 Details: `Apps/Windows/README.md`, "Bundled rigctld".
 

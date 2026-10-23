@@ -45,6 +45,39 @@ if [ -z "$VERSION" ]; then
 fi
 ARCHIVE_PATH="$ARCHIVE_DIR/$SCHEME-$VERSION.xcarchive"
 
+# Source offers that must go out with every release (checked before
+# building, so a missing file can't be found only after notarization):
+# Hamlib's exact tarball for the bundled rigctld (GPL-2.0+, both apps ship
+# the same version), and libusb's for the Windows zip's libusb-1.0.dll
+# (LGPL-2.1+, not in Hamlib's tarball). Both are gitignored in releases/.
+echo "==> Checking the release's source tarballs"
+HAMLIB_VERSION=$(Vendor/hamlib/rigctld --version | awk '{print $3}')
+HAMLIB_TARBALL="$RELEASES_DIR/hamlib-$HAMLIB_VERSION.tar.gz"
+HAMLIB_SHA256=$(awk -F'"' '/^DEFAULT_SHA256=/{print $2}' Scripts/build-rigctld.sh)
+LIBUSB_TARBALL="$RELEASES_DIR/libusb-1.0.24.tar.bz2"
+LIBUSB_SHA256="7efd2685f7b327326dcfb85cee426d9b871fd70e22caa15bb68d595ce2a2b12a"
+check_tarball() {
+  local file="$1" sha="$2" url="$3"
+  if [ ! -f "$file" ]; then
+    echo "error: $file not found. Download it from $url" >&2
+    exit 1
+  fi
+  local actual
+  actual=$(shasum -a 256 "$file" | awk '{print $1}')
+  if [ "$actual" != "$sha" ]; then
+    echo "error: $file sha256 is $actual, expected $sha" >&2
+    exit 1
+  fi
+}
+if ! grep -q "^HAMLIB_VERSION=\"$HAMLIB_VERSION\"" Scripts/build-rigctld.sh; then
+  echo "error: Vendor/hamlib/rigctld is Hamlib $HAMLIB_VERSION, but Scripts/build-rigctld.sh builds another version" >&2
+  exit 1
+fi
+check_tarball "$HAMLIB_TARBALL" "$HAMLIB_SHA256" \
+  "https://github.com/Hamlib/Hamlib/releases/tag/$HAMLIB_VERSION"
+check_tarball "$LIBUSB_TARBALL" "$LIBUSB_SHA256" \
+  "https://github.com/libusb/libusb/releases/tag/v1.0.24"
+
 echo "==> Archiving $SCHEME $VERSION"
 xcodebuild archive \
   -project "$PROJECT" \
@@ -76,14 +109,9 @@ for want in 'flags=0x[0-9a-f]+\([^)]*runtime' 'Authority=Developer ID Applicatio
     exit 1
   fi
 done
-# Hamlib's source has to go out with every release that ships the binary
-# (GPL-2.0+). Keep the tarball the binary was built from in releases/.
-HAMLIB_VERSION=$("$HELPER" --version | awk '{print $3}')
-HAMLIB_TARBALL="$RELEASES_DIR/hamlib-$HAMLIB_VERSION.tar.gz"
-if [ ! -f "$HAMLIB_TARBALL" ]; then
-  echo "warning: $HAMLIB_TARBALL not found. Download it from" >&2
-  echo "  https://github.com/Hamlib/Hamlib/releases/tag/$HAMLIB_VERSION" >&2
-  echo "  and attach it to the GitHub release (see the gh command at the end)." >&2
+if [ "$("$HELPER" --version | awk '{print $3}')" != "$HAMLIB_VERSION" ]; then
+  echo "error: the exported app's rigctld isn't Hamlib $HAMLIB_VERSION (Vendor/hamlib/rigctld)" >&2
+  exit 1
 fi
 ZIP_PATH="$RELEASES_DIR/$SCHEME-$VERSION.zip"
 
@@ -127,8 +155,10 @@ grep -o 'url="[^"]*"' appcast.xml | sed 's/^/  /'
 echo "Next steps (in this order: the release must exist before the appcast is"
 echo "live, or updating clients get a 404):"
 # Hamlib's source tarball and the script that built the bundled rigctld
-# go with every release (GPL-2.0+ source offer).
-echo "  1. gh release create v$VERSION ${NEW_FILES}$HAMLIB_TARBALL Scripts/build-rigctld.sh --title v$VERSION --notes-file $RELEASES_DIR/notes-$VERSION.md"
-echo "     (includes Hamlib $HAMLIB_VERSION's source tarball and Scripts/build-rigctld.sh — required"
-echo "     by Hamlib's GPL for the bundled rigctld; don't drop them)"
+# (GPL-2.0+), and libusb's tarball for the Windows zip (LGPL-2.1+), go
+# with every release.
+echo "  1. gh release create v$VERSION ${NEW_FILES}$HAMLIB_TARBALL Scripts/build-rigctld.sh $LIBUSB_TARBALL --title v$VERSION --notes-file $RELEASES_DIR/notes-$VERSION.md"
+echo "     (includes Hamlib $HAMLIB_VERSION's source tarball, Scripts/build-rigctld.sh and libusb's"
+echo "     source tarball — the source offers for the bundled rigctld and the Windows zip's"
+echo "     libusb-1.0.dll; don't drop them)"
 echo "  2. git add appcast.xml && git commit -m 'Update appcast for v$VERSION' && git push"
