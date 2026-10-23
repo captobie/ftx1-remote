@@ -9,7 +9,7 @@ it over your network (Tailscale works well for access from anywhere):
 | `rigctld` (Hamlib) | 4532 | Rig control: frequency, mode, menus, PTT |
 | `ftx1-audiostream.py` | 8532 | Streams the rig's receive audio (Main = left, Sub = right) |
 | `ftx1-txaudio.py` | 8533 | Plays transmit audio from the iPad into the rig; unkeys the rig if a client goes silent |
-| `ftx1-cwkey.py` | 8534 | Straight-key CW from the Mac: plays the key's timing out and sets RTS/DTR on the rig's second USB port |
+| `ftx1-cwkey.py` | 8534 | CW from a straight key or iambic paddle on the Mac: plays the keying out and sets RTS/DTR on the rig's second USB port |
 
 The Mac app uses the Pi in **Remote** mode; the iPad and iPhone apps can also
 connect to it directly with **Pi direct**. The Pi sends audio to one client
@@ -145,9 +145,16 @@ sudo systemctl enable --now ftx1-audiostream ftx1-txaudio
 If you already have an `/etc/asound.conf`, append the file's contents to it
 instead of replacing it.
 
-## 4b. Install the straight-key service (optional)
+## 4b. Install the CW key service (optional)
 
-For the Mac's Tools → Straight Key in Remote mode. It keys the rig with RTS
+For the Mac's Tools → CW Key in Remote mode, with a straight key or an
+iambic paddle on the Arduino key interface (`cw_keyer/cw_keyer.ino`)
+plugged into the Mac. The paddle's keyer runs on the Arduino itself: its
+dits and dahs reach the Pi as the same key-down/key-up events a straight
+key sends, so the Pi side is identical for both. Paddle speed (or Follow
+the rig's keyer speed), iambic A/B, reversed paddles and the interface's
+sidetone are set in the Mac's CW Key window and sent to the Arduino, not
+to the Pi. The service keys the rig with RTS
 or DTR on the radio's *second* USB serial port (CP2105 interface 1, the
 "Standard COM Port"); rigctld keeps interface 0. Check the by-id name
 (the `-if01-` one):
@@ -178,6 +185,7 @@ Look for `listening on :8534`. On the radio set CW SETTING → MODE CW →
 **RPTT SELECT** to OFF. The port is only opened while the Mac is armed;
 opening it briefly raises DTR/RTS before the script clears them. The
 script's tests run anywhere: `python3 -m unittest discover -s Pi/tests`.
+This works with BK-IN on or off.
 
 ## 5. Check that everything runs
 
@@ -237,5 +245,13 @@ that Direwolf still decodes packets with `journalctl -u direwolf -f`.
   receive side's while an app holds the audio stream. Use the current
   `asound-ftx1.conf` (`ipc_key 4600`), then `sudo systemctl restart
   ftx1-txaudio` (and Direwolf, if it uses `ftx1_tx`).
+- **CW keying stops mid-transmission, `cp210x ttyUSB…: failed set request
+  … -71`** in `journalctl -k` (often on long paddle runs): RF is getting
+  into the Pi↔radio USB cable. The service keeps retrying until the line
+  reads key-up and leaves keying off until you re-arm on the Mac. Put a
+  ferrite on that USB cable.
+- **The Mac disarms with "RF feedback detected":** RF in the key or paddle
+  lead turned each transmitted element into a new press. Put a ferrite on
+  the key/paddle lead.
 - **The app says it's waiting for audio:** another client (Mac, iPad or
   Windows app) already has the audio stream. Disconnect it.
