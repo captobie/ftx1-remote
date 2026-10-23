@@ -116,7 +116,12 @@ public static class AppSettings
         public string Log4OmUdpHost { get; set; } = "";
         public int Log4OmUdpPort { get; set; }
         public bool HubEnabled { get; set; }
+        public WindowBounds? MainWindowBounds { get; set; }
     }
+
+    /// The main window's restored (not maximized) position and size in
+    /// physical pixels, plus whether it was maximized when last closed.
+    public sealed record WindowBounds(int X, int Y, int Width, int Height, bool Maximized);
 
     /// One Polling-tab value: its default and allowed range. Every getter
     /// clamps, so a hand-edited 0 in settings.json can't turn a loop into a
@@ -691,6 +696,18 @@ public static class AppSettings
         set
         {
             _cache.HubEnabled = value;
+            Save();
+        }
+    }
+
+    /// Saved when the main window closes, applied when it next opens
+    /// (MainWindow.RestoreWindowBounds). Null until the first close.
+    public static WindowBounds? MainWindowBounds
+    {
+        get => _cache.MainWindowBounds;
+        set
+        {
+            _cache.MainWindowBounds = value;
             Save();
         }
     }

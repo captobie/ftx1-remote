@@ -236,7 +236,11 @@ public sealed partial class MainWindow : Window
         AppWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));
         Title = "FTX-1 Remote";
         InitVfoEntryFlyouts();
-        SetInitialWidth();
+        if (!RestoreWindowBounds())
+        {
+            SetInitialWidth();
+        }
+        TrackWindowBounds();
         AppLog.Write($"app: started ({AppSettings.ConnectionMode} mode, audio swapped={AppSettings.AudioChannelsSwapped}, version {UpdateChecker.CurrentVersionText})");
         if (AppSettings.CheckForUpdatesAtLaunch && Content is FrameworkElement root)
         {
@@ -2815,6 +2819,82 @@ public sealed partial class MainWindow : Window
             .GetFromWindowId(AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Nearest).WorkArea;
         width = Math.Min(width, workArea.Width);
         AppWindow.Resize(new Windows.Graphics.SizeInt32(width, AppWindow.Size.Height));
+    }
+
+    /// The window's last restored (neither maximized nor minimized) bounds,
+    /// kept up to date while it moves, so closing it maximized still saves
+    /// the size it goes back to.
+    private Windows.Graphics.RectInt32 _restoredBounds;
+
+    /// Puts the window back where it was last closed. False (nothing done)
+    /// on first run, or when the saved rectangle no longer overlaps any
+    /// screen's work area — e.g. a monitor that has since been unplugged.
+    private bool RestoreWindowBounds()
+    {
+        if (AppSettings.MainWindowBounds is not { } saved || saved.Width < 200 || saved.Height < 150)
+        {
+            return false;
+        }
+        var rect = new Windows.Graphics.RectInt32(saved.X, saved.Y, saved.Width, saved.Height);
+        // Not DisplayArea.FindAll(): enumerating its result from C# crashes
+        // the app (E_NOINTERFACE, a Windows App SDK projection bug).
+        var area = Microsoft.UI.Windowing.DisplayArea.GetFromRect(rect, Microsoft.UI.Windowing.DisplayAreaFallback.None);
+        if (area is null)
+        {
+            return false;
+        }
+        var work = area.WorkArea;
+        var overlapX = Math.Min(rect.X + rect.Width, work.X + work.Width) - Math.Max(rect.X, work.X);
+        var overlapY = Math.Min(rect.Y + rect.Height, work.Y + work.Height) - Math.Max(rect.Y, work.Y);
+        // Enough of the title bar to grab and drag back.
+        if (overlapX < 100 || overlapY < 50)
+        {
+            return false;
+        }
+        AppWindow.MoveAndResize(rect);
+        if (saved.Maximized && AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+        {
+            presenter.Maximize();
+        }
+        return true;
+    }
+
+    /// Follows the restored bounds as the window moves and saves them, with
+    /// the maximized state, when it closes.
+    private void TrackWindowBounds()
+    {
+        _restoredBounds = new Windows.Graphics.RectInt32(
+            AppWindow.Position.X, AppWindow.Position.Y, AppWindow.Size.Width, AppWindow.Size.Height);
+        if (AppSettings.MainWindowBounds is { } saved
+            && AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter
+            {
+                State: Microsoft.UI.Windowing.OverlappedPresenterState.Maximized,
+            })
+        {
+            // Restored maximized: Position/Size are the maximized ones now.
+            _restoredBounds = new Windows.Graphics.RectInt32(saved.X, saved.Y, saved.Width, saved.Height);
+        }
+        AppWindow.Changed += (sender, args) =>
+        {
+            if ((args.DidPositionChange || args.DidSizeChange)
+                && sender.Presenter is Microsoft.UI.Windowing.OverlappedPresenter
+                {
+                    State: Microsoft.UI.Windowing.OverlappedPresenterState.Restored,
+                })
+            {
+                _restoredBounds = new Windows.Graphics.RectInt32(
+                    sender.Position.X, sender.Position.Y, sender.Size.Width, sender.Size.Height);
+            }
+        };
+        AppWindow.Closing += (sender, _) =>
+        {
+            var maximized = sender.Presenter is Microsoft.UI.Windowing.OverlappedPresenter
+            {
+                State: Microsoft.UI.Windowing.OverlappedPresenterState.Maximized,
+            };
+            AppSettings.MainWindowBounds = new AppSettings.WindowBounds(
+                _restoredBounds.X, _restoredBounds.Y, _restoredBounds.Width, _restoredBounds.Height, maximized);
+        };
     }
 
     [DllImport("user32.dll")]
