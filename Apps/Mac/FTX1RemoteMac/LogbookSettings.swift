@@ -61,4 +61,45 @@ enum LogbookSettings {
         }
         set { UserDefaults.standard.set(newValue, forKey: macLoggerDXUDPPortKey) }
     }
+
+    // MARK: Wavelog
+
+    /// Wavelog is a second logbook beside `logger`, not one of its
+    /// choices: every QSO goes to both (user request, 2026-10-24). The API
+    /// v2 token is in the keychain (`WavelogToken`), not here.
+    static let wavelogEnabledKey = "logbook.wavelog.enabled"
+    static let wavelogURLKey = "logbook.wavelog.url"
+    static let wavelogStationIDKey = "logbook.wavelog.stationID"
+    /// The picked location's name and callsign, shown before the list has
+    /// been fetched again.
+    static let wavelogStationNameKey = "logbook.wavelog.stationName"
+    static let wavelogStationCallsignKey = "logbook.wavelog.stationCallsign"
+
+    static var wavelogEnabled: Bool {
+        UserDefaults.standard.bool(forKey: wavelogEnabledKey)
+    }
+
+    static var wavelogURL: String {
+        UserDefaults.standard.string(forKey: wavelogURLKey) ?? ""
+    }
+
+    static var wavelogStationID: String {
+        UserDefaults.standard.string(forKey: wavelogStationIDKey) ?? ""
+    }
+
+    /// Where QSOs go, or why they can't, in words for the Log pane.
+    static func wavelogTarget() -> Result<(url: String, token: String, stationID: String), WavelogSetupError> {
+        let url = wavelogURL.trimmingCharacters(in: .whitespaces)
+        guard !url.isEmpty else { return .failure(WavelogSetupError("Wavelog has no URL — set it in Settings → Logbook")) }
+        let token = WavelogToken.read()
+        guard !token.isEmpty else { return .failure(WavelogSetupError("Wavelog has no API token — set it in Settings → Logbook")) }
+        let station = wavelogStationID
+        guard !station.isEmpty else { return .failure(WavelogSetupError("No Wavelog station location — pick one in Settings → Logbook")) }
+        return .success((url, token, station))
+    }
+
+    struct WavelogSetupError: Error {
+        let message: String
+        init(_ message: String) { self.message = message }
+    }
 }

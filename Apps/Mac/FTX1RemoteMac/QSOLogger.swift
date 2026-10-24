@@ -5,7 +5,9 @@ import os
 
 private let logbookLogger = Logger(subsystem: "com.ftx1remote.mac", category: "logbook")
 
-/// Sends a finished QSO to the logbook chosen in Settings → Logbook. For
+/// Sends a finished QSO to the logbook chosen in Settings → Logbook and,
+/// when it's turned on there, to Wavelog too (`Wavelog`, its REST API —
+/// API v2, both at once, each with its own outcome). For
 /// MacLoggerDX that's WSJT-X's UDP protocol (user decision, over
 /// AppleScript): the "QSO Logged" + "Logged ADIF" datagrams WSJT-X sends
 /// when its Log QSO dialog is accepted (no Heartbeat — see
@@ -23,15 +25,59 @@ enum QSOLogger {
         /// not listening for WSJT-X UDP, or the log can't be read here.
         case sentUnconfirmed(String)
         case failed(String)
+        /// Wavelog only: it already had this QSO (its own duplicate check).
+        case alreadyLogged
+    }
+
+    /// What each logbook made of one Log QSO; nil = not sent there.
+    struct Outcomes {
+        var primary: Outcome?
+        var wavelog: Outcome?
+    }
+
+    /// Whether Log QSO has anywhere to send to.
+    static var hasLogbook: Bool {
+        LogbookSettings.logger != .none || LogbookSettings.wavelogEnabled
     }
 
     /// How long to look for the QSO in the log after sending.
     static let confirmationTimeout: Duration = .seconds(5)
 
-    static func log(_ qso: LoggedQSO) async -> Outcome {
-        guard LogbookSettings.logger == .macLoggerDX else {
-            return .failed("No logbook is selected in Settings → Logbook")
+    /// Sends to the primary logbook and Wavelog, whichever are set up.
+    static func log(_ qso: LoggedQSO) async -> Outcomes {
+        async let primary: Outcome? = LogbookSettings.logger == .macLoggerDX ? logToMacLoggerDX(qso) : nil
+        async let wavelog: Outcome? = LogbookSettings.wavelogEnabled ? logToWavelog(qso) : nil
+        return await Outcomes(primary: primary, wavelog: wavelog)
+    }
+
+    /// Wavelog alone — also the Log pane's retry after MacLoggerDX took a
+    /// QSO Wavelog didn't. There's an answer, so `.logged` is confirmed.
+    static func logToWavelog(_ qso: LoggedQSO) async -> Outcome {
+        let target: (url: String, token: String, stationID: String)
+        switch LogbookSettings.wavelogTarget() {
+        case .success(let value): target = value
+        case .failure(let error): return .failed(error.message)
         }
+        do {
+            let result = try await Wavelog.log(qso, base: target.url, token: target.token, stationID: target.stationID)
+            switch result {
+            case .created:
+                logbookLogger.notice("Logged \(qso.call, privacy: .public) to Wavelog")
+                return .logged
+            case .duplicate:
+                logbookLogger.notice("\(qso.call, privacy: .public) was already in Wavelog")
+                return .alreadyLogged
+            case .rejected(let reason):
+                logbookLogger.error("Wavelog refused \(qso.call, privacy: .public): \(reason, privacy: .public)")
+                return .failed(reason)
+            }
+        } catch {
+            logbookLogger.error("Logging \(qso.call, privacy: .public) to Wavelog failed: \(error.description, privacy: .public)")
+            return .failed(error.description)
+        }
+    }
+
+    private static func logToMacLoggerDX(_ qso: LoggedQSO) async -> Outcome {
         if let problem = await sendToMacLoggerDX([WSJTXMessage.qsoLogged(qso), WSJTXMessage.loggedADIF(qso)], what: qso.call) {
             return .failed(problem)
         }

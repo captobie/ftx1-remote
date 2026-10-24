@@ -2237,6 +2237,38 @@ is running and listening.
   known; JA1XYZ, ZL2AB blue) and the pane lines; the green/this-band
   case only in unit tests so far (needs the rig connected).
 
+- **Wavelog as a second logbook (2026-10-24; API v2, tested against a
+  throwaway Wavelog 3.2.4 in Docker — v2's QSO/station code is identical
+  in the user's 3.2.3 — not yet from the CW window's Log pane with the
+  rig)**: user request — every Log QSO also goes to Wavelog, beside
+  whichever Logger is primary (also works with None). **API v2, not v1**
+  (user decision; v2 is in every release since 3.1.0): the token goes in
+  an `Authorization: Bearer wl2_…` header (never the URL or body), can be
+  scoped to just `qso:write` + `station:read`, and duplicates come back
+  as a count. v1 keys ("wl…" without "2_") don't work with v2 — Settings
+  says so. Settings → Logbook → Wavelog (`WavelogSettingsSection`):
+  on/off, URL, API token (login keychain, `WavelogToken` — user
+  decision), station location picker (`GET api/v2/station`), Test = the
+  API's dry run (`dryrun: true`: token, scope and location checked,
+  nothing written). `Wavelog` (`FTX1Core/Logbook/`, `WavelogTests`) posts
+  our `ADIFRecord` to `POST index.php/api/v2/qso` (`import_type: "adif"`);
+  shapes read from `Api_v2.php`/`Api_v2_response.php`/`api_v2/
+  Qso_resource.php` (master): `{"data": {parsed, imported, skipped,
+  messages}}` — `skipped` = duplicate (imported with skip-duplicates, so
+  resending is safe); `{"error": {code, message}}` otherwise; the rate
+  limiter's 429 still uses v1's `{status, reason}`. Unlike v1, v2 doesn't
+  refuse a QSO whose station callsign isn't the location's — it files it
+  under the location's callsign (seen in the database), so Settings warns
+  when Settings → Station's call differs. The Logbook tab scrolls now.
+  `QSOLogger.log` sends to both at once (`Outcomes`). The Log pane clears
+  only when both confirm; if MacLoggerDX took it and Wavelog didn't,
+  "Retry Wavelog (<call>)" resends that QSO to Wavelog alone (user
+  decision) and stays until it works or is dismissed (✕). Worked-before
+  and Lookup stay MacLoggerDX-only. Docker test: created, duplicate,
+  dry run, missing scopes (qso:write, station:read), v1 key, revoked
+  token, foreign location, differing call, 404 path, no server; every
+  stored field checked in the database.
+
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 
 A "Mem List" button under the Waterfall button (Mac `ContentView`) opens

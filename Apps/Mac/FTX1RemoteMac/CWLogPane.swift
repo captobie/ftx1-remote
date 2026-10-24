@@ -9,15 +9,20 @@ import SwiftUI
 /// the rig's transmitting side when Log QSO is clicked.
 ///
 /// Time on is set when the call goes from empty to filled (or by the reset
-/// button); time off is the moment Log QSO is clicked. After MacLoggerDX
-/// confirms the QSO the fields clear for the next one (user decision);
-/// anything short of that keeps them so it can be checked and retried.
+/// button); time off is the moment Log QSO is clicked. After every logbook
+/// it went to confirms the QSO (MacLoggerDX and/or Wavelog) the fields
+/// clear for the next one (user decision); anything short of that keeps
+/// them so it can be checked and retried. If MacLoggerDX took it but
+/// Wavelog didn't, "Retry Wavelog" resends that same QSO to Wavelog alone
+/// (user decision), so MacLoggerDX never gets a second copy; it stays
+/// offered until it works or is dismissed, even once a new call is typed.
 struct CWLogPane: View {
     @EnvironmentObject private var hub: HubService
     @EnvironmentObject private var sender: CWSender
     @EnvironmentObject private var workedStations: WorkedStationsStore
 
     @AppStorage(LogbookSettings.loggerKey) private var loggerRawValue = LogbookSettings.Logger.none.rawValue
+    @AppStorage(LogbookSettings.wavelogEnabledKey) private var wavelogEnabled = false
     @State private var rstSent = Self.defaultRST
     @State private var rstReceived = Self.defaultRST
     @State private var name = ""
@@ -25,6 +30,8 @@ struct CWLogPane: View {
     @State private var timeOn: Date?
     @State private var isLogging = false
     @State private var result: Result?
+    /// A QSO the primary logbook took and Wavelog didn't.
+    @State private var wavelogRetry: LoggedQSO?
     /// Set (never read) so uppercasing a typed letter can put the cursor
     /// back where it was — see `uppercaseCall`.
     @State private var callSelection: TextSelection?
@@ -64,6 +71,9 @@ struct CWLogPane: View {
                 CWLogRigReadout()
                 resultView
                 Spacer()
+                if let wavelogRetry {
+                    retryWavelogButtons(wavelogRetry)
+                }
                 Button {
                     log()
                 } label: {
@@ -96,12 +106,13 @@ struct CWLogPane: View {
 
     private var header: some View {
         let logger = LogbookSettings.Logger(rawValue: loggerRawValue) ?? .none
+        let targets = (logger == .none ? [] : [logger.displayName]) + (wavelogEnabled ? ["Wavelog"] : [])
         return HStack {
             Text("Log QSO").font(.headline)
             Spacer()
-            Text(logger == .none ? "No logbook — choose one in Settings → Logbook" : "To \(logger.displayName)")
+            Text(targets.isEmpty ? "No logbook — choose one in Settings → Logbook" : "To \(targets.joined(separator: " + "))")
                 .font(.caption)
-                .foregroundStyle(logger == .none ? .orange : .secondary)
+                .foregroundStyle(targets.isEmpty ? .orange : .secondary)
         }
     }
 
@@ -135,6 +146,25 @@ struct CWLogPane: View {
             case .failure(let text):
                 Label(text, systemImage: "xmark.octagon.fill").foregroundStyle(.red)
             }
+        }
+    }
+
+    private func retryWavelogButtons(_ qso: LoggedQSO) -> some View {
+        HStack(spacing: 4) {
+            Button {
+                retryWavelog(qso)
+            } label: {
+                Label("Retry Wavelog (\(qso.call))", systemImage: "arrow.clockwise")
+            }
+            .help("Send \(qso.call) to Wavelog again, as it was logged — not to \(LogbookSettings.logger.displayName)")
+            .disabled(isLogging)
+            Button {
+                wavelogRetry = nil
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.borderless)
+            .help("Don't send \(qso.call) to Wavelog")
         }
     }
 
@@ -174,6 +204,10 @@ struct CWLogPane: View {
     private func log() {
         let call = normalizedCall
         guard !call.isEmpty, !isLogging else { return }
+        guard QSOLogger.hasLogbook else {
+            result = .failure("No logbook is selected in Settings → Logbook")
+            return
+        }
         let rig = hub.rigState
         guard hub.connectionState == .connected else {
             result = .failure("Not connected to the rig — frequency and mode unknown")
@@ -207,18 +241,76 @@ struct CWLogPane: View {
         isLogging = true
         result = nil
         Task {
-            let outcome = await QSOLogger.log(qso)
+            let outcomes = await QSOLogger.log(qso)
             isLogging = false
-            switch outcome {
-            case .logged:
-                result = .success("\(call) logged")
-                workedStations.reload()
+            show(outcomes, for: qso)
+        }
+    }
+
+    /// One line for both logbooks: the primary's outcome first, then
+    /// Wavelog's when it went wrong (or was a duplicate).
+    private func show(_ outcomes: QSOLogger.Outcomes, for qso: LoggedQSO) {
+        let call = qso.call
+        let primaryName = LogbookSettings.logger.displayName
+        var wavelogNote: String?
+        var wavelogOK = true
+        switch outcomes.wavelog {
+        case nil, .logged:
+            break
+        case .alreadyLogged:
+            wavelogNote = "already in Wavelog"
+        case .sentUnconfirmed(let reason), .failed(let reason):
+            wavelogNote = "Wavelog: \(reason)"
+            wavelogOK = false
+        }
+        func withWavelog(_ text: String) -> String {
+            wavelogNote.map { "\(text) · \($0)" } ?? text
+        }
+
+        switch outcomes.primary {
+        case nil:
+            // Wavelog alone: Log QSO again is the retry.
+            if wavelogOK {
+                result = .success(withWavelog("\(call) logged to Wavelog"))
+                if normalizedCall == call { clear() }
+            } else {
+                result = .failure(withWavelog("\(call) not logged"))
+            }
+        case .logged, .alreadyLogged:
+            workedStations.reload()
+            if wavelogOK {
+                let to = outcomes.wavelog == nil ? primaryName : "\(primaryName) and Wavelog"
+                result = .success(withWavelog("\(call) logged to \(to)"))
                 // Only clear if nothing was typed for a new QSO meanwhile.
                 if normalizedCall == call { clear() }
-            case .sentUnconfirmed(let reason):
-                result = .warning("\(reason) — check MacLoggerDX before logging \(call) again")
-            case .failed(let reason):
-                result = .failure(reason)
+            } else {
+                wavelogRetry = qso
+                result = .warning(withWavelog("\(call) logged to \(primaryName)"))
+            }
+        case .sentUnconfirmed(let reason):
+            if !wavelogOK { wavelogRetry = qso }
+            result = .warning(withWavelog("\(reason) — check \(primaryName) before logging \(call) again"))
+        case .failed(let reason):
+            // Nothing reached the primary: Log QSO again resends both, and
+            // Wavelog's duplicate check absorbs a second copy there.
+            result = .failure(withWavelog(reason))
+        }
+    }
+
+    private func retryWavelog(_ qso: LoggedQSO) {
+        guard !isLogging else { return }
+        isLogging = true
+        result = nil
+        Task {
+            let outcome = await QSOLogger.logToWavelog(qso)
+            isLogging = false
+            switch outcome {
+            case .logged, .alreadyLogged:
+                wavelogRetry = nil
+                result = .success(outcome == .logged ? "\(qso.call) logged to Wavelog" : "\(qso.call) was already in Wavelog")
+                if normalizedCall == qso.call { clear() }
+            case .sentUnconfirmed(let reason), .failed(let reason):
+                result = .failure("Wavelog: \(reason)")
             }
         }
     }

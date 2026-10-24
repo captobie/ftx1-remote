@@ -577,18 +577,24 @@ private struct LogbookSettingsTab: View {
     }
 
     var body: some View {
-        Form {
-            Picker("Logger", selection: logger) {
-                ForEach(LogbookSettings.Logger.allCases, id: \.self) { option in
-                    Text(option.displayName).tag(option)
+        // Scrolls like the rigctld tab: MacLoggerDX's and Wavelog's
+        // sections together don't fit the window's ideal height.
+        ScrollView {
+            Form {
+                Picker("Logger", selection: logger) {
+                    ForEach(LogbookSettings.Logger.allCases, id: \.self) { option in
+                        Text(option.displayName).tag(option)
+                    }
                 }
-            }
 
-            if logger.wrappedValue == .macLoggerDX {
-                macLoggerDXSection
+                if logger.wrappedValue == .macLoggerDX {
+                    macLoggerDXSection
+                }
+
+                WavelogSettingsSection()
             }
+            .padding(.top, 8)
         }
-        .padding(.top, 8)
         .task(id: TaskKey(logger: loggerRawValue, path: logPathOverride)) { await refresh() }
     }
 
@@ -702,6 +708,172 @@ private struct LogbookSettingsTab: View {
         }
         if panel.runModal() == .OK, let url = panel.url {
             logPathOverride = url.path
+        }
+    }
+}
+
+/// Wavelog, logged to as well as the Logger above — see `Wavelog` (API
+/// v2), `LogbookSettings.wavelog*`. The API token lives in the keychain
+/// (`WavelogToken`), written as it's typed; it needs the `qso:write` and
+/// `station:read` scopes. Station locations are fetched only on Refresh
+/// (or the first time the token and URL are both set), and Test is the
+/// API's own dry run: token, scope and location checked, nothing written.
+private struct WavelogSettingsSection: View {
+    @AppStorage(LogbookSettings.wavelogEnabledKey) private var enabled = false
+    @AppStorage(LogbookSettings.wavelogURLKey) private var url = ""
+    @AppStorage(LogbookSettings.wavelogStationIDKey) private var stationID = ""
+    @AppStorage(LogbookSettings.wavelogStationNameKey) private var stationName = ""
+    @AppStorage(LogbookSettings.wavelogStationCallsignKey) private var stationCallsign = ""
+    @AppStorage(StationSettings.callsignKey) private var myCallsign = ""
+
+    @State private var token = WavelogToken.read()
+    @State private var stations: [Wavelog.Station]?
+    @State private var isBusy = false
+    @State private var status: (text: String, ok: Bool)?
+
+    var body: some View {
+        Section {
+            Toggle("Also log QSOs to Wavelog", isOn: $enabled)
+            if enabled {
+                TextField("URL", text: $url, prompt: Text("https://log.example.org"))
+                    .frame(maxWidth: 360)
+                SecureField("API token", text: $token, prompt: Text("wl2_…"))
+                    .frame(maxWidth: 360)
+                    .onChange(of: token) { _, new in
+                        WavelogToken.write(new.trimmingCharacters(in: .whitespacesAndNewlines))
+                    }
+                    .help("An API v2 token from Wavelog’s API page (Wavelog 3.1 or newer), with the qso:write and station:read scopes")
+                if isV1Key {
+                    Text("This looks like an API v1 key. FTX1Remote uses API v2: create a token (wl2_…) with the qso:write and station:read scopes on Wavelog’s API page.")
+                        .foregroundStyle(.orange).font(.callout)
+                }
+                HStack {
+                    Picker("Station location", selection: stationSelection) {
+                        if stationID.isEmpty {
+                            Text("None").tag("")
+                        }
+                        ForEach(stationChoices) { station in
+                            Text(Self.label(for: station)).tag(station.id)
+                        }
+                    }
+                    .frame(maxWidth: 360)
+                    Button("Refresh", action: refreshStations)
+                        .disabled(isBusy || !hasCredentials || isV1Key)
+                }
+                if let mismatch = callsignMismatch {
+                    Text(mismatch).foregroundStyle(.orange).font(.callout)
+                }
+                HStack {
+                    Button("Test", action: test)
+                        .disabled(isBusy || !hasCredentials || isV1Key || stationID.isEmpty)
+                    if isBusy {
+                        ProgressView().controlSize(.small)
+                    } else if let status {
+                        Text(status.text)
+                            .foregroundStyle(status.ok ? .green : .red)
+                            .textSelection(.enabled)
+                    }
+                }
+            }
+        } header: {
+            Text("Wavelog")
+                .font(.headline)
+                .padding(.top, 12)
+        }
+        .task(id: enabled) {
+            if enabled, stations == nil, hasCredentials, !isV1Key { refreshStations() }
+        }
+    }
+
+    private var trimmedToken: String {
+        token.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var hasCredentials: Bool {
+        !url.trimmingCharacters(in: .whitespaces).isEmpty && !trimmedToken.isEmpty
+    }
+
+    /// v1 keys are "wl" + hex; v2 refuses them with a less helpful message.
+    private var isV1Key: Bool {
+        !trimmedToken.isEmpty && !trimmedToken.hasPrefix(Wavelog.tokenPrefix)
+    }
+
+    /// The fetched list, or the saved pick alone until it's fetched.
+    private var stationChoices: [Wavelog.Station] {
+        if let stations { return stations }
+        guard !stationID.isEmpty else { return [] }
+        return [Wavelog.Station(id: stationID, name: stationName, callsign: stationCallsign, gridsquare: "", isActive: false)]
+    }
+
+    private var stationSelection: Binding<String> {
+        Binding(
+            get: { stationID },
+            set: { id in
+                stationID = id
+                let station = stationChoices.first { $0.id == id }
+                stationName = station?.name ?? ""
+                stationCallsign = station?.callsign ?? ""
+                status = nil
+            }
+        )
+    }
+
+    /// API v2 doesn't refuse a record whose station callsign isn't the
+    /// location's (v1 did): it files it under the location's callsign.
+    private var callsignMismatch: String? {
+        let mine = myCallsign.trimmingCharacters(in: .whitespaces)
+        guard !mine.isEmpty, !stationCallsign.isEmpty, mine.uppercased() != stationCallsign.uppercased() else { return nil }
+        return "Settings → Station’s callsign \(mine.uppercased()) isn’t this location’s (\(stationCallsign)) — Wavelog will file QSOs under \(stationCallsign), not \(mine.uppercased())."
+    }
+
+    private static func label(for station: Wavelog.Station) -> String {
+        let name = station.name.isEmpty ? "Location \(station.id)" : station.name
+        return station.callsign.isEmpty ? name : "\(name) (\(station.callsign))"
+    }
+
+    private func refreshStations() {
+        let base = url, token = trimmedToken
+        isBusy = true
+        status = nil
+        Task {
+            defer { isBusy = false }
+            do throws(Wavelog.APIError) {
+                let list = try await Wavelog.stations(base: base, token: token)
+                stations = list
+                if let current = list.first(where: { $0.id == stationID }) {
+                    stationName = current.name
+                    stationCallsign = current.callsign
+                } else if let pick = list.first(where: \.isActive) ?? list.first {
+                    stationSelection.wrappedValue = pick.id
+                }
+                if list.isEmpty {
+                    status = ("This Wavelog account has no station locations", false)
+                }
+            } catch {
+                status = (error.description, false)
+            }
+        }
+    }
+
+    /// The API's dry run with a made-up QSO: nothing is written.
+    private func test() {
+        let base = url, token = trimmedToken, station = stationID
+        let now = Date.now
+        let qso = LoggedQSO(call: "TE5T", start: now, end: now, frequencyHz: 14_025_000, mode: "CW", myCall: myCallsign.uppercased())
+        isBusy = true
+        status = nil
+        Task {
+            defer { isBusy = false }
+            do throws(Wavelog.APIError) {
+                switch try await Wavelog.log(qso, base: base, token: token, stationID: station, dryRun: true) {
+                case .created, .duplicate:
+                    status = ("Connected — the token can log to this location", true)
+                case .rejected(let reason):
+                    status = (reason, false)
+                }
+            } catch {
+                status = (error.description, false)
+            }
         }
     }
 }
