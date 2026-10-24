@@ -1948,6 +1948,13 @@ pattern as the APRS windows.
   in its first 3 datagrams and hourly, sequence = reports sent. Logs
   under "pskreporter". Debug builds: `pskReporter.hostOverride` sends to
   another host (port 4739) for testing.
+- **Grid field fixes (2026-10-24, unit-tested against hand-packed
+  payloads)**: ft8_lib calls "RR73" a token only when the sender packed
+  the RR73 report code; packed as a locator (RR73 is a real square) it
+  came back as a grid and showed in the FT8 window's Grid column. And a
+  grid with the R acknowledgement came back as one "R FN42" field.
+  `FT8Decoder.classified` makes the first a token and splits the second
+  into "R" + the grid (`FT8FieldClassificationTests`).
 - **Extensibility for FT4/future modes deliberately minimal, not
   speculative**: upstream already shares the same LDPC(174,91) code and
   `ftx_protocol_t`/slot-timing constants between FT4 and FT8

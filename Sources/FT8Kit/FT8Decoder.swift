@@ -103,7 +103,7 @@ public final class FT8Decoder {
             let payloadBytes = withUnsafeBytes(of: message.payload) { Array($0) }
             guard seenPayloads.insert(payloadBytes).inserted else { continue }
 
-            guard let text = decodedText(for: message) else { continue }
+            guard let text = Self.decodedText(for: message) else { continue }
 
             let freqHz = (Double(monitor.min_bin) + Double(candidate.freq_offset)
                 + Double(candidate.freq_sub) / Double(monitor.wf.freq_osr)) / Double(monitor.symbol_period)
@@ -125,7 +125,8 @@ public final class FT8Decoder {
     }
 
     /// Unpacks a decoded `ftx_message_t` into its text and classified fields.
-    private func decodedText(for message: ftx_message_t) -> (text: String, fields: [FT8Kit.MessageField])? {
+    /// Internal (not private) so tests can feed it hand-packed payloads.
+    static func decodedText(for message: ftx_message_t) -> (text: String, fields: [FT8Kit.MessageField])? {
         var mutableMessage = message
         var textBuffer = [CChar](repeating: 0, count: Int(FTX_MAX_MESSAGE_LENGTH))
         var offsets = ftx_message_offsets_t()
@@ -148,8 +149,29 @@ public final class FT8Decoder {
             guard start < end, end <= characters.count else { continue }
             let slice = String(characters[start..<end]).trimmingCharacters(in: .whitespaces)
             guard !slice.isEmpty else { continue }
-            fields.append(FT8Kit.MessageField(kind: FT8Kit.FieldKind(types[i]), text: slice))
+            fields += Self.classified(FT8Kit.MessageField(kind: FT8Kit.FieldKind(types[i]), text: slice))
         }
         return (text, fields)
+    }
+
+    /// Two corrections to ft8_lib's grid field:
+    ///
+    /// - "RR73" is also a real square (R-R field, 73), and ft8_lib only
+    ///   calls it a token when the sender packed the special RR73 report
+    ///   code. A sender that packs it as an ordinary locator gets it back
+    ///   as a grid, though in a message it always means the sign-off
+    ///   (reported by the user from live traffic, 2026-10-24).
+    /// - A grid sent with the R acknowledgement comes back as one field,
+    ///   "R FN42"; it's split into the "R" token and the grid.
+    static func classified(_ field: FT8Kit.MessageField) -> [FT8Kit.MessageField] {
+        guard field.kind == .grid else { return [field] }
+        var grid = field.text
+        var result: [FT8Kit.MessageField] = []
+        if grid.hasPrefix("R ") {
+            result.append(FT8Kit.MessageField(kind: .token, text: "R"))
+            grid = String(grid.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+        }
+        result.append(FT8Kit.MessageField(kind: grid == "RR73" ? .token : .grid, text: grid))
+        return result
     }
 }

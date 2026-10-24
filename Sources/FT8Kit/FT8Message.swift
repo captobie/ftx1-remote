@@ -27,7 +27,7 @@ extension FT8Kit {
 
     /// One space-separated token of a decoded message, classified by kind
     /// (e.g. distinguishing a callsign from a grid square from a report).
-    public struct MessageField {
+    public struct MessageField: Equatable {
         public let kind: FieldKind
         public let text: String
     }

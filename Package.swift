@@ -79,7 +79,7 @@ let package = Package(
         ),
         .testTarget(
             name: "FT8KitTests",
-            dependencies: ["FT8Kit"],
+            dependencies: ["FT8Kit", "CFT8Lib"],
             resources: [.copy("Resources")]
         ),
     ]
