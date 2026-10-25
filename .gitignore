@@ -76,3 +76,7 @@ obj/
 # root IS committed (that's the whole point of it).
 /build/
 /releases/
+
+# Xcode output when a build is pointed next to the project instead of
+# DerivedData (an iOS Simulator build left one here, 2026-10-09).
+/FTX1RemoteMac/build/
