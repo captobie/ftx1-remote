@@ -205,6 +205,8 @@ public class HubTransmitTests
         await using var hub = await StartHubAsync();
         var recorder = new Recorder(hub);
         using var a = await ConnectAsync(hub);
+        // Registered before B connects, so A gets the lower id.
+        await WaitUntilAsync(() => hub.Clients.Count == 1);
         using var b = await ConnectAsync(hub);
         var (idA, idB) = await ClientIdsAsync(hub);
 
@@ -241,6 +243,8 @@ public class HubTransmitTests
         await using var hub = await StartHubAsync();
         var recorder = new Recorder(hub);
         using var a = await ConnectAsync(hub);
+        // Registered before B connects, so A gets the lower id.
+        await WaitUntilAsync(() => hub.Clients.Count == 1);
         using var b = await ConnectAsync(hub);
         var (idA, idB) = await ClientIdsAsync(hub);
 
@@ -417,7 +421,8 @@ public class HubTransmitTests
     private static async Task<(int First, int Second)> ClientIdsAsync(HubServer hub, int expected = 2)
     {
         await WaitUntilAsync(() => hub.Clients.Count == expected);
-        var ids = hub.Clients.Select(c => c.Id).ToList();
+        // Ids count up in connection order; Clients isn't ordered.
+        var ids = hub.Clients.Select(c => c.Id).Order().ToList();
         return (ids[0], expected > 1 ? ids[1] : 0);
     }
 

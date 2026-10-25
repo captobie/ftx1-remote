@@ -1266,6 +1266,67 @@ tests — not from documentation:
   and the CW window's Lookup button in the built app, and logging from the
   app with the rig connected.
 
+## Logbook — Wavelog (2026-10-25)
+
+The Mac's Wavelog integration (CLAUDE.md, "Logbook — MacLoggerDX", the
+Wavelog bullets), all three parts, through Wavelog's **API v2** (3.1 or
+newer; v1 keys are refused, and Settings says so). The Swift files
+(`Sources/FTX1Core/Logbook/Wavelog.swift`, `WavelogTuneRequest.swift`) stay
+the source of truth for the request and reply shapes.
+
+- **Logging**: every Log QSO also goes to Wavelog, beside HRD or Log4OM (or
+  with Logbook = None), both at once (`QsoLogger.LogAsync` →
+  `QsoLogOutcomes`). `Services/Wavelog.cs` posts the ADIF record to
+  `index.php/api/v2/qso` with `Authorization: Bearer wl2_…`; a duplicate
+  comes back as `skipped` and counts as logged. The Log pane clears only
+  when both confirm; if the primary took the QSO and Wavelog didn't,
+  "Retry Wavelog (<call>)" resends it to Wavelog alone until it works or is
+  dismissed (✕). Worked-before and Lookup stay with HRD/Log4OM.
+- **CAT** (`Services/WavelogRadioReporter.cs`, off by default; needs
+  `radio:write`): `MainWindow.Wavelog.cs` hands it the transmitting side
+  (the Log pane's rule) after every poll, MAIN as RX when split/TX:SUB and
+  different, and the RF POWER setting in watts. Posted to `api/v2/radio`
+  under the Radio name (default FTX-1) on a change, at most every 2 s,
+  every 60 s while unchanged, nothing while disconnected, 30 s pause after
+  a failure. Modes per Wavelog's `radiohelpers.js` (DATA-U → PKTUSB,
+  DATA-FM and C4FM → FM).
+- **Tune from Wavelog** (`Services/WavelogTuneListener.cs`, off by
+  default): Wavelog's DX cluster/bandmap `fetch` `GET <cat_url>/<Hz>/<mode>`
+  from the browser, `http://127.0.0.1:54321` unless the radio's CAT URL is
+  set in Wavelog — WaveLogGate's port, so only one of the two can listen
+  (Settings says "in use — is WaveLogGate running?"). A `TcpListener` on
+  127.0.0.1 only (exclusive bind); only a request whose `Origin` is the
+  Settings URL's origin is obeyed, with CORS headers and Chrome's
+  private-network preflight answered. Tuning runs on the UI thread with
+  the WebSDR click-to-tune rules (MAIN, not while transmitting, not in
+  Memory mode, not disconnected); a refusal is a 409 with the reason
+  (Wavelog only shows its generic "not responding" toast; Settings shows
+  the last request). Wavelog sends "rtty" for most digital spots, FT8
+  included.
+- **Settings → Logbook → Wavelog**: the three switches, URL, API token,
+  station location (Refresh = `GET api/v2/station`; picked automatically
+  the first time logging is on with a URL and token), Test (the API's dry
+  run: token, scope and location checked, nothing written), a warning when
+  Settings → Station's callsign isn't the location's (v2 files the QSO
+  under the location's callsign), Radio name, the listen port, and live
+  CAT/tune status lines. Like every other tab, nothing applies until Save.
+- **The token** is in Windows Credential Manager (`Services/
+  WavelogToken.cs`, generic credential "FTX1Remote/Wavelog", this user),
+  not `settings.json` — the Mac keeps it in the keychain. Debug builds read
+  `FTX1REMOTE_WAVELOG_TOKEN` first, to test without touching the stored
+  one.
+- Tested 2026-10-25: `FTX1RemoteWindows.Tests/WavelogTests.cs` (the Mac's
+  WavelogTests/WavelogTuneRequestTests cases, a QSO over local HTTP, and
+  the listener over loopback: preflight, tune, foreign/missing Origin,
+  409, 404, port in use); Credential Manager write/overwrite/read/delete
+  in a scratch harness (another target name); the built app through UI
+  Automation against a stand-in Wavelog server (disconnected): Refresh,
+  Test, the mismatch warning, Save, the listener answering curl (204
+  preflight, 409 "the rig isn't connected", 403 for other origins) with
+  Settings' status following, and the listener closed with the window.
+  Then tested live by the user the same day against their Wavelog with the
+  rig connected: working.
+
 ## Recordings (the CW page's PLAY/RECORD, 2026-10-03)
 
 The Mac's `AudioRecorder` + `RecordingsListView`. Like the Mac, the CW

@@ -115,6 +115,15 @@ public static class AppSettings
         public string Log4OmLogPath { get; set; } = "";
         public string Log4OmUdpHost { get; set; } = "";
         public int Log4OmUdpPort { get; set; }
+        public bool WavelogEnabled { get; set; }
+        public string WavelogUrl { get; set; } = "";
+        public string WavelogStationId { get; set; } = "";
+        public string WavelogStationName { get; set; } = "";
+        public string WavelogStationCallsign { get; set; } = "";
+        public bool WavelogCatEnabled { get; set; }
+        public string WavelogRadioName { get; set; } = "";
+        public bool WavelogTuneEnabled { get; set; }
+        public int WavelogTunePort { get; set; } = DefaultWavelogTunePort;
         public bool HubEnabled { get; set; }
         public WindowBounds? MainWindowBounds { get; set; }
     }
@@ -788,6 +797,101 @@ public static class AppSettings
         set
         {
             _cache.Log4OmUdpPort = value;
+            Save();
+        }
+    }
+
+    // Wavelog (the Mac's LogbookSettings.wavelog*): a second logbook beside
+    // Logbook, not one of its choices — every QSO goes to both. The API v2
+    // token is in Credential Manager (WavelogToken), not here.
+
+    public static bool WavelogEnabled
+    {
+        get => _cache.WavelogEnabled;
+        set
+        {
+            _cache.WavelogEnabled = value;
+            Save();
+        }
+    }
+
+    public static string WavelogUrl
+    {
+        get => _cache.WavelogUrl;
+        set
+        {
+            _cache.WavelogUrl = value;
+            Save();
+        }
+    }
+
+    /// The station location QSOs are filed under, with its name and
+    /// callsign for Settings before the list has been fetched again.
+    public static string WavelogStationId => _cache.WavelogStationId;
+    public static string WavelogStationName => _cache.WavelogStationName;
+    public static string WavelogStationCallsign => _cache.WavelogStationCallsign;
+
+    public static void SetWavelogStation(string id, string name, string callsign)
+    {
+        _cache.WavelogStationId = id;
+        _cache.WavelogStationName = name;
+        _cache.WavelogStationCallsign = callsign;
+        Save();
+    }
+
+    /// Wavelog CAT (WavelogRadioReporter): the rig's frequency/mode sent to
+    /// Wavelog as the radio WavelogRadioName. Independent of logging,
+    /// though it uses the same URL and token.
+    public static bool WavelogCatEnabled
+    {
+        get => _cache.WavelogCatEnabled;
+        set
+        {
+            _cache.WavelogCatEnabled = value;
+            Save();
+        }
+    }
+
+    public const string DefaultWavelogRadioName = "FTX-1";
+
+    /// Wavelog keys radios by name (≤250 characters).
+    public static string WavelogRadioName
+    {
+        get
+        {
+            var name = _cache.WavelogRadioName.Trim();
+            return name.Length == 0 ? DefaultWavelogRadioName : name.Length > 250 ? name[..250] : name;
+        }
+        set
+        {
+            _cache.WavelogRadioName = value;
+            Save();
+        }
+    }
+
+    /// As typed (empty = the default), for the Settings field.
+    public static string WavelogRadioNameSetting => _cache.WavelogRadioName;
+
+    /// Wavelog → rig (WavelogTuneListener): Wavelog's pages tune the rig
+    /// through the radio's cat_url, http://127.0.0.1:54321 by default.
+    public static bool WavelogTuneEnabled
+    {
+        get => _cache.WavelogTuneEnabled;
+        set
+        {
+            _cache.WavelogTuneEnabled = value;
+            Save();
+        }
+    }
+
+    public const int DefaultWavelogTunePort = 54321;
+
+    public static int WavelogTunePort
+    {
+        get => _cache.WavelogTunePort is >= 1024 and <= 65535 ? _cache.WavelogTunePort : DefaultWavelogTunePort;
+        set
+        {
+            _cache.WavelogTunePort = value;
             Save();
         }
     }

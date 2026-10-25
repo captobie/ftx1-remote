@@ -50,13 +50,17 @@ public sealed partial class SettingsDialog : Window
     /// from what the edited choice resolves to.
     /// `hubAudioRunning`: whether this app's audio is on, which the iPad's
     /// receive audio comes through (Settings → Hub says so when it isn't).
+    /// `wavelogReporter`/`wavelogTuner`: the running Wavelog CAT pieces,
+    /// for the Logbook tab's live status lines.
     public SettingsDialog(Window owner, bool connected, RigctldBinary.Resolution? inUse = null, HubServer? hub = null,
-        bool hubAudioRunning = true)
+        bool hubAudioRunning = true, WavelogRadioReporter? wavelogReporter = null, WavelogTuneListener? wavelogTuner = null)
     {
         _owner = owner;
         _inUse = inUse;
         _hub = hub;
         _hubAudioRunning = hubAudioRunning;
+        _wavelogReporter = wavelogReporter;
+        _wavelogTuner = wavelogTuner;
         InitializeComponent();
         RootGrid.RequestedTheme = AppSettings.Theme.ElementTheme();
         RootGrid.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
@@ -105,6 +109,16 @@ public sealed partial class SettingsDialog : Window
             RefreshVersions();
             RefreshHrdStatus();
             RefreshLog4OmStatus();
+            if (_wavelogReporter is not null)
+            {
+                _wavelogReporter.Changed += OnWavelogStatusChanged;
+            }
+            if (_wavelogTuner is not null)
+            {
+                _wavelogTuner.Changed += OnWavelogStatusChanged;
+            }
+            UpdateWavelogPanels();
+            AutoRefreshWavelogStations();
         };
         Closed += (_, _) =>
         {
@@ -114,6 +128,14 @@ public sealed partial class SettingsDialog : Window
                 _hub.StatusChanged -= OnHubStatusChanged;
             }
             _versionLookup?.Cancel();
+            if (_wavelogReporter is not null)
+            {
+                _wavelogReporter.Changed -= OnWavelogStatusChanged;
+            }
+            if (_wavelogTuner is not null)
+            {
+                _wavelogTuner.Changed -= OnWavelogStatusChanged;
+            }
             ReleaseOwner();
             _result.TrySetResult(_saved);
         };
@@ -138,6 +160,7 @@ public sealed partial class SettingsDialog : Window
         LogbookComboBox.SelectedItem = LogbookComboBox.Items.OfType<ComboBoxItem>()
             .First(i => (string)i.Tag == AppSettings.Logbook.ToString());
         HrdLogPathBox.Text = AppSettings.HrdLogPath;
+        InitWavelog();
         HrdHostBox.Text = AppSettings.HrdUdpHost;
         HrdPortBox.Value = AppSettings.HrdUdpPort > 0 ? AppSettings.HrdUdpPort : double.NaN;
         Log4OmLogPathBox.Text = AppSettings.Log4OmLogPath;
@@ -354,6 +377,13 @@ public sealed partial class SettingsDialog : Window
             }
         }
 
+        var wavelogUrl = WavelogUrlBox.Text.Trim();
+        if (wavelogUrl.Length > 0 && Wavelog.ApiUrl(wavelogUrl, "qso") is null)
+        {
+            Fail("Logbook", $"\"{wavelogUrl}\" isn't a Wavelog URL (e.g. https://log.example.org).");
+            return false;
+        }
+
         if (ConnectionModeComboBox.IsEnabled)
         {
             AppSettings.ConnectionMode = SelectedMode;
@@ -409,6 +439,7 @@ public sealed partial class SettingsDialog : Window
         AppSettings.Log4OmLogPath = Log4OmLogPathBox.Text.Trim().Trim('"');
         AppSettings.Log4OmUdpHost = log4OmHost;
         AppSettings.Log4OmUdpPort = double.IsNaN(Log4OmPortBox.Value) ? 0 : (int)Math.Round(Log4OmPortBox.Value);
+        SaveWavelog(wavelogUrl);
 
         AppSettings.AprsEnabled = AprsEnabledCheckBox.IsChecked == true;
         AppSettings.AprsFrequencyHz = aprsFrequencyHz;
@@ -703,6 +734,323 @@ public sealed partial class SettingsDialog : Window
         Log4OmLogText.Text = status.log;
         Log4OmLogPathBox.PlaceholderText = status.detectedPath ?? "Log4OM's log wasn't found";
         Log4OmPortBox.PlaceholderText = status.adif is { Port: > 0 } a ? a.Port.ToString(CultureInfo.InvariantCulture) : "";
+    }
+
+    // Logbook tab: Wavelog.
+
+    private readonly WavelogRadioReporter? _wavelogReporter;
+    private readonly WavelogTuneListener? _wavelogTuner;
+    /// The token as stored when the window opened: Save writes only a change.
+    private string _storedWavelogToken = "";
+    /// The fetched list; null until Refresh (the saved pick alone till then).
+    private List<Wavelog.Station>? _wavelogStations;
+    private Wavelog.Station? _wavelogStation;
+    private bool _wavelogLoaded;
+    private bool _wavelogBusy;
+    private bool _fillingWavelogStations;
+
+    private void InitWavelog()
+    {
+        WavelogEnabledCheckBox.IsChecked = AppSettings.WavelogEnabled;
+        WavelogCatCheckBox.IsChecked = AppSettings.WavelogCatEnabled;
+        WavelogTuneCheckBox.IsChecked = AppSettings.WavelogTuneEnabled;
+        WavelogUrlBox.Text = AppSettings.WavelogUrl;
+        _storedWavelogToken = WavelogToken.Read();
+        WavelogTokenBox.Password = _storedWavelogToken;
+        if (AppSettings.WavelogStationId.Length > 0)
+        {
+            _wavelogStation = new Wavelog.Station(AppSettings.WavelogStationId, AppSettings.WavelogStationName,
+                AppSettings.WavelogStationCallsign, "", false);
+        }
+        FillWavelogStations();
+        WavelogRadioNameBox.Text = AppSettings.WavelogRadioNameSetting;
+        WavelogRadioNameBox.PlaceholderText = AppSettings.DefaultWavelogRadioName;
+        WavelogTunePortBox.Value = AppSettings.WavelogTunePort;
+        WavelogTunePortBox.ValueChanged += (_, _) => UpdateWavelogPanels();
+        CallsignBox.TextChanged += (_, _) => UpdateWavelogPanels();
+        _wavelogLoaded = true;
+        UpdateWavelogPanels();
+    }
+
+    private void SaveWavelog(string url)
+    {
+        AppSettings.WavelogEnabled = WavelogEnabledCheckBox.IsChecked == true;
+        AppSettings.WavelogCatEnabled = WavelogCatCheckBox.IsChecked == true;
+        AppSettings.WavelogTuneEnabled = WavelogTuneCheckBox.IsChecked == true;
+        AppSettings.WavelogUrl = url;
+        AppSettings.SetWavelogStation(_wavelogStation?.Id ?? "", _wavelogStation?.Name ?? "", _wavelogStation?.Callsign ?? "");
+        AppSettings.WavelogRadioName = WavelogRadioNameBox.Text.Trim();
+        AppSettings.WavelogTunePort = double.IsNaN(WavelogTunePortBox.Value)
+            ? AppSettings.DefaultWavelogTunePort
+            : (int)Math.Round(WavelogTunePortBox.Value);
+        if (TypedWavelogToken != _storedWavelogToken)
+        {
+            WavelogToken.Write(TypedWavelogToken);
+        }
+    }
+
+    private string TypedWavelogToken => WavelogTokenBox.Password.Trim();
+
+    private bool HasWavelogCredentials => WavelogUrlBox.Text.Trim().Length > 0 && TypedWavelogToken.Length > 0;
+
+    /// v1 keys are "wl" + hex; v2 refuses them with a less helpful message.
+    private bool IsWavelogV1Key => TypedWavelogToken.Length > 0 && !TypedWavelogToken.StartsWith(Wavelog.TokenPrefix, StringComparison.Ordinal);
+
+    private void WavelogCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_wavelogLoaded)
+        {
+            return;
+        }
+        UpdateWavelogPanels();
+        if (ReferenceEquals(sender, WavelogEnabledCheckBox))
+        {
+            AutoRefreshWavelogStations();
+        }
+    }
+
+    private void WavelogCredentials_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_wavelogLoaded)
+        {
+            UpdateWavelogPanels();
+        }
+    }
+
+    private void OnWavelogStatusChanged() => DispatcherQueue.TryEnqueue(UpdateWavelogPanels);
+
+    private void UpdateWavelogPanels()
+    {
+        if (!_wavelogLoaded)
+        {
+            return;
+        }
+        var logging = WavelogEnabledCheckBox.IsChecked == true;
+        var cat = WavelogCatCheckBox.IsChecked == true;
+        var tune = WavelogTuneCheckBox.IsChecked == true;
+        WavelogCredentialsPanel.Visibility = logging || cat || tune ? Visibility.Visible : Visibility.Collapsed;
+        WavelogLogPanel.Visibility = logging ? Visibility.Visible : Visibility.Collapsed;
+        WavelogCatPanel.Visibility = cat ? Visibility.Visible : Visibility.Collapsed;
+        WavelogTunePanel.Visibility = tune ? Visibility.Visible : Visibility.Collapsed;
+        WavelogV1KeyText.Visibility = IsWavelogV1Key ? Visibility.Visible : Visibility.Collapsed;
+
+        WavelogRefreshButton.IsEnabled = !_wavelogBusy && HasWavelogCredentials && !IsWavelogV1Key;
+        WavelogTestButton.IsEnabled = !_wavelogBusy && HasWavelogCredentials && !IsWavelogV1Key && _wavelogStation is not null;
+        WavelogProgress.IsActive = _wavelogBusy;
+        WavelogProgress.Visibility = _wavelogBusy ? Visibility.Visible : Visibility.Collapsed;
+
+        // API v2 doesn't refuse a record whose station callsign isn't the
+        // location's (v1 did): it files it under the location's callsign.
+        var mine = CallsignBox.Text.Trim().ToUpperInvariant();
+        var theirs = _wavelogStation?.Callsign ?? "";
+        var mismatch = mine.Length > 0 && theirs.Length > 0 && mine != theirs.ToUpperInvariant();
+        WavelogMismatchText.Text = mismatch
+            ? $"Settings → Station's callsign {mine} isn't this location's ({theirs}) — Wavelog will file QSOs under {theirs}, not {mine}."
+            : "";
+        WavelogMismatchText.Visibility = mismatch ? Visibility.Visible : Visibility.Collapsed;
+
+        UpdateWavelogCatStatus(cat);
+        UpdateWavelogTuneStatus(tune);
+    }
+
+    private void UpdateWavelogCatStatus(bool checkedNow)
+    {
+        if (!checkedNow)
+        {
+            return;
+        }
+        if (!AppSettings.WavelogCatEnabled || _wavelogReporter is null)
+        {
+            SetStatusLine(WavelogCatStatusText, "Starts when you Save", StatusTone.Secondary);
+        }
+        else if (_wavelogReporter.LastResult is { } result)
+        {
+            if (result.Error is { } error)
+            {
+                SetStatusLine(WavelogCatStatusText, error, StatusTone.Failure);
+            }
+            else
+            {
+                SetStatusLine(WavelogCatStatusText, $"Wavelog updated {result.At.ToLocalTime():HH:mm:ss}", StatusTone.Success);
+            }
+        }
+        else
+        {
+            SetStatusLine(WavelogCatStatusText, "Sent once the rig is connected", StatusTone.Secondary);
+        }
+    }
+
+    private void UpdateWavelogTuneStatus(bool checkedNow)
+    {
+        if (!checkedNow)
+        {
+            return;
+        }
+        var typedPort = double.IsNaN(WavelogTunePortBox.Value) ? AppSettings.DefaultWavelogTunePort : (int)Math.Round(WavelogTunePortBox.Value);
+        switch (_wavelogTuner?.State)
+        {
+            case WavelogTuneListener.ListenerState.Failed(var message) when AppSettings.WavelogTuneEnabled && typedPort == AppSettings.WavelogTunePort:
+                SetStatusLine(WavelogTuneStatusText, message, StatusTone.Failure);
+                break;
+            case WavelogTuneListener.ListenerState.Listening(var port) when port == typedPort:
+                if (WavelogTuneRequest.OriginOfWavelogUrl(WavelogUrlBox.Text) is null)
+                {
+                    SetStatusLine(WavelogTuneStatusText, "Set the Wavelog URL above — only requests from its pages tune the rig", StatusTone.Warning);
+                }
+                else if (_wavelogTuner.LastEvent is { } last)
+                {
+                    SetStatusLine(WavelogTuneStatusText, $"{last.Text} ({last.At.ToLocalTime():HH:mm:ss})", last.Ok ? StatusTone.Success : StatusTone.Warning);
+                }
+                else
+                {
+                    SetStatusLine(WavelogTuneStatusText, $"Listening on 127.0.0.1:{port} — click a spot in Wavelog's DX cluster", StatusTone.Secondary);
+                }
+                break;
+            default:
+                SetStatusLine(WavelogTuneStatusText, $"Listens on 127.0.0.1:{typedPort} when you Save", StatusTone.Secondary);
+                break;
+        }
+    }
+
+    private enum StatusTone { Secondary, Success, Warning, Failure }
+
+    private static void SetStatusLine(TextBlock text, string message, StatusTone tone)
+    {
+        text.Text = message;
+        text.Foreground = tone switch
+        {
+            StatusTone.Success => (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"],
+            StatusTone.Warning => new SolidColorBrush(Microsoft.UI.Colors.DarkOrange),
+            StatusTone.Failure => (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"],
+            _ => new SolidColorBrush(Microsoft.UI.Colors.Gray),
+        };
+    }
+
+    /// The fetched list, or the saved pick alone until it's fetched; "None"
+    /// while nothing is picked.
+    private void FillWavelogStations()
+    {
+        _fillingWavelogStations = true;
+        WavelogStationComboBox.Items.Clear();
+        var choices = _wavelogStations ?? (_wavelogStation is { } pick ? [pick] : []);
+        if (_wavelogStation is null)
+        {
+            WavelogStationComboBox.Items.Add(new ComboBoxItem { Content = "None", Tag = null });
+        }
+        foreach (var station in choices)
+        {
+            var name = station.Name.Length == 0 ? $"Location {station.Id}" : station.Name;
+            WavelogStationComboBox.Items.Add(new ComboBoxItem
+            {
+                Content = station.Callsign.Length == 0 ? name : $"{name} ({station.Callsign})",
+                Tag = station,
+            });
+        }
+        WavelogStationComboBox.SelectedItem = WavelogStationComboBox.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(i => (i.Tag as Wavelog.Station)?.Id == _wavelogStation?.Id);
+        _fillingWavelogStations = false;
+    }
+
+    private void WavelogStationComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_fillingWavelogStations || WavelogStationComboBox.SelectedItem is not ComboBoxItem { Tag: Wavelog.Station station })
+        {
+            return;
+        }
+        _wavelogStation = station;
+        WavelogStatusText.Text = "";
+        UpdateWavelogPanels();
+    }
+
+    /// The first time logging is on with a token and URL, as the Mac does.
+    private void AutoRefreshWavelogStations()
+    {
+        if (_isOpen && WavelogEnabledCheckBox.IsChecked == true && _wavelogStations is null && !_wavelogBusy
+            && HasWavelogCredentials && !IsWavelogV1Key)
+        {
+            WavelogRefreshButton_Click(this, new RoutedEventArgs());
+        }
+    }
+
+    private async void WavelogRefreshButton_Click(object sender, RoutedEventArgs e)
+    {
+        var url = WavelogUrlBox.Text.Trim();
+        var token = TypedWavelogToken;
+        _wavelogBusy = true;
+        WavelogStatusText.Text = "";
+        UpdateWavelogPanels();
+        try
+        {
+            var list = await Wavelog.StationsAsync(url, token);
+            _wavelogStations = list;
+            if (list.FirstOrDefault(s => s.Id == _wavelogStation?.Id) is { } current)
+            {
+                _wavelogStation = current;
+            }
+            else if ((list.FirstOrDefault(s => s.IsActive) ?? list.FirstOrDefault()) is { } pick)
+            {
+                _wavelogStation = pick;
+            }
+            FillWavelogStations();
+            if (list.Count == 0)
+            {
+                SetStatusLine(WavelogStatusText, "This Wavelog account has no station locations", StatusTone.Failure);
+            }
+        }
+        catch (Wavelog.ApiException ex)
+        {
+            SetStatusLine(WavelogStatusText, ex.Message, StatusTone.Failure);
+        }
+        finally
+        {
+            _wavelogBusy = false;
+            UpdateWavelogPanels();
+        }
+    }
+
+    /// The API's dry run with a made-up QSO: nothing is written.
+    private async void WavelogTestButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_wavelogStation is not { } station)
+        {
+            return;
+        }
+        var url = WavelogUrlBox.Text.Trim();
+        var token = TypedWavelogToken;
+        var now = DateTimeOffset.UtcNow;
+        var qso = new LoggedQso
+        {
+            Call = "TE5T",
+            Start = now,
+            End = now,
+            FrequencyHz = 14_025_000,
+            Mode = "CW",
+            MyCall = CallsignBox.Text.Trim().ToUpperInvariant(),
+        };
+        _wavelogBusy = true;
+        WavelogStatusText.Text = "";
+        UpdateWavelogPanels();
+        try
+        {
+            switch (await Wavelog.LogAsync(qso, url, token, station.Id, dryRun: true))
+            {
+                case Wavelog.LogResult.Rejected(var reason):
+                    SetStatusLine(WavelogStatusText, reason, StatusTone.Failure);
+                    break;
+                default:
+                    SetStatusLine(WavelogStatusText, "Connected — the token can log to this location", StatusTone.Success);
+                    break;
+            }
+        }
+        catch (Wavelog.ApiException ex)
+        {
+            SetStatusLine(WavelogStatusText, ex.Message, StatusTone.Failure);
+        }
+        finally
+        {
+            _wavelogBusy = false;
+            UpdateWavelogPanels();
+        }
     }
 
     // rigctld tab.

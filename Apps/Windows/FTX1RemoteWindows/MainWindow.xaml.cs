@@ -429,6 +429,7 @@ public sealed partial class MainWindow : Window
         };
 
         InitHub();
+        InitWavelog();
 
         // Don't leave a rigctld we spawned running after the window closes
         // (an adopted one is left alone — see RigctldProcessController).
@@ -436,6 +437,7 @@ public sealed partial class MainWindow : Window
         {
             _pollTimer.Stop();
             StopHub();
+            StopWavelog();
             UnkeyBeforeDisconnect();
             _audioStatusTimer.Stop();
             _wpsdMonitor.Stop();
@@ -514,7 +516,8 @@ public sealed partial class MainWindow : Window
 
     private async void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SettingsDialog(this, IsConnected, _rigctldProcess.LastResolution, _hub, HubAudioRunning);
+        var dialog = new SettingsDialog(this, IsConnected, _rigctldProcess.LastResolution, _hub, HubAudioRunning,
+            _wavelogReporter, _wavelogTuner);
         SettingsButton.IsEnabled = false;
         try
         {
@@ -542,6 +545,7 @@ public sealed partial class MainWindow : Window
         }
         ApplyAppearance();
         await ApplyHubSettingAsync();
+        ApplyWavelogSettings();
         _pollTimer.Interval = TimeSpan.FromMilliseconds(AppSettings.PollIntervalMs);
         // A running memory scan keeps its short tick.
         UpdateScanDisplay();
@@ -790,6 +794,7 @@ public sealed partial class MainWindow : Window
         ClearC4fmState();
         PushRigStateToWebSdr();
         PushRigStateToCw();
+        PushRigStateToWavelog();
         if (client is not null)
         {
             await client.DisposeAsync();
@@ -1085,6 +1090,7 @@ public sealed partial class MainWindow : Window
         UpdateTransmitControls();
 
         PushRigStateToWebSdr();
+        PushRigStateToWavelog();
     }
 
     private static async Task<bool?> ReadC4fmAsync(RigctldClient client, bool sub)

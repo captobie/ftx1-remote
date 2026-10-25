@@ -41,6 +41,11 @@
     <!-- FilterModels.cs's NarrowWidthPreset refers to the catalog, which needs the tone tables. -->
     <Compile Include="..\FTX1RemoteWindows\Models\DeepSettingsCatalog.cs" Link="Linked\DeepSettingsCatalog.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigToneTables.cs" Link="Linked\RigToneTables.cs" />
+    <!-- Wavelog: the API client, the tune request parsing and the tune listener. -->
+    <Compile Include="..\FTX1RemoteWindows\Services\Wavelog.cs" Link="Linked\Wavelog.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\WavelogTuneRequest.cs" Link="Linked\WavelogTuneRequest.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\WavelogTuneListener.cs" Link="Linked\WavelogTuneListener.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\LoggedQso.cs" Link="Linked\LoggedQso.cs" />
   </ItemGroup>
 
   <ItemGroup>

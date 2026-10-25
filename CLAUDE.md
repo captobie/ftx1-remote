@@ -1659,6 +1659,17 @@ table (freq in kHz), and a Lookup button through its XML remote control
 Log4OM 2.42.1 by script and a harness over the app's own files; the
 built app's Settings tab and Lookup button not yet. See the README's
 "Logbook — Log4OM".
+**Wavelog** was ported 2026-10-25 at the Mac's level (user request): every
+Log QSO also to Wavelog beside HRD/Log4OM, with Retry Wavelog; CAT
+reporting; tuning from Wavelog's spots on 127.0.0.1:54321 — API v2 only,
+token in Windows Credential Manager ("FTX1Remote/Wavelog"; Debug builds
+read `FTX1REMOTE_WAVELOG_TOKEN` first). `Services/Wavelog.cs`,
+`WavelogTuneRequest.cs`, `WavelogTuneListener.cs`, `WavelogRadioReporter.cs`,
+`WavelogToken.cs`, `MainWindow.Wavelog.cs`; the Swift files stay the source
+of truth. Unit-tested (`WavelogTests.cs`), checked in the built app
+against a stand-in server, then tested live by the user the same day
+against their Wavelog with the rig connected, working. See the README's
+"Logbook — Wavelog".
 The memory scan (MAIN and SUB, Scan/Skip next to Mem List) was ported
 2026-10-06 (`MainWindow.MemoryScan.cs`, `Models/MemoryScan.cs`), with the
 same read-by-side poll fix as the Mac (the boxes traded places with TX on

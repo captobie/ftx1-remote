@@ -267,6 +267,61 @@
                             </Border>
                         </StackPanel>
                     </StackPanel>
+
+                    <!-- Wavelog (the Mac's WavelogSettingsSection): beside the logbook above,
+                         not one of its choices. Refresh and Test use the fields as typed;
+                         the CAT and tune status lines are live. -->
+                    <TextBlock Text="Wavelog" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
+                    <StackPanel Spacing="0">
+                        <CheckBox x:Name="WavelogEnabledCheckBox" Content="Also log QSOs to Wavelog"
+                                  Checked="WavelogCheckBox_Changed" Unchecked="WavelogCheckBox_Changed" />
+                        <CheckBox x:Name="WavelogCatCheckBox" Content="Send rig frequency and mode to Wavelog (CAT)"
+                                  Checked="WavelogCheckBox_Changed" Unchecked="WavelogCheckBox_Changed"
+                                  ToolTipService.ToolTip="Wavelog's QSO form and bandmap follow the rig, as with WaveLogGate. Needs the radio:write scope." />
+                        <CheckBox x:Name="WavelogTuneCheckBox" Content="Tune the rig from Wavelog (DX cluster, bandmap)"
+                                  Checked="WavelogCheckBox_Changed" Unchecked="WavelogCheckBox_Changed"
+                                  ToolTipService.ToolTip="Clicking a spot in Wavelog tunes MAIN. Wavelog calls this PC at its radio's CAT URL, http://127.0.0.1:54321 unless changed there, so the browser has to run on this PC." />
+                    </StackPanel>
+
+                    <StackPanel x:Name="WavelogCredentialsPanel" Spacing="12">
+                        <TextBox x:Name="WavelogUrlBox" Header="URL" Width="400" HorizontalAlignment="Left"
+                                 PlaceholderText="https://log.example.org" TextChanged="WavelogCredentials_Changed" />
+                        <PasswordBox x:Name="WavelogTokenBox" Header="API token" Width="400" HorizontalAlignment="Left"
+                                     PlaceholderText="wl2_…" PasswordChanged="WavelogCredentials_Changed"
+                                     ToolTipService.ToolTip="An API v2 token from Wavelog's API page (Wavelog 3.1 or newer), with the qso:write and station:read scopes, plus radio:write for CAT. Kept in Windows Credential Manager." />
+                        <TextBlock x:Name="WavelogV1KeyText" Foreground="DarkOrange" TextWrapping="Wrap" Visibility="Collapsed"
+                                   Text="This looks like an API v1 key. FTX1Remote uses API v2: create a token (wl2_…) with the qso:write and station:read scopes (radio:write for CAT) on Wavelog's API page." />
+                    </StackPanel>
+
+                    <StackPanel x:Name="WavelogLogPanel" Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ComboBox x:Name="WavelogStationComboBox" Header="Station location" Width="400"
+                                      SelectionChanged="WavelogStationComboBox_SelectionChanged" />
+                            <Button x:Name="WavelogRefreshButton" Content="Refresh" VerticalAlignment="Bottom"
+                                    Click="WavelogRefreshButton_Click" />
+                        </StackPanel>
+                        <TextBlock x:Name="WavelogMismatchText" Foreground="DarkOrange" TextWrapping="Wrap" Visibility="Collapsed" />
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button x:Name="WavelogTestButton" Content="Test" Click="WavelogTestButton_Click"
+                                    ToolTipService.ToolTip="Wavelog's dry run: checks the token and station location, writes nothing" />
+                            <ProgressRing x:Name="WavelogProgress" IsActive="False" Width="16" Height="16" Visibility="Collapsed" />
+                            <TextBlock x:Name="WavelogStatusText" VerticalAlignment="Center" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel x:Name="WavelogCatPanel" Spacing="8">
+                        <TextBox x:Name="WavelogRadioNameBox" Header="Radio name" Width="300" HorizontalAlignment="Left"
+                                 PlaceholderText="FTX-1"
+                                 ToolTipService.ToolTip="The radio Wavelog shows in its QSO form. If WaveLogGate also reports this rig, quit it or give it another name." />
+                        <TextBlock x:Name="WavelogCatStatusText" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                    </StackPanel>
+
+                    <StackPanel x:Name="WavelogTunePanel" Spacing="8">
+                        <NumberBox x:Name="WavelogTunePortBox" Header="Listen on port" Width="160" HorizontalAlignment="Left"
+                                   Minimum="1024" Maximum="65535" ValidationMode="InvalidInputOverwritten"
+                                   ToolTipService.ToolTip="The port in Wavelog's CAT URL for this radio (Wavelog → Radio → the radio's CAT URL; empty there means 54321)" />
+                        <TextBlock x:Name="WavelogTuneStatusText" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Home Freq: rows added in code, one per HomeBand. -->

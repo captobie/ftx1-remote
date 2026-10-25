@@ -25,11 +25,14 @@ public readonly record struct CwTransmitter(long FrequencyHz, RigMode? Mode, boo
 /// power come from the rig's transmitting side when Log QSO is clicked.
 ///
 /// Time on is set when the call goes from empty to filled (or by the reset
-/// button); time off is the moment Log QSO is clicked. After the logbook
-/// confirms the QSO the fields clear for the next one (the Mac's user
-/// decision); anything short of that keeps them so it can be checked and
-/// retried. The Lookup button (left of Their call, as on the Mac) shows only
-/// for Log4OM, through its remote control; HRD Logbook has no way found to
+/// button); time off is the moment Log QSO is clicked. After every logbook
+/// it went to (HRD/Log4OM and/or Wavelog) confirms the QSO the fields clear
+/// for the next one (the Mac's user decision); anything short of that keeps
+/// them so it can be checked and retried. If the primary logbook took it
+/// but Wavelog didn't, "Retry Wavelog" resends that same QSO to Wavelog
+/// alone (the Mac's user decision), so the primary never gets a second
+/// copy; it stays offered until it works or is dismissed. The Lookup button
+/// (left of Their call, as on the Mac) shows only for Log4OM, through its remote control; HRD Logbook has no way found to
 /// be asked for one, and looks the call up itself on receipt.
 public sealed class CwLogPane : UserControl
 {
@@ -53,6 +56,10 @@ public sealed class CwLogPane : UserControl
     private readonly TextBlock _resultText = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly Button _logButton = new();
     private readonly Button _lookupButton = new() { Padding = new Thickness(8, 4, 8, 4) };
+    private readonly StackPanel _retryPanel = new() { Orientation = Orientation.Horizontal, Spacing = 4, Visibility = Visibility.Collapsed };
+    private readonly Button _retryButton = new();
+    private readonly TextBlock _retryText = new();
+    private readonly Button _retryDismissButton = new() { Padding = new Thickness(6, 4, 6, 4) };
 
     private readonly DispatcherQueueTimer _rigTimer;
     private DateTimeOffset? _timeOn;
@@ -60,6 +67,8 @@ public sealed class CwLogPane : UserControl
     private bool _isLogging;
     private bool _isLookingUp;
     private bool _updating;
+    /// A QSO the primary logbook took and Wavelog didn't.
+    private LoggedQso? _wavelogRetry;
 
     private enum ResultKind { Success, Warning, Failure }
 
@@ -200,6 +209,7 @@ public sealed class CwLogPane : UserControl
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         ToolTipService.SetToolTip(_rigText, "Logged from the transmitting side: frequency, mode and RF power setting");
         row.Children.Add(_rigText);
 
@@ -210,6 +220,18 @@ public sealed class CwLogPane : UserControl
         Grid.SetColumn(result, 1);
         row.Children.Add(result);
 
+        var retry = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        retry.Children.Add(new FontIcon { Glyph = "\uE72C", FontSize = 12 });
+        retry.Children.Add(_retryText);
+        _retryButton.Content = retry;
+        _retryButton.Click += async (_, _) => await RetryWavelogAsync();
+        _retryPanel.Children.Add(_retryButton);
+        _retryDismissButton.Content = new FontIcon { Glyph = "\uE711", FontSize = 10 };
+        _retryDismissButton.Click += (_, _) => SetWavelogRetry(null);
+        _retryPanel.Children.Add(_retryDismissButton);
+        Grid.SetColumn(_retryPanel, 2);
+        row.Children.Add(_retryPanel);
+
         var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         panel.Children.Add(new FontIcon { Glyph = "", FontSize = 14 });
         panel.Children.Add(new TextBlock { Text = "Log QSO" });
@@ -219,7 +241,7 @@ public sealed class CwLogPane : UserControl
         ToolTipService.SetToolTip(_logButton, "Log this QSO (Ctrl+L)");
         _logButton.KeyboardAccelerators.Add(new KeyboardAccelerator { Key = VirtualKey.L, Modifiers = VirtualKeyModifiers.Control });
         _logButton.Click += async (_, _) => await LogAsync();
-        Grid.SetColumn(_logButton, 2);
+        Grid.SetColumn(_logButton, 3);
         row.Children.Add(_logButton);
         return row;
     }
@@ -323,8 +345,11 @@ public sealed class CwLogPane : UserControl
         _worked.SetBand(tx is { FrequencyHz: > 0 } f ? BandPlan.BandContaining(f.FrequencyHz)?.Name : null);
 
         var program = LogbookPrograms.Current;
-        _destinationText.Text = program is null ? "No logbook — choose one in Settings → Logbook" : $"To {program.Name}";
-        _destinationText.Foreground = program is null
+        var targets = new List<string>();
+        if (program is not null) targets.Add(program.Name);
+        if (AppSettings.WavelogEnabled) targets.Add("Wavelog");
+        _destinationText.Text = targets.Count == 0 ? "No logbook — choose one in Settings → Logbook" : $"To {string.Join(" + ", targets)}";
+        _destinationText.Foreground = targets.Count == 0
             ? new SolidColorBrush(Microsoft.UI.Colors.DarkOrange)
             : (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
         _lookupButton.Visibility = program is { SupportsLookup: true } ? Visibility.Visible : Visibility.Collapsed;
@@ -372,6 +397,11 @@ public sealed class CwLogPane : UserControl
         {
             return;
         }
+        if (!QsoLogger.HasLogbook)
+        {
+            SetResult(ResultKind.Failure, "No logbook is selected in Settings → Logbook");
+            return;
+        }
         if (_link.Transmitter() is not { } tx)
         {
             SetResult(ResultKind.Failure, "Not connected to the rig — frequency and mode unknown");
@@ -409,26 +439,133 @@ public sealed class CwLogPane : UserControl
         };
         _isLogging = true;
         _logButton.IsEnabled = false;
+        _retryButton.IsEnabled = false;
         SetResult(null, "Logging…");
-        var outcome = await QsoLogger.LogAsync(qso);
+        var outcomes = await QsoLogger.LogAsync(qso);
         _isLogging = false;
         _logButton.IsEnabled = NormalizedCall.Length > 0;
-        switch (outcome)
+        _retryButton.IsEnabled = true;
+        Show(outcomes, qso);
+    }
+
+    /// One line for both logbooks: the primary's outcome first, then
+    /// Wavelog's when it went wrong (or was a duplicate) — the Mac's
+    /// CWLogPane.show.
+    private void Show(QsoLogOutcomes outcomes, LoggedQso qso)
+    {
+        var call = qso.Call;
+        var primaryName = LogbookPrograms.Current?.Name ?? "the logbook";
+        string? wavelogNote = null;
+        var wavelogOk = true;
+        switch (outcomes.Wavelog)
         {
-            case QsoLogOutcome.Logged:
-                SetResult(ResultKind.Success, $"{call} logged");
-                _worked.Reload();
-                // Only clear if nothing was typed for a new QSO meanwhile.
-                if (NormalizedCall == call)
+            case QsoLogOutcome.AlreadyLogged:
+                wavelogNote = "already in Wavelog";
+                break;
+            case QsoLogOutcome.SentUnconfirmed(var reason):
+                wavelogNote = $"Wavelog: {reason}";
+                wavelogOk = false;
+                break;
+            case QsoLogOutcome.Failed(var reason):
+                wavelogNote = $"Wavelog: {reason}";
+                wavelogOk = false;
+                break;
+        }
+        string WithWavelog(string text) => wavelogNote is null ? text : $"{text} · {wavelogNote}";
+
+        switch (outcomes.Primary)
+        {
+            case null:
+                // Wavelog alone: Log QSO again is the retry.
+                if (wavelogOk)
                 {
-                    Clear();
+                    SetResult(ResultKind.Success, WithWavelog($"{call} logged to Wavelog"));
+                    ClearIfStill(call);
+                }
+                else
+                {
+                    SetResult(ResultKind.Failure, WithWavelog($"{call} not logged"));
+                }
+                break;
+            case QsoLogOutcome.Logged or QsoLogOutcome.AlreadyLogged:
+                _worked.Reload();
+                if (wavelogOk)
+                {
+                    var to = outcomes.Wavelog is null ? primaryName : $"{primaryName} and Wavelog";
+                    SetResult(ResultKind.Success, WithWavelog($"{call} logged to {to}"));
+                    ClearIfStill(call);
+                }
+                else
+                {
+                    SetWavelogRetry(qso);
+                    SetResult(ResultKind.Warning, WithWavelog($"{call} logged to {primaryName}"));
                 }
                 break;
             case QsoLogOutcome.SentUnconfirmed(var reason):
-                SetResult(ResultKind.Warning, $"{reason} — check {LogbookPrograms.Current?.Name ?? "the logbook"} before logging {call} again");
+                if (!wavelogOk)
+                {
+                    SetWavelogRetry(qso);
+                }
+                SetResult(ResultKind.Warning, WithWavelog($"{reason} — check {primaryName} before logging {call} again"));
                 break;
             case QsoLogOutcome.Failed(var reason):
-                SetResult(ResultKind.Failure, reason);
+                // Nothing reached the primary: Log QSO again resends both,
+                // and Wavelog's duplicate check absorbs a second copy there.
+                SetResult(ResultKind.Failure, WithWavelog(reason));
+                break;
+        }
+    }
+
+    /// Only clears if nothing was typed for a new QSO meanwhile.
+    private void ClearIfStill(string call)
+    {
+        if (NormalizedCall == call)
+        {
+            Clear();
+        }
+    }
+
+    private void SetWavelogRetry(LoggedQso? qso)
+    {
+        _wavelogRetry = qso;
+        _retryPanel.Visibility = qso is null ? Visibility.Collapsed : Visibility.Visible;
+        if (qso is null)
+        {
+            return;
+        }
+        _retryText.Text = $"Retry Wavelog ({qso.Call})";
+        AutomationProperties.SetName(_retryButton, $"Retry Wavelog ({qso.Call})");
+        ToolTipService.SetToolTip(_retryButton, $"Send {qso.Call} to Wavelog again, as it was logged — not to {LogbookPrograms.Current?.Name ?? "the other logbook"}");
+        AutomationProperties.SetName(_retryDismissButton, $"Don't send {qso.Call} to Wavelog");
+        ToolTipService.SetToolTip(_retryDismissButton, $"Don't send {qso.Call} to Wavelog");
+    }
+
+    private async Task RetryWavelogAsync()
+    {
+        if (_wavelogRetry is not { } qso || _isLogging)
+        {
+            return;
+        }
+        _isLogging = true;
+        _logButton.IsEnabled = false;
+        _retryButton.IsEnabled = false;
+        SetResult(null, "Logging…");
+        var outcome = await QsoLogger.LogToWavelogAsync(qso);
+        _isLogging = false;
+        _logButton.IsEnabled = NormalizedCall.Length > 0;
+        _retryButton.IsEnabled = true;
+        switch (outcome)
+        {
+            case QsoLogOutcome.Logged or QsoLogOutcome.AlreadyLogged:
+                SetWavelogRetry(null);
+                SetResult(ResultKind.Success, outcome is QsoLogOutcome.Logged ? $"{qso.Call} logged to Wavelog" : $"{qso.Call} was already in Wavelog");
+                ClearIfStill(qso.Call);
+                break;
+            case QsoLogOutcome.SentUnconfirmed(var reason):
+                SetResult(ResultKind.Failure, $"Wavelog: {reason}");
+                break;
+            case QsoLogOutcome.Failed(var reason):
+                SetResult(ResultKind.Failure, $"Wavelog: {reason}");
                 break;
         }
     }
