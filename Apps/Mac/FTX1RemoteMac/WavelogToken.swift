@@ -22,8 +22,18 @@ enum WavelogToken {
         ]
     }
 
+    /// Debug builds only: use this token instead of the keychain's, e.g.
+    /// passed as a launch argument (`-logbook.wavelog.tokenOverride wl2_…`)
+    /// to test against another server without touching the stored one.
+    static let debugOverrideKey = "logbook.wavelog.tokenOverride"
+
     /// Empty when none is stored.
     static func read() -> String {
+        #if DEBUG
+        if let override = UserDefaults.standard.string(forKey: debugOverrideKey), !override.isEmpty {
+            return override
+        }
+        #endif
         var query = query
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne

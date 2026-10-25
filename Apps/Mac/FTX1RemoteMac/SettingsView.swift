@@ -715,11 +715,21 @@ private struct LogbookSettingsTab: View {
 /// Wavelog, logged to as well as the Logger above — see `Wavelog` (API
 /// v2), `LogbookSettings.wavelog*`. The API token lives in the keychain
 /// (`WavelogToken`), written as it's typed; it needs the `qso:write` and
-/// `station:read` scopes. Station locations are fetched only on Refresh
-/// (or the first time the token and URL are both set), and Test is the
-/// API's own dry run: token, scope and location checked, nothing written.
+/// `station:read` scopes, plus `radio:write` for CAT. Station locations
+/// are fetched only on Refresh (or the first time the token and URL are
+/// both set), and Test is the API's own dry run: token, scope and location
+/// checked, nothing written. CAT (`WavelogRadioReporter`) has no dry run;
+/// its status line is the last real update's outcome. Tuning from
+/// Wavelog (`WavelogTuneListener`) needs no token: Wavelog's page calls
+/// this Mac directly.
 private struct WavelogSettingsSection: View {
+    @EnvironmentObject private var radioReporter: WavelogRadioReporter
+    @EnvironmentObject private var tuner: WavelogTuneListener
+    @AppStorage(LogbookSettings.wavelogTuneEnabledKey) private var tuneEnabled = false
+    @AppStorage(LogbookSettings.wavelogTunePortKey) private var tunePort = Int(LogbookSettings.defaultWavelogTunePort)
     @AppStorage(LogbookSettings.wavelogEnabledKey) private var enabled = false
+    @AppStorage(LogbookSettings.wavelogCATEnabledKey) private var catEnabled = false
+    @AppStorage(LogbookSettings.wavelogRadioNameKey) private var radioName = ""
     @AppStorage(LogbookSettings.wavelogURLKey) private var url = ""
     @AppStorage(LogbookSettings.wavelogStationIDKey) private var stationID = ""
     @AppStorage(LogbookSettings.wavelogStationNameKey) private var stationName = ""
@@ -734,7 +744,11 @@ private struct WavelogSettingsSection: View {
     var body: some View {
         Section {
             Toggle("Also log QSOs to Wavelog", isOn: $enabled)
-            if enabled {
+            Toggle("Send rig frequency and mode to Wavelog (CAT)", isOn: $catEnabled)
+                .help("Wavelog’s QSO form and bandmap follow the rig, as with WaveLogGate. Needs the radio:write scope.")
+            Toggle("Tune the rig from Wavelog (DX cluster, bandmap)", isOn: $tuneEnabled)
+                .help("Clicking a spot in Wavelog tunes MAIN. Wavelog calls this Mac at its radio’s CAT URL, http://127.0.0.1:54321 unless changed there, so the browser has to run on this Mac.")
+            if enabled || catEnabled || tuneEnabled {
                 TextField("URL", text: $url, prompt: Text("https://log.example.org"))
                     .frame(maxWidth: 360)
                 SecureField("API token", text: $token, prompt: Text("wl2_…"))
@@ -742,11 +756,13 @@ private struct WavelogSettingsSection: View {
                     .onChange(of: token) { _, new in
                         WavelogToken.write(new.trimmingCharacters(in: .whitespacesAndNewlines))
                     }
-                    .help("An API v2 token from Wavelog’s API page (Wavelog 3.1 or newer), with the qso:write and station:read scopes")
+                    .help("An API v2 token from Wavelog’s API page (Wavelog 3.1 or newer), with the qso:write and station:read scopes, plus radio:write for CAT")
                 if isV1Key {
-                    Text("This looks like an API v1 key. FTX1Remote uses API v2: create a token (wl2_…) with the qso:write and station:read scopes on Wavelog’s API page.")
+                    Text("This looks like an API v1 key. FTX1Remote uses API v2: create a token (wl2_…) with the qso:write and station:read scopes (radio:write for CAT) on Wavelog’s API page.")
                         .foregroundStyle(.orange).font(.callout)
                 }
+            }
+            if enabled {
                 HStack {
                     Picker("Station location", selection: stationSelection) {
                         if stationID.isEmpty {
@@ -775,6 +791,18 @@ private struct WavelogSettingsSection: View {
                     }
                 }
             }
+            if catEnabled {
+                TextField("Radio name", text: $radioName, prompt: Text(LogbookSettings.defaultWavelogRadioName))
+                    .frame(maxWidth: 360)
+                    .help("The radio Wavelog shows in its QSO form. If WaveLogGate also reports this rig, quit it or give it another name.")
+                catStatus
+            }
+            if tuneEnabled {
+                TextField("Listen on port", value: $tunePort, format: .number.grouping(.never))
+                    .frame(maxWidth: 200)
+                    .help("The port in Wavelog’s CAT URL for this radio (Wavelog → Radio → the radio’s CAT URL; empty there means 54321)")
+                tuneStatus
+            }
         } header: {
             Text("Wavelog")
                 .font(.headline)
@@ -782,6 +810,51 @@ private struct WavelogSettingsSection: View {
         }
         .task(id: enabled) {
             if enabled, stations == nil, hasCredentials, !isV1Key { refreshStations() }
+        }
+        .onChange(of: CATSettingsKey(enabled: catEnabled, url: url, token: trimmedToken, radio: radioName)) {
+            radioReporter.resend()
+        }
+        .onChange(of: TuneSettingsKey(enabled: tuneEnabled, port: tunePort)) {
+            tuner.applySettings()
+        }
+    }
+
+    private struct TuneSettingsKey: Equatable {
+        let enabled: Bool, port: Int
+    }
+
+    @ViewBuilder private var tuneStatus: some View {
+        switch tuner.state {
+        case .off:
+            EmptyView()
+        case .failed(let message):
+            Text(message).foregroundStyle(.red).textSelection(.enabled)
+        case .listening(let port):
+            if let event = tuner.lastEvent {
+                Text("\(event.text) (\(event.at.formatted(date: .omitted, time: .standard)))")
+                    .foregroundStyle(event.ok ? .green : .orange)
+                    .textSelection(.enabled)
+            } else if WavelogTuneRequest.origin(ofWavelogURL: url) == nil {
+                Text("Set the Wavelog URL above — only requests from its pages tune the rig").foregroundStyle(.orange)
+            } else {
+                Text("Listening on 127.0.0.1:\(String(port)) — click a spot in Wavelog’s DX cluster").foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private struct CATSettingsKey: Equatable {
+        let enabled: Bool, url: String, token: String, radio: String
+    }
+
+    @ViewBuilder private var catStatus: some View {
+        if let result = radioReporter.lastResult {
+            if let error = result.error {
+                Text(error).foregroundStyle(.red).textSelection(.enabled)
+            } else {
+                Text("Wavelog updated \(result.at.formatted(date: .omitted, time: .standard))").foregroundStyle(.green)
+            }
+        } else {
+            Text("Sent once the rig is connected").foregroundStyle(.secondary)
         }
     }
 

@@ -2268,6 +2268,52 @@ is running and listening.
   dry run, missing scopes (qso:write, station:read), v1 key, revoked
   token, foreign location, differing call, 404 path, no server; every
   stored field checked in the database.
+- **Wavelog CAT (2026-10-25; tested against a throwaway Wavelog 3.2.4 in
+  Docker, then live by the user the same day in Local and Remote mode)**: user request — Wavelog's QSO form and
+  bandmap follow the rig, as with WaveLogGate. Settings → Logbook →
+  Wavelog → "Send rig frequency and mode to Wavelog (CAT)" (off by
+  default, independent of QSO logging but the same URL/token) and a
+  Radio name (default "FTX-1"). `WavelogRadioReporter` (Mac, `lazy var
+  wavelogRadio` on `HubService`, `start()`/`stop()` with the hub) posts
+  `Wavelog.reportRadio` to API v2's `POST api/v2/radio` (needs
+  `radio:write`; an upsert by radio name, in 3.2.3's `Radio_resource.php`):
+  the transmitting side's frequency/mode (the Log pane's rule), the other
+  side as `frequency_rx`/`mode_rx` only when it isn't the transmitter, and
+  the RF POWER setting in watts. Modes per Wavelog's `radiohelpers.js`
+  (`Wavelog.catMode`): DATA-U → PKTUSB, DATA-FM and C4FM → FM. Sent on a
+  change (at most every 2 s), every 60 s while unchanged, nothing while
+  the rig is disconnected, 30 s pause after a failure; Settings shows the
+  last outcome, and a change there resends. Docker test: create/update by
+  name, split fields, missing `radio:write`, bad mode, revoked token,
+  404 path, the app's send on connect and the 60 s keep-alive. Debug
+  builds read `logbook.wavelog.tokenOverride` before the keychain (pass it
+  and the URL as launch arguments to test without touching the stored
+  ones — but opening Settings → Logbook then re-fetches the locations and
+  overwrites the saved location name/callsign). If WaveLogGate also runs,
+  quit it or give it another radio name.
+- **Tune the rig from Wavelog (2026-10-25; curl against the Debug app
+  with the rig connected over the Pi, then tested live from Wavelog by
+  the user the same day in Local and Remote mode)**: user
+  request. Wavelog's pages (DX cluster, bandmap, DX waterfall) tune by
+  `fetch`ing `GET <cat_url>/<Hz>/<mode>` from the browser (3.2.3's
+  `assets/js/cat.js`, `performRadioTuning`); `cat_url` is the radio's,
+  `http://127.0.0.1:54321` when unset — WaveLogGate's port, so only one of
+  the two can listen. Settings → Logbook → Wavelog → "Tune the rig from
+  Wavelog" (off by default, `logbook.wavelog.tuneEnabled`) + port
+  (`tunePort`, default 54321). `WavelogTuneListener` (Mac, `lazy var
+  wavelogTuner` on `HubService`) is an `NWListener` on 127.0.0.1 only;
+  `WavelogTuneRequest` (`FTX1Core/Logbook/`, `WavelogTuneRequestTests`)
+  parses the path and maps Wavelog's modes (pkt/dig/pktusb/pktlsb →
+  DATA-U, pktfm → DATA-FM). Only a request whose `Origin` is the Settings
+  Wavelog URL's origin is obeyed (any web page could send the same GET; a
+  browser always sends Origin on a cross-origin fetch, curl needs `-H`);
+  the reply has CORS headers for it and answers Chrome's private-network
+  preflight. `HubService.tuneFromWavelog` follows the WebSDR click-to-tune
+  rules: MAIN (the active side, like every `.setFrequency`), not while
+  transmitting, not in Memory mode, not disconnected — refusals are a 409
+  with the reason, which Wavelog shows only as its generic "not
+  responding" toast; Settings shows the last request. Wavelog sends "rtty"
+  for most digital spots, FT8 included, so those put the rig in RTTY.
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 

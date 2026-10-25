@@ -280,6 +280,14 @@ final class HubService: ObservableObject {
     /// RTS/DTR — see `StraightKeyController`. Started in `start()`, so the
     /// key interface connects at launch (disarmed).
     lazy var straightKey = StraightKeyController(rigState: $rigState, connection: $connectionState)
+    /// Wavelog CAT: the rig's frequency/mode reported to Wavelog — see
+    /// `WavelogRadioReporter`. Started in `start()`.
+    lazy var wavelogRadio = WavelogRadioReporter(rigState: $rigState, connection: $connectionState)
+    /// Wavelog → rig: spots clicked in Wavelog tune the rig — see
+    /// `WavelogTuneListener`. Started in `start()` when turned on.
+    lazy var wavelogTuner = WavelogTuneListener { [unowned self] request in
+        self.tuneFromWavelog(request)
+    }
     /// Worked-before for the CW window — see `WorkedStationsStore`.
     /// `lazy` so it can be handed `$rigState`.
     lazy var workedStations = WorkedStationsStore(rigState: $rigState)
@@ -608,6 +616,8 @@ final class HubService: ObservableObject {
     /// see "rig offline" rather than being unable to reach the Mac at all.
     func start() {
         straightKey.start()
+        wavelogRadio.start()
+        wavelogTuner.applySettings()
         Task { [weak self, commandQueue] in
             await commandQueue.setOnCommandApplied { command, appliedSide in
                 Task { @MainActor in
@@ -748,6 +758,8 @@ final class HubService: ObservableObject {
     func stop() {
         // First: unkeys and closes the keying port before anything else.
         straightKey.shutdown()
+        wavelogRadio.stop()
+        wavelogTuner.stop()
         stopRigctld()
         stopFT8Decoding()
         cwReceiver.stop()
@@ -884,6 +896,20 @@ final class HubService: ObservableObject {
     /// forwarded mobile commands both call this), so it covers both.
     func send(_ command: RigCommand) {
         send(command, memoryScanStopped: false)
+    }
+
+    /// A spot clicked in Wavelog (`WavelogTuneListener`): MAIN's frequency
+    /// and, when Wavelog named one, its mode — the WebSDR window's
+    /// click-to-tune rules (not while transmitting, not in Memory mode).
+    /// Returns why it didn't tune, in words Wavelog's page and Settings
+    /// show.
+    func tuneFromWavelog(_ request: WavelogTuneRequest) -> String? {
+        guard connectionState == .connected else { return "the rig isn't connected" }
+        guard !rigState.ptt else { return "the rig is transmitting" }
+        guard rigState.vfoMemoryMode != .memory else { return "MAIN is in Memory mode — press V/M first" }
+        if request.frequencyHz != rigState.frequencyHz { send(.setFrequency(hz: request.frequencyHz)) }
+        if let mode = request.mode, mode != rigState.mode { send(.setMode(mode)) }
+        return nil
     }
 
     /// Skip on a paused memory scan: the same scan command again, which the

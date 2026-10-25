@@ -126,4 +126,51 @@ final class WavelogTests: XCTestCase {
     func testPlainText() {
         XCTAssertEqual(Wavelog.plainText("a<br>b<BR/> <b>c</b> &amp; d&#039;s"), "a; b; c & d's")
     }
+
+    // MARK: Radio (CAT)
+
+    func testRadioRequest() throws {
+        let status = Wavelog.RadioStatus(frequencyHz: 14_025_000, mode: "CW", frequencyRxHz: 14_023_000, modeRx: "CW", powerWatts: 50)
+        let request = try XCTUnwrap(Wavelog.radioRequest(base: "log.example.org", token: "wl2_abc", radio: "FTX-1", status: status))
+        XCTAssertEqual(request.url?.absoluteString, "https://log.example.org/index.php/api/v2/radio")
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer wl2_abc")
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+        XCTAssertEqual(body["radio"] as? String, "FTX-1")
+        XCTAssertEqual(body["frequency"] as? Int, 14_025_000)
+        XCTAssertEqual(body["mode"] as? String, "CW")
+        XCTAssertEqual(body["frequency_rx"] as? Int, 14_023_000)
+        XCTAssertEqual(body["mode_rx"] as? String, "CW")
+        XCTAssertEqual(body["power"] as? Double, 50)
+
+        let simplex = try XCTUnwrap(Wavelog.radioRequest(base: "log.example.org", token: "t", radio: "R", status: .init(frequencyHz: 7_074_000, mode: nil)))
+        let simplexBody = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(simplex.httpBody)) as? [String: Any])
+        XCTAssertEqual(Set(simplexBody.keys), ["radio", "frequency"])
+    }
+
+    func testCATModes() {
+        XCTAssertEqual(Wavelog.catMode(for: .usb), "USB")
+        XCTAssertEqual(Wavelog.catMode(for: .dataUSB), "PKTUSB")
+        XCTAssertEqual(Wavelog.catMode(for: .c4fm), "FM")
+        XCTAssertNil(Wavelog.catMode(for: .unknown))
+        for mode in RigMode.allCases {
+            XCTAssertLessThanOrEqual(Wavelog.catMode(for: mode)?.count ?? 0, 10, "Wavelog's mode column is 10 characters")
+        }
+    }
+
+    func testRadioReplies() throws {
+        let row = #"{"data":{"id":4,"radio":"FTX-1","frequency":14025000,"mode":"CW"},"meta":{}}"#
+        XCTAssertNoThrow(try Wavelog.parseRadioReply(status: 201, body: Data(row.utf8)))
+        XCTAssertNoThrow(try Wavelog.parseRadioReply(status: 200, body: Data(row.utf8)))
+
+        let scope = #"{"error":{"code":"insufficient_scope","message":"Token is missing the required scope: radio:write","details":{"required_scope":"radio:write"}}}"#
+        XCTAssertThrowsError(try Wavelog.parseRadioReply(status: 403, body: Data(scope.utf8))) { error in
+            XCTAssertEqual(error as? Wavelog.APIError, .refused("Token is missing the required scope: radio:write"))
+        }
+        let invalid = #"{"error":{"code":"validation_error","message":"Invalid field(s): mode","details":{"invalid":["mode"]}}}"#
+        XCTAssertThrowsError(try Wavelog.parseRadioReply(status: 400, body: Data(invalid.utf8))) { error in
+            XCTAssertEqual(error as? Wavelog.APIError, .refused("Invalid field(s): mode"))
+        }
+        XCTAssertThrowsError(try Wavelog.parseRadioReply(status: 404, body: Data("<html>Not found</html>".utf8)))
+    }
 }

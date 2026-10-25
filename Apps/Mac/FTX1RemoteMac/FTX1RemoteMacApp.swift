@@ -141,6 +141,8 @@ struct FTX1RemoteMacApp: App {
         Settings {
             SettingsView(updater: appDelegate.updaterController.updater)
                 .environmentObject(appDelegate.hub)
+                .environmentObject(appDelegate.hub.wavelogRadio)
+                .environmentObject(appDelegate.hub.wavelogTuner)
                 .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
         }
         .windowResizability(.contentMinSize)

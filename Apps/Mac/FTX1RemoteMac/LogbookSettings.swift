@@ -75,6 +75,38 @@ enum LogbookSettings {
     static let wavelogStationNameKey = "logbook.wavelog.stationName"
     static let wavelogStationCallsignKey = "logbook.wavelog.stationCallsign"
 
+    /// Wavelog CAT (`WavelogRadioReporter`): the rig's frequency/mode sent
+    /// to Wavelog as the radio `wavelogRadioName`. Independent of logging,
+    /// though it uses the same URL and token.
+    static let wavelogCATEnabledKey = "logbook.wavelog.catEnabled"
+    static let wavelogRadioNameKey = "logbook.wavelog.radioName"
+    static let defaultWavelogRadioName = "FTX-1"
+
+    static var wavelogCATEnabled: Bool {
+        UserDefaults.standard.bool(forKey: wavelogCATEnabledKey)
+    }
+
+    /// Wavelog keys radios by name (≤250 characters).
+    static var wavelogRadioName: String {
+        let name = (UserDefaults.standard.string(forKey: wavelogRadioNameKey) ?? "").trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? defaultWavelogRadioName : String(name.prefix(250))
+    }
+
+    /// Wavelog → rig (`WavelogTuneListener`): Wavelog's pages tune the rig
+    /// through the radio's `cat_url`, `http://127.0.0.1:54321` by default.
+    static let wavelogTuneEnabledKey = "logbook.wavelog.tuneEnabled"
+    static let wavelogTunePortKey = "logbook.wavelog.tunePort"
+    static let defaultWavelogTunePort: UInt16 = 54321
+
+    static var wavelogTuneEnabled: Bool {
+        UserDefaults.standard.bool(forKey: wavelogTuneEnabledKey)
+    }
+
+    static var wavelogTunePort: UInt16 {
+        let value = UserDefaults.standard.integer(forKey: wavelogTunePortKey)
+        return (1024...65535).contains(value) ? UInt16(value) : defaultWavelogTunePort
+    }
+
     static var wavelogEnabled: Bool {
         UserDefaults.standard.bool(forKey: wavelogEnabledKey)
     }
