@@ -2239,8 +2239,8 @@ is running and listening.
 
 - **Wavelog as a second logbook (2026-10-24; API v2, tested against a
   throwaway Wavelog 3.2.4 in Docker — v2's QSO/station code is identical
-  in the user's 3.2.3 — not yet from the CW window's Log pane with the
-  rig)**: user request — every Log QSO also goes to Wavelog, beside
+  in the user's 3.2.3 — then confirmed by the user with a live QSO from
+  the CW window's Log pane, 2026-10-25)**: user request — every Log QSO also goes to Wavelog, beside
   whichever Logger is primary (also works with None). **API v2, not v1**
   (user decision; v2 is in every release since 3.1.0): the token goes in
   an `Authorization: Bearer wl2_…` header (never the URL or body), can be
