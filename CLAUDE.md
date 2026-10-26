@@ -1440,7 +1440,7 @@ server), `Pi/tests/` (python3 -m unittest), and a scratch cross-check of
 the Swift driver against the real script showed element lengths within
 1–2 ms. **Stuck-key fix (2026-10-17)**: mid-transmission the CP2105 rejected an RTS set (`cp210x ttyUSB2: failed set request 0x7 status: -71`, EPROTO — likely RF on the USB cable), and the old error path just closed the port, trusting HUPCL; the line stayed keyed (user: a tap gave continuous keying). Now every key-up is read back (TIOCMGET) and any failure hands the keyer to a `Releaser` that retries (reopening every 5th try) until the line reads up, even after the session ends; keying stays off for that session, and a new `cw_hello` is refused while a release is pending. `FTX1_CW_LOG_KEYS=1` logs every line change. The Mac's Local path does the same since (`CWKeyer.release`/`reopen`, `CWKeyingDriver`'s releaser, arming refused while releasing); `TIOCMGET` unsupported by a driver (ENOTTY/EINVAL) falls back to unconfirmed key-ups with an error log — not yet checked against the Mac's CP210x driver on the real port. **RF feedback guard (2026-10-17)**: after that fix, one tap still keyed on and on: RF in the key lead made each transmitted element a "press" one loop later (marks ~190 ms every ~310 ms = 300 ms delay + transport), cured by a larger ferrite on the key lead. `CWFeedbackDetector` (Mac, both modes, operator events only) trips on 4 consecutive mark periods steady within 6 ms on both edges and inside [delay, delay + 250 ms]; the engine/remote driver then disarm (Remote: `cw_bye`) with "RF feedback detected". Tested on the real loop data and both real hand-keying captures (no trip at 0.15–0.4 s delays). Known limit: an electronic keyer's dit run is equally steady (matters if the paddle path returns). **Deployed on ftx1pi 2026-10-17** (`ftx1-cwkey.service` enabled, user `ftx1cw`, listening on 8534; the user ran the sudo steps — sudo there needs their password). Rig-tested by the user in Remote mode the same day: keying works and stops when the Mac app disconnects. The hub WebSocket relay from iPad/Windows is still schema only.
 
-## Themes (Mac, 2026-10-26; unit-tested, checked in the built app while disconnected)
+## Themes (Mac, 2026-10-26; unit-tested, then tested by the user the same day)
 
 Port of the Windows themes (user request): Settings → Appearance → Theme
 (Auto, Default Light, Default Dark, Glossy Black, Dusty Rose, Icy Mint),
@@ -1487,9 +1487,9 @@ All apply at once, every window.
   `.appTheme()`, so they're unchanged.
 - **Checked** (built app, disconnected): Default Dark unchanged; Glossy
   Black, Dusty Rose, Icy Mint + 7-segment + orange digits; Settings →
-  Appearance. **Not yet**: a live frequency in the 7-segment font, the
-  secondary windows (CW, APRS, WebSDR…) under a theme, picking from the
-  Settings pop-ups (tested by writing the keys and relaunching).
+  Appearance. Then tested by the user the same day: a live frequency in
+  the 7-segment font, the secondary windows (CW, APRS, WebSDR…) under a
+  theme, and picking from the Settings pop-ups.
 
 ## License-class guardrail (Mac, 2026-10-25; unit-tested, then rig-tested by the user the same day)
 
@@ -1769,8 +1769,8 @@ against their Wavelog with the rig connected, working. See the README's
 "Logbook — Wavelog".
 **Themes** (Settings → Appearance, phase 1 2026-10-26, on the Mac too —
 see "Themes (Mac)";
-unit-tested and checked in the built app while disconnected, not yet with
-a live frequency): presets Default Light/Dark (the app as before),
+unit-tested, then tested by the user the same day incl. a live frequency,
+the secondary windows and Settings): presets Default Light/Dark (the app as before),
 Glossy Black, Dusty Rose and Icy Mint (light, after Visual Studio's Silky
 Pink and Icy Mint), plus VFO-digit font and color overrides (fonts: Consolas,
 Cascadia Mono, 7-segment = bundled DSEG7 Classic, SIL OFL, `Assets/Fonts/`;

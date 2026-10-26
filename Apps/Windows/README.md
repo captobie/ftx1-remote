@@ -408,7 +408,7 @@ Hardware checklist (not yet run):
 - [ ] Hold PTT → keys, button red "TRANSMITTING"; release → unkeys. Also
       release outside the button/window, and a quick tap.
 
-## Themes (Settings → Appearance, phase 1, 2026-10-26; unit-tested and checked in the built app, disconnected)
+## Themes (Settings → Appearance, phase 1, 2026-10-26; unit-tested, then tested by the user the same day)
 
 The Mac has the same themes since 2026-10-26 (CLAUDE.md, "Themes (Mac)"; `ThemeDefinition.swift`, same presets and colour values — keep the two in step). A theme (`Models/ThemeDefinition.cs`,
 WinUI-free so `ThemeTests` cover it) is a base (Light/Dark) plus
@@ -471,9 +471,9 @@ exists, or a broken theme, falls back to Auto (logged).
   Glossy Black + Cascadia Mono, all applied live; 367 tests pass. VFO
   digit color Orange on Glossy Black (2026-10-26), applied live. Silky
   Pink and Icy Mint, applied live (2026-10-26).
-  **Not yet**: digits showing a real frequency (connected), the secondary
-  windows and Settings in Glossy Black, ComboBoxes (not themed — they stay
-  the base theme's).
+  Then tested by the user the same day: digits showing a real frequency
+  (connected), the secondary windows and Settings in Glossy Black.
+  ComboBoxes aren't themed — they stay the base theme's.
 - **Phase 2 (planned)**: custom themes — duplicate a theme, edit it,
   save under a name, rename/delete, JSON import/export.
 
