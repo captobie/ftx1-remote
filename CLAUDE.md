@@ -1440,6 +1440,45 @@ server), `Pi/tests/` (python3 -m unittest), and a scratch cross-check of
 the Swift driver against the real script showed element lengths within
 1–2 ms. **Stuck-key fix (2026-10-17)**: mid-transmission the CP2105 rejected an RTS set (`cp210x ttyUSB2: failed set request 0x7 status: -71`, EPROTO — likely RF on the USB cable), and the old error path just closed the port, trusting HUPCL; the line stayed keyed (user: a tap gave continuous keying). Now every key-up is read back (TIOCMGET) and any failure hands the keyer to a `Releaser` that retries (reopening every 5th try) until the line reads up, even after the session ends; keying stays off for that session, and a new `cw_hello` is refused while a release is pending. `FTX1_CW_LOG_KEYS=1` logs every line change. The Mac's Local path does the same since (`CWKeyer.release`/`reopen`, `CWKeyingDriver`'s releaser, arming refused while releasing); `TIOCMGET` unsupported by a driver (ENOTTY/EINVAL) falls back to unconfirmed key-ups with an error log — not yet checked against the Mac's CP210x driver on the real port. **RF feedback guard (2026-10-17)**: after that fix, one tap still keyed on and on: RF in the key lead made each transmitted element a "press" one loop later (marks ~190 ms every ~310 ms = 300 ms delay + transport), cured by a larger ferrite on the key lead. `CWFeedbackDetector` (Mac, both modes, operator events only) trips on 4 consecutive mark periods steady within 6 ms on both edges and inside [delay, delay + 250 ms]; the engine/remote driver then disarm (Remote: `cw_bye`) with "RF feedback detected". Tested on the real loop data and both real hand-keying captures (no trip at 0.15–0.4 s delays). Known limit: an electronic keyer's dit run is equally steady (matters if the paddle path returns). **Deployed on ftx1pi 2026-10-17** (`ftx1-cwkey.service` enabled, user `ftx1cw`, listening on 8534; the user ran the sudo steps — sudo there needs their password). Rig-tested by the user in Remote mode the same day: keying works and stops when the Mac app disconnects. The hub WebSocket relay from iPad/Windows is still schema only.
 
+## License-class guardrail (Mac, 2026-10-25; unit-tested, then rig-tested by the user the same day)
+
+Settings → **License** (user request): Off (default — the gate checks the
+amateur bands only, as before), a US class (Extra, Advanced, General,
+Technician, Novice), an ITU Region 1/2/3 allocation, or **Custom**.
+Applies at once, like Enable Transmit.
+
+- **Model** (`FTX1Core/Licensing/`, `TransmitPrivilegesTests`):
+  `PrivilegeProfile` = `PrivilegeSegment`s (Hz range, `TransmitEmission`
+  CW/phone/data, optional `onlyModes`). A transmission passes only if its
+  *occupied spectrum* (`RigMode.occupiedSpectrum`: SSB/DATA-U the rig's
+  default 100–2900 Hz TX BPF, CW ±100 Hz, RTTY ±300, AM ±3 kHz, FM/DATA-FM
+  ±8 kHz, C4FM ±6.25 kHz) fits inside segments allowing its mode;
+  neighbouring segments allowing it merge. C4FM counts as phone, DATA-FM
+  and RTTY as data. Unknown mode = blocked.
+- **US tables** (`PrivilegePresets.swift`): 47 CFR §97.301/§97.305, power
+  limits left out; 60 m = the five channels (USB/CW/DATA-U only); Tech/
+  Novice 28.3–28.5 SSB+CW only; 70 cm 420–450 without Line A. The ITU
+  presets are outer band edges, every mode — a starting point for Custom,
+  not a country's rules (the Settings text says so). Re-check the US 60 m
+  rules if the FCC adopts the WRC-15 band.
+- **Gate**: `TransmitGate.blockReason(transmitEnabled:state:privileges:)`
+  checks the *transmitting* side (TX:SUB/split = SUB's frequency and
+  mode); the amateur-band check stays the outer limit. `HubService.
+  transmitBlockReason` is the one gate for `send(_:)`, the CW sender
+  (`cwSendBlock`), the PTT button (greyed, reason as tooltip) and, via
+  `$activePrivileges`, `StraightKeyController`. Fixed with it:
+  `send(_:)` and `cwSendBlock` used MAIN's frequency even with TX on SUB.
+  The iPad's `RigClientViewModel` pre-check still mirrors the old MAIN rule
+  (the Mac enforces the real one); Pi direct and Windows pass no
+  privileges, unchanged.
+- **Mid-transmission**: with privileges on, `rigState`'s `didSet` re-checks
+  while PTT/MOX is on and unkeys once (CW sender stop, "KY00", MOX off,
+  PTT off) if tuning or a mode change leaves them. Off = no such check.
+- **Custom** (`LicenseSettingsTab`): editable rows (MHz fields commit on
+  Return/blur, CW/Phone/Data boxes), Copy to Custom / Start From a preset,
+  JSON import/export; stored in `license.customProfile`, choice in
+  `license.privileges`. Empty Custom blocks every transmission.
+
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 
 A Windows app with the same kind of functionality as the Mac app. Talks

@@ -27,7 +27,7 @@ final class StraightKeyController: ObservableObject {
     /// Why the last arm was refused before reaching the driver.
     @Published private(set) var armRefusal: String?
     /// What blocks keying on the hub's side (mode, port clash, rig link,
-    /// Enable Transmit, band) — nil when keying may go ahead.
+    /// Enable Transmit, band, license privileges) — nil when keying may go ahead.
     @Published private(set) var blockReason: String?
     /// Shown, not enforced: the transmitting side isn't in CW.
     @Published private(set) var modeWarning: String?
@@ -113,7 +113,8 @@ final class StraightKeyController: ObservableObject {
     private var started = false
     private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "cw-key")
 
-    init(rigState: some Publisher<RigState, Never>, connection: some Publisher<HubService.ConnectionState, Never>) {
+    init(rigState: some Publisher<RigState, Never>, connection: some Publisher<HubService.ConnectionState, Never>,
+         privileges: some Publisher<PrivilegeProfile?, Never>) {
         let source = SerialCWKeySource(path: StraightKeySettings.interfacePort, logSubsystem: "com.ftx1remote.mac")
         self.source = source
         let relay = SnapshotRelay()
@@ -149,9 +150,11 @@ final class StraightKeyController: ObservableObject {
         }
         relay.target = self
 
-        rigState.combineLatest(connection)
+        rigState.combineLatest(connection, privileges)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] state, connection in self?.rigChanged(state, connection: connection) }
+            .sink { [weak self] state, connection, privileges in
+                self?.rigChanged(state, connection: connection, privileges: privileges)
+            }
             .store(in: &cancellables)
     }
 
@@ -259,12 +262,12 @@ final class StraightKeyController: ObservableObject {
         source.setPath(interfacePort)   // reopens by itself once started
     }
 
-    private func rigChanged(_ state: RigState, connection: HubService.ConnectionState) {
+    private func rigChanged(_ state: RigState, connection: HubService.ConnectionState, privileges: PrivilegeProfile?) {
         let reason: String?
         if connection != .connected {
             reason = "Rig not connected"
         } else {
-            reason = TransmitGate.blockReason(transmitEnabled: state.transmitEnabled, state: state)
+            reason = TransmitGate.blockReason(transmitEnabled: state.transmitEnabled, state: state, privileges: privileges)
         }
         if reason != blockReason {
             blockReason = reason

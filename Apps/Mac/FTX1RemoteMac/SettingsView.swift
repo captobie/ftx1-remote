@@ -50,6 +50,8 @@ struct SettingsView: View {
                     .tabItem { Text("APRS") }
                 StationSettingsTab()
                     .tabItem { Text("Station") }
+                LicenseSettingsTab()
+                    .tabItem { Text("License") }
                 LogbookSettingsTab()
                     .tabItem { Text("Logbook") }
                 HomeFrequencySettingsTab()

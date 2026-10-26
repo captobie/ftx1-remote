@@ -29,7 +29,9 @@ final class HubService: ObservableObject {
         case failed(String)
     }
 
-    @Published private(set) var rigState = RigState(transmitEnabled: RigctldSettings.transmitEnabled)
+    @Published private(set) var rigState = RigState(transmitEnabled: RigctldSettings.transmitEnabled) {
+        didSet { enforcePrivilegesWhileKeyed() }
+    }
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published private(set) var rigctldProcessState: RigctldProcessController.State = .stopped
     /// Which rigctld the last Local-mode start launched and why (nil
@@ -175,6 +177,36 @@ final class HubService: ObservableObject {
         }
     }
 
+    /// Settings → License: the privileges the transmit gate applies on
+    /// top of the amateur bands (`TransmitGate`), applied at once like
+    /// Enable Transmit. `activePrivileges` is what they resolve to (nil =
+    /// off), published so `StraightKeyController` follows it.
+    @Published var privilegeChoice: PrivilegeChoice = LicensePrivilegeSettings.choice {
+        didSet {
+            LicensePrivilegeSettings.choice = privilegeChoice
+            privilegesChanged()
+        }
+    }
+    @Published var customPrivileges: PrivilegeProfile = LicensePrivilegeSettings.customProfile {
+        didSet {
+            LicensePrivilegeSettings.customProfile = customPrivileges
+            privilegesChanged()
+        }
+    }
+    @Published private(set) var activePrivileges: PrivilegeProfile? =
+        LicensePrivilegeSettings.profile(for: LicensePrivilegeSettings.choice, custom: LicensePrivilegeSettings.customProfile)
+    /// Set once a transmission has been cut off for leaving the
+    /// privileges, so the rig state's next changes don't send the unkey
+    /// again; cleared when the rig is back on receive.
+    private var privilegeUnkeySent = false
+
+    /// Why a transmit-capable command would be refused right now (nil:
+    /// it goes through) — Enable Transmit, the amateur bands and, when
+    /// chosen, the license privileges, all on the transmitting side.
+    var transmitBlockReason: String? {
+        TransmitGate.blockReason(transmitEnabled: transmitEnabled, state: rigState, privileges: activePrivileges)
+    }
+
     private let rigctld: RigctldClient
     private let commandQueue: CommandQueue
     private let server: RigWebSocketServer
@@ -279,7 +311,8 @@ final class HubService: ObservableObject {
     /// Tools → CW Key: the Arduino key interface keying the rig over
     /// RTS/DTR — see `StraightKeyController`. Started in `start()`, so the
     /// key interface connects at launch (disarmed).
-    lazy var straightKey = StraightKeyController(rigState: $rigState, connection: $connectionState)
+    lazy var straightKey = StraightKeyController(rigState: $rigState, connection: $connectionState,
+                                                 privileges: $activePrivileges)
     /// Wavelog CAT: the rig's frequency/mode reported to Wavelog — see
     /// `WavelogRadioReporter`. Started in `start()`.
     lazy var wavelogRadio = WavelogRadioReporter(rigState: $rigState, connection: $connectionState)
@@ -955,12 +988,10 @@ final class HubService: ObservableObject {
     /// `memoryScanStopped`: the scan-stop for this command has already been
     /// queued (see below), so don't queue another.
     private func send(_ command: RigCommand, memoryScanStopped: Bool) {
-        if !transmitEnabled, Self.isTransmitCapable(command) {
-            Self.connectionLogger.notice("Blocked transmit-capable command (transmit disabled): \(String(describing: command), privacy: .public)")
-            return
-        }
-        if Self.isTransmitCapable(command), BandPlan.band(containing: rigState.frequencyHz) == nil {
-            Self.connectionLogger.notice("Blocked transmit-capable command (outside amateur band): \(String(describing: command), privacy: .public)")
+        // The transmitting side's frequency (TX:SUB or split = SUB's), not
+        // MAIN's — until 2026-10-25 this checked MAIN's alone.
+        if Self.isTransmitCapable(command), let reason = transmitBlockReason {
+            Self.connectionLogger.notice("Blocked transmit-capable command (\(reason, privacy: .public)): \(String(describing: command), privacy: .public)")
             return
         }
         if case .setTransmitEnabled(let enabled) = command {
@@ -1169,6 +1200,39 @@ final class HubService: ObservableObject {
     private func generalCoverageSegment(at hz: Int) -> GeneralCoverageSegment? {
         guard BandPlan.band(containing: hz) == nil else { return nil }
         return GeneralCoverageSegments.segment(containing: hz)
+    }
+
+    private func privilegesChanged() {
+        let profile = LicensePrivilegeSettings.profile(for: privilegeChoice, custom: customPrivileges)
+        if profile != activePrivileges {
+            Self.connectionLogger.notice("License privileges: \(profile?.name ?? "off", privacy: .public)")
+            activePrivileges = profile
+        }
+        enforcePrivilegesWhileKeyed()
+    }
+
+    /// With license privileges on, the gate is checked again whenever the
+    /// rig state changes while the rig transmits, so tuning or switching
+    /// mode out of them (on the rig or in the app) mid-transmission
+    /// unkeys at once — like Enable Transmit going off. Only the license
+    /// guardrail does this; with it off, nothing changes from before.
+    /// The CW key (`StraightKeyController`) gets the same reason through
+    /// its own gate and disarms itself.
+    private func enforcePrivilegesWhileKeyed() {
+        let keyed = rigState.ptt || rigState.moxEnabled == true
+        guard keyed else {
+            privilegeUnkeySent = false
+            return
+        }
+        guard activePrivileges != nil, !privilegeUnkeySent,
+              let reason = TransmitGate.blockReason(transmitEnabled: true, state: rigState, privileges: activePrivileges)
+        else { return }
+        privilegeUnkeySent = true
+        Self.connectionLogger.notice("Unkeying: \(reason, privacy: .public)")
+        cwSender.stop()
+        send(.playCWTextMemory(slot: 0))
+        if rigState.moxEnabled == true { send(.setMox(false)) }
+        send(.setPTT(false))
     }
 
     /// Whether a command actually keys the transmitter (or, for

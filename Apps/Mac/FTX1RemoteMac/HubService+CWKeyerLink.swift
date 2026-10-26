@@ -17,7 +17,7 @@ extension HubService: CWKeyerLink {
         if connectionState != .connected { return .notConnected }
         if !transmitEnabled { return .transmitDisabled }
         if rigState.mode != .cw { return .notCW(rigState.mode) }
-        if BandPlan.band(containing: rigState.frequencyHz) == nil { return .outsideBand }
+        if let reason = transmitBlockReason { return .transmitBlocked(reason) }
         if rigState.breakIn == false { return .breakInOff }
         return nil
     }

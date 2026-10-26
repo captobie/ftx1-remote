@@ -255,12 +255,10 @@ struct ContentView: View {
         .buttonStyle(.bordered)
     }
 
-    /// Mirrors `HubService.send(_:)`'s TX gate (transmit-enabled toggle
-    /// AND inside an amateur allocation) so the button visibly reflects
-    /// why a press won't do anything, rather than silently no-opping.
-    private var canTransmit: Bool {
-        hub.rigState.transmitEnabled && BandPlan.band(containing: hub.rigState.frequencyHz) != nil
-    }
+    /// `HubService.send(_:)`'s TX gate (Enable Transmit, the amateur
+    /// bands, license privileges) so the button visibly reflects why a
+    /// press won't do anything, rather than silently no-opping.
+    private var canTransmit: Bool { hub.transmitBlockReason == nil }
 
     private var pttButton: some View {
         Text(hub.rigState.ptt ? "TRANSMITTING" : "PTT")
@@ -271,11 +269,7 @@ struct ContentView: View {
             .foregroundStyle(hub.rigState.ptt ? Color.white : Color.primary)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .opacity(canTransmit ? 1 : 0.4)
-            .help(
-                hub.rigState.transmitEnabled
-                    ? (canTransmit ? "" : "Transmit disabled: outside an amateur band")
-                    : "Transmit disabled"
-            )
+            .help(hub.transmitBlockReason ?? "")
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in
