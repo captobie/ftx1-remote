@@ -139,8 +139,8 @@ public sealed class WebSdrStationsWindow : Window
 
     public void ApplyTheme()
     {
-        _root.RequestedTheme = AppSettings.Theme.ElementTheme();
-        _root.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
+        ThemeEngine.ApplyTo(_root);
+        _root.Background = ThemeEngine.WindowBackground;
     }
 
     private void ShowTab(SdrPlatform platform)

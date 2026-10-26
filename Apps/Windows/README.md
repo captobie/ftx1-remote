@@ -173,8 +173,11 @@ applied at once, also while connected, except the rigctld tab (below).
   WPSD caller/reflector lookup intervals (3 s / 30 s, the Mac's defaults
   and ranges), with Restore Defaults. Every value is clamped on read, so a
   hand-edited 0 in settings.json can't make a loop spin.
-- **Appearance**: Theme (Auto / Light / Dark, set on the window's root
-  element) and the MENU grid's button value color (the Mac's eight;
+- **Appearance**: Theme (Auto, Default Light, Default Dark, Glossy Black,
+  Dusty Rose, Icy Mint — see "Themes" below), VFO digits (Theme default / Consolas / Cascadia
+  Mono / 7-segment), VFO digit color (Theme default or the button value
+  colors' eight; 7-segment unlit cells follow it at the theme's alpha) and
+  the MENU grid's button value color (the Mac's eight;
   `Settings/Appearance.cs`).
 - Not ported: the Mac's Station tab (nothing here uses a callsign or grid
   yet) and Updates (Sparkle is Mac-only).
@@ -404,6 +407,75 @@ Hardware checklist (not yet run):
 - [ ] Setting survives an app restart.
 - [ ] Hold PTT → keys, button red "TRANSMITTING"; release → unkeys. Also
       release outside the button/window, and a quick tap.
+
+## Themes (Settings → Appearance, phase 1, 2026-10-26; unit-tested and checked in the built app, disconnected)
+
+Windows only — the Mac has no themes. A theme (`Models/ThemeDefinition.cs`,
+WinUI-free so `ThemeTests` cover it) is a base (Light/Dark) plus
+overrides; whatever it leaves null is the base WinUI theme's own:
+
+- window and panel backgrounds; button background (resting, hover,
+  pressed, disabled), border and text; toggle buttons while on; accent
+  (sliders, toggle switches); secondary captions (`AppSecondaryTextBrush`,
+  the main window's former "Gray" labels); MENU grid value color (null =
+  Button value color).
+- **VFO boxes** (`VfoTheme`, every field set — the defaults are the boxes
+  as they always looked): background, border (and SUB's single-receive
+  border), digit colour/font/bold, unlit 7-segment colour, MAIN/SUB label,
+  mode text and its border, callsign, memory channel, reflector line.
+- Colours are `#RRGGBB`/`#AARRGGBB` strings; a fill is one colour or a
+  top-to-bottom gradient (`ThemeFill`, optional offsets) — a sharp step in
+  the middle is what reads as glossy. Enums are stored by name, so the JSON
+  is ready for custom themes.
+- **Not themeable, on purpose**: the TXRX/RX tags, PTT while keyed, the
+  squelch light, the meters, and status colours (connected/error).
+
+`Settings/ThemeEngine.cs` turns the theme into a `ResourceDictionary`
+(the same keys in its Default/Light/Dark theme dictionaries) merged *last*
+into the app's resources, so it beats `XamlControlsResources` in every
+window, flyout and dialog: WinUI's lightweight styling, app-wide
+(`Button*`, `ToggleButton*`, `RepeatButton*`,
+`ApplicationPageBackgroundThemeBrush`, `CardBackgroundFillColorDefaultBrush`,
+the accent/slider/toggle-switch keys). Controls only re-read
+ThemeResources on a theme change, so `ThemeEngine.ApplyTo(root)` flips
+each window root through the other theme and back; every window's
+`ApplyTheme` calls it. `ThemeEngine.Load()` runs in `App.OnLaunched`
+before `MainWindow` exists, since its XAML refers to
+`AppSecondaryTextBrush`. The VFO boxes are drawn in code
+(`MainWindow.ApplyVfoTheme`); `Controls/VfoDigits.cs` draws the 7-segment
+digits as two non-hit-testable TextBlocks over the (then transparent)
+frequency TextBlock, following its Text — so the callers and the VFO
+entry flyout are unchanged. DSEG7 has no "—" and its "!" is a
+digit-wide blank: `SevenSegmentText` pads MHz to three cells and shows
+`---.---.---` before the first read, over `888.888.888` unlit segments.
+
+Saved as `ThemeName` (`"Auto"` or a preset's name) in settings.json; an
+older file's `Theme` number (0 Auto, 1 Light, 2 Dark) maps to Auto /
+Default Light / Default Dark until the next Save. A name that no longer
+exists, or a broken theme, falls back to Auto (logged).
+
+- **Presets**: Default Light and Default Dark (no overrides: the app
+  exactly as before), **Glossy Black** (charcoal gradient window, glossy
+  grey buttons with a light top edge, blue gloss for toggled buttons and
+  the accent, near-black glass VFO boxes with a steel-blue border, ice-white
+  7-segment digits over faint unlit segments), **Dusty Rose** (light, colours
+  sampled from Visual Studio's Silky Pink: dusty rose window
+  `#F0E3E1`, near-white panels, satin buttons with warm near-black text, VS's
+  mauve-rose accent `#7A453D` for toggled buttons and sliders, dark mauve
+  VFO boxes with a rose border and Consolas digits), **Icy Mint** (light, after Visual Studio's theme of
+  that name: frosted mint window, white buttons shading to pale mint with
+  deep teal text, teal gloss for toggled buttons and the accent, dark teal
+  VFO boxes with a mint border and icy Consolas digits).
+- **Checked** (2026-10-26, built app, disconnected): Default Dark looks as
+  before; Glossy Black at launch; Settings → Glossy Black → Default Light →
+  Glossy Black + Cascadia Mono, all applied live; 367 tests pass. VFO
+  digit color Orange on Glossy Black (2026-10-26), applied live. Silky
+  Pink and Icy Mint, applied live (2026-10-26).
+  **Not yet**: digits showing a real frequency (connected), the secondary
+  windows and Settings in Glossy Black, ComboBoxes (not themed — they stay
+  the base theme's).
+- **Phase 2 (planned)**: custom themes — duplicate a theme, edit it,
+  save under a name, rename/delete, JSON import/export.
 
 ## License-class guardrail (Settings → License, 2026-10-25; unit-tested, then tested live by the user the same day)
 
@@ -2253,6 +2325,7 @@ Apps/Windows/FTX1RemoteWindows/
   Settings/
     AppSettings.cs                every setting (connection, audio, WPSD, APRS, station, WebSDR, CW, HOME, polling, appearance); file-based (see its doc comment on why not LocalSettings yet)
     Appearance.cs                 AppTheme / ButtonValueColor (ports of the FTX1Core Appearance enums)
+    ThemeEngine.cs                a theme → WinUI resource overrides, applied app-wide (see "Themes")
 ```
 
 ## Updates (Settings → About, 2026-10-03)

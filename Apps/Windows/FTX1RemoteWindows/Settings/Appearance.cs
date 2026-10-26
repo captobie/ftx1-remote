@@ -1,3 +1,4 @@
+using FTX1RemoteWindows.Models;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Windows.UI;
@@ -46,6 +47,20 @@ public static class AppearanceExtensions
     };
 
     public static string DisplayName(this ButtonValueColor color) => color.ToString();
+
+    /// The color as theme JSON writes it ("#AARRGGBB").
+    public static string Hex(this ButtonValueColor color)
+    {
+        var c = color.Color();
+        return $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
+    }
+
+    public static string DisplayName(this VfoDigitFont font) => font switch
+    {
+        VfoDigitFont.CascadiaMono => "Cascadia Mono",
+        VfoDigitFont.SevenSegment => "7-segment",
+        _ => "Consolas",
+    };
 
     /// Named WinUI colors picked to read on both the light and dark button
     /// backgrounds (White, like on the Mac, is for dark mode only).

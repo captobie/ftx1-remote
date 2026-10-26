@@ -20,7 +20,7 @@
              rigctld/COM port/baud) is set in Settings. -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
             <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click" />
-            <TextBlock x:Name="ConnectionStateText" Text="Disconnected" VerticalAlignment="Center" Foreground="Gray" />
+            <TextBlock x:Name="ConnectionStateText" Text="Disconnected" VerticalAlignment="Center" Foreground="{ThemeResource AppSecondaryTextBrush}" />
             <Button x:Name="SettingsButton" Click="SettingsButton_Click" Margin="16,0,0,0"
                     AutomationProperties.Name="Settings" ToolTipService.ToolTip="Settings">
                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -85,7 +85,7 @@
                     <StackPanel Spacing="4">
                         <Grid>
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock Text="MAIN" FontWeight="SemiBold" />
+                            <TextBlock x:Name="MainLabelText" Text="MAIN" FontWeight="SemiBold" />
                             <Border x:Name="MainTxRxTag" Background="Red" CornerRadius="3" Padding="4,1" VerticalAlignment="Center">
                                 <TextBlock x:Name="MainTxRxText" Text="TXRX" FontSize="12" FontWeight="SemiBold" Foreground="White" />
                             </Border>
@@ -94,15 +94,15 @@
                             <TextBlock x:Name="MemoryChannelAText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
                         </StackPanel>
                         <!-- The mode, upper right like the Mac's. -->
-                        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="4,1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Border x:Name="MainModeBorder" BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="4,1" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <TextBlock x:Name="MainModeText" FontSize="12" FontWeight="SemiBold" Foreground="LimeGreen" />
                         </Border>
                         </Grid>
                         <!-- Like the Mac's VFODisplayBox: the C4FM reflector / "APRS" line (height
                              reserved so nothing jumps), then the caller on the left and the
                              frequency on the right. -->
-                        <TextBlock x:Name="C4fmReflectorAText" Foreground="Gray" FontSize="12" Height="14" />
-                        <Grid>
+                        <TextBlock x:Name="C4fmReflectorAText" Foreground="{ThemeResource AppSecondaryTextBrush}" FontSize="12" Height="14" />
+                        <Grid x:Name="FrequencyAGrid">
                             <TextBlock x:Name="C4fmCallsignAText" FontSize="20" FontWeight="SemiBold" Foreground="DodgerBlue" FontFamily="Consolas" VerticalAlignment="Center" HorizontalAlignment="Left" />
                             <TextBlock x:Name="FrequencyAText" Text="—" FontSize="32" FontFamily="Consolas" HorizontalAlignment="Right" />
                         </Grid>
@@ -175,21 +175,21 @@
                     <StackPanel Spacing="4">
                         <Grid>
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock Text="SUB" FontWeight="SemiBold" />
+                            <TextBlock x:Name="SubLabelText" Text="SUB" FontWeight="SemiBold" />
                             <Border x:Name="SubTxRxTag" Background="Green" CornerRadius="3" Padding="4,1" VerticalAlignment="Center">
                                 <TextBlock x:Name="SubTxRxText" Text="RX" FontSize="12" FontWeight="SemiBold" Foreground="White" />
                             </Border>
                             <TextBlock x:Name="MemoryChannelBText" FontWeight="SemiBold" Foreground="DarkOrange" Visibility="Collapsed" />
                         </StackPanel>
-                        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="4,1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Border x:Name="SubModeBorder" BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="4,1" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <TextBlock x:Name="SubModeText" FontSize="12" FontWeight="SemiBold" Foreground="LimeGreen" />
                         </Border>
                         </Grid>
                         <!-- Like the Mac's VFODisplayBox: the C4FM reflector / "APRS" line (height
                              reserved so nothing jumps), then the caller on the left and the
                              frequency on the right. -->
-                        <TextBlock x:Name="C4fmReflectorBText" Foreground="Gray" FontSize="12" Height="14" />
-                        <Grid>
+                        <TextBlock x:Name="C4fmReflectorBText" Foreground="{ThemeResource AppSecondaryTextBrush}" FontSize="12" Height="14" />
+                        <Grid x:Name="FrequencyBGrid">
                             <TextBlock x:Name="C4fmCallsignBText" FontSize="20" FontWeight="SemiBold" Foreground="DodgerBlue" FontFamily="Consolas" VerticalAlignment="Center" HorizontalAlignment="Left" />
                             <TextBlock x:Name="FrequencyBText" Text="—" FontSize="32" FontFamily="Consolas" HorizontalAlignment="Right" />
                         </Grid>
@@ -218,7 +218,7 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="SQL" FontSize="11" Foreground="Gray" VerticalAlignment="Center" />
+                            <TextBlock Text="SQL" FontSize="11" Foreground="{ThemeResource AppSecondaryTextBrush}" VerticalAlignment="Center" />
                             <Slider Grid.Column="1" x:Name="MainSquelchSlider" Minimum="0" Maximum="0.05" StepFrequency="0.001"
                                     ValueChanged="MainSquelchSlider_ValueChanged" IsThumbToolTipEnabled="False"
                                     AutomationProperties.Name="MAIN squelch" />
@@ -231,7 +231,7 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="8" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="VOL" FontSize="11" Foreground="Gray" VerticalAlignment="Center" />
+                            <TextBlock Text="VOL" FontSize="11" Foreground="{ThemeResource AppSecondaryTextBrush}" VerticalAlignment="Center" />
                             <Slider Grid.Column="1" x:Name="MainVolumeSlider" Minimum="0" Maximum="1" StepFrequency="0.01"
                                     ValueChanged="MainVolumeSlider_ValueChanged"
                                     AutomationProperties.Name="MAIN volume" />
@@ -251,7 +251,7 @@
                                 AutomationProperties.Name="Zoom in" ToolTipService.ToolTip="Zoom in">
                             <FontIcon Glyph="&#xE70E;" FontSize="10" />
                         </Button>
-                        <TextBlock x:Name="ScopeZoomText" Text="1.0x" FontSize="11" FontFamily="Consolas" Foreground="Gray" HorizontalAlignment="Center" />
+                        <TextBlock x:Name="ScopeZoomText" Text="1.0x" FontSize="11" FontFamily="Consolas" Foreground="{ThemeResource AppSecondaryTextBrush}" HorizontalAlignment="Center" />
                         <Button x:Name="ScopeZoomOutButton" HorizontalAlignment="Stretch" Click="ScopeZoomButton_Click" Tag="down"
                                 AutomationProperties.Name="Zoom out" ToolTipService.ToolTip="Zoom out">
                             <FontIcon Glyph="&#xE70D;" FontSize="10" />
@@ -282,7 +282,7 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="SQL" FontSize="11" Foreground="Gray" VerticalAlignment="Center" />
+                            <TextBlock Text="SQL" FontSize="11" Foreground="{ThemeResource AppSecondaryTextBrush}" VerticalAlignment="Center" />
                             <Slider Grid.Column="1" x:Name="SubSquelchSlider" Minimum="0" Maximum="0.05" StepFrequency="0.001"
                                     ValueChanged="SubSquelchSlider_ValueChanged" IsThumbToolTipEnabled="False"
                                     AutomationProperties.Name="SUB squelch" />
@@ -295,7 +295,7 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="8" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="VOL" FontSize="11" Foreground="Gray" VerticalAlignment="Center" />
+                            <TextBlock Text="VOL" FontSize="11" Foreground="{ThemeResource AppSecondaryTextBrush}" VerticalAlignment="Center" />
                             <Slider Grid.Column="1" x:Name="SubVolumeSlider" Minimum="0" Maximum="1" StepFrequency="0.01"
                                     ValueChanged="SubVolumeSlider_ValueChanged"
                                     AutomationProperties.Name="SUB volume" />
@@ -388,8 +388,8 @@
                                   Toggled="AudioSwitch_Toggled"
                                   ToolTipService.ToolTip="The Pi streams audio to one client at a time. Turn this off to let the Mac have it." />
                     <StackPanel VerticalAlignment="Center" Spacing="2">
-                        <TextBlock x:Name="AudioStateText" Text="Not connected" Foreground="Gray" />
-                        <TextBlock x:Name="AudioLevelsText" Text="" FontFamily="Consolas" FontSize="12" Foreground="Gray" />
+                        <TextBlock x:Name="AudioStateText" Text="Not connected" Foreground="{ThemeResource AppSecondaryTextBrush}" />
+                        <TextBlock x:Name="AudioLevelsText" Text="" FontFamily="Consolas" FontSize="12" Foreground="{ThemeResource AppSecondaryTextBrush}" />
                     </StackPanel>
                 </StackPanel>
             </StackPanel>

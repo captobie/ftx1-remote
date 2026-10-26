@@ -82,7 +82,16 @@ public static class AppSettings
         public int WpsdReflectorSeconds { get; set; } = WpsdReflectorSecondsSetting.Default;
         /// Keyed by HomeBand.Name; a missing band uses its factory frequency.
         public Dictionary<string, long> HomeFrequencies { get; set; } = new();
+        /// The Light/Dark/Auto setting before themes; read only to migrate
+        /// to ThemeName.
         public AppTheme Theme { get; set; } = AppTheme.System;
+        /// Settings → Appearance → Theme, by name (ThemePresets); null until
+        /// first saved, then Theme's old value applies.
+        public string? ThemeName { get; set; }
+        /// Settings → Appearance → VFO digits; null = the theme's font.
+        public VfoDigitFont? VfoDigitFont { get; set; }
+        /// Settings → Appearance → VFO digit color; null = the theme's.
+        public ButtonValueColor? VfoDigitColor { get; set; }
         public ButtonValueColor ButtonValueColor { get; set; } = ButtonValueColor.Orange;
         public ScopeDisplayMode ScopeDisplayMode { get; set; } = ScopeDisplayMode.Waterfall;
         public bool AprsEnabled { get; set; }
@@ -487,12 +496,44 @@ public static class AppSettings
         Save();
     }
 
-    public static AppTheme Theme
+    /// The chosen theme's name, or ThemePresets.Auto.
+    public static string ThemeName
     {
-        get => _cache.Theme;
+        get => _cache.ThemeName ?? ThemePresets.FromLegacy((int)_cache.Theme);
         set
         {
-            _cache.Theme = value;
+            _cache.ThemeName = value;
+            Save();
+        }
+    }
+
+    /// The light/dark side of the current theme, for the windows and
+    /// dialogs that set RequestedTheme (ThemeEngine.Load has run by then).
+    public static AppTheme Theme => ThemeEngine.ElementTheme switch
+    {
+        Microsoft.UI.Xaml.ElementTheme.Light => AppTheme.Light,
+        Microsoft.UI.Xaml.ElementTheme.Dark => AppTheme.Dark,
+        _ => AppTheme.System,
+    };
+
+    /// Overrides the theme's VFO digit color; null = the theme's.
+    public static ButtonValueColor? VfoDigitColor
+    {
+        get => _cache.VfoDigitColor;
+        set
+        {
+            _cache.VfoDigitColor = value;
+            Save();
+        }
+    }
+
+    /// Overrides the theme's VFO digit font; null = the theme's.
+    public static VfoDigitFont? VfoDigitFont
+    {
+        get => _cache.VfoDigitFont;
+        set
+        {
+            _cache.VfoDigitFont = value;
             Save();
         }
     }

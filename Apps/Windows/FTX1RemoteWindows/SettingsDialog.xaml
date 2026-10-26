@@ -387,7 +387,12 @@
 
                 <!-- Appearance -->
                 <StackPanel x:Name="AppearanceTab" Spacing="12" Visibility="Collapsed">
-                    <RadioButtons x:Name="ThemeRadioButtons" Header="Theme" MaxColumns="3" />
+                    <ComboBox x:Name="ThemeComboBox" Header="Theme" Width="200" HorizontalAlignment="Left"
+                              ToolTipService.ToolTip="Auto follows Windows' light or dark app mode" />
+                    <ComboBox x:Name="VfoDigitFontComboBox" Header="VFO digits" Width="200" HorizontalAlignment="Left"
+                              ToolTipService.ToolTip="The font of the VFO boxes' frequency; Theme default uses the theme's" />
+                    <ComboBox x:Name="VfoDigitColorComboBox" Header="VFO digit color" Width="200" HorizontalAlignment="Left"
+                              ToolTipService.ToolTip="The color of the VFO boxes' frequency; Theme default uses the theme's" />
                     <ComboBox x:Name="ButtonValueColorComboBox" Header="Button value color" Width="200" HorizontalAlignment="Left"
                               ToolTipService.ToolTip="The color of each MENU grid button's current setting" />
                 </StackPanel>

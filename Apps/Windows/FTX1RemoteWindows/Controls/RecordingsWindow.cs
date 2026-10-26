@@ -137,8 +137,8 @@ public sealed class RecordingsWindow : Window
     /// Follows Settings → Appearance, like the main window.
     public void ApplyTheme()
     {
-        _root.RequestedTheme = AppSettings.Theme.ElementTheme();
-        _root.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
+        ThemeEngine.ApplyTo(_root);
+        _root.Background = ThemeEngine.WindowBackground;
     }
 
     /// Re-reads the folder. MainWindow also calls this when RECORD starts or

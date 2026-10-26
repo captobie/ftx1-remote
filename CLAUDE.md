@@ -1716,6 +1716,22 @@ of truth. Unit-tested (`WavelogTests.cs`), checked in the built app
 against a stand-in server, then tested live by the user the same day
 against their Wavelog with the rig connected, working. See the README's
 "Logbook — Wavelog".
+**Themes** (Settings → Appearance, Windows only, phase 1 2026-10-26;
+unit-tested and checked in the built app while disconnected, not yet with
+a live frequency): presets Default Light/Dark (the app as before),
+Glossy Black, Dusty Rose and Icy Mint (light, after Visual Studio's Silky
+Pink and Icy Mint), plus VFO-digit font and color overrides (fonts: Consolas,
+Cascadia Mono, 7-segment = bundled DSEG7 Classic, SIL OFL, `Assets/Fonts/`;
+colors: the button value colors' eight).
+`Models/ThemeDefinition.cs` (WinUI-free, `ThemeTests`) is the model;
+`Settings/ThemeEngine.cs` merges the overrides last into the app's
+resources (lightweight styling, every window) and `ApplyTo` flips each
+window root's theme so controls re-read them — a new window's
+`ApplyTheme` must call it, and new main-window captions should use
+`{ThemeResource AppSecondaryTextBrush}`, not "Gray". TX/RX tags, PTT,
+meters and status colours are deliberately not themeable. Phase 2
+(custom themes: edit, save by name, JSON import/export) is planned. See
+the README's "Themes".
 The memory scan (MAIN and SUB, Scan/Skip next to Mem List) was ported
 2026-10-06 (`MainWindow.MemoryScan.cs`, `Models/MemoryScan.cs`), with the
 same read-by-side poll fix as the Mac (the boxes traded places with TX on

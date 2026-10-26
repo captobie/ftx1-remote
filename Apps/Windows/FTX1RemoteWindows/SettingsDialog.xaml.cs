@@ -64,8 +64,8 @@ public sealed partial class SettingsDialog : Window
         _wavelogReporter = wavelogReporter;
         _wavelogTuner = wavelogTuner;
         InitializeComponent();
-        RootGrid.RequestedTheme = AppSettings.Theme.ElementTheme();
-        RootGrid.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
+        ThemeEngine.ApplyTo(RootGrid);
+        RootGrid.Background = ThemeEngine.WindowBackground;
         ConfigureWindow();
 
         // rigctld
@@ -196,11 +196,23 @@ public sealed partial class SettingsDialog : Window
         ConfigureNumberBox(WpsdReflectorBox, AppSettings.WpsdReflectorSecondsSetting, AppSettings.WpsdReflectorSeconds);
 
         // Appearance
-        foreach (var theme in Enum.GetValues<AppTheme>())
+        foreach (var name in ThemePresets.Names)
         {
-            ThemeRadioButtons.Items.Add(new RadioButton { Content = theme.DisplayName(), Tag = theme });
+            ThemeComboBox.Items.Add(new ComboBoxItem { Content = name, Tag = name });
         }
-        ThemeRadioButtons.SelectedIndex = (int)AppSettings.Theme;
+        ThemeComboBox.SelectedIndex = Math.Max(0, ThemePresets.Names.ToList().IndexOf(AppSettings.ThemeName));
+        VfoDigitFontComboBox.Items.Add(new ComboBoxItem { Content = "Theme default", Tag = null });
+        foreach (var font in Enum.GetValues<VfoDigitFont>())
+        {
+            VfoDigitFontComboBox.Items.Add(new ComboBoxItem { Content = font.DisplayName(), Tag = font });
+        }
+        VfoDigitFontComboBox.SelectedIndex = AppSettings.VfoDigitFont is { } digitFont ? (int)digitFont + 1 : 0;
+        VfoDigitColorComboBox.Items.Add(new ComboBoxItem { Content = "Theme default", Tag = null });
+        foreach (var color in Enum.GetValues<ButtonValueColor>())
+        {
+            VfoDigitColorComboBox.Items.Add(new ComboBoxItem { Content = color.DisplayName(), Tag = color });
+        }
+        VfoDigitColorComboBox.SelectedIndex = AppSettings.VfoDigitColor is { } digitColor ? (int)digitColor + 1 : 0;
         foreach (var color in Enum.GetValues<ButtonValueColor>())
         {
             ButtonValueColorComboBox.Items.Add(new ComboBoxItem { Content = color.DisplayName(), Tag = color });
@@ -473,9 +485,17 @@ public sealed partial class SettingsDialog : Window
         AppSettings.CheckForUpdatesAtLaunch = CheckAtLaunchCheckBox.IsChecked == true;
         AppSettings.HubEnabled = HubEnabledSwitch.IsOn;
 
-        if (ThemeRadioButtons.SelectedItem is RadioButton { Tag: AppTheme theme })
+        if (ThemeComboBox.SelectedItem is ComboBoxItem { Tag: string themeName })
         {
-            AppSettings.Theme = theme;
+            AppSettings.ThemeName = themeName;
+        }
+        if (VfoDigitFontComboBox.SelectedItem is ComboBoxItem digitFontItem)
+        {
+            AppSettings.VfoDigitFont = digitFontItem.Tag as VfoDigitFont?;
+        }
+        if (VfoDigitColorComboBox.SelectedItem is ComboBoxItem digitColorItem)
+        {
+            AppSettings.VfoDigitColor = digitColorItem.Tag as ButtonValueColor?;
         }
         if (ButtonValueColorComboBox.SelectedItem is ComboBoxItem { Tag: ButtonValueColor color })
         {

@@ -436,6 +436,10 @@ Its APRS map uses [Leaflet](https://github.com/Leaflet/Leaflet) 1.9.4
 `Apps/Windows/FTX1RemoteWindows/Assets/AprsMap/` with its licence, and map
 tiles from [OpenStreetMap](https://www.openstreetmap.org/copyright)
 (© OpenStreetMap contributors, ODbL).
+Its 7-segment VFO digits use [DSEG](https://github.com/keshikan/DSEG) 0.46
+(DSEG7 Classic Regular/Bold, SIL Open Font License 1.1, keshikan), vendored
+unmodified in `Apps/Windows/FTX1RemoteWindows/Assets/Fonts/` with its
+licence (`DSEG-LICENSE.txt`).
 It ships `rigctld.exe` from [Hamlib](https://github.com/Hamlib/Hamlib)
 4.7.2 — Hamlib's own official Windows build (`hamlib-w64-4.7.2.zip`),
 vendored unmodified by `Apps/Windows/Tools/fetch-rigctld.ps1` into

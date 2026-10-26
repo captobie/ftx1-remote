@@ -129,8 +129,8 @@ public sealed class AprsListWindow : Window
     /// Follows Settings → Appearance, like the main window.
     public void ApplyTheme()
     {
-        _root.RequestedTheme = AppSettings.Theme.ElementTheme();
-        _root.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
+        ThemeEngine.ApplyTo(_root);
+        _root.Background = ThemeEngine.WindowBackground;
         Rebuild();
     }
 

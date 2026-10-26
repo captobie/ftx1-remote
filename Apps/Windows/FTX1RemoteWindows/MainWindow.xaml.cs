@@ -192,6 +192,9 @@ public sealed partial class MainWindow : Window
     /// "FR" (FUNCTION RX): false dual receive, true single, null not read
     /// yet. Read in the slow tier.
     private bool? _singleReceive;
+    /// The VFO boxes' frequency digits in the theme's font (ApplyVfoTheme).
+    private readonly VfoDigits _mainDigits;
+    private readonly VfoDigits _subDigits;
     /// "ST" (SPLIT) and "FT" (which side transmits: false MAIN, true SUB),
     /// read in the slow tier; they pick the TXRX/RX tags and the TX button's
     /// caption (RigState.mainTxRxLabel/subTxRxLabel on the Mac).
@@ -243,6 +246,8 @@ public sealed partial class MainWindow : Window
         AppWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));
         Title = "FTX-1 Remote";
         InitVfoEntryFlyouts();
+        _mainDigits = new VfoDigits(FrequencyAText, FrequencyAGrid);
+        _subDigits = new VfoDigits(FrequencyBText, FrequencyBGrid);
         if (!RestoreWindowBounds())
         {
             SetInitialWidth();
@@ -485,7 +490,7 @@ public sealed partial class MainWindow : Window
         ConnectionStateText.Text = AppSettings.ConnectionMode == ConnectionMode.Local
             ? $"Disconnected · Local, {(AppSettings.ComPort.Length > 0 ? AppSettings.ComPort : "no COM port set")} @ {AppSettings.BaudRate}"
             : $"Disconnected · Remote, {(AppSettings.PiHost.Length > 0 ? AppSettings.PiHost : "no Pi host set")}";
-        ConnectionStateText.Foreground = new SolidColorBrush(Colors.Gray);
+        ConnectionStateText.Foreground = ThemeEngine.SecondaryTextBrush;
     }
 
     /// The launch-time update check: silent unless a newer release exists
@@ -589,11 +594,15 @@ public sealed partial class MainWindow : Window
     }
 
     /// Settings → Appearance: the theme (on the window's root, so every
-    /// control follows) and the MENU grid's value color.
+    /// control follows), the VFO boxes and the MENU grid's value color.
     private void ApplyAppearance()
     {
-        RootScrollViewer.RequestedTheme = AppSettings.Theme.ElementTheme();
-        _menuGrid.ValueColor = AppSettings.ButtonValueColor.Color();
+        ThemeEngine.Load();
+        ThemeEngine.ApplyTo(RootScrollViewer);
+        ApplyVfoTheme();
+        _menuGrid.ValueColor = ThemeEngine.Current.MenuValueColor is { } valueColor
+            ? ThemeEngine.ToColor(valueColor)
+            : AppSettings.ButtonValueColor.Color();
         foreach (var window in _aprsWindows.Values)
         {
             window.ApplyTheme();
@@ -603,6 +612,48 @@ public sealed partial class MainWindow : Window
         _cwWindow?.ApplyTheme();
         _recordingsWindow?.ApplyTheme();
         _memoryListWindow?.ApplyTheme();
+    }
+
+    /// The VFO boxes are drawn here, not by WinUI, so the theme's VfoTheme
+    /// is applied by hand. The TXRX/RX tags keep their fixed colors.
+    private void ApplyVfoTheme()
+    {
+        var vfo = ThemeEngine.Current.Vfo;
+        if (AppSettings.VfoDigitColor is { } digitColor)
+        {
+            // The unlit 7-segment cells follow the new color at the theme's
+            // own faintness.
+            var hex = digitColor.Hex();
+            vfo = vfo with
+            {
+                Digits = hex,
+                UnlitSegments = vfo.UnlitSegments is { } unlit ? $"#{ThemeColor.Parse(unlit).A:X2}{hex[3..]}" : null,
+            };
+        }
+        var font = AppSettings.VfoDigitFont ?? vfo.DigitFont;
+        foreach (var (box, label, modeBorder, mode, memory, reflector, callsign, digits) in new[]
+                 {
+                     (MainVfoBox, MainLabelText, MainModeBorder, MainModeText, MemoryChannelAText, C4fmReflectorAText, C4fmCallsignAText, _mainDigits),
+                     (SubVfoBox, SubLabelText, SubModeBorder, SubModeText, MemoryChannelBText, C4fmReflectorBText, C4fmCallsignBText, _subDigits),
+                 })
+        {
+            box.Background = ThemeEngine.ToBrush(vfo.Background);
+            label.Foreground = new SolidColorBrush(ThemeEngine.ToColor(vfo.Label));
+            modeBorder.BorderBrush = new SolidColorBrush(ThemeEngine.ToColor(vfo.ModeBorder));
+            mode.Foreground = new SolidColorBrush(ThemeEngine.ToColor(vfo.Mode));
+            memory.Foreground = new SolidColorBrush(ThemeEngine.ToColor(vfo.MemoryChannel));
+            reflector.Foreground = new SolidColorBrush(ThemeEngine.ToColor(vfo.Secondary));
+            callsign.Foreground = new SolidColorBrush(ThemeEngine.ToColor(vfo.Callsign));
+            digits.Apply(vfo, font);
+        }
+        MainVfoBox.BorderBrush = ThemeEngine.ToBrush(vfo.Border);
+        ApplySubVfoBorder();
+    }
+
+    private void ApplySubVfoBorder()
+    {
+        var vfo = ThemeEngine.Current.Vfo;
+        SubVfoBox.BorderBrush = ThemeEngine.ToBrush(_singleReceive == true ? vfo.BorderInactive : vfo.Border);
     }
 
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -929,7 +980,7 @@ public sealed partial class MainWindow : Window
                     _singleReceive = single;
                     _filterPanel.SingleReceive = single;
                     // The Mac's VFODisplayBox: SUB's border goes gray while it isn't shown.
-                    SubVfoBox.BorderBrush = new SolidColorBrush(single ? Windows.UI.Color.FromArgb(102, 128, 128, 128) : Windows.UI.Color.FromArgb(179, 0, 255, 0));
+                    ApplySubVfoBorder();
                 }
             }
             catch (Exception ex)
@@ -2767,7 +2818,7 @@ public sealed partial class MainWindow : Window
         {
             AudioStateText.Text = !IsConnected ? "Not connected"
                 : _audioSetupError ?? (AudioSwitch.IsOn ? "Starting…" : "Off");
-            AudioStateText.Foreground = _audioSetupError is null ? gray : new SolidColorBrush(Colors.Firebrick);
+            AudioStateText.Foreground = _audioSetupError is null ? ThemeEngine.SecondaryTextBrush : new SolidColorBrush(Colors.Firebrick);
             AudioLevelsText.Text = "";
             MainSquelchLed.Fill = gray;
             SubSquelchLed.Fill = gray;

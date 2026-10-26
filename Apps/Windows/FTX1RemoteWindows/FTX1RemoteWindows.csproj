@@ -54,6 +54,8 @@
     <Content Include="Assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" />
     <!-- The APRS map page and its vendored Leaflet 1.9.4 (BSD-2-Clause) — Controls/AprsMapWindow.cs. -->
     <Content Include="Assets\AprsMap\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- DSEG7 Classic 0.46 (SIL OFL 1.1, keshikan/DSEG) for the themes' 7-segment VFO digits — Controls/VfoDigits.cs. -->
+    <Content Include="Assets\Fonts\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <!--
       Hamlib's official Windows rigctld.exe + the DLLs it loads + its licence
       files (Vendor\hamlib, from Apps/Windows/Tools/fetch-rigctld.ps1), for

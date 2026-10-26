@@ -116,8 +116,8 @@ public sealed class AprsMapWindow : Window
     /// themselves stay light.
     public void ApplyTheme()
     {
-        _root.RequestedTheme = AppSettings.Theme.ElementTheme();
-        _root.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
+        ThemeEngine.ApplyTo(_root);
+        _root.Background = ThemeEngine.WindowBackground;
         _emptyPanel.Background = (Brush)Application.Current.Resources["LayerFillColorDefaultBrush"];
     }
 

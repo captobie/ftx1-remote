@@ -194,8 +194,8 @@ public sealed class CwWindow : Window
     /// Follows Settings → Appearance, like the main window.
     public void ApplyTheme()
     {
-        _root.RequestedTheme = AppSettings.Theme.ElementTheme();
-        _root.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
+        ThemeEngine.ApplyTo(_root);
+        _root.Background = ThemeEngine.WindowBackground;
         _textScroller.Background = (Brush)Application.Current.Resources["TextControlBackground"];
         _placeholder.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
         _noteText.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];

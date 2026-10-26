@@ -49,6 +49,7 @@
     <Compile Include="..\FTX1RemoteWindows\Services\WavelogTuneRequest.cs" Link="Linked\WavelogTuneRequest.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\WavelogTuneListener.cs" Link="Linked\WavelogTuneListener.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\LoggedQso.cs" Link="Linked\LoggedQso.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\ThemeDefinition.cs" Link="Linked\ThemeDefinition.cs" />
   </ItemGroup>
 
   <ItemGroup>
