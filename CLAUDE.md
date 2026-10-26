@@ -1440,6 +1440,57 @@ server), `Pi/tests/` (python3 -m unittest), and a scratch cross-check of
 the Swift driver against the real script showed element lengths within
 1–2 ms. **Stuck-key fix (2026-10-17)**: mid-transmission the CP2105 rejected an RTS set (`cp210x ttyUSB2: failed set request 0x7 status: -71`, EPROTO — likely RF on the USB cable), and the old error path just closed the port, trusting HUPCL; the line stayed keyed (user: a tap gave continuous keying). Now every key-up is read back (TIOCMGET) and any failure hands the keyer to a `Releaser` that retries (reopening every 5th try) until the line reads up, even after the session ends; keying stays off for that session, and a new `cw_hello` is refused while a release is pending. `FTX1_CW_LOG_KEYS=1` logs every line change. The Mac's Local path does the same since (`CWKeyer.release`/`reopen`, `CWKeyingDriver`'s releaser, arming refused while releasing); `TIOCMGET` unsupported by a driver (ENOTTY/EINVAL) falls back to unconfirmed key-ups with an error log — not yet checked against the Mac's CP210x driver on the real port. **RF feedback guard (2026-10-17)**: after that fix, one tap still keyed on and on: RF in the key lead made each transmitted element a "press" one loop later (marks ~190 ms every ~310 ms = 300 ms delay + transport), cured by a larger ferrite on the key lead. `CWFeedbackDetector` (Mac, both modes, operator events only) trips on 4 consecutive mark periods steady within 6 ms on both edges and inside [delay, delay + 250 ms]; the engine/remote driver then disarm (Remote: `cw_bye`) with "RF feedback detected". Tested on the real loop data and both real hand-keying captures (no trip at 0.15–0.4 s delays). Known limit: an electronic keyer's dit run is equally steady (matters if the paddle path returns). **Deployed on ftx1pi 2026-10-17** (`ftx1-cwkey.service` enabled, user `ftx1cw`, listening on 8534; the user ran the sudo steps — sudo there needs their password). Rig-tested by the user in Remote mode the same day: keying works and stops when the Mac app disconnects. The hub WebSocket relay from iPad/Windows is still schema only.
 
+## Themes (Mac, 2026-10-26; unit-tested, checked in the built app while disconnected)
+
+Port of the Windows themes (user request): Settings → Appearance → Theme
+(Auto, Default Light, Default Dark, Glossy Black, Dusty Rose, Icy Mint),
+VFO Digits (Theme Default / SF Mono / Menlo / 7-segment), VFO Digit Color
+(Theme Default or the eight button value colors) and Button Value Color.
+All apply at once, every window.
+
+- **Model** (`FTX1Core/Appearance/ThemeDefinition.swift`, `ThemeTests`):
+  `ThemeDefinition`/`ThemeFill`/`ThemeColor`/`VFOTheme`/`ThemePresets`/
+  `SevenSegmentText`, the Windows model with the same preset hex values
+  (Windows' `ThemeDefinition.cs` and this file must stay in step). One
+  difference: `VFOTheme`'s fields are optional — nil is the Mac box as it
+  always looked (green on black), since the Mac's defaults differ from
+  Windows'. A box whose receiver isn't shown still dims to 45%, themed or
+  not. Font names differ (SF Mono/Menlo for Consolas/Cascadia Mono); the
+  presets' default font is SF Mono. 7-segment with a theme that sets no
+  unlit colour shows the unlit "8"s at 10% (Windows shows none).
+- **Applying** (`ThemeStyling.swift`): every scene root in
+  `FTX1RemoteMacApp` uses `.appTheme()` (in place of the old
+  `.preferredColorScheme`): the theme's light/dark side, `.tint(accent)`,
+  window background (`containerBackground(for: .window)`), and the theme
+  in `\.appTheme` for views that draw their own colours. Every branch is a
+  value, not an `if`, so switching themes never resets a window's state
+  (an `if` around the content would recreate e.g. WebSDR's model). Buttons:
+  `ThemedButtonStyle` (a `PrimitiveButtonStyle`: without a theme it is
+  `.bordered`, `.borderedProminent` while `isOn`, or `.automatic` as the
+  window-wide default — so Default Light/Dark and the iPad look exactly as
+  before) and `ThemedTileButtonStyle`/`ThemedTile` for ContentView's grey
+  tiles. **New buttons** should use these instead of `.bordered`/
+  `.borderedProminent`/a hand-drawn grey tile; captions that used
+  `.foregroundStyle(.secondary)` in the main window use
+  `.themedSecondaryForeground()`. A themed face, unlike the system's
+  bordered button, gives up width to a neighbour — pin it with
+  `.fixedSize()` when it shares a row with a slider (Contour, Notch).
+- **Settings**: `appearance.themeName` (unset = the old `appearance.theme`
+  Light/Dark/Auto, migrated on read), `appearance.vfoDigitFont`,
+  `appearance.vfoDigitColor` (empty = theme's). External `defaults write`s
+  don't reach a running app; relaunch to test that way.
+- **Font**: DSEG7 Classic in `Sources/FTX1Core/Resources/Fonts/` (package
+  resource), registered for the process on first use (`VFODigitFonts`).
+- Not themed, on purpose (as on Windows): TX/RX tags, PTT, meters,
+  Connected/Disconnected. Not themed by limitation: segmented pickers,
+  pop-up menus, the Settings toolbar. The iPad/iPhone don't apply
+  `.appTheme()`, so they're unchanged.
+- **Checked** (built app, disconnected): Default Dark unchanged; Glossy
+  Black, Dusty Rose, Icy Mint + 7-segment + orange digits; Settings →
+  Appearance. **Not yet**: a live frequency in the 7-segment font, the
+  secondary windows (CW, APRS, WebSDR…) under a theme, picking from the
+  Settings pop-ups (tested by writing the keys and relaunching).
+
 ## License-class guardrail (Mac, 2026-10-25; unit-tested, then rig-tested by the user the same day)
 
 Settings → **License** (user request): Off (default — the gate checks the
@@ -1716,7 +1767,8 @@ of truth. Unit-tested (`WavelogTests.cs`), checked in the built app
 against a stand-in server, then tested live by the user the same day
 against their Wavelog with the rig connected, working. See the README's
 "Logbook — Wavelog".
-**Themes** (Settings → Appearance, Windows only, phase 1 2026-10-26;
+**Themes** (Settings → Appearance, phase 1 2026-10-26, on the Mac too —
+see "Themes (Mac)";
 unit-tested and checked in the built app while disconnected, not yet with
 a live frequency): presets Default Light/Dark (the app as before),
 Glossy Black, Dusty Rose and Icy Mint (light, after Visual Studio's Silky
@@ -2807,9 +2859,11 @@ WebSDR differences are in their own bullet at the end.
     CONTOUR not in CW), `FilterSide` (MAIN/SUB — the CAT P1 digit the
     filter commands take; `RigState.filterSide`/`filterMode` say which
     receiver the filter fields, controls and display currently address).
-  - `Appearance/` — `AppTheme` (Light/Dark/Auto), `ButtonValueColor` (MENU
-    grid button value color), `AppearanceSettings` (the `@AppStorage` keys
-    both are read/written through) — shared so any future app target reads
+  - `Appearance/` — `AppTheme` (the old Light/Dark/Auto, still the
+    iPhone's), `ButtonValueColor` (MENU grid button value color),
+    `ThemeDefinition`/`ThemeStyling` (the Mac's themes, see "Themes
+    (Mac)"), `AppearanceSettings` (the `@AppStorage` keys all of these are
+    read/written through) — shared so any future app target reads
     the same settings the Mac's Settings sheet writes.
   - `Station/` — `StationSettings`: the operator's own callsign/grid
     square, `UserDefaults`-backed same as `AppearanceSettings`. Added for

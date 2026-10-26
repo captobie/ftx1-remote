@@ -9,6 +9,13 @@ import Foundation
 public enum AppearanceSettings {
     public static let themeKey = "appearance.theme"
     public static let buttonValueColorKey = "appearance.buttonValueColor"
+    /// Settings → Appearance → Theme, by name (`ThemePresets`); unset until
+    /// first chosen, when `themeKey`'s old Light/Dark/Auto applies.
+    public static let themeNameKey = "appearance.themeName"
+    /// A `VFODigitFont` raw value; empty or unset = the theme's font.
+    public static let vfoDigitFontKey = "appearance.vfoDigitFont"
+    /// A `ButtonValueColor` raw value; empty or unset = the theme's colour.
+    public static let vfoDigitColorKey = "appearance.vfoDigitColor"
 
     public static var theme: AppTheme {
         get {
@@ -16,6 +23,16 @@ public enum AppearanceSettings {
         }
         set {
             UserDefaults.standard.set(newValue.rawValue, forKey: themeKey)
+        }
+    }
+
+    /// The chosen theme's name, or `ThemePresets.auto`.
+    public static var themeName: String {
+        get {
+            UserDefaults.standard.string(forKey: themeNameKey) ?? ThemePresets.fromLegacy(theme)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: themeNameKey)
         }
     }
 

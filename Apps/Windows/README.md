@@ -410,7 +410,7 @@ Hardware checklist (not yet run):
 
 ## Themes (Settings → Appearance, phase 1, 2026-10-26; unit-tested and checked in the built app, disconnected)
 
-Windows only — the Mac has no themes. A theme (`Models/ThemeDefinition.cs`,
+The Mac has the same themes since 2026-10-26 (CLAUDE.md, "Themes (Mac)"; `ThemeDefinition.swift`, same presets and colour values — keep the two in step). A theme (`Models/ThemeDefinition.cs`,
 WinUI-free so `ThemeTests` cover it) is a base (Light/Dark) plus
 overrides; whatever it leaves null is the base WinUI theme's own:
 

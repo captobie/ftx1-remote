@@ -78,6 +78,9 @@ public struct MenuPageView<Controller: RigController>: View {
     /// `SettingsView`'s Appearance tab. `@AppStorage` ties the read to the
     /// same key and invalidates this view on change.
     @AppStorage(AppearanceSettings.buttonValueColorKey) private var buttonValueColorRawValue = ButtonValueColor.orange.rawValue
+    /// A theme's own value colour (`ThemeDefinition.menuValueColor`) beats
+    /// the setting above.
+    @Environment(\.appTheme) private var appTheme
     @State private var showingCWSpeedPopover = false
     @State private var showingCWPitchPopover = false
     @State private var showingBKDelayPopover = false
@@ -1477,7 +1480,7 @@ public struct MenuPageView<Controller: RigController>: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(ThemedButtonStyle())
         .disabled(disabled)
         .opacity(disabled ? 0.4 : 1)
     }
@@ -1495,7 +1498,8 @@ public struct MenuPageView<Controller: RigController>: View {
             if colorizeValue {
                 Text(bottom)
                     .font(.system(.body, design: .monospaced))
-                    .foregroundStyle((ButtonValueColor(rawValue: buttonValueColorRawValue) ?? .orange).color)
+                    .foregroundStyle(themeColor(appTheme?.theme.menuValueColor)
+                        ?? (ButtonValueColor(rawValue: buttonValueColorRawValue) ?? .orange).color)
             } else {
                 Text(bottom)
                     .font(.system(.body, design: .monospaced))

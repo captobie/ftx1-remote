@@ -42,10 +42,6 @@ public struct FilterSideSelector<Controller: RigController>: View {
         .help(unavailable
               ? "SUB receiver isn't shown in single-receive display"
               : "Apply the filter controls to the \(side.displayName) receiver")
-        if side == selected {
-            button.buttonStyle(.borderedProminent)
-        } else {
-            button.buttonStyle(.bordered)
-        }
+        button.buttonStyle(ThemedButtonStyle(isOn: side == selected))
     }
 }

@@ -193,11 +193,8 @@ struct MemoryListView: View {
                 .font(.caption2)
                 .frame(width: 38)
                 .padding(.vertical, 2)
-                .background(isCurrent ? Color.accentColor : Color.gray.opacity(0.2))
-                .foregroundStyle(isCurrent ? Color.white : Color.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ThemedTileButtonStyle(isOn: isCurrent))
         .disabled(!isConnected)
         .help("Recall channel \(entry.channel) on \(title)")
     }

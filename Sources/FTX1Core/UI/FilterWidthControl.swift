@@ -81,7 +81,7 @@ public struct FilterWidthControl<Controller: RigController>: View {
         } label: {
             Image(systemName: systemImage)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(ThemedButtonStyle())
         .disabled(target == nil)
         .help(help)
     }

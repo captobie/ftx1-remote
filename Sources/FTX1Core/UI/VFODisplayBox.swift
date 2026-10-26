@@ -84,6 +84,9 @@ public struct VFODisplayBox: View {
     let onSetBand: ((String) -> Void)?
 
     @State private var isEditing = false
+    /// Settings → Appearance's theme (`VFOTheme`); nil outside
+    /// `.appTheme()`, e.g. on the iPad — the boxes as they always looked.
+    @Environment(\.appTheme) private var appTheme
 
     public init(
         label: String,
@@ -185,8 +188,8 @@ public struct VFODisplayBox: View {
             HStack(spacing: 4) {
                 Text(label)
                     .font(.caption)
-                    .foregroundStyle(isActive ? .primary : .secondary)
-                    .tagBoxed()
+                    .foregroundStyle(labelStyle)
+                    .tagBoxed(border: tagBorderColor)
                     .fixedSize()
                 if let txRxLabel {
                     Text(txRxLabel)
@@ -198,15 +201,15 @@ public struct VFODisplayBox: View {
                 if let channelText {
                     Text(channelText)
                         .font(.caption2)
-                        .foregroundStyle(digitColor)
+                        .foregroundStyle(themed(vfo.memoryChannel))
                         .lineLimit(1)
-                        .tagBoxed()
+                        .tagBoxed(border: tagBorderColor)
                 }
                 Spacer(minLength: 8)
                 Text(isScanning ? "—" : mode)
                     .font(.caption2)
-                    .foregroundStyle(digitColor)
-                    .tagBoxed()
+                    .foregroundStyle(themed(vfo.mode))
+                    .tagBoxed(border: tagBorderColor)
                     .fixedSize()
             }
             // Reflector/APRS indicator sits directly under MAIN/SUB. Its
@@ -223,18 +226,18 @@ public struct VFODisplayBox: View {
                     if let reflector, !isScanning {
                         Text(reflector)
                             .font(.caption2)
-                            .foregroundStyle(digitColor)
+                            .foregroundStyle(themed(vfo.secondary))
                             .lineLimit(1)
                     }
                     if aprsActive {
                         Text("APRS")
                             .font(.caption2)
-                            .foregroundStyle(digitColor)
+                            .foregroundStyle(themed(vfo.secondary))
                     }
                     if let scanIndicator {
                         Text(scanIndicator)
                             .font(.caption2)
-                            .foregroundStyle(digitColor)
+                            .foregroundStyle(themed(vfo.secondary))
                     }
                 }
             }
@@ -243,16 +246,12 @@ public struct VFODisplayBox: View {
                 if let callsign, !isScanning {
                     Text(callsign)
                         .font(.system(size: 24, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(digitColor)
+                        .foregroundStyle(themed(vfo.callsign))
                         .lineLimit(1)
                         .fixedSize()
                 }
                 Spacer(minLength: 0)
-                Text(formattedFrequency)
-                    .font(.system(size: 36, weight: .medium, design: .monospaced))
-                    .foregroundStyle(digitColor)
-                    .lineLimit(1)
-                    .fixedSize()
+                frequencyText
                     .contentShape(Rectangle())
                     .onTapGesture {
                         guard canEdit else { return }
@@ -311,11 +310,78 @@ public struct VFODisplayBox: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.black))
+        .background(RoundedRectangle(cornerRadius: 8).fill(vfo.background?.style ?? AnyShapeStyle(Color.black)))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(isActive ? Color.green.opacity(0.7) : Color.gray.opacity(0.4), lineWidth: 1.5)
+                .strokeBorder(borderStyle, lineWidth: 1.5)
         )
+    }
+
+    private var vfo: VFOTheme { appTheme?.theme.vfo ?? VFOTheme() }
+
+    private var borderStyle: AnyShapeStyle {
+        if isActive {
+            return vfo.border?.style ?? AnyShapeStyle(Color.green.opacity(0.7))
+        }
+        return vfo.borderInactive?.style ?? AnyShapeStyle(Color.gray.opacity(0.4))
+    }
+
+    /// A themed colour for this box's text, dimmed like the digits while
+    /// the receiver isn't shown; unset = `digitColor`, the original look.
+    private func themed(_ hex: String?) -> Color {
+        guard let color = themeColor(hex) else { return digitColor }
+        return isActive ? color : color.opacity(0.45)
+    }
+
+    private var labelStyle: AnyShapeStyle {
+        if let color = themeColor(vfo.label) {
+            return AnyShapeStyle(isActive ? color : color.opacity(0.45))
+        }
+        return isActive ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)
+    }
+
+    private var tagBorderColor: Color {
+        themeColor(vfo.modeBorder) ?? Color.secondary.opacity(0.5)
+    }
+
+    private var digitFont: VFODigitFont {
+        appTheme?.vfoDigitFont ?? vfo.digitFont ?? .systemMono
+    }
+
+    /// The frequency in the theme's font; the 7-segment font draws the lit
+    /// digits over faint unlit "8"s (`SevenSegmentText`), an LCD look.
+    @ViewBuilder
+    private var frequencyText: some View {
+        let font = VFODigitFonts.font(digitFont, size: 36, bold: vfo.digitsBold ?? false)
+        if digitFont == .sevenSegment, VFODigitFonts.hasSevenSegment {
+            let lit = SevenSegmentText.lit(hasFrequency ? formattedFrequency : "")
+            ZStack(alignment: .trailing) {
+                Text(SevenSegmentText.unlit(lit))
+                    .foregroundStyle(unlitSegmentColor)
+                Text(lit)
+                    .foregroundStyle(digitColor)
+            }
+            .font(font)
+            .lineLimit(1)
+            .fixedSize()
+        } else {
+            Text(formattedFrequency)
+                .font(font)
+                .foregroundStyle(digitColor)
+                .lineLimit(1)
+                .fixedSize()
+        }
+    }
+
+    /// The unlit segments: the theme's, at the theme's faintness but in the
+    /// overridden digit colour if Settings picked one; ~10% of the digit
+    /// colour when the theme has none.
+    private var unlitSegmentColor: Color {
+        let alpha = ThemeColor(hex: vfo.unlitSegments).map { Double($0.a) / 255 } ?? 0.1
+        if appTheme?.vfoDigitColor == nil, let color = themeColor(vfo.unlitSegments) {
+            return color
+        }
+        return baseDigitColor.opacity(alpha)
     }
 
     /// Fill color for the TXRX/RX box, matching the rig's own display:
@@ -330,8 +396,18 @@ public struct VFODisplayBox: View {
         }
     }
 
+    /// Settings → Appearance's VFO digit colour, else the theme's, else
+    /// the original green.
+    private var baseDigitColor: Color {
+        appTheme?.vfoDigitColor?.color ?? themeColor(vfo.digits) ?? .green
+    }
+
     private var digitColor: Color {
-        isActive ? .green : .green.opacity(0.45)
+        isActive ? baseDigitColor : baseDigitColor.opacity(0.45)
+    }
+
+    private var hasFrequency: Bool {
+        !isScanning && (frequencyHz ?? 0) > 0
     }
 
     /// Grouped like the rig's own display (e.g. "147.380.000") rather than
@@ -352,7 +428,7 @@ private extension View {
     /// as a distinct element rather than blending into the surrounding
     /// text. With `fill` set (TXRX/RX, matching the rig's own red/green),
     /// the box is a solid color instead of just bordered.
-    func tagBoxed(fill: Color? = nil) -> some View {
+    func tagBoxed(fill: Color? = nil, border: Color = Color.secondary.opacity(0.5)) -> some View {
         padding(.horizontal, 4)
             .padding(.vertical, 1)
             .background(
@@ -361,7 +437,7 @@ private extension View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 3)
-                    .strokeBorder(fill == nil ? Color.secondary.opacity(0.5) : Color.clear, lineWidth: 1)
+                    .strokeBorder(fill == nil ? border : Color.clear, lineWidth: 1)
             )
     }
 }

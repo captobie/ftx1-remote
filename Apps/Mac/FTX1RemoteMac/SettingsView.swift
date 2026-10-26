@@ -1090,18 +1090,24 @@ private struct PollingSettingsTab: View {
     }
 }
 
-/// App appearance controls. Theme plus the MENU grid's button value color —
-/// future appearance settings (VFO display color, background color, per
-/// repo CLAUDE.md) belong here too, following `AppTheme`/`ButtonValueColor`'s
-/// `AppearanceSettings`-backed pattern.
+/// App appearance controls: the theme (`ThemePresets`, applied to every
+/// window by `.appTheme()`), the VFO digits' font and colour overrides, and
+/// the MENU grid's button value color. All apply at once.
 private struct AppearanceSettingsTab: View {
-    @AppStorage(AppearanceSettings.themeKey) private var themeRawValue = AppTheme.system.rawValue
+    @AppStorage(AppearanceSettings.themeNameKey) private var themeName: String?
+    @AppStorage(AppearanceSettings.themeKey) private var legacyTheme = AppTheme.system.rawValue
+    @AppStorage(AppearanceSettings.vfoDigitFontKey) private var vfoDigitFont = ""
+    @AppStorage(AppearanceSettings.vfoDigitColorKey) private var vfoDigitColor = ""
     @AppStorage(AppearanceSettings.buttonValueColorKey) private var buttonValueColorRawValue = ButtonValueColor.orange.rawValue
 
-    private var theme: Binding<AppTheme> {
+    /// Before the first pick, the old Light/Dark/Auto setting's theme.
+    private var theme: Binding<String> {
         Binding(
-            get: { AppTheme(rawValue: themeRawValue) ?? .system },
-            set: { themeRawValue = $0.rawValue }
+            get: {
+                let name = themeName ?? ThemePresets.fromLegacy(AppTheme(rawValue: legacyTheme) ?? .system)
+                return ThemePresets.names.contains(name) ? name : ThemePresets.auto
+            },
+            set: { themeName = $0 }
         )
     }
 
@@ -1115,11 +1121,24 @@ private struct AppearanceSettingsTab: View {
     var body: some View {
         Form {
             Picker("Theme", selection: theme) {
-                ForEach(AppTheme.allCases, id: \.self) { option in
-                    Text(option.displayName).tag(option)
+                ForEach(ThemePresets.names, id: \.self) { name in
+                    Text(name).tag(name)
                 }
             }
-            .pickerStyle(.segmented)
+
+            Picker("VFO Digits", selection: $vfoDigitFont) {
+                Text("Theme Default").tag("")
+                ForEach(VFODigitFont.allCases, id: \.self) { font in
+                    Text(font.displayName).tag(font.rawValue)
+                }
+            }
+
+            Picker("VFO Digit Color", selection: $vfoDigitColor) {
+                Text("Theme Default").tag("")
+                ForEach(ButtonValueColor.allCases, id: \.self) { option in
+                    Text(option.displayName).tag(option.rawValue)
+                }
+            }
 
             Picker("Button Value Color", selection: buttonValueColor) {
                 ForEach(ButtonValueColor.allCases, id: \.self) { option in

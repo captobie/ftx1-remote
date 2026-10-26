@@ -28,11 +28,7 @@ public struct NarrowControl<Controller: RigController>: View {
             }
             .disabled(hub.rigState.narrowEnabled == nil)
             .help("Narrow filter on/off")
-            if isOn {
-                button.buttonStyle(.borderedProminent)
-            } else {
-                button.buttonStyle(.bordered)
-            }
+            button.buttonStyle(ThemedButtonStyle(isOn: isOn))
         }
     }
 }

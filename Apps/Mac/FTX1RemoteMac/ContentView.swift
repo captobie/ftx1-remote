@@ -29,6 +29,9 @@ struct ContentView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var isPTTPressed = false
     @AppStorage(ScopeDisplayMode.storageKey) private var scopeDisplayMode: ScopeDisplayMode = .waterfall
+    /// Settings → Appearance's theme, for the filter block's panel and the
+    /// buttons that only show "on" under a theme.
+    @Environment(\.appTheme) private var appTheme
 
     /// Height of the waterfall/oscilloscope, matching the S-meters
     /// (`meterWidth` at `SMeterView`'s 280:120 aspect) since they share a row.
@@ -46,7 +49,7 @@ struct ContentView: View {
                 // there, so there's no process-lifecycle label worth showing.
                 if RigctldSettings.activeConnectionMode == .local {
                     Text(rigctldProcessLabel)
-                        .foregroundStyle(.secondary)
+                        .themedSecondaryForeground()
                 }
                 Spacer()
             }
@@ -79,7 +82,7 @@ struct ContentView: View {
                             }
                             Text(swrLabel)
                                 .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(hub.rigState.swr == nil ? .secondary : .primary)
+                                .foregroundStyle(hub.rigState.swr == nil ? secondaryStyle : AnyShapeStyle(.primary))
                                 .fixedSize()
                         }
                     }
@@ -158,6 +161,10 @@ struct ContentView: View {
                 FilterDisplayHost(frames: hub.scopeFrames, scopeMode: scopeDisplayMode)
             }
             .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(appTheme?.theme.panelBackground?.style ?? AnyShapeStyle(Color.clear))
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1)
@@ -193,7 +200,7 @@ struct ContentView: View {
         } label: {
             Image(systemName: "arrow.left.arrow.right")
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(ThemedButtonStyle())
     }
 
     /// Moves the transmitter between MAIN and SUB (raw "FT", see
@@ -205,7 +212,7 @@ struct ContentView: View {
             Text(hub.rigState.txSide == .sub ? "TX:SUB" : "TX:MAIN")
                 .font(.caption)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(ThemedButtonStyle())
         .help("Switch the transmit side between MAIN and SUB")
     }
 
@@ -220,10 +227,10 @@ struct ContentView: View {
             hub.toggleAudioChannelsSwapped()
         } label: {
             Image(systemName: "speaker.wave.2")
-                .foregroundStyle(hub.audioChannelsSwapped ? Color.white : Color.primary)
+                .foregroundStyle(audioSwapIconColor)
                 .padding(.horizontal, 2)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(ThemedButtonStyle(isOn: hub.audioChannelsSwapped, prominentWhenOn: false))
         .tint(hub.audioChannelsSwapped ? .orange : nil)
         .help(hub.audioChannelsSwapped
               ? "Audio channels are swapped relative to the rig's default (L=Main, R=Sub). Click to swap back."
@@ -252,7 +259,19 @@ struct ContentView: View {
                 .font(.caption)
                 .fontWeight(hub.rigState.vfoMemoryMode == .vfo ? .regular : .bold)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(ThemedButtonStyle(isOn: hub.rigState.vfoMemoryMode != .vfo, prominentWhenOn: false))
+    }
+
+    /// White on the orange tint while swapped; a theme's button face
+    /// brings its own text colour.
+    private var audioSwapIconColor: AnyShapeStyle {
+        if appTheme?.theme.stylesButtons == true { return AnyShapeStyle(.foreground) }
+        return AnyShapeStyle(hub.audioChannelsSwapped ? Color.white : Color.primary)
+    }
+
+    /// The theme's caption colour, else `.secondary`.
+    private var secondaryStyle: AnyShapeStyle {
+        Color(themeHex: appTheme?.theme.secondaryText).map(AnyShapeStyle.init) ?? AnyShapeStyle(.secondary)
     }
 
     /// `HubService.send(_:)`'s TX gate (Enable Transmit, the amateur
@@ -311,11 +330,8 @@ struct ContentView: View {
                 .font(.caption)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
-                .background(Color.gray.opacity(0.2))
-                .foregroundStyle(Color.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ThemedTileButtonStyle())
     }
 
     /// Starts the rig's memory scan (upward) — a menu to pick MAIN or SUB —
@@ -329,9 +345,9 @@ struct ContentView: View {
             Button {
                 hub.send(.setMemoryScan(.off, side: side))
             } label: {
-                memoryScanLabel("Stop \(side.displayName)", highlighted: true)
+                memoryScanLabel("Stop \(side.displayName)")
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ThemedTileButtonStyle(isOn: true))
             .disabled(!isConnected)
             .help("Stop the \(side.displayName) memory scan")
         } else {
@@ -343,7 +359,9 @@ struct ContentView: View {
                         .disabled(!hub.rigState.canStartMemoryScan(on: side))
                 }
             } label: {
-                memoryScanLabel("Scan", highlighted: false)
+                ThemedTile {
+                    memoryScanLabel("Scan")
+                }
             }
             .menuStyle(.button)
             .menuIndicator(.hidden)
@@ -359,23 +377,20 @@ struct ContentView: View {
         return state == .scanning || state == .paused ? (hub.rigState.memoryScanSide ?? .main) : nil
     }
 
-    private func memoryScanLabel(_ title: String, highlighted: Bool) -> some View {
+    private func memoryScanLabel(_ title: String) -> some View {
         Text(title)
             .font(.caption)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
-            .background(highlighted ? Color.accentColor : Color.gray.opacity(0.2))
-            .foregroundStyle(highlighted ? Color.white : Color.primary)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 
     /// Moves a paused memory scan on past the busy channel, whichever side
     /// it's on.
     private var memoryScanSkipButton: some View {
         Button(action: hub.skipMemoryScanChannel) {
-            memoryScanLabel("Skip", highlighted: false)
+            memoryScanLabel("Skip")
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ThemedTileButtonStyle())
         .disabled(hub.connectionState != .connected || hub.rigState.memoryScan != .paused)
         .help("Resume the scan past this channel")
     }
@@ -389,11 +404,8 @@ struct ContentView: View {
                 .font(.caption)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
-                .background(isSelected ? Color.accentColor : Color.gray.opacity(0.2))
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ThemedTileButtonStyle(isOn: isSelected))
     }
 
     /// Generic over which channel it mutes — `scopeDisplayModeButtons`
@@ -404,11 +416,8 @@ struct ContentView: View {
                 .font(.caption2)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
-                .background(isMuted ? Color.red : Color.gray.opacity(0.2))
-                .foregroundStyle(isMuted ? Color.white : Color.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ThemedTileButtonStyle(isOn: isMuted, onColor: .red))
     }
 
     /// One VFO's meter and audio playback controls, laid out under its VFO
@@ -486,7 +495,7 @@ struct ContentView: View {
         HStack(spacing: 6) {
             Text(label)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .themedSecondaryForeground()
                 .frame(width: 26, alignment: .leading)
             Slider(value: value, in: range)
                 .controlSize(.small)
@@ -505,7 +514,7 @@ struct ContentView: View {
             zoomButton(systemImage: "chevron.up") { stepZoom(up: true) }
             Text(zoomLabel)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .themedSecondaryForeground()
                 .monospacedDigit()
             zoomButton(systemImage: "chevron.down") { stepZoom(up: false) }
         }
@@ -519,11 +528,8 @@ struct ContentView: View {
             Image(systemName: systemImage)
                 .font(.caption)
                 .frame(width: 24, height: 20)
-                .background(Color.gray.opacity(0.2))
-                .foregroundStyle(Color.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ThemedTileButtonStyle())
     }
 
     private func stepZoom(up: Bool) {

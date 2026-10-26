@@ -58,8 +58,8 @@ public struct IFNotchControl<Controller: RigController>: View {
         }
     }
 
-    /// Bordered when off, filled (prominent) when on — `buttonStyle` can't
-    /// be chosen conditionally on one `Button`, hence the two branches.
+    /// Bordered when off, filled (prominent, or the theme's on fill) when
+    /// on — `ThemedButtonStyle(isOn:)`.
     @ViewBuilder
     private func toggleButton(isOn: Bool) -> some View {
         let button = Button("Notch") {
@@ -67,11 +67,10 @@ public struct IFNotchControl<Controller: RigController>: View {
         }
         .disabled(hub.rigState.notchEnabled == nil)
         .help("Manual notch on/off")
-        if isOn {
-            button.buttonStyle(.borderedProminent)
-        } else {
-            button.buttonStyle(.bordered)
-        }
+        // Fixed: a theme's face, unlike the system's bordered button,
+        // would otherwise give up width to the slider beside it.
+        button.buttonStyle(ThemedButtonStyle(isOn: isOn))
+            .fixedSize()
     }
 
     /// Mid-drag the local value wins; otherwise the rig's last-known one

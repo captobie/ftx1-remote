@@ -5,14 +5,13 @@ import SwiftUI
 @main
 struct FTX1RemoteMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @AppStorage(AppearanceSettings.themeKey) private var themeRawValue = AppTheme.system.rawValue
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(appDelegate.hub)
-                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+                .appTheme()
         }
         .commands {
             CommandGroup(after: .appInfo) {
@@ -56,12 +55,12 @@ struct FTX1RemoteMacApp: App {
         Window("APRS Stations", id: "aprs-stations") {
             APRSStationListView()
                 .environmentObject(appDelegate.hub.aprsStore)
-                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+                .appTheme()
         }
         Window("APRS Messages", id: "aprs-messages") {
             APRSMessageListView()
                 .environmentObject(appDelegate.hub.aprsStore)
-                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+                .appTheme()
         }
         // Opened via Tools → APRS → Map above, not from
         // MenuPageView — unlike S.LIST/M.LIST, a map isn't currently one
@@ -69,7 +68,7 @@ struct FTX1RemoteMacApp: App {
         Window("APRS Map", id: "aprs-map") {
             APRSMapView()
                 .environmentObject(appDelegate.hub.aprsStore)
-                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+                .appTheme()
         }
 
         // Tools → FT8 (Tools menu above). Injects `hub` itself, not just
@@ -81,7 +80,7 @@ struct FTX1RemoteMacApp: App {
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.ft8Store)
                 .environmentObject(appDelegate.hub.pskReporter)
-                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+                .appTheme()
         }
 
         // Tools → CW. `hub` for the MAIN/SUB picker's single-receive
@@ -97,7 +96,7 @@ struct FTX1RemoteMacApp: App {
                 .environmentObject(appDelegate.hub.cwSender)
                 .environmentObject(appDelegate.hub.cwMonitor)
                 .environmentObject(appDelegate.hub.workedStations)
-                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+                .appTheme()
         }
 
         // Tools → CW Key (straight key and paddle; the id dates from before
@@ -106,7 +105,7 @@ struct FTX1RemoteMacApp: App {
         Window("CW Key", id: "straight-key") {
             StraightKeyView()
                 .environmentObject(appDelegate.hub.straightKey)
-                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+                .appTheme()
         }
         .windowResizability(.contentSize)
 
@@ -115,7 +114,7 @@ struct FTX1RemoteMacApp: App {
         // `@StateObject` model, which subscribes to `hub.$rigState`.
         Window("WebSDR", id: "websdr-follow") {
             WebSDRFollowView(hub: appDelegate.hub)
-                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+                .appTheme()
         }
 
         // The Mem List button under Waterfall (ContentView). `hub` to send
@@ -124,7 +123,7 @@ struct FTX1RemoteMacApp: App {
             MemoryListView()
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.memoryList)
-                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+                .appTheme()
         }
 
         // CW page's PLAY button (`MenuPageView.playRecordingsButton`) opens
@@ -132,7 +131,7 @@ struct FTX1RemoteMacApp: App {
         // windows — a plain file browser, unrelated to `hub`/`RigController`.
         Window("Recordings", id: "recordings") {
             RecordingsListView()
-                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+                .appTheme()
         }
 
         // Replaces the old "Settings…" button in ContentView's toolbar row —
@@ -143,7 +142,7 @@ struct FTX1RemoteMacApp: App {
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.wavelogRadio)
                 .environmentObject(appDelegate.hub.wavelogTuner)
-                .preferredColorScheme((AppTheme(rawValue: themeRawValue) ?? .system).colorScheme)
+                .appTheme()
         }
         .windowResizability(.contentMinSize)
     }

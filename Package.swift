@@ -39,7 +39,10 @@ let package = Package(
     targets: [
         .target(
             name: "FTX1Core",
-            dependencies: []
+            dependencies: [],
+            // DSEG7 Classic (SIL OFL, DSEG-LICENSE.txt) for the VFO boxes'
+            // 7-segment digits — see `VFODigitFonts`.
+            resources: [.copy("Resources/Fonts")]
         ),
         .target(
             name: "FTX1CW",

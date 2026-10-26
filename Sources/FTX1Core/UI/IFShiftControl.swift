@@ -51,7 +51,7 @@ public struct IFShiftControl<Controller: RigController>: View {
                 } label: {
                     Image(systemName: "arrow.down.to.line")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(ThemedButtonStyle())
                 .disabled(hub.rigState.ifShiftHz == nil || hub.rigState.ifShiftHz == 0)
                 .help("Center")
             }

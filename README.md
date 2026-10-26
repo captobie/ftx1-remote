@@ -439,7 +439,9 @@ tiles from [OpenStreetMap](https://www.openstreetmap.org/copyright)
 Its 7-segment VFO digits use [DSEG](https://github.com/keshikan/DSEG) 0.46
 (DSEG7 Classic Regular/Bold, SIL Open Font License 1.1, keshikan), vendored
 unmodified in `Apps/Windows/FTX1RemoteWindows/Assets/Fonts/` with its
-licence (`DSEG-LICENSE.txt`).
+licence (`DSEG-LICENSE.txt`). The Mac app uses the same two files from
+`Sources/FTX1Core/Resources/Fonts/` (with the same licence), so they also
+ship inside the iPad/iPhone apps' FTX1Core resource bundle.
 It ships `rigctld.exe` from [Hamlib](https://github.com/Hamlib/Hamlib)
 4.7.2 — Hamlib's own official Windows build (`hamlib-w64-4.7.2.zip`),
 vendored unmodified by `Apps/Windows/Tools/fetch-rigctld.ps1` into
