@@ -53,9 +53,11 @@ public sealed partial class SettingsDialog : Window
     /// `wavelogReporter`/`wavelogTuner`: the running Wavelog CAT pieces,
     /// for the Logbook tab's live status lines.
     public SettingsDialog(Window owner, bool connected, RigctldBinary.Resolution? inUse = null, HubServer? hub = null,
-        bool hubAudioRunning = true, WavelogRadioReporter? wavelogReporter = null, WavelogTuneListener? wavelogTuner = null)
+        bool hubAudioRunning = true, WavelogRadioReporter? wavelogReporter = null, WavelogTuneListener? wavelogTuner = null,
+        long transmitterHz = 0)
     {
         _owner = owner;
+        _transmitterHz = transmitterHz;
         _inUse = inUse;
         _hub = hub;
         _hubAudioRunning = hubAudioRunning;
@@ -167,6 +169,9 @@ public sealed partial class SettingsDialog : Window
         Log4OmHostBox.Text = AppSettings.Log4OmUdpHost;
         Log4OmPortBox.Value = AppSettings.Log4OmUdpPort > 0 ? AppSettings.Log4OmUdpPort : double.NaN;
         UpdateLogbookPanel();
+
+        // License
+        InitLicense();
 
         // Home Freq
         foreach (var band in HomeBand.All)
@@ -285,7 +290,7 @@ public sealed partial class SettingsDialog : Window
         var tabs = new (string Tag, UIElement Panel)[]
         {
             ("Rigctld", RigctldTab), ("Audio", AudioTab), ("C4fm", C4fmTab), ("Aprs", AprsTab),
-            ("Station", StationTab), ("Logbook", LogbookTab), ("Home", HomeTab), ("Polling", PollingTab), ("Appearance", AppearanceTab),
+            ("Station", StationTab), ("Logbook", LogbookTab), ("License", LicenseTab), ("Home", HomeTab), ("Polling", PollingTab), ("Appearance", AppearanceTab),
             ("Hub", HubTab), ("About", AboutTab),
         };
         foreach (var (t, panel) in tabs)
@@ -357,6 +362,12 @@ public sealed partial class SettingsDialog : Window
                 Fail("Aprs", "The APRS frequency has to be above 0 MHz.");
                 return false;
             }
+        }
+
+        if (LicenseProblem() is { } licenseProblem)
+        {
+            Fail("License", licenseProblem);
+            return false;
         }
 
         var gridSquare = GridSquareBox.Text.Trim();
@@ -440,6 +451,8 @@ public sealed partial class SettingsDialog : Window
         AppSettings.Log4OmUdpHost = log4OmHost;
         AppSettings.Log4OmUdpPort = double.IsNaN(Log4OmPortBox.Value) ? 0 : (int)Math.Round(Log4OmPortBox.Value);
         SaveWavelog(wavelogUrl);
+
+        SaveLicense();
 
         AppSettings.AprsEnabled = AprsEnabledCheckBox.IsChecked == true;
         AppSettings.AprsFrequencyHz = aprsFrequencyHz;

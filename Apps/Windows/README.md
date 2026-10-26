@@ -371,9 +371,10 @@ one check every transmit-capable action must pass: PTT on, MOX on, CW
 MESSAGE play, ANT TUNE start (same set as the Mac's `isTransmitCapable`;
 PTT and the MENU grid's MOX and ANT TUNE use it so far — CW MESSAGE play
 must call `TransmitGate.BlockReason` too if it's ever enabled). Blocked while Enable
-Transmit is off, or while the Main VFO is outside a `BandPlan` band
-(including before the first frequency read). The off direction is never
-gated.
+Transmit is off, or while the transmitting side (SUB with TX:SUB or split
+— MAIN only until 2026-10-25, as on the Mac) is outside a `BandPlan` band
+(including before the first frequency read), or outside Settings →
+License's privileges (below). The off direction is never gated.
 
 - The "Enable Transmit" switch sits next to PTT, applies at once, and is
   persisted in `settings.json` (`TransmitEnabled`, default on so older
@@ -403,6 +404,46 @@ Hardware checklist (not yet run):
 - [ ] Setting survives an app restart.
 - [ ] Hold PTT → keys, button red "TRANSMITTING"; release → unkeys. Also
       release outside the button/window, and a quick tap.
+
+## License-class guardrail (Settings → License, 2026-10-25; unit-tested, then tested live by the user the same day)
+
+Port of the Mac's (CLAUDE.md, "License-class guardrail"): Off (default —
+the bands only, as before), a US class (Extra, Advanced, General,
+Technician, Novice), an ITU Region 1/2/3 allocation, or Custom. A
+transmission passes only if the transmitting side's *occupied spectrum*
+(SSB/DATA-U 100–2900 Hz, CW ±100 Hz, RTTY ±300, AM ±3 kHz, FM/DATA-FM
+±8 kHz, C4FM ±6.25 kHz) fits inside segments allowing its mode (CW/phone/
+data; C4FM is phone); the amateur-band check stays the outer limit.
+
+- `Models/TransmitPrivileges.cs` and `Models/PrivilegePresets.cs` port
+  `Sources/FTX1Core/Licensing/` — the Swift files stay the source of
+  truth; copy any table correction made there. This app's `RigMode` has
+  no C4FM, so the gate's input is a `TransmitSignal` (frequency, mode,
+  `IsC4fm`), and `onlyModes` holds Swift's raw mode names ("USB",
+  "PKTUSB", "C4FM"). The JSON is the Mac's Codable form, so Export/Import
+  files move between the two apps (`TransmitPrivilegesTests` reads a
+  Mac-shaped export).
+- `TransmitGate.BlockReason(action, transmitEnabled, transmitter,
+  privileges)`; `MainWindow.TransmitBlockReason` is the one gate for PTT,
+  the MENU grid's MOX/ANT TUNE (`MenuGrid.GateReason`), the CW send pane
+  and, through `IHubRigHost.Transmitter`/`Privileges`, every hub command.
+- **Mid-transmission**: with privileges on, after every poll (and every
+  local keying change) while PTT/MOX is on, leaving them unkeys once (CW
+  sender stop, "KY00", PTT and MOX off, the hub's keyer stop) —
+  `EnforcePrivilegesWhileKeyed`. Off = no such check. Only as fast as the
+  poll sees a front-panel tune.
+- Unlike the Mac, it **applies on Save** like every other tab here (the
+  Mac's applies at once). The Custom table is a draft until then; Save
+  refuses a frequency that doesn't parse. Copy to Custom / Start From
+  confirm before replacing a non-empty table. Stored in `settings.json` as
+  `LicensePrivileges` (the Mac's choice raw values) and
+  `LicenseCustomProfile`.
+- No CW key window on Windows, so nothing to wire there.
+
+Checklist (tested live by the user, 2026-10-25): US General, 14.200 USB → PTT dimmed
+with the reason; 14.250 → works; TX:SUB on a CW frequency with MAIN in
+USB → the SUB side decides; key, then tune out of the privileges → unkeys;
+the iPad's PTT refused with the same reason.
 
 ## MENU grid (2026-09-28, all three pages)
 

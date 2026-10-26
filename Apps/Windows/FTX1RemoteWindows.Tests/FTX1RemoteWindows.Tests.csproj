@@ -31,6 +31,9 @@
     <Compile Include="..\FTX1RemoteWindows\Models\MemoryChannelEntry.cs" Link="Linked\MemoryChannelEntry.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\AprsModels.cs" Link="Linked\AprsModels.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\TransmitGate.cs" Link="Linked\TransmitGate.cs" />
+    <!-- Settings → License: the privilege model and presets behind the gate. -->
+    <Compile Include="..\FTX1RemoteWindows\Models\TransmitPrivileges.cs" Link="Linked\TransmitPrivileges.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\PrivilegePresets.cs" Link="Linked\PrivilegePresets.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigDelayCode.cs" Link="Linked\RigDelayCode.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigState.cs" Link="Linked\RigState.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigMode.cs" Link="Linked\RigMode.cs" />

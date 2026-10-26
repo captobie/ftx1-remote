@@ -1478,6 +1478,13 @@ Applies at once, like Enable Transmit.
   Return/blur, CW/Phone/Data boxes), Copy to Custom / Start From a preset,
   JSON import/export; stored in `license.customProfile`, choice in
   `license.privileges`. Empty Custom blocks every transmission.
+- **Windows port (2026-10-25; unit-tested, Settings → License checked
+  through UI Automation, then tested live by the user the same day)**: `Models/
+  TransmitPrivileges.cs`/`PrivilegePresets.cs` (Swift stays the source of
+  truth), the gate now on the transmitting side there too, the hub's
+  commands included, and the same mid-transmission unkey after each poll.
+  Applies on Save (that dialog's rule), and exports/imports the Mac's
+  JSON. See `Apps/Windows/README.md`'s "License-class guardrail".
 
 ## Windows app (v1 skeleton scaffolded, 2026-09-07)
 

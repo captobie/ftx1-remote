@@ -33,12 +33,14 @@ public static class HubCommandPolicy
     };
 
     /// Why a command is refused before it reaches the rig, or null.
-    /// <paramref name="mainFrequencyHz"/> is MAIN's, as for every gate here
-    /// and on the Mac.
-    public static string? RefusalReason(RigCommand command, bool transmitEnabled, long mainFrequencyHz)
+    /// <paramref name="transmitter"/> is the transmitting side's signal
+    /// (SUB's with TX:SUB or split), as for every gate here and on the Mac;
+    /// <paramref name="privileges"/> Settings → License's, null when off.
+    public static string? RefusalReason(RigCommand command, bool transmitEnabled, TransmitSignal transmitter,
+        PrivilegeProfile? privileges = null)
     {
         if (TransmitActionFor(command) is { } action
-            && TransmitGate.BlockReason(action, transmitEnabled, mainFrequencyHz) is { } reason)
+            && TransmitGate.BlockReason(action, transmitEnabled, transmitter, privileges) is { } reason)
         {
             return reason;
         }

@@ -226,13 +226,15 @@ public class HubCommandTests
     private const long InBand = 14_074_000;
     private const long OutOfBand = 15_000_000;
 
+    private static TransmitSignal Tx(long hz) => new(hz, RigMode.Usb);
+
     // Phase 5: PTT on goes through the transmit gate like MOX.
     [Fact]
     public void PttOnIsGatedByEnableTransmitAndBand()
     {
-        Assert.Null(HubCommandPolicy.RefusalReason(new SetPtt(true), true, InBand));
-        Assert.Equal("Transmit disabled", HubCommandPolicy.RefusalReason(new SetPtt(true), false, InBand));
-        Assert.Equal("Transmit disabled: outside an amateur band", HubCommandPolicy.RefusalReason(new SetPtt(true), true, OutOfBand));
+        Assert.Null(HubCommandPolicy.RefusalReason(new SetPtt(true), true, Tx(InBand)));
+        Assert.Equal("Transmit disabled", HubCommandPolicy.RefusalReason(new SetPtt(true), false, Tx(InBand)));
+        Assert.Equal("Transmit disabled: outside an amateur band", HubCommandPolicy.RefusalReason(new SetPtt(true), true, Tx(OutOfBand)));
         Assert.Equal(TransmitAction.PttOn, HubCommandPolicy.TransmitActionFor(new SetPtt(true)));
         Assert.Equal(HubScanStop.Keep, HubCommandPolicy.MemoryScanStop(new SetPtt(true), scanSub: true));
     }
@@ -241,7 +243,7 @@ public class HubCommandTests
     [MemberData(nameof(UnkeyCommands))]
     public void UnkeyingIsNeverGated(RigCommand command)
     {
-        Assert.Null(HubCommandPolicy.RefusalReason(command, transmitEnabled: false, OutOfBand));
+        Assert.Null(HubCommandPolicy.RefusalReason(command, transmitEnabled: false, Tx(OutOfBand)));
         Assert.Null(HubCommandPolicy.TransmitActionFor(command));
     }
 
@@ -258,12 +260,12 @@ public class HubCommandTests
     public void KeyingCommandsFollowTheTransmitGate(RigCommand command)
     {
         Assert.NotNull(HubCommandPolicy.TransmitActionFor(command));
-        Assert.Equal("Transmit disabled", HubCommandPolicy.RefusalReason(command, transmitEnabled: false, InBand));
+        Assert.Equal("Transmit disabled", HubCommandPolicy.RefusalReason(command, transmitEnabled: false, Tx(InBand)));
         Assert.Equal("Transmit disabled: outside an amateur band",
-            HubCommandPolicy.RefusalReason(command, transmitEnabled: true, OutOfBand));
+            HubCommandPolicy.RefusalReason(command, transmitEnabled: true, Tx(OutOfBand)));
         // Before the first poll MAIN reads 0, outside every band.
-        Assert.NotNull(HubCommandPolicy.RefusalReason(command, transmitEnabled: true, 0));
-        Assert.Null(HubCommandPolicy.RefusalReason(command, transmitEnabled: true, InBand));
+        Assert.NotNull(HubCommandPolicy.RefusalReason(command, transmitEnabled: true, Tx(0)));
+        Assert.Null(HubCommandPolicy.RefusalReason(command, transmitEnabled: true, Tx(InBand)));
     }
 
     public static IEnumerable<object[]> KeyingCommands() =>
@@ -277,7 +279,7 @@ public class HubCommandTests
     [Theory]
     [MemberData(nameof(SettingsCommands))]
     public void SettingsAreNotGatedByTransmit(RigCommand command) =>
-        Assert.Null(HubCommandPolicy.RefusalReason(command, transmitEnabled: false, OutOfBand));
+        Assert.Null(HubCommandPolicy.RefusalReason(command, transmitEnabled: false, Tx(OutOfBand)));
 
     public static IEnumerable<object[]> SettingsCommands() =>
     [
@@ -297,7 +299,7 @@ public class HubCommandTests
     [Theory]
     [MemberData(nameof(BadValues))]
     public void ValuesTheRigShouldNotGetAreRefused(RigCommand command) =>
-        Assert.NotNull(HubCommandPolicy.RefusalReason(command, transmitEnabled: true, InBand));
+        Assert.NotNull(HubCommandPolicy.RefusalReason(command, transmitEnabled: true, Tx(InBand)));
 
     public static IEnumerable<object[]> BadValues() =>
     [

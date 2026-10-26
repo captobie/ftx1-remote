@@ -466,7 +466,8 @@ public sealed partial class MainWindow : IHubRigHost
 
     RigctldClient? IHubRigHost.Client => _client;
     bool IHubRigHost.TransmitEnabled => AppSettings.TransmitEnabled;
-    long IHubRigHost.MainFrequencyHz => _lastState.FrequencyHz;
+    TransmitSignal IHubRigHost.Transmitter => TransmitterNow();
+    PrivilegeProfile? IHubRigHost.Privileges => _activePrivileges;
     bool IHubRigHost.MemoryScanActive => _lastState.MemoryScanActive;
     bool IHubRigHost.MemoryScanSub => _lastState.MemoryScanSub;
     MenuGrid IHubRigHost.Menu => _menuGrid;

@@ -60,6 +60,9 @@ public static class AppSettings
         public bool AudioEnabled { get; set; } = true;
         public int FrequencyStepHz { get; set; } = 1_000;
         public bool TransmitEnabled { get; set; } = true;
+        /// PrivilegeChoice's stored form; off unless chosen.
+        public string LicensePrivileges { get; set; } = PrivilegeChoice.Off;
+        public PrivilegeProfile? LicenseCustomProfile { get; set; }
         public string LocalAudioDeviceId { get; set; } = "";
         public string LocalAudioDeviceName { get; set; } = "";
         public string AudioOutputDeviceId { get; set; } = "";
@@ -255,6 +258,36 @@ public static class AppSettings
             Save();
         }
     }
+
+    /// Settings → License (the Mac's LicensePrivilegeSettings): which
+    /// privileges the transmit gate applies on top of the amateur bands —
+    /// PrivilegeChoice's stored form ("off", a preset's raw value, or
+    /// "custom"). Off by default, so the gate checks the bands only, as
+    /// before.
+    public static string LicensePrivileges
+    {
+        get => PrivilegeChoice.Normalize(_cache.LicensePrivileges);
+        set
+        {
+            _cache.LicensePrivileges = PrivilegeChoice.Normalize(value);
+            Save();
+        }
+    }
+
+    /// The operator's own table. Starts empty, which blocks every
+    /// transmission while Custom is chosen.
+    public static PrivilegeProfile LicenseCustomProfile
+    {
+        get => _cache.LicenseCustomProfile ?? new PrivilegeProfile("Custom", []);
+        set
+        {
+            _cache.LicenseCustomProfile = value;
+            Save();
+        }
+    }
+
+    /// What the gate applies now: null = off.
+    public static PrivilegeProfile? ActivePrivileges => PrivilegeChoice.Profile(LicensePrivileges, LicenseCustomProfile);
 
     /// hamlib rig model number — 1051 is the FTX-1, same default as the
     /// Mac's RigctldSettings.modelNumber. Not exposed in the UI (this app

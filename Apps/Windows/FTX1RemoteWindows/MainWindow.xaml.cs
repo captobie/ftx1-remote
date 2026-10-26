@@ -197,6 +197,13 @@ public sealed partial class MainWindow : Window
     /// caption (RigState.mainTxRxLabel/subTxRxLabel on the Mac).
     private bool? _splitOn;
     private bool? _txSideSub;
+    /// Settings → License's privileges (null = off: the gate checks the
+    /// amateur bands only) — the Mac's HubService.activePrivileges.
+    private PrivilegeProfile? _activePrivileges = AppSettings.ActivePrivileges;
+    /// Set once a transmission has been cut off for leaving the
+    /// privileges, so the next polls don't send the unkey again; cleared
+    /// when the rig is back on receive.
+    private bool _privilegeUnkeySent;
     private int _pollCount;
     /// C4FM caller/reflector lookup, started and stopped by
     /// UpdateWpsdMonitorState as settings and the rig's modes change.
@@ -252,7 +259,7 @@ public sealed partial class MainWindow : Window
             root.Loaded += OnLoaded;
         }
 
-        _menuGrid = new MenuGrid(_lastState) { Client = null };
+        _menuGrid = new MenuGrid(_lastState) { Client = null, GateReason = TransmitBlockReason };
         _menuGrid.StatusMessage += message => StatusText.Text = message;
         _menuGrid.BeforeTransmitAsync = StopMemoryScanBeforeTransmitAsync;
         _menuGrid.PowerLevelSent += level =>
@@ -517,7 +524,7 @@ public sealed partial class MainWindow : Window
     private async void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new SettingsDialog(this, IsConnected, _rigctldProcess.LastResolution, _hub, HubAudioRunning,
-            _wavelogReporter, _wavelogTuner);
+            _wavelogReporter, _wavelogTuner, TransmitterNow().FrequencyHz);
         SettingsButton.IsEnabled = false;
         try
         {
@@ -546,6 +553,7 @@ public sealed partial class MainWindow : Window
         ApplyAppearance();
         await ApplyHubSettingAsync();
         ApplyWavelogSettings();
+        ApplyLicenseSettings();
         _pollTimer.Interval = TimeSpan.FromMilliseconds(AppSettings.PollIntervalMs);
         // A running memory scan keeps its short tick.
         UpdateScanDisplay();
@@ -1373,6 +1381,8 @@ public sealed partial class MainWindow : Window
             await _client.SetRawIntAsync("FT", toSub ? 1 : 0, 1);
             _txSideSub = toSub;
             UpdateTxRxIndicators();
+            // The gate checks the transmitting side.
+            UpdateTransmitControls();
             AppLog.Write($"tx side: FT{(toSub ? 1 : 0)} sent");
         }
         catch (Exception ex)
@@ -1843,9 +1853,9 @@ public sealed partial class MainWindow : Window
         e.Handled = true;
         // Checked here as well as by dimming the button, same as the Mac,
         // where HubService.send re-checks what the PTT button already shows.
-        if (TransmitGate.BlockReason(TransmitAction.PttOn, AppSettings.TransmitEnabled, _lastState.FrequencyHz) is { } reason)
+        if (TransmitBlockReason(TransmitAction.PttOn) is { } reason)
         {
-            AppLog.Write($"transmit-gate: blocked PTT on ({reason}) at {_lastState.FrequencyHz} Hz");
+            AppLog.Write($"transmit-gate: blocked PTT on ({reason}) at {TransmitterNow().FrequencyHz} Hz");
             StatusText.Text = reason;
             return;
         }
@@ -1956,7 +1966,7 @@ public sealed partial class MainWindow : Window
             // unkey).
             _cwSender.Stop();
             EndHubTransmit("lock: Enable Transmit turned off");
-            await ForceUnkeyAsync();
+            await ForceUnkeyAsync("transmit disabled");
             await StopHubKeyerIfPlayedAsync("lock: Enable Transmit turned off");
         }
     }
@@ -1965,13 +1975,13 @@ public sealed partial class MainWindow : Window
     /// last poll saw them on (the Mac checks rigState first): the poll is up
     /// to a second stale, and unkeying an idle rig is a no-op. rigctld
     /// serializes commands, so this lands after any key-up already in flight.
-    private async Task ForceUnkeyAsync()
+    private async Task ForceUnkeyAsync(string reason)
     {
         if (_client is not { } client)
         {
             return;
         }
-        AppLog.Write("transmit-gate: transmit disabled — forcing PTT and MOX off");
+        AppLog.Write($"transmit-gate: {reason} — forcing PTT and MOX off");
         try
         {
             await client.SetPttAsync(false);
@@ -2007,7 +2017,7 @@ public sealed partial class MainWindow : Window
         _cwSender.OnPtt(_lastState.Ptt);
         _hubKeyer.OnPtt(_lastState.Ptt, Environment.TickCount64);
         var keyed = _pttHeld || _lastState.Ptt;
-        var reason = TransmitGate.BlockReason(TransmitAction.PttOn, AppSettings.TransmitEnabled, _lastState.FrequencyHz);
+        var reason = TransmitBlockReason(TransmitAction.PttOn);
         PttButton.Opacity = reason is null || keyed ? 1 : 0.4;
         PttButton.Background = keyed ? new SolidColorBrush(Colors.Red) : _pttIdleBackground;
         PttText.Text = keyed ? "TRANSMITTING" : "PTT";
@@ -2021,6 +2031,77 @@ public sealed partial class MainWindow : Window
         }
         ToolTipService.SetToolTip(PttButton, reason ?? "Hold to transmit");
         _menuGrid.RefreshLabels();
+        EnforcePrivilegesWhileKeyed();
+    }
+
+    /// The transmitting side's frequency and mode — SUB's with TX:SUB or
+    /// split, the TXRX tags' rule (the Mac's TransmitGate.
+    /// transmitFrequencyHz/transmitMode).
+    private TransmitSignal TransmitterNow() => _splitOn == true || _txSideSub == true
+        ? new TransmitSignal(_lastState.SecondaryFrequencyHz ?? 0, _lastState.SubMode, _lastState.SubIsC4fm == true)
+        : new TransmitSignal(_lastState.FrequencyHz, _lastState.Mode, _lastState.MainIsC4fm == true);
+
+    /// Why a transmit action would be refused right now (null: it goes
+    /// through) — Enable Transmit, the amateur bands and, when chosen, the
+    /// license privileges, all on the transmitting side. The Mac's
+    /// HubService.transmitBlockReason.
+    private string? TransmitBlockReason(TransmitAction action) =>
+        TransmitGate.BlockReason(action, AppSettings.TransmitEnabled, TransmitterNow(), _activePrivileges);
+
+    /// Settings → License saved: the new privileges apply at once.
+    private void ApplyLicenseSettings()
+    {
+        var profile = AppSettings.ActivePrivileges;
+        AppLog.Write($"transmit-gate: license privileges {profile?.Name ?? "off"}");
+        _activePrivileges = profile;
+        UpdateTransmitControls();
+    }
+
+    /// With license privileges on, the gate is checked again after every
+    /// poll (and every local keying change) while the rig transmits, so
+    /// tuning or switching mode out of them mid-transmission — on the rig,
+    /// in this window or from the iPad — unkeys at once, like Enable
+    /// Transmit going off. Only the license guardrail does this; with it
+    /// off, nothing changes from before. The Mac's
+    /// HubService.enforcePrivilegesWhileKeyed.
+    private void EnforcePrivilegesWhileKeyed()
+    {
+        var keyed = _pttHeld || _lastState.Ptt || _lastState.MoxEnabled == true;
+        if (!keyed)
+        {
+            _privilegeUnkeySent = false;
+            return;
+        }
+        if (_activePrivileges is null || _privilegeUnkeySent
+            || TransmitGate.BlockReason(TransmitAction.PttOn, true, TransmitterNow(), _activePrivileges) is not { } reason)
+        {
+            return;
+        }
+        _privilegeUnkeySent = true;
+        AppLog.Write($"transmit-gate: unkeying — {reason}");
+        StatusText.Text = reason;
+        _ = UnkeyOutsidePrivilegesAsync(reason);
+    }
+
+    private async Task UnkeyOutsidePrivilegesAsync(string reason)
+    {
+        _cwSender.Stop();
+        EndHubTransmit("left the license privileges");
+        if (_client is { } client)
+        {
+            // The rig's keyer finishes a memory on its own otherwise. Never
+            // gated, like every stop.
+            try
+            {
+                await client.SetRawIntAsync("KY0", 0, 1);
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write($"transmit-gate: KY00 failed: {ex.Message}");
+            }
+        }
+        await ForceUnkeyAsync(reason);
+        await StopHubKeyerIfPlayedAsync("left the license privileges");
     }
 
     /// Keyboard changes (arrow keys, Home/End) send at once; pointer drags
@@ -2401,7 +2482,7 @@ public sealed partial class MainWindow : Window
         {
             return CwSendBlock.NotConnected;
         }
-        if (TransmitGate.BlockReason(TransmitAction.PlayCwTextMemory, AppSettings.TransmitEnabled, _lastState.FrequencyHz) is { } reason)
+        if (TransmitBlockReason(TransmitAction.PlayCwTextMemory) is { } reason)
         {
             return CwSendBlock.TransmitBlocked(reason);
         }

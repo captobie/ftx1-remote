@@ -654,9 +654,9 @@ public sealed class MenuGrid : UserControl
     /// shown) when it's refused.
     public async Task<string?> SetMoxAsync(bool on)
     {
-        if (on && GateReason(TransmitAction.MoxOn) is { } reason)
+        if (on && GateReasonFor(TransmitAction.MoxOn) is { } reason)
         {
-            AppLog.Write($"transmit-gate: blocked MOX on ({reason}) at {_state.FrequencyHz} Hz");
+            AppLog.Write($"transmit-gate: blocked MOX on ({reason})");
             StatusMessage?.Invoke(reason);
             return reason;
         }
@@ -675,9 +675,9 @@ public sealed class MenuGrid : UserControl
     /// tune, hence the gate; the reason is returned when it's refused.
     public async Task<string?> TriggerAntennaTuneAsync()
     {
-        if (GateReason(TransmitAction.TriggerAntennaTune) is { } reason)
+        if (GateReasonFor(TransmitAction.TriggerAntennaTune) is { } reason)
         {
-            AppLog.Write($"transmit-gate: blocked ANT TUNE ({reason}) at {_state.FrequencyHz} Hz");
+            AppLog.Write($"transmit-gate: blocked ANT TUNE ({reason})");
             StatusMessage?.Invoke(reason);
             return reason;
         }
@@ -959,7 +959,7 @@ public sealed class MenuGrid : UserControl
         button.Click += (_, _) => _ = SetMoxAsync(!(_state.MoxEnabled ?? false));
         _refreshers.Add(() =>
         {
-            var reason = _state.MoxEnabled == true ? null : GateReason(TransmitAction.MoxOn);
+            var reason = _state.MoxEnabled == true ? null : GateReasonFor(TransmitAction.MoxOn);
             button.IsEnabled = reason is null;
             ToolTipService.SetToolTip(button, reason);
         });
@@ -972,14 +972,18 @@ public sealed class MenuGrid : UserControl
         button.Click += (_, _) => _ = TriggerAntennaTuneAsync();
         _refreshers.Add(() =>
         {
-            var reason = GateReason(TransmitAction.TriggerAntennaTune);
+            var reason = GateReasonFor(TransmitAction.TriggerAntennaTune);
             button.IsEnabled = reason is null;
             ToolTipService.SetToolTip(button, reason);
         });
     }
 
-    private string? GateReason(TransmitAction action) =>
-        TransmitGate.BlockReason(action, AppSettings.TransmitEnabled, _state.FrequencyHz);
+    /// MainWindow's transmit gate (Enable Transmit, the transmitting side's
+    /// band and license privileges) — it knows the TX side, which RigState
+    /// doesn't carry. Until set, everything is blocked.
+    public Func<TransmitAction, string?>? GateReason { get; set; }
+
+    private string? GateReasonFor(TransmitAction action) => GateReason is { } gate ? gate(action) : "Transmit disabled";
 
     /// 22: RF POWER (the "RFPOWER" level, 5-100%; the rig's floor is 5 W). A slider rather than a
     /// stepper, as on the Mac: sends once on release (or per key press),

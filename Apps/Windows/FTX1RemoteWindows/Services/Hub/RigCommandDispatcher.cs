@@ -11,8 +11,11 @@ public interface IHubRigHost
 {
     RigctldClient? Client { get; }
     bool TransmitEnabled { get; }
-    /// MAIN's frequency, which every transmit gate checks.
-    long MainFrequencyHz { get; }
+    /// The transmitting side's frequency and mode (SUB's with TX:SUB or
+    /// split), which every transmit gate checks.
+    TransmitSignal Transmitter { get; }
+    /// Settings → License's privileges, or null when off.
+    PrivilegeProfile? Privileges { get; }
     bool MemoryScanActive { get; }
     bool MemoryScanSub { get; }
     MenuGrid Menu { get; }
@@ -194,7 +197,7 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
                 return;
         }
 
-        if (HubCommandPolicy.RefusalReason(command, host.TransmitEnabled, host.MainFrequencyHz) is { } reason)
+        if (HubCommandPolicy.RefusalReason(command, host.TransmitEnabled, host.Transmitter, host.Privileges) is { } reason)
         {
             Log($"refused: {reason}");
             return;
