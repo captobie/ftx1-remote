@@ -2,7 +2,8 @@
     x:Class="FTX1RemoteWindows.SettingsDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Settings">
+    xmlns:l="using:FTX1RemoteWindows.Localization"
+    Title="{l:Str Key=settings.settings}">
 
     <!-- The Mac's Settings tabs (SettingsView.swift), with its Updates tab
          folded into About (notify-only, no Sparkle on Windows); Station has the callsign (CW macros) and
@@ -19,17 +20,17 @@
 
         <SelectorBar x:Name="TabBar" SelectionChanged="TabBar_SelectionChanged">
             <SelectorBarItem Text="rigctld" Tag="Rigctld" IsSelected="True" />
-            <SelectorBarItem Text="Audio" Tag="Audio" />
+            <SelectorBarItem Text="{l:Str Key=settings.audio}" Tag="Audio" />
             <SelectorBarItem Text="C4FM" Tag="C4fm" />
             <SelectorBarItem Text="APRS" Tag="Aprs" />
-            <SelectorBarItem Text="Station" Tag="Station" />
-            <SelectorBarItem Text="Logbook" Tag="Logbook" />
-            <SelectorBarItem Text="License" Tag="License" />
-            <SelectorBarItem Text="Home Freq" Tag="Home" />
-            <SelectorBarItem Text="Polling" Tag="Polling" />
-            <SelectorBarItem Text="Appearance" Tag="Appearance" />
+            <SelectorBarItem Text="{l:Str Key=settings.station}" Tag="Station" />
+            <SelectorBarItem Text="{l:Str Key=settings.logbook}" Tag="Logbook" />
+            <SelectorBarItem Text="{l:Str Key=settings.license}" Tag="License" />
+            <SelectorBarItem Text="{l:Str Key=settings.homeFreq}" Tag="Home" />
+            <SelectorBarItem Text="{l:Str Key=settings.polling}" Tag="Polling" />
+            <SelectorBarItem Text="{l:Str Key=settings.appearance}" Tag="Appearance" />
             <SelectorBarItem Text="Hub" Tag="Hub" />
-            <SelectorBarItem Text="About" Tag="About" />
+            <SelectorBarItem Text="{l:Str Key=settings.about}" Tag="About" />
         </SelectorBar>
 
         <ScrollViewer Grid.Row="1" Padding="0,0,16,0">
@@ -37,40 +38,40 @@
                 <!-- rigctld -->
                 <StackPanel x:Name="RigctldTab" Spacing="12">
                     <TextBlock x:Name="ConnectedNote" Visibility="Collapsed" TextWrapping="Wrap" Foreground="DarkOrange"
-                               Text="Disconnect to change the connection settings." />
-                    <ComboBox x:Name="ConnectionModeComboBox" Header="Connection" Width="260" HorizontalAlignment="Left"
+                               Text="{l:Str Key=settings.disconnectToChangeThe}" />
+                    <ComboBox x:Name="ConnectionModeComboBox" Header="{l:Str Key=settings.connection}" Width="260" HorizontalAlignment="Left"
                               SelectionChanged="ConnectionModeComboBox_SelectionChanged">
-                        <ComboBoxItem Content="Remote (Pi over Tailscale)" Tag="Remote" />
-                        <ComboBoxItem Content="Local (USB on this PC)" Tag="Local" />
+                        <ComboBoxItem Content="{l:Str Key=settings.remotePiOverTailscale}" Tag="Remote" />
+                        <ComboBoxItem Content="{l:Str Key=settings.localUSBOnThis}" Tag="Local" />
                     </ComboBox>
 
                     <StackPanel x:Name="RemoteSettingsPanel" Spacing="12">
-                        <TextBox x:Name="PiHostBox" Header="Pi hostname" Width="320" HorizontalAlignment="Left"
-                                 PlaceholderText="e.g. ftx1-pi (Tailscale MagicDNS name)" />
-                        <TextBlock Text="rigctld on the Pi, port 4532." Foreground="Gray" FontSize="12" />
+                        <TextBox x:Name="PiHostBox" Header="{l:Str Key=settings.piHostname}" Width="320" HorizontalAlignment="Left"
+                                 PlaceholderText="{l:Str Key=settings.eGFtx1Pi}" />
+                        <TextBlock Text="{l:Str Key=settings.rigctldOnThePi}" Foreground="Gray" FontSize="12" />
                     </StackPanel>
 
                     <StackPanel x:Name="LocalSettingsPanel" Spacing="12" Visibility="Collapsed">
                         <!-- Filled in code: Automatic, Built-in, the installed copies found, Browse…. -->
                         <ComboBox x:Name="RigctldChoiceComboBox" Header="rigctld.exe" Width="560" HorizontalAlignment="Left"
                                   SelectionChanged="RigctldChoiceComboBox_SelectionChanged"
-                                  ToolTipService.ToolTip="Automatic uses an installed Hamlib 4.7 or later that knows the rig, else the copy built into the app." />
-                        <NumberBox x:Name="ModelNumberBox" Header="Model number" Width="160" HorizontalAlignment="Left"
+                                  ToolTipService.ToolTip="{l:Str Key=settings.automaticUsesAnInstalled}" />
+                        <NumberBox x:Name="ModelNumberBox" Header="{l:Str Key=settings.modelNumber}" Width="160" HorizontalAlignment="Left"
                                    Minimum="1" Maximum="99999" SmallChange="1" LargeChange="1"
-                                   ToolTipService.ToolTip="hamlib's rig model — 1051 is the FTX-1" />
+                                   ToolTipService.ToolTip="{l:Str Key=settings.hamlibsRigModel1051}" />
                         <StackPanel Orientation="Horizontal" Spacing="16">
-                            <ComboBox x:Name="ComPortComboBox" Header="COM port" Width="140" HorizontalAlignment="Left" IsEditable="True"
+                            <ComboBox x:Name="ComPortComboBox" Header="{l:Str Key=settings.cOMPort}" Width="140" HorizontalAlignment="Left" IsEditable="True"
                                       PlaceholderText="COM3" DropDownOpened="ComPortComboBox_DropDownOpened"
-                                      ToolTipService.ToolTip="The FTX-1's CAT port (the Enhanced COM port of its CP210x pair)" />
-                            <ComboBox x:Name="BaudRateComboBox" Header="Baud rate" Width="140" HorizontalAlignment="Left" />
+                                      ToolTipService.ToolTip="{l:Str Key=settings.theFTX1sCAT}" />
+                            <ComboBox x:Name="BaudRateComboBox" Header="{l:Str Key=settings.baudRate}" Width="140" HorizontalAlignment="Left" />
                         </StackPanel>
-                        <TextBlock Text="rigctld is started on 127.0.0.1:4532 (or an already-running one is used), so WSJT-X's &quot;Hamlib NET rigctl&quot; can share it."
+                        <TextBlock Text="{l:Str Key=settings.rigctldIsStartedOn}"
                                    Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                     </StackPanel>
 
                     <!-- The Mac's RigctldVersionBox: follows the fields above (unsaved). -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Version" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <TextBlock Text="{l:Str Key=settings.version}" Style="{StaticResource BodyStrongTextBlockStyle}" />
                         <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                 CornerRadius="4" Padding="12,8">
@@ -84,7 +85,7 @@
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <TextBlock x:Name="InstalledVersionLabel" Text="Uses" />
+                                <TextBlock x:Name="InstalledVersionLabel" Text="{l:Str Key=settings.uses}" />
                                 <StackPanel x:Name="InstalledVersionPanel" Grid.Column="1" Spacing="4">
                                     <TextBlock x:Name="InstalledVersionText" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
                                     <TextBlock x:Name="ResolutionSummaryText" IsTextSelectionEnabled="True" TextWrapping="Wrap"
@@ -92,13 +93,13 @@
                                     <TextBlock x:Name="ResolutionWarningText" IsTextSelectionEnabled="True" TextWrapping="Wrap"
                                                Foreground="DarkOrange" FontSize="12" Visibility="Collapsed" />
                                 </StackPanel>
-                                <TextBlock x:Name="RunningVersionLabel" Grid.Row="1" Text="Running" />
+                                <TextBlock x:Name="RunningVersionLabel" Grid.Row="1" Text="{l:Str Key=settings.running}" />
                                 <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
                                     <TextBlock x:Name="RunningVersionText" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
                                     <TextBlock x:Name="InUseText" IsTextSelectionEnabled="True" TextWrapping="Wrap"
                                                Foreground="Gray" FontSize="12" Visibility="Collapsed" />
                                 </StackPanel>
-                                <Button x:Name="RefreshVersionButton" Grid.RowSpan="2" Grid.Column="2" Content="Refresh"
+                                <Button x:Name="RefreshVersionButton" Grid.RowSpan="2" Grid.Column="2" Content="{l:Str Key=common.refresh}"
                                         VerticalAlignment="Bottom" Click="RefreshVersionButton_Click" />
                             </Grid>
                         </Border>
@@ -107,93 +108,93 @@
 
                 <!-- Audio -->
                 <StackPanel x:Name="AudioTab" Spacing="12" Visibility="Collapsed">
-                    <ComboBox x:Name="AudioInputComboBox" Header="Input device (Local mode)" Width="440" HorizontalAlignment="Left"
-                              PlaceholderText="The radio's USB audio input" DropDownOpened="AudioInputComboBox_DropDownOpened"
-                              ToolTipService.ToolTip="The FTX-1's USB audio as a Windows recording device (usually &quot;Microphone (USB Audio Device)&quot;)" />
-                    <TextBlock Text="In Remote mode the audio comes from the Pi's stream (port 8532) instead."
+                    <ComboBox x:Name="AudioInputComboBox" Header="{l:Str Key=settings.inputDeviceLocalMode}" Width="440" HorizontalAlignment="Left"
+                              PlaceholderText="{l:Str Key=settings.theRadiosUSBAudio}" DropDownOpened="AudioInputComboBox_DropDownOpened"
+                              ToolTipService.ToolTip="{l:Str Key=settings.theFTX1sUSB}" />
+                    <TextBlock Text="{l:Str Key=settings.inRemoteModeThe}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
-                    <ComboBox x:Name="AudioOutputComboBox" Header="Output device" Width="440" HorizontalAlignment="Left"
+                    <ComboBox x:Name="AudioOutputComboBox" Header="{l:Str Key=settings.outputDevice}" Width="440" HorizontalAlignment="Left"
                               DropDownOpened="AudioOutputComboBox_DropDownOpened"
-                              ToolTipService.ToolTip="Where the radio's audio plays. Picking your speakers here keeps it there even when Windows switches its default output (e.g. to the radio when it's plugged in)." />
-                    <TextBlock Text="A change applies on Save, also while connected."
+                              ToolTipService.ToolTip="{l:Str Key=settings.whereTheRadiosAudio}" />
+                    <TextBlock Text="{l:Str Key=settings.aChangeAppliesOn}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
-                    <ComboBox x:Name="TxAudioOutputComboBox" Header="Transmit audio output (Local mode)" Width="440" HorizontalAlignment="Left"
+                    <ComboBox x:Name="TxAudioOutputComboBox" Header="{l:Str Key=settings.transmitAudioOutputLocal}" Width="440" HorizontalAlignment="Left"
                               DropDownOpened="TxAudioOutputComboBox_DropDownOpened"
-                              ToolTipService.ToolTip="The FTX-1's USB audio as a Windows playback device (usually &quot;Speakers (USB Audio Device)&quot;)" />
-                    <TextBlock Text="Where an iPad's microphone plays while it holds PTT through the Desktop hub: pick the radio's USB audio. None sends nothing (Windows' default output is never used). In Remote mode it goes to the Pi (port 8533) instead. The rig's MOD SOURCE for the mode has to be USB."
+                              ToolTipService.ToolTip="{l:Str Key=settings.theFTX1sUSB2}" />
+                    <TextBlock Text="{l:Str Key=settings.whereAnIPadsMicrophone}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- C4FM -->
                 <StackPanel x:Name="C4fmTab" Spacing="12" Visibility="Collapsed">
-                    <CheckBox x:Name="WpsdEnabledCheckBox" Content="Show received callsign (via WPSD)" />
-                    <TextBox x:Name="WpsdHostBox" Header="Hotspot address" Width="320" HorizontalAlignment="Left"
+                    <CheckBox x:Name="WpsdEnabledCheckBox" Content="{l:Str Key=settings.showReceivedCallsignVia}" />
+                    <TextBox x:Name="WpsdHostBox" Header="{l:Str Key=settings.hotspotAddress}" Width="320" HorizontalAlignment="Left"
                              PlaceholderText="e.g. 192.168.1.50" />
-                    <TextBlock Text="While a VFO is in C4FM, shows who's transmitting through your WPSD hotspot and the YSF reflector it's linked to, read from the hotspot's dashboard."
+                    <TextBlock Text="{l:Str Key=settings.whileAVFOIs}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- APRS (the Mac's APRSSettingsTab). -->
                 <StackPanel x:Name="AprsTab" Spacing="12" Visibility="Collapsed">
-                    <CheckBox x:Name="AprsEnabledCheckBox" Content="Decode APRS" />
-                    <TextBox x:Name="AprsFrequencyBox" Header="Frequency (MHz)" Width="200" HorizontalAlignment="Left"
+                    <CheckBox x:Name="AprsEnabledCheckBox" Content="{l:Str Key=settings.decodeAPRS}" />
+                    <TextBox x:Name="AprsFrequencyBox" Header="{l:Str Key=settings.frequencyMHz}" Width="200" HorizontalAlignment="Left"
                              PlaceholderText="144.390" />
-                    <NumberBox x:Name="AprsToleranceBox" Header="Tolerance (Hz)" Width="220" HorizontalAlignment="Left"
+                    <NumberBox x:Name="AprsToleranceBox" Header="{l:Str Key=settings.toleranceHz}" Width="220" HorizontalAlignment="Left"
                                SpinButtonPlacementMode="Inline" SmallChange="500" LargeChange="5000" />
-                    <TextBlock Text="Each receiver is decoded while its VFO is within the tolerance of this frequency and audio is on — MAIN and SUB separately, so APRS can sit on either one."
+                    <TextBlock Text="{l:Str Key=settings.eachReceiverIsDecoded}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
-                    <NumberBox x:Name="AprsMaxStationsBox" Header="Stations to keep" Width="220" HorizontalAlignment="Left"
+                    <NumberBox x:Name="AprsMaxStationsBox" Header="{l:Str Key=settings.stationsToKeep}" Width="220" HorizontalAlignment="Left"
                                SpinButtonPlacementMode="Inline" SmallChange="100" LargeChange="1000" />
-                    <NumberBox x:Name="AprsMaxMessagesBox" Header="Messages to keep" Width="220" HorizontalAlignment="Left"
+                    <NumberBox x:Name="AprsMaxMessagesBox" Header="{l:Str Key=settings.messagesToKeep}" Width="220" HorizontalAlignment="Left"
                                SpinButtonPlacementMode="Inline" SmallChange="100" LargeChange="1000" />
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button x:Name="AprsClearHistoryButton" Content="Clear History…" Click="AprsClearHistoryButton_Click" />
+                        <Button x:Name="AprsClearHistoryButton" Content="{l:Str Key=settings.clearHistory}" Click="AprsClearHistoryButton_Click" />
                         <TextBlock x:Name="AprsClearNote" VerticalAlignment="Center" Foreground="Gray" FontSize="12" />
                     </StackPanel>
                 </StackPanel>
 
                 <!-- Station (the Mac's StationSettings). -->
                 <StackPanel x:Name="StationTab" Spacing="12" Visibility="Collapsed">
-                    <TextBox x:Name="CallsignBox" Header="Callsign" Width="160" HorizontalAlignment="Left"
-                             PlaceholderText="e.g. W1AW" MaxLength="12" CharacterCasing="Upper" />
-                    <TextBlock Text="Your callsign: {MYCALL} in the CW window's macros. It isn't made clickable in decoded CW."
+                    <TextBox x:Name="CallsignBox" Header="{l:Str Key=settings.callsign}" Width="160" HorizontalAlignment="Left"
+                             PlaceholderText="{l:Str Key=settings.eGW1AW}" MaxLength="12" CharacterCasing="Upper" />
+                    <TextBlock Text="{l:Str Key=settings.yourCallsignMYCALLIn}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
-                    <TextBox x:Name="GridSquareBox" Header="Grid square" Width="160" HorizontalAlignment="Left"
-                             PlaceholderText="e.g. FN31pr" MaxLength="8" />
-                    <TextBlock Text="Your Maidenhead locator (4 or 6 characters): {MYGRID} in CW macros. The WebSDR window's KiwiSDR list uses it to show each station's distance and sort nearest first."
+                    <TextBox x:Name="GridSquareBox" Header="{l:Str Key=settings.gridSquare}" Width="160" HorizontalAlignment="Left"
+                             PlaceholderText="{l:Str Key=settings.eGFN31pr}" MaxLength="8" />
+                    <TextBlock Text="{l:Str Key=settings.yourMaidenheadLocator4}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- Logbook (the Mac's LogbookSettingsTab, HRD Logbook or Log4OM where
                      it has MacLoggerDX). The status cards follow the fields, unsaved. -->
                 <StackPanel x:Name="LogbookTab" Spacing="12" Visibility="Collapsed">
-                    <ComboBox x:Name="LogbookComboBox" Header="Logbook" Width="300" HorizontalAlignment="Left"
+                    <ComboBox x:Name="LogbookComboBox" Header="{l:Str Key=settings.logbook}" Width="300" HorizontalAlignment="Left"
                               SelectionChanged="LogbookComboBox_SelectionChanged">
-                        <ComboBoxItem Content="None" Tag="None" />
+                        <ComboBoxItem Content="{l:Str Key=settings.none}" Tag="None" />
                         <ComboBoxItem Content="Ham Radio Deluxe Logbook" Tag="HrdLogbook" />
                         <ComboBoxItem Content="Log4OM" Tag="Log4Om" />
                     </ComboBox>
-                    <TextBlock Text="The CW window's Log QSO pane sends QSOs here, and decoded callsigns are colored by whether this log has worked them."
+                    <TextBlock Text="{l:Str Key=settings.theCWWindowsLog}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
 
                     <StackPanel x:Name="HrdSettingsPanel" Spacing="12">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBox x:Name="HrdLogPathBox" Header="Log file" Width="400" HorizontalAlignment="Left"
-                                     ToolTipService.ToolTip="HRD's SQLite log (.hrdsql), read only — for worked-before and to confirm a logged QSO arrived" />
-                            <Button Content="Browse…" VerticalAlignment="Bottom" Click="BrowseHrdLogButton_Click" />
-                            <Button Content="Use HRD's" VerticalAlignment="Bottom" Click="UseHrdLogButton_Click"
-                                    ToolTipService.ToolTip="Read the log HRD receives QSOs into" />
+                            <TextBox x:Name="HrdLogPathBox" Header="{l:Str Key=settings.logFile}" Width="400" HorizontalAlignment="Left"
+                                     ToolTipService.ToolTip="{l:Str Key=settings.hRDsSQLiteLogHrdsql}" />
+                            <Button Content="{l:Str Key=settings.browse}" VerticalAlignment="Bottom" Click="BrowseHrdLogButton_Click" />
+                            <Button Content="{l:Str Key=settings.useHRDs}" VerticalAlignment="Bottom" Click="UseHrdLogButton_Click"
+                                    ToolTipService.ToolTip="{l:Str Key=settings.readTheLogHRD}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="16">
-                            <TextBox x:Name="HrdHostBox" Header="Send to host" Width="200" HorizontalAlignment="Left" />
-                            <NumberBox x:Name="HrdPortBox" Header="UDP port" Width="140" HorizontalAlignment="Left"
+                            <TextBox x:Name="HrdHostBox" Header="{l:Str Key=settings.sendToHost}" Width="200" HorizontalAlignment="Left" />
+                            <NumberBox x:Name="HrdPortBox" Header="{l:Str Key=settings.uDPPort}" Width="140" HorizontalAlignment="Left"
                                        Minimum="1" Maximum="65535" ValidationMode="InvalidInputOverwritten" />
                         </StackPanel>
                         <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap"
-                                   Text="Leave these empty to use HRD's own ADIF receiver. Turn it on in HRD Logbook: Tools → Configure → QSO Forwarding → &quot;Receive QSO notifications using UDP9/ADIF from other logging programs (eg. WSJT-X)&quot;. HRD fills in your station callsign and looks the call up when a QSO arrives." />
+                                   Text="{l:Str Key=settings.leaveTheseEmptyTo}" />
 
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Status" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="{l:Str Key=settings.status}" Style="{StaticResource BodyStrongTextBlockStyle}" />
                             <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                     CornerRadius="4" Padding="12,8">
@@ -210,11 +211,11 @@
                                     </Grid.RowDefinitions>
                                     <TextBlock Text="HRD Logbook" />
                                     <TextBlock x:Name="HrdRunningText" Grid.Column="1" TextWrapping="Wrap" />
-                                    <TextBlock Grid.Row="1" Text="Receiving" />
+                                    <TextBlock Grid.Row="1" Text="{l:Str Key=settings.receiving}" />
                                     <TextBlock x:Name="HrdReceiverText" Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" />
-                                    <TextBlock Grid.Row="2" Text="Log" />
+                                    <TextBlock Grid.Row="2" Text="{l:Str Key=settings.log}" />
                                     <TextBlock x:Name="HrdLogText" Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                                    <Button Grid.RowSpan="3" Grid.Column="2" Content="Refresh" VerticalAlignment="Bottom"
+                                    <Button Grid.RowSpan="3" Grid.Column="2" Content="{l:Str Key=common.refresh}" VerticalAlignment="Bottom"
                                             Click="RefreshHrdButton_Click" />
                                 </Grid>
                             </Border>
@@ -223,22 +224,22 @@
 
                     <StackPanel x:Name="Log4OmSettingsPanel" Spacing="12">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBox x:Name="Log4OmLogPathBox" Header="Log file" Width="400" HorizontalAlignment="Left"
-                                     ToolTipService.ToolTip="Log4OM's SQLite log (.SQLite), read only — for worked-before and to confirm a logged QSO arrived" />
-                            <Button Content="Browse…" VerticalAlignment="Bottom" Click="BrowseLog4OmLogButton_Click" />
-                            <Button Content="Use Log4OM's" VerticalAlignment="Bottom" Click="UseLog4OmLogButton_Click"
-                                    ToolTipService.ToolTip="Read the log Log4OM has open" />
+                            <TextBox x:Name="Log4OmLogPathBox" Header="{l:Str Key=settings.logFile}" Width="400" HorizontalAlignment="Left"
+                                     ToolTipService.ToolTip="{l:Str Key=settings.log4OMsSQLiteLogSQLite}" />
+                            <Button Content="{l:Str Key=settings.browse}" VerticalAlignment="Bottom" Click="BrowseLog4OmLogButton_Click" />
+                            <Button Content="{l:Str Key=settings.useLog4OMs}" VerticalAlignment="Bottom" Click="UseLog4OmLogButton_Click"
+                                    ToolTipService.ToolTip="{l:Str Key=settings.readTheLogLog4OM}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="16">
-                            <TextBox x:Name="Log4OmHostBox" Header="Send to host" Width="200" HorizontalAlignment="Left" PlaceholderText="127.0.0.1" />
-                            <NumberBox x:Name="Log4OmPortBox" Header="UDP port" Width="140" HorizontalAlignment="Left"
+                            <TextBox x:Name="Log4OmHostBox" Header="{l:Str Key=settings.sendToHost}" Width="200" HorizontalAlignment="Left" PlaceholderText="127.0.0.1" />
+                            <NumberBox x:Name="Log4OmPortBox" Header="{l:Str Key=settings.uDPPort}" Width="140" HorizontalAlignment="Left"
                                        Minimum="1" Maximum="65535" ValidationMode="InvalidInputOverwritten" />
                         </StackPanel>
                         <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap"
-                                   Text="Leave these empty to send to Log4OM on this PC. In Log4OM: Settings → Program Configuration → Software Integration → Connections, add a UDP inbound connection of type ADIF_MESSAGE (e.g. port 2236). Log4OM looks the call up when a QSO arrives; the CW window's Lookup button asks it to look one up sooner, through its remote control (UDP 2241, on by default)." />
+                                   Text="{l:Str Key=settings.leaveTheseEmptyTo2}" />
 
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Status" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="{l:Str Key=settings.status}" Style="{StaticResource BodyStrongTextBlockStyle}" />
                             <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                     CornerRadius="4" Padding="12,8">
@@ -256,13 +257,13 @@
                                     </Grid.RowDefinitions>
                                     <TextBlock Text="Log4OM" />
                                     <TextBlock x:Name="Log4OmRunningText" Grid.Column="1" TextWrapping="Wrap" />
-                                    <TextBlock Grid.Row="1" Text="Receiving" />
+                                    <TextBlock Grid.Row="1" Text="{l:Str Key=settings.receiving}" />
                                     <TextBlock x:Name="Log4OmReceiverText" Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" />
-                                    <TextBlock Grid.Row="2" Text="Lookup" />
+                                    <TextBlock Grid.Row="2" Text="{l:Str Key=settings.lookup}" />
                                     <TextBlock x:Name="Log4OmRemoteText" Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" />
-                                    <TextBlock Grid.Row="3" Text="Log" />
+                                    <TextBlock Grid.Row="3" Text="{l:Str Key=settings.log}" />
                                     <TextBlock x:Name="Log4OmLogText" Grid.Row="3" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                                    <Button Grid.RowSpan="4" Grid.Column="2" Content="Refresh" VerticalAlignment="Bottom"
+                                    <Button Grid.RowSpan="4" Grid.Column="2" Content="{l:Str Key=common.refresh}" VerticalAlignment="Bottom"
                                             Click="RefreshLog4OmButton_Click" />
                                 </Grid>
                             </Border>
@@ -274,60 +275,60 @@
                          the CAT and tune status lines are live. -->
                     <TextBlock Text="Wavelog" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
                     <StackPanel Spacing="0">
-                        <CheckBox x:Name="WavelogEnabledCheckBox" Content="Also log QSOs to Wavelog"
+                        <CheckBox x:Name="WavelogEnabledCheckBox" Content="{l:Str Key=settings.alsoLogQSOsTo}"
                                   Checked="WavelogCheckBox_Changed" Unchecked="WavelogCheckBox_Changed" />
-                        <CheckBox x:Name="WavelogCatCheckBox" Content="Send rig frequency and mode to Wavelog (CAT)"
+                        <CheckBox x:Name="WavelogCatCheckBox" Content="{l:Str Key=settings.sendRigFrequencyAnd}"
                                   Checked="WavelogCheckBox_Changed" Unchecked="WavelogCheckBox_Changed"
-                                  ToolTipService.ToolTip="Wavelog's QSO form and bandmap follow the rig, as with WaveLogGate. Needs the radio:write scope." />
-                        <CheckBox x:Name="WavelogTuneCheckBox" Content="Tune the rig from Wavelog (DX cluster, bandmap)"
+                                  ToolTipService.ToolTip="{l:Str Key=settings.wavelogsQSOFormAnd}" />
+                        <CheckBox x:Name="WavelogTuneCheckBox" Content="{l:Str Key=settings.tuneTheRigFrom}"
                                   Checked="WavelogCheckBox_Changed" Unchecked="WavelogCheckBox_Changed"
-                                  ToolTipService.ToolTip="Clicking a spot in Wavelog tunes MAIN. Wavelog calls this PC at its radio's CAT URL, http://127.0.0.1:54321 unless changed there, so the browser has to run on this PC." />
+                                  ToolTipService.ToolTip="{l:Str Key=settings.clickingASpotIn}" />
                     </StackPanel>
 
                     <StackPanel x:Name="WavelogCredentialsPanel" Spacing="12">
-                        <TextBox x:Name="WavelogUrlBox" Header="URL" Width="400" HorizontalAlignment="Left"
+                        <TextBox x:Name="WavelogUrlBox" Header="{l:Str Key=settings.uRL}" Width="400" HorizontalAlignment="Left"
                                  PlaceholderText="https://log.example.org" TextChanged="WavelogCredentials_Changed" />
-                        <PasswordBox x:Name="WavelogTokenBox" Header="API token" Width="400" HorizontalAlignment="Left"
+                        <PasswordBox x:Name="WavelogTokenBox" Header="{l:Str Key=settings.aPIToken}" Width="400" HorizontalAlignment="Left"
                                      PlaceholderText="wl2_…" PasswordChanged="WavelogCredentials_Changed"
-                                     ToolTipService.ToolTip="An API v2 token from Wavelog's API page (Wavelog 3.1 or newer), with the qso:write and station:read scopes, plus radio:write for CAT. Kept in Windows Credential Manager." />
+                                     ToolTipService.ToolTip="{l:Str Key=settings.anAPIV2Token}" />
                         <TextBlock x:Name="WavelogV1KeyText" Foreground="DarkOrange" TextWrapping="Wrap" Visibility="Collapsed"
-                                   Text="This looks like an API v1 key. FTX1Remote uses API v2: create a token (wl2_…) with the qso:write and station:read scopes (radio:write for CAT) on Wavelog's API page." />
+                                   Text="{l:Str Key=settings.thisLooksLikeAn}" />
                     </StackPanel>
 
                     <StackPanel x:Name="WavelogLogPanel" Spacing="12">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <ComboBox x:Name="WavelogStationComboBox" Header="Station location" Width="400"
+                            <ComboBox x:Name="WavelogStationComboBox" Header="{l:Str Key=settings.stationLocation}" Width="400"
                                       SelectionChanged="WavelogStationComboBox_SelectionChanged" />
-                            <Button x:Name="WavelogRefreshButton" Content="Refresh" VerticalAlignment="Bottom"
+                            <Button x:Name="WavelogRefreshButton" Content="{l:Str Key=common.refresh}" VerticalAlignment="Bottom"
                                     Click="WavelogRefreshButton_Click" />
                         </StackPanel>
                         <TextBlock x:Name="WavelogMismatchText" Foreground="DarkOrange" TextWrapping="Wrap" Visibility="Collapsed" />
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="WavelogTestButton" Content="Test" Click="WavelogTestButton_Click"
-                                    ToolTipService.ToolTip="Wavelog's dry run: checks the token and station location, writes nothing" />
+                            <Button x:Name="WavelogTestButton" Content="{l:Str Key=settings.test}" Click="WavelogTestButton_Click"
+                                    ToolTipService.ToolTip="{l:Str Key=settings.wavelogsDryRunChecks}" />
                             <ProgressRing x:Name="WavelogProgress" IsActive="False" Width="16" Height="16" Visibility="Collapsed" />
                             <TextBlock x:Name="WavelogStatusText" VerticalAlignment="Center" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                         </StackPanel>
                     </StackPanel>
 
                     <StackPanel x:Name="WavelogCatPanel" Spacing="8">
-                        <TextBox x:Name="WavelogRadioNameBox" Header="Radio name" Width="300" HorizontalAlignment="Left"
+                        <TextBox x:Name="WavelogRadioNameBox" Header="{l:Str Key=settings.radioName}" Width="300" HorizontalAlignment="Left"
                                  PlaceholderText="FTX-1"
-                                 ToolTipService.ToolTip="The radio Wavelog shows in its QSO form. If WaveLogGate also reports this rig, quit it or give it another name." />
+                                 ToolTipService.ToolTip="{l:Str Key=settings.theRadioWavelogShows}" />
                         <TextBlock x:Name="WavelogCatStatusText" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                     </StackPanel>
 
                     <StackPanel x:Name="WavelogTunePanel" Spacing="8">
-                        <NumberBox x:Name="WavelogTunePortBox" Header="Listen on port" Width="160" HorizontalAlignment="Left"
+                        <NumberBox x:Name="WavelogTunePortBox" Header="{l:Str Key=settings.listenOnPort}" Width="160" HorizontalAlignment="Left"
                                    Minimum="1024" Maximum="65535" ValidationMode="InvalidInputOverwritten"
-                                   ToolTipService.ToolTip="The port in Wavelog's CAT URL for this radio (Wavelog → Radio → the radio's CAT URL; empty there means 54321)" />
+                                   ToolTipService.ToolTip="{l:Str Key=settings.thePortInWavelogs}" />
                         <TextBlock x:Name="WavelogTuneStatusText" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                     </StackPanel>
                 </StackPanel>
 
                 <!-- Home Freq: rows added in code, one per HomeBand. -->
                 <StackPanel x:Name="HomeTab" Spacing="12" Visibility="Collapsed">
-                    <TextBlock Text="The FM page's HOME button tunes to the frequency for the band group Main is in (the rig's own HOME channels can't be read over CAT)."
+                    <TextBlock Text="{l:Str Key=settings.theFMPagesHOME}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                     <StackPanel x:Name="HomeFieldsPanel" Spacing="8" />
                 </StackPanel>
@@ -335,100 +336,100 @@
                 <!-- License: the license-class guardrail (SettingsDialog.License.cs,
                      the Mac's LicenseSettingsTab). The tables are built in code. -->
                 <StackPanel x:Name="LicenseTab" Spacing="12" Visibility="Collapsed">
-                    <ComboBox x:Name="LicenseChoiceComboBox" Header="Privileges" Width="320" HorizontalAlignment="Left"
+                    <ComboBox x:Name="LicenseChoiceComboBox" Header="{l:Str Key=settings.privileges}" Width="320" HorizontalAlignment="Left"
                               SelectionChanged="LicenseChoiceComboBox_SelectionChanged" />
                     <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap"
-                               Text="Blocks PTT, MOX, antenna tuning and CW sending — from this PC and from a connected iPad — unless the transmitting side's signal fits inside these privileges, in its mode. Tuning or changing mode out of them while transmitting unkeys the rig. A guardrail only: you remain responsible for operating within your license." />
+                               Text="{l:Str Key=settings.blocksPTTMOXAntenna}" />
 
                     <StackPanel x:Name="LicensePresetPanel" Spacing="8" Visibility="Collapsed">
                         <TextBlock x:Name="LicensePresetTitle" FontWeight="SemiBold" />
                         <TextBlock x:Name="LicensePresetNote" FontSize="12" TextWrapping="Wrap" />
                         <Grid x:Name="LicensePresetTable" ColumnSpacing="16" RowSpacing="2" />
-                        <Button Content="Copy to Custom…" Click="LicenseCopyToCustom_Click" />
+                        <Button Content="{l:Str Key=settings.copyToCustom}" Click="LicenseCopyToCustom_Click" />
                     </StackPanel>
 
                     <StackPanel x:Name="LicenseCustomPanel" Spacing="8" Visibility="Collapsed">
-                        <TextBlock Text="Custom privileges" FontWeight="SemiBold" />
-                        <TextBox x:Name="LicenseCustomNameBox" Header="Name" PlaceholderText="e.g. UK Full" Width="320" HorizontalAlignment="Left" />
+                        <TextBlock Text="{l:Str Key=settings.customPrivileges}" FontWeight="SemiBold" />
+                        <TextBox x:Name="LicenseCustomNameBox" Header="{l:Str Key=common.name}" PlaceholderText="{l:Str Key=settings.eGUKFull}" Width="320" HorizontalAlignment="Left" />
                         <TextBlock x:Name="LicenseCustomEmptyText" Foreground="DarkOrange" FontSize="12" TextWrapping="Wrap"
-                                   Text="No segments yet, so every transmission is blocked. Add segments, or copy a preset and edit it." />
+                                   Text="{l:Str Key=settings.noSegmentsYetSo}" />
                         <Grid x:Name="LicenseCustomTable" ColumnSpacing="10" RowSpacing="6" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="Add Segment" Click="LicenseAddSegment_Click" />
-                            <DropDownButton Content="Start From">
+                            <Button Content="{l:Str Key=settings.addSegment}" Click="LicenseAddSegment_Click" />
+                            <DropDownButton Content="{l:Str Key=settings.startFrom}">
                                 <DropDownButton.Flyout>
                                     <MenuFlyout x:Name="LicenseStartFromMenu" Placement="Bottom" />
                                 </DropDownButton.Flyout>
                             </DropDownButton>
-                            <Button Content="Import…" Click="LicenseImport_Click" Margin="24,0,0,0" />
-                            <Button x:Name="LicenseExportButton" Content="Export…" Click="LicenseExport_Click" />
+                            <Button Content="{l:Str Key=settings.import}" Click="LicenseImport_Click" Margin="24,0,0,0" />
+                            <Button x:Name="LicenseExportButton" Content="{l:Str Key=settings.export}" Click="LicenseExport_Click" />
                         </StackPanel>
                         <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap"
-                                   Text="A signal has to fit inside segments that allow its kind of emission — sidebands included (LSB reaches 2.9 kHz below the dial, FM ±8 kHz). The amateur bands stay the outer limit. Files move between this app and the Mac's." />
+                                   Text="{l:Str Key=settings.aSignalHasTo}" />
                     </StackPanel>
                 </StackPanel>
 
                 <!-- Polling -->
                 <StackPanel x:Name="PollingTab" Spacing="12" Visibility="Collapsed">
-                    <TextBlock Text="Radio (rigctld)" FontWeight="SemiBold" />
-                    <NumberBox x:Name="PollIntervalBox" Header="VFO / meters interval (ms)" Width="220" HorizontalAlignment="Left"
+                    <TextBlock Text="{l:Str Key=settings.radioRigctld}" FontWeight="SemiBold" />
+                    <NumberBox x:Name="PollIntervalBox" Header="{l:Str Key=settings.vFOMetersIntervalMs}" Width="220" HorizontalAlignment="Left"
                                SpinButtonPlacementMode="Inline" SmallChange="50" LargeChange="500" />
-                    <NumberBox x:Name="SlowPollEveryBox" Header="Menu settings: read every N polls" Width="220" HorizontalAlignment="Left"
+                    <NumberBox x:Name="SlowPollEveryBox" Header="{l:Str Key=settings.menuSettingsReadEvery}" Width="220" HorizontalAlignment="Left"
                                SpinButtonPlacementMode="Inline" SmallChange="1" LargeChange="5" />
-                    <TextBlock Text="A shorter interval updates the VFO display and meters faster; reading menu settings more often picks up front-panel changes sooner. Over the Pi link a poll takes about half a second, so an interval below that has no further effect."
+                    <TextBlock Text="{l:Str Key=settings.aShorterIntervalUpdates}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
-                    <TextBlock Text="WPSD hotspot" FontWeight="SemiBold" Margin="0,8,0,0" />
-                    <NumberBox x:Name="WpsdCallerBox" Header="Caller lookup every (s)" Width="220" HorizontalAlignment="Left"
+                    <TextBlock Text="{l:Str Key=settings.wPSDHotspot}" FontWeight="SemiBold" Margin="0,8,0,0" />
+                    <NumberBox x:Name="WpsdCallerBox" Header="{l:Str Key=settings.callerLookupEveryS}" Width="220" HorizontalAlignment="Left"
                                SpinButtonPlacementMode="Inline" SmallChange="1" LargeChange="5" />
-                    <NumberBox x:Name="WpsdReflectorBox" Header="Reflector lookup every (s)" Width="220" HorizontalAlignment="Left"
+                    <NumberBox x:Name="WpsdReflectorBox" Header="{l:Str Key=settings.reflectorLookupEveryS}" Width="220" HorizontalAlignment="Left"
                                SpinButtonPlacementMode="Inline" SmallChange="5" LargeChange="30" />
-                    <Button Content="Restore Defaults" Click="RestorePollingDefaults_Click" />
+                    <Button Content="{l:Str Key=settings.restoreDefaults}" Click="RestorePollingDefaults_Click" />
                 </StackPanel>
 
                 <!-- Appearance -->
                 <StackPanel x:Name="AppearanceTab" Spacing="12" Visibility="Collapsed">
-                    <ComboBox x:Name="ThemeComboBox" Header="Theme" Width="200" HorizontalAlignment="Left"
-                              ToolTipService.ToolTip="Auto follows Windows' light or dark app mode" />
-                    <ComboBox x:Name="VfoDigitFontComboBox" Header="VFO digits" Width="200" HorizontalAlignment="Left"
-                              ToolTipService.ToolTip="The font of the VFO boxes' frequency; Theme default uses the theme's" />
-                    <ComboBox x:Name="VfoDigitColorComboBox" Header="VFO digit color" Width="200" HorizontalAlignment="Left"
-                              ToolTipService.ToolTip="The color of the VFO boxes' frequency; Theme default uses the theme's" />
-                    <ComboBox x:Name="ButtonValueColorComboBox" Header="Button value color" Width="200" HorizontalAlignment="Left"
-                              ToolTipService.ToolTip="The color of each MENU grid button's current setting" />
+                    <ComboBox x:Name="ThemeComboBox" Header="{l:Str Key=settings.theme}" Width="200" HorizontalAlignment="Left"
+                              ToolTipService.ToolTip="{l:Str Key=settings.autoFollowsWindowsLight}" />
+                    <ComboBox x:Name="VfoDigitFontComboBox" Header="{l:Str Key=settings.vFODigits}" Width="200" HorizontalAlignment="Left"
+                              ToolTipService.ToolTip="{l:Str Key=settings.theFontOfThe}" />
+                    <ComboBox x:Name="VfoDigitColorComboBox" Header="{l:Str Key=settings.vFODigitColor}" Width="200" HorizontalAlignment="Left"
+                              ToolTipService.ToolTip="{l:Str Key=settings.theColorOfThe}" />
+                    <ComboBox x:Name="ButtonValueColorComboBox" Header="{l:Str Key=settings.buttonValueColor}" Width="200" HorizontalAlignment="Left"
+                              ToolTipService.ToolTip="{l:Str Key=settings.theColorOfEach}" />
                 </StackPanel>
 
                 <!-- Hub: the iPad's Desktop hub (Services/Hub/HubServer.cs). The
                      switch applies on Save; the status and clients are live. -->
                 <StackPanel x:Name="HubTab" Spacing="12" Visibility="Collapsed">
-                    <ToggleSwitch x:Name="HubEnabledSwitch" Header="Allow iPad connections" />
-                    <TextBlock Text="Lets the iPad's Desktop hub route connect to this app over Tailscale or the local network (other addresses are refused). The iPad shows this app's state, controls the rig through it and hears its MAIN/SUB audio; transmitting, the memory/APRS lists, Deep Settings values and CW sending from the iPad aren't supported yet."
+                    <ToggleSwitch x:Name="HubEnabledSwitch" Header="{l:Str Key=settings.allowIPadConnections}" />
+                    <TextBlock Text="{l:Str Key=settings.letsTheIPadsDesktop}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                     <TextBlock x:Name="HubPortText" />
                     <TextBlock x:Name="HubStatusText" />
                     <TextBlock x:Name="HubAudioOffText" Visibility="Collapsed" TextWrapping="Wrap"
-                               Text="Audio is off on this PC, so the iPad hears nothing. Turn on Audio in the main window (with the rig connected)." />
-                    <TextBlock Text="Connected clients" FontWeight="SemiBold" />
-                    <TextBlock x:Name="HubNoClientsText" Text="None" Foreground="Gray" />
+                               Text="{l:Str Key=settings.audioIsOffOn}" />
+                    <TextBlock Text="{l:Str Key=settings.connectedClients}" FontWeight="SemiBold" />
+                    <TextBlock x:Name="HubNoClientsText" Text="{l:Str Key=settings.none}" Foreground="Gray" />
                     <ListView x:Name="HubClientsList" SelectionMode="None" MaxHeight="140" />
-                    <TextBlock Text="Windows Firewall has to allow inbound TCP 8765 for FTX1RemoteWindows.exe. Tailscale's adapter is often a Public network, so allow Public as well as Private when Windows asks (or see the README)."
+                    <TextBlock Text="{l:Str Key=settings.windowsFirewallHasTo}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- About: version + update check (notify-only). -->
                 <StackPanel x:Name="AboutTab" Spacing="12" Visibility="Collapsed">
-                    <TextBlock Text="FTX1Remote for Windows" FontWeight="SemiBold" FontSize="18" />
+                    <TextBlock Text="{l:Str Key=settings.fTX1RemoteForWindows}" FontWeight="SemiBold" FontSize="18" />
                     <TextBlock x:Name="VersionText" />
-                    <CheckBox x:Name="CheckAtLaunchCheckBox" Content="Check for updates when the app starts" />
+                    <CheckBox x:Name="CheckAtLaunchCheckBox" Content="{l:Str Key=settings.checkForUpdatesWhen}" />
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button x:Name="CheckForUpdatesButton" Content="Check for Updates" Click="CheckForUpdatesButton_Click" />
+                        <Button x:Name="CheckForUpdatesButton" Content="{l:Str Key=settings.checkForUpdates}" Click="CheckForUpdatesButton_Click" />
                         <ProgressRing x:Name="UpdateProgress" IsActive="False" Width="20" Height="20" />
                         <TextBlock x:Name="UpdateStatusText" VerticalAlignment="Center" TextWrapping="Wrap" />
                     </StackPanel>
                     <Button x:Name="DownloadUpdateButton" Visibility="Collapsed" Style="{StaticResource AccentButtonStyle}"
                             Click="DownloadUpdateButton_Click" />
-                    <TextBox x:Name="ReleaseNotesBox" Header="What's new" Visibility="Collapsed" IsReadOnly="True"
+                    <TextBox x:Name="ReleaseNotesBox" Header="{l:Str Key=settings.whatsNew}" Visibility="Collapsed" IsReadOnly="True"
                              AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="180" />
-                    <HyperlinkButton Content="All releases on GitHub" NavigateUri="https://github.com/captobie/ftx1-remote/releases" Padding="0" />
+                    <HyperlinkButton Content="{l:Str Key=settings.allReleasesOnGitHub}" NavigateUri="https://github.com/captobie/ftx1-remote/releases" Padding="0" />
                 </StackPanel>
             </Grid>
         </ScrollViewer>
@@ -436,9 +437,9 @@
         <TextBlock Grid.Row="2" x:Name="ErrorText" Foreground="Firebrick" TextWrapping="Wrap" />
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-            <Button x:Name="SaveButton" Content="Save" MinWidth="100" Style="{StaticResource AccentButtonStyle}"
+            <Button x:Name="SaveButton" Content="{l:Str Key=settings.save}" MinWidth="100" Style="{StaticResource AccentButtonStyle}"
                     Click="SaveButton_Click" />
-            <Button Content="Cancel" MinWidth="100" Click="CancelButton_Click">
+            <Button Content="{l:Str Key=common.cancel}" MinWidth="100" Click="CancelButton_Click">
                 <Button.KeyboardAccelerators>
                     <KeyboardAccelerator Key="Escape" />
                 </Button.KeyboardAccelerators>

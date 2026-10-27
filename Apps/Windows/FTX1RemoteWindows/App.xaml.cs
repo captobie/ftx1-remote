@@ -9,6 +9,8 @@ public partial class App : Application
 
     public App()
     {
+        Loc.ApplyNumberFormat();
+        Loc.ApplyDebugLanguageOverride();
         InitializeComponent();
     }
 

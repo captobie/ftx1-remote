@@ -22,14 +22,22 @@ public sealed class CwKeyerRequestWire
 /// Hub → the asking client only (Swift's CWKeyerReply), carrying the
 /// request's `id`: `stored` = what the rig kept after a write, `error` if it
 /// failed or was refused, neither for a successful check, acquire or
-/// release. `busy` is never sent here (no lease).
+/// release. `busy` is never sent here (no lease). `errorCode` is a stable
+/// code beside the English `error` (Swift's CWKeyerReply.ErrorCode), so the
+/// iPad words the message in its own language; older iPads use the text.
 public sealed class CwKeyerReplyWire
 {
+    public const string BadSlotCode = "keyer_bad_slot";
+    public const string BadTextCode = "keyer_bad_text";
+    public const string NotConnectedCode = "rigctld_not_connected";
+
     [JsonPropertyName("type")] public string Type { get; set; } = "cw_keyer_reply";
     [JsonPropertyName("id")] public int Id { get; set; }
     [JsonPropertyName("stored")] public string? Stored { get; set; }
     [JsonPropertyName("error")] public string? Error { get; set; }
     [JsonPropertyName("busy")] public string? Busy { get; set; }
+    [JsonPropertyName("errorCode")] public string? ErrorCode { get; set; }
+    [JsonPropertyName("busyCode")] public string? BusyCode { get; set; }
 }
 
 /// The checks the hub makes on a client's keyer request before anything
@@ -47,7 +55,8 @@ public static class HubKeyerPolicy
     private static readonly HashSet<char> Allowed = [.. AllowedCharacters];
 
     /// Why a write (text non-null) or a TEXT check (text null) is refused,
-    /// or null.
+    /// or null. The English goes on the wire as is (not Loc: it's for every
+    /// client), beside <see cref="RequestRefusalCode"/>.
     public static string? RequestRefusal(int slot, string? text)
     {
         if (slot is < 1 or > 5)
@@ -75,6 +84,12 @@ public static class HubKeyerPolicy
         }
         return null;
     }
+
+    /// The wire code for <see cref="RequestRefusal"/>'s refusal, or null.
+    public static string? RequestRefusalCode(int slot, string? text) =>
+        RequestRefusal(slot, text) is null ? null
+        : slot is < 1 or > 5 ? CwKeyerReplyWire.BadSlotCode
+        : CwKeyerReplyWire.BadTextCode;
 
     /// Why a hub client's keyer play (KY0n, n ≠ 0) must not start now, or
     /// null: something else is already transmitting — this window's PTT or

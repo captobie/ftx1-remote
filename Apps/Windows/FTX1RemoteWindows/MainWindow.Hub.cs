@@ -457,7 +457,7 @@ public sealed partial class MainWindow : IHubRigHost
         _hubKeyer.Stopped();
         if (result is HubKeyerStopResult.StillTransmitting or HubKeyerStopResult.Unconfirmed)
         {
-            StatusText.Text = "The keyer may still be transmitting — check the rig";
+            StatusText.Text = Loc.S("mainWindow.theKeyerMayStill");
         }
     }
 

@@ -75,26 +75,26 @@ public static class PrivilegePresets
 
     public static readonly IReadOnlyList<PrivilegePreset> All =
     [
-        new("us.extra", "US Amateur Extra", true,
+        new("us.extra", Loc.S("privilegePresets.uSAmateurExtra"), true,
             [.. UsHF((3_500, 3_600), (7_000, 7_125), (14_000, 14_150), (21_000, 21_200)), .. UsVHF()]),
-        new("us.advanced", "US Advanced", true,
+        new("us.advanced", Loc.S("privilegePresets.uSAdvanced"), true,
             [.. UsHF((3_525, 3_700), (7_025, 7_125), (14_025, 14_175), (21_025, 21_225)), .. UsVHF()]),
-        new("us.general", "US General", true,
+        new("us.general", Loc.S("privilegePresets.uSGeneral"), true,
             [.. UsHF((3_525, 3_800), (7_025, 7_175), (14_025, 14_225), (21_025, 21_275)), .. UsVHF()]),
-        new("us.technician", "US Technician", true, [.. UsNoviceHF(), .. UsVHF()]),
+        new("us.technician", Loc.S("privilegePresets.uSTechnician"), true, [.. UsNoviceHF(), .. UsVHF()]),
         // Novice VHF/UHF is 222 MHz and 1.25 GHz, neither on the FTX-1.
-        new("us.novice", "US Novice", true, UsNoviceHF()),
-        new("itu.region1", "ITU Region 1 allocation", false, AllModes(
+        new("us.novice", Loc.S("privilegePresets.uSNovice"), true, UsNoviceHF()),
+        new("itu.region1", Loc.S("privilegePresets.iTURegion1Allocation"), false, AllModes(
             (1_810, 2_000), (3_500, 3_800), (5_351.5, 5_366.5), (7_000, 7_200),
             (10_100, 10_150), (14_000, 14_350), (18_068, 18_168), (21_000, 21_450),
             (24_890, 24_990), (28_000, 29_700), (50_000, 50_500), (144_000, 146_000),
             (430_000, 440_000))),
-        new("itu.region2", "ITU Region 2 allocation", false, AllModes(
+        new("itu.region2", Loc.S("privilegePresets.iTURegion2Allocation"), false, AllModes(
             (1_800, 2_000), (3_500, 4_000), (5_351.5, 5_366.5), (7_000, 7_300),
             (10_100, 10_150), (14_000, 14_350), (18_068, 18_168), (21_000, 21_450),
             (24_890, 24_990), (28_000, 29_700), (50_000, 54_000), (144_000, 148_000),
             (420_000, 450_000))),
-        new("itu.region3", "ITU Region 3 allocation", false, AllModes(
+        new("itu.region3", Loc.S("privilegePresets.iTURegion3Allocation"), false, AllModes(
             (1_800, 2_000), (3_500, 3_900), (5_351.5, 5_366.5), (7_000, 7_200),
             (10_100, 10_150), (14_000, 14_350), (18_068, 18_168), (21_000, 21_450),
             (24_890, 24_990), (28_000, 29_700), (50_000, 54_000), (144_000, 148_000),

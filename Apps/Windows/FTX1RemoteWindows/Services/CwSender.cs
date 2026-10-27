@@ -148,7 +148,7 @@ public sealed class CwSender
         var (text, dropped) = CwText.Prepare(line);
         if (text.Length == 0)
         {
-            return dropped.Length == 0 ? null : "Nothing the keyer can send in that line";
+            return dropped.Length == 0 ? null : Loc.S("cwSender.nothingTheKeyerCan");
         }
         _items.Add(new CwSendItem(text, CwText.Chunks(text), dropped));
         if (_items.Count > MaxItems)
@@ -279,12 +279,12 @@ public sealed class CwSender
             var slot = _slot;
             if (_slotCheckedAsText != slot)
             {
-                SetActivity($"Checking keyer memory {slot}…");
+                SetActivity(Loc.F("cwSender.checkingKeyerMemoryX", slot));
                 await EnsureTextMemoryAsync(client, slot);
                 _slotCheckedAsText = slot;
                 token.ThrowIfCancellationRequested();
             }
-            SetActivity($"Writing keyer memory {slot}…");
+            SetActivity(Loc.F("cwSender.writingKeyerMemoryX", slot));
             // Not cancelled mid-write: an abandoned read would leave the
             // rig's late reply in the stream. Checked right after instead.
             var stored = await client.WriteKeyerMemoryAsync(slot, chunk);
@@ -298,11 +298,11 @@ public sealed class CwSender
             // ~2 s write.
             if (_rig.BlockReason() is { } block)
             {
-                throw new InvalidOperationException($"Not sent: {block.Message}");
+                throw new InvalidOperationException(Loc.F("cwSender.notSentX", block.Message));
             }
             var wpm = Math.Max(_rig.SpeedWpm() ?? 20, 4);
             var expected = CwText.Duration(chunk, wpm);
-            SetActivity($"Sending at {wpm} WPM…");
+            SetActivity(Loc.F("cwSender.sendingAtXWPM", wpm));
             if (_rig.BeforeKeyAsync is { } beforeKey)
             {
                 await beforeKey();
@@ -338,7 +338,7 @@ public sealed class CwSender
         {
             if (_rig.BlockReason() is { } block)
             {
-                SetActivity($"Waiting: {block.Message}");
+                SetActivity(Loc.F("cwSender.waitingX", block.Message));
             }
             else if (_rig.Client() is { } client)
             {
@@ -412,13 +412,13 @@ public sealed class CwSendItem(string text, IReadOnlyList<string> chunks, string
 /// Why the rig can't send (the Mac's CWSendBlock).
 public sealed record CwSendBlock(CwSendBlockKind Kind, string Message)
 {
-    public static readonly CwSendBlock NotConnected = new(CwSendBlockKind.NotConnected, "the rig isn't connected");
+    public static readonly CwSendBlock NotConnected = new(CwSendBlockKind.NotConnected, Loc.S("common.theRigIsntConnected"));
     public static CwSendBlock TransmitBlocked(string gateReason) => new(CwSendBlockKind.TransmitBlocked,
-        gateReason == "Transmit disabled"
-            ? "transmit is turned off (Enable Transmit)"
-            : "the rig is outside the amateur bands");
-    public static CwSendBlock NotCw(string modeName) => new(CwSendBlockKind.NotCw, $"the rig is in {modeName}, not CW");
-    public static readonly CwSendBlock BreakInOff = new(CwSendBlockKind.BreakInOff, "break-in is off — the rig only keys its memory with BK-IN on");
+        gateReason == Loc.S("transmitGate.transmitDisabled")
+            ? Loc.S("cwSender.transmitIsTurnedOff")
+            : Loc.S("cwSender.theRigIsOutside"));
+    public static CwSendBlock NotCw(string modeName) => new(CwSendBlockKind.NotCw, Loc.F("cwSender.theRigIsIn", modeName));
+    public static readonly CwSendBlock BreakInOff = new(CwSendBlockKind.BreakInOff, Loc.S("cwSender.breakInIsOff"));
 }
 
 public enum CwSendBlockKind
@@ -585,9 +585,9 @@ public sealed class CwMacro
     {
         var values = new[]
         {
-            ("{MYCALL}", myCall, "Your callsign (Settings → Station)"),
-            ("{MYGRID}", myGrid, "Your grid square (Settings → Station)"),
-            ("{CALL}", theirCall, "Their call"),
+            ("{MYCALL}", myCall, Loc.S("cwSender.yourCallsignSettingsStation")),
+            ("{MYGRID}", myGrid, Loc.S("cwSender.yourGridSquareSettings")),
+            ("{CALL}", theirCall, Loc.S("common.theirCall")),
         };
         var result = Text;
         foreach (var (placeholder, value, name) in values)
@@ -599,7 +599,7 @@ public sealed class CwMacro
             var trimmed = value.Trim();
             if (trimmed.Length == 0)
             {
-                return (null, $"{name} is empty");
+                return (null, Loc.F("cwSender.xIsEmpty", name));
             }
             result = result.Replace(placeholder, trimmed, StringComparison.OrdinalIgnoreCase);
         }

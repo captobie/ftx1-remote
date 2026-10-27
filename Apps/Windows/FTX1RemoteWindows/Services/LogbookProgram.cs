@@ -75,7 +75,7 @@ public static class LogbookDatabase
     {
         if (!File.Exists(path))
         {
-            throw new LogException($"No log file at {path}");
+            throw new LogException(Loc.F("logbookProgram.noLogFileAt", path));
         }
         var builder = new SqliteConnectionStringBuilder
         {
@@ -92,7 +92,7 @@ public static class LogbookDatabase
         }
         catch (SqliteException e)
         {
-            throw new LogException($"Couldn't read the log: {e.Message}", e);
+            throw new LogException(Loc.F("logbookProgram.couldntReadTheLog", e.Message), e);
         }
     }
 

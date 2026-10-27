@@ -62,7 +62,7 @@ public sealed class WebSdrWindow : Window
 
     private readonly TextBox _hostBox = new()
     {
-        PlaceholderText = "KiwiSDR, WebSDR or OpenWebRX host:port",
+        PlaceholderText = Loc.S("webSdrWindow.kiwiSDRWebSDROrOpenWebRX"),
         FontFamily = new FontFamily("Consolas"),
         MinWidth = 160,
         VerticalAlignment = VerticalAlignment.Center,
@@ -75,9 +75,9 @@ public sealed class WebSdrWindow : Window
     private readonly DropDownButton _favoritesButton = new();
     private readonly MenuFlyout _favoritesMenu = new() { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Bottom };
     private readonly Button _connectButton = new();
-    private readonly CheckBox _followBox = new() { Content = "Follow rig" };
-    private readonly CheckBox _tuneBox = new() { Content = "Tune rig" };
-    private readonly CheckBox _muteOnTxBox = new() { Content = "Mute on TX" };
+    private readonly CheckBox _followBox = new() { Content = Loc.S("webSdrWindow.followRig") };
+    private readonly CheckBox _tuneBox = new() { Content = Loc.S("webSdrWindow.tuneRig") };
+    private readonly CheckBox _muteOnTxBox = new() { Content = Loc.S("webSdrWindow.muteOnTX") };
     private readonly Button _muteButton = new();
     private readonly Button _recordButton = new();
     private readonly TextBlock _statusText = new() { TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
@@ -114,7 +114,7 @@ public sealed class WebSdrWindow : Window
         _notConnectedPanel.Children.Add(new FontIcon { Glyph = "", FontSize = 36, Foreground = new SolidColorBrush(Colors.Gray) });
         _notConnectedPanel.Children.Add(new TextBlock
         {
-            Text = "Not Connected",
+            Text = Loc.S("webSdrWindow.notConnected"),
             FontSize = 18,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -203,16 +203,16 @@ public sealed class WebSdrWindow : Window
 
         var left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var stationsButton = new Button();
-        SetContent(stationsButton, "", "Stations…");
-        ToolTipService.SetToolTip(stationsButton, "Choose a public KiwiSDR or WebSDR");
+        SetContent(stationsButton, "", Loc.S("webSdrWindow.stations"));
+        ToolTipService.SetToolTip(stationsButton, Loc.S("webSdrWindow.chooseAPublicKiwiSDR"));
         stationsButton.Click += (_, _) => ShowStations();
         left.Children.Add(stationsButton);
 
         // Picks a saved station (fills the host, never connects — same as a
         // directory pick). Still openable when empty, so the hint shows.
-        SetContent(_favoritesButton, "", "Favorites");
+        SetContent(_favoritesButton, "", Loc.S("common.favorites"));
         _favoritesButton.Flyout = _favoritesMenu;
-        ToolTipService.SetToolTip(_favoritesButton, "Choose a saved station");
+        ToolTipService.SetToolTip(_favoritesButton, Loc.S("webSdrWindow.chooseASavedStation"));
         _favoritesMenu.Opening += (_, _) => BuildFavoritesMenu();
         left.Children.Add(_favoritesButton);
 
@@ -227,7 +227,7 @@ public sealed class WebSdrWindow : Window
             }
         };
         _hostBox.TextChanged += (_, _) => Refresh();
-        AutomationPropertiesName(_hostBox, "WebSDR host");
+        AutomationPropertiesName(_hostBox, Loc.S("webSdrWindow.webSDRHost"));
         Grid.SetColumn(_hostBox, 1);
         bar.Children.Add(_hostBox);
         bar.Children.Add(left);
@@ -259,17 +259,17 @@ public sealed class WebSdrWindow : Window
         // The Mac's Play: opens the Recordings window (the CW page's PLAY,
         // through MainWindow).
         var recordingsButton = new Button();
-        SetContent(recordingsButton, "", "Recordings");
-        ToolTipService.SetToolTip(recordingsButton, "Open the Recordings window");
+        SetContent(recordingsButton, "", Loc.S("common.recordings"));
+        ToolTipService.SetToolTip(recordingsButton, Loc.S("webSdrWindow.openTheRecordingsWindow"));
         recordingsButton.Click += (_, _) => RecordingsRequested?.Invoke();
         right.Children.Add(recordingsButton);
         Grid.SetColumn(right, 4);
         bar.Children.Add(right);
 
         var toggles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(8, 0, 0, 0) };
-        ToolTipService.SetToolTip(_followBox, "Retune the WebSDR when the rig's Main VFO changes");
-        ToolTipService.SetToolTip(_tuneBox, "Tune the rig's Main VFO when you tune in the WebSDR page (click the waterfall, enter a frequency, pick a mode)");
-        ToolTipService.SetToolTip(_muteOnTxBox, "Mute the WebSDR while the rig is transmitting");
+        ToolTipService.SetToolTip(_followBox, Loc.S("webSdrWindow.retuneTheWebSDRWhen"));
+        ToolTipService.SetToolTip(_tuneBox, Loc.S("webSdrWindow.tuneTheRigsMain"));
+        ToolTipService.SetToolTip(_muteOnTxBox, Loc.S("webSdrWindow.muteTheWebSDRWhile"));
         _followBox.Click += (_, _) => { if (!_suppressToggles) { Model.FollowRig = _followBox.IsChecked == true; } };
         _tuneBox.Click += (_, _) => { if (!_suppressToggles) { Model.TuneRig = _tuneBox.IsChecked == true; } };
         _muteOnTxBox.Click += (_, _) => { if (!_suppressToggles) { Model.MuteOnTransmit = _muteOnTxBox.IsChecked == true; } };
@@ -326,7 +326,7 @@ public sealed class WebSdrWindow : Window
         _favoritesMenu.Items.Clear();
         if (Model.Favorites.Count == 0)
         {
-            _favoritesMenu.Items.Add(new MenuFlyoutItem { Text = "No favorites yet — star a station", IsEnabled = false });
+            _favoritesMenu.Items.Add(new MenuFlyoutItem { Text = Loc.S("webSdrWindow.noFavoritesYetStar"), IsEnabled = false });
         }
         else
         {
@@ -340,7 +340,7 @@ public sealed class WebSdrWindow : Window
             }
         }
         _favoritesMenu.Items.Add(new MenuFlyoutSeparator());
-        var manage = new MenuFlyoutItem { Text = "Manage Favorites…", IsEnabled = Model.Favorites.Count > 0 };
+        var manage = new MenuFlyoutItem { Text = Loc.S("webSdrWindow.manageFavorites"), IsEnabled = Model.Favorites.Count > 0 };
         manage.Click += async (_, _) => await ShowManageFavoritesAsync();
         _favoritesMenu.Items.Add(manage);
     }
@@ -400,7 +400,7 @@ public sealed class WebSdrWindow : Window
             // current Windows 10, but can be missing on an old install).
             AppLog.Write($"websdr: WebView2 failed to start: {ex.Message}");
             _webViewFailed = true;
-            _notConnectedHint.Text = $"The web view couldn't start ({ex.Message}). Installing Microsoft's WebView2 Runtime should fix this.";
+            _notConnectedHint.Text = Loc.F("common.theWebViewCouldnt", ex.Message);
             Refresh();
             return;
         }
@@ -496,10 +496,10 @@ public sealed class WebSdrWindow : Window
 
     private static string Describe(CoreWebView2WebErrorStatus status) => status switch
     {
-        CoreWebView2WebErrorStatus.HostNameNotResolved => "host not found",
+        CoreWebView2WebErrorStatus.HostNameNotResolved => Loc.S("webSdrWindow.hostNotFound"),
         CoreWebView2WebErrorStatus.CannotConnect or CoreWebView2WebErrorStatus.ConnectionAborted
-            or CoreWebView2WebErrorStatus.ConnectionReset or CoreWebView2WebErrorStatus.Disconnected => "couldn't connect",
-        CoreWebView2WebErrorStatus.Timeout => "timed out",
+            or CoreWebView2WebErrorStatus.ConnectionReset or CoreWebView2WebErrorStatus.Disconnected => Loc.S("webSdrWindow.couldntConnect"),
+        CoreWebView2WebErrorStatus.Timeout => Loc.S("webSdrWindow.timedOut"),
         _ => status.ToString(),
     };
 
@@ -520,18 +520,18 @@ public sealed class WebSdrWindow : Window
         _starIcon.Glyph = isFavorite ? "" : "";
         _starIcon.Foreground = isFavorite ? new SolidColorBrush(Colors.Gold) : new SolidColorBrush(Colors.Gray);
         _starButton.IsEnabled = Model.HostPort.Length > 0 && committed;
-        ToolTipService.SetToolTip(_starButton, isFavorite ? "Remove this station from Favorites"
-            : !committed ? "Press Enter to use this host, then add it to Favorites"
-            : "Add this station to Favorites");
-        AutomationPropertiesName(_starButton, isFavorite ? "Remove from Favorites" : "Add to Favorites");
+        ToolTipService.SetToolTip(_starButton, isFavorite ? Loc.S("webSdrWindow.removeThisStationFrom")
+            : !committed ? Loc.S("webSdrWindow.pressEnterToUse")
+            : Loc.S("webSdrWindow.addThisStationTo"));
+        AutomationPropertiesName(_starButton, isFavorite ? Loc.S("common.removeFromFavorites") : Loc.S("common.addToFavorites"));
 
         if (Model.IsConnected)
         {
-            SetContent(_connectButton, "", "Disconnect");
+            SetContent(_connectButton, "", Loc.S("common.disconnect"));
         }
         else
         {
-            SetContent(_connectButton, "", "Connect");
+            SetContent(_connectButton, "", Loc.S("common.connect"));
         }
         _connectButton.IsEnabled = Model.IsConnected || (Models.KiwiSdrUrlBuilder.BaseUrl(draft) is not null && !_webViewFailed);
 
@@ -550,7 +550,7 @@ public sealed class WebSdrWindow : Window
         _notConnectedPanel.Visibility = Model.IsConnected ? Visibility.Collapsed : Visibility.Visible;
         if (!_webViewFailed)
         {
-            _notConnectedHint.Text = "Pick a station or enter a KiwiSDR, WebSDR or OpenWebRX host:port, then press Connect.";
+            _notConnectedHint.Text = Loc.S("webSdrWindow.pickAStationOr");
         }
 
         _statusText.Text = Model.Status;
@@ -566,15 +566,15 @@ public sealed class WebSdrWindow : Window
     {
         if (Model.IsMuted)
         {
-            SetContent(_muteButton, "", "Muted", new SolidColorBrush(Colors.Red));
+            SetContent(_muteButton, "", Loc.S("webSdrWindow.muted"), new SolidColorBrush(Colors.Red));
         }
         else
         {
-            SetContent(_muteButton, "", "Mute");
+            SetContent(_muteButton, "", Loc.S("webSdrWindow.mute"));
         }
         ToolTipService.SetToolTip(_muteButton, Model.IsMuted
-            ? "Unmute the WebSDR (mutes the rig's Main audio while connected)"
-            : "Mute the WebSDR and bring back the rig's Main audio");
+            ? Loc.S("webSdrWindow.unmuteTheWebSDRMutes")
+            : Loc.S("webSdrWindow.muteTheWebSDRAnd"));
     }
 
     /// Record while connected; Stop (red, with the current file's elapsed
@@ -587,10 +587,10 @@ public sealed class WebSdrWindow : Window
             var elapsed = Model.SegmentStartedAt is { } started
                 ? " " + (DateTime.Now - started).ToString(@"m\:ss")
                 : "";
-            _recordButton.Content = IconLabel("", "Stop" + elapsed, new SolidColorBrush(Colors.Red));
-            AutomationPropertiesName(_recordButton, "Stop recording");
+            _recordButton.Content = IconLabel("", Loc.S("common.stop") + elapsed, new SolidColorBrush(Colors.Red));
+            AutomationPropertiesName(_recordButton, Loc.S("webSdrWindow.stopRecording"));
             _recordButton.IsEnabled = true;
-            ToolTipService.SetToolTip(_recordButton, "Stop recording and save to Recordings");
+            ToolTipService.SetToolTip(_recordButton, Loc.S("webSdrWindow.stopRecordingAndSave"));
             if (!_elapsedTimer.IsRunning)
             {
                 _elapsedTimer.Start();
@@ -598,9 +598,9 @@ public sealed class WebSdrWindow : Window
         }
         else
         {
-            SetContent(_recordButton, "", "Record");
+            SetContent(_recordButton, "", Loc.S("webSdrWindow.record"));
             _recordButton.IsEnabled = Model.IsConnected;
-            ToolTipService.SetToolTip(_recordButton, Model.IsConnected ? "Record the WebSDR's audio" : "Connect to a station to record");
+            ToolTipService.SetToolTip(_recordButton, Model.IsConnected ? Loc.S("webSdrWindow.recordTheWebSDRsAudio") : Loc.S("webSdrWindow.connectToAStation"));
             _elapsedTimer.Stop();
         }
     }

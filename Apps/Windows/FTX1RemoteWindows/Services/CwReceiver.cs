@@ -702,7 +702,7 @@ public sealed class CwReceiver : IDisposable
         }
         catch (Exception ex)
         {
-            error = $"Couldn't read “{Path.GetFileName(path)}”: {ex.Message}";
+            error = Loc.F("cwReceiver.couldntReadXX", Path.GetFileName(path), ex.Message);
             AppLog.Write($"cw-decoder: {error}");
         }
         Flush();

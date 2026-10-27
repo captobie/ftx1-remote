@@ -130,7 +130,7 @@ public static partial class RigctldBinary
         return null;
     }
 
-    public static string RigName(int model) => model == 1051 ? "the FTX-1" : $"model {model}";
+    public static string RigName(int model) => model == 1051 ? Loc.S("rigctldBinary.theFTX1") : $"model {model}";
 
     // --- Probing ---
 
@@ -143,17 +143,17 @@ public static partial class RigctldBinary
         /// Whether "rigctld -l" lists the model; null if -l didn't run.
         public bool? ListsModel { get; init; }
 
-        public string ShortVersion => Version is { } v ? $"Hamlib {v}" : "unknown version";
+        public string ShortVersion => Version is { } v ? Loc.F("rigctldBinary.hamlibX", v) : Loc.S("rigctldBinary.unknownVersion");
 
         public bool IsSuitable => Version is { } v && v >= MinimumVersion && ListsModel == true;
 
         /// Why this copy can't drive the rig, or null if it can.
         public string? Problem(int model)
         {
-            if (VersionLine is null) return $"{Path} didn't answer --version";
-            if (Version is not { } v) return $"{Path} reported no Hamlib version";
-            if (v < MinimumVersion) return $"{Path} is {v}, too old for {RigName(model)}";
-            if (ListsModel != true) return $"{Path} ({v}) doesn't list {RigName(model)}";
+            if (VersionLine is null) return Loc.F("rigctldBinary.xDidntAnswerVersion", Path);
+            if (Version is not { } v) return Loc.F("rigctldBinary.xReportedNoHamlib", Path);
+            if (v < MinimumVersion) return Loc.F("rigctldBinary.xIsXToo", Path, v, RigName(model));
+            if (ListsModel != true) return Loc.F("rigctldBinary.xXDoesntList", Path, v, RigName(model));
             return null;
         }
     }
@@ -211,27 +211,27 @@ public static partial class RigctldBinary
                 if (probe.IsSuitable)
                 {
                     var skipped = rejected.Count == 0 ? "" : " — " + string.Join("; ", rejected);
-                    return new Resolution(path, false, $"Using installed {path} ({probe.ShortVersion}){skipped}.");
+                    return new Resolution(path, false, Loc.F("rigctldBinary.usingInstalledXX", path, probe.ShortVersion, skipped));
                 }
-                rejected.Add(probe.Problem(model) ?? $"{path} is unusable");
+                rejected.Add(probe.Problem(model) ?? Loc.F("rigctldBinary.xIsUnusable", path));
             }
-            var because = rejected.Count == 0 ? "no installed rigctld found" : string.Join("; ", rejected);
+            var because = rejected.Count == 0 ? Loc.S("rigctldBinary.noInstalledRigctldFound") : string.Join("; ", rejected);
             return await BuiltInAsync(because).ConfigureAwait(false);
         }
         if (choice.IsBuiltIn)
         {
-            return await BuiltInAsync("chosen in Settings").ConfigureAwait(false);
+            return await BuiltInAsync(Loc.S("rigctldBinary.chosenInSettings")).ConfigureAwait(false);
         }
 
         var chosen = choice.ExplicitPath!;
         if (!File.Exists(chosen))
         {
-            return new Resolution(chosen, false, $"Using {chosen} (chosen in Settings).", "No rigctld.exe at this path.");
+            return new Resolution(chosen, false, Loc.F("rigctldBinary.usingXChosenIn", chosen), Loc.S("rigctldBinary.noRigctldExeAt"));
         }
         var chosenProbe = await ProbeAsync(chosen, model).ConfigureAwait(false);
         return new Resolution(chosen, false,
-            $"Using {chosen} ({chosenProbe.ShortVersion}, chosen in Settings).",
-            chosenProbe.Problem(model) is { } problem ? $"{problem}. Automatic would use a newer copy or the built-in one." : null);
+            Loc.F("rigctldBinary.usingXXChosen", chosen, chosenProbe.ShortVersion),
+            chosenProbe.Problem(model) is { } problem ? Loc.F("rigctldBinary.xAutomaticWouldUse", problem) : null);
     }
 
     private static async Task<Resolution> BuiltInAsync(string reason)
@@ -240,12 +240,12 @@ public static partial class RigctldBinary
         if (!File.Exists(path))
         {
             return new Resolution(null, true,
-                $"No usable rigctld: the built-in copy is missing from the app folder ({reason}).",
-                "Reinstall FTX1Remote, or install Hamlib 4.7 or later.");
+                Loc.F("rigctldBinary.noUsableRigctldThe", reason),
+                Loc.S("rigctldBinary.reinstallFTX1RemoteOrInstall"));
         }
         var version = await BuiltInVersionAsync().ConfigureAwait(false);
         return new Resolution(path, true,
-            $"Using built-in {(version is { } v ? $"Hamlib {v}" : "rigctld")} — {reason}.");
+            Loc.F("rigctldBinary.usingBuiltInX", (version is { } v ? $"Hamlib {v}" : "rigctld"), reason));
     }
 
     private static readonly Lazy<Task<HamlibVersion?>> BuiltInVersion = new(async () =>

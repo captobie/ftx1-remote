@@ -111,7 +111,7 @@ public static class HrdLogbook
         var target = Receiver()?.TargetDatabase;
         var database = Databases().FirstOrDefault(d => d.Title == target);
         return database is not null && !IsSqlite(database)
-            ? $"HRD's \"{database.Title}\" log is {database.Type}; only a local SQLite log can be read"
+            ? Loc.F("hrdLogbook.hRDsXLogIs", database.Title, database.Type)
             : null;
     }
 
@@ -151,18 +151,18 @@ public static class HrdLogbook
     {
         public string Name => "HRD Logbook";
         public string? LogPath => HrdLogbook.LogPath;
-        public string MissingLogReason => UnreadableDatabaseReason() ?? "HRD's log file wasn't found";
+        public string MissingLogReason => UnreadableDatabaseReason() ?? Loc.S("hrdLogbook.hRDsLogFileWasnt");
         public (string Host, int Port)? Destination() => HrdLogbook.Destination();
         public string MissingDestinationReason =>
-            "HRD's ADIF receiver port isn't known — turn on its UDP9/ADIF receive (see Settings → Logbook)";
+            Loc.S("hrdLogbook.hRDsADIFReceiverPort");
         public string UnconfirmedReason(string host, int port) =>
             !IsRunning
-                ? "HRD Logbook isn't running"
+                ? Loc.S("hrdLogbook.hRDLogbookIsntRunning")
                 : Receiver() is { Enabled: false }
-                    ? "HRD's UDP9/ADIF receive is off"
+                    ? Loc.S("hrdLogbook.hRDsUDP9ADIFReceive")
                     : LogbookPrograms.IsLocalHost(host) && !LogbookPrograms.IsListening(port)
-                        ? $"nothing is listening on UDP {port}"
-                        : $"it didn't show up in the log within {QsoLogger.ConfirmationTimeout.TotalSeconds:0} s";
+                        ? Loc.F("common.nothingIsListeningOn", port)
+                        : Loc.F("common.itDidntShowUp", QsoLogger.ConfirmationTimeout.TotalSeconds);
         public List<WorkedStations.Qso> ReadWorkedQsos(string path) => HrdLogbook.ReadWorkedQsos(path);
         public bool ContainsQso(string call, DateTimeOffset start, string path) => HrdLogbook.ContainsQso(call, start, path);
         public bool SupportsLookup => false;
@@ -226,7 +226,7 @@ public static class HrdLogbook
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'TABLE_HRD_CONTACTS_V%' ORDER BY name DESC LIMIT 1";
         return command.ExecuteScalar() as string
-            ?? throw new LogbookDatabase.LogException("This isn't an HRD log (no TABLE_HRD_CONTACTS table)");
+            ?? throw new LogbookDatabase.LogException(Loc.S("hrdLogbook.thisIsntAnHRD"));
     }
 
     private static string Text(SqliteDataReader reader, int column) => LogbookDatabase.Text(reader, column);

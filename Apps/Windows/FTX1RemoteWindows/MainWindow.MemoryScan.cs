@@ -336,8 +336,8 @@ public sealed partial class MainWindow
         if (!CanStartMemoryScan(sub))
         {
             StatusText.Text = sub && _singleReceive == true
-                ? "SUB isn't shown in single-receive display"
-                : $"Put {SideName(sub)} in Memory mode to scan";
+                ? Loc.S("mainWindow.sUBIsntShownIn")
+                : Loc.F("mainWindow.putXInMemory", SideName(sub));
             AppLog.Write($"memory scan: {SideName(sub)} start refused ({StatusText.Text})");
             return;
         }
@@ -368,7 +368,7 @@ public sealed partial class MainWindow
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Memory scan failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.memoryScanFailedX", ex.Message);
             AppLog.Write($"memory scan: start failed: {ex.Message}");
         }
     }
@@ -390,7 +390,7 @@ public sealed partial class MainWindow
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Skip failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.skipFailedX", ex.Message);
         }
     }
 
@@ -410,7 +410,7 @@ public sealed partial class MainWindow
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Stop scan failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.stopScanFailedX", ex.Message);
         }
     }
 
@@ -478,7 +478,7 @@ public sealed partial class MainWindow
         var menu = new MenuFlyout();
         foreach (var sub in new[] { true, false })
         {
-            var item = new MenuFlyoutItem { Text = $"Scan {SideName(sub)}", IsEnabled = CanStartMemoryScan(sub) };
+            var item = new MenuFlyoutItem { Text = Loc.F("mainWindow.scanX", SideName(sub)), IsEnabled = CanStartMemoryScan(sub) };
             item.Click += async (_, _) => await StartMemoryScanAsync(sub, up: true);
             menu.Items.Add(item);
         }
@@ -526,7 +526,7 @@ public sealed partial class MainWindow
     private void UpdateMemoryScanControls()
     {
         var active = _lastState.MemoryScanActive;
-        MemoryScanButton.Content = active ? $"Stop {SideName(_lastState.MemoryScanSub)}" : "Scan";
+        MemoryScanButton.Content = active ? Loc.F("mainWindow.stopX", SideName(_lastState.MemoryScanSub)) : Loc.S("mainWindow.scan");
         var style = (Style)Application.Current.Resources[active ? "AccentButtonStyle" : "DefaultButtonStyle"];
         if (MemoryScanButton.Style != style)
         {

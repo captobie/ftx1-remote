@@ -43,13 +43,13 @@ public sealed class CwLogPane : UserControl
     private readonly WorkedStationsStore _worked;
 
     private readonly TextBlock _destinationText = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-    private readonly TextBox _theirCallBox = new() { Width = 120, PlaceholderText = "Their call", CharacterCasing = CharacterCasing.Upper };
+    private readonly TextBox _theirCallBox = new() { Width = 120, PlaceholderText = Loc.S("common.theirCall"), CharacterCasing = CharacterCasing.Upper };
     private readonly TextBlock _timeOnText = new() { FontFamily = new FontFamily("Consolas"), MinWidth = 100, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _workedText = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly TextBox _rstSentBox = new() { Width = 64, Text = DefaultRst };
     private readonly TextBox _rstReceivedBox = new() { Width = 64, Text = DefaultRst };
-    private readonly TextBox _nameBox = new() { Width = 140, PlaceholderText = "Name" };
-    private readonly TextBox _commentBox = new() { PlaceholderText = "Comment" };
+    private readonly TextBox _nameBox = new() { Width = 140, PlaceholderText = Loc.S("common.name") };
+    private readonly TextBox _commentBox = new() { PlaceholderText = Loc.S("common.comment") };
     private readonly TextBlock _rigText = new() { FontFamily = new FontFamily("Consolas"), VerticalAlignment = VerticalAlignment.Center };
     private readonly FontIcon _resultIcon = new() { FontSize = 14, VerticalAlignment = VerticalAlignment.Center };
     private readonly ProgressRing _resultRing = new() { Width = 14, Height = 14, IsActive = false };
@@ -135,7 +135,7 @@ public sealed class CwLogPane : UserControl
         var header = new Grid();
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        header.Children.Add(new TextBlock { Text = "Log QSO", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+        header.Children.Add(new TextBlock { Text = Loc.S("cwLogPane.logQSO"), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
         Grid.SetColumn(_destinationText, 1);
         header.Children.Add(_destinationText);
         return header;
@@ -146,16 +146,16 @@ public sealed class CwLogPane : UserControl
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
         var lookup = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         lookup.Children.Add(new FontIcon { Glyph = "", FontSize = 12 });
-        lookup.Children.Add(new TextBlock { Text = "Lookup" });
+        lookup.Children.Add(new TextBlock { Text = Loc.S("cwLogPane.lookup") });
         _lookupButton.Content = lookup;
         _lookupButton.Visibility = Visibility.Collapsed;
-        ToolTipService.SetToolTip(_lookupButton, "Look the call up in Log4OM (fills its call field)");
-        AutomationProperties.SetName(_lookupButton, "Lookup");
+        ToolTipService.SetToolTip(_lookupButton, Loc.S("cwLogPane.lookTheCallUp"));
+        AutomationProperties.SetName(_lookupButton, Loc.S("cwLogPane.lookup"));
         _lookupButton.Click += async (_, _) => await LookUpAsync();
         row.Children.Add(_lookupButton);
 
-        ToolTipService.SetToolTip(_theirCallBox, "The station you're working — also {CALL} in macros. Click a callsign in the decoded text to fill it in.");
-        AutomationProperties.SetName(_theirCallBox, "Their call");
+        ToolTipService.SetToolTip(_theirCallBox, Loc.S("cwLogPane.theStationYoureWorking"));
+        AutomationProperties.SetName(_theirCallBox, Loc.S("common.theirCall"));
         _theirCallBox.TextChanged += (_, _) =>
         {
             if (!_updating)
@@ -167,11 +167,11 @@ public sealed class CwLogPane : UserControl
         row.Children.Add(_theirCallBox);
 
         var timeOn = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        timeOn.Children.Add(Secondary("On"));
+        timeOn.Children.Add(Secondary(Loc.S("cwLogPane.on")));
         timeOn.Children.Add(_timeOnText);
         var reset = new Button { Content = new FontIcon { Glyph = "", FontSize = 12 }, Padding = new Thickness(6, 4, 6, 4) };
-        ToolTipService.SetToolTip(reset, "Set the time on to now");
-        AutomationProperties.SetName(reset, "Set the time on to now");
+        ToolTipService.SetToolTip(reset, Loc.S("cwLogPane.setTheTimeOn"));
+        AutomationProperties.SetName(reset, Loc.S("cwLogPane.setTheTimeOn"));
         reset.Click += (_, _) =>
         {
             _timeOn = DateTimeOffset.UtcNow;
@@ -190,11 +190,11 @@ public sealed class CwLogPane : UserControl
         {
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
         }
-        AutomationProperties.SetName(_rstSentBox, "RST sent");
-        AutomationProperties.SetName(_rstReceivedBox, "RST received");
-        AutomationProperties.SetName(_nameBox, "Name");
-        AutomationProperties.SetName(_commentBox, "Comment");
-        var items = new FrameworkElement[] { Secondary("RST sent"), _rstSentBox, Secondary("rcvd"), _rstReceivedBox, _nameBox, _commentBox };
+        AutomationProperties.SetName(_rstSentBox, Loc.S("cwLogPane.rSTSent"));
+        AutomationProperties.SetName(_rstReceivedBox, Loc.S("cwLogPane.rSTReceived"));
+        AutomationProperties.SetName(_nameBox, Loc.S("common.name"));
+        AutomationProperties.SetName(_commentBox, Loc.S("common.comment"));
+        var items = new FrameworkElement[] { Secondary(Loc.S("cwLogPane.rSTSent")), _rstSentBox, Secondary("rcvd"), _rstReceivedBox, _nameBox, _commentBox };
         for (var i = 0; i < items.Length; i++)
         {
             Grid.SetColumn(items[i], i);
@@ -210,7 +210,7 @@ public sealed class CwLogPane : UserControl
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        ToolTipService.SetToolTip(_rigText, "Logged from the transmitting side: frequency, mode and RF power setting");
+        ToolTipService.SetToolTip(_rigText, Loc.S("cwLogPane.loggedFromTheTransmitting"));
         row.Children.Add(_rigText);
 
         var result = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
@@ -234,11 +234,11 @@ public sealed class CwLogPane : UserControl
 
         var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         panel.Children.Add(new FontIcon { Glyph = "", FontSize = 14 });
-        panel.Children.Add(new TextBlock { Text = "Log QSO" });
+        panel.Children.Add(new TextBlock { Text = Loc.S("cwLogPane.logQSO") });
         _logButton.Content = panel;
         _logButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
-        AutomationProperties.SetName(_logButton, "Log QSO");
-        ToolTipService.SetToolTip(_logButton, "Log this QSO (Ctrl+L)");
+        AutomationProperties.SetName(_logButton, Loc.S("cwLogPane.logQSO"));
+        ToolTipService.SetToolTip(_logButton, Loc.S("cwLogPane.logThisQSOCtrl"));
         _logButton.KeyboardAccelerators.Add(new KeyboardAccelerator { Key = VirtualKey.L, Modifiers = VirtualKeyModifiers.Control });
         _logButton.Click += async (_, _) => await LogAsync();
         Grid.SetColumn(_logButton, 3);
@@ -307,24 +307,24 @@ public sealed class CwLogPane : UserControl
         }
         else if (_worked.Problem is { } problem)
         {
-            text = $"Worked before: {problem}";
+            text = Loc.F("cwLogPane.workedBeforeX", problem);
             brush = secondary;
         }
         else if (_worked.Worked.SummaryOf(call) is { } summary)
         {
             var last = summary.Last;
-            text = $"Worked {summary.Count}× · last {last.Date.UtcDateTime:yyyy-MM-dd} {last.Band.ToLowerInvariant()} {last.Mode}";
+            text = Loc.F("cwLogPane.workedXLastX", summary.Count, last.Date.UtcDateTime, last.Band.ToLowerInvariant(), last.Mode);
             var newBand = _worked.Band is { } band && !summary.Bands.Contains(band.ToLowerInvariant());
             if (newBand)
             {
-                text += $" · new on {_worked.Band}";
+                text += Loc.F("cwLogPane.newOnX", _worked.Band);
             }
             brush = WorkedBrush(newBand ? WorkedStations.Status.OtherBand : WorkedStations.Status.ThisBand)!;
             tip = string.Join(", ", summary.Bands.Order());
         }
         else
         {
-            text = "New station";
+            text = Loc.S("cwLogPane.newStation");
             brush = NewStationBrush;
         }
         _workedText.Text = text;
@@ -348,7 +348,7 @@ public sealed class CwLogPane : UserControl
         var targets = new List<string>();
         if (program is not null) targets.Add(program.Name);
         if (AppSettings.WavelogEnabled) targets.Add("Wavelog");
-        _destinationText.Text = targets.Count == 0 ? "No logbook — choose one in Settings → Logbook" : $"To {string.Join(" + ", targets)}";
+        _destinationText.Text = targets.Count == 0 ? Loc.S("cwLogPane.noLogbookChooseOne") : Loc.F("cwLogPane.toX", string.Join(" + ", targets));
         _destinationText.Foreground = targets.Count == 0
             ? new SolidColorBrush(Microsoft.UI.Colors.DarkOrange)
             : (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
@@ -371,7 +371,7 @@ public sealed class CwLogPane : UserControl
         if (!_isLogging)
         {
             SetResult(problem is null ? ResultKind.Success : ResultKind.Failure,
-                problem ?? $"{call} sent to Log4OM for lookup");
+                problem ?? Loc.F("cwLogPane.xSentToLog4OM", call));
         }
     }
 
@@ -399,22 +399,22 @@ public sealed class CwLogPane : UserControl
         }
         if (!QsoLogger.HasLogbook)
         {
-            SetResult(ResultKind.Failure, "No logbook is selected in Settings → Logbook");
+            SetResult(ResultKind.Failure, Loc.S("cwLogPane.noLogbookIsSelected"));
             return;
         }
         if (_link.Transmitter() is not { } tx)
         {
-            SetResult(ResultKind.Failure, "Not connected to the rig — frequency and mode unknown");
+            SetResult(ResultKind.Failure, Loc.S("cwLogPane.notConnectedToThe"));
             return;
         }
         if (tx.FrequencyHz <= 0)
         {
-            SetResult(ResultKind.Failure, "The transmitting side's frequency isn't known yet");
+            SetResult(ResultKind.Failure, Loc.S("cwLogPane.theTransmittingSidesFrequency"));
             return;
         }
         if (AdifMode.For(tx.Mode, tx.IsC4fm) is not { } mode)
         {
-            SetResult(ResultKind.Failure, $"Can't log in {tx.Mode?.DisplayName() ?? "an unknown mode"}");
+            SetResult(ResultKind.Failure, Loc.F("cwLogPane.cantLogInX", tx.Mode?.DisplayName() ?? Loc.S("common.anUnknownMode")));
             return;
         }
         var end = DateTimeOffset.UtcNow;
@@ -440,7 +440,7 @@ public sealed class CwLogPane : UserControl
         _isLogging = true;
         _logButton.IsEnabled = false;
         _retryButton.IsEnabled = false;
-        SetResult(null, "Logging…");
+        SetResult(null, Loc.S("cwLogPane.logging"));
         var outcomes = await QsoLogger.LogAsync(qso);
         _isLogging = false;
         _logButton.IsEnabled = NormalizedCall.Length > 0;
@@ -454,20 +454,20 @@ public sealed class CwLogPane : UserControl
     private void Show(QsoLogOutcomes outcomes, LoggedQso qso)
     {
         var call = qso.Call;
-        var primaryName = LogbookPrograms.Current?.Name ?? "the logbook";
+        var primaryName = LogbookPrograms.Current?.Name ?? Loc.S("cwLogPane.theLogbook");
         string? wavelogNote = null;
         var wavelogOk = true;
         switch (outcomes.Wavelog)
         {
             case QsoLogOutcome.AlreadyLogged:
-                wavelogNote = "already in Wavelog";
+                wavelogNote = Loc.S("cwLogPane.alreadyInWavelog");
                 break;
             case QsoLogOutcome.SentUnconfirmed(var reason):
-                wavelogNote = $"Wavelog: {reason}";
+                wavelogNote = Loc.F("common.wavelogX", reason);
                 wavelogOk = false;
                 break;
             case QsoLogOutcome.Failed(var reason):
-                wavelogNote = $"Wavelog: {reason}";
+                wavelogNote = Loc.F("common.wavelogX", reason);
                 wavelogOk = false;
                 break;
         }
@@ -479,26 +479,26 @@ public sealed class CwLogPane : UserControl
                 // Wavelog alone: Log QSO again is the retry.
                 if (wavelogOk)
                 {
-                    SetResult(ResultKind.Success, WithWavelog($"{call} logged to Wavelog"));
+                    SetResult(ResultKind.Success, WithWavelog(Loc.F("cwLogPane.xLoggedToWavelog", call)));
                     ClearIfStill(call);
                 }
                 else
                 {
-                    SetResult(ResultKind.Failure, WithWavelog($"{call} not logged"));
+                    SetResult(ResultKind.Failure, WithWavelog(Loc.F("cwLogPane.xNotLogged", call)));
                 }
                 break;
             case QsoLogOutcome.Logged or QsoLogOutcome.AlreadyLogged:
                 _worked.Reload();
                 if (wavelogOk)
                 {
-                    var to = outcomes.Wavelog is null ? primaryName : $"{primaryName} and Wavelog";
-                    SetResult(ResultKind.Success, WithWavelog($"{call} logged to {to}"));
+                    var to = outcomes.Wavelog is null ? primaryName : Loc.F("cwLogPane.xAndWavelog", primaryName);
+                    SetResult(ResultKind.Success, WithWavelog(Loc.F("cwLogPane.xLoggedToX", call, to)));
                     ClearIfStill(call);
                 }
                 else
                 {
                     SetWavelogRetry(qso);
-                    SetResult(ResultKind.Warning, WithWavelog($"{call} logged to {primaryName}"));
+                    SetResult(ResultKind.Warning, WithWavelog(Loc.F("cwLogPane.xLoggedToX", call, primaryName)));
                 }
                 break;
             case QsoLogOutcome.SentUnconfirmed(var reason):
@@ -506,7 +506,7 @@ public sealed class CwLogPane : UserControl
                 {
                     SetWavelogRetry(qso);
                 }
-                SetResult(ResultKind.Warning, WithWavelog($"{reason} — check {primaryName} before logging {call} again"));
+                SetResult(ResultKind.Warning, WithWavelog(Loc.F("cwLogPane.xCheckXBefore", reason, primaryName, call)));
                 break;
             case QsoLogOutcome.Failed(var reason):
                 // Nothing reached the primary: Log QSO again resends both,
@@ -533,11 +533,11 @@ public sealed class CwLogPane : UserControl
         {
             return;
         }
-        _retryText.Text = $"Retry Wavelog ({qso.Call})";
-        AutomationProperties.SetName(_retryButton, $"Retry Wavelog ({qso.Call})");
-        ToolTipService.SetToolTip(_retryButton, $"Send {qso.Call} to Wavelog again, as it was logged — not to {LogbookPrograms.Current?.Name ?? "the other logbook"}");
-        AutomationProperties.SetName(_retryDismissButton, $"Don't send {qso.Call} to Wavelog");
-        ToolTipService.SetToolTip(_retryDismissButton, $"Don't send {qso.Call} to Wavelog");
+        _retryText.Text = Loc.F("cwLogPane.retryWavelogX", qso.Call);
+        AutomationProperties.SetName(_retryButton, Loc.F("cwLogPane.retryWavelogX", qso.Call));
+        ToolTipService.SetToolTip(_retryButton, Loc.F("cwLogPane.sendXToWavelog", qso.Call, LogbookPrograms.Current?.Name ?? Loc.S("cwLogPane.theOtherLogbook")));
+        AutomationProperties.SetName(_retryDismissButton, Loc.F("cwLogPane.dontSendXTo", qso.Call));
+        ToolTipService.SetToolTip(_retryDismissButton, Loc.F("cwLogPane.dontSendXTo", qso.Call));
     }
 
     private async Task RetryWavelogAsync()
@@ -549,7 +549,7 @@ public sealed class CwLogPane : UserControl
         _isLogging = true;
         _logButton.IsEnabled = false;
         _retryButton.IsEnabled = false;
-        SetResult(null, "Logging…");
+        SetResult(null, Loc.S("cwLogPane.logging"));
         var outcome = await QsoLogger.LogToWavelogAsync(qso);
         _isLogging = false;
         _logButton.IsEnabled = NormalizedCall.Length > 0;
@@ -558,14 +558,14 @@ public sealed class CwLogPane : UserControl
         {
             case QsoLogOutcome.Logged or QsoLogOutcome.AlreadyLogged:
                 SetWavelogRetry(null);
-                SetResult(ResultKind.Success, outcome is QsoLogOutcome.Logged ? $"{qso.Call} logged to Wavelog" : $"{qso.Call} was already in Wavelog");
+                SetResult(ResultKind.Success, outcome is QsoLogOutcome.Logged ? Loc.F("cwLogPane.xLoggedToWavelog", qso.Call) : Loc.F("cwLogPane.xWasAlreadyIn", qso.Call));
                 ClearIfStill(qso.Call);
                 break;
             case QsoLogOutcome.SentUnconfirmed(var reason):
-                SetResult(ResultKind.Failure, $"Wavelog: {reason}");
+                SetResult(ResultKind.Failure, Loc.F("common.wavelogX", reason));
                 break;
             case QsoLogOutcome.Failed(var reason):
-                SetResult(ResultKind.Failure, $"Wavelog: {reason}");
+                SetResult(ResultKind.Failure, Loc.F("common.wavelogX", reason));
                 break;
         }
     }

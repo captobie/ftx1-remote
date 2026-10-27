@@ -56,10 +56,10 @@ public sealed class CwSendPane : UserControl
     private readonly FontIcon _statusIcon = new() { Glyph = "", FontSize = 14, VerticalAlignment = VerticalAlignment.Center };
     private readonly ProgressRing _statusRing = new() { Width = 14, Height = 14, IsActive = false };
     private readonly TextBlock _statusText = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-    private readonly Button _breakInOnButton = new() { Content = "Turn On BK-IN", Padding = new Thickness(8, 2, 8, 3) };
+    private readonly Button _breakInOnButton = new() { Content = Loc.S("cwSendPane.turnOnBKIN"), Padding = new Thickness(8, 2, 8, 3) };
 
-    private readonly TextBox _lineBox = new() { PlaceholderText = "Type a line and press Enter to send", CharacterCasing = CharacterCasing.Upper, FontFamily = new FontFamily("Consolas") };
-    private readonly Button _sendButton = new() { Content = "Send" };
+    private readonly TextBox _lineBox = new() { PlaceholderText = Loc.S("cwSendPane.typeALineAnd"), CharacterCasing = CharacterCasing.Upper, FontFamily = new FontFamily("Consolas") };
+    private readonly Button _sendButton = new() { Content = Loc.S("cwSendPane.send") };
 
     private readonly DispatcherQueueTimer _rigTimer;
     /// The last problem queueing something or filling a macro; cleared when
@@ -135,19 +135,19 @@ public sealed class CwSendPane : UserControl
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         var left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-        left.Children.Add(new TextBlock { Text = "Send", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+        left.Children.Add(new TextBlock { Text = Loc.S("cwSendPane.send"), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
         var speed = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
         speed.Children.Add(_speedText);
         speed.Children.Add(_slowerButton);
         speed.Children.Add(_fasterButton);
-        ToolTipService.SetToolTip(speed, "The rig's keyer speed (KS), 4–60 WPM");
-        AutomationProperties.SetName(_slowerButton, "Slower");
-        AutomationProperties.SetName(_fasterButton, "Faster");
+        ToolTipService.SetToolTip(speed, Loc.S("cwSendPane.theRigsKeyerSpeed"));
+        AutomationProperties.SetName(_slowerButton, Loc.S("cwSendPane.slower"));
+        AutomationProperties.SetName(_fasterButton, Loc.S("cwSendPane.faster"));
         _slowerButton.Click += (_, _) => StepSpeed(-1);
         _fasterButton.Click += (_, _) => StepSpeed(+1);
         left.Children.Add(speed);
 
-        ToolTipService.SetToolTip(_breakInButton, "Break-in. The rig only transmits its keyer memory with BK-IN on.");
+        ToolTipService.SetToolTip(_breakInButton, Loc.S("cwSendPane.breakInTheRig"));
         _breakInButton.Click += (_, _) =>
         {
             if (_link.BreakIn() is { } on)
@@ -160,7 +160,7 @@ public sealed class CwSendPane : UserControl
 
         for (var slot = 1; slot <= 5; slot++)
         {
-            _slotBox.Items.Add(new ComboBoxItem { Content = $"Memory {slot}", Tag = slot });
+            _slotBox.Items.Add(new ComboBoxItem { Content = Loc.F("cwSendPane.memoryX", slot), Tag = slot });
         }
         _slotBox.SelectedIndex = _sender.Slot - 1;
         _slotBox.SelectionChanged += (_, _) =>
@@ -170,8 +170,8 @@ public sealed class CwSendPane : UserControl
                 _sender.Slot = slot;
             }
         };
-        ToolTipService.SetToolTip(_slotBox, "The rig's CW TEXT keyer memory the send pane writes to. Whatever is stored there gets overwritten.");
-        AutomationProperties.SetName(_slotBox, "Keyer memory");
+        ToolTipService.SetToolTip(_slotBox, Loc.S("cwSendPane.theRigsCWTEXT"));
+        AutomationProperties.SetName(_slotBox, Loc.S("cwSendPane.keyerMemory"));
         left.Children.Add(_slotBox);
         header.Children.Add(left);
 
@@ -179,25 +179,25 @@ public sealed class CwSendPane : UserControl
         var monitorSwitch = new ToggleSwitch
         {
             Header = null,
-            OnContent = "Monitor",
-            OffContent = "Monitor",
+            OnContent = Loc.S("cwSendPane.monitor"),
+            OffContent = Loc.S("cwSendPane.monitor"),
             IsOn = _link.Monitor.IsEnabled,
             MinWidth = 0,
             VerticalAlignment = VerticalAlignment.Center,
         };
         monitorSwitch.Toggled += (_, _) => _link.Monitor.IsEnabled = monitorSwitch.IsOn;
-        ToolTipService.SetToolTip(monitorSwitch, "Play a sidetone on this PC while the rig's keyer sends, at the rig's speed and CW pitch — for when the rig is remote and there's nothing to hear");
-        AutomationProperties.SetName(monitorSwitch, "Monitor");
+        ToolTipService.SetToolTip(monitorSwitch, Loc.S("cwSendPane.playASidetoneOn"));
+        AutomationProperties.SetName(monitorSwitch, Loc.S("cwSendPane.monitor"));
         right.Children.Add(monitorSwitch);
         var macrosButton = new Button();
-        SetContent(macrosButton, "", "Macros…");
-        ToolTipService.SetToolTip(macrosButton, "Edit the macro buttons");
+        SetContent(macrosButton, "", Loc.S("cwSendPane.macros"));
+        ToolTipService.SetToolTip(macrosButton, Loc.S("cwSendPane.editTheMacroButtons"));
         macrosButton.Click += async (_, _) => await EditMacrosAsync();
-        SetContent(_clearButton, "", "Clear");
-        ToolTipService.SetToolTip(_clearButton, "Clear what's been sent from the log");
+        SetContent(_clearButton, "", Loc.S("common.clear"));
+        ToolTipService.SetToolTip(_clearButton, Loc.S("cwSendPane.clearWhatsBeenSent"));
         _clearButton.Click += (_, _) => _sender.ClearLog();
-        SetContent(_stopButton, "", "Stop");
-        ToolTipService.SetToolTip(_stopButton, "Stop keying now and drop everything queued (Esc)");
+        SetContent(_stopButton, "", Loc.S("common.stop"));
+        ToolTipService.SetToolTip(_stopButton, Loc.S("cwSendPane.stopKeyingNowAnd"));
         _stopButton.KeyboardAccelerators.Add(new KeyboardAccelerator { Key = VirtualKey.Escape });
         _stopButton.Click += (_, _) => _sender.Stop();
         right.Children.Add(macrosButton);
@@ -228,7 +228,7 @@ public sealed class CwSendPane : UserControl
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        AutomationProperties.SetName(_lineBox, "Send line");
+        AutomationProperties.SetName(_lineBox, Loc.S("cwSendPane.sendLine"));
         _lineBox.KeyDown += (_, e) =>
         {
             if (e.Key == VirtualKey.Enter)
@@ -315,7 +315,7 @@ public sealed class CwSendPane : UserControl
             var macro = macros[i];
             var button = new Button { Content = macro.Label.Length > 0 ? macro.Label : "—" };
             button.Click += (_, _) => Insert(macro);
-            var tip = $"Put “{macro.Text}” in the send line";
+            var tip = Loc.F("cwSendPane.putXInThe", macro.Text);
             if (i < 9)
             {
                 button.KeyboardAccelerators.Add(new KeyboardAccelerator { Key = VirtualKey.Number1 + i, Modifiers = VirtualKeyModifiers.Control });
@@ -380,12 +380,14 @@ public sealed class CwSendPane : UserControl
         else if (_sender.BlockReason is { } block)
         {
             showIcon = true;
-            text = $"Can't send: {block.Message}";
+            text = Loc.F("cwSendPane.cantSendX", block.Message);
             showBreakInButton = block.Kind == CwSendBlockKind.BreakInOff;
         }
         else
         {
-            text = $"Ready — {(_sender.SpeedWpm is { } wpm ? $"{wpm} WPM" : "rig keyer")}, memory {_sender.Slot}";
+            text = _sender.SpeedWpm is { } wpm
+                ? Loc.F("cwSendPane.readyMemoryWpm", wpm, _sender.Slot)
+                : Loc.F("cwSendPane.readyMemoryRigKeyer", _sender.Slot);
         }
         _statusText.Text = text;
         ToolTipService.SetToolTip(_statusText, text);
@@ -443,7 +445,7 @@ public sealed class CwSendPane : UserControl
             }
             if (item.Dropped.Length > 0)
             {
-                row.Children.Add(new TextBlock { Text = $"Left out (the keyer can't send them): {item.Dropped}", FontSize = 12, Foreground = secondary, Margin = new Thickness(24, 0, 0, 0) });
+                row.Children.Add(new TextBlock { Text = Loc.F("cwSendPane.leftOutTheKeyer", item.Dropped), FontSize = 12, Foreground = secondary, Margin = new Thickness(24, 0, 0, 0) });
             }
             _log.Children.Add(row);
         }
@@ -474,20 +476,20 @@ public sealed class CwSendPane : UserControl
                 {
                     grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 }
-                var label = new TextBox { Text = macro.Label, PlaceholderText = "Label" };
+                var label = new TextBox { Text = macro.Label, PlaceholderText = Loc.S("cwSendPane.label") };
                 label.TextChanged += (_, _) => macro.Label = label.Text;
-                AutomationProperties.SetName(label, $"Macro {index + 1} label");
-                var text = new TextBox { Text = macro.Text, PlaceholderText = "Text", FontFamily = new FontFamily("Consolas") };
+                AutomationProperties.SetName(label, Loc.F("cwSendPane.macroXLabel", index + 1));
+                var text = new TextBox { Text = macro.Text, PlaceholderText = Loc.S("cwSendPane.text"), FontFamily = new FontFamily("Consolas") };
                 text.TextChanged += (_, _) => macro.Text = text.Text;
-                AutomationProperties.SetName(text, $"Macro {index + 1} text");
+                AutomationProperties.SetName(text, Loc.F("cwSendPane.macroXText", index + 1));
                 Grid.SetColumn(text, 1);
                 grid.Children.Add(label);
                 grid.Children.Add(text);
                 var buttons = new (string Glyph, string Name, Action Act, bool Enabled)[]
                 {
-                    ("", "Move up", () => { (working[index - 1], working[index]) = (working[index], working[index - 1]); Rebuild(); }, index > 0),
-                    ("", "Move down", () => { (working[index + 1], working[index]) = (working[index], working[index + 1]); Rebuild(); }, index < working.Count - 1),
-                    ("", "Remove", () => { working.RemoveAt(index); Rebuild(); }, true),
+                    ("", Loc.S("common.moveUp"), () => { (working[index - 1], working[index]) = (working[index], working[index - 1]); Rebuild(); }, index > 0),
+                    ("", Loc.S("common.moveDown"), () => { (working[index + 1], working[index]) = (working[index], working[index + 1]); Rebuild(); }, index < working.Count - 1),
+                    ("", Loc.S("cwSendPane.remove"), () => { working.RemoveAt(index); Rebuild(); }, true),
                 };
                 for (var b = 0; b < buttons.Length; b++)
                 {
@@ -504,13 +506,13 @@ public sealed class CwSendPane : UserControl
         }
         Rebuild();
 
-        var add = new Button { Content = "Add" };
+        var add = new Button { Content = Loc.S("cwSendPane.add") };
         add.Click += (_, _) =>
         {
-            working.Add(new CwMacro { Label = "New", Text = "" });
+            working.Add(new CwMacro { Label = Loc.S("common.new"), Text = "" });
             Rebuild();
         };
-        var restore = new Button { Content = "Restore Defaults" };
+        var restore = new Button { Content = Loc.S("cwSendPane.restoreDefaults") };
         restore.Click += (_, _) =>
         {
             working = CwMacro.Defaults();
@@ -523,7 +525,7 @@ public sealed class CwSendPane : UserControl
         var body = new StackPanel { Spacing = 12, Width = 620 };
         body.Children.Add(new TextBlock
         {
-            Text = "Placeholders: {MYCALL} and {MYGRID} (Settings → Station), {CALL} (Their call — click a callsign in the decoded text to fill it in). Prosigns: <BT>, <AR>, <KN>.",
+            Text = Loc.S("cwSendPane.placeholdersMYCALLAndMYGRID"),
             TextWrapping = TextWrapping.Wrap,
             Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
         });
@@ -532,10 +534,10 @@ public sealed class CwSendPane : UserControl
 
         var dialog = new ContentDialog
         {
-            Title = "CW Macros",
+            Title = Loc.S("cwSendPane.cWMacros"),
             Content = body,
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = Loc.S("cwSendPane.save"),
+            CloseButtonText = Loc.S("common.cancel"),
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = XamlRoot,
             RequestedTheme = AppSettings.Theme.ElementTheme(),

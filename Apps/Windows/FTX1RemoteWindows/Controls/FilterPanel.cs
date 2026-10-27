@@ -57,13 +57,13 @@ public sealed class FilterPanel : UserControl
 
     private readonly StackPanel _widthGroup = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
     private readonly ComboBox _widthBox = new() { Width = 150, VerticalAlignment = VerticalAlignment.Center };
-    private readonly Button _narrowerButton = IconButton("", "Narrower");
-    private readonly Button _widerButton = IconButton("", "Wider");
+    private readonly Button _narrowerButton = IconButton("", Loc.S("filterPanel.narrower"));
+    private readonly Button _widerButton = IconButton("", Loc.S("filterPanel.wider"));
 
     private readonly StackPanel _shiftGroup = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
     private readonly CommitSlider _shiftSlider;
     private readonly TextBlock _shiftLabel = ValueLabel(64);
-    private readonly Button _shiftCenterButton = IconButton("", "Center");
+    private readonly Button _shiftCenterButton = IconButton("", Loc.S("filterPanel.center"));
 
     private readonly ToggleSliderRow _contourRow;
     private readonly ToggleSliderRow _apfRow;
@@ -86,26 +86,26 @@ public sealed class FilterPanel : UserControl
     {
         _state = state;
 
-        AutomationProperties.SetName(_widthBox, "Filter width");
+        AutomationProperties.SetName(_widthBox, Loc.S("filterPanel.filterWidth"));
         _widthBox.SelectionChanged += (_, _) => OnWidthPicked();
         _narrowerButton.Click += (_, _) => StepWidth(narrower: true);
         _widerButton.Click += (_, _) => StepWidth(narrower: false);
-        _widthGroup.Children.Add(Caption("Width"));
+        _widthGroup.Children.Add(Caption(Loc.S("filterPanel.width")));
         _widthGroup.Children.Add(_widthBox);
         _widthGroup.Children.Add(_narrowerButton);
         _widthGroup.Children.Add(_widerButton);
 
-        _shiftSlider = new CommitSlider(IFShift.Min, IFShift.Max, IFShift.StepHz, 180, "IF shift",
+        _shiftSlider = new CommitSlider(IFShift.Min, IFShift.Max, IFShift.StepHz, 180, Loc.S("filterPanel.iFShift"),
             rigValue: () => _state.IfShiftHz is { } hz ? IFShift.Snapped(hz) : null,
             onChanging: hz => _shiftLabel.Text = IFShift.Label(IFShift.Snapped(hz)),
             onCommit: hz => _ = SetShiftAsync(hz));
         _shiftCenterButton.Click += (_, _) => _ = SetShiftAsync(0);
-        _shiftGroup.Children.Add(Caption("Shift"));
+        _shiftGroup.Children.Add(Caption(Loc.S("common.shift")));
         _shiftGroup.Children.Add(_shiftSlider.Slider);
         _shiftGroup.Children.Add(_shiftLabel);
         _shiftGroup.Children.Add(_shiftCenterButton);
 
-        _contourRow = new ToggleSliderRow("Contour", "Contour on/off", IFContour.ContourMinHz, IFContour.ContourMaxHz,
+        _contourRow = new ToggleSliderRow("Contour", Loc.S("filterPanel.contourOnOff"), IFContour.ContourMinHz, IFContour.ContourMaxHz,
             IFContour.StepHz, idleHz: IFContour.ContourMinHz,
             isOn: () => _state.ContourEnabled,
             valueHz: () => _state.ContourHz,
@@ -114,7 +114,7 @@ public sealed class FilterPanel : UserControl
             onToggle: on => _ = SetContourAsync(on),
             onCommit: hz => _ = CommitToggleSliderAsync(IFContour.Face.Contour,
                 () => SetContourFrequencyAsync(hz), () => _state.ContourEnabled, () => SetContourAsync(true)));
-        _apfRow = new ToggleSliderRow("APF", "Audio peak filter on/off", IFContour.ApfMinHz, IFContour.ApfMaxHz,
+        _apfRow = new ToggleSliderRow("APF", Loc.S("filterPanel.audioPeakFilterOn"), IFContour.ApfMinHz, IFContour.ApfMaxHz,
             IFContour.StepHz, idleHz: 0,
             isOn: () => _state.ApfEnabled,
             valueHz: () => _state.ApfHz,
@@ -123,7 +123,7 @@ public sealed class FilterPanel : UserControl
             onToggle: on => _ = SetApfAsync(on),
             onCommit: hz => _ = CommitToggleSliderAsync(IFContour.Face.Apf,
                 () => SetApfOffsetAsync(hz), () => _state.ApfEnabled, () => SetApfAsync(true)));
-        _notchRow = new ToggleSliderRow("Notch", "Manual notch on/off", IFNotch.MinHz, IFNotch.MaxHz,
+        _notchRow = new ToggleSliderRow("Notch", Loc.S("filterPanel.manualNotchOnOff"), IFNotch.MinHz, IFNotch.MaxHz,
             IFNotch.StepHz, idleHz: IFNotch.MinHz,
             isOn: () => _state.NotchEnabled,
             valueHz: () => _state.NotchHz,
@@ -133,7 +133,7 @@ public sealed class FilterPanel : UserControl
             onCommit: hz => _ = CommitToggleSliderAsync(null,
                 () => SetNotchFrequencyAsync(hz), () => _state.NotchEnabled, () => SetNotchAsync(true)));
 
-        ToolTipService.SetToolTip(_narrowToggle, "Narrow filter on/off");
+        ToolTipService.SetToolTip(_narrowToggle, Loc.S("filterPanel.narrowFilterOnOff"));
         _narrowToggle.Click += (_, _) => _ = SetNarrowAsync(_state.NarrowEnabled != true);
 
         _mainSideButton.Click += (_, _) => SelectSide(FilterSide.Main);
@@ -612,8 +612,8 @@ public sealed class FilterPanel : UserControl
         _subSideButton.IsChecked = _state.FilterSide == FilterSide.Sub;
         _subSideButton.IsEnabled = _singleReceive != true;
         ToolTipService.SetToolTip(_subSideButton, _singleReceive == true
-            ? "SUB receiver isn't shown in single-receive display"
-            : "Apply the filter controls to the SUB receiver");
+            ? Loc.S("filterPanel.sUBReceiverIsntShown")
+            : Loc.S("filterPanel.applyTheFilterControls2"));
 
         _display.Update(new FilterPassbandModel(_state), isActive: _client is not null);
     }
@@ -653,10 +653,10 @@ public sealed class FilterPanel : UserControl
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Center,
         };
-        AutomationProperties.SetName(button, $"Filter {side.DisplayName()}");
+        AutomationProperties.SetName(button, Loc.F("filterPanel.filterX", side.DisplayName()));
         if (side == FilterSide.Main)
         {
-            ToolTipService.SetToolTip(button, "Apply the filter controls to the MAIN receiver");
+            ToolTipService.SetToolTip(button, Loc.S("filterPanel.applyTheFilterControls"));
         }
         return button;
     }
@@ -839,8 +839,8 @@ internal sealed class FilterDisplay : UserControl
         _spectrumCanvas.Children.Add(_spectrumDim);
         _spectrumCanvas.Children.Add(_spectrumBright);
         _spectrumBright.Clip = new RectangleGeometry { Rect = new Rect(0, 0, 0, 0) };
-        ToolTipService.SetToolTip(this, "Filter function display: passband (WIDTH/SHIFT), notch, contour/APF");
-        AutomationProperties.SetName(this, "Filter function display");
+        ToolTipService.SetToolTip(this, Loc.S("filterPanel.filterFunctionDisplayPassband"));
+        AutomationProperties.SetName(this, Loc.S("filterPanel.filterFunctionDisplay"));
     }
 
     public void Update(FilterPassbandModel model, bool isActive)

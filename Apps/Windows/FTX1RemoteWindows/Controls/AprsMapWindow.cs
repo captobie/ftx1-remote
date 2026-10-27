@@ -34,7 +34,7 @@ public sealed class AprsMapWindow : Window
     private readonly Grid _root = new() { Padding = new Thickness(12), RowSpacing = 8 };
     private readonly WebView2 _webView = new();
     private readonly TextBlock _countText = new() { Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), VerticalAlignment = VerticalAlignment.Center };
-    private readonly Button _fitButton = new() { Content = "Fit All" };
+    private readonly Button _fitButton = new() { Content = Loc.S("aprsMapWindow.fitAll") };
     private readonly StackPanel _emptyPanel = new()
     {
         Spacing = 6,
@@ -61,7 +61,7 @@ public sealed class AprsMapWindow : Window
     public AprsMapWindow(AprsStore store)
     {
         _store = store;
-        Title = "APRS Map";
+        Title = Loc.S("aprsMapWindow.aPRSMap");
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
         AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(900 * scale), (int)(640 * scale)));
 
@@ -69,7 +69,7 @@ public sealed class AprsMapWindow : Window
         _root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
         var filterBar = new SelectorBar();
-        foreach (var (label, tag) in new[] { ("All", ""), ("Main", nameof(AprsSource.Main)), ("Sub", nameof(AprsSource.Sub)) })
+        foreach (var (label, tag) in new[] { (Loc.S("common.all"), ""), ("Main", nameof(AprsSource.Main)), ("Sub", nameof(AprsSource.Sub)) })
         {
             filterBar.Items.Add(new SelectorBarItem { Text = label, Tag = tag, IsSelected = tag.Length == 0 });
         }
@@ -79,7 +79,7 @@ public sealed class AprsMapWindow : Window
             Push();
         };
         _fitButton.Click += (_, _) => _core?.PostWebMessageAsJson("""{"type":"fit"}""");
-        ToolTipService.SetToolTip(_fitButton, "Zoom to show every station on the map");
+        ToolTipService.SetToolTip(_fitButton, Loc.S("aprsMapWindow.zoomToShowEvery"));
 
         var toolbar = new Grid { ColumnSpacing = 12 };
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -130,7 +130,7 @@ public sealed class AprsMapWindow : Window
         catch (Exception ex)
         {
             AppLog.Write($"aprs-map: WebView2 failed to start: {ex.Message}");
-            ShowMessage("The map couldn't start", $"The web view couldn't start ({ex.Message}). Installing Microsoft's WebView2 Runtime should fix this.");
+            ShowMessage(Loc.S("aprsMapWindow.theMapCouldntStart"), Loc.F("common.theWebViewCouldnt", ex.Message));
             return;
         }
         _core = _webView.CoreWebView2;
@@ -165,7 +165,7 @@ public sealed class AprsMapWindow : Window
             else if (args.WebErrorStatus != CoreWebView2WebErrorStatus.OperationCanceled)
             {
                 AppLog.Write($"aprs-map: page failed to load: {args.WebErrorStatus}");
-                ShowMessage("The map couldn't load", $"The map page failed to load ({args.WebErrorStatus}).");
+                ShowMessage(Loc.S("aprsMapWindow.theMapCouldntLoad"), Loc.F("aprsMapWindow.theMapPageFailed", args.WebErrorStatus));
             }
         };
         _core.Navigate($"https://{PageHost}/index.html");
@@ -180,18 +180,18 @@ public sealed class AprsMapWindow : Window
         var shown = all.Where(s => _filter is null || s.Source == _filter).ToList();
 
         _countText.Text = shown.Count == all.Count
-            ? $"{all.Count} station{(all.Count == 1 ? "" : "s")} with a position"
-            : $"{shown.Count} of {all.Count} stations with a position";
+            ? Loc.P("aprsMapWindow.stationsWithAPosition", all.Count)
+            : Loc.F("aprsMapWindow.xOfXStations", shown.Count, all.Count);
         _fitButton.IsEnabled = shown.Count > 0;
         if (shown.Count == 0)
         {
             ShowMessage(
-                all.Count == 0 ? "No Positions Heard" : "Nothing From This Receiver",
+                all.Count == 0 ? Loc.S("aprsMapWindow.noPositionsHeard") : Loc.S("aprsMapWindow.nothingFromThisReceiver"),
                 !AppSettings.AprsEnabled
-                    ? "APRS decoding is off. Turn it on in Settings → APRS."
+                    ? Loc.S("common.aPRSDecodingIsOff")
                     : all.Count > 0
-                        ? "No position reports from this receiver yet."
-                        : $"Decoded APRS position reports will appear here while a VFO is tuned to {AppSettings.AprsFrequencyHz / 1_000_000.0:0.000###} MHz, with audio on.");
+                        ? Loc.S("aprsMapWindow.noPositionReportsFrom")
+                        : Loc.F("aprsMapWindow.decodedAPRSPositionReports", AppSettings.AprsFrequencyHz / 1_000_000.0));
         }
         else
         {

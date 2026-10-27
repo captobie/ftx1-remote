@@ -78,8 +78,7 @@ public sealed class RigctldProcessController
                 LastResolution = null;
                 AppLog.Write($"connection: not adopting the rigctld on port {config.Port}: it's for {otherRig!.DisplayName}, not model {config.ModelNumber}");
                 throw new RigctldError(
-                    $"The rigctld already running on port {config.Port} is for {otherRig.DisplayName}, not {RigctldBinary.RigName(config.ModelNumber)}. " +
-                    "Quit it (or the program that started it, e.g. WSJT-X), then connect again.");
+                    Loc.F("rigctldProcessController.runningForAnotherRig", config.Port, otherRig.DisplayName, RigctldBinary.RigName(config.ModelNumber)));
             case ProbeResult.Healthy:
                 LastResolution = null;
                 return StartResult.Adopted;
@@ -92,7 +91,7 @@ public sealed class RigctldProcessController
 
         if (config.ComPort.Length == 0)
         {
-            throw new RigctldError("Pick the radio's COM port first.");
+            throw new RigctldError(Loc.S("rigctldProcessController.pickTheRadiosCOM"));
         }
 
         var resolution = await Task.Run(() => RigctldBinary.ResolveAsync(config.Binary, config.ModelNumber)).ConfigureAwait(false);
@@ -102,7 +101,7 @@ public sealed class RigctldProcessController
         {
             throw new RigctldError(resolution.Path is null
                 ? resolution.Summary
-                : $"rigctld.exe not found at {resolution.Path}");
+                : Loc.F("rigctldProcessController.rigctldExeNotFound", resolution.Path));
         }
 
         var startInfo = new ProcessStartInfo
@@ -152,7 +151,7 @@ public sealed class RigctldProcessController
         catch (Win32Exception ex)
         {
             process.Dispose();
-            throw new RigctldError($"Couldn't start rigctld: {ex.Message}");
+            throw new RigctldError(Loc.F("rigctldProcessController.couldntStartRigctldX", ex.Message));
         }
         process.BeginErrorReadLine();
         process.BeginOutputReadLine();
@@ -232,7 +231,7 @@ public sealed class RigctldProcessController
             code = -1;
         }
         var tail = StderrTail();
-        var message = $"rigctld exited unexpectedly (code {code})" + (tail.Length > 0 ? $": {tail}" : "");
+        var message = Loc.F("rigctldProcessController.rigctldExitedUnexpectedlyCode", code) + (tail.Length > 0 ? $": {tail}" : "");
         process.Dispose();
         UnexpectedExit?.Invoke(message);
     }

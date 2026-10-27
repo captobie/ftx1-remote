@@ -33,10 +33,10 @@ public sealed class MemoryListWindow : Window
     private readonly Func<Task> _skipScan;
     private readonly Func<Task> _stopScan;
     private readonly ComboBox _scanSide = new() { Items = { "MAIN", "SUB" }, SelectedIndex = 0, VerticalAlignment = VerticalAlignment.Center };
-    private readonly Button _scanDownButton = new() { Content = "Scan Down" };
-    private readonly Button _scanUpButton = new() { Content = "Scan Up" };
-    private readonly Button _skipButton = new() { Content = "Skip" };
-    private readonly Button _stopScanButton = new() { Content = "Stop Scan" };
+    private readonly Button _scanDownButton = new() { Content = Loc.S("memoryListWindow.scanDown") };
+    private readonly Button _scanUpButton = new() { Content = Loc.S("memoryListWindow.scanUp") };
+    private readonly Button _skipButton = new() { Content = Loc.S("memoryListWindow.skip") };
+    private readonly Button _stopScanButton = new() { Content = Loc.S("memoryListWindow.stopScan") };
     private MemoryScanState? _memoryScan;
     private bool _memoryScanSub;
     private bool _canScanMain;
@@ -44,8 +44,8 @@ public sealed class MemoryListWindow : Window
     private int? _scanChannel;
     private readonly Grid _root = new() { Padding = new Thickness(12), RowSpacing = 8 };
     private readonly ListView _list = new() { SelectionMode = ListViewSelectionMode.None };
-    private readonly TextBox _search = new() { PlaceholderText = "Name, channel, frequency", Width = 240 };
-    private readonly Button _refreshButton = new() { Content = "Refresh" };
+    private readonly TextBox _search = new() { PlaceholderText = Loc.S("memoryListWindow.nameChannelFrequency"), Width = 240 };
+    private readonly Button _refreshButton = new() { Content = Loc.S("common.refresh") };
     private readonly TextBlock _statusText = new() { Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly StackPanel _emptyPanel = new() { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 420 };
     private readonly TextBlock _emptyHint = new() { TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray) };
@@ -73,7 +73,7 @@ public sealed class MemoryListWindow : Window
         _startScan = startScan;
         _skipScan = skipScan;
         _stopScan = stopScan;
-        Title = "Memory Channels";
+        Title = Loc.S("memoryListWindow.memoryChannels");
         // AppWindow sizes are physical pixels; scale from DIPs.
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
         AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(880 * scale), (int)(560 * scale)));
@@ -93,13 +93,13 @@ public sealed class MemoryListWindow : Window
         toolbar.Children.Add(_statusText);
 
         var scanPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        ToolTipService.SetToolTip(_scanSide, "Which receiver to scan");
+        ToolTipService.SetToolTip(_scanSide, Loc.S("memoryListWindow.whichReceiverToScan"));
         _scanSide.SelectionChanged += (_, _) => UpdateScanControls();
         _scanDownButton.Click += async (_, _) => await _startScan(_scanSide.SelectedIndex == 1, false);
         _scanUpButton.Click += async (_, _) => await _startScan(_scanSide.SelectedIndex == 1, true);
         _skipButton.Click += async (_, _) => await _skipScan();
         _stopScanButton.Click += async (_, _) => await _stopScan();
-        ToolTipService.SetToolTip(_skipButton, "Resume the scan past this channel");
+        ToolTipService.SetToolTip(_skipButton, Loc.S("memoryListWindow.resumeTheScanPast"));
         foreach (var control in new FrameworkElement[] { _scanSide, _scanDownButton, _scanUpButton, _skipButton, _stopScanButton })
         {
             scanPanel.Children.Add(control);
@@ -122,7 +122,7 @@ public sealed class MemoryListWindow : Window
         toolbar.Children.Add(_refreshButton);
         _root.Children.Add(toolbar);
 
-        var header = Row(bold: true, "Ch", "Name", "", "Frequency", "Mode", "Shift", "Tone");
+        var header = Row(bold: true, "Ch", Loc.S("common.name"), "", Loc.S("memoryListWindow.frequency"), Loc.S("memoryListWindow.mode"), Loc.S("common.shift"), Loc.S("common.tone"));
         // Lines the header up with the ListView items' own inner padding.
         header.Padding = new Thickness(16, 0, 12, 4);
         Grid.SetRow(header, 1);
@@ -130,7 +130,7 @@ public sealed class MemoryListWindow : Window
 
         _emptyPanel.Children.Add(new TextBlock
         {
-            Text = "No Channels",
+            Text = Loc.S("memoryListWindow.noChannels"),
             FontSize = 18,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -216,12 +216,12 @@ public sealed class MemoryListWindow : Window
         }
         _scanDownButton.IsEnabled = canStart;
         _scanUpButton.IsEnabled = canStart;
-        var hint = canStart || !_connected ? "" : $" (put {(picked ? "SUB" : "MAIN")} in Memory mode first)";
-        ToolTipService.SetToolTip(_scanDownButton, $"Scan {(picked ? "SUB" : "MAIN")}'s memory channels downward{hint}");
-        ToolTipService.SetToolTip(_scanUpButton, $"Scan {(picked ? "SUB" : "MAIN")}'s memory channels upward{hint}");
+        var hint = canStart || !_connected ? "" : Loc.F("memoryListWindow.putXInMemory", (picked ? "SUB" : "MAIN"));
+        ToolTipService.SetToolTip(_scanDownButton, Loc.F("memoryListWindow.scanXSMemory2", (picked ? "SUB" : "MAIN"), hint));
+        ToolTipService.SetToolTip(_scanUpButton, Loc.F("memoryListWindow.scanXSMemory", (picked ? "SUB" : "MAIN"), hint));
         _skipButton.Visibility = _memoryScan == MemoryScanState.Paused ? Visibility.Visible : Visibility.Collapsed;
         _stopScanButton.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
-        ToolTipService.SetToolTip(_stopScanButton, $"Stop the {(_memoryScanSub ? "SUB" : "MAIN")} memory scan");
+        ToolTipService.SetToolTip(_stopScanButton, Loc.F("memoryListWindow.stopTheXMemory", (_memoryScanSub ? "SUB" : "MAIN")));
     }
 
     /// Status text for the rig's memory scan; null when it isn't running.
@@ -230,8 +230,8 @@ public sealed class MemoryListWindow : Window
         var side = _memoryScanSub ? "SUB" : "MAIN";
         return _memoryScan switch
         {
-            MemoryScanState.Scanning => $"{side} memory scan running…",
-            MemoryScanState.Paused => $"{side} memory scan paused on {(_scanChannel is { } c ? $"CH {c}" : "a busy channel")}",
+            MemoryScanState.Scanning => Loc.F("memoryListWindow.xMemoryScanRunning", side),
+            MemoryScanState.Paused => Loc.F("memoryListWindow.xMemoryScanPaused", side, (_scanChannel is { } c ? $"CH {c}" : Loc.S("memoryListWindow.aBusyChannel"))),
             _ => null,
         };
     }
@@ -311,8 +311,8 @@ public sealed class MemoryListWindow : Window
         }
         _emptyPanel.Visibility = shown.Count == 0 && !_store.IsScanning ? Visibility.Visible : Visibility.Collapsed;
         _emptyHint.Text = _store.Entries.Count > 0
-            ? "No channel matches the search."
-            : _connected ? "Click Refresh to read the rig's memory channels." : "Connect to the rig, then click Refresh.";
+            ? Loc.S("memoryListWindow.noChannelMatchesThe")
+            : _connected ? Loc.S("memoryListWindow.clickRefreshToRead") : Loc.S("memoryListWindow.connectToTheRig");
         UpdateStatus();
     }
 
@@ -326,7 +326,7 @@ public sealed class MemoryListWindow : Window
             FontSize = 12,
             IsEnabled = _connected,
         };
-        ToolTipService.SetToolTip(button, $"Recall channel {channel} on {title}");
+        ToolTipService.SetToolTip(button, Loc.F("memoryListWindow.recallChannelXOn", channel, title));
         button.Click += async (_, _) => await _recall(channel, sub);
         return button;
     }
@@ -340,16 +340,16 @@ public sealed class MemoryListWindow : Window
 
     private void UpdateStatus()
     {
-        _refreshButton.Content = _store.IsScanning ? "Stop" : "Refresh";
+        _refreshButton.Content = _store.IsScanning ? Loc.S("common.stop") : Loc.S("common.refresh");
         _refreshButton.IsEnabled = _store.IsScanning || _connected;
         _statusText.Text = _store.ScanningChannel is { } channel
-            ? $"Reading channel {channel}…"
+            ? Loc.F("memoryListWindow.readingChannelX", channel)
             : ScanStatusText() is { } scanText
                 ? scanText
             : _store.ScanError is { } error
                 ? error
                 : _store.LastScanned is { } scanned
-                    ? $"{_store.Entries.Count} channels · read {scanned.ToLocalTime():g}"
+                    ? Loc.F("memoryListWindow.xChannelsReadX", _store.Entries.Count, scanned.ToLocalTime())
                     : "";
         if (!_store.IsScanning && _store.Entries.Count == 0)
         {

@@ -48,7 +48,7 @@ public sealed class RecordingsWindow : Window
         _recorder = recorder;
         _player = new RecordingPlayer(DispatcherQueue);
         _player.Changed += Rebuild;
-        Title = "Recordings";
+        Title = Loc.S("common.recordings");
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
         AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(760 * scale), (int)(480 * scale)));
 
@@ -61,18 +61,18 @@ public sealed class RecordingsWindow : Window
         toolbar.Children.Add(_countText);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         // Shown only while something's checked, as on the Mac.
-        SetContent(_exportSelectedButton, "", "Export Selected");
+        SetContent(_exportSelectedButton, "", Loc.S("recordingsWindow.exportSelected"));
         _exportSelectedButton.Click += async (_, _) => await ExportSelectedAsync();
-        SetContent(_deleteSelectedButton, "", "Delete Selected");
+        SetContent(_deleteSelectedButton, "", Loc.S("recordingsWindow.deleteSelected"));
         _deleteSelectedButton.Click += async (_, _) => await DeleteSelectedAsync();
-        SetContent(_deleteAllButton, "", "Delete All");
+        SetContent(_deleteAllButton, "", Loc.S("recordingsWindow.deleteAll"));
         _deleteAllButton.Click += async (_, _) => await DeleteAllAsync();
         var refreshButton = new Button();
-        SetContent(refreshButton, "", "Refresh");
+        SetContent(refreshButton, "", Loc.S("common.refresh"));
         refreshButton.Click += (_, _) => Reload();
         var folderButton = new Button();
-        SetContent(folderButton, "", "Open Folder");
-        ToolTipService.SetToolTip(folderButton, "Show the Recordings folder in File Explorer");
+        SetContent(folderButton, "", Loc.S("recordingsWindow.openFolder"));
+        ToolTipService.SetToolTip(folderButton, Loc.S("recordingsWindow.showTheRecordingsFolder"));
         folderButton.Click += (_, _) => OpenFolder();
         buttons.Children.Add(_exportSelectedButton);
         buttons.Children.Add(_deleteSelectedButton);
@@ -85,14 +85,14 @@ public sealed class RecordingsWindow : Window
 
         _emptyPanel.Children.Add(new TextBlock
         {
-            Text = "No Recordings Yet",
+            Text = Loc.S("recordingsWindow.noRecordingsYet"),
             FontSize = 18,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center,
         });
         _emptyPanel.Children.Add(new TextBlock
         {
-            Text = "Recordings made with the CW page's RECORD button or the WebSDR window's Record button will appear here.",
+            Text = Loc.S("recordingsWindow.recordingsMadeWithThe"),
             TextWrapping = TextWrapping.Wrap,
             TextAlignment = TextAlignment.Center,
             Foreground = Gray,
@@ -181,14 +181,14 @@ public sealed class RecordingsWindow : Window
             _list.Items.Add(Row(recording, isBeingRecorded: string.Equals(recording.Path, recordingPath, StringComparison.OrdinalIgnoreCase)));
         }
         var count = _recordings.Count;
-        _countText.Text = count == 0 ? "" : $"{count} recording{(count == 1 ? "" : "s")}";
+        _countText.Text = count == 0 ? "" : Loc.P("recordingsWindow.recordingCount", count);
         _emptyPanel.Visibility = count == 0 ? Visibility.Visible : Visibility.Collapsed;
         _deleteAllButton.IsEnabled = count > 0;
         var selected = _selection.Count;
         _exportSelectedButton.Visibility = _deleteSelectedButton.Visibility =
             selected > 0 ? Visibility.Visible : Visibility.Collapsed;
-        SetContent(_exportSelectedButton, "", $"Export Selected ({selected})");
-        SetContent(_deleteSelectedButton, "", $"Delete Selected ({selected})");
+        SetContent(_exportSelectedButton, "", Loc.F("recordingsWindow.exportSelectedX", selected));
+        SetContent(_deleteSelectedButton, "", Loc.F("recordingsWindow.deleteSelectedX", selected));
     }
 
     private Grid Row(Recording recording, bool isBeingRecorded)
@@ -207,7 +207,7 @@ public sealed class RecordingsWindow : Window
             MinWidth = 0,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(check, $"Select {recording.Name}");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(check, Loc.F("recordingsWindow.selectX", recording.Name));
         check.Click += (_, _) =>
         {
             if (check.IsChecked == true)
@@ -222,7 +222,7 @@ public sealed class RecordingsWindow : Window
         };
         row.Children.Add(check);
 
-        var play = IconButton(isPlaying ? "" : "", isPlaying ? "Stop" : "Play");
+        var play = IconButton(isPlaying ? "" : "", isPlaying ? Loc.S("common.stop") : Loc.S("recordingsWindow.play"));
         play.IsEnabled = !isBeingRecorded;
         play.Click += async (_, _) =>
         {
@@ -232,7 +232,7 @@ public sealed class RecordingsWindow : Window
             }
             else if (_player.Play(recording) is { } error)
             {
-                await ShowMessageAsync("Can't Play", error);
+                await ShowMessageAsync(Loc.S("recordingsWindow.cantPlay"), error);
             }
         };
         Grid.SetColumn(play, 1);
@@ -243,19 +243,19 @@ public sealed class RecordingsWindow : Window
         ToolTipService.SetToolTip(name, recording.Name);
         text.Children.Add(name);
         var detail = isBeingRecorded
-            ? "Recording…"
+            ? Loc.S("recordingsWindow.recording")
             : $"{recording.Date.ToString("g", CultureInfo.CurrentCulture)} · {DurationLabel(recording.Duration)}";
         text.Children.Add(new TextBlock { Text = detail, FontSize = 12, Foreground = isBeingRecorded ? new SolidColorBrush(Microsoft.UI.Colors.Firebrick) : Gray });
         Grid.SetColumn(text, 2);
         row.Children.Add(text);
 
-        var rename = IconButton("", "Rename");
+        var rename = IconButton("", Loc.S("recordingsWindow.rename"));
         rename.IsEnabled = !isBeingRecorded;
         rename.Click += async (_, _) => await RenameAsync(recording);
         Grid.SetColumn(rename, 3);
         row.Children.Add(rename);
 
-        var delete = IconButton("", "Delete");
+        var delete = IconButton("", Loc.S("recordingsWindow.delete"));
         delete.IsEnabled = !isBeingRecorded;
         delete.Click += (_, _) =>
         {
@@ -280,9 +280,9 @@ public sealed class RecordingsWindow : Window
         }
         var box = new TextBox { Text = recording.Name, MinWidth = 420 };
         box.SelectAll();
-        var dialog = Dialog("Rename Recording", box);
-        dialog.PrimaryButtonText = "Rename";
-        dialog.CloseButtonText = "Cancel";
+        var dialog = Dialog(Loc.S("recordingsWindow.renameRecording"), box);
+        dialog.PrimaryButtonText = Loc.S("recordingsWindow.rename");
+        dialog.CloseButtonText = Loc.S("common.cancel");
         dialog.DefaultButton = ContentDialogButton.Primary;
         if (await ShowAsync(dialog) != ContentDialogResult.Primary)
         {
@@ -290,7 +290,7 @@ public sealed class RecordingsWindow : Window
         }
         if (Recordings.Rename(recording, box.Text) is { } error)
         {
-            await ShowMessageAsync("Can't Rename", error);
+            await ShowMessageAsync(Loc.S("recordingsWindow.cantRename"), error);
         }
         Reload();
     }
@@ -298,7 +298,7 @@ public sealed class RecordingsWindow : Window
     private async Task DeleteSelectedAsync()
     {
         var count = _selection.Count;
-        if (count == 0 || !await ConfirmAsync($"Delete {count} selected recording{(count == 1 ? "" : "s")}? This can't be undone.", "Delete Selected"))
+        if (count == 0 || !await ConfirmAsync(Loc.P("recordingsWindow.deleteSelectedConfirm", count), Loc.S("recordingsWindow.deleteSelected")))
         {
             return;
         }
@@ -318,7 +318,7 @@ public sealed class RecordingsWindow : Window
     private async Task DeleteAllAsync()
     {
         var count = _recordings.Count;
-        if (count == 0 || !await ConfirmAsync($"Delete all {count} recordings? This can't be undone.", "Delete All"))
+        if (count == 0 || !await ConfirmAsync(Loc.F("recordingsWindow.deleteAllXRecordings", count), Loc.S("recordingsWindow.deleteAll")))
         {
             return;
         }
@@ -344,7 +344,7 @@ public sealed class RecordingsWindow : Window
         }
         var picker = new Microsoft.Windows.Storage.Pickers.FolderPicker(AppWindow.Id)
         {
-            CommitButtonText = "Export",
+            CommitButtonText = Loc.S("recordingsWindow.export"),
         };
         var folder = await picker.PickSingleFolderAsync();
         if (folder is null)
@@ -352,9 +352,9 @@ public sealed class RecordingsWindow : Window
             return;
         }
         var copied = Recordings.Export(toExport, folder.Path);
-        var noun = toExport.Count == 1 ? "recording" : "recordings";
         var leaf = Path.GetFileName(folder.Path.TrimEnd('\\'));
-        await ShowMessageAsync("Export Complete", $"Exported {copied} of {toExport.Count} {noun} to {(leaf.Length > 0 ? leaf : folder.Path)}.");
+        await ShowMessageAsync(Loc.S("recordingsWindow.exportComplete"),
+            Loc.P("recordingsWindow.exportedXOfY", toExport.Count, copied, leaf.Length > 0 ? leaf : folder.Path));
     }
 
     private static void OpenFolder()
@@ -383,7 +383,7 @@ public sealed class RecordingsWindow : Window
     {
         var dialog = Dialog(action, new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap });
         dialog.PrimaryButtonText = action;
-        dialog.CloseButtonText = "Cancel";
+        dialog.CloseButtonText = Loc.S("common.cancel");
         dialog.DefaultButton = ContentDialogButton.Close;
         return await ShowAsync(dialog) == ContentDialogResult.Primary;
     }

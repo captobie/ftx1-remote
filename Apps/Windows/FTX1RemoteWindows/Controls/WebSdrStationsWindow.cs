@@ -30,13 +30,13 @@ public sealed class WebSdrStationsWindow : Window
     private bool _webSdrTabBuilt;
 
     // KiwiSDR tab
-    private readonly TextBox _search = new() { PlaceholderText = "Search name, location, grid, antenna", Width = 320 };
+    private readonly TextBox _search = new() { PlaceholderText = Loc.S("webSdrStationsWindow.searchNameLocationGrid"), Width = 320 };
     private readonly CheckBox _coversBox = new();
-    private readonly CheckBox _hideFullBox = new() { Content = "Hide full" };
-    private readonly CheckBox _favoritesOnlyBox = new() { Content = "Favorites only" };
+    private readonly CheckBox _hideFullBox = new() { Content = Loc.S("webSdrStationsWindow.hideFull") };
+    private readonly CheckBox _favoritesOnlyBox = new() { Content = Loc.S("webSdrStationsWindow.favoritesOnly") };
     private readonly TextBlock _gridHint = new()
     {
-        Text = "Set your grid square in Settings → Station to sort by distance.",
+        Text = Loc.S("webSdrStationsWindow.setYourGridSquare"),
         FontSize = 12,
         Foreground = new SolidColorBrush(Colors.Gray),
         VerticalAlignment = VerticalAlignment.Center,
@@ -53,7 +53,7 @@ public sealed class WebSdrStationsWindow : Window
     private readonly TextBlock _failure = new() { FontSize = 12, Foreground = new SolidColorBrush(Colors.DarkOrange), Visibility = Visibility.Collapsed, TextWrapping = TextWrapping.Wrap };
     private readonly Button _refreshButton = new();
     private readonly ProgressRing _refreshRing = new() { IsActive = false, Width = 16, Height = 16 };
-    private readonly Button _useButton = new() { Content = "Use Station", Style = (Style)Application.Current.Resources["AccentButtonStyle"] };
+    private readonly Button _useButton = new() { Content = Loc.S("webSdrStationsWindow.useStation"), Style = (Style)Application.Current.Resources["AccentButtonStyle"] };
 
     /// Sort column and direction. Nearest first when the operator's grid
     /// square is set; otherwise every distance is "—", so by name.
@@ -76,13 +76,13 @@ public sealed class WebSdrStationsWindow : Window
     private static readonly (Column Column, string Title, GridLength Width)[] Columns =
     [
         (Column.Star, "", new GridLength(28)),
-        (Column.Name, "Name", new GridLength(2.4, GridUnitType.Star)),
-        (Column.Location, "Location", new GridLength(1.6, GridUnitType.Star)),
-        (Column.Distance, "Distance", new GridLength(80)),
-        (Column.Users, "Users", new GridLength(56)),
+        (Column.Name, Loc.S("common.name"), new GridLength(2.4, GridUnitType.Star)),
+        (Column.Location, Loc.S("webSdrStationsWindow.location"), new GridLength(1.6, GridUnitType.Star)),
+        (Column.Distance, Loc.S("webSdrStationsWindow.distance"), new GridLength(80)),
+        (Column.Users, Loc.S("webSdrStationsWindow.users"), new GridLength(56)),
         (Column.Snr, "SNR", new GridLength(56)),
-        (Column.Range, "Range", new GridLength(110)),
-        (Column.Antenna, "Antenna", new GridLength(1.8, GridUnitType.Star)),
+        (Column.Range, Loc.S("webSdrStationsWindow.range"), new GridLength(110)),
+        (Column.Antenna, Loc.S("webSdrStationsWindow.antenna"), new GridLength(1.8, GridUnitType.Star)),
     ];
 
     /// One table row: the station plus its distance from the operator's
@@ -93,7 +93,7 @@ public sealed class WebSdrStationsWindow : Window
     {
         _model = model;
         _directory = directory;
-        Title = "WebSDR Stations";
+        Title = Loc.S("webSdrStationsWindow.webSDRStations");
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
         AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(1100 * scale), (int)(640 * scale)));
         _sortColumn = Home is null ? Column.Name : Column.Distance;
@@ -179,11 +179,11 @@ public sealed class WebSdrStationsWindow : Window
     private void UpdateCoversLabel()
     {
         var hz = RigFrequencyUsable;
-        _coversBox.Content = hz is { } f ? $"Covers {f / 1_000_000.0:0.000} MHz" : "Covers rig frequency";
+        _coversBox.Content = hz is { } f ? Loc.F("webSdrStationsWindow.coversXMHz", f / 1_000_000.0) : Loc.S("webSdrStationsWindow.coversRigFrequency");
         _coversBox.IsEnabled = hz is not null;
         ToolTipService.SetToolTip(_coversBox, hz is null
-            ? "Available once the rig's frequency is known."
-            : "Only stations whose receive range includes the rig's current frequency.");
+            ? Loc.S("webSdrStationsWindow.availableOnceTheRigs")
+            : Loc.S("webSdrStationsWindow.onlyStationsWhoseReceive"));
     }
 
     // KiwiSDR tab
@@ -239,13 +239,13 @@ public sealed class WebSdrStationsWindow : Window
         texts.Children.Add(_summary);
         texts.Children.Add(_failure);
         leftFooter.Children.Add(texts);
-        _refreshButton.Content = IconText("", "Refresh");
+        _refreshButton.Content = IconText("", Loc.S("common.refresh"));
         _refreshButton.Click += (_, _) => _directory.Refresh();
         leftFooter.Children.Add(_refreshButton);
         leftFooter.Children.Add(_refreshRing);
         footer.Children.Add(leftFooter);
         var rightFooter = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var cancel = new Button { Content = "Cancel" };
+        var cancel = new Button { Content = Loc.S("common.cancel") };
         cancel.Click += (_, _) => Close();
         rightFooter.Children.Add(cancel);
         _useButton.IsEnabled = false;
@@ -373,22 +373,22 @@ public sealed class WebSdrStationsWindow : Window
             _emptyPanel.Visibility = Visibility.Visible;
             if (_directory.State == KiwiSdrDirectory.LoadState.Failed)
             {
-                _emptyTitle.Text = "Station List Unavailable";
+                _emptyTitle.Text = Loc.S("webSdrStationsWindow.stationListUnavailable");
                 _emptyDetail.Text = _directory.FailureMessage ?? "";
             }
             else
             {
                 _emptyRing.IsActive = true;
                 _emptyRing.Visibility = Visibility.Visible;
-                _emptyTitle.Text = "Loading KiwiSDR list…";
+                _emptyTitle.Text = Loc.S("webSdrStationsWindow.loadingKiwiSDRList");
                 _emptyDetail.Text = "";
             }
         }
         else if (rowCount == 0)
         {
             _emptyPanel.Visibility = Visibility.Visible;
-            _emptyTitle.Text = "No Results";
-            _emptyDetail.Text = "Check the spelling or try a different search or filter.";
+            _emptyTitle.Text = Loc.S("webSdrStationsWindow.noResults");
+            _emptyDetail.Text = Loc.S("webSdrStationsWindow.checkTheSpellingOr");
         }
         else
         {
@@ -398,12 +398,12 @@ public sealed class WebSdrStationsWindow : Window
 
     private void UpdateFooter(int rowCount)
     {
-        var parts = new List<string> { $"{rowCount} of {_directory.Stations.Count} stations" };
+        var parts = new List<string> { Loc.P("webSdrStationsWindow.stationsShown", _directory.Stations.Count, rowCount) };
         if (_directory.FetchedAt is { } fetchedAt)
         {
-            parts.Add("updated " + Relative(DateTime.Now - fetchedAt));
+            parts.Add(Loc.F("webSdrStationsWindow.updatedX", Relative(DateTime.Now - fetchedAt)));
         }
-        parts.Add("list from rx.linkfanel.net");
+        parts.Add(Loc.S("webSdrStationsWindow.listFromLinkfanel"));
         _summary.Text = string.Join(" · ", parts);
         var refreshFailed = _directory.State == KiwiSdrDirectory.LoadState.Failed && _directory.Stations.Count > 0;
         _failure.Text = refreshFailed ? _directory.FailureMessage ?? "" : "";
@@ -416,10 +416,10 @@ public sealed class WebSdrStationsWindow : Window
 
     private static string Relative(TimeSpan elapsed) => elapsed.TotalSeconds switch
     {
-        < 60 => "just now",
-        < 3600 => $"{(int)elapsed.TotalMinutes} min ago",
-        < 86400 => $"{(int)elapsed.TotalHours} h ago",
-        _ => $"{(int)elapsed.TotalDays} d ago",
+        < 60 => Loc.S("common.justNow"),
+        < 3600 => Loc.F("common.xMinAgo", (int)elapsed.TotalMinutes),
+        < 86400 => Loc.F("common.xHAgo", (int)elapsed.TotalHours),
+        _ => Loc.F("common.xDAgo", (int)elapsed.TotalDays),
     };
 
     private void List_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
@@ -493,8 +493,8 @@ public sealed class WebSdrStationsWindow : Window
         var starred = IsFavorite(row.Station);
         icon.Glyph = starred ? "" : "";
         icon.Foreground = new SolidColorBrush(starred ? Colors.Gold : Colors.Gray);
-        ToolTipService.SetToolTip(star, starred ? "Remove from Favorites" : "Add to Favorites");
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(star, starred ? "Remove from Favorites" : "Add to Favorites");
+        ToolTipService.SetToolTip(star, starred ? Loc.S("common.removeFromFavorites") : Loc.S("common.addToFavorites"));
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(star, starred ? Loc.S("common.removeFromFavorites") : Loc.S("common.addToFavorites"));
     }
 
     /// Favorites changed but the rows didn't: just the realized rows' stars.
@@ -576,7 +576,7 @@ internal sealed class WebSdrOrgTab : IDisposable
         Root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         var area = new Grid { BorderBrush = new SolidColorBrush(Colors.Gray), BorderThickness = new Thickness(0, 1, 0, 1) };
         area.Children.Add(_webView);
-        _errorPanel.Children.Add(new TextBlock { Text = "websdr.org Unavailable", FontSize = 18, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center });
+        _errorPanel.Children.Add(new TextBlock { Text = Loc.S("webSdrStationsWindow.websdrOrgUnavailable"), FontSize = 18, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center });
         _errorPanel.Children.Add(_errorText);
         area.Children.Add(_errorPanel);
         Root.Children.Add(area);
@@ -587,7 +587,7 @@ internal sealed class WebSdrOrgTab : IDisposable
         var left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         left.Children.Add(new TextBlock
         {
-            Text = "Click a station to use it · list shown by websdr.org",
+            Text = Loc.S("webSdrStationsWindow.clickAStationTo"),
             FontSize = 12,
             Foreground = new SolidColorBrush(Colors.Gray),
             VerticalAlignment = VerticalAlignment.Center,
@@ -595,7 +595,7 @@ internal sealed class WebSdrOrgTab : IDisposable
         var reload = new Button();
         var reloadContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         reloadContent.Children.Add(new FontIcon { Glyph = "", FontSize = 14 });
-        reloadContent.Children.Add(new TextBlock { Text = "Reload" });
+        reloadContent.Children.Add(new TextBlock { Text = Loc.S("webSdrStationsWindow.reload") });
         reload.Content = reloadContent;
         reload.Click += (_, _) =>
         {
@@ -604,7 +604,7 @@ internal sealed class WebSdrOrgTab : IDisposable
         };
         left.Children.Add(reload);
         footer.Children.Add(left);
-        var cancel = new Button { Content = "Cancel" };
+        var cancel = new Button { Content = Loc.S("common.cancel") };
         cancel.Click += (_, _) => onCancel();
         Grid.SetColumn(cancel, 1);
         footer.Children.Add(cancel);
@@ -621,7 +621,7 @@ internal sealed class WebSdrOrgTab : IDisposable
         }
         catch (Exception ex)
         {
-            ShowError($"The web view couldn't start ({ex.Message}).");
+            ShowError(Loc.F("webSdrStationsWindow.theWebViewCouldnt", ex.Message));
             return;
         }
         _core = _webView.CoreWebView2;
@@ -661,7 +661,7 @@ internal sealed class WebSdrOrgTab : IDisposable
             // A cancelled pick (or a reload superseding a load) isn't a failure.
             else if (args.WebErrorStatus != CoreWebView2WebErrorStatus.OperationCanceled)
             {
-                ShowError($"Couldn't load websdr.org ({args.WebErrorStatus}).");
+                ShowError(Loc.F("webSdrStationsWindow.couldntLoadWebsdrOrg", args.WebErrorStatus));
             }
         };
         _core.Navigate(HomeUrl);
