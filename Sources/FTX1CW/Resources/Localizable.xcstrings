@@ -19,10 +19,22 @@
     "common.pttIsHeld" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PTT ist gedrückt"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "PTT is held"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PTT pulsado"
           }
         }
       }
@@ -30,10 +42,22 @@
     "common.settingsStation" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen → Station"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Settings → Station"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajustes → Estación"
           }
         }
       }
@@ -41,10 +65,22 @@
     "common.theirCall" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gegenstation"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Their call"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corresponsal"
           }
         }
       }
@@ -52,10 +88,22 @@
     "cwReceiver.couldntRead %@ %@" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%1$@“ konnte nicht gelesen werden: %2$@"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn't read “%@”: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo leer «%1$@»: %2$@"
           }
         }
       }
@@ -63,10 +111,22 @@
     "cwReceiverControls.autoTune" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-Abstimmung"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Auto-tune"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonía automática"
           }
         }
       }
@@ -74,10 +134,22 @@
     "cwReceiverControls.decoder" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decoder"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Decoder"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodificador"
           }
         }
       }
@@ -85,10 +157,22 @@
     "cwReceiverControls.decoderClassic" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klassisch"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Classic"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clásico"
           }
         }
       }
@@ -96,10 +180,22 @@
     "cwReceiverControls.decoderNeural" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuronal"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Neural"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuronal"
           }
         }
       }
@@ -107,10 +203,22 @@
     "cwReceiverControls.decodingFile" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datei wird dekodiert…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Decoding file…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodificando archivo…"
           }
         }
       }
@@ -118,10 +226,22 @@
     "cwReceiverControls.elementsOfTheCharacter" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elemente des gerade empfangenen Zeichens (klassischer Decoder)"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Elements of the character being received (Classic decoder)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elementos del carácter que se está recibiendo (decodificador clásico)"
           }
         }
       }
@@ -129,10 +249,22 @@
     "cwReceiverControls.followTheStrongestTone %lld %lld" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dem stärksten Ton zwischen %lld und %lld Hz folgen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Follow the strongest tone between %lld and %lld Hz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir el tono más fuerte entre %lld y %lld Hz"
           }
         }
       }
@@ -140,10 +272,22 @@
     "cwReceiverControls.keyDown" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taste gedrückt"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Key down"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tecla pulsada"
           }
         }
       }
@@ -151,10 +295,22 @@
     "cwReceiverControls.minimumSignalToNoise" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mindest-Signal-Rausch-Abstand, bevor etwas dekodiert wird"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Minimum signal-to-noise ratio needed before anything is decoded"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relación señal/ruido mínima antes de decodificar nada"
           }
         }
       }
@@ -162,10 +318,22 @@
     "cwReceiverControls.neuralAModelTrained" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuronal: ein mit simuliertem CW trainiertes Modell, am besten bei schwachen und verrauschten Signalen; der Text läuft etwa 3½ s hinterher. Klassisch: Tonschwelle und Timing-Regeln."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Neural: a model trained on simulated CW, best on weak and noisy signals; text runs about 3½ s behind. Classic: tone threshold and timing rules."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuronal: un modelo entrenado con CW simulado, mejor con señales débiles y ruidosas; el texto va unos 3½ s por detrás. Clásico: umbral de tono y reglas de temporización."
           }
         }
       }
@@ -173,10 +341,22 @@
     "cwReceiverControls.rigPitch" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pitch des Geräts"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rig Pitch"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tono del equipo"
           }
         }
       }
@@ -184,7 +364,19 @@
     "cwReceiverControls.snrDB %lld" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SNR %lld dB"
+          }
+        },
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SNR %lld dB"
+          }
+        },
+        "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "SNR %lld dB"
@@ -195,7 +387,19 @@
     "cwReceiverControls.squelch" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squelch"
+          }
+        },
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squelch"
+          }
+        },
+        "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Squelch"
@@ -206,10 +410,22 @@
     "cwReceiverControls.theNeuralDecoderDoesnt" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der neuronale Decoder braucht keinen Squelch: Bei Rauschen bleibt er still"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The neural decoder doesn't need a squelch: it stays silent on noise"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El decodificador neuronal no necesita squelch: se mantiene en silencio con el ruido"
           }
         }
       }
@@ -217,10 +433,22 @@
     "cwReceiverControls.theRigsCwPitch" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der CW-Pitch des Geräts wurde noch nicht gelesen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The rig's CW pitch hasn't been read yet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no se ha leído el tono CW del equipo"
           }
         }
       }
@@ -228,10 +456,22 @@
     "cwReceiverControls.tone" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ton"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tono"
           }
         }
       }
@@ -239,10 +479,22 @@
     "cwReceiverControls.toneLevelBetweenThe" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tonpegel zwischen Grundrauschen und Signalspitze"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tone level between the noise floor and the signal peak"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nivel del tono entre el ruido de fondo y el pico de la señal"
           }
         }
       }
@@ -250,10 +502,22 @@
     "cwReceiverControls.turnOffAutoTune %lld" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-Abstimmung ausschalten und den CW-Pitch des Geräts verwenden, %lld Hz – dort klingt ein auf Schwebungsnull abgestimmtes Signal"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Turn off auto-tune and use the rig's CW pitch, %lld Hz — where a zero-beat signal sounds"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivar la sintonía automática y usar el tono CW del equipo, %lld Hz, donde suena una señal en batido cero"
           }
         }
       }
@@ -261,10 +525,22 @@
     "cwSender.breakInIsOff" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Break-in ist aus – das Gerät sendet seinen Speicher nur mit BK-IN ein"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "break-in is off — the rig only keys its memory with BK-IN on"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el break-in está desactivado: el equipo solo transmite su memoria con BK-IN activado"
           }
         }
       }
@@ -272,10 +548,22 @@
     "cwSender.checkingKeyerMemory %lld" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyer-Speicher %lld wird geprüft…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Checking keyer memory %lld…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprobando la memoria %lld del keyer…"
           }
         }
       }
@@ -283,10 +571,22 @@
     "cwSender.isEmpty %@" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ist leer"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ is empty"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ está vacío"
           }
         }
       }
@@ -294,10 +594,22 @@
     "cwSender.nothingTheKeyerCan" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nichts in dieser Zeile, das der Keyer senden kann"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nothing the keyer can send in that line"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada en esa línea que el keyer pueda enviar"
           }
         }
       }
@@ -305,10 +617,22 @@
     "cwSender.notSent %@" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht gesendet: %@"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not sent: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No enviado: %@"
           }
         }
       }
@@ -316,10 +640,22 @@
     "cwSender.sendingAtWpm %lld" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden mit %lld WPM…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sending at %lld WPM…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviando a %lld WPM…"
           }
         }
       }
@@ -327,10 +663,22 @@
     "cwSender.theRigIsIn %@" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "das Gerät ist in %@, nicht in CW"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "the rig is in %@, not CW"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el equipo está en %@, no en CW"
           }
         }
       }
@@ -338,10 +686,22 @@
     "cwSender.theRigIsntConnected" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "das Gerät ist nicht verbunden"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "the rig isn't connected"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el equipo no está conectado"
           }
         }
       }
@@ -349,10 +709,22 @@
     "cwSender.theRigIsOutside" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "das Gerät ist außerhalb der Amateurfunkbänder"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "the rig is outside the amateur bands"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el equipo está fuera de las bandas de radioaficionado"
           }
         }
       }
@@ -360,10 +732,22 @@
     "cwSender.transmitIsTurnedOff" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden ist ausgeschaltet (Einstellungen → rigctld → Senden erlauben)"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "transmit is turned off (Settings → rigctld → Enable Transmit)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la transmisión está desactivada (Ajustes → rigctld → Permitir transmisión)"
           }
         }
       }
@@ -371,10 +755,22 @@
     "cwSender.waiting %@" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warten: %@"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En espera: %@"
           }
         }
       }
@@ -382,10 +778,22 @@
     "cwSender.waitingADeviceOn" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warten: ein Gerät am Hub sendet"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting: a device on the hub is sending"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En espera: un dispositivo del hub está transmitiendo"
           }
         }
       }
@@ -393,10 +801,22 @@
     "cwSender.waitingAnotherDeviceOn" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warten: ein anderes Gerät am Hub sendet"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting: another device on the hub is sending"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En espera: otro dispositivo del hub está transmitiendo"
           }
         }
       }
@@ -404,10 +824,22 @@
     "cwSender.waitingIsSending %@" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warten: %@ sendet"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting: %@ is sending"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En espera: %@ está transmitiendo"
           }
         }
       }
@@ -415,10 +847,22 @@
     "cwSender.waitingTheMacsCw" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warten: das CW-Fenster des Mac sendet"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting: the Mac's CW window is sending"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En espera: la ventana CW del Mac está transmitiendo"
           }
         }
       }
@@ -426,10 +870,22 @@
     "cwSender.writingKeyerMemory %lld" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyer-Speicher %lld wird geschrieben…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Writing keyer memory %lld…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribiendo la memoria %lld del keyer…"
           }
         }
       }
@@ -437,10 +893,22 @@
     "cwSender.yourCallsign %@" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigenes Rufzeichen (%@)"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your callsign (%@)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indicativo propio (%@)"
           }
         }
       }
@@ -448,10 +916,22 @@
     "cwSender.yourGridSquare %@" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigener Locator (%@)"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your grid square (%@)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuadrícula propia (%@)"
           }
         }
       }
@@ -459,10 +939,22 @@
     "piDirect.transmitIsLockedUnlock" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden ist gesperrt – mit dem Schloss neben PTT entsperren"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Transmit is locked — unlock it with the lock button next to PTT"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La transmisión está bloqueada: desbloquear con el botón del candado junto a PTT"
           }
         }
       }
@@ -470,10 +962,22 @@
     "rigClient.transmitIsLockedOn" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden ist am Mac gesperrt – mit dem Schloss neben PTT entsperren"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Transmit is locked on the Mac — unlock it with the lock button next to PTT"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La transmisión está bloqueada en el Mac: desbloquear con el botón del candado junto a PTT"
           }
         }
       }

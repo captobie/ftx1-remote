@@ -5,10 +5,22 @@
       "comment" : "Local Network permission prompt",
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote verbindet sich mit dem Mac oder Raspberry Pi, um das Funkgerät zu steuern."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "FTX1 Remote connects to your Mac or Raspberry Pi to control the radio."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote se conecta al Mac o a la Raspberry Pi para controlar el equipo."
           }
         }
       }

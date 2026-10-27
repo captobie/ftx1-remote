@@ -5,9 +5,21 @@
       "comment" : "Bundle name",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1RemoteMac"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
+            "value" : "FTX1RemoteMac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "FTX1RemoteMac"
           }
         }
@@ -17,10 +29,22 @@
       "comment" : "System Audio Recording permission prompt",
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1Remote nimmt auf, was das WebSDR-Fenster abspielt, damit das CW-Fenster es dekodieren kann."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "FTX1Remote captures what the WebSDR window is playing so the CW window can decode it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1Remote capta lo que reproduce la ventana WebSDR para que la ventana CW pueda decodificarlo."
           }
         }
       }
@@ -41,10 +65,22 @@
       "comment" : "Local Network permission prompt",
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote muss Verbindungen von iPhone/iPad annehmen, um das Funkgerät fernzusteuern."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "FTX1 Remote needs to accept connections from your iPhone/iPad to control the radio remotely."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote necesita aceptar conexiones del iPhone/iPad para controlar el equipo a distancia."
           }
         }
       }
@@ -53,10 +89,22 @@
       "comment" : "Microphone permission prompt",
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote nutzt das Audio des gewählten Eingabegeräts, um einen Wasserfall des Empfangsaudios zu zeichnen."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "FTX1 Remote uses audio from the selected input device to draw a waterfall display of receive audio."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote usa el audio del dispositivo de entrada seleccionado para dibujar una cascada del audio recibido."
           }
         }
       }

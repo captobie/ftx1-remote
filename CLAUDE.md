@@ -2843,7 +2843,16 @@ WebSDR differences are in their own bullet at the end.
 
 Groundwork for Spanish and German on the Mac, iPhone and iPad (Windows
 not in scope). The app follows the OS language; there's no in-app
-picker (user decision). No translations yet — phase 2 adds es/de.
+picker (user decision).
+
+**Phase 2 (2026-10-27): es + de in every catalog**, all entries
+(infinitive/impersonal forms, no Sie/du or tú/usted; radio terms
+English); `de`/`es` in the project's `knownRegions`. Built, checker
+clean, iPad Simulator Demo Mode checked in German; not yet reviewed by
+a native speaker — `docs/localization-review.md` lists the judgment
+calls and the shared term choices (rig = Gerät/equipo, Their call =
+Gegenstation/Corresponsal, …). **A new key needs es and de too**, using
+those terms.
 
 - **Every user-facing string is a namespaced key** (`settings.rigctld.
   restartNow`, `common.cancel`, `cwSender.waitingTheMacCw`), never an
