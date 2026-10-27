@@ -1,14 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "CFBundleDisplayName" : {
-      "extractionState" : "manual",
-      "shouldTranslate" : false
-    },
-    "CFBundleName" : {
-      "extractionState" : "manual",
-      "shouldTranslate" : false
-    },
     "NSLocalNetworkUsageDescription" : {
       "comment" : "Local Network permission prompt",
       "extractionState" : "manual",
