@@ -2839,6 +2839,60 @@ WebSDR differences are in their own bullet at the end.
     in-page tuning without reload, Disconnect freeing the client slot;
     click-to-tune rig-confirmed by the user the same day.
 
+## Localization (phase 1, 2026-10-27: English catalogs only; built, Simulator-checked on iPad/iPhone with the double-length pseudolanguage, Mac checked by build and code only)
+
+Groundwork for Spanish and German on the Mac, iPhone and iPad (Windows
+not in scope). The app follows the OS language; there's no in-app
+picker (user decision). No translations yet — phase 2 adds es/de.
+
+- **Every user-facing string is a namespaced key** (`settings.rigctld.
+  restartNow`, `common.cancel`, `cwSender.waitingTheMacCw`), never an
+  English sentence, with its English in the target's
+  `Localizable.xcstrings`: FTX1Core and FTX1CW have their own
+  (`Sources/*/Resources/`, `defaultLocalization: "en"` in
+  Package.swift), and each app target has one. **Package code must pass
+  `bundle: .module`** — `Text("key", bundle: .module)`, or
+  `String(localized: "key", bundle: .module)` for non-`Text` APIs
+  (`Button(String(...))` etc.); without it the lookup searches the app's
+  catalog and shows the raw key. App code uses plain `Text("key")`/
+  `String(localized: "key")`. Interpolations go in the key
+  (`"memoryList.scanRunning \(side)"` → key `memoryList.scanRunning %@`)
+  so a translation can move them; never build a sentence with `+`,
+  `parts.joined` or a spliced-in English noun. Counted strings use the
+  catalog's plural variations (substitutions when there are several
+  arguments). Permission prompts are in each target's
+  `InfoPlist.xcstrings` (only the usage descriptions: a value-less
+  `CFBundleDisplayName` entry there compiles to the key and renamed the
+  app).
+- **Stays English, on purpose** (view layer only is localized): radio
+  terms and rig labels (modes, MAIN/SUB, PTT, V/M, BK-IN, S.LIST, the
+  MENU grid and `DeepSettingsCatalog`), unit-only formats (`"%lld Hz"`),
+  every wire value (`RigCommand` names, raw values, `set_band` segment
+  names), log text and "reason:" strings, HTTP/SQL/ADIF, file names,
+  saved IDs (theme names — `ThemePresets.displayName` is the label —,
+  default CW macro labels). App-target catalogs list the radio terms
+  their views show as don't-translate.
+- **Frequencies never follow the locale** (es/de write "14,074"):
+  everything goes through `FrequencyFormat` (`dotted` "147.380.000",
+  `mhz(_:fractionDigits:)` "14.0740", `mhzField` for MHz text fields).
+- **Hub protocol**: the only human text the hub sent was
+  `CWKeyerReply.error`/`busy`; it now also sends `errorCode`/`busyCode`
+  (`CWKeyerReply.ErrorCode`/`.Holder`), and clients word the message
+  themselves. The English stays on the wire (`wireText`, fixed English,
+  not localized) for older iPads and is all the Windows hub sends;
+  codes are plain strings, so an unknown one falls back to the text.
+- **Checking**: build the three apps with `-derivedDataPath build/l10n`,
+  then `Scripts/check-localization.py` — every namespaced key the
+  compiler extracted (`*.stringsdata`) must be in its catalog with the
+  same number of placeholders, and package lookups must have
+  `bundle: .module`. `xcodebuild` doesn't add new keys to a catalog (the
+  Xcode IDE does, without English for a key-style string): add the
+  English by hand. `STRING_CATALOG_GENERATE_SYMBOLS` is on, so a catalog
+  entry needs a key Swift can name (no pure-format keys like `%lld/%lld`).
+  Layout check: launch with `-NSDoubleLocalizedStrings YES` (Demo Mode
+  on the iPad); a unit-only format then shows garbled ("lld Hz 500 Hz")
+  — that's the pseudolanguage, not a bug.
+
 ## Structure
 
 - `Sources/FTX1Core/` — Swift Package Manager package (target `FTX1Core`,
