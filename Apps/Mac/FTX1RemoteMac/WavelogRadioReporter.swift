@@ -133,7 +133,7 @@ final class WavelogRadioReporter: ObservableObject {
         let url = LogbookSettings.wavelogURL.trimmingCharacters(in: .whitespaces)
         let token = WavelogToken.read()
         guard !url.isEmpty, !token.isEmpty else {
-            fail("Wavelog needs a URL and an API token")
+            fail(String(localized: "wavelogRadioReporter.wavelogNeedsAUrl"))
             return
         }
         isSending = true

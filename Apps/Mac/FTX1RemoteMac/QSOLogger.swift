@@ -95,7 +95,7 @@ enum QSOLogger {
     /// wait for (the lookup itself takes MacLoggerDX a few seconds).
     static func lookUp(call: String, dialFrequencyHz: Int, mode: String) async -> String? {
         guard LogbookSettings.logger == .macLoggerDX else {
-            return "No logbook is selected in Settings → Logbook"
+            return String(localized: "qsoLogger.noLogbookIsSelected")
         }
         let status = { (dxCall: String) in
             WSJTXMessage.status(
@@ -110,7 +110,7 @@ enum QSOLogger {
             return problem
         }
         if !MacLoggerDX.isRunning {
-            return "Sent, but MacLoggerDX isn't running"
+            return String(localized: "qsoLogger.sentButMacLoggerDXIsnt")
         }
         return nil
     }
@@ -126,16 +126,16 @@ enum QSOLogger {
         } catch {
             logbookLogger.error("Sending \(what, privacy: .public) to \(host, privacy: .public):\(port) failed: \(error.localizedDescription, privacy: .public)")
             if case NWError.dns = error {
-                return "Couldn't find the host \(host)"
+                return String(localized: "common.couldntFindTheHost \(host)")
             }
-            return "Couldn't send to \(host):\(port): \(error.localizedDescription)"
+            return String(localized: "qsoLogger.couldntSendTo \(host) \(port) \(error.localizedDescription)")
         }
     }
 
     /// Polls the log file until the QSO shows up or the timeout passes.
     private static func confirm(_ qso: LoggedQSO) async -> Outcome {
         guard let path = LogbookSettings.macLoggerDXLogPath else {
-            return .sentUnconfirmed("Sent, but MacLoggerDX's log file wasn't found to check it")
+            return .sentUnconfirmed(String(localized: "qsoLogger.sentButMacLoggerDXsLog"))
         }
         let deadline = ContinuousClock.now + confirmationTimeout
         var lastError: MacLoggerDX.LogError?
@@ -158,15 +158,15 @@ enum QSOLogger {
         } while ContinuousClock.now < deadline
 
         if let lastError {
-            return .sentUnconfirmed("Sent, but the log couldn't be checked: \(lastError.description)")
+            return .sentUnconfirmed(String(localized: "qsoLogger.sentButTheLog \(lastError.description)"))
         }
         let reason = !MacLoggerDX.isRunning
-            ? "MacLoggerDX isn't running"
+            ? String(localized: "qsoLogger.macLoggerDXIsntRunning")
             : MacLoggerDX.listensForWSJTXUDP == false
-                ? "MacLoggerDX isn't listening for WSJT-X UDP"
-                : "it didn't show up in the log within \(confirmationTimeout.components.seconds) s"
+                ? String(localized: "qsoLogger.macLoggerDXIsntListeningFor")
+                : String(localized: "qsoLogger.itDidntShowUp \(confirmationTimeout.components.seconds)")
         logbookLogger.notice("\(qso.call, privacy: .public) not found in the MacLoggerDX log: \(reason, privacy: .public)")
-        return .sentUnconfirmed("Sent, but \(reason)")
+        return .sentUnconfirmed(String(localized: "qsoLogger.sentBut \(reason)"))
     }
 
     /// One UDP flow per call: wait for it to be ready, send each datagram

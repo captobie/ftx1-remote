@@ -11,7 +11,7 @@ enum LogbookSettings {
 
         var displayName: String {
             switch self {
-            case .none: "None"
+            case .none: String(localized: "common.none")
             case .macLoggerDX: "MacLoggerDX"
             }
         }
@@ -122,11 +122,11 @@ enum LogbookSettings {
     /// Where QSOs go, or why they can't, in words for the Log pane.
     static func wavelogTarget() -> Result<(url: String, token: String, stationID: String), WavelogSetupError> {
         let url = wavelogURL.trimmingCharacters(in: .whitespaces)
-        guard !url.isEmpty else { return .failure(WavelogSetupError("Wavelog has no URL — set it in Settings → Logbook")) }
+        guard !url.isEmpty else { return .failure(WavelogSetupError(String(localized: "logbookSettings.wavelogHasNoUrl"))) }
         let token = WavelogToken.read()
-        guard !token.isEmpty else { return .failure(WavelogSetupError("Wavelog has no API token — set it in Settings → Logbook")) }
+        guard !token.isEmpty else { return .failure(WavelogSetupError(String(localized: "logbookSettings.wavelogHasNoApi"))) }
         let station = wavelogStationID
-        guard !station.isEmpty else { return .failure(WavelogSetupError("No Wavelog station location — pick one in Settings → Logbook")) }
+        guard !station.isEmpty else { return .failure(WavelogSetupError(String(localized: "logbookSettings.noWavelogStationLocation"))) }
         return .success((url, token, station))
     }
 

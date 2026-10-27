@@ -177,13 +177,13 @@ nonisolated final class WebSDRAudioTap: @unchecked Sendable {
         tapDescription = description
 
         var tap = AudioObjectID(kAudioObjectUnknown)
-        try check(AudioHardwareCreateProcessTap(description, &tap), "create the process tap")
+        try check(AudioHardwareCreateProcessTap(description, &tap), .createProcessTap)
         tapID = tap
 
         let format: AudioStreamBasicDescription = try Self.property(tap, kAudioTapPropertyFormat)
         guard format.mFormatID == kAudioFormatLinearPCM, format.mFormatFlags & kAudioFormatFlagIsFloat != 0,
               format.mBitsPerChannel == 32 else {
-            throw TapError("unsupported tap format (\(format.mFormatID), flags \(format.mFormatFlags), \(format.mBitsPerChannel) bit)")
+            throw TapError(String(localized: "webSDRAudioTap.unsupportedFormat \(Int(format.mFormatID)) \(Int(format.mFormatFlags)) \(Int(format.mBitsPerChannel))"))
         }
         sampleRate = format.mSampleRate
         channelCount = max(Int(format.mChannelsPerFrame), 1)
@@ -208,18 +208,18 @@ nonisolated final class WebSDRAudioTap: @unchecked Sendable {
             ]],
         ]
         var device = AudioObjectID(kAudioObjectUnknown)
-        try check(AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &device), "create the aggregate device")
+        try check(AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &device), .createAggregateDevice)
         aggregateID = device
 
         var procID: AudioDeviceIOProcID?
         try check(AudioDeviceCreateIOProcIDWithBlock(&procID, device, queue) { [weak self] _, input, _, _, _ in
             self?.receive(input)
-        }, "create the IOProc")
+        }, .createIOProc)
         ioProcID = procID
         pending.removeAll(keepingCapacity: true)
         startedAt = Date()
         lastSoundAt = .distantPast
-        try check(AudioDeviceStart(device, procID), "start the tap")
+        try check(AudioDeviceStart(device, procID), .startTap)
     }
 
     private func teardown() {
@@ -297,8 +297,22 @@ nonisolated final class WebSDRAudioTap: @unchecked Sendable {
         init(_ message: String) { errorDescription = message }
     }
 
-    private func check(_ status: OSStatus, _ action: String) throws {
-        guard status == noErr else { throw TapError("Couldn't \(action) (OSStatus \(status))") }
+    /// What `check` was doing, so its error is one whole sentence.
+    private enum Step {
+        case createProcessTap, createAggregateDevice, createIOProc, startTap
+    }
+
+    private func check(_ status: OSStatus, _ step: Step) throws {
+        guard status == noErr else {
+            let code = Int(status)
+            let message = switch step {
+            case .createProcessTap: String(localized: "webSDRAudioTap.couldntCreateProcessTap \(code)")
+            case .createAggregateDevice: String(localized: "webSDRAudioTap.couldntCreateAggregateDevice \(code)")
+            case .createIOProc: String(localized: "webSDRAudioTap.couldntCreateIOProc \(code)")
+            case .startTap: String(localized: "webSDRAudioTap.couldntStartTap \(code)")
+            }
+            throw TapError(message)
+        }
     }
 
     private static func property<T>(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector) throws -> T {
@@ -309,7 +323,7 @@ nonisolated final class WebSDRAudioTap: @unchecked Sendable {
         let value = UnsafeMutablePointer<T>.allocate(capacity: 1)
         defer { value.deallocate() }
         let status = AudioObjectGetPropertyData(object, &address, 0, nil, &size, value)
-        guard status == noErr else { throw TapError("Couldn't read audio property \(selector) (OSStatus \(status))") }
+        guard status == noErr else { throw TapError(String(localized: "webSDRAudioTap.couldntReadProperty \(Int(selector)) \(Int(status))")) }
         return value.move()
     }
 

@@ -14,26 +14,26 @@ struct APRSStationListView: View {
 
     var body: some View {
         Table(filteredStations) {
-            TableColumn("Callsign") { station in
+            TableColumn("common.callsign") { station in
                 Text(station.callsign).fontDesign(.monospaced)
             }
-            TableColumn("Source") { station in
+            TableColumn("common.source") { station in
                 Text(station.source == .main ? "Main" : "Sub")
             }
-            TableColumn("Position") { station in
+            TableColumn("common.position") { station in
                 Text(Self.positionString(station))
             }
-            TableColumn("Symbol") { station in
+            TableColumn("aprsStationList.symbol") { station in
                 Text([station.symbolTable, station.symbolCode].compactMap { $0 }.joined())
             }
-            TableColumn("Comment") { station in
+            TableColumn("common.comment") { station in
                 Text(station.comment ?? "")
             }
-            TableColumn("Last Heard") { station in
+            TableColumn("common.lastHeard") { station in
                 Text(station.lastHeardAt, style: .relative)
             }
         }
-        .navigationTitle("APRS Stations")
+        .navigationTitle("aprsStationList.aprsStations")
         .frame(minWidth: 520, minHeight: 300)
         .toolbar {
             ToolbarItem {
@@ -41,22 +41,22 @@ struct APRSStationListView: View {
             }
             ToolbarItem {
                 Menu {
-                    Picker("Heard Within", selection: $heardWindow) {
+                    Picker("common.heardWithin", selection: $heardWindow) {
                         ForEach(APRSHeardWindow.allCases, id: \.self) { Text($0.label).tag($0) }
                     }
-                    Toggle("With Position Only", isOn: $positionOnly)
+                    Toggle("common.withPositionOnly", isOn: $positionOnly)
                 } label: {
-                    Label("Filter", systemImage: isFiltering
+                    Label("common.filter", systemImage: isFiltering
                           ? "line.3.horizontal.decrease.circle.fill"
                           : "line.3.horizontal.decrease.circle")
                 }
-                .help("Filter by time heard and position")
+                .help("aprsStationList.filterByTimeHeard")
             }
         }
-        .searchable(text: $searchText, prompt: "Callsign or comment")
+        .searchable(text: $searchText, prompt: "aprsStationList.callsignOrComment")
         .overlay {
             if store.stations.isEmpty {
-                ContentUnavailableView("No Stations Heard", systemImage: "antenna.radiowaves.left.and.right", description: Text("Decoded APRS stations will appear here while tuned to the configured APRS frequency."))
+                ContentUnavailableView("common.noStationsHeard", systemImage: "antenna.radiowaves.left.and.right", description: Text("aprsStationList.decodedAprsStationsWill"))
             } else if filteredStations.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }

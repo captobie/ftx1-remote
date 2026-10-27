@@ -119,8 +119,8 @@ final class KiwiSDRDirectory: ObservableObject {
         } catch {
             Self.logger.error("fetch failed: \(error.localizedDescription, privacy: .public)")
             state = .failed(stations.isEmpty
-                ? "Couldn't load the station list: \(error.localizedDescription)"
-                : "Couldn't refresh — showing the cached list. (\(error.localizedDescription))")
+                ? String(localized: "kiwiSDRDirectory.couldntLoadTheStation \(error.localizedDescription)")
+                : String(localized: "kiwiSDRDirectory.couldntRefreshShowingThe \(error.localizedDescription)"))
         }
     }
 

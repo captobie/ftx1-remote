@@ -69,7 +69,7 @@ final class RigctldProcessController {
             case .otherRig(let model):
                 Self.logger.error("Not adopting the rigctld on port \(config.port) (pid \(existingPID)): it's for \(model.displayName, privacy: .public), not model \(config.modelNumber)")
                 onBinaryResolved?(nil)
-                setState(.failed("The rigctld already running on port \(config.port) is for \(model.displayName), not \(RigctldBinary.rigName(config.modelNumber)). Quit it (or the program that started it, e.g. WSJT-X), then connect again."))
+                setState(.failed(String(localized: "rigctldProcessController.theRigctldAlreadyRunning \(config.port) \(model.displayName) \(RigctldBinary.rigName(config.modelNumber))")))
                 return
             case .responsive:
                 Self.logger.notice("Adopted the rigctld already listening on port \(config.port) (pid \(existingPID))")
@@ -134,7 +134,7 @@ final class RigctldProcessController {
             Task { @MainActor in
                 guard let self, self.process === terminatedProcess else { return }
                 self.process = nil
-                self.setState(.failed("rigctld exited unexpectedly (status \(terminatedProcess.terminationStatus))"))
+                self.setState(.failed(String(localized: "rigctldProcessController.rigctldExitedUnexpectedlyStatus \(terminatedProcess.terminationStatus)")))
             }
         }
 

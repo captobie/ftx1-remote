@@ -20,15 +20,15 @@ struct FTX1RemoteMacApp: App {
             // A top-level menu (CommandMenu), not nested under an existing
             // one — holds APRS, the digital modes (FT8, FT4 later, etc.) and
             // other tools like WebSDR, each its own sibling Button/Window here.
-            CommandMenu("Tools") {
+            CommandMenu("app.tools") {
                 Menu("APRS") {
-                    Button("List") {
+                    Button("app.list") {
                         openWindow(id: "aprs-stations")
                     }
-                    Button("Messages") {
+                    Button("app.messages") {
                         openWindow(id: "aprs-messages")
                     }
-                    Button("Map") {
+                    Button("app.map") {
                         openWindow(id: "aprs-map")
                     }
                 }
@@ -52,12 +52,12 @@ struct FTX1RemoteMacApp: App {
         // APRS S.LIST/M.LIST (`MenuPageView.aprsListButton`) open these by
         // id rather than a sheet, so a station/message list can stay open
         // alongside the main window while operating.
-        Window("APRS Stations", id: "aprs-stations") {
+        Window("app.aprsStations", id: "aprs-stations") {
             APRSStationListView()
                 .environmentObject(appDelegate.hub.aprsStore)
                 .appTheme()
         }
-        Window("APRS Messages", id: "aprs-messages") {
+        Window("app.aprsMessages", id: "aprs-messages") {
             APRSMessageListView()
                 .environmentObject(appDelegate.hub.aprsStore)
                 .appTheme()
@@ -65,7 +65,7 @@ struct FTX1RemoteMacApp: App {
         // Opened via Tools → APRS → Map above, not from
         // MenuPageView — unlike S.LIST/M.LIST, a map isn't currently one
         // of the FM/C4FM page's numbered menu buttons.
-        Window("APRS Map", id: "aprs-map") {
+        Window("app.aprsMap", id: "aprs-map") {
             APRSMapView()
                 .environmentObject(appDelegate.hub.aprsStore)
                 .appTheme()
@@ -119,7 +119,7 @@ struct FTX1RemoteMacApp: App {
 
         // The Mem List button under Waterfall (ContentView). `hub` to send
         // the MAIN/SUB recalls and highlight the current channels.
-        Window("Memory Channels", id: "memory-list") {
+        Window("app.memoryChannels", id: "memory-list") {
             MemoryListView()
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.memoryList)
@@ -129,7 +129,7 @@ struct FTX1RemoteMacApp: App {
         // CW page's PLAY button (`MenuPageView.playRecordingsButton`) opens
         // this by id, same "own window, not a sheet" treatment as the APRS
         // windows — a plain file browser, unrelated to `hub`/`RigController`.
-        Window("Recordings", id: "recordings") {
+        Window("app.recordings", id: "recordings") {
             RecordingsListView()
                 .appTheme()
         }

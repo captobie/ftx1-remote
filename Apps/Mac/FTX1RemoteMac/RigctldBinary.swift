@@ -99,7 +99,7 @@ nonisolated enum RigctldBinary {
         /// Whether `rigctld -l` lists the model; nil if `-l` didn't run.
         var listsModel: Bool?
 
-        var shortVersion: String { version.map { "Hamlib \($0)" } ?? "unknown version" }
+        var shortVersion: String { version.map { "Hamlib \($0)" } ?? String(localized: "rigctldBinary.unknownVersion") }
 
         func isSuitable(for model: Int) -> Bool {
             guard let version, version >= RigctldBinary.minimumVersion else { return false }
@@ -108,20 +108,20 @@ nonisolated enum RigctldBinary {
 
         /// Why this copy can't drive the rig, or nil if it can.
         func problem(for model: Int) -> String? {
-            guard versionLine != nil else { return "\(path) didn't answer --version" }
-            guard let version else { return "\(path) reported no Hamlib version" }
+            guard versionLine != nil else { return String(localized: "rigctldBinary.didntAnswerVersion \(path)") }
+            guard let version else { return String(localized: "rigctldBinary.reportedNoHamlibVersion \(path)") }
             if version < RigctldBinary.minimumVersion {
-                return "\(path) is \(version), too old for \(RigctldBinary.rigName(model))"
+                return String(localized: "rigctldBinary.isTooOldFor \(path) \(version) \(RigctldBinary.rigName(model))")
             }
             if listsModel != true {
-                return "\(path) (\(version)) doesn't list \(RigctldBinary.rigName(model))"
+                return String(localized: "rigctldBinary.doesntList \(path) \(version) \(RigctldBinary.rigName(model))")
             }
             return nil
         }
     }
 
     static func rigName(_ model: Int) -> String {
-        model == 1051 ? "the FTX-1" : "model \(model)"
+        model == 1051 ? String(localized: "rigctldBinary.theFtx1") : String(localized: "rigctldBinary.model \(model)")
     }
 
     /// Runs `--version` and `-l` on `path`, each capped at a few seconds
@@ -164,24 +164,24 @@ nonisolated enum RigctldBinary {
                 if probe.isSuitable(for: model) {
                     let skipped = rejected.isEmpty ? "" : " — " + rejected.joined(separator: "; ")
                     return Resolution(path: path, isBuiltIn: false,
-                                      summary: "Using installed \(path) (\(probe.shortVersion))\(skipped).")
+                                      summary: String(localized: "rigctldBinary.usingInstalled \(path) \(probe.shortVersion) \(skipped)"))
                 }
-                rejected.append(probe.problem(for: model) ?? "\(path) is unusable")
+                rejected.append(probe.problem(for: model) ?? String(localized: "rigctldBinary.isUnusable \(path)"))
             }
-            let because = rejected.isEmpty ? "no installed rigctld found" : rejected.joined(separator: "; ")
+            let because = rejected.isEmpty ? String(localized: "rigctldBinary.noInstalledRigctldFound") : rejected.joined(separator: "; ")
             return await builtIn(reason: because)
         case .builtIn:
             return await builtIn(reason: "chosen in Settings")
         case .path(let path):
             guard FileManager.default.isExecutableFile(atPath: path) else {
                 return Resolution(path: path, isBuiltIn: false,
-                                  summary: "Using \(path) (chosen in Settings).",
-                                  warning: "No rigctld at this path.")
+                                  summary: String(localized: "rigctldBinary.usingChosenInSettings \(path)"),
+                                  warning: String(localized: "rigctldBinary.noRigctldAtThis"))
             }
             let probe = await probe(path, model: model)
             return Resolution(path: path, isBuiltIn: false,
-                              summary: "Using \(path) (\(probe.shortVersion), chosen in Settings).",
-                              warning: probe.problem(for: model).map { "\($0). Automatic would use a newer copy or the built-in one." })
+                              summary: String(localized: "rigctldBinary.usingXXChosen \(path) \(probe.shortVersion)"),
+                              warning: probe.problem(for: model).map { String(localized: "rigctldBinary.automaticWouldUseA \($0)") })
         }
     }
 
@@ -189,12 +189,12 @@ nonisolated enum RigctldBinary {
         let path = builtInPath
         guard FileManager.default.isExecutableFile(atPath: path) else {
             return Resolution(path: nil, isBuiltIn: true,
-                              summary: "No usable rigctld: the built-in copy is missing from the app (\(reason)).",
-                              warning: "Reinstall FTX1Remote, or install Hamlib 4.7 or later.")
+                              summary: String(localized: "rigctldBinary.noUsableRigctldThe \(reason)"),
+                              warning: String(localized: "rigctldBinary.reinstallFTX1RemoteOrInstall"))
         }
         let version = await builtInVersion()
         return Resolution(path: path, isBuiltIn: true,
-                          summary: "Using built-in \(version.map { "Hamlib \($0)" } ?? "rigctld") — \(reason).")
+                          summary: String(localized: "rigctldBinary.usingBuiltIn \(version.map { "Hamlib \($0)" } ?? "rigctld") \(reason)"))
     }
 
     /// The bundled copy's version, read once per launch.

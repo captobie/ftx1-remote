@@ -8,49 +8,61 @@ struct StraightKeyView: View {
     @EnvironmentObject private var key: StraightKeyController
     @State private var ports: [String] = []
 
+    /// The key interface's `S` line, one whole sentence per combination.
+    private static func deviceStatusText(wpm: Int, modeB: Bool, reversed: Bool, sidetoneOn: Bool) -> String {
+        let mode = modeB ? "B" : "A"
+        return switch (reversed, sidetoneOn) {
+        case (false, true): String(localized: "straightKey.deviceStatusSidetoneOn \(wpm) \(mode)")
+        case (false, false): String(localized: "straightKey.deviceStatusSidetoneOff \(wpm) \(mode)")
+        case (true, true): String(localized: "straightKey.deviceStatusReversedSidetoneOn \(wpm) \(mode)")
+        case (true, false): String(localized: "straightKey.deviceStatusReversedSidetoneOff \(wpm) \(mode)")
+        }
+    }
+
     var body: some View {
         Form {
-            Section("Key interface") {
-                portPicker("Port", selection: $key.interfacePort)
-                LabeledContent("Link") {
+            Section("straightKey.keyInterface") {
+                portPicker(String(localized: "common.port"), selection: $key.interfacePort)
+                LabeledContent("straightKey.link") {
                     Text(linkText).foregroundStyle(key.snapshot.link.isConnected ? Color.primary : Color.orange)
                 }
                 if let status = key.snapshot.deviceStatus {
-                    LabeledContent("Device") {
-                        Text("Keyer \(status.wpm) WPM · mode \(status.iambicModeB ? "B" : "A")\(status.paddleReversed ? " · reversed" : "") · sidetone \(status.sidetoneOn ? "on" : "off")")
+                    LabeledContent("straightKey.device") {
+                        Text(Self.deviceStatusText(wpm: status.wpm, modeB: status.iambicModeB,
+                                                   reversed: status.paddleReversed, sidetoneOn: status.sidetoneOn))
                             .foregroundStyle(.secondary)
                     }
                 }
                 HStack(spacing: 24) {
-                    indicator("Key", on: key.snapshot.operatorKeyDown, color: .green)
-                    indicator("Line", on: key.snapshot.keyed, color: .red)
+                    indicator(String(localized: "straightKey.key"), on: key.snapshot.operatorKeyDown, color: .green)
+                    indicator(String(localized: "straightKey.line"), on: key.snapshot.keyed, color: .red)
                     Spacer()
                 }
             }
 
             Section {
-                Toggle("Follow the rig's keyer speed", isOn: $key.keyerFollowsRig)
+                Toggle("straightKey.followTheRigsKeyer", isOn: $key.keyerFollowsRig)
                 if key.keyerFollowsRig {
-                    LabeledContent("Speed", value: key.rigKeyerWPM.map { "\(key.effectiveKeyerWPM) WPM (rig \($0))" } ?? "Waiting for the rig's speed…")
+                    LabeledContent("straightKey.speed", value: key.rigKeyerWPM.map { String(localized: "straightKey.wpmRig \(key.effectiveKeyerWPM) \($0)") } ?? String(localized: "straightKey.waitingForTheRigs"))
                 } else {
-                    stepper("Speed", "\(key.keyerWPM) WPM", value: $key.keyerWPM, in: StraightKeySettings.keyerWPMRange)
+                    stepper(String(localized: "straightKey.speed"), "\(key.keyerWPM) WPM", value: $key.keyerWPM, in: StraightKeySettings.keyerWPMRange)
                 }
-                Picker("Iambic mode", selection: $key.iambicModeB) {
+                Picker("straightKey.iambicMode", selection: $key.iambicModeB) {
                     Text("A").tag(false)
                     Text("B").tag(true)
                 }
                 .pickerStyle(.segmented)
-                Toggle("Reverse paddle (dit ↔ dah)", isOn: $key.paddleReversed)
-                Toggle("Sidetone on the interface", isOn: $key.sidetoneOn)
+                Toggle("straightKey.reversePaddleDitDah", isOn: $key.paddleReversed)
+                Toggle("straightKey.sidetoneOnTheInterface", isOn: $key.sidetoneOn)
             } header: {
-                Text("Paddle keyer")
+                Text("straightKey.paddleKeyer")
             } footer: {
-                Text("The keyer runs in the key interface; these are sent to it whenever it connects. The straight key works alongside the paddle.")
+                Text("straightKey.theKeyerRunsIn")
                     .foregroundStyle(.secondary)
             }
 
-            Section("Keying") {
-                Toggle("Armed", isOn: Binding(get: { key.snapshot.armed }, set: { key.setArmed($0) }))
+            Section("straightKey.keying") {
+                Toggle("straightKey.armed", isOn: Binding(get: { key.snapshot.armed }, set: { key.setArmed($0) }))
                     .toggleStyle(.switch)
                     .font(.headline)
                 if let refusal = key.armRefusal {
@@ -60,11 +72,11 @@ struct StraightKeyView: View {
                     message(error, color: .red)
                 }
                 if let latch = key.snapshot.latch {
-                    message("Holding the line up: \(latch.description)", color: .red)
+                    message(String(localized: "straightKey.holdingTheLineUp \(latch.description)"), color: .red)
                 } else if key.snapshot.armed, let cutoff = key.snapshot.cutoff {
-                    message("Won't key: \(cutoff.description)", color: .orange)
+                    message(String(localized: "straightKey.wontKey \(cutoff.description)"), color: .orange)
                 } else if let reason = key.blockReason {
-                    message("Won't key: \(reason)", color: .secondary)
+                    message(String(localized: "straightKey.wontKey \(reason)"), color: .secondary)
                 }
                 if let warning = key.modeWarning {
                     message(warning, color: .orange)
@@ -73,34 +85,34 @@ struct StraightKeyView: View {
 
             Section {
                 if StraightKeyController.isRemote {
-                    LabeledContent("Pi keyer", value: key.piKeyerAddress)
+                    LabeledContent("straightKey.piKeyer", value: key.piKeyerAddress)
                 } else {
-                    portPicker("Rig keying port", selection: $key.keyingPort)
+                    portPicker(String(localized: "straightKey.rigKeyingPort"), selection: $key.keyingPort)
                 }
-                Picker("Line", selection: $key.keyingLine) {
+                Picker("straightKey.line", selection: $key.keyingLine) {
                     ForEach(CWKeyingLine.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                Toggle("Inverted polarity (line cleared = key down)", isOn: $key.invertedPolarity)
+                Toggle("straightKey.invertedPolarityLineCleared", isOn: $key.invertedPolarity)
                 if key.invertedPolarity {
-                    message("Inverted: unplugging or the app quitting unexpectedly leaves the line cleared, which keys the rig.", color: .red)
+                    message(String(localized: "straightKey.invertedUnpluggingOrThe"), color: .red)
                 }
             } header: {
-                Text("Keying port")
+                Text("straightKey.keyingPort")
             } footer: {
                 Text(StraightKeyController.isRemote
-                     ? "Remote mode: the Pi's ftx1-cwkey service keys the rig's second USB port and plays your timing out there. On the rig set CW SETTING → MODE CW → PC KEYING to \(key.keyingLine.rawValue), and leave RPTT SELECT there OFF. Changing these disarms."
-                     : "The rig's second USB port (\"Standard COM Port\"), not rigctld's. On the rig set CW SETTING → MODE CW → PC KEYING to \(key.keyingLine.rawValue), and leave RPTT SELECT there OFF. Changing these disarms.")
+                     ? "straightKey.remoteModeThePis \(key.keyingLine.rawValue)"
+                     : "straightKey.theRigsSecondUsb \(key.keyingLine.rawValue)")
                     .foregroundStyle(.secondary)
             }
 
-            Section("Timing") {
-                stepper("Playout delay", "\(key.playoutDelayMs) ms", value: $key.playoutDelayMs,
+            Section("straightKey.timing") {
+                stepper(String(localized: "straightKey.playoutDelay"), "\(key.playoutDelayMs) ms", value: $key.playoutDelayMs,
                         in: StraightKeySettings.playoutDelayRange, step: 10)
-                stepper("Max key-down", "\(key.maxKeyDownSeconds) s", value: $key.maxKeyDownSeconds,
+                stepper(String(localized: "straightKey.maxKeyDown"), "\(key.maxKeyDownSeconds) s", value: $key.maxKeyDownSeconds,
                         in: StraightKeySettings.maxKeyDownRange)
                 if StraightKeyController.isRemote {
-                    stepper("Pi keys up after silence of", "\(key.remoteHeartbeatTimeoutMs) ms",
+                    stepper(String(localized: "straightKey.piKeysUpAfter"), "\(key.remoteHeartbeatTimeoutMs) ms",
                             value: $key.remoteHeartbeatTimeoutMs, in: StraightKeySettings.remoteHeartbeatRange, step: 100)
                 }
             }
@@ -113,9 +125,9 @@ struct StraightKeyView: View {
 
     private var linkText: String {
         switch key.snapshot.link {
-        case .closed: key.interfacePort.isEmpty ? "No port selected" : "Closed"
-        case .opening: "Waiting for the key interface…"
-        case .connected(let id, let version): id == "?" ? "Connected" : "Connected (\(id) v\(version))"
+        case .closed: key.interfacePort.isEmpty ? String(localized: "straightKey.noPortSelected") : String(localized: "straightKey.closed")
+        case .opening: String(localized: "straightKey.waitingForTheKey")
+        case .connected(let id, let version): id == "?" ? String(localized: "common.connected") : String(localized: "straightKey.connectedV \(id) \(version)")
         case .failed(let message): message
         }
     }
@@ -123,7 +135,7 @@ struct StraightKeyView: View {
     private func portPicker(_ title: String, selection: Binding<String>) -> some View {
         HStack {
             Picker(title, selection: selection) {
-                Text("None").tag("")
+                Text("common.none").tag("")
                 // Keep a saved port listed while it's unplugged.
                 ForEach(ports.contains(selection.wrappedValue) || selection.wrappedValue.isEmpty
                         ? ports : ports + [selection.wrappedValue], id: \.self) { path in
@@ -136,7 +148,7 @@ struct StraightKeyView: View {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.borderless)
-            .help("Refresh the port list")
+            .help("straightKey.refreshThePortList")
         }
     }
 

@@ -70,7 +70,7 @@ struct RecordingsListView: View {
                 row(for: recording)
             }
         }
-        .navigationTitle("Recordings")
+        .navigationTitle("recordingsList.recordings")
         .frame(minWidth: 560, minHeight: 320)
         .toolbar {
             // Only shown once something's actually selected, rather than
@@ -79,45 +79,45 @@ struct RecordingsListView: View {
             // near-identical ones sitting side by side.
             if !selection.isEmpty {
                 ToolbarItem {
-                    Button("Export Selected (\(selection.count))", systemImage: "square.and.arrow.up") {
+                    Button("recordingsList.exportSelected \(selection.count)", systemImage: "square.and.arrow.up") {
                         exportSelected()
                     }
                     .labelStyle(.titleAndIcon)
                 }
                 ToolbarItem {
-                    Button("Delete Selected (\(selection.count))", systemImage: "minus.circle", role: .destructive) {
+                    Button("recordingsList.deleteSelectedX \(selection.count)", systemImage: "minus.circle", role: .destructive) {
                         showingDeleteSelectedConfirmation = true
                     }
                     .labelStyle(.titleAndIcon)
                 }
             }
             ToolbarItem {
-                Button("Delete All", systemImage: "trash", role: .destructive) {
+                Button("recordingsList.deleteAll", systemImage: "trash", role: .destructive) {
                     showingDeleteAllConfirmation = true
                 }
                 .disabled(recordings.isEmpty)
                 .labelStyle(.titleAndIcon)
             }
             ToolbarItem {
-                Button("Refresh", systemImage: "arrow.clockwise") { reload() }
+                Button("common.refresh", systemImage: "arrow.clockwise") { reload() }
                     .labelStyle(.titleAndIcon)
             }
         }
         .overlay {
             if recordings.isEmpty {
                 ContentUnavailableView(
-                    "No Recordings Yet",
+                    "recordingsList.noRecordingsYet",
                     systemImage: "waveform",
-                    description: Text("Recordings made from the CW page's RECORD button or the WebSDR window's Record button will appear here.")
+                    description: Text("recordingsList.recordingsMadeFromThe")
                 )
             }
         }
         .confirmationDialog(
-            "Delete all \(recordings.count) recordings? This can't be undone.",
+            "recordingsList.deleteAllRecordingsThis \(recordings.count)",
             isPresented: $showingDeleteAllConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Delete All", role: .destructive) {
+            Button("recordingsList.deleteAll", role: .destructive) {
                 player.stop()
                 AudioRecorder.deleteAll()
                 selection.removeAll()
@@ -125,32 +125,32 @@ struct RecordingsListView: View {
             }
         }
         .confirmationDialog(
-            "Delete \(selection.count) selected recording\(selection.count == 1 ? "" : "s")? This can't be undone.",
+            "recordingsList.deleteSelectedConfirm \(selection.count)",
             isPresented: $showingDeleteSelectedConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Delete Selected", role: .destructive) {
+            Button("recordingsList.deleteSelected", role: .destructive) {
                 deleteSelected()
             }
         }
         .alert(
-            "Rename Recording",
+            "recordingsList.renameRecording",
             isPresented: Binding(
                 get: { renamingRecording != nil },
                 set: { isPresented in if !isPresented { renamingRecording = nil } }
             ),
             presenting: renamingRecording
         ) { recording in
-            TextField("Name", text: $newName)
-            Button("Cancel", role: .cancel) {}
-            Button("Rename") {
+            TextField("common.name", text: $newName)
+            Button("common.cancel", role: .cancel) {}
+            Button("common.rename") {
                 if AudioRecorder.rename(recording, to: newName) != nil {
                     reload()
                 }
             }
         }
         .alert(
-            "Export Complete",
+            "recordingsList.exportComplete",
             isPresented: Binding(
                 get: { exportResultMessage != nil },
                 set: { isPresented in if !isPresented { exportResultMessage = nil } }
@@ -240,12 +240,12 @@ struct RecordingsListView: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = "Export"
-        panel.message = "Choose a folder to export \(toExport.count) recording\(toExport.count == 1 ? "" : "s") to."
+        panel.prompt = String(localized: "recordingsList.exportPrompt")
+        panel.message = String(localized: "recordingsList.chooseExportFolder \(toExport.count)")
 
         guard panel.runModal() == .OK, let destination = panel.url else { return }
         let succeeded = AudioRecorder.export(toExport, to: destination)
-        exportResultMessage = "Exported \(succeeded) of \(toExport.count) recording\(toExport.count == 1 ? "" : "s") to \(destination.lastPathComponent)."
+        exportResultMessage = String(localized: "recordingsList.exportedOf \(succeeded) \(toExport.count) \(destination.lastPathComponent)")
     }
 
     /// Reloads from disk and drops any selected URL that no longer exists

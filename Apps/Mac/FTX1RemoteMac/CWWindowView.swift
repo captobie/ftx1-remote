@@ -85,21 +85,21 @@ private struct CWReceivePane: View {
     private var sourceNote: String? {
         guard !receiver.isDecodingFile else { return nil }
         if receiver.isPausedForTransmit {
-            return "Paused while transmitting"
+            return String(localized: "common.pausedWhileTransmitting")
         }
         if let mode = receiver.sourceModeIfNotCW {
-            return "\(receiver.channel.title) is in \(mode.displayName), not CW — decoding anyway"
+            return String(localized: "common.isInNotCw \(receiver.channel.title) \(mode.displayName)")
         }
         guard receiver.channel == .webSDR else { return nil }
         switch webSDRSource.status {
         case .stopped, .capturing:
             return nil
         case .waitingForWebSDR:
-            return "Waiting for the WebSDR window's audio — connect it in Tools → WebSDR"
+            return String(localized: "common.waitingForTheWebSDR")
         case .silent:
-            return "WebSDR is silent — check that its page is playing, or allow FTX1Remote under System Settings → Privacy & Security → Screen & System Audio Recording"
+            return String(localized: "cwWindow.webSDRIsSilentCheck")
         case .failed(let message):
-            return "Can't capture WebSDR audio: \(message)"
+            return String(localized: "cwWindow.cantCaptureWebSDRAudio \(message)")
         }
     }
 
@@ -111,29 +111,29 @@ private struct CWReceivePane: View {
             Button {
                 isShowingFileImporter = true
             } label: {
-                Label("Open Audio File…", systemImage: "waveform")
+                Label("cwWindow.openAudioFile", systemImage: "waveform")
             }
             .keyboardShortcut("o")
-            .help("Decode a recording (the Recordings folder opens first)")
+            .help("cwWindow.decodeARecordingThe")
             .disabled(receiver.isDecodingFile)
 
             Button {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(receiver.decodedText, forType: .string)
             } label: {
-                Label("Copy", systemImage: "doc.on.doc")
+                Label("common.copy", systemImage: "doc.on.doc")
             }
             .keyboardShortcut("c", modifiers: [.command, .shift])
-            .help("Copy the decoded text")
+            .help("cwWindow.copyTheDecodedText")
             .disabled(receiver.decodedText.isEmpty)
 
             Button {
                 receiver.clearText()
             } label: {
-                Label("Clear", systemImage: "trash")
+                Label("common.clear", systemImage: "trash")
             }
             .keyboardShortcut("k")
-            .help("Clear the decoded text")
+            .help("cwWindow.clearTheDecodedText")
             .disabled(receiver.decodedText.isEmpty)
         }
         .labelStyle(.titleAndIcon)
@@ -149,7 +149,7 @@ private struct CWChannelPicker: View {
     @EnvironmentObject private var receiver: CWReceiver
 
     var body: some View {
-        Picker("Receiver", selection: $receiver.channel) {
+        Picker("common.receiver", selection: $receiver.channel) {
             ForEach(CWAudioChannel.allCases, id: \.self) { channel in
                 Text(channel.title).tag(channel)
                     .selectionDisabled(channel == .sub && subUnavailableReason != nil)
@@ -158,14 +158,14 @@ private struct CWChannelPicker: View {
         .pickerStyle(.segmented)
         .labelsHidden()
         .fixedSize()
-        .help(subUnavailableReason ?? "Which audio to decode: the rig's MAIN or SUB receiver, or what the WebSDR window is playing")
+        .help(subUnavailableReason ?? String(localized: "cwWindow.whichAudioToDecode"))
     }
 
     private var subUnavailableReason: String? {
         if !receiver.isSubAudioAvailable {
-            "No SUB audio: the audio input is mono"
+            String(localized: "cwWindow.noSubAudioThe")
         } else if hub.rigState.singleReceive == true {
-            "SUB is off: the rig is in single-receive display"
+            String(localized: "common.subIsOffThe")
         } else {
             nil
         }
@@ -197,7 +197,7 @@ private struct CWDecodedTextView: View {
             ScrollView {
                 Group {
                     if text.isEmpty && tentative.isEmpty {
-                        Text("Decoded CW from the selected receiver appears here. Tune to a CW signal, or open a recording.")
+                        Text("cwWindow.decodedCwFromThe")
                             .foregroundStyle(.secondary)
                     } else {
                         Text("\(linked)\(Text(tentative).foregroundStyle(.tertiary))")
@@ -255,9 +255,9 @@ private struct WorkedLegend: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            entry(.green, "Worked on \(band ?? "this band")")
-            entry(.orange, "Worked, other band")
-            entry(Color(nsColor: .linkColor), "New")
+            entry(.green, String(localized: "cwWindow.workedOn \(band ?? "this band")"))
+            entry(.orange, String(localized: "cwWindow.workedOtherBand"))
+            entry(Color(nsColor: .linkColor), String(localized: "cwWindow.new"))
         }
         .font(.caption)
         .padding(.horizontal, 8)

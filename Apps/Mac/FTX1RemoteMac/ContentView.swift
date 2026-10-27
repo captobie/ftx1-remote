@@ -107,18 +107,18 @@ struct ContentView: View {
             pttButton
 
             HStack(spacing: 16) {
-                Picker("Band", selection: bandBinding) {
-                    Section("Amateur") {
+                Picker("common.band", selection: bandBinding) {
+                    Section("common.amateur") {
                         ForEach(BandPlan.all, id: \.name) { band in
                             Text(band.name).tag(band.name)
                         }
                     }
-                    Section("Broadcast") {
+                    Section("common.broadcast") {
                         ForEach(GeneralCoverageSegments.all.filter { $0.category == .broadcast }, id: \.name) { segment in
                             Text(segment.name).tag(segment.name)
                         }
                     }
-                    Section("Utility") {
+                    Section("common.utility") {
                         ForEach(GeneralCoverageSegments.all.filter { $0.category == .utility }, id: \.name) { segment in
                             Text(segment.name).tag(segment.name)
                         }
@@ -127,7 +127,7 @@ struct ContentView: View {
                 .pickerStyle(.menu)
                 .frame(width: 130)
 
-                Picker("Mode", selection: modeBinding) {
+                Picker("common.mode", selection: modeBinding) {
                     ForEach(RigMode.allCases.filter { $0 != .unknown }, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
                     }
@@ -213,7 +213,7 @@ struct ContentView: View {
                 .font(.caption)
         }
         .buttonStyle(ThemedButtonStyle())
-        .help("Switch the transmit side between MAIN and SUB")
+        .help("content.switchTheTransmitSide")
     }
 
     /// Manual override for which physical audio channel (L/R) plays under
@@ -233,8 +233,8 @@ struct ContentView: View {
         .buttonStyle(ThemedButtonStyle(isOn: hub.audioChannelsSwapped, prominentWhenOn: false))
         .tint(hub.audioChannelsSwapped ? .orange : nil)
         .help(hub.audioChannelsSwapped
-              ? "Audio channels are swapped relative to the rig's default (L=Main, R=Sub). Click to swap back."
-              : "Swap which audio channel plays as Main and Sub — use if the audio doesn't match the VFO it's under.")
+              ? "content.audioChannelsAreSwapped"
+              : "content.swapWhichAudioChannel")
     }
 
     /// Toggles VFO A between VFO and Memory-channel mode — the rig's own
@@ -315,9 +315,9 @@ struct ContentView: View {
 
     private var scopeDisplayModeButtons: some View {
         HStack(spacing: 4) {
-            scopeDisplayModeButton("Waterfall", mode: .waterfall)
-            scopeDisplayModeButton("Oscilloscope", mode: .oscilloscope)
-            scopeDisplayModeButton("Off", mode: .off)
+            scopeDisplayModeButton(String(localized: "content.waterfall"), mode: .waterfall)
+            scopeDisplayModeButton(String(localized: "content.oscilloscope"), mode: .oscilloscope)
+            scopeDisplayModeButton(String(localized: "content.off"), mode: .off)
         }
     }
 
@@ -326,7 +326,7 @@ struct ContentView: View {
         Button {
             openWindow(id: "memory-list")
         } label: {
-            Text("Mem List")
+            Text("content.memList")
                 .font(.caption)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
@@ -345,29 +345,29 @@ struct ContentView: View {
             Button {
                 hub.send(.setMemoryScan(.off, side: side))
             } label: {
-                memoryScanLabel("Stop \(side.displayName)")
+                memoryScanLabel(String(localized: "content.stop \(side.displayName)"))
             }
             .buttonStyle(ThemedTileButtonStyle(isOn: true))
             .disabled(!isConnected)
-            .help("Stop the \(side.displayName) memory scan")
+            .help("common.stopTheMemoryScan \(side.displayName)")
         } else {
             let canStartAny = FilterSide.allCases.contains { hub.rigState.canStartMemoryScan(on: $0) }
             Menu {
                 // SUB first, matching the VFO boxes' left-to-right order.
                 ForEach([FilterSide.sub, .main], id: \.self) { side in
-                    Button("Scan \(side.displayName)") { hub.send(.setMemoryScan(.up, side: side)) }
+                    Button("common.scan \(side.displayName)") { hub.send(.setMemoryScan(.up, side: side)) }
                         .disabled(!hub.rigState.canStartMemoryScan(on: side))
                 }
             } label: {
                 ThemedTile {
-                    memoryScanLabel("Scan")
+                    memoryScanLabel(String(localized: "content.scan"))
                 }
             }
             .menuStyle(.button)
             .menuIndicator(.hidden)
             .buttonStyle(.plain)
             .disabled(!isConnected || !canStartAny)
-            .help("Scan MAIN's or SUB's memory channels (Memory mode)")
+            .help("content.scanMAINsOrSUBs")
         }
     }
 
@@ -388,11 +388,11 @@ struct ContentView: View {
     /// it's on.
     private var memoryScanSkipButton: some View {
         Button(action: hub.skipMemoryScanChannel) {
-            memoryScanLabel("Skip")
+            memoryScanLabel(String(localized: "common.skip"))
         }
         .buttonStyle(ThemedTileButtonStyle())
         .disabled(hub.connectionState != .connected || hub.rigState.memoryScan != .paused)
-        .help("Resume the scan past this channel")
+        .help("common.resumeTheScanPast")
     }
 
     private func scopeDisplayModeButton(_ title: String, mode: ScopeDisplayMode) -> some View {
@@ -442,11 +442,11 @@ struct ContentView: View {
             .frame(width: meterWidth, height: meterWidth * 120 / 280)
             VStack(spacing: 4) {
                 if isSub {
-                    channelMuteButton(label: "Mute", isMuted: hub.isSubAudioMuted, action: hub.toggleSubAudioMuted)
+                    channelMuteButton(label: String(localized: "content.mute"), isMuted: hub.isSubAudioMuted, action: hub.toggleSubAudioMuted)
                     horizontalSlider(value: subSquelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
                     horizontalSlider(value: subVolumeBinding, label: "VOL")
                 } else {
-                    channelMuteButton(label: "Mute", isMuted: hub.isMainAudioMuted, action: hub.toggleMainAudioMuted)
+                    channelMuteButton(label: String(localized: "content.mute"), isMuted: hub.isMainAudioMuted, action: hub.toggleMainAudioMuted)
                     horizontalSlider(value: mainSquelchBinding, label: "SQL", range: 0...Self.squelchDisplayRange)
                     horizontalSlider(value: mainVolumeBinding, label: "VOL")
                 }
@@ -576,7 +576,7 @@ struct ContentView: View {
                 hub.startRigctld()
             }
         } label: {
-            Text(hub.connectionState == .connected ? "Connected" : "Disconnected")
+            Text(hub.connectionState == .connected ? "common.connected" : "common.disconnected")
                 .font(.headline)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
@@ -593,10 +593,10 @@ struct ContentView: View {
 
     private var rigctldProcessLabel: String {
         switch hub.rigctldProcessState {
-        case .stopped: "Stopped"
-        case .starting: "Starting…"
-        case .running: "Running"
-        case .failed(let message): "Failed: \(message)"
+        case .stopped: String(localized: "content.stopped")
+        case .starting: String(localized: "content.starting")
+        case .running: String(localized: "content.running")
+        case .failed(let message): String(localized: "content.failed \(message)")
         }
     }
 

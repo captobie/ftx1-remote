@@ -48,9 +48,9 @@ nonisolated enum MacLoggerDX {
 
         var description: String {
             switch self {
-            case .missing: "File not found"
-            case .cannotOpen(let message): "Can't read it: \(message)"
-            case .noQSOTable: "Doesn't look like a MacLoggerDX log (no QSO table)"
+            case .missing: String(localized: "macLoggerDX.fileNotFound")
+            case .cannotOpen(let message): String(localized: "macLoggerDX.cantReadIt \(message)")
+            case .noQSOTable: String(localized: "macLoggerDX.doesntLookLikeA")
             }
         }
     }

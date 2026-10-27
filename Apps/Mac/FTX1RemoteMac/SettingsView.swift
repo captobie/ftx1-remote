@@ -43,32 +43,32 @@ struct SettingsView: View {
                 rigctldTab
                     .tabItem { Text("rigctld") }
                 AudioSettingsTab()
-                    .tabItem { Text("Audio") }
+                    .tabItem { Text("settings.audio") }
                 C4FMSettingsTab()
                     .tabItem { Text("C4FM") }
                 APRSSettingsTab()
                     .tabItem { Text("APRS") }
                 StationSettingsTab()
-                    .tabItem { Text("Station") }
+                    .tabItem { Text("settings.station") }
                 LicenseSettingsTab()
-                    .tabItem { Text("License") }
+                    .tabItem { Text("settings.license") }
                 LogbookSettingsTab()
-                    .tabItem { Text("Logbook") }
+                    .tabItem { Text("settings.logbook") }
                 HomeFrequencySettingsTab()
-                    .tabItem { Text("Home Freq") }
+                    .tabItem { Text("settings.homeFreq") }
                 PollingSettingsTab()
-                    .tabItem { Text("Polling") }
+                    .tabItem { Text("settings.polling") }
                 AppearanceSettingsTab()
-                    .tabItem { Text("Appearance") }
+                    .tabItem { Text("settings.appearance") }
                 UpdatesSettingsTab(updater: updater)
-                    .tabItem { Text("Updates") }
+                    .tabItem { Text("settings.updates") }
             }
 
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }
+                Button("common.cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button("Done") { save() }
+                Button("common.done") { save() }
                     .keyboardShortcut(.defaultAction)
             }
         }
@@ -84,12 +84,12 @@ struct SettingsView: View {
             refreshAvailableBinaryPaths()
         }
         .task { builtInVersion = await RigctldBinary.builtInVersion() }
-        .alert("Restart FTX1Remote?", isPresented: $showRestartPrompt) {
-            Button("Restart Now") { AppDelegate.relaunch() }
+        .alert("settings.restartFTX1Remote", isPresented: $showRestartPrompt) {
+            Button("settings.restartNow") { AppDelegate.relaunch() }
                 .keyboardShortcut(.defaultAction)
-            Button("Later", role: .cancel) { dismiss() }
+            Button("common.later", role: .cancel) { dismiss() }
         } message: {
-            Text("The new connection settings take effect after a restart. Until then FTX1Remote keeps using \(Self.describe(RigctldSettings.activeConnectionMode, host: RigctldSettings.activeRemoteHost)).")
+            Text("settings.theNewConnectionSettings \(Self.describe(RigctldSettings.activeConnectionMode, host: RigctldSettings.activeRemoteHost))")
         }
     }
 
@@ -103,8 +103,8 @@ struct SettingsView: View {
 
     private static func describe(_ mode: RigctldSettings.ConnectionMode, host: String) -> String {
         switch mode {
-        case .local: "the local (USB) connection"
-        case .remote: host.isEmpty ? "the remote (Pi) connection" : "the remote connection to \(host)"
+        case .local: String(localized: "settings.theLocalUsbConnection")
+        case .remote: host.isEmpty ? String(localized: "settings.theRemotePiConnection") : String(localized: "settings.theRemoteConnectionTo \(host)")
         }
     }
 
@@ -118,17 +118,17 @@ struct SettingsView: View {
                 // See `HubService.transmitEnabled`'s doc comment for what it
                 // gates and the force-unkey behavior when switched off
                 // mid-transmission.
-                Toggle("Enable Transmit", isOn: $hub.transmitEnabled)
-                Text("When off, PTT, MOX, antenna tuning, and CW MESSAGE playback are disabled for every connected client. Applies immediately.")
+                Toggle("settings.rigctld.enableTransmit", isOn: $hub.transmitEnabled)
+                Text("settings.rigctld.whenOffPttMox")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Picker("Connection", selection: $connectionMode) {
-                    Text("Local (USB)").tag(RigctldSettings.ConnectionMode.local)
-                    Text("Remote (Pi)").tag(RigctldSettings.ConnectionMode.remote)
+                Picker("common.connection", selection: $connectionMode) {
+                    Text("settings.rigctld.localUsb").tag(RigctldSettings.ConnectionMode.local)
+                    Text("settings.rigctld.remotePi").tag(RigctldSettings.ConnectionMode.remote)
                 }
                 .pickerStyle(.segmented)
-                Text("Changing this requires restarting FTX1Remote — you'll be offered a restart when you click Done.")
+                Text("settings.rigctld.changingThisRequiresRestarting")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -136,8 +136,8 @@ struct SettingsView: View {
                 case .local:
                     HStack {
                         Picker("rigctld", selection: $binaryChoice) {
-                            Text("Automatic (recommended)").tag(RigctldBinary.Choice.automatic)
-                            Text("Built-in (\(builtInVersion.map { "Hamlib \($0)" } ?? "Hamlib"))").tag(RigctldBinary.Choice.builtIn)
+                            Text("settings.rigctld.automaticRecommended").tag(RigctldBinary.Choice.automatic)
+                            Text("settings.rigctld.builtIn \(builtInVersion.map { "Hamlib \($0)" } ?? "Hamlib")").tag(RigctldBinary.Choice.builtIn)
                             if !availableBinaryPaths.isEmpty {
                                 Divider()
                                 ForEach(availableBinaryPaths, id: \.self) { path in
@@ -145,27 +145,27 @@ struct SettingsView: View {
                                 }
                             }
                         }
-                        Button("Choose…") { chooseBinaryPath() }
+                        Button("common.choose") { chooseBinaryPath() }
                     }
-                    TextField("Model number", value: $modelNumber, format: .number.grouping(.never))
-                    Picker("Serial device", selection: $devicePath) {
+                    TextField("settings.rigctld.modelNumber", value: $modelNumber, format: .number.grouping(.never))
+                    Picker("settings.rigctld.serialDevice", selection: $devicePath) {
                         ForEach(availableDevices, id: \.self) { device in
                             Text((device as NSString).lastPathComponent).tag(device)
                         }
                     }
-                    Picker("Baud rate", selection: $baudRate) {
+                    Picker("settings.rigctld.baudRate", selection: $baudRate) {
                         ForEach(baudRateOptionsIncludingCurrent, id: \.self) { rate in
                             Text("\(rate)").tag(rate)
                         }
                     }
-                    Picker("PTT port", selection: $pttPort) {
-                        Text("None (use CAT on main port)").tag("")
+                    Picker("settings.rigctld.pttPort", selection: $pttPort) {
+                        Text("settings.rigctld.noneUseCatOn").tag("")
                         ForEach(availableDevices, id: \.self) { device in
                             Text((device as NSString).lastPathComponent).tag(device)
                         }
                     }
                 case .remote:
-                    TextField("Pi hostname", text: $remoteHost, prompt: Text("e.g. raspberrypi.tailnet-name.ts.net"))
+                    TextField("settings.rigctld.piHostname", text: $remoteHost, prompt: Text("e.g. raspberrypi.tailnet-name.ts.net"))
                         .frame(maxWidth: 280)
                 }
 
@@ -200,7 +200,7 @@ struct SettingsView: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
+        panel.prompt = String(localized: "settings.rigctld.choose")
         panel.directoryURL = URL(fileURLWithPath: "/opt/homebrew/bin", isDirectory: true)
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -291,10 +291,10 @@ private struct RigctldVersionBox: View {
     @State private var refreshCount = 0
 
     var body: some View {
-        GroupBox("Version") {
+        GroupBox("common.version") {
             VStack(alignment: .leading, spacing: 6) {
                 if connectionMode == .local {
-                    row("Uses", installed)
+                    row(String(localized: "settings.rigctld.uses"), installed)
                     if let resolution {
                         Text(resolution.summary)
                             .font(.caption)
@@ -309,9 +309,9 @@ private struct RigctldVersionBox: View {
                         }
                     }
                 }
-                row(connectionMode == .local ? "Running" : "Running on Pi", running)
+                row(connectionMode == .local ? String(localized: "settings.rigctld.running") : String(localized: "settings.rigctld.runningOnPi"), running)
                 if connectionMode == .local, let inUse, inUse != resolution {
-                    Text("Started this session: \(inUse.summary)")
+                    Text("settings.rigctld.startedThisSession \(inUse.summary)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
@@ -319,7 +319,7 @@ private struct RigctldVersionBox: View {
                 }
                 HStack {
                     Spacer()
-                    Button("Refresh") { refreshCount += 1 }
+                    Button("common.refresh") { refreshCount += 1 }
                         .disabled(installed == .checking || running == .checking)
                 }
             }
@@ -337,7 +337,7 @@ private struct RigctldVersionBox: View {
                 .frame(width: 90, alignment: .leading)
             switch lookup {
             case .checking:
-                Text("Checking…").foregroundStyle(.secondary)
+                Text("common.checking").foregroundStyle(.secondary)
             case .found(let version):
                 Text(version).textSelection(.enabled)
             case .unavailable(let reason):
@@ -362,7 +362,7 @@ private struct RigctldVersionBox: View {
             let binaryResult: Lookup = if let path = resolved.path {
                 await Self.binaryVersion(atPath: path)
             } else {
-                .unavailable("No usable rigctld")
+                .unavailable(String(localized: "settings.rigctld.noUsableRigctld"))
             }
             guard !Task.isCancelled else { return }
             resolution = resolved
@@ -372,7 +372,7 @@ private struct RigctldVersionBox: View {
             running = liveResult
         case .remote:
             let host = remoteHost.trimmingCharacters(in: .whitespaces)
-            let result: Lookup = host.isEmpty ? .unavailable("No Pi hostname set") : await Self.runningVersion(host: host)
+            let result: Lookup = host.isEmpty ? .unavailable(String(localized: "settings.rigctld.noPiHostnameSet")) : await Self.runningVersion(host: host)
             guard !Task.isCancelled else { return }
             running = result
         }
@@ -383,7 +383,7 @@ private struct RigctldVersionBox: View {
     /// what `\dump_caps` reports for the running one.
     nonisolated private static func binaryVersion(atPath path: String) async -> Lookup {
         guard FileManager.default.isExecutableFile(atPath: path) else {
-            return .unavailable("No rigctld at this path")
+            return .unavailable(String(localized: "settings.rigctld.noRigctldAtThis"))
         }
         return await Task.detached {
             let proc = Process()
@@ -395,14 +395,14 @@ private struct RigctldVersionBox: View {
             do {
                 try proc.run()
             } catch {
-                return .unavailable("Couldn't run rigctld")
+                return .unavailable(String(localized: "settings.rigctld.couldntRunRigctld"))
             }
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             proc.waitUntilExit()
             let line = (String(data: data, encoding: .utf8) ?? "")
                 .split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
             let version = line.hasPrefix("rigctld ") ? String(line.dropFirst("rigctld ".count)) : line
-            return version.isEmpty ? .unavailable("No version reported") : .found(version)
+            return version.isEmpty ? .unavailable(String(localized: "settings.rigctld.noVersionReported")) : .found(version)
         }.value
     }
 
@@ -415,16 +415,16 @@ private struct RigctldVersionBox: View {
         do {
             try await client.connect(timeout: .seconds(isLocal ? 1 : 5))
         } catch {
-            return .unavailable(isLocal ? "Not running" : "Unreachable")
+            return .unavailable(isLocal ? String(localized: "common.notRunning") : String(localized: "settings.rigctld.unreachable"))
         }
         do {
             if let version = try await client.readHamlibVersion() {
                 return .found(version)
             }
-            return .unavailable("No version reported")
+            return .unavailable(String(localized: "settings.rigctld.noVersionReported"))
         } catch {
             await client.disconnect()
-            return .unavailable("No reply from rigctld")
+            return .unavailable(String(localized: "settings.rigctld.noReplyFromRigctld"))
         }
     }
 }
@@ -443,28 +443,28 @@ private struct AudioSettingsTab: View {
 
     var body: some View {
         Form {
-            Picker("Input device", selection: $inputDeviceUID) {
-                Text("System Default").tag("")
+            Picker("settings.audioSettings.inputDevice", selection: $inputDeviceUID) {
+                Text("common.systemDefault").tag("")
                 ForEach(availableInputDevices) { device in
                     Text(device.name).tag(device.uid)
                 }
             }
-            Picker("Output device", selection: $outputDeviceUID) {
-                Text("System Default").tag("")
+            Picker("settings.audioSettings.outputDevice", selection: $outputDeviceUID) {
+                Text("common.systemDefault").tag("")
                 ForEach(availableOutputDevices) { device in
                     Text(device.name).tag(device.uid)
                 }
             }
-            Text("Changing this requires reconnecting (or restarting FTX1Remote) to take effect.")
+            Text("settings.audioSettings.changingThisRequiresReconnecting")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Picker("Transmit audio output", selection: $txOutputDeviceUID) {
-                Text("None").tag("")
+            Picker("settings.audioSettings.transmitAudioOutput", selection: $txOutputDeviceUID) {
+                Text("common.none").tag("")
                 ForEach(availableOutputDevices) { device in
                     Text(device.name).tag(device.uid)
                 }
             }
-            Text("Local mode: where an iPad's PTT microphone is played — pick the FTX-1's USB audio device. Remote mode sends it to the Pi instead. Takes effect on the next transmission.")
+            Text("settings.audioSettings.localModeWhereAn")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -481,7 +481,7 @@ private struct AudioSettingsTab: View {
     private func refreshAvailableInputDevices() {
         var devices = AudioInputDeviceLister.availableInputDevices()
         if !inputDeviceUID.isEmpty, !devices.contains(where: { $0.uid == inputDeviceUID }) {
-            devices.append(AudioInputDevice(id: 0, uid: inputDeviceUID, name: "\(inputDeviceUID) (not connected)"))
+            devices.append(AudioInputDevice(id: 0, uid: inputDeviceUID, name: String(localized: "settings.audioSettings.notConnected \(inputDeviceUID)")))
         }
         availableInputDevices = devices
     }
@@ -490,7 +490,7 @@ private struct AudioSettingsTab: View {
     private func refreshAvailableOutputDevices() {
         var devices = AudioOutputDeviceLister.availableOutputDevices()
         for uid in [outputDeviceUID, txOutputDeviceUID] where !uid.isEmpty && !devices.contains(where: { $0.uid == uid }) {
-            devices.append(AudioOutputDevice(id: 0, uid: uid, name: "\(uid) (not connected)"))
+            devices.append(AudioOutputDevice(id: 0, uid: uid, name: String(localized: "settings.audioSettings.notConnected \(uid)")))
         }
         availableOutputDevices = devices
     }
@@ -508,8 +508,8 @@ private struct C4FMSettingsTab: View {
 
     var body: some View {
         Form {
-            Toggle("Show received callsign (via WPSD)", isOn: $enabled)
-            TextField("Hotspot address", text: $host, prompt: Text("e.g. 192.168.1.50"))
+            Toggle("settings.c4fmSettings.showReceivedCallsignVia", isOn: $enabled)
+            TextField("settings.c4fmSettings.hotspotAddress", text: $host, prompt: Text("e.g. 192.168.1.50"))
         }
         .padding(.top, 8)
     }
@@ -544,8 +544,8 @@ private struct StationSettingsTab: View {
 
     var body: some View {
         Form {
-            TextField("Callsign", text: $callsign, prompt: Text("e.g. W1AW"))
-            TextField("Grid square", text: $gridSquare, prompt: Text("e.g. FN31pr"))
+            TextField("common.callsign", text: $callsign, prompt: Text("settings.stationSettings.eGW1aw"))
+            TextField("settings.stationSettings.gridSquare", text: $gridSquare, prompt: Text("settings.stationSettings.eGFN31pr"))
         }
         .padding(.top, 8)
     }
@@ -583,7 +583,7 @@ private struct LogbookSettingsTab: View {
         // sections together don't fit the window's ideal height.
         ScrollView {
             Form {
-                Picker("Logger", selection: logger) {
+                Picker("settings.logbookSettings.logger", selection: logger) {
                     ForEach(LogbookSettings.Logger.allCases, id: \.self) { option in
                         Text(option.displayName).tag(option)
                     }
@@ -608,37 +608,37 @@ private struct LogbookSettingsTab: View {
     @ViewBuilder
     private var macLoggerDXSection: some View {
         Section {
-            LabeledContent("File") {
-                Text(status == nil ? "Checking…" : status?.logPath ?? "Not found")
+            LabeledContent("settings.macLoggerDX.file") {
+                Text(status == nil ? String(localized: "common.checking") : status?.logPath ?? String(localized: "common.notFound"))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .textSelection(.enabled)
                     .help(status?.logPath ?? "")
             }
-            LabeledContent("Contents") {
+            LabeledContent("settings.macLoggerDX.contents") {
                 logSummaryText
             }
             HStack {
-                Button("Choose…", action: chooseLogFile)
+                Button("common.choose", action: chooseLogFile)
                 if !logPathOverride.isEmpty {
-                    Button("Use MacLoggerDX’s Log") { logPathOverride = "" }
+                    Button("settings.macLoggerDX.useMacLoggerDXsLog") { logPathOverride = "" }
                 }
             }
         } header: {
-            sectionHeader("Log file (read only)")
+            sectionHeader(String(localized: "settings.macLoggerDX.logFileReadOnly"))
         }
 
         Section {
-            TextField("Host", text: $udpHost, prompt: Text(LogbookSettings.defaultUDPHost))
+            TextField("common.host", text: $udpHost, prompt: Text(LogbookSettings.defaultUDPHost))
                 .frame(maxWidth: 240)
-            TextField("Port", value: $udpPort, format: .number.grouping(.never))
+            TextField("common.port", value: $udpPort, format: .number.grouping(.never))
                 .frame(maxWidth: 120)
             LabeledContent("MacLoggerDX") {
                 macLoggerDXStatusText
             }
-            Button("Check Again") { Task { await refresh() } }
+            Button("settings.macLoggerDX.checkAgain") { Task { await refresh() } }
         } header: {
-            sectionHeader("Logging (WSJT-X UDP)")
+            sectionHeader(String(localized: "settings.macLoggerDX.loggingWsjtXUdp"))
         }
     }
 
@@ -652,7 +652,7 @@ private struct LogbookSettingsTab: View {
     private var logSummaryText: some View {
         switch status?.summary {
         case nil:
-            Text(status == nil ? "Checking…" : "—").foregroundStyle(.secondary)
+            Text(status == nil ? "common.checking" : "—").foregroundStyle(.secondary)
         case .success(let summary):
             Text(Self.describe(summary))
         case .failure(let error):
@@ -664,22 +664,24 @@ private struct LogbookSettingsTab: View {
     private var macLoggerDXStatusText: some View {
         if let status {
             if !status.isRunning {
-                Text("Not running").foregroundStyle(.orange)
+                Text("common.notRunning").foregroundStyle(.orange)
             } else if status.listensForWSJTX == false {
-                Text("Running, but not listening for WSJT-X UDP (turn it on in MacLoggerDX’s preferences)")
+                Text("settings.macLoggerDX.runningButNotListening")
                     .foregroundStyle(.orange)
             } else {
-                Text("Running")
+                Text("settings.macLoggerDX.running")
             }
         } else {
-            Text("Checking…").foregroundStyle(.secondary)
+            Text("common.checking").foregroundStyle(.secondary)
         }
     }
 
     private static func describe(_ summary: MacLoggerDX.LogSummary) -> String {
-        let counts = "\(summary.qsoCount.formatted()) QSOs, \(summary.callCount.formatted()) calls"
-        guard let last = summary.lastQSO else { return counts }
-        return counts + ", last \(last.formatted(date: .abbreviated, time: .omitted))"
+        let qsos = summary.qsoCount, calls = summary.callCount
+        guard let last = summary.lastQSO else {
+            return String(localized: "settings.macLoggerDX.logSummary \(qsos) \(calls)")
+        }
+        return String(localized: "settings.macLoggerDX.logSummaryLast \(qsos) \(calls) \(last.formatted(date: .abbreviated, time: .omitted))")
     }
 
     private func refresh() async {
@@ -704,7 +706,7 @@ private struct LogbookSettingsTab: View {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.message = "Choose a MacLoggerDX log file (.sql)"
+        panel.message = String(localized: "settings.macLoggerDX.chooseAMacLoggerDXLog")
         if let current = LogbookSettings.macLoggerDXLogPath {
             panel.directoryURL = URL(fileURLWithPath: current).deletingLastPathComponent()
         }
@@ -745,44 +747,44 @@ private struct WavelogSettingsSection: View {
 
     var body: some View {
         Section {
-            Toggle("Also log QSOs to Wavelog", isOn: $enabled)
-            Toggle("Send rig frequency and mode to Wavelog (CAT)", isOn: $catEnabled)
-                .help("Wavelog’s QSO form and bandmap follow the rig, as with WaveLogGate. Needs the radio:write scope.")
-            Toggle("Tune the rig from Wavelog (DX cluster, bandmap)", isOn: $tuneEnabled)
-                .help("Clicking a spot in Wavelog tunes MAIN. Wavelog calls this Mac at its radio’s CAT URL, http://127.0.0.1:54321 unless changed there, so the browser has to run on this Mac.")
+            Toggle("settings.wavelogSettings.alsoLogQSOsTo", isOn: $enabled)
+            Toggle("settings.wavelogSettings.sendRigFrequencyAnd", isOn: $catEnabled)
+                .help("settings.wavelogSettings.wavelogsQsoFormAnd")
+            Toggle("settings.wavelogSettings.tuneTheRigFrom", isOn: $tuneEnabled)
+                .help("settings.wavelogSettings.clickingASpotIn")
             if enabled || catEnabled || tuneEnabled {
                 TextField("URL", text: $url, prompt: Text("https://log.example.org"))
                     .frame(maxWidth: 360)
-                SecureField("API token", text: $token, prompt: Text("wl2_…"))
+                SecureField("settings.wavelogSettings.apiToken", text: $token, prompt: Text("wl2_…"))
                     .frame(maxWidth: 360)
                     .onChange(of: token) { _, new in
                         WavelogToken.write(new.trimmingCharacters(in: .whitespacesAndNewlines))
                     }
-                    .help("An API v2 token from Wavelog’s API page (Wavelog 3.1 or newer), with the qso:write and station:read scopes, plus radio:write for CAT")
+                    .help("settings.wavelogSettings.anApiV2Token")
                 if isV1Key {
-                    Text("This looks like an API v1 key. FTX1Remote uses API v2: create a token (wl2_…) with the qso:write and station:read scopes (radio:write for CAT) on Wavelog’s API page.")
+                    Text("settings.wavelogSettings.thisLooksLikeAn")
                         .foregroundStyle(.orange).font(.callout)
                 }
             }
             if enabled {
                 HStack {
-                    Picker("Station location", selection: stationSelection) {
+                    Picker("settings.wavelogSettings.stationLocation", selection: stationSelection) {
                         if stationID.isEmpty {
-                            Text("None").tag("")
+                            Text("common.none").tag("")
                         }
                         ForEach(stationChoices) { station in
                             Text(Self.label(for: station)).tag(station.id)
                         }
                     }
                     .frame(maxWidth: 360)
-                    Button("Refresh", action: refreshStations)
+                    Button("common.refresh", action: refreshStations)
                         .disabled(isBusy || !hasCredentials || isV1Key)
                 }
                 if let mismatch = callsignMismatch {
                     Text(mismatch).foregroundStyle(.orange).font(.callout)
                 }
                 HStack {
-                    Button("Test", action: test)
+                    Button("settings.wavelogSettings.test", action: test)
                         .disabled(isBusy || !hasCredentials || isV1Key || stationID.isEmpty)
                     if isBusy {
                         ProgressView().controlSize(.small)
@@ -794,15 +796,15 @@ private struct WavelogSettingsSection: View {
                 }
             }
             if catEnabled {
-                TextField("Radio name", text: $radioName, prompt: Text(LogbookSettings.defaultWavelogRadioName))
+                TextField("settings.wavelogSettings.radioName", text: $radioName, prompt: Text(LogbookSettings.defaultWavelogRadioName))
                     .frame(maxWidth: 360)
-                    .help("The radio Wavelog shows in its QSO form. If WaveLogGate also reports this rig, quit it or give it another name.")
+                    .help("settings.wavelogSettings.theRadioWavelogShows")
                 catStatus
             }
             if tuneEnabled {
-                TextField("Listen on port", value: $tunePort, format: .number.grouping(.never))
+                TextField("settings.wavelogSettings.listenOnPort", value: $tunePort, format: .number.grouping(.never))
                     .frame(maxWidth: 200)
-                    .help("The port in Wavelog’s CAT URL for this radio (Wavelog → Radio → the radio’s CAT URL; empty there means 54321)")
+                    .help("settings.wavelogSettings.thePortInWavelogs")
                 tuneStatus
             }
         } header: {
@@ -837,9 +839,9 @@ private struct WavelogSettingsSection: View {
                     .foregroundStyle(event.ok ? .green : .orange)
                     .textSelection(.enabled)
             } else if WavelogTuneRequest.origin(ofWavelogURL: url) == nil {
-                Text("Set the Wavelog URL above — only requests from its pages tune the rig").foregroundStyle(.orange)
+                Text("settings.wavelogSettings.setTheWavelogUrl").foregroundStyle(.orange)
             } else {
-                Text("Listening on 127.0.0.1:\(String(port)) — click a spot in Wavelog’s DX cluster").foregroundStyle(.secondary)
+                Text("settings.wavelogSettings.listeningOn1270 \(String(port))").foregroundStyle(.secondary)
             }
         }
     }
@@ -853,10 +855,10 @@ private struct WavelogSettingsSection: View {
             if let error = result.error {
                 Text(error).foregroundStyle(.red).textSelection(.enabled)
             } else {
-                Text("Wavelog updated \(result.at.formatted(date: .omitted, time: .standard))").foregroundStyle(.green)
+                Text("settings.wavelogSettings.wavelogUpdated \(result.at.formatted(date: .omitted, time: .standard))").foregroundStyle(.green)
             }
         } else {
-            Text("Sent once the rig is connected").foregroundStyle(.secondary)
+            Text("settings.wavelogSettings.sentOnceTheRig").foregroundStyle(.secondary)
         }
     }
 
@@ -898,11 +900,11 @@ private struct WavelogSettingsSection: View {
     private var callsignMismatch: String? {
         let mine = myCallsign.trimmingCharacters(in: .whitespaces)
         guard !mine.isEmpty, !stationCallsign.isEmpty, mine.uppercased() != stationCallsign.uppercased() else { return nil }
-        return "Settings → Station’s callsign \(mine.uppercased()) isn’t this location’s (\(stationCallsign)) — Wavelog will file QSOs under \(stationCallsign), not \(mine.uppercased())."
+        return String(localized: "settings.wavelogSettings.settingsStationsCallsignIsnt \(mine.uppercased()) \(stationCallsign) \(stationCallsign) \(mine.uppercased())")
     }
 
     private static func label(for station: Wavelog.Station) -> String {
-        let name = station.name.isEmpty ? "Location \(station.id)" : station.name
+        let name = station.name.isEmpty ? String(localized: "settings.wavelogSettings.location \(station.id)") : station.name
         return station.callsign.isEmpty ? name : "\(name) (\(station.callsign))"
     }
 
@@ -922,7 +924,7 @@ private struct WavelogSettingsSection: View {
                     stationSelection.wrappedValue = pick.id
                 }
                 if list.isEmpty {
-                    status = ("This Wavelog account has no station locations", false)
+                    status = (String(localized: "settings.wavelogSettings.thisWavelogAccountHas"), false)
                 }
             } catch {
                 status = (error.description, false)
@@ -942,7 +944,7 @@ private struct WavelogSettingsSection: View {
             do throws(Wavelog.APIError) {
                 switch try await Wavelog.log(qso, base: base, token: token, stationID: station, dryRun: true) {
                 case .created, .duplicate:
-                    status = ("Connected — the token can log to this location", true)
+                    status = (String(localized: "settings.wavelogSettings.connectedTheTokenCan"), true)
                 case .rejected(let reason):
                     status = (reason, false)
                 }
@@ -976,16 +978,16 @@ private struct APRSSettingsTab: View {
 
     var body: some View {
         Form {
-            Toggle("Decode APRS", isOn: $enabled)
-            TextField("Frequency (MHz)", value: megahertz, format: FrequencyFormat.mhzField(fractionLength: 0...6))
-            TextField("Tolerance (Hz)", value: $toleranceHz, format: .number)
-            TextField("Stations to retain", value: $maxStations, format: .number.grouping(.never))
-            TextField("Messages to retain", value: $maxMessages, format: .number.grouping(.never))
-            Button("Clear History…") { showingClearConfirmation = true }
+            Toggle("common.decodeAprs", isOn: $enabled)
+            TextField("common.frequencyMHz", value: megahertz, format: FrequencyFormat.mhzField(fractionLength: 0...6))
+            TextField("settings.aprsSettings.toleranceHz", value: $toleranceHz, format: .number)
+            TextField("settings.aprsSettings.stationsToRetain", value: $maxStations, format: .number.grouping(.never))
+            TextField("settings.aprsSettings.messagesToRetain", value: $maxMessages, format: .number.grouping(.never))
+            Button("settings.aprsSettings.clearHistory") { showingClearConfirmation = true }
         }
         .padding(.top, 8)
-        .confirmationDialog("Clear all decoded APRS stations and messages?", isPresented: $showingClearConfirmation, titleVisibility: .visible) {
-            Button("Clear History", role: .destructive) { hub.aprsStore.clearHistory() }
+        .confirmationDialog("settings.aprsSettings.clearAllDecodedAprs", isPresented: $showingClearConfirmation, titleVisibility: .visible) {
+            Button("common.clearHistory", role: .destructive) { hub.aprsStore.clearHistory() }
         }
     }
 }
@@ -1032,40 +1034,40 @@ private struct PollingSettingsTab: View {
 
     var body: some View {
         Form {
-            Section("Radio (rigctld)") {
+            Section("settings.pollingSettings.radioRigctld") {
                 Stepper(value: $fastPollMs, in: PollingSettings.fastPollMilliseconds.range, step: 50) {
-                    Text("VFO / meters interval: \(fastPollMs) ms")
+                    Text("settings.pollingSettings.vfoMetersIntervalMs \(fastPollMs)")
                 }
                 Stepper(value: $slowReadsPerTick, in: PollingSettings.slowReadsPerTick.range) {
-                    Text("Menu settings: \(slowReadsPerTick) read\(slowReadsPerTick == 1 ? "" : "s") per VFO poll")
+                    Text("settings.pollingSettings.menuReadsPerPoll \(slowReadsPerTick)")
                 }
                 Stepper(value: $reconnectSeconds, in: PollingSettings.reconnectDelaySeconds.range) {
-                    Text("Reconnect delay: \(reconnectSeconds) s")
+                    Text("settings.pollingSettings.reconnectDelayS \(reconnectSeconds)")
                 }
-                Text("Lower interval / fewer menu reads update the VFO display faster; more menu reads pick up front-panel setting changes sooner. Over the Pi link a VFO poll plus its menu reads takes about a second, so an interval below that has no further effect.")
+                Text("settings.pollingSettings.lowerIntervalFewerMenu")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Section("WPSD hotspot") {
+            Section("settings.pollingSettings.wpsdHotspot") {
                 Stepper(value: $wpsdCallerSeconds, in: PollingSettings.wpsdCallerSeconds.range) {
-                    Text("Caller lookup: every \(wpsdCallerSeconds) s")
+                    Text("settings.pollingSettings.callerLookupEveryS \(wpsdCallerSeconds)")
                 }
                 Stepper(value: $wpsdReflectorSeconds, in: PollingSettings.wpsdReflectorSeconds.range, step: 5) {
-                    Text("Reflector lookup: every \(wpsdReflectorSeconds) s")
+                    Text("settings.pollingSettings.reflectorLookupEveryS \(wpsdReflectorSeconds)")
                 }
             }
             HStack {
-                Text("Changes apply immediately.")
+                Text("settings.pollingSettings.changesApplyImmediately")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button("Restore Defaults…") { showingRestoreConfirmation = true }
+                Button("settings.pollingSettings.restoreDefaults") { showingRestoreConfirmation = true }
                     .disabled(isAtDefaults)
             }
         }
         .padding(.top, 8)
-        .confirmationDialog("Restore default polling rates?", isPresented: $showingRestoreConfirmation, titleVisibility: .visible) {
-            Button("Restore Defaults") { restoreDefaults() }
+        .confirmationDialog("settings.pollingSettings.restoreDefaultPollingRates", isPresented: $showingRestoreConfirmation, titleVisibility: .visible) {
+            Button("common.restoreDefaults") { restoreDefaults() }
         }
     }
 
@@ -1120,27 +1122,27 @@ private struct AppearanceSettingsTab: View {
 
     var body: some View {
         Form {
-            Picker("Theme", selection: theme) {
+            Picker("settings.appearanceSettings.theme", selection: theme) {
                 ForEach(ThemePresets.names, id: \.self) { name in
-                    Text(name).tag(name)
+                    Text(ThemePresets.displayName(name)).tag(name)
                 }
             }
 
-            Picker("VFO Digits", selection: $vfoDigitFont) {
-                Text("Theme Default").tag("")
+            Picker("settings.appearanceSettings.vfoDigits", selection: $vfoDigitFont) {
+                Text("settings.appearanceSettings.themeDefault").tag("")
                 ForEach(VFODigitFont.allCases, id: \.self) { font in
                     Text(font.displayName).tag(font.rawValue)
                 }
             }
 
-            Picker("VFO Digit Color", selection: $vfoDigitColor) {
-                Text("Theme Default").tag("")
+            Picker("settings.appearanceSettings.vfoDigitColor", selection: $vfoDigitColor) {
+                Text("settings.appearanceSettings.themeDefault").tag("")
                 ForEach(ButtonValueColor.allCases, id: \.self) { option in
                     Text(option.displayName).tag(option.rawValue)
                 }
             }
 
-            Picker("Button Value Color", selection: buttonValueColor) {
+            Picker("settings.appearanceSettings.buttonValueColor", selection: buttonValueColor) {
                 ForEach(ButtonValueColor.allCases, id: \.self) { option in
                     Text(option.displayName).tag(option)
                 }
@@ -1164,11 +1166,11 @@ private struct UpdatesSettingsTab: View {
 
     var body: some View {
         Form {
-            Toggle("Automatically check for updates", isOn: Binding(
+            Toggle("settings.updatesSettings.automaticallyCheckForUpdates", isOn: Binding(
                 get: { viewModel.automaticallyChecksForUpdates },
                 set: { viewModel.setAutomaticallyChecksForUpdates($0) }
             ))
-            Toggle("Automatically download and install updates", isOn: Binding(
+            Toggle("settings.updatesSettings.automaticallyDownloadAndInstall", isOn: Binding(
                 get: { viewModel.automaticallyDownloadsUpdates },
                 set: { viewModel.setAutomaticallyDownloadsUpdates($0) }
             ))

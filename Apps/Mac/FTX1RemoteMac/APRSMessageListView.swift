@@ -17,23 +17,23 @@ struct APRSMessageListView: View {
 
     var body: some View {
         Table(filteredMessages) {
-            TableColumn("From") { message in
+            TableColumn("common.from") { message in
                 Text(message.from).fontDesign(.monospaced)
             }
-            TableColumn("To") { message in
+            TableColumn("common.to") { message in
                 Text(message.to).fontDesign(.monospaced)
             }
-            TableColumn("Source") { message in
+            TableColumn("common.source") { message in
                 Text(message.source == .main ? "Main" : "Sub")
             }
-            TableColumn("Message") { message in
+            TableColumn("common.message") { message in
                 Text(message.text)
             }
-            TableColumn("Received") { message in
+            TableColumn("common.received") { message in
                 Text(message.receivedAt, style: .relative)
             }
         }
-        .navigationTitle("APRS Messages")
+        .navigationTitle("aprsMessageList.aprsMessages")
         .frame(minWidth: 520, minHeight: 300)
         .toolbar {
             ToolbarItem {
@@ -41,30 +41,30 @@ struct APRSMessageListView: View {
             }
             ToolbarItem {
                 Menu {
-                    Picker("Received Within", selection: $heardWindow) {
+                    Picker("common.receivedWithin", selection: $heardWindow) {
                         ForEach(APRSHeardWindow.allCases, id: \.self) { Text($0.label).tag($0) }
                     }
-                    Toggle(myBaseCallsign.isEmpty ? "Addressed to Me" : "Addressed to \(myBaseCallsign)",
+                    Toggle(myBaseCallsign.isEmpty ? "common.addressedToMe" : "aprsMessageList.addressedTo \(myBaseCallsign)",
                            isOn: $addressedToMe)
                         .disabled(myBaseCallsign.isEmpty)
-                    Toggle("Hide Bulletins", isOn: $hideBulletins)
-                    Toggle("Hide Telemetry Definitions", isOn: $hideTelemetry)
+                    Toggle("common.hideBulletins", isOn: $hideBulletins)
+                    Toggle("common.hideTelemetryDefinitions", isOn: $hideTelemetry)
                     if myBaseCallsign.isEmpty {
                         Divider()
-                        Text("Set your callsign in Settings → Station to filter messages addressed to you.")
+                        Text("aprsMessageList.setYourCallsignIn")
                     }
                 } label: {
-                    Label("Filter", systemImage: isFiltering
+                    Label("common.filter", systemImage: isFiltering
                           ? "line.3.horizontal.decrease.circle.fill"
                           : "line.3.horizontal.decrease.circle")
                 }
-                .help("Filter by time received, addressee, bulletins, and telemetry")
+                .help("aprsMessageList.filterByTimeReceived")
             }
         }
-        .searchable(text: $searchText, prompt: "Callsign or message text")
+        .searchable(text: $searchText, prompt: "aprsMessageList.callsignOrMessageText")
         .overlay {
             if store.messages.isEmpty {
-                ContentUnavailableView("No Messages", systemImage: "envelope", description: Text("Decoded APRS messages will appear here while tuned to the configured APRS frequency."))
+                ContentUnavailableView("common.noMessages", systemImage: "envelope", description: Text("aprsMessageList.decodedAprsMessagesWill"))
             } else if filteredMessages.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }

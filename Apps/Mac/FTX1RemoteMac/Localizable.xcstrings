@@ -1,5 +1,6396 @@
 {
   "sourceLanguage" : "en",
-  "strings" : {},
+  "strings" : {
+    "A" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "APRS" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "B" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "BK-IN" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "C4FM" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "CW" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "CW Key" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "DT" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "FT8" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "MacLoggerDX" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "Main" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "OK" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "PTT" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "SNR" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "Sub" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "TRANSMITTING" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "TX:MAIN" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "TX:SUB" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "URL" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "V/M" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "Wavelog" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "WebSDR" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "app.aprsMap" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APRS Map"
+          }
+        }
+      }
+    },
+    "app.aprsMessages" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APRS Messages"
+          }
+        }
+      }
+    },
+    "app.aprsStations" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APRS Stations"
+          }
+        }
+      }
+    },
+    "app.list" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List"
+          }
+        }
+      }
+    },
+    "app.map" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Map"
+          }
+        }
+      }
+    },
+    "app.memoryChannels" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory Channels"
+          }
+        }
+      }
+    },
+    "app.messages" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Messages"
+          }
+        }
+      }
+    },
+    "app.recordings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recordings"
+          }
+        }
+      }
+    },
+    "app.tools" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tools"
+          }
+        }
+      }
+    },
+    "aprsMap.aprsMap" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APRS Map"
+          }
+        }
+      }
+    },
+    "aprsMap.decodedAprsPositionReports" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decoded APRS position reports will appear here while tuned to the configured APRS frequency."
+          }
+        }
+      }
+    },
+    "aprsMap.fitAllStations" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fit All Stations"
+          }
+        }
+      }
+    },
+    "aprsMap.noPositionsHeard" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Positions Heard"
+          }
+        }
+      }
+    },
+    "aprsMessageList.addressedTo %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Addressed to %@"
+          }
+        }
+      }
+    },
+    "aprsMessageList.aprsMessages" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APRS Messages"
+          }
+        }
+      }
+    },
+    "aprsMessageList.callsignOrMessageText" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Callsign or message text"
+          }
+        }
+      }
+    },
+    "aprsMessageList.decodedAprsMessagesWill" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decoded APRS messages will appear here while tuned to the configured APRS frequency."
+          }
+        }
+      }
+    },
+    "aprsMessageList.filterByTimeReceived" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter by time received, addressee, bulletins, and telemetry"
+          }
+        }
+      }
+    },
+    "aprsMessageList.setYourCallsignIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set your callsign in Settings → Station to filter messages addressed to you."
+          }
+        }
+      }
+    },
+    "aprsStationList.aprsStations" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APRS Stations"
+          }
+        }
+      }
+    },
+    "aprsStationList.callsignOrComment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Callsign or comment"
+          }
+        }
+      }
+    },
+    "aprsStationList.decodedAprsStationsWill" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decoded APRS stations will appear here while tuned to the configured APRS frequency."
+          }
+        }
+      }
+    },
+    "aprsStationList.filterByTimeHeard" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter by time heard and position"
+          }
+        }
+      }
+    },
+    "aprsStationList.symbol" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Symbol"
+          }
+        }
+      }
+    },
+    "checkForUpdates.checkForUpdates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for Updates…"
+          }
+        }
+      }
+    },
+    "common.addressedToMe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Addressed to Me"
+          }
+        }
+      }
+    },
+    "common.amateur" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amateur"
+          }
+        }
+      }
+    },
+    "common.band" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Band"
+          }
+        }
+      }
+    },
+    "common.broadcast" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Broadcast"
+          }
+        }
+      }
+    },
+    "common.callsign" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Callsign"
+          }
+        }
+      }
+    },
+    "common.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "common.cantSend %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't send: %@"
+          }
+        }
+      }
+    },
+    "common.checking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking…"
+          }
+        }
+      }
+    },
+    "common.choose" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose…"
+          }
+        }
+      }
+    },
+    "common.clear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear"
+          }
+        }
+      }
+    },
+    "common.clearHistory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear History"
+          }
+        }
+      }
+    },
+    "common.comment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment"
+          }
+        }
+      }
+    },
+    "common.connect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        }
+      }
+    },
+    "common.connected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected"
+          }
+        }
+      }
+    },
+    "common.connection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection"
+          }
+        }
+      }
+    },
+    "common.copy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy"
+          }
+        }
+      }
+    },
+    "common.couldntFindTheHost %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't find the host %@"
+          }
+        }
+      }
+    },
+    "common.cwMacros" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CW Macros"
+          }
+        }
+      }
+    },
+    "common.decodeAprs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decode APRS"
+          }
+        }
+      }
+    },
+    "common.disconnect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnect"
+          }
+        }
+      }
+    },
+    "common.disconnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnected"
+          }
+        }
+      }
+    },
+    "common.done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "common.filter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter"
+          }
+        }
+      }
+    },
+    "common.frequency" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequency"
+          }
+        }
+      }
+    },
+    "common.frequencyMHz" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequency (MHz)"
+          }
+        }
+      }
+    },
+    "common.from" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From"
+          }
+        }
+      }
+    },
+    "common.heardWithin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heard Within"
+          }
+        }
+      }
+    },
+    "common.hideBulletins" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Bulletins"
+          }
+        }
+      }
+    },
+    "common.hideTelemetryDefinitions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Telemetry Definitions"
+          }
+        }
+      }
+    },
+    "common.host" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host"
+          }
+        }
+      }
+    },
+    "common.isInNotCw %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is in %@, not CW — decoding anyway"
+          }
+        }
+      }
+    },
+    "common.keyerSpeed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyer speed"
+          }
+        }
+      }
+    },
+    "common.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Label"
+          }
+        }
+      }
+    },
+    "common.lastHeard" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last Heard"
+          }
+        }
+      }
+    },
+    "common.later" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Later"
+          }
+        }
+      }
+    },
+    "common.leftOutTheKeyer %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Left out (the keyer can't send them): %@"
+          }
+        }
+      }
+    },
+    "common.linesYouSendAppear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lines you send appear here. Type below, or use a macro."
+          }
+        }
+      }
+    },
+    "common.memory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory"
+          }
+        }
+      }
+    },
+    "common.memoryX %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory %lld"
+          }
+        }
+      }
+    },
+    "common.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message"
+          }
+        }
+      }
+    },
+    "common.mode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode"
+          }
+        }
+      }
+    },
+    "common.monitor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monitor"
+          }
+        }
+      }
+    },
+    "common.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
+    "common.noMessages" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Messages"
+          }
+        }
+      }
+    },
+    "common.noStationsHeard" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Stations Heard"
+          }
+        }
+      }
+    },
+    "common.none" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        }
+      }
+    },
+    "common.notFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not found"
+          }
+        }
+      }
+    },
+    "common.notRunning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not running"
+          }
+        }
+      }
+    },
+    "common.pausedWhileTransmitting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused while transmitting"
+          }
+        }
+      }
+    },
+    "common.port" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port"
+          }
+        }
+      }
+    },
+    "common.position" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Position"
+          }
+        }
+      }
+    },
+    "common.readyMemory %@ %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready — %@, memory %lld"
+          }
+        }
+      }
+    },
+    "common.received" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Received"
+          }
+        }
+      }
+    },
+    "common.receivedWithin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Received Within"
+          }
+        }
+      }
+    },
+    "common.receiver" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receiver"
+          }
+        }
+      }
+    },
+    "common.refresh" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh"
+          }
+        }
+      }
+    },
+    "common.removeFromFavorites" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Favorites"
+          }
+        }
+      }
+    },
+    "common.rename" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename"
+          }
+        }
+      }
+    },
+    "common.restoreDefaults" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Defaults"
+          }
+        }
+      }
+    },
+    "common.resumeTheScanPast" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume the scan past this channel"
+          }
+        }
+      }
+    },
+    "common.scan %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan %@"
+          }
+        }
+      }
+    },
+    "common.send" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send"
+          }
+        }
+      }
+    },
+    "common.skip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip"
+          }
+        }
+      }
+    },
+    "common.source" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source"
+          }
+        }
+      }
+    },
+    "common.stop" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop"
+          }
+        }
+      }
+    },
+    "common.stopScan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Scan"
+          }
+        }
+      }
+    },
+    "common.stopTheMemoryScan %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop the %@ memory scan"
+          }
+        }
+      }
+    },
+    "common.subIsOffThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SUB is off: the rig is in single-receive display"
+          }
+        }
+      }
+    },
+    "common.systemDefault" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System Default"
+          }
+        }
+      }
+    },
+    "common.text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text"
+          }
+        }
+      }
+    },
+    "common.theirCall" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Their call"
+          }
+        }
+      }
+    },
+    "common.to" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To"
+          }
+        }
+      }
+    },
+    "common.turnOnBkIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn On BK-IN"
+          }
+        }
+      }
+    },
+    "common.typeALineAnd" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type a line and press Return to send"
+          }
+        }
+      }
+    },
+    "common.utility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utility"
+          }
+        }
+      }
+    },
+    "common.version" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
+          }
+        }
+      }
+    },
+    "common.waitingForTheWebSDR" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the WebSDR window's audio — connect it in Tools → WebSDR"
+          }
+        }
+      }
+    },
+    "common.withPositionOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With Position Only"
+          }
+        }
+      }
+    },
+    "content.audioChannelsAreSwapped" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio channels are swapped relative to the rig's default (L=Main, R=Sub). Click to swap back."
+          }
+        }
+      }
+    },
+    "content.failed %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed: %@"
+          }
+        }
+      }
+    },
+    "content.memList" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mem List"
+          }
+        }
+      }
+    },
+    "content.mute" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mute"
+          }
+        }
+      }
+    },
+    "content.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        }
+      }
+    },
+    "content.oscilloscope" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oscilloscope"
+          }
+        }
+      }
+    },
+    "content.running" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running"
+          }
+        }
+      }
+    },
+    "content.scan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan"
+          }
+        }
+      }
+    },
+    "content.scanMAINsOrSUBs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan MAIN's or SUB's memory channels (Memory mode)"
+          }
+        }
+      }
+    },
+    "content.starting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting…"
+          }
+        }
+      }
+    },
+    "content.stop %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop %@"
+          }
+        }
+      }
+    },
+    "content.stopped" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopped"
+          }
+        }
+      }
+    },
+    "content.swapWhichAudioChannel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swap which audio channel plays as Main and Sub — use if the audio doesn't match the VFO it's under."
+          }
+        }
+      }
+    },
+    "content.switchTheTransmitSide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch the transmit side between MAIN and SUB"
+          }
+        }
+      }
+    },
+    "content.waterfall" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waterfall"
+          }
+        }
+      }
+    },
+    "cwLogPane.alreadyInWavelog" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "already in Wavelog"
+          }
+        }
+      }
+    },
+    "cwLogPane.cantLogIn %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't log in %@"
+          }
+        }
+      }
+    },
+    "cwLogPane.checkBeforeLoggingAgain %@ %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — check %@ before logging %@ again"
+          }
+        }
+      }
+    },
+    "cwLogPane.connectToTheRig" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to the rig first — MacLoggerDX ignores a lookup without a frequency"
+          }
+        }
+      }
+    },
+    "cwLogPane.dontSendToWavelog %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don't send %@ to Wavelog"
+          }
+        }
+      }
+    },
+    "cwLogPane.logQso" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log QSO"
+          }
+        }
+      }
+    },
+    "cwLogPane.logThisQsoL" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log this QSO (⌘L)"
+          }
+        }
+      }
+    },
+    "cwLogPane.loggedFromTheTransmitting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logged from the transmitting side: frequency, mode and RF power setting"
+          }
+        }
+      }
+    },
+    "cwLogPane.loggedTo %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ logged to %@"
+          }
+        }
+      }
+    },
+    "cwLogPane.loggedToAndWavelog %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ logged to %@ and Wavelog"
+          }
+        }
+      }
+    },
+    "cwLogPane.loggedToWavelog %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ logged to Wavelog"
+          }
+        }
+      }
+    },
+    "cwLogPane.logging" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logging…"
+          }
+        }
+      }
+    },
+    "cwLogPane.lookThisCallUp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Look this call up in MacLoggerDX (its call field, QRZ data and worked-before line)"
+          }
+        }
+      }
+    },
+    "cwLogPane.lookup" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lookup"
+          }
+        }
+      }
+    },
+    "cwLogPane.newStation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New station"
+          }
+        }
+      }
+    },
+    "cwLogPane.noLogbookChooseOne" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No logbook — choose one in Settings → Logbook"
+          }
+        }
+      }
+    },
+    "cwLogPane.noLogbookIsSelected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No logbook is selected in Settings → Logbook"
+          }
+        }
+      }
+    },
+    "cwLogPane.notConnectedToThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected to the rig — frequency and mode unknown"
+          }
+        }
+      }
+    },
+    "cwLogPane.notLogged %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ not logged"
+          }
+        }
+      }
+    },
+    "cwLogPane.on" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On"
+          }
+        }
+      }
+    },
+    "cwLogPane.retryWavelog %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry Wavelog (%@)"
+          }
+        }
+      }
+    },
+    "cwLogPane.sendToWavelogAgain %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send %@ to Wavelog again, as it was logged — not to %@"
+          }
+        }
+      }
+    },
+    "cwLogPane.setTheTimeOn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set the time on to now"
+          }
+        }
+      }
+    },
+    "cwLogPane.theStationYoureWorking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The station you're working — also {CALL} in macros. Click a callsign in the decoded text to fill it in."
+          }
+        }
+      }
+    },
+    "cwLogPane.theTransmittingSidesFrequency" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The transmitting side's frequency isn't known yet"
+          }
+        }
+      }
+    },
+    "cwLogPane.wasAlreadyInWavelog %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ was already in Wavelog"
+          }
+        }
+      }
+    },
+    "cwLogPane.wavelogReason %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog: %@"
+          }
+        }
+      }
+    },
+    "cwLogPane.withNote %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %@"
+          }
+        }
+      }
+    },
+    "cwLogPane.workedBefore %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worked before: %@"
+          }
+        }
+      }
+    },
+    "cwLogPane.workedSummary %lld %@ %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worked %lld× · last %@ %@ %@"
+          }
+        }
+      }
+    },
+    "cwLogPane.workedSummaryNewOn %lld %@ %@ %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worked %lld× · last %@ %@ %@ · new on %@"
+          }
+        }
+      }
+    },
+    "cwSendPane.add" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        }
+      }
+    },
+    "cwSendPane.breakInTheRig" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Break-in. The rig only transmits its keyer memory with BK-IN on."
+          }
+        }
+      }
+    },
+    "cwSendPane.clearWhatsBeenSent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear what's been sent from the log"
+          }
+        }
+      }
+    },
+    "cwSendPane.editTheMacroButtons" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit the macro buttons"
+          }
+        }
+      }
+    },
+    "cwSendPane.macros" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Macros…"
+          }
+        }
+      }
+    },
+    "cwSendPane.placeholdersMycallAndMygrid" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Placeholders: {MYCALL} and {MYGRID} (Settings → Station), {CALL} (Their call in the Log QSO pane — click a callsign in the decoded text to fill it in). Prosigns: <BT>, <AR>, <KN>."
+          }
+        }
+      }
+    },
+    "cwSendPane.playASidetoneOn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play a sidetone on this Mac while the rig's keyer sends, at the rig's speed and CW pitch — for when the rig is remote and there's nothing to hear"
+          }
+        }
+      }
+    },
+    "cwSendPane.putInSendLine %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Put “%@” in the send line"
+          }
+        }
+      }
+    },
+    "cwSendPane.putInSendLineShortcut %@ %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Put “%@” in the send line  (⌘%lld)"
+          }
+        }
+      }
+    },
+    "cwSendPane.removeThisMacro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this macro"
+          }
+        }
+      }
+    },
+    "cwSendPane.stopKeyingNowAnd" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop keying now and drop everything queued (Esc)"
+          }
+        }
+      }
+    },
+    "cwSendPane.theRigsCwText" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rig's CW TEXT keyer memory the send pane writes to. Whatever is stored there gets overwritten."
+          }
+        }
+      }
+    },
+    "cwSendPane.theRigsKeyerSpeed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rig's keyer speed (KS), 4–60 WPM"
+          }
+        }
+      }
+    },
+    "cwWindow.cantCaptureWebSDRAudio %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't capture WebSDR audio: %@"
+          }
+        }
+      }
+    },
+    "cwWindow.clearTheDecodedText" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear the decoded text"
+          }
+        }
+      }
+    },
+    "cwWindow.copyTheDecodedText" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy the decoded text"
+          }
+        }
+      }
+    },
+    "cwWindow.decodeARecordingThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decode a recording (the Recordings folder opens first)"
+          }
+        }
+      }
+    },
+    "cwWindow.decodedCwFromThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decoded CW from the selected receiver appears here. Tune to a CW signal, or open a recording."
+          }
+        }
+      }
+    },
+    "cwWindow.new" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New"
+          }
+        }
+      }
+    },
+    "cwWindow.noSubAudioThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No SUB audio: the audio input is mono"
+          }
+        }
+      }
+    },
+    "cwWindow.openAudioFile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Audio File…"
+          }
+        }
+      }
+    },
+    "cwWindow.webSDRIsSilentCheck" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WebSDR is silent — check that its page is playing, or allow FTX1Remote under System Settings → Privacy & Security → Screen & System Audio Recording"
+          }
+        }
+      }
+    },
+    "cwWindow.whichAudioToDecode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which audio to decode: the rig's MAIN or SUB receiver, or what the WebSDR window is playing"
+          }
+        }
+      }
+    },
+    "cwWindow.workedOn %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worked on %@"
+          }
+        }
+      }
+    },
+    "cwWindow.workedOtherBand" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worked, other band"
+          }
+        }
+      }
+    },
+    "e.g. 192.168.1.50" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "e.g. raspberrypi.tailnet-name.ts.net" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "ft8List.decodedFt8MessagesWill" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decoded FT8 messages will appear here once tuned to an active FT8 sub-band."
+          }
+        }
+      }
+    },
+    "ft8List.decoding" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decoding…"
+          }
+        }
+      }
+    },
+    "ft8List.freqMHz" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freq (MHz)"
+          }
+        }
+      }
+    },
+    "ft8List.grid" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grid"
+          }
+        }
+      }
+    },
+    "ft8List.idle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idle"
+          }
+        }
+      }
+    },
+    "ft8List.lastCycle %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last cycle %@"
+          }
+        }
+      }
+    },
+    "ft8List.nextInS %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next in %llds"
+          }
+        }
+      }
+    },
+    "ft8List.noDecodesYet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Decodes Yet"
+          }
+        }
+      }
+    },
+    "ft8List.pskQueuedSent %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld queued · %lld sent"
+          }
+        }
+      }
+    },
+    "ft8List.pskWithLastUpload %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · last upload %@"
+          }
+        }
+      }
+    },
+    "ft8List.pskWithNextUpload %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · next %@"
+          }
+        }
+      }
+    },
+    "ft8List.receiving" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receiving…"
+          }
+        }
+      }
+    },
+    "ft8List.setYourCallsignAnd" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set your callsign and grid in Settings → Station"
+          }
+        }
+      }
+    },
+    "ft8List.time" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time"
+          }
+        }
+      }
+    },
+    "ft8List.uploadFailed %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upload failed: %@"
+          }
+        }
+      }
+    },
+    "ft8List.uploadToPskReporter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upload to PSK Reporter"
+          }
+        }
+      }
+    },
+    "ft8List.viewOnPskReporter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View on PSK Reporter"
+          }
+        }
+      }
+    },
+    "https://log.example.org" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "hubService.mainIsInMemory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MAIN is in Memory mode — press V/M first"
+          }
+        }
+      }
+    },
+    "hubService.theRigIsTransmitting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the rig is transmitting"
+          }
+        }
+      }
+    },
+    "hubService.theRigIsntConnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the rig isn't connected"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.addToFavorites" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to Favorites"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.antenna" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antenna"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.availableOnceTheRigs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Available once the rig's frequency is known."
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.couldntLoadTheStation %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load the station list: %@"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.couldntRefreshShowingThe %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't refresh — showing the cached list. (%@)"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.coversMHz %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Covers %@ MHz"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.coversRigFrequency" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Covers rig frequency"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.distance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distance"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.favoritesOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorites only"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.hideFull" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide full"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.loadingKiwiSDRList" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading KiwiSDR list…"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.location" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.onlyStationsWhoseReceive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only stations whose receive range includes the rig's current frequency."
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.range" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Range"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.searchNameLocationGrid" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search name, location, grid, antenna"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.setYourGridSquare" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set your grid square in Settings → Station to sort by distance."
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.stationListUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Station List Unavailable"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.summary %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %#@total@ · list from rx.linkfanel.net"
+          },
+          "substitutions" : {
+            "total" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg station"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg stations"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.summaryUpdated %lld %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %#@total@ · updated %3$@ · list from rx.linkfanel.net"
+          },
+          "substitutions" : {
+            "total" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg station"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg stations"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.useStation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Station"
+          }
+        }
+      }
+    },
+    "kiwiSDRDirectory.users" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Users"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.47Cfr97301" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "47 CFR §97.301/§97.305 as of October 2026, continental US. 60 m is the five channels; 70 cm is 420–450 MHz without the Line A exclusion."
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.addSegment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Segment"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.blocksPttMoxAntenna" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blocks PTT, MOX, antenna tuning, CW sending and the CW key — from this Mac and from every connected client — unless the transmitting side's signal fits inside these privileges, in its mode. Tuning or changing mode out of them while transmitting unkeys the rig. A guardrail only: you remain responsible for operating within your license."
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.copyToCustom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy to Custom…"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.couldntImport" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't import"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.couldntWrite %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't write %@: %@"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.custom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.customFrom %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom (from %@)"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.customPrivileges" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom privileges"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.data" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.eGUkFull" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "e.g. UK Full"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.export" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export…"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.frequenciesApplyWhenYou" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequencies apply when you press Return or leave the field. A signal has to fit inside segments that allow its kind of emission — sidebands included (LSB reaches 2.9 kHz below the dial, FM ±8 kHz). The amateur bands stay the outer limit."
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.fromIsAboveTo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From is above To"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.fromMHz" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From (MHz)"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.fromThePresetThis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From the preset this table was copied from; the other modes of the ticked kinds are refused here."
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.import" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import…"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.isntAPrivilegesFile %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ isn't a privileges file exported from FTX1Remote."
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.modes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modes"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.noSegmentsYetSo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No segments yet, so every transmission is blocked. Add segments, or copy a preset and edit it."
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.offAmateurBandsOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off (amateur bands only)"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.only %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "only %@"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.phone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phone"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.privileges" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privileges"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.removeThisSegment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this segment"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.replace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.replaceYourCustomPrivileges" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace your custom privileges?"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.startFrom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start From"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.theRegionsAmateurAllocations" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The region's amateur allocations as outer band edges, every mode allowed — not any country's rules. Copy it to Custom and edit it to your license."
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.toMHz" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To (MHz)"
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.yourCustomTableIs %@ %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your custom table is replaced by “%1$@” (%#@segments@) from %3$@."
+          },
+          "substitutions" : {
+            "segments" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg segment"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg segments"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "licenseSettingsTab.yourCustomTableSegments %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your custom table (%#@segments@) is replaced by a copy of %2$@."
+          },
+          "substitutions" : {
+            "segments" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg segment"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg segments"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "logbookSettings.noWavelogStationLocation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Wavelog station location — pick one in Settings → Logbook"
+          }
+        }
+      }
+    },
+    "logbookSettings.wavelogHasNoApi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog has no API token — set it in Settings → Logbook"
+          }
+        }
+      }
+    },
+    "logbookSettings.wavelogHasNoUrl" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog has no URL — set it in Settings → Logbook"
+          }
+        }
+      }
+    },
+    "macLoggerDX.cantReadIt %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't read it: %@"
+          }
+        }
+      }
+    },
+    "macLoggerDX.doesntLookLikeA" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doesn't look like a MacLoggerDX log (no QSO table)"
+          }
+        }
+      }
+    },
+    "macLoggerDX.fileNotFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File not found"
+          }
+        }
+      }
+    },
+    "memoryList.ch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ch"
+          }
+        }
+      }
+    },
+    "memoryList.channelsRead %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@channels@ · read %2$@"
+          },
+          "substitutions" : {
+            "channels" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg channel"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg channels"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "memoryList.clickRefreshToRead" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click Refresh to read the rig's memory channels."
+          }
+        }
+      }
+    },
+    "memoryList.connectToTheRig" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to the rig, then click Refresh."
+          }
+        }
+      }
+    },
+    "memoryList.nameChannelFrequency" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name, channel, frequency"
+          }
+        }
+      }
+    },
+    "memoryList.noChannels" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Channels"
+          }
+        }
+      }
+    },
+    "memoryList.readingChannel %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading channel %lld…"
+          }
+        }
+      }
+    },
+    "memoryList.recallChannelOn %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recall channel %lld on %@"
+          }
+        }
+      }
+    },
+    "memoryList.scanDown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan Down"
+          }
+        }
+      }
+    },
+    "memoryList.scanDownHelp %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan %@'s memory channels downward"
+          }
+        }
+      }
+    },
+    "memoryList.scanDownNeedsMemory %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan %@'s memory channels downward (put %@ in Memory mode first)"
+          }
+        }
+      }
+    },
+    "memoryList.scanPausedOnBusyChannel %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ memory scan paused on a busy channel"
+          }
+        }
+      }
+    },
+    "memoryList.scanPausedOnChannel %@ %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ memory scan paused on CH %lld"
+          }
+        }
+      }
+    },
+    "memoryList.scanRunning %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ memory scan running…"
+          }
+        }
+      }
+    },
+    "memoryList.scanSide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan Side"
+          }
+        }
+      }
+    },
+    "memoryList.scanUp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan Up"
+          }
+        }
+      }
+    },
+    "memoryList.scanUpHelp %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan %@'s memory channels upward"
+          }
+        }
+      }
+    },
+    "memoryList.scanUpNeedsMemory %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan %@'s memory channels upward (put %@ in Memory mode first)"
+          }
+        }
+      }
+    },
+    "memoryList.shift" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift"
+          }
+        }
+      }
+    },
+    "memoryList.tone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tone"
+          }
+        }
+      }
+    },
+    "memoryList.whichReceiverToScan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which receiver to scan"
+          }
+        }
+      }
+    },
+    "qsoLogger.couldntSendTo %@ %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't send to %@:%lld: %@"
+          }
+        }
+      }
+    },
+    "qsoLogger.itDidntShowUp %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "it didn't show up in the log within %lld s"
+          }
+        }
+      }
+    },
+    "qsoLogger.macLoggerDXIsntListeningFor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MacLoggerDX isn't listening for WSJT-X UDP"
+          }
+        }
+      }
+    },
+    "qsoLogger.macLoggerDXIsntRunning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MacLoggerDX isn't running"
+          }
+        }
+      }
+    },
+    "qsoLogger.noLogbookIsSelected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No logbook is selected in Settings → Logbook"
+          }
+        }
+      }
+    },
+    "qsoLogger.sentBut %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent, but %@"
+          }
+        }
+      }
+    },
+    "qsoLogger.sentButMacLoggerDXIsnt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent, but MacLoggerDX isn't running"
+          }
+        }
+      }
+    },
+    "qsoLogger.sentButMacLoggerDXsLog" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent, but MacLoggerDX's log file wasn't found to check it"
+          }
+        }
+      }
+    },
+    "qsoLogger.sentButTheLog %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent, but the log couldn't be checked: %@"
+          }
+        }
+      }
+    },
+    "recordingsList.chooseExportFolder %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Choose a folder to export %lld recording to."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Choose a folder to export %lld recordings to."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "recordingsList.deleteAll" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete All"
+          }
+        }
+      }
+    },
+    "recordingsList.deleteAllRecordingsThis %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld recording? This can't be undone."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete all %lld recordings? This can't be undone."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "recordingsList.deleteSelected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Selected"
+          }
+        }
+      }
+    },
+    "recordingsList.deleteSelectedConfirm %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld selected recording? This can't be undone."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld selected recordings? This can't be undone."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "recordingsList.deleteSelectedX %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Selected (%lld)"
+          }
+        }
+      }
+    },
+    "recordingsList.exportComplete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Complete"
+          }
+        }
+      }
+    },
+    "recordingsList.exportPrompt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export"
+          }
+        }
+      }
+    },
+    "recordingsList.exportSelected %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Selected (%lld)"
+          }
+        }
+      }
+    },
+    "recordingsList.exportedOf %lld %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exported %1$lld of %#@total@ to %3$@."
+          },
+          "substitutions" : {
+            "total" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg recording"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg recordings"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "recordingsList.noRecordingsYet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Recordings Yet"
+          }
+        }
+      }
+    },
+    "recordingsList.recordings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recordings"
+          }
+        }
+      }
+    },
+    "recordingsList.recordingsMadeFromThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recordings made from the CW page's RECORD button or the WebSDR window's Record button will appear here."
+          }
+        }
+      }
+    },
+    "recordingsList.renameRecording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename Recording"
+          }
+        }
+      }
+    },
+    "remoteCWKeyerError.badSlot %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyer memory %lld doesn't exist (1–5)"
+          }
+        }
+      }
+    },
+    "remoteCWKeyerError.badText" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Mac refused the text: up to 50 characters the keyer can send"
+          }
+        }
+      }
+    },
+    "rigctld" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "rigctldBinary.automaticWouldUseA %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@. Automatic would use a newer copy or the built-in one."
+          }
+        }
+      }
+    },
+    "rigctldBinary.didntAnswerVersion %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ didn't answer --version"
+          }
+        }
+      }
+    },
+    "rigctldBinary.doesntList %@ %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (%@) doesn't list %@"
+          }
+        }
+      }
+    },
+    "rigctldBinary.isTooOldFor %@ %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is %@, too old for %@"
+          }
+        }
+      }
+    },
+    "rigctldBinary.isUnusable %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is unusable"
+          }
+        }
+      }
+    },
+    "rigctldBinary.model %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "model %lld"
+          }
+        }
+      }
+    },
+    "rigctldBinary.noInstalledRigctldFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no installed rigctld found"
+          }
+        }
+      }
+    },
+    "rigctldBinary.noRigctldAtThis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No rigctld at this path."
+          }
+        }
+      }
+    },
+    "rigctldBinary.noUsableRigctldThe %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No usable rigctld: the built-in copy is missing from the app (%@)."
+          }
+        }
+      }
+    },
+    "rigctldBinary.reinstallFTX1RemoteOrInstall" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reinstall FTX1Remote, or install Hamlib 4.7 or later."
+          }
+        }
+      }
+    },
+    "rigctldBinary.reportedNoHamlibVersion %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ reported no Hamlib version"
+          }
+        }
+      }
+    },
+    "rigctldBinary.theFtx1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the FTX-1"
+          }
+        }
+      }
+    },
+    "rigctldBinary.unknownVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "unknown version"
+          }
+        }
+      }
+    },
+    "rigctldBinary.usingBuiltIn %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Using built-in %@ — %@."
+          }
+        }
+      }
+    },
+    "rigctldBinary.usingChosenInSettings %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Using %@ (chosen in Settings)."
+          }
+        }
+      }
+    },
+    "rigctldBinary.usingInstalled %@ %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Using installed %@ (%@)%@."
+          }
+        }
+      }
+    },
+    "rigctldBinary.usingXXChosen %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Using %@ (%@, chosen in Settings)."
+          }
+        }
+      }
+    },
+    "rigctldProcessController.rigctldExitedUnexpectedlyStatus %d" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld exited unexpectedly (status %d)"
+          }
+        }
+      }
+    },
+    "rigctldProcessController.theRigctldAlreadyRunning %u %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rigctld already running on port %u is for %@, not %@. Quit it (or the program that started it, e.g. WSJT-X), then connect again."
+          }
+        }
+      }
+    },
+    "scopeDisplay.scopeDisplay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scope display"
+          }
+        }
+      }
+    },
+    "settings.appearance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance"
+          }
+        }
+      }
+    },
+    "settings.appearanceSettings.buttonValueColor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Button Value Color"
+          }
+        }
+      }
+    },
+    "settings.appearanceSettings.theme" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme"
+          }
+        }
+      }
+    },
+    "settings.appearanceSettings.themeDefault" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme Default"
+          }
+        }
+      }
+    },
+    "settings.appearanceSettings.vfoDigitColor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VFO Digit Color"
+          }
+        }
+      }
+    },
+    "settings.appearanceSettings.vfoDigits" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VFO Digits"
+          }
+        }
+      }
+    },
+    "settings.aprsSettings.clearAllDecodedAprs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear all decoded APRS stations and messages?"
+          }
+        }
+      }
+    },
+    "settings.aprsSettings.clearHistory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear History…"
+          }
+        }
+      }
+    },
+    "settings.aprsSettings.messagesToRetain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Messages to retain"
+          }
+        }
+      }
+    },
+    "settings.aprsSettings.stationsToRetain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stations to retain"
+          }
+        }
+      }
+    },
+    "settings.aprsSettings.toleranceHz" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tolerance (Hz)"
+          }
+        }
+      }
+    },
+    "settings.audio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio"
+          }
+        }
+      }
+    },
+    "settings.audioSettings.changingThisRequiresReconnecting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changing this requires reconnecting (or restarting FTX1Remote) to take effect."
+          }
+        }
+      }
+    },
+    "settings.audioSettings.inputDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Input device"
+          }
+        }
+      }
+    },
+    "settings.audioSettings.localModeWhereAn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local mode: where an iPad's PTT microphone is played — pick the FTX-1's USB audio device. Remote mode sends it to the Pi instead. Takes effect on the next transmission."
+          }
+        }
+      }
+    },
+    "settings.audioSettings.notConnected %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (not connected)"
+          }
+        }
+      }
+    },
+    "settings.audioSettings.outputDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Output device"
+          }
+        }
+      }
+    },
+    "settings.audioSettings.transmitAudioOutput" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit audio output"
+          }
+        }
+      }
+    },
+    "settings.c4fmSettings.hotspotAddress" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hotspot address"
+          }
+        }
+      }
+    },
+    "settings.c4fmSettings.showReceivedCallsignVia" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show received callsign (via WPSD)"
+          }
+        }
+      }
+    },
+    "settings.homeFreq" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Freq"
+          }
+        }
+      }
+    },
+    "settings.license" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "License"
+          }
+        }
+      }
+    },
+    "settings.logbook" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logbook"
+          }
+        }
+      }
+    },
+    "settings.logbookSettings.logger" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logger"
+          }
+        }
+      }
+    },
+    "settings.macLoggerDX.checkAgain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Again"
+          }
+        }
+      }
+    },
+    "settings.macLoggerDX.chooseAMacLoggerDXLog" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a MacLoggerDX log file (.sql)"
+          }
+        }
+      }
+    },
+    "settings.macLoggerDX.contents" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contents"
+          }
+        }
+      }
+    },
+    "settings.macLoggerDX.file" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File"
+          }
+        }
+      }
+    },
+    "settings.macLoggerDX.logFileReadOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log file (read only)"
+          }
+        }
+      }
+    },
+    "settings.macLoggerDX.logSummary %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@qsos@, %#@calls@"
+          },
+          "substitutions" : {
+            "qsos" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg QSO"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg QSOs"
+                    }
+                  }
+                }
+              }
+            },
+            "calls" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg call"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg calls"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "settings.macLoggerDX.logSummaryLast %lld %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@qsos@, %#@calls@, last %3$@"
+          },
+          "substitutions" : {
+            "qsos" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg QSO"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg QSOs"
+                    }
+                  }
+                }
+              }
+            },
+            "calls" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg call"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg calls"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "settings.macLoggerDX.loggingWsjtXUdp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logging (WSJT-X UDP)"
+          }
+        }
+      }
+    },
+    "settings.macLoggerDX.running" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running"
+          }
+        }
+      }
+    },
+    "settings.macLoggerDX.runningButNotListening" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running, but not listening for WSJT-X UDP (turn it on in MacLoggerDX’s preferences)"
+          }
+        }
+      }
+    },
+    "settings.macLoggerDX.useMacLoggerDXsLog" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use MacLoggerDX’s Log"
+          }
+        }
+      }
+    },
+    "settings.polling" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Polling"
+          }
+        }
+      }
+    },
+    "settings.pollingSettings.callerLookupEveryS %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Caller lookup: every %lld s"
+          }
+        }
+      }
+    },
+    "settings.pollingSettings.changesApplyImmediately" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes apply immediately."
+          }
+        }
+      }
+    },
+    "settings.pollingSettings.lowerIntervalFewerMenu" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lower interval / fewer menu reads update the VFO display faster; more menu reads pick up front-panel setting changes sooner. Over the Pi link a VFO poll plus its menu reads takes about a second, so an interval below that has no further effect."
+          }
+        }
+      }
+    },
+    "settings.pollingSettings.menuReadsPerPoll %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Menu settings: %lld read per VFO poll"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Menu settings: %lld reads per VFO poll"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "settings.pollingSettings.radioRigctld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radio (rigctld)"
+          }
+        }
+      }
+    },
+    "settings.pollingSettings.reconnectDelayS %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnect delay: %lld s"
+          }
+        }
+      }
+    },
+    "settings.pollingSettings.reflectorLookupEveryS %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reflector lookup: every %lld s"
+          }
+        }
+      }
+    },
+    "settings.pollingSettings.restoreDefaultPollingRates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore default polling rates?"
+          }
+        }
+      }
+    },
+    "settings.pollingSettings.restoreDefaults" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Defaults…"
+          }
+        }
+      }
+    },
+    "settings.pollingSettings.vfoMetersIntervalMs %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VFO / meters interval: %lld ms"
+          }
+        }
+      }
+    },
+    "settings.pollingSettings.wpsdHotspot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WPSD hotspot"
+          }
+        }
+      }
+    },
+    "settings.restartFTX1Remote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restart FTX1Remote?"
+          }
+        }
+      }
+    },
+    "settings.restartNow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restart Now"
+          }
+        }
+      }
+    },
+    "settings.rigctld.automaticRecommended" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic (recommended)"
+          }
+        }
+      }
+    },
+    "settings.rigctld.baudRate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baud rate"
+          }
+        }
+      }
+    },
+    "settings.rigctld.builtIn %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Built-in (%@)"
+          }
+        }
+      }
+    },
+    "settings.rigctld.changingThisRequiresRestarting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changing this requires restarting FTX1Remote — you'll be offered a restart when you click Done."
+          }
+        }
+      }
+    },
+    "settings.rigctld.choose" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose"
+          }
+        }
+      }
+    },
+    "settings.rigctld.couldntRunRigctld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't run rigctld"
+          }
+        }
+      }
+    },
+    "settings.rigctld.enableTransmit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Transmit"
+          }
+        }
+      }
+    },
+    "settings.rigctld.localUsb" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local (USB)"
+          }
+        }
+      }
+    },
+    "settings.rigctld.modelNumber" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model number"
+          }
+        }
+      }
+    },
+    "settings.rigctld.noPiHostnameSet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Pi hostname set"
+          }
+        }
+      }
+    },
+    "settings.rigctld.noReplyFromRigctld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No reply from rigctld"
+          }
+        }
+      }
+    },
+    "settings.rigctld.noRigctldAtThis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No rigctld at this path"
+          }
+        }
+      }
+    },
+    "settings.rigctld.noUsableRigctld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No usable rigctld"
+          }
+        }
+      }
+    },
+    "settings.rigctld.noVersionReported" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No version reported"
+          }
+        }
+      }
+    },
+    "settings.rigctld.noneUseCatOn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None (use CAT on main port)"
+          }
+        }
+      }
+    },
+    "settings.rigctld.piHostname" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pi hostname"
+          }
+        }
+      }
+    },
+    "settings.rigctld.pttPort" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PTT port"
+          }
+        }
+      }
+    },
+    "settings.rigctld.remotePi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remote (Pi)"
+          }
+        }
+      }
+    },
+    "settings.rigctld.running" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running"
+          }
+        }
+      }
+    },
+    "settings.rigctld.runningOnPi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running on Pi"
+          }
+        }
+      }
+    },
+    "settings.rigctld.serialDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serial device"
+          }
+        }
+      }
+    },
+    "settings.rigctld.startedThisSession %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started this session: %@"
+          }
+        }
+      }
+    },
+    "settings.rigctld.unreachable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unreachable"
+          }
+        }
+      }
+    },
+    "settings.rigctld.uses" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uses"
+          }
+        }
+      }
+    },
+    "settings.rigctld.whenOffPttMox" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When off, PTT, MOX, antenna tuning, and CW MESSAGE playback are disabled for every connected client. Applies immediately."
+          }
+        }
+      }
+    },
+    "settings.station" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Station"
+          }
+        }
+      }
+    },
+    "settings.stationSettings.eGFN31pr" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "e.g. FN31pr"
+          }
+        }
+      }
+    },
+    "settings.stationSettings.eGW1aw" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "e.g. W1AW"
+          }
+        }
+      }
+    },
+    "settings.stationSettings.gridSquare" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grid square"
+          }
+        }
+      }
+    },
+    "settings.theLocalUsbConnection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the local (USB) connection"
+          }
+        }
+      }
+    },
+    "settings.theNewConnectionSettings %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The new connection settings take effect after a restart. Until then FTX1Remote keeps using %@."
+          }
+        }
+      }
+    },
+    "settings.theRemoteConnectionTo %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the remote connection to %@"
+          }
+        }
+      }
+    },
+    "settings.theRemotePiConnection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the remote (Pi) connection"
+          }
+        }
+      }
+    },
+    "settings.updates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updates"
+          }
+        }
+      }
+    },
+    "settings.updatesSettings.automaticallyCheckForUpdates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatically check for updates"
+          }
+        }
+      }
+    },
+    "settings.updatesSettings.automaticallyDownloadAndInstall" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatically download and install updates"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.alsoLogQSOsTo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Also log QSOs to Wavelog"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.anApiV2Token" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An API v2 token from Wavelog’s API page (Wavelog 3.1 or newer), with the qso:write and station:read scopes, plus radio:write for CAT"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.apiToken" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API token"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.clickingASpotIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clicking a spot in Wavelog tunes MAIN. Wavelog calls this Mac at its radio’s CAT URL, http://127.0.0.1:54321 unless changed there, so the browser has to run on this Mac."
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.connectedTheTokenCan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected — the token can log to this location"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.listenOnPort" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listen on port"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.listeningOn1270 %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listening on 127.0.0.1:%@ — click a spot in Wavelog’s DX cluster"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.location %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location %@"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.radioName" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radio name"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.sendRigFrequencyAnd" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send rig frequency and mode to Wavelog (CAT)"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.sentOnceTheRig" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent once the rig is connected"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.setTheWavelogUrl" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set the Wavelog URL above — only requests from its pages tune the rig"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.settingsStationsCallsignIsnt %@ %@ %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings → Station’s callsign %@ isn’t this location’s (%@) — Wavelog will file QSOs under %@, not %@."
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.stationLocation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Station location"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.test" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.thePortInWavelogs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The port in Wavelog’s CAT URL for this radio (Wavelog → Radio → the radio’s CAT URL; empty there means 54321)"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.theRadioWavelogShows" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The radio Wavelog shows in its QSO form. If WaveLogGate also reports this rig, quit it or give it another name."
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.thisLooksLikeAn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This looks like an API v1 key. FTX1Remote uses API v2: create a token (wl2_…) with the qso:write and station:read scopes (radio:write for CAT) on Wavelog’s API page."
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.thisWavelogAccountHas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Wavelog account has no station locations"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.tuneTheRigFrom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tune the rig from Wavelog (DX cluster, bandmap)"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.wavelogUpdated %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog updated %@"
+          }
+        }
+      }
+    },
+    "settings.wavelogSettings.wavelogsQsoFormAnd" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog’s QSO form and bandmap follow the rig, as with WaveLogGate. Needs the radio:write scope."
+          }
+        }
+      }
+    },
+    "straightKey.armed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Armed"
+          }
+        }
+      }
+    },
+    "straightKey.closed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Closed"
+          }
+        }
+      }
+    },
+    "straightKey.connectedV %@ %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected (%@ v%lld)"
+          }
+        }
+      }
+    },
+    "straightKey.device" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device"
+          }
+        }
+      }
+    },
+    "straightKey.deviceStatusReversedSidetoneOff %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyer %lld WPM · mode %@ · reversed · sidetone off"
+          }
+        }
+      }
+    },
+    "straightKey.deviceStatusReversedSidetoneOn %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyer %lld WPM · mode %@ · reversed · sidetone on"
+          }
+        }
+      }
+    },
+    "straightKey.deviceStatusSidetoneOff %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyer %lld WPM · mode %@ · sidetone off"
+          }
+        }
+      }
+    },
+    "straightKey.deviceStatusSidetoneOn %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyer %lld WPM · mode %@ · sidetone on"
+          }
+        }
+      }
+    },
+    "straightKey.followTheRigsKeyer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow the rig's keyer speed"
+          }
+        }
+      }
+    },
+    "straightKey.holdingTheLineUp %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Holding the line up: %@"
+          }
+        }
+      }
+    },
+    "straightKey.iambicMode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iambic mode"
+          }
+        }
+      }
+    },
+    "straightKey.invertedPolarityLineCleared" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inverted polarity (line cleared = key down)"
+          }
+        }
+      }
+    },
+    "straightKey.invertedUnpluggingOrThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inverted: unplugging or the app quitting unexpectedly leaves the line cleared, which keys the rig."
+          }
+        }
+      }
+    },
+    "straightKey.key" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key"
+          }
+        }
+      }
+    },
+    "straightKey.keyInterface" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key interface"
+          }
+        }
+      }
+    },
+    "straightKey.keying" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keying"
+          }
+        }
+      }
+    },
+    "straightKey.keyingPort" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keying port"
+          }
+        }
+      }
+    },
+    "straightKey.line" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Line"
+          }
+        }
+      }
+    },
+    "straightKey.link" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link"
+          }
+        }
+      }
+    },
+    "straightKey.maxKeyDown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Max key-down"
+          }
+        }
+      }
+    },
+    "straightKey.noPortSelected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No port selected"
+          }
+        }
+      }
+    },
+    "straightKey.paddleKeyer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paddle keyer"
+          }
+        }
+      }
+    },
+    "straightKey.piKeyer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pi keyer"
+          }
+        }
+      }
+    },
+    "straightKey.piKeysUpAfter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pi keys up after silence of"
+          }
+        }
+      }
+    },
+    "straightKey.playoutDelay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playout delay"
+          }
+        }
+      }
+    },
+    "straightKey.refreshThePortList" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh the port list"
+          }
+        }
+      }
+    },
+    "straightKey.remoteModeThePis %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remote mode: the Pi's ftx1-cwkey service keys the rig's second USB port and plays your timing out there. On the rig set CW SETTING → MODE CW → PC KEYING to %@, and leave RPTT SELECT there OFF. Changing these disarms."
+          }
+        }
+      }
+    },
+    "straightKey.reversePaddleDitDah" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reverse paddle (dit ↔ dah)"
+          }
+        }
+      }
+    },
+    "straightKey.rigKeyingPort" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig keying port"
+          }
+        }
+      }
+    },
+    "straightKey.sidetoneOnTheInterface" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sidetone on the interface"
+          }
+        }
+      }
+    },
+    "straightKey.speed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speed"
+          }
+        }
+      }
+    },
+    "straightKey.theKeyerRunsIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The keyer runs in the key interface; these are sent to it whenever it connects. The straight key works alongside the paddle."
+          }
+        }
+      }
+    },
+    "straightKey.theRigsSecondUsb %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rig's second USB port (\\\"Standard COM Port\\\"), not rigctld's. On the rig set CW SETTING → MODE CW → PC KEYING to %@, and leave RPTT SELECT there OFF. Changing these disarms."
+          }
+        }
+      }
+    },
+    "straightKey.timing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timing"
+          }
+        }
+      }
+    },
+    "straightKey.waitingForTheKey" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the key interface…"
+          }
+        }
+      }
+    },
+    "straightKey.waitingForTheRigs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the rig's speed…"
+          }
+        }
+      }
+    },
+    "straightKey.wontKey %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Won't key: %@"
+          }
+        }
+      }
+    },
+    "straightKey.wpmRig %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld WPM (rig %lld)"
+          }
+        }
+      }
+    },
+    "straightKeyController.disarmedKeyingSettingsChanged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disarmed: keying settings changed"
+          }
+        }
+      }
+    },
+    "straightKeyController.isRigctldsPortPick %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is rigctld's port — pick the rig's other USB port"
+          }
+        }
+      }
+    },
+    "straightKeyController.pickTheKeyInterfaces" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick the key interface's port first"
+          }
+        }
+      }
+    },
+    "straightKeyController.pickTheRigsKeying" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick the rig's keying port first"
+          }
+        }
+      }
+    },
+    "straightKeyController.rigNotConnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig not connected"
+          }
+        }
+      }
+    },
+    "straightKeyController.theKeyingPortCant" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The keying port can't be the key interface's port"
+          }
+        }
+      }
+    },
+    "straightKeyController.transmittingIsInNot %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (transmitting) is in %@, not CW — PC KEYING keys CW only"
+          }
+        }
+      }
+    },
+    "wavelogRadioReporter.wavelogNeedsAUrl" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog needs a URL and an API token"
+          }
+        }
+      }
+    },
+    "wavelogTuneListener.couldntListenOnPort %u %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't listen on port %u: %@"
+          }
+        }
+      }
+    },
+    "wavelogTuneListener.didntTuneTo %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Didn't tune to %@: %@"
+          }
+        }
+      }
+    },
+    "wavelogTuneListener.ignoredFromOrigin %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignored a tune request from %@ — it isn't the Wavelog URL above"
+          }
+        }
+      }
+    },
+    "wavelogTuneListener.ignoredWithoutOrigin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignored a tune request without an Origin — it isn't from the Wavelog URL above"
+          }
+        }
+      }
+    },
+    "wavelogTuneListener.modeUnchanged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mode unchanged"
+          }
+        }
+      }
+    },
+    "wavelogTuneListener.portIsInUse %u" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port %u is in use — is WaveLogGate running?"
+          }
+        }
+      }
+    },
+    "wavelogTuneListener.portIsntValid %u" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port %u isn't valid"
+          }
+        }
+      }
+    },
+    "wavelogTuneListener.tunedTo %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuned to %@ %@"
+          }
+        }
+      }
+    },
+    "webSDRAudioTap.couldntCreateAggregateDevice %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't create the aggregate device (OSStatus %lld)"
+          }
+        }
+      }
+    },
+    "webSDRAudioTap.couldntCreateIOProc %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't create the IOProc (OSStatus %lld)"
+          }
+        }
+      }
+    },
+    "webSDRAudioTap.couldntCreateProcessTap %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't create the process tap (OSStatus %lld)"
+          }
+        }
+      }
+    },
+    "webSDRAudioTap.couldntReadProperty %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read audio property %lld (OSStatus %lld)"
+          }
+        }
+      }
+    },
+    "webSDRAudioTap.couldntStartTap %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't start the tap (OSStatus %lld)"
+          }
+        }
+      }
+    },
+    "webSDRAudioTap.unsupportedFormat %lld %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsupported tap format (%lld, flags %lld, %lld bit)"
+          }
+        }
+      }
+    },
+    "webSDRFavorites.030MHzRange" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0–30 MHz (range unknown)"
+          }
+        }
+      }
+    },
+    "webSDRFavorites.clickANameTo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click a name to rename it; drag to reorder."
+          }
+        }
+      }
+    },
+    "webSDRFavorites.noFavorites" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Favorites"
+          }
+        }
+      }
+    },
+    "webSDRFavorites.rangeReadOnNext" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "range read on next connect"
+          }
+        }
+      }
+    },
+    "webSDRFavorites.starAStationTo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Star a station to add it."
+          }
+        }
+      }
+    },
+    "webSDRFollow.addThisStationTo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add this station to Favorites"
+          }
+        }
+      }
+    },
+    "webSDRFollow.chooseAPublicKiwiSDR" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a public KiwiSDR or WebSDR"
+          }
+        }
+      }
+    },
+    "webSDRFollow.chooseASavedStation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a saved station"
+          }
+        }
+      }
+    },
+    "webSDRFollow.connectToAStation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to a station to record"
+          }
+        }
+      }
+    },
+    "webSDRFollow.favorites" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorites"
+          }
+        }
+      }
+    },
+    "webSDRFollow.followRig" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow rig"
+          }
+        }
+      }
+    },
+    "webSDRFollow.kiwiSDRWebSDROrOpenWebRX" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KiwiSDR, WebSDR or OpenWebRX host:port"
+          }
+        }
+      }
+    },
+    "webSDRFollow.manageFavorites" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage Favorites…"
+          }
+        }
+      }
+    },
+    "webSDRFollow.mute" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mute"
+          }
+        }
+      }
+    },
+    "webSDRFollow.muteOnTx" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mute on TX"
+          }
+        }
+      }
+    },
+    "webSDRFollow.muteTheWebSDRAnd" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mute the WebSDR and bring back the rig's Main audio"
+          }
+        }
+      }
+    },
+    "webSDRFollow.muteTheWebSDRWhile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mute the WebSDR while the rig is transmitting"
+          }
+        }
+      }
+    },
+    "webSDRFollow.muted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muted"
+          }
+        }
+      }
+    },
+    "webSDRFollow.noFavoritesYetStar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No favorites yet — star a station"
+          }
+        }
+      }
+    },
+    "webSDRFollow.notConnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Connected"
+          }
+        }
+      }
+    },
+    "webSDRFollow.openRecordings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Recordings"
+          }
+        }
+      }
+    },
+    "webSDRFollow.pickAStationOr" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick a station or enter a KiwiSDR, WebSDR or OpenWebRX host:port, then press Connect."
+          }
+        }
+      }
+    },
+    "webSDRFollow.play" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play"
+          }
+        }
+      }
+    },
+    "webSDRFollow.pressReturnToUse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Press Return to use this host, then add it to Favorites"
+          }
+        }
+      }
+    },
+    "webSDRFollow.record" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record"
+          }
+        }
+      }
+    },
+    "webSDRFollow.recordTheWebSDRsAudio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record the WebSDR's audio"
+          }
+        }
+      }
+    },
+    "webSDRFollow.removeThisStationFrom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this station from Favorites"
+          }
+        }
+      }
+    },
+    "webSDRFollow.retuneTheWebSDRWhen" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retune the WebSDR when the rig's Main VFO changes"
+          }
+        }
+      }
+    },
+    "webSDRFollow.stations" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stations…"
+          }
+        }
+      }
+    },
+    "webSDRFollow.stopRecordingAndSave" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop recording and save to Recordings"
+          }
+        }
+      }
+    },
+    "webSDRFollow.tuneRig" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tune rig"
+          }
+        }
+      }
+    },
+    "webSDRFollow.tuneTheRigsMain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tune the rig's Main VFO when you tune in the WebSDR page (click the waterfall, enter a frequency, pick a mode)"
+          }
+        }
+      }
+    },
+    "webSDRFollow.unmuteTheWebSDRMutes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unmute the WebSDR (mutes the rig's Main audio while connected)"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.couldntLoad %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load %@: %@"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.couldntRetune %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't retune the %@ to %@ kHz"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.couldntRetuneProfile %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't retune the %@ to %@ kHz — its profile switch didn't take (is that SDR connected?)"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.disconnectedLastTuned %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnected — last tuned to %@"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.enterAKiwiSDRWebSDR" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a KiwiSDR, WebSDR or OpenWebRX host:port and press Return."
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.followOff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow off"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.followOffLastTuned %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow off — last tuned to %@"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.isntAValidHost %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” isn't a valid host:port."
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.notRetunedNoRig" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not retuned: no rig frequency yet (rig not connected?)"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.notRetunedOutOfRange %@ %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not retuned: %@ MHz is outside this %@'s range (%@)"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.recordingDidntStartThe %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording didn't start — the %@'s audio isn't running."
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.recordingStoppedByKiwi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording stopped by the KiwiSDR (its connection closed)"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.recordingStoppedByKiwiSaved %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording stopped by the KiwiSDR (its connection closed) — saved “%@”"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.rigNotTunedTo %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig not tuned to %@: no rig frequency yet (rig not connected?)"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.rigNotTunedToIts %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig not tuned to %@: it's transmitting"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.rigNotTunedToX %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig not tuned to %@: it's in Memory mode"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.saved %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved “%@”"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.tunedRigFrom %@ %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuned the rig to %@ from the %@ at %@"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.tunedToAt %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuned to %@ at %@"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.tunedToAtModeUnchanged %@ %@ %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuned to %@ at %@ (mode unchanged — %@ has no %@ equivalent)"
+          }
+        }
+      }
+    },
+    "webSDRFollowModel.waitingForRigState" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for rig state…"
+          }
+        }
+      }
+    },
+    "webSDRStations.clickAStationTo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click a station to use it · list shown by websdr.org"
+          }
+        }
+      }
+    },
+    "webSDRStations.reload" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reload"
+          }
+        }
+      }
+    },
+    "webSDRStations.stations" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stations"
+          }
+        }
+      }
+    },
+    "webSDRStations.websdrOrgUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "websdr.org Unavailable"
+          }
+        }
+      }
+    },
+    "wl2_…" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "workedStationsStore.macLoggerDXsLogFileWasnt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MacLoggerDX's log file wasn't found"
+          }
+        }
+      }
+    },
+    "workedStationsStore.noLogbookSelected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No logbook selected"
+          }
+        }
+      }
+    },
+    "– WPM" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "— MHz" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "— W" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    }
+  },
   "version" : "1.0"
 }

@@ -72,13 +72,13 @@ final class WorkedStationsStore: ObservableObject {
         guard LogbookSettings.logger == .macLoggerDX else {
             loadedStamp = nil
             worked = .empty
-            problem = "No logbook selected"
+            problem = String(localized: "workedStationsStore.noLogbookSelected")
             return
         }
         guard let path = LogbookSettings.macLoggerDXLogPath else {
             loadedStamp = nil
             worked = .empty
-            problem = "MacLoggerDX's log file wasn't found"
+            problem = String(localized: "workedStationsStore.macLoggerDXsLogFileWasnt")
             return
         }
         guard !isLoading else { return }

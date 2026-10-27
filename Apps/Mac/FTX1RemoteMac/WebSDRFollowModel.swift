@@ -620,16 +620,16 @@ final class WebSDRFollowModel: ObservableObject {
 
         let description = KiwiSDRURLBuilder.kHzString(reading.frequencyHz) + " kHz " + reading.mode.uppercased()
         guard rig.frequencyHz > 0 else {
-            status = "Rig not tuned to \(description): no rig frequency yet (rig not connected?)"
+            status = String(localized: "webSDRFollowModel.rigNotTunedTo \(description)")
             return
         }
         guard !rig.ptt else {
-            status = "Rig not tuned to \(description): it's transmitting"
+            status = String(localized: "webSDRFollowModel.rigNotTunedToIts \(description)")
             return
         }
         // The rig rejects a VFO frequency set while in Memory mode.
         guard rig.vfoMemoryMode != .memory else {
-            status = "Rig not tuned to \(description): it's in Memory mode"
+            status = String(localized: "webSDRFollowModel.rigNotTunedToX \(description)")
             return
         }
 
@@ -637,8 +637,8 @@ final class WebSDRFollowModel: ObservableObject {
         if frequencyChanged { hub.send(.setFrequency(hz: reading.frequencyHz)) }
         if let newMode { hub.send(.setMode(newMode)) }
         lastTunedDescription = description
-        status = "Tuned the rig to \(description) from the \(pageBridge.platform.displayName) at "
-            + Date().formatted(date: .omitted, time: .standard)
+        let time = Date().formatted(date: .omitted, time: .standard)
+        status = String(localized: "webSDRFollowModel.tunedRigFrom \(description) \(pageBridge.platform.displayName) \(time)")
         // If the rig never shows the new tuning (rejected, disconnected),
         // follow its actual state again once the grace period is over.
         Task { [weak self] in
@@ -675,7 +675,7 @@ final class WebSDRFollowModel: ObservableObject {
                 segmentStartedAt = Date()
             } else {
                 endRecording()
-                recordingNote = "Recording didn't start — the \(pageBridge.platform.displayName)'s audio isn't running."
+                recordingNote = String(localized: "webSDRFollowModel.recordingDidntStartThe \(pageBridge.platform.displayName)")
             }
         }
     }
@@ -688,7 +688,7 @@ final class WebSDRFollowModel: ObservableObject {
     }
 
     private func noteSaved(_ url: URL?) {
-        recordingNote = url.map { "Saved “\($0.deletingPathExtension().lastPathComponent)”" }
+        recordingNote = url.map { String(localized: "webSDRFollowModel.saved \($0.deletingPathExtension().lastPathComponent)") }
             ?? recordingNote
     }
 
@@ -697,14 +697,14 @@ final class WebSDRFollowModel: ObservableObject {
     private func kiwiEndedRecording(savedTo url: URL?) {
         guard isRecording, reloadTask == nil else { noteSaved(url); return }
         endRecording()
-        recordingNote = "Recording stopped by the KiwiSDR (its connection closed)"
-            + (url.map { " — saved “\($0.deletingPathExtension().lastPathComponent)”" } ?? "")
+        recordingNote = url.map { String(localized: "webSDRFollowModel.recordingStoppedByKiwiSaved \($0.deletingPathExtension().lastPathComponent)") }
+            ?? String(localized: "webSDRFollowModel.recordingStoppedByKiwi")
     }
 
     /// Called by `KiwiWebView` when a load fails outright (bad host, Kiwi
     /// down) so the status line says so instead of a stale "Tuned to".
     func reportLoadFailure(_ message: String) {
-        status = "Couldn't load \(hostPort): \(message)"
+        status = String(localized: "webSDRFollowModel.couldntLoad \(hostPort) \(message)")
     }
 
     /// `forceHostPage`: on window open / host change, show the Kiwi even
@@ -713,25 +713,27 @@ final class WebSDRFollowModel: ObservableObject {
     private func evaluate(forceHostPage: Bool = false) {
         guard let base = KiwiSDRURLBuilder.baseURL(from: hostPort) else {
             status = hostPort.isEmpty
-                ? "Enter a KiwiSDR, WebSDR or OpenWebRX host:port and press Return."
-                : "“\(hostPort)” isn't a valid host:port."
+                ? String(localized: "webSDRFollowModel.enterAKiwiSDRWebSDR")
+                : String(localized: "webSDRFollowModel.isntAValidHost \(hostPort)")
             return
         }
 
         guard isConnected else {
-            status = "Disconnected" + (lastTunedDescription.map { " — last tuned to \($0)" } ?? "")
+            status = lastTunedDescription.map { String(localized: "webSDRFollowModel.disconnectedLastTuned \($0)") }
+                ?? String(localized: "common.disconnected")
             return
         }
 
         guard followRig else {
             if forceHostPage { issue(base) }
-            status = "Follow off" + (lastTunedDescription.map { " — last tuned to \($0)" } ?? "")
+            status = lastTunedDescription.map { String(localized: "webSDRFollowModel.followOffLastTuned \($0)") }
+                ?? String(localized: "webSDRFollowModel.followOff")
             return
         }
 
         guard let latest else {
             if forceHostPage { issue(base) }
-            status = "Waiting for rig state…"
+            status = String(localized: "webSDRFollowModel.waitingForRigState")
             return
         }
 
@@ -761,16 +763,15 @@ final class WebSDRFollowModel: ObservableObject {
             }
             let time = lastTunedAt.formatted(date: .omitted, time: .standard)
             status = token == nil
-                ? "Tuned to \(lastTunedDescription!) at \(time) (mode unchanged — \(latest.mode.displayName) has no \(currentPlatform.displayName) equivalent)"
-                : "Tuned to \(lastTunedDescription!) at \(time)"
+                ? String(localized: "webSDRFollowModel.tunedToAtModeUnchanged \(lastTunedDescription!) \(time) \(latest.mode.displayName) \(currentPlatform.displayName)")
+                : String(localized: "webSDRFollowModel.tunedToAt \(lastTunedDescription!) \(time)")
         case let .outOfRange(hz, bands):
             if forceHostPage { issue(base) }
             let range = bands.map(KiwiSDRStation.describe).joined(separator: ", ")
-            status = "Not retuned: \(FrequencyFormat.mhz(hz, fractionDigits: 3)) MHz is outside this "
-                + currentPlatform.displayName + "'s range (" + range + ")"
+            status = String(localized: "webSDRFollowModel.notRetunedOutOfRange \(FrequencyFormat.mhz(hz, fractionDigits: 3)) \(currentPlatform.displayName) \(range)")
         case .noFrequency:
             if forceHostPage { issue(base) }
-            status = "Not retuned: no rig frequency yet (rig not connected?)"
+            status = String(localized: "webSDRFollowModel.notRetunedNoRig")
         case .noHost, .invalidHost:
             break  // handled by the baseURL guard above
         }
@@ -886,9 +887,11 @@ final class WebSDRFollowModel: ObservableObject {
                 let tuned = await pageBridge.retuneInPlace(frequencyHz: next.tuning.frequencyHz,
                                                            modeToken: next.tuning.modeToken)
                 if !tuned, pendingInPlace == nil, isConnected {
-                    status = "Couldn't retune the \(pageBridge.platform.displayName) to "
-                        + KiwiSDRURLBuilder.kHzString(next.tuning.frequencyHz) + " kHz"
-                        + (pageBridge.platform == .openWebRX ? " — its profile switch didn't take (is that SDR connected?)" : "")
+                    let platform = pageBridge.platform.displayName
+                    let kHz = KiwiSDRURLBuilder.kHzString(next.tuning.frequencyHz)
+                    status = pageBridge.platform == .openWebRX
+                        ? String(localized: "webSDRFollowModel.couldntRetuneProfile \(platform) \(kHz)")
+                        : String(localized: "webSDRFollowModel.couldntRetune \(platform) \(kHz)")
                 }
                 tunedTarget = next.tuned
                 pageTuning = nil

@@ -22,19 +22,19 @@ struct WebSDRFavoritesView: View {
             }
             .overlay {
                 if model.favorites.isEmpty {
-                    ContentUnavailableView("No Favorites", systemImage: "star",
-                                           description: Text("Star a station to add it."))
+                    ContentUnavailableView("webSDRFavorites.noFavorites", systemImage: "star",
+                                           description: Text("webSDRFavorites.starAStationTo"))
                 }
             }
             Divider()
             HStack {
-                Text("Click a name to rename it; drag to reorder.")
+                Text("webSDRFavorites.clickANameTo")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
                 // Escape, not Return: Return belongs to the name fields
                 // (it commits a rename) and mustn't also close the sheet.
-                Button("Done") { dismiss() }
+                Button("common.done") { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
             .padding(10)
@@ -62,7 +62,7 @@ struct WebSDRFavoritesView: View {
         private var details: String {
             var parts = [favorite.platform?.displayName, favorite.hostPort].compactMap { $0 }
             if !favorite.location.isEmpty { parts.append(favorite.location) }
-            let unknownRange = favorite.platform == .webSDR ? "range read on next connect" : "0–30 MHz (range unknown)"
+            let unknownRange = favorite.platform == .webSDR ? String(localized: "webSDRFavorites.rangeReadOnNext") : String(localized: "webSDRFavorites.030MHzRange")
             parts.append(favorite.bandRanges.map { $0.map(KiwiSDRStation.describe).joined(separator: ", ") }
                          ?? unknownRange)
             return parts.joined(separator: " · ")
@@ -75,13 +75,13 @@ struct WebSDRFavoritesView: View {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.borderless)
-                .help("Remove from Favorites")
+                .help("common.removeFromFavorites")
             }
         }
 
         private var fields: some View {
             VStack(alignment: .leading, spacing: 2) {
-                TextField("Name", text: $name)
+                TextField("common.name", text: $name)
                     .textFieldStyle(.plain)
                     .focused($nameFocused)
                     // The field spans the row but inside a List only takes

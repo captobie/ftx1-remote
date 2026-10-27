@@ -937,9 +937,9 @@ final class HubService: ObservableObject {
     /// Returns why it didn't tune, in words Wavelog's page and Settings
     /// show.
     func tuneFromWavelog(_ request: WavelogTuneRequest) -> String? {
-        guard connectionState == .connected else { return "the rig isn't connected" }
-        guard !rigState.ptt else { return "the rig is transmitting" }
-        guard rigState.vfoMemoryMode != .memory else { return "MAIN is in Memory mode — press V/M first" }
+        guard connectionState == .connected else { return String(localized: "hubService.theRigIsntConnected") }
+        guard !rigState.ptt else { return String(localized: "hubService.theRigIsTransmitting") }
+        guard rigState.vfoMemoryMode != .memory else { return String(localized: "hubService.mainIsInMemory") }
         if request.frequencyHz != rigState.frequencyHz { send(.setFrequency(hz: request.frequencyHz)) }
         if let mode = request.mode, mode != rigState.mode { send(.setMode(mode)) }
         return nil
@@ -2511,5 +2511,10 @@ enum RemoteCWKeyerError: LocalizedError {
         }
     }
 
-    var errorDescription: String? { wireText }
+    var errorDescription: String? {
+        switch self {
+        case .badSlot(let slot): String(localized: "remoteCWKeyerError.badSlot \(slot)")
+        case .badText: String(localized: "remoteCWKeyerError.badText")
+        }
+    }
 }

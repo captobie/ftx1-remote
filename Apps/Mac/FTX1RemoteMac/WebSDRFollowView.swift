@@ -37,14 +37,14 @@ struct WebSDRFollowView: View {
     /// how the next connection starts.
     private var muteButton: some View {
         Button(action: model.toggleMuted) {
-            Label(model.isMuted ? "Muted" : "Mute",
+            Label(model.isMuted ? "webSDRFollow.muted" : "webSDRFollow.mute",
                   systemImage: model.isMuted ? "speaker.slash.fill" : "speaker.wave.2")
         }
         .labelStyle(.titleAndIcon)
         .foregroundStyle(model.isMuted ? .red : .primary)
         .help(model.isMuted
-              ? "Unmute the WebSDR (mutes the rig's Main audio while connected)"
-              : "Mute the WebSDR and bring back the rig's Main audio")
+              ? "webSDRFollow.unmuteTheWebSDRMutes"
+              : "webSDRFollow.muteTheWebSDRAnd")
     }
 
     /// Picks a saved station (fills the host, never connects — same as a
@@ -53,7 +53,7 @@ struct WebSDRFollowView: View {
     private var favoritesMenu: some View {
         Menu {
             if model.favorites.isEmpty {
-                Text("No favorites yet — star a station")
+                Text("webSDRFollow.noFavoritesYetStar")
             } else {
                 // A Toggle is how a macOS menu item gets its checkmark (a
                 // Label's icon is dropped); unchecking does nothing.
@@ -65,13 +65,13 @@ struct WebSDRFollowView: View {
                 }
             }
             Divider()
-            Button("Manage Favorites…") { showingManageFavorites = true }
+            Button("webSDRFollow.manageFavorites") { showingManageFavorites = true }
                 .disabled(model.favorites.isEmpty)
         } label: {
-            Label("Favorites", systemImage: "star")
+            Label("webSDRFollow.favorites", systemImage: "star")
         }
         .fixedSize()
-        .help("Choose a saved station")
+        .help("webSDRFollow.chooseASavedStation")
     }
 
     /// Saves or removes the current host. Uses the committed host, not the
@@ -86,9 +86,9 @@ struct WebSDRFollowView: View {
         }
         .buttonStyle(.borderless)
         .disabled(model.hostPort.isEmpty || hostDraft != model.hostPort)
-        .help(isFavorite ? "Remove this station from Favorites"
-              : hostDraft != model.hostPort ? "Press Return to use this host, then add it to Favorites"
-              : "Add this station to Favorites")
+        .help(isFavorite ? "webSDRFollow.removeThisStationFrom"
+              : hostDraft != model.hostPort ? "webSDRFollow.pressReturnToUse"
+              : "webSDRFollow.addThisStationTo")
     }
 
     /// Record while connected; Stop (red, with the current file's elapsed
@@ -100,7 +100,7 @@ struct WebSDRFollowView: View {
             Button(action: model.toggleRecording) {
                 HStack(spacing: 4) {
                     Image(systemName: "stop.circle.fill")
-                    Text("Stop")
+                    Text("common.stop")
                     if let started = model.segmentStartedAt {
                         Text(started, style: .timer).monospacedDigit()
                     }
@@ -108,53 +108,53 @@ struct WebSDRFollowView: View {
             }
             .tint(.red)
             .foregroundStyle(.red)
-            .help("Stop recording and save to Recordings")
+            .help("webSDRFollow.stopRecordingAndSave")
         } else {
-            Button("Record", systemImage: "record.circle", action: model.toggleRecording)
+            Button("webSDRFollow.record", systemImage: "record.circle", action: model.toggleRecording)
                 .labelStyle(.titleAndIcon)
                 .disabled(!model.isConnected)
-                .help(model.isConnected ? "Record the WebSDR's audio" : "Connect to a station to record")
+                .help(model.isConnected ? "webSDRFollow.recordTheWebSDRsAudio" : "webSDRFollow.connectToAStation")
         }
     }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Button("Stations…", systemImage: "list.bullet") { showingDirectory = true }
+                Button("webSDRFollow.stations", systemImage: "list.bullet") { showingDirectory = true }
                     .labelStyle(.titleAndIcon)
-                    .help("Choose a public KiwiSDR or WebSDR")
+                    .help("webSDRFollow.chooseAPublicKiwiSDR")
                 favoritesMenu
-                TextField("KiwiSDR, WebSDR or OpenWebRX host:port", text: $hostDraft)
+                TextField("webSDRFollow.kiwiSDRWebSDROrOpenWebRX", text: $hostDraft)
                     .textFieldStyle(.roundedBorder)
                     .fontDesign(.monospaced)
                     .frame(maxWidth: 360)
                     .onSubmit(commitHostAndConnect)
                 favoriteToggle
                 if model.isConnected {
-                    Button("Disconnect", systemImage: "stop.circle", action: model.disconnect)
+                    Button("common.disconnect", systemImage: "stop.circle", action: model.disconnect)
                         .labelStyle(.titleAndIcon)
                 } else {
-                    Button("Connect", systemImage: "play.circle", action: commitHostAndConnect)
+                    Button("common.connect", systemImage: "play.circle", action: commitHostAndConnect)
                         .labelStyle(.titleAndIcon)
                         .disabled(KiwiSDRURLBuilder.baseURL(from: hostDraft) == nil)
                 }
-                Toggle("Follow rig", isOn: $model.followRig)
+                Toggle("webSDRFollow.followRig", isOn: $model.followRig)
                     .toggleStyle(.switch)
-                    .help("Retune the WebSDR when the rig's Main VFO changes")
-                Toggle("Tune rig", isOn: $model.tuneRig)
+                    .help("webSDRFollow.retuneTheWebSDRWhen")
+                Toggle("webSDRFollow.tuneRig", isOn: $model.tuneRig)
                     .toggleStyle(.switch)
-                    .help("Tune the rig's Main VFO when you tune in the WebSDR page (click the waterfall, enter a frequency, pick a mode)")
-                Toggle("Mute on TX", isOn: $model.muteOnTransmit)
+                    .help("webSDRFollow.tuneTheRigsMain")
+                Toggle("webSDRFollow.muteOnTx", isOn: $model.muteOnTransmit)
                     .toggleStyle(.switch)
-                    .help("Mute the WebSDR while the rig is transmitting")
+                    .help("webSDRFollow.muteTheWebSDRWhile")
                 Spacer()
                 muteButton
                 recordButton
                 // Same window as the CW page's PLAY button: WebSDR/KiwiSDR
                 // recordings are saved alongside the rig's own.
-                Button("Play", systemImage: "waveform") { openWindow(id: "recordings") }
+                Button("webSDRFollow.play", systemImage: "waveform") { openWindow(id: "recordings") }
                     .labelStyle(.titleAndIcon)
-                    .help("Open Recordings")
+                    .help("webSDRFollow.openRecordings")
             }
             .padding(10)
 
@@ -170,9 +170,9 @@ struct WebSDRFollowView: View {
             .overlay {
                 if !model.isConnected {
                     ContentUnavailableView(
-                        "Not Connected",
+                        "webSDRFollow.notConnected",
                         systemImage: "antenna.radiowaves.left.and.right.slash",
-                        description: Text("Pick a station or enter a KiwiSDR, WebSDR or OpenWebRX host:port, then press Connect.")
+                        description: Text("webSDRFollow.pickAStationOr")
                     )
                 }
             }

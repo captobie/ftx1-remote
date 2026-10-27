@@ -51,21 +51,21 @@ struct CWLogPane: View {
                 Button {
                     lookUp()
                 } label: {
-                    Label("Lookup", systemImage: "magnifyingglass")
+                    Label("cwLogPane.lookup", systemImage: "magnifyingglass")
                 }
-                .help("Look this call up in MacLoggerDX (its call field, QRZ data and worked-before line)")
+                .help("cwLogPane.lookThisCallUp")
                 .disabled(normalizedCall.isEmpty)
-                TextField("Their call", text: $sender.theirCall, selection: $callSelection)
+                TextField("common.theirCall", text: $sender.theirCall, selection: $callSelection)
                     .frame(width: 120)
-                    .help("The station you're working — also {CALL} in macros. Click a callsign in the decoded text to fill it in.")
+                    .help("cwLogPane.theStationYoureWorking")
                 timeOnView
                 CWWorkedSummary(call: normalizedCall)
             }
             HStack(spacing: 8) {
                 labeled("RST sent") { TextField("", text: $rstSent).frame(width: 50) }
                 labeled("rcvd") { TextField("", text: $rstReceived).frame(width: 50) }
-                TextField("Name", text: $name).frame(width: 120)
-                TextField("Comment", text: $comment)
+                TextField("common.name", text: $name).frame(width: 120)
+                TextField("common.comment", text: $comment)
             }
             HStack(spacing: 10) {
                 CWLogRigReadout()
@@ -77,10 +77,10 @@ struct CWLogPane: View {
                 Button {
                     log()
                 } label: {
-                    Label("Log QSO", systemImage: "square.and.pencil")
+                    Label("cwLogPane.logQso", systemImage: "square.and.pencil")
                 }
                 .keyboardShortcut("l", modifiers: .command)
-                .help("Log this QSO (⌘L)")
+                .help("cwLogPane.logThisQsoL")
                 .disabled(isLogging || normalizedCall.isEmpty)
             }
         }
@@ -108,9 +108,9 @@ struct CWLogPane: View {
         let logger = LogbookSettings.Logger(rawValue: loggerRawValue) ?? .none
         let targets = (logger == .none ? [] : [logger.displayName]) + (wavelogEnabled ? ["Wavelog"] : [])
         return HStack {
-            Text("Log QSO").font(.headline)
+            Text("cwLogPane.logQso").font(.headline)
             Spacer()
-            Text(targets.isEmpty ? "No logbook — choose one in Settings → Logbook" : "To \(targets.joined(separator: " + "))")
+            Text(targets.isEmpty ? "cwLogPane.noLogbookChooseOne" : "To \(targets.joined(separator: " + "))")
                 .font(.caption)
                 .foregroundStyle(targets.isEmpty ? .orange : .secondary)
         }
@@ -118,7 +118,7 @@ struct CWLogPane: View {
 
     private var timeOnView: some View {
         HStack(spacing: 4) {
-            Text("On").foregroundStyle(.secondary)
+            Text("cwLogPane.on").foregroundStyle(.secondary)
             Text(timeOn.map(Self.utcTime) ?? "—")
                 .font(.system(.body, design: .monospaced))
                 .frame(minWidth: 90, alignment: .leading)
@@ -128,7 +128,7 @@ struct CWLogPane: View {
                 Image(systemName: "arrow.counterclockwise")
             }
             .buttonStyle(.borderless)
-            .help("Set the time on to now")
+            .help("cwLogPane.setTheTimeOn")
         }
     }
 
@@ -136,7 +136,7 @@ struct CWLogPane: View {
     private var resultView: some View {
         if isLogging {
             ProgressView().controlSize(.small)
-            Text("Logging…").foregroundStyle(.secondary)
+            Text("cwLogPane.logging").foregroundStyle(.secondary)
         } else if let result {
             switch result {
             case .success(let text):
@@ -154,9 +154,9 @@ struct CWLogPane: View {
             Button {
                 retryWavelog(qso)
             } label: {
-                Label("Retry Wavelog (\(qso.call))", systemImage: "arrow.clockwise")
+                Label("cwLogPane.retryWavelog \(qso.call)", systemImage: "arrow.clockwise")
             }
-            .help("Send \(qso.call) to Wavelog again, as it was logged — not to \(LogbookSettings.logger.displayName)")
+            .help("cwLogPane.sendToWavelogAgain \(qso.call) \(LogbookSettings.logger.displayName)")
             .disabled(isLogging)
             Button {
                 wavelogRetry = nil
@@ -164,7 +164,7 @@ struct CWLogPane: View {
                 Image(systemName: "xmark")
             }
             .buttonStyle(.borderless)
-            .help("Don't send \(qso.call) to Wavelog")
+            .help("cwLogPane.dontSendToWavelog \(qso.call)")
         }
     }
 
@@ -188,7 +188,7 @@ struct CWLogPane: View {
         guard !call.isEmpty else { return }
         let tx = hub.rigState.transmitter
         guard hub.connectionState == .connected, let frequencyHz = tx.frequencyHz, frequencyHz > 0 else {
-            result = .failure("Connect to the rig first — MacLoggerDX ignores a lookup without a frequency")
+            result = .failure(String(localized: "cwLogPane.connectToTheRig"))
             return
         }
         let mode = tx.mode.flatMap(ADIFMode.init)?.mode ?? tx.mode?.displayName ?? ""
@@ -205,21 +205,21 @@ struct CWLogPane: View {
         let call = normalizedCall
         guard !call.isEmpty, !isLogging else { return }
         guard QSOLogger.hasLogbook else {
-            result = .failure("No logbook is selected in Settings → Logbook")
+            result = .failure(String(localized: "cwLogPane.noLogbookIsSelected"))
             return
         }
         let rig = hub.rigState
         guard hub.connectionState == .connected else {
-            result = .failure("Not connected to the rig — frequency and mode unknown")
+            result = .failure(String(localized: "cwLogPane.notConnectedToThe"))
             return
         }
         let tx = rig.transmitter
         guard let frequencyHz = tx.frequencyHz, frequencyHz > 0 else {
-            result = .failure("The transmitting side's frequency isn't known yet")
+            result = .failure(String(localized: "cwLogPane.theTransmittingSidesFrequency"))
             return
         }
         guard let mode = tx.mode.flatMap(ADIFMode.init) else {
-            result = .failure("Can't log in \(tx.mode?.displayName ?? "an unknown mode")")
+            result = .failure(String(localized: "cwLogPane.cantLogIn \(tx.mode?.displayName ?? "an unknown mode")"))
             return
         }
         let end = Date.now
@@ -258,38 +258,39 @@ struct CWLogPane: View {
         case nil, .logged:
             break
         case .alreadyLogged:
-            wavelogNote = "already in Wavelog"
+            wavelogNote = String(localized: "cwLogPane.alreadyInWavelog")
         case .sentUnconfirmed(let reason), .failed(let reason):
-            wavelogNote = "Wavelog: \(reason)"
+            wavelogNote = String(localized: "cwLogPane.wavelogReason \(reason)")
             wavelogOK = false
         }
         func withWavelog(_ text: String) -> String {
-            wavelogNote.map { "\(text) · \($0)" } ?? text
+            wavelogNote.map { String(localized: "cwLogPane.withNote \(text) \($0)") } ?? text
         }
 
         switch outcomes.primary {
         case nil:
             // Wavelog alone: Log QSO again is the retry.
             if wavelogOK {
-                result = .success(withWavelog("\(call) logged to Wavelog"))
+                result = .success(withWavelog(String(localized: "cwLogPane.loggedToWavelog \(call)")))
                 if normalizedCall == call { clear() }
             } else {
-                result = .failure(withWavelog("\(call) not logged"))
+                result = .failure(withWavelog(String(localized: "cwLogPane.notLogged \(call)")))
             }
         case .logged, .alreadyLogged:
             workedStations.reload()
             if wavelogOK {
-                let to = outcomes.wavelog == nil ? primaryName : "\(primaryName) and Wavelog"
-                result = .success(withWavelog("\(call) logged to \(to)"))
+                result = .success(withWavelog(outcomes.wavelog == nil
+                    ? String(localized: "cwLogPane.loggedTo \(call) \(primaryName)")
+                    : String(localized: "cwLogPane.loggedToAndWavelog \(call) \(primaryName)")))
                 // Only clear if nothing was typed for a new QSO meanwhile.
                 if normalizedCall == call { clear() }
             } else {
                 wavelogRetry = qso
-                result = .warning(withWavelog("\(call) logged to \(primaryName)"))
+                result = .warning(withWavelog(String(localized: "cwLogPane.loggedTo \(call) \(primaryName)")))
             }
         case .sentUnconfirmed(let reason):
             if !wavelogOK { wavelogRetry = qso }
-            result = .warning(withWavelog("\(reason) — check \(primaryName) before logging \(call) again"))
+            result = .warning(withWavelog(String(localized: "cwLogPane.checkBeforeLoggingAgain \(reason) \(primaryName) \(call)")))
         case .failed(let reason):
             // Nothing reached the primary: Log QSO again resends both, and
             // Wavelog's duplicate check absorbs a second copy there.
@@ -307,10 +308,12 @@ struct CWLogPane: View {
             switch outcome {
             case .logged, .alreadyLogged:
                 wavelogRetry = nil
-                result = .success(outcome == .logged ? "\(qso.call) logged to Wavelog" : "\(qso.call) was already in Wavelog")
+                result = .success(outcome == .logged
+                    ? String(localized: "cwLogPane.loggedToWavelog \(qso.call)")
+                    : String(localized: "cwLogPane.wasAlreadyInWavelog \(qso.call)"))
                 if normalizedCall == qso.call { clear() }
             case .sentUnconfirmed(let reason), .failed(let reason):
-                result = .failure("Wavelog: \(reason)")
+                result = .failure(String(localized: "cwLogPane.wavelogReason \(reason)"))
             }
         }
     }
@@ -356,12 +359,12 @@ private struct CWWorkedSummary: View {
             if call.isEmpty {
                 EmptyView()
             } else if let problem = workedStations.problem {
-                Text("Worked before: \(problem)").foregroundStyle(.secondary)
+                Text("cwLogPane.workedBefore \(problem)").foregroundStyle(.secondary)
             } else if let summary = workedStations.worked.summary(of: call) {
                 summaryText(summary)
             } else {
                 // Link blue, the decoded text's color for a call never worked.
-                Label("New station", systemImage: "sparkles").foregroundStyle(Color(nsColor: .linkColor))
+                Label("cwLogPane.newStation", systemImage: "sparkles").foregroundStyle(Color(nsColor: .linkColor))
             }
         }
         .font(.callout)
@@ -371,10 +374,10 @@ private struct CWWorkedSummary: View {
     private func summaryText(_ summary: WorkedStations.Summary) -> some View {
         let last = summary.last
         let date = last.date.formatted(.iso8601.year().month().day())
-        var text = "Worked \(summary.count)× · last \(date) \(last.band.lowercased()) \(last.mode)"
+        var text = String(localized: "cwLogPane.workedSummary \(summary.count) \(date) \(last.band.lowercased()) \(last.mode)")
         let newBand = workedStations.band.map { !summary.bands.contains($0.lowercased()) } ?? false
         if newBand, let band = workedStations.band {
-            text += " · new on \(band)"
+            text = String(localized: "cwLogPane.workedSummaryNewOn \(summary.count) \(date) \(last.band.lowercased()) \(last.mode) \(band)")
         }
         return Text(text)
             .foregroundStyle(newBand ? Color.orange : Color.green)
@@ -398,7 +401,7 @@ private struct CWLogRigReadout: View {
         }
         .font(.system(.body, design: .monospaced))
         .foregroundStyle(hub.connectionState == .connected ? .primary : .tertiary)
-        .help("Logged from the transmitting side: frequency, mode and RF power setting")
+        .help("cwLogPane.loggedFromTheTransmitting")
     }
 }
 

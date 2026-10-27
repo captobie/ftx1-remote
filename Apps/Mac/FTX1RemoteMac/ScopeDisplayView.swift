@@ -68,7 +68,7 @@ struct ScopeDisplayView: View {
         Canvas { context, size in
             let rect = CGRect(origin: .zero, size: size)
             if let image {
-                context.draw(Image(image, scale: 1, label: Text("Scope display")), in: rect)
+                context.draw(Image(image, scale: 1, label: Text("scopeDisplay.scopeDisplay")), in: rect)
             }
         }
         .opacity(isActive ? 1 : 0.4)

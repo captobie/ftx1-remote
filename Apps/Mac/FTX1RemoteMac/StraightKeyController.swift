@@ -197,15 +197,15 @@ final class StraightKeyController: ObservableObject {
     }
 
     private func armRefusalReason() -> String? {
-        if interfacePort.isEmpty { return "Pick the key interface's port first" }
+        if interfacePort.isEmpty { return String(localized: "straightKeyController.pickTheKeyInterfaces") }
         if Self.isRemote { return nil }   // the keying port is the Pi's
-        if keyingPort.isEmpty { return "Pick the rig's keying port first" }
+        if keyingPort.isEmpty { return String(localized: "straightKeyController.pickTheRigsKeying") }
         if StraightKeySettings.sameDevice(keyingPort, RigctldSettings.devicePath)
             || StraightKeySettings.sameDevice(keyingPort, RigctldSettings.pttPort) {
-            return "\(keyingPort) is rigctld's port — pick the rig's other USB port"
+            return String(localized: "straightKeyController.isRigctldsPortPick \(keyingPort)")
         }
         if StraightKeySettings.sameDevice(keyingPort, interfacePort) {
-            return "The keying port can't be the key interface's port"
+            return String(localized: "straightKeyController.theKeyingPortCant")
         }
         return nil
     }
@@ -217,7 +217,7 @@ final class StraightKeyController: ObservableObject {
         // swap the keyer under a live line.
         if snapshot.armed {
             driver.setArmed(false)
-            armRefusal = "Disarmed: keying settings changed"
+            armRefusal = String(localized: "straightKeyController.disarmedKeyingSettingsChanged")
         }
     }
 
@@ -265,7 +265,7 @@ final class StraightKeyController: ObservableObject {
     private func rigChanged(_ state: RigState, connection: HubService.ConnectionState, privileges: PrivilegeProfile?) {
         let reason: String?
         if connection != .connected {
-            reason = "Rig not connected"
+            reason = String(localized: "straightKeyController.rigNotConnected")
         } else {
             reason = TransmitGate.blockReason(transmitEnabled: state.transmitEnabled, state: state, privileges: privileges)
         }
@@ -277,7 +277,7 @@ final class StraightKeyController: ObservableObject {
         let transmitsOnSub = state.splitEnabled == true || state.txSide == .sub
         let mode = transmitsOnSub ? state.secondaryMode : state.mode
         let warning = (connection == .connected && mode != nil && mode != .cw)
-            ? "\(transmitsOnSub ? "SUB" : "MAIN") (transmitting) is in \(mode!.displayName), not CW — PC KEYING keys CW only"
+            ? String(localized: "straightKeyController.transmittingIsInNot \(transmitsOnSub ? "SUB" : "MAIN") \(mode!.displayName)")
             : nil
         if warning != modeWarning { modeWarning = warning }
 

@@ -14,8 +14,8 @@ struct LicenseSettingsTab: View {
     var body: some View {
         ScrollView {
             Form {
-                Picker("Privileges", selection: $hub.privilegeChoice) {
-                    Text("Off (amateur bands only)").tag(PrivilegeChoice.off)
+                Picker("licenseSettingsTab.privileges", selection: $hub.privilegeChoice) {
+                    Text("licenseSettingsTab.offAmateurBandsOnly").tag(PrivilegeChoice.off)
                     Divider()
                     ForEach(PrivilegePreset.allCases.filter(\.isUS), id: \.self) { preset in
                         Text(preset.displayName).tag(PrivilegeChoice.preset(preset))
@@ -25,9 +25,9 @@ struct LicenseSettingsTab: View {
                         Text(preset.displayName).tag(PrivilegeChoice.preset(preset))
                     }
                     Divider()
-                    Text("Custom").tag(PrivilegeChoice.custom)
+                    Text("licenseSettingsTab.custom").tag(PrivilegeChoice.custom)
                 }
-                Text("Blocks PTT, MOX, antenna tuning, CW sending and the CW key — from this Mac and from every connected client — unless the transmitting side's signal fits inside these privileges, in its mode. Tuning or changing mode out of them while transmitting unkeys the rig. A guardrail only: you remain responsible for operating within your license.")
+                Text("licenseSettingsTab.blocksPttMoxAntenna")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -46,7 +46,7 @@ struct LicenseSettingsTab: View {
             // wrapped captions.
             .padding(.trailing, 20)
         }
-        .alert("Couldn't import", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
+        .alert("licenseSettingsTab.couldntImport", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(importError ?? "")
@@ -59,18 +59,18 @@ struct LicenseSettingsTab: View {
     private func presetSection(_ preset: PrivilegePreset) -> some View {
         Section {
             if preset.isUS {
-                Text("47 CFR §97.301/§97.305 as of October 2026, continental US. 60 m is the five channels; 70 cm is 420–450 MHz without the Line A exclusion.")
+                Text("licenseSettingsTab.47Cfr97301")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
-                Text("The region's amateur allocations as outer band edges, every mode allowed — not any country's rules. Copy it to Custom and edit it to your license.")
+                Text("licenseSettingsTab.theRegionsAmateurAllocations")
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
             segmentTable(preset.profile.segments)
-            Button("Copy to Custom…") { copyToCustom(preset) }
+            Button("licenseSettingsTab.copyToCustom") { copyToCustom(preset) }
         } header: {
             Text(preset.displayName)
         }
@@ -79,9 +79,9 @@ struct LicenseSettingsTab: View {
     private func segmentTable(_ segments: [PrivilegeSegment]) -> some View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 2) {
             GridRow {
-                Text("From (MHz)").bold()
-                Text("To (MHz)").bold()
-                Text("Modes").bold()
+                Text("licenseSettingsTab.fromMHz").bold()
+                Text("licenseSettingsTab.toMHz").bold()
+                Text("licenseSettingsTab.modes").bold()
             }
             .font(.caption)
             ForEach(segments) { segment in
@@ -98,13 +98,13 @@ struct LicenseSettingsTab: View {
     private func copyToCustom(_ preset: PrivilegePreset) {
         if !hub.customPrivileges.segments.isEmpty {
             let alert = NSAlert()
-            alert.messageText = "Replace your custom privileges?"
-            alert.informativeText = "Your custom table (\(hub.customPrivileges.segments.count) segments) is replaced by a copy of \(preset.displayName)."
-            alert.addButton(withTitle: "Replace")
-            alert.addButton(withTitle: "Cancel")
+            alert.messageText = String(localized: "licenseSettingsTab.replaceYourCustomPrivileges")
+            alert.informativeText = String(localized: "licenseSettingsTab.yourCustomTableSegments \(hub.customPrivileges.segments.count) \(preset.displayName)")
+            alert.addButton(withTitle: String(localized: "licenseSettingsTab.replace"))
+            alert.addButton(withTitle: String(localized: "common.cancel"))
             guard alert.runModal() == .alertFirstButtonReturn else { return }
         }
-        hub.customPrivileges = PrivilegeProfile(name: "Custom (from \(preset.displayName))",
+        hub.customPrivileges = PrivilegeProfile(name: String(localized: "licenseSettingsTab.customFrom \(preset.displayName)"),
                                                 segments: preset.profile.segments)
         hub.privilegeChoice = .custom
     }
@@ -113,9 +113,9 @@ struct LicenseSettingsTab: View {
 
     private var customSection: some View {
         Section {
-            TextField("Name", text: $hub.customPrivileges.name, prompt: Text("e.g. UK Full"))
+            TextField("common.name", text: $hub.customPrivileges.name, prompt: Text("licenseSettingsTab.eGUkFull"))
             if hub.customPrivileges.segments.isEmpty {
-                Text("No segments yet, so every transmission is blocked. Add segments, or copy a preset and edit it.")
+                Text("licenseSettingsTab.noSegmentsYetSo")
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
@@ -123,21 +123,21 @@ struct LicenseSettingsTab: View {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
                 if !hub.customPrivileges.segments.isEmpty {
                     GridRow {
-                        Text("From (MHz)").bold()
-                        Text("To (MHz)").bold()
+                        Text("licenseSettingsTab.fromMHz").bold()
+                        Text("licenseSettingsTab.toMHz").bold()
                         Text("CW").bold()
-                        Text("Phone").bold()
-                        Text("Data").bold()
+                        Text("licenseSettingsTab.phone").bold()
+                        Text("licenseSettingsTab.data").bold()
                         Text("")
                     }
                     .font(.caption)
                 }
                 ForEach($hub.customPrivileges.segments) { $segment in
                     GridRow {
-                        TextField("From", value: Self.mhzBinding($segment.lowerHz), format: Self.mhzFormat)
+                        TextField("common.from", value: Self.mhzBinding($segment.lowerHz), format: Self.mhzFormat)
                             .labelsHidden()
                             .frame(width: 100)
-                        TextField("To", value: Self.mhzBinding($segment.upperHz), format: Self.mhzFormat)
+                        TextField("common.to", value: Self.mhzBinding($segment.upperHz), format: Self.mhzFormat)
                             .labelsHidden()
                             .frame(width: 100)
                         ForEach(TransmitEmission.allCases, id: \.self) { emission in
@@ -146,13 +146,13 @@ struct LicenseSettingsTab: View {
                         }
                         HStack(spacing: 6) {
                             if let only = segment.onlyModes {
-                                Text("only \(Self.modeList(only))")
+                                Text("licenseSettingsTab.only \(Self.modeList(only))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                                    .help("From the preset this table was copied from; the other modes of the ticked kinds are refused here.")
+                                    .help("licenseSettingsTab.fromThePresetThis")
                             }
                             if segment.lowerHz > segment.upperHz {
-                                Text("From is above To")
+                                Text("licenseSettingsTab.fromIsAboveTo")
                                     .font(.caption)
                                     .foregroundStyle(.red)
                             }
@@ -162,30 +162,30 @@ struct LicenseSettingsTab: View {
                                 Image(systemName: "minus.circle")
                             }
                             .buttonStyle(.borderless)
-                            .help("Remove this segment")
+                            .help("licenseSettingsTab.removeThisSegment")
                         }
                     }
                 }
             }
             HStack {
-                Button("Add Segment") { addSegment() }
-                Menu("Start From") {
+                Button("licenseSettingsTab.addSegment") { addSegment() }
+                Menu("licenseSettingsTab.startFrom") {
                     ForEach(PrivilegePreset.allCases, id: \.self) { preset in
                         Button(preset.displayName) { copyToCustom(preset) }
                     }
                 }
                 .fixedSize()
                 Spacer()
-                Button("Import…") { importProfile() }
-                Button("Export…") { exportProfile() }
+                Button("licenseSettingsTab.import") { importProfile() }
+                Button("licenseSettingsTab.export") { exportProfile() }
                     .disabled(hub.customPrivileges.segments.isEmpty)
             }
-            Text("Frequencies apply when you press Return or leave the field. A signal has to fit inside segments that allow its kind of emission — sidebands included (LSB reaches 2.9 kHz below the dial, FM ±8 kHz). The amateur bands stay the outer limit.")
+            Text("licenseSettingsTab.frequenciesApplyWhenYou")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         } header: {
-            Text("Custom privileges")
+            Text("licenseSettingsTab.customPrivileges")
         }
     }
 
@@ -206,15 +206,15 @@ struct LicenseSettingsTab: View {
             let profile = try JSONDecoder().decode(PrivilegeProfile.self, from: Data(contentsOf: url))
             if !hub.customPrivileges.segments.isEmpty {
                 let alert = NSAlert()
-                alert.messageText = "Replace your custom privileges?"
-                alert.informativeText = "Your custom table is replaced by “\(profile.name)” (\(profile.segments.count) segments) from \(url.lastPathComponent)."
-                alert.addButton(withTitle: "Replace")
-                alert.addButton(withTitle: "Cancel")
+                alert.messageText = String(localized: "licenseSettingsTab.replaceYourCustomPrivileges")
+                alert.informativeText = String(localized: "licenseSettingsTab.yourCustomTableIs \(profile.name) \(profile.segments.count) \(url.lastPathComponent)")
+                alert.addButton(withTitle: String(localized: "licenseSettingsTab.replace"))
+                alert.addButton(withTitle: String(localized: "common.cancel"))
                 guard alert.runModal() == .alertFirstButtonReturn else { return }
             }
             hub.customPrivileges = profile
         } catch {
-            importError = "\(url.lastPathComponent) isn't a privileges file exported from FTX1Remote."
+            importError = String(localized: "licenseSettingsTab.isntAPrivilegesFile \(url.lastPathComponent)")
         }
     }
 
@@ -228,7 +228,7 @@ struct LicenseSettingsTab: View {
         do {
             try encoder.encode(hub.customPrivileges).write(to: url)
         } catch {
-            importError = "Couldn't write \(url.lastPathComponent): \(error.localizedDescription)"
+            importError = String(localized: "licenseSettingsTab.couldntWrite \(url.lastPathComponent) \(error.localizedDescription)")
         }
     }
 

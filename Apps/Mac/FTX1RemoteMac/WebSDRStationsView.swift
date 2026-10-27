@@ -18,7 +18,7 @@ struct WebSDRStationsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Stations", selection: $tab) {
+            Picker("webSDRStations.stations", selection: $tab) {
                 // OpenWebRX has no public directory to browse — its host
                 // (in practice the operator's own) is typed or a favorite.
                 ForEach([SDRPlatform.kiwiSDR, .webSDR], id: \.self) { platform in
@@ -65,23 +65,23 @@ private struct WebSDROrgTab: View {
                                  onLoadFailure: { loadError = $0 })
             .overlay {
                 if let loadError {
-                    ContentUnavailableView("websdr.org Unavailable",
+                    ContentUnavailableView("webSDRStations.websdrOrgUnavailable",
                                            systemImage: "antenna.radiowaves.left.and.right.slash",
                                            description: Text(loadError))
                 }
             }
             Divider()
             HStack(spacing: 10) {
-                Text("Click a station to use it · list shown by websdr.org")
+                Text("webSDRStations.clickAStationTo")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Button("Reload", systemImage: "arrow.clockwise") {
+                Button("webSDRStations.reload", systemImage: "arrow.clockwise") {
                     loadError = nil
                     reloadID += 1
                 }
                 .labelStyle(.titleAndIcon)
                 Spacer()
-                Button("Cancel") { dismiss() }
+                Button("common.cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
             .padding(10)

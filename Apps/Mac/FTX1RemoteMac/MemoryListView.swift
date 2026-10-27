@@ -27,13 +27,13 @@ struct MemoryListView: View {
 
     var body: some View {
         Table(filteredEntries) {
-            TableColumn("Ch") { entry in
+            TableColumn("memoryList.ch") { entry in
                 Text("\(entry.channel)")
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .width(36)
-            TableColumn("Name") { entry in
+            TableColumn("common.name") { entry in
                 Text(entry.tag ?? "")
             }
             .width(min: 90, ideal: 110)
@@ -44,32 +44,32 @@ struct MemoryListView: View {
                 }
             }
             .width(96)
-            TableColumn("Frequency") { entry in
+            TableColumn("common.frequency") { entry in
                 Text(Self.frequencyLabel(entry.frequencyHz))
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .width(min: 90, ideal: 100)
-            TableColumn("Mode") { entry in
+            TableColumn("common.mode") { entry in
                 Text(entry.modeName)
             }
             .width(min: 50, ideal: 70)
-            TableColumn("Shift") { entry in
+            TableColumn("memoryList.shift") { entry in
                 Text(entry.shiftName)
             }
             .width(36)
-            TableColumn("Tone") { entry in
+            TableColumn("memoryList.tone") { entry in
                 Text(entry.toneName)
             }
             .width(min: 40, ideal: 60)
         }
-        .searchable(text: $searchText, prompt: "Name, channel, frequency")
+        .searchable(text: $searchText, prompt: "memoryList.nameChannelFrequency")
         .overlay {
             if store.entries.isEmpty && !store.isScanning {
                 ContentUnavailableView {
-                    Label("No Channels", systemImage: "list.number")
+                    Label("memoryList.noChannels", systemImage: "list.number")
                 } description: {
-                    Text(isConnected ? "Click Refresh to read the rig's memory channels." : "Connect to the rig, then click Refresh.")
+                    Text(isConnected ? "memoryList.clickRefreshToRead" : "memoryList.connectToTheRig")
                 }
             }
         }
@@ -82,10 +82,10 @@ struct MemoryListView: View {
             }
             ToolbarItem {
                 if store.isScanning {
-                    Button("Stop", systemImage: "stop.circle", action: store.cancel)
+                    Button("common.stop", systemImage: "stop.circle", action: store.cancel)
                         .labelStyle(.titleAndIcon)
                 } else {
-                    Button("Refresh", systemImage: "arrow.clockwise", action: store.refresh)
+                    Button("common.refresh", systemImage: "arrow.clockwise", action: store.refresh)
                         .labelStyle(.titleAndIcon)
                         .disabled(!isConnected)
                 }
@@ -108,14 +108,14 @@ struct MemoryListView: View {
         HStack(spacing: 8) {
             if let channel = store.scanningChannel {
                 ProgressView().controlSize(.small)
-                Text("Reading channel \(channel)…")
+                Text("memoryList.readingChannel \(channel)")
             } else if let error = store.scanError {
                 Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
                 Text(error)
             } else if let scanText {
                 Text(scanText)
             } else if let scanned = store.lastScanned {
-                Text("\(store.entries.count) channels · read \(scanned.formatted(date: .abbreviated, time: .shortened))")
+                Text("memoryList.channelsRead \(store.entries.count) \(scanned.formatted(date: .abbreviated, time: .shortened))")
             }
             Spacer()
         }
@@ -136,33 +136,34 @@ struct MemoryListView: View {
         let state = hub.rigState.memoryScan
         if state == .scanning || state == .paused {
             if state == .paused {
-                Button("Skip", systemImage: "forward.end", action: hub.skipMemoryScanChannel)
+                Button("common.skip", systemImage: "forward.end", action: hub.skipMemoryScanChannel)
                     .labelStyle(.titleAndIcon)
                     .disabled(!isConnected)
-                    .help("Resume the scan past this channel")
+                    .help("common.resumeTheScanPast")
             }
-            Button("Stop Scan", systemImage: "stop.circle") { hub.send(.setMemoryScan(.off, side: scanningSide)) }
+            Button("common.stopScan", systemImage: "stop.circle") { hub.send(.setMemoryScan(.off, side: scanningSide)) }
                 .labelStyle(.titleAndIcon)
                 .disabled(!isConnected)
-                .help("Stop the \(scanningSide.displayName) memory scan")
+                .help("common.stopTheMemoryScan \(scanningSide.displayName)")
         } else {
             let canStart = isConnected && hub.rigState.canStartMemoryScan(on: scanSide)
-            let hint = hub.rigState.canStartMemoryScan(on: scanSide) ? "" : " (put \(scanSide.displayName) in Memory mode first)"
-            Picker("Scan Side", selection: $scanSide) {
+            let needsMemory = !hub.rigState.canStartMemoryScan(on: scanSide)
+            let side = scanSide.displayName
+            Picker("memoryList.scanSide", selection: $scanSide) {
                 ForEach(FilterSide.allCases, id: \.self) { side in
                     Text(side.displayName).tag(side)
                 }
             }
             .pickerStyle(.segmented)
-            .help("Which receiver to scan")
-            Button("Scan Down", systemImage: "chevron.down.circle") { hub.send(.setMemoryScan(.down, side: scanSide)) }
+            .help("memoryList.whichReceiverToScan")
+            Button("memoryList.scanDown", systemImage: "chevron.down.circle") { hub.send(.setMemoryScan(.down, side: scanSide)) }
                 .labelStyle(.titleAndIcon)
                 .disabled(!canStart)
-                .help("Scan \(scanSide.displayName)'s memory channels downward" + hint)
-            Button("Scan Up", systemImage: "chevron.up.circle") { hub.send(.setMemoryScan(.up, side: scanSide)) }
+                .help(needsMemory ? Text("memoryList.scanDownNeedsMemory \(side) \(side)") : Text("memoryList.scanDownHelp \(side)"))
+            Button("memoryList.scanUp", systemImage: "chevron.up.circle") { hub.send(.setMemoryScan(.up, side: scanSide)) }
                 .labelStyle(.titleAndIcon)
                 .disabled(!canStart)
-                .help("Scan \(scanSide.displayName)'s memory channels upward" + hint)
+                .help(needsMemory ? Text("memoryList.scanUpNeedsMemory \(side) \(side)") : Text("memoryList.scanUpHelp \(side)"))
         }
     }
 
@@ -174,9 +175,10 @@ struct MemoryListView: View {
         let channel = side == .sub ? hub.rigState.subMemoryChannel : hub.rigState.memoryChannel
         switch hub.rigState.memoryScan {
         case .scanning:
-            return "\(side.displayName) memory scan running…"
+            return String(localized: "memoryList.scanRunning \(side.displayName)")
         case .paused:
-            return "\(side.displayName) memory scan paused on " + (channel.map { "CH \($0)" } ?? "a busy channel")
+            return channel.map { String(localized: "memoryList.scanPausedOnChannel \(side.displayName) \($0)") }
+                ?? String(localized: "memoryList.scanPausedOnBusyChannel \(side.displayName)")
         case .stopped, nil:
             return nil
         }
@@ -196,7 +198,7 @@ struct MemoryListView: View {
         }
         .buttonStyle(ThemedTileButtonStyle(isOn: isCurrent))
         .disabled(!isConnected)
-        .help("Recall channel \(entry.channel) on \(title)")
+        .help("memoryList.recallChannelOn \(entry.channel) \(title)")
     }
 
     /// "431.075.000" — MHz.kHz.Hz, like the VFO boxes.

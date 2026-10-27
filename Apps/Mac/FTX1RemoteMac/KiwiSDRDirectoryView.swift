@@ -96,23 +96,23 @@ struct KiwiSDRDirectoryView: View {
                             .foregroundStyle(starred ? .yellow : .secondary)
                     }
                     .buttonStyle(.borderless)
-                    .help(starred ? "Remove from Favorites" : "Add to Favorites")
+                    .help(starred ? "common.removeFromFavorites" : "kiwiSDRDirectory.addToFavorites")
                 }
                 .width(22)
-                TableColumn("Name", value: \.name) { row in
+                TableColumn("common.name", value: \.name) { row in
                     Text(row.name).help(row.name)
                 }
                 .width(min: 200, ideal: 280)
-                TableColumn("Location", value: \.location) { row in
+                TableColumn("kiwiSDRDirectory.location", value: \.location) { row in
                     Text(row.location).help(row.location)
                 }
                 .width(min: 120, ideal: 180)
-                TableColumn("Distance", value: \.distanceSortKey) { row in
+                TableColumn("kiwiSDRDirectory.distance", value: \.distanceSortKey) { row in
                     Text(row.distanceKm.map { "\(Int($0.rounded())) km" } ?? "—")
                         .monospacedDigit()
                 }
                 .width(min: 70, ideal: 80)
-                TableColumn("Users", value: \.users) { row in
+                TableColumn("kiwiSDRDirectory.users", value: \.users) { row in
                     Text("\(row.station.users)/\(row.station.usersMax)")
                         .monospacedDigit()
                         .foregroundStyle(row.station.isFull ? .red : .primary)
@@ -122,11 +122,11 @@ struct KiwiSDRDirectoryView: View {
                     Text(row.station.snr.map { "\($0) dB" } ?? "—").monospacedDigit()
                 }
                 .width(min: 45, ideal: 55)
-                TableColumn("Range", value: \.bandsSortKey) { row in
+                TableColumn("kiwiSDRDirectory.range", value: \.bandsSortKey) { row in
                     Text(row.station.bandsDescription)
                 }
                 .width(min: 80, ideal: 100)
-                TableColumn("Antenna", value: \.antenna) { row in
+                TableColumn("kiwiSDRDirectory.antenna", value: \.antenna) { row in
                     Text(row.antenna).help(row.antenna)
                 }
                 .width(min: 120, ideal: 200)
@@ -146,19 +146,19 @@ struct KiwiSDRDirectoryView: View {
 
     private var filterBar: some View {
         HStack(spacing: 14) {
-            TextField("Search name, location, grid, antenna", text: $search)
+            TextField("kiwiSDRDirectory.searchNameLocationGrid", text: $search)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 320)
             Toggle(coversFrequencyLabel, isOn: $coversRigFrequency)
                 .disabled(rigFrequencyUsable == nil)
                 .help(rigFrequencyUsable == nil
-                      ? "Available once the rig's frequency is known."
-                      : "Only stations whose receive range includes the rig's current frequency.")
-            Toggle("Hide full", isOn: $hideFull)
-            Toggle("Favorites only", isOn: $favoritesOnly)
+                      ? "kiwiSDRDirectory.availableOnceTheRigs"
+                      : "kiwiSDRDirectory.onlyStationsWhoseReceive")
+            Toggle("kiwiSDRDirectory.hideFull", isOn: $hideFull)
+            Toggle("kiwiSDRDirectory.favoritesOnly", isOn: $favoritesOnly)
             Spacer()
             if home == nil {
-                Text("Set your grid square in Settings → Station to sort by distance.")
+                Text("kiwiSDRDirectory.setYourGridSquare")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -166,8 +166,8 @@ struct KiwiSDRDirectoryView: View {
     }
 
     private var coversFrequencyLabel: String {
-        guard let hz = rigFrequencyUsable else { return "Covers rig frequency" }
-        return "Covers \(FrequencyFormat.mhz(hz, fractionDigits: 3)) MHz"
+        guard let hz = rigFrequencyUsable else { return String(localized: "kiwiSDRDirectory.coversRigFrequency") }
+        return String(localized: "kiwiSDRDirectory.coversMHz \(FrequencyFormat.mhz(hz, fractionDigits: 3))")
     }
 
     @ViewBuilder
@@ -175,9 +175,9 @@ struct KiwiSDRDirectoryView: View {
         if directory.stations.isEmpty {
             switch directory.state {
             case .loading, .idle:
-                ProgressView("Loading KiwiSDR list…")
+                ProgressView("kiwiSDRDirectory.loadingKiwiSDRList")
             case let .failed(message):
-                ContentUnavailableView("Station List Unavailable",
+                ContentUnavailableView("kiwiSDRDirectory.stationListUnavailable",
                                        systemImage: "antenna.radiowaves.left.and.right.slash",
                                        description: Text(message))
             }
@@ -196,16 +196,16 @@ struct KiwiSDRDirectoryView: View {
             }
             .font(.caption)
             .foregroundStyle(.secondary)
-            Button("Refresh", systemImage: "arrow.clockwise", action: directory.refresh)
+            Button("common.refresh", systemImage: "arrow.clockwise", action: directory.refresh)
                 .labelStyle(.titleAndIcon)
                 .disabled(directory.state == .loading)
             if directory.state == .loading, !directory.stations.isEmpty {
                 ProgressView().controlSize(.small)
             }
             Spacer()
-            Button("Cancel") { dismiss() }
+            Button("common.cancel") { dismiss() }
                 .keyboardShortcut(.cancelAction)
-            Button("Use Station") {
+            Button("kiwiSDRDirectory.useStation") {
                 if let selection { choose(selection) }
             }
             .keyboardShortcut(.defaultAction)
@@ -214,12 +214,11 @@ struct KiwiSDRDirectoryView: View {
     }
 
     private func summary(rowCount: Int) -> String {
-        var parts = ["\(rowCount) of \(directory.stations.count) stations"]
-        if let fetchedAt = directory.fetchedAt {
-            parts.append("updated " + fetchedAt.formatted(.relative(presentation: .named)))
+        let total = directory.stations.count
+        guard let fetchedAt = directory.fetchedAt else {
+            return String(localized: "kiwiSDRDirectory.summary \(rowCount) \(total)")
         }
-        parts.append("list from rx.linkfanel.net")
-        return parts.joined(separator: " · ")
+        return String(localized: "kiwiSDRDirectory.summaryUpdated \(rowCount) \(total) \(fetchedAt.formatted(.relative(presentation: .named)))")
     }
 
     private func choose(_ id: KiwiSDRStation.ID) {

@@ -21,10 +21,10 @@ struct FT8ListView: View {
             pskReporterBar
             Divider()
             Table(store.spots.sorted { $0.utcTimestamp > $1.utcTimestamp }) {
-                TableColumn("Time") { spot in
+                TableColumn("ft8List.time") { spot in
                     Text(spot.utcTimestamp, style: .time)
                 }
-                TableColumn("Freq (MHz)") { spot in
+                TableColumn("ft8List.freqMHz") { spot in
                     Text(FrequencyFormat.mhz(spot.absoluteFrequencyHz, fractionDigits: 4))
                         .fontDesign(.monospaced)
                 }
@@ -34,13 +34,13 @@ struct FT8ListView: View {
                 TableColumn("DT") { spot in
                     Text(String(format: "%+.1f", spot.dtSeconds))
                 }
-                TableColumn("Message") { spot in
+                TableColumn("common.message") { spot in
                     Text(spot.messageText).fontDesign(.monospaced)
                 }
-                TableColumn("Callsign") { spot in
+                TableColumn("common.callsign") { spot in
                     Text(spot.spottedCallsign ?? "")
                 }
-                TableColumn("Grid") { spot in
+                TableColumn("ft8List.grid") { spot in
                     Text(spot.spottedGrid ?? "")
                 }
             }
@@ -50,9 +50,9 @@ struct FT8ListView: View {
         .overlay {
             if store.spots.isEmpty {
                 ContentUnavailableView(
-                    "No Decodes Yet",
+                    "ft8List.noDecodesYet",
                     systemImage: "antenna.radiowaves.left.and.right",
-                    description: Text("Decoded FT8 messages will appear here once tuned to an active FT8 sub-band.")
+                    description: Text("ft8List.decodedFt8MessagesWill")
                 )
             }
         }
@@ -69,10 +69,10 @@ struct FT8ListView: View {
                 statusLabel
                 Spacer()
                 if let lastCycleCompletedAt = store.lastCycleCompletedAt {
-                    Text("Last cycle \(lastCycleCompletedAt, style: .time)")
+                    Text("ft8List.lastCycle \(lastCycleCompletedAt, style: .time)")
                         .foregroundStyle(.secondary)
                 }
-                Text("Next in \(Self.secondsUntilNextSlot(from: context.date))s")
+                Text("ft8List.nextInS \(Self.secondsUntilNextSlot(from: context.date))")
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -90,14 +90,14 @@ struct FT8ListView: View {
     /// is disabled and says why.
     private var pskReporterBar: some View {
         HStack(spacing: 12) {
-            Toggle("Upload to PSK Reporter", isOn: $pskReporter.isEnabled)
+            Toggle("ft8List.uploadToPskReporter", isOn: $pskReporter.isEnabled)
                 .toggleStyle(.checkbox)
                 .disabled(!stationIsSet)
             Group {
                 if !stationIsSet {
-                    Text("Set your callsign and grid in Settings → Station")
+                    Text("ft8List.setYourCallsignAnd")
                 } else if let error = pskReporter.lastError {
-                    Text("Upload failed: \(error)").foregroundStyle(.red)
+                    Text("ft8List.uploadFailed \(error)").foregroundStyle(.red)
                 } else if pskReporter.isEnabled {
                     pskReporterStatus
                 }
@@ -106,7 +106,7 @@ struct FT8ListView: View {
             .foregroundStyle(.secondary)
             Spacer()
             if stationIsSet, let url = pskReporterMapURL {
-                Link("View on PSK Reporter", destination: url)
+                Link("ft8List.viewOnPskReporter", destination: url)
                     .font(.callout)
             }
         }
@@ -115,14 +115,14 @@ struct FT8ListView: View {
     }
 
     private var pskReporterStatus: some View {
-        var parts = ["\(pskReporter.pendingCount) queued", "\(pskReporter.sentThisSession) sent"]
+        var text = String(localized: "ft8List.pskQueuedSent \(pskReporter.pendingCount) \(pskReporter.sentThisSession)")
         if let last = pskReporter.lastUploadAt {
-            parts.append("last upload \(last.formatted(date: .omitted, time: .shortened))")
+            text = String(localized: "ft8List.pskWithLastUpload \(text) \(last.formatted(date: .omitted, time: .shortened))")
         }
         if let next = pskReporter.nextUploadAt {
-            parts.append("next \(next.formatted(date: .omitted, time: .shortened))")
+            text = String(localized: "ft8List.pskWithNextUpload \(text) \(next.formatted(date: .omitted, time: .shortened))")
         }
-        return Text(parts.joined(separator: " · "))
+        return Text(text)
     }
 
     private var pskReporterMapURL: URL? {
@@ -136,13 +136,13 @@ struct FT8ListView: View {
         let color: Color
         switch store.cycleStatus {
         case .idle:
-            text = "Idle"
+            text = String(localized: "ft8List.idle")
             color = .secondary
         case .accumulating:
-            text = "Receiving…"
+            text = String(localized: "ft8List.receiving")
             color = .blue
         case .decoding:
-            text = "Decoding…"
+            text = String(localized: "ft8List.decoding")
             color = .orange
         }
         return Label(text, systemImage: "waveform").foregroundStyle(color)

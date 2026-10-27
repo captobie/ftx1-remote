@@ -65,7 +65,7 @@ final class WavelogTuneListener: ObservableObject {
 
     private func start(port: UInt16) {
         guard let nwPort = NWEndpoint.Port(rawValue: port) else {
-            state = .failed("Port \(port) isn't valid")
+            state = .failed(String(localized: "wavelogTuneListener.portIsntValid \(port)"))
             return
         }
         let parameters = NWParameters.tcp
@@ -75,7 +75,7 @@ final class WavelogTuneListener: ObservableObject {
         do {
             listener = try NWListener(using: parameters)
         } catch {
-            state = .failed("Couldn't listen on port \(port): \(error.localizedDescription)")
+            state = .failed(String(localized: "wavelogTuneListener.couldntListenOnPort \(port) \(error.localizedDescription)"))
             return
         }
         listener.stateUpdateHandler = { [weak self, weak listener] newState in
@@ -102,8 +102,8 @@ final class WavelogTuneListener: ObservableObject {
             let inUse: Bool
             if case .posix(let code) = error, code == .EADDRINUSE { inUse = true } else { inUse = false }
             state = .failed(inUse
-                ? "Port \(port) is in use — is WaveLogGate running?"
-                : "Couldn't listen on port \(port): \(error.localizedDescription)")
+                ? String(localized: "wavelogTuneListener.portIsInUse \(port)")
+                : String(localized: "wavelogTuneListener.couldntListenOnPort \(port) \(error.localizedDescription)"))
             logger.error("tune listener failed: \(String(describing: error), privacy: .public)")
             listener?.cancel()
             listener = nil
@@ -163,18 +163,18 @@ final class WavelogTuneListener: ObservableObject {
             return
         }
         guard originOK else {
-            let from = origin ?? "a request without an Origin"
-            record("Ignored a tune request from \(from) — it isn't the Wavelog URL above", ok: false)
+            record(origin.map { String(localized: "wavelogTuneListener.ignoredFromOrigin \($0)") }
+                   ?? String(localized: "wavelogTuneListener.ignoredWithoutOrigin"), ok: false)
             send(403, "Origin not allowed", origin: nil, on: connection)
             return
         }
-        let modeText = request.mode?.displayName ?? "mode unchanged"
+        let modeText = request.mode?.displayName ?? String(localized: "wavelogTuneListener.modeUnchanged")
         let mhz = "\(FrequencyFormat.mhz(request.frequencyHz, fractionDigits: 4)) MHz"
         if let refusal = tune(request) {
-            record("Didn't tune to \(mhz): \(refusal)", ok: false)
+            record(String(localized: "wavelogTuneListener.didntTuneTo \(mhz) \(refusal)"), ok: false)
             send(409, refusal, origin: origin, on: connection)
         } else {
-            record("Tuned to \(mhz) \(modeText)", ok: true)
+            record(String(localized: "wavelogTuneListener.tunedTo \(mhz) \(modeText)"), ok: true)
             send(200, "OK", origin: origin, on: connection)
         }
     }

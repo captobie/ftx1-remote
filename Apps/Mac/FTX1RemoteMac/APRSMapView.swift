@@ -27,7 +27,7 @@ struct APRSMapView: View {
             MapCompass()
             MapScaleView()
         }
-        .navigationTitle("APRS Map")
+        .navigationTitle("aprsMap.aprsMap")
         .frame(minWidth: 520, minHeight: 400)
         .overlay(alignment: .bottomLeading) {
             if let selectedCallsign, let station = plottedStations.first(where: { $0.callsign == selectedCallsign }) {
@@ -36,7 +36,7 @@ struct APRSMapView: View {
         }
         .overlay {
             if plottedStations.isEmpty {
-                ContentUnavailableView("No Positions Heard", systemImage: "map", description: Text("Decoded APRS position reports will appear here while tuned to the configured APRS frequency."))
+                ContentUnavailableView("aprsMap.noPositionsHeard", systemImage: "map", description: Text("aprsMap.decodedAprsPositionReports"))
             }
         }
         .toolbar {
@@ -44,7 +44,7 @@ struct APRSMapView: View {
                 Button {
                     fitAllStations()
                 } label: {
-                    Label("Fit All Stations", systemImage: "scope")
+                    Label("aprsMap.fitAllStations", systemImage: "scope")
                 }
                 .disabled(plottedStations.isEmpty)
             }
