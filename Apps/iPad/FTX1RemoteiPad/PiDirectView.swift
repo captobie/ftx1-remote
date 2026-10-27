@@ -73,8 +73,8 @@ struct PiDirectView: View {
 
                 HStack {
                     if viewModel.connectionState != .connected && !isDemo {
-                        RecentHostField(placeholder: "Pi hostname (Tailscale)", host: $host, recentHosts: $recentHosts.recentHostList)
-                        TextField("WPSD hotspot (optional, C4FM callsign)", text: $wpsdHost)
+                        RecentHostField(placeholder: String(localized: "common.piHostnameTailscale"), host: $host, recentHosts: $recentHosts.recentHostList)
+                        TextField("piDirect.wpsdHotspotOptionalC4fm", text: $wpsdHost)
                             .textFieldStyle(.roundedBorder)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
@@ -139,7 +139,7 @@ struct PiDirectView: View {
         }
         .buttonStyle(.bordered)
         .tint(viewModel.transmitEnabled ? .red : nil)
-        .accessibilityLabel(viewModel.transmitEnabled ? "Transmit enabled; tap to disable" : "Transmit disabled; tap to enable")
+        .accessibilityLabel(viewModel.transmitEnabled ? "common.transmitEnabledTapTo" : "common.transmitDisabledTapTo")
     }
 
     @ViewBuilder
@@ -225,7 +225,7 @@ struct PiDirectView: View {
 
         // Only the problem case gets a line; playing/off need no text.
         if viewModel.audioState == .waiting {
-            Text("Waiting for audio — is another device using the Pi's stream?")
+            Text("common.waitingForAudioIs")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -264,8 +264,8 @@ struct PiDirectView: View {
         }
 
         Text(isDemo
-             ? "Demo Mode: a simulated FTX-1 — a CW beacon on 14.047.5 MHz, APRS on 144.390 MHz, a 2 m repeater that comes up every 45 s on memory channel 2. Unlock to try PTT and CW sending; nothing leaves the iPad. Settings changed here are thrown away on Exit Demo."
-             : "Direct to rigctld on the Pi, no desktop hub. Unlock to transmit (PTT, MOX, ANT TUNE); hold PTT to talk through the iPad's microphone. Audio follows swaps; use the speaker button if MAIN and SUB audio are reversed. Menu values refresh every ~10 s.")
+             ? "piDirect.demoModeASimulated"
+             : "piDirect.directToRigctldOn")
             .font(.caption)
             .foregroundStyle(.secondary)
     }
@@ -297,7 +297,7 @@ struct PiDirectView: View {
                 Image(systemName: "arrow.left.arrow.right")
             }
             .disabled(scanning)
-            .accessibilityLabel("Swap MAIN and SUB")
+            .accessibilityLabel("common.swapMainAndSub")
 
             Button {
                 viewModel.toggleAudioChannelsSwapped()
@@ -306,7 +306,7 @@ struct PiDirectView: View {
                     .foregroundStyle(viewModel.audioChannelsSwapped ? Color.white : Color.primary)
             }
             .tint(viewModel.audioChannelsSwapped ? .orange : nil)
-            .accessibilityLabel(viewModel.audioChannelsSwapped ? "Audio channels swapped; tap to swap back" : "Swap audio channels")
+            .accessibilityLabel(viewModel.audioChannelsSwapped ? "common.audioChannelsSwappedTap" : "common.swapAudioChannels")
         }
         .buttonStyle(.bordered)
     }
@@ -318,11 +318,11 @@ struct PiDirectView: View {
             Button {
                 demo.start()
             } label: {
-                Label("Demo Mode", systemImage: "play.rectangle")
+                Label("common.demoMode", systemImage: "play.rectangle")
             }
             .buttonStyle(.bordered)
             .disabled(demo.isStarting)
-            Text(demo.problem ?? "Try the app with a simulated radio — no FTX-1, Pi or Mac needed.")
+            Text(demo.problem ?? String(localized: "piDirect.tryTheAppWith"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -342,7 +342,7 @@ struct PiDirectView: View {
         Button {
             demo.stop()
         } label: {
-            Text("Exit Demo")
+            Text("common.exitDemo")
                 .font(.headline)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
@@ -376,10 +376,10 @@ struct PiDirectView: View {
     /// Connecting/retrying is tappable too — it cancels the retry loop.
     private var buttonTitle: String {
         switch viewModel.connectionState {
-        case .disconnected: "Disconnected"
-        case .connecting: "Connecting…"
-        case .connected: "Connected"
-        case .failed: "Retrying…"
+        case .disconnected: String(localized: "common.disconnected")
+        case .connecting: String(localized: "common.connecting")
+        case .connected: String(localized: "common.connected")
+        case .failed: String(localized: "common.retrying")
         }
     }
 

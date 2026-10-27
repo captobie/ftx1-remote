@@ -33,7 +33,7 @@ struct APRSListPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
-            TextField(kind == .messages ? "Search callsign or message text" : "Search callsign or comment", text: $searchText)
+            TextField(kind == .messages ? "aprsListPane.searchCallsignOrMessage" : "aprsListPane.searchCallsignOrComment", text: $searchText)
                 .textFieldStyle(.roundedBorder)
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled()
@@ -51,7 +51,7 @@ struct APRSListPane: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Picker("List", selection: $kind) {
+            Picker("aprsListPane.list", selection: $kind) {
                 Text("S.LIST").tag(APRSListKind?.some(.stations))
                 Text("M.LIST").tag(APRSListKind?.some(.messages))
             }
@@ -71,14 +71,14 @@ struct APRSListPane: View {
                 } label: {
                     Image(systemName: "gearshape")
                 }
-                .accessibilityLabel("APRS decoder settings")
+                .accessibilityLabel("aprsListPane.aprsDecoderSettings")
                 .popover(isPresented: $showingSettings) { decoderSettings }
             }
 
             Button {
                 kind = nil
             } label: {
-                Label("Close", systemImage: "xmark")
+                Label("common.close", systemImage: "xmark")
             }
             .buttonStyle(.bordered)
         }
@@ -86,50 +86,50 @@ struct APRSListPane: View {
 
     private var filterMenu: some View {
         Menu {
-            Picker(kind == .messages ? "Received Within" : "Heard Within", selection: $heardWindow) {
+            Picker(kind == .messages ? "common.receivedWithin" : "common.heardWithin", selection: $heardWindow) {
                 ForEach(APRSHeardWindow.allCases, id: \.self) { Text($0.label).tag($0) }
             }
             if kind == .messages {
-                Toggle(myBaseCallsign.isEmpty ? "Addressed to Me" : "Addressed to \(myBaseCallsign)",
+                Toggle(myBaseCallsign.isEmpty ? "common.addressedToMe" : "aprsListPane.addressedTo \(myBaseCallsign)",
                        isOn: $addressedToMe)
                     .disabled(myBaseCallsign.isEmpty)
-                Toggle("Hide Bulletins", isOn: $hideBulletins)
-                Toggle("Hide Telemetry Definitions", isOn: $hideTelemetry)
+                Toggle("common.hideBulletins", isOn: $hideBulletins)
+                Toggle("common.hideTelemetryDefinitions", isOn: $hideTelemetry)
             } else {
-                Toggle("With Position Only", isOn: $positionOnly)
+                Toggle("common.withPositionOnly", isOn: $positionOnly)
             }
         } label: {
             Image(systemName: isFiltering
                   ? "line.3.horizontal.decrease.circle.fill"
                   : "line.3.horizontal.decrease.circle")
         }
-        .accessibilityLabel("Filter")
+        .accessibilityLabel("common.filter")
     }
 
     // MARK: - Lists
 
     private var stationTable: some View {
         Table(filteredStations) {
-            TableColumn("Callsign") { station in
+            TableColumn("common.callsign") { station in
                 Text(station.callsign).fontDesign(.monospaced)
             }
-            TableColumn("Source") { station in
+            TableColumn("common.source") { station in
                 Text(station.source == .main ? "Main" : "Sub")
             }
             .width(60)
-            TableColumn("Position") { station in
+            TableColumn("common.position") { station in
                 Text(Self.positionString(station))
             }
-            TableColumn("Comment") { station in
+            TableColumn("common.comment") { station in
                 Text(station.comment ?? "")
             }
-            TableColumn("Last Heard") { station in
+            TableColumn("common.lastHeard") { station in
                 Text(station.lastHeardAt, style: .relative)
             }
         }
         .overlay {
             if stations.isEmpty {
-                ContentUnavailableView("No Stations Heard", systemImage: "antenna.radiowaves.left.and.right", description: Text(emptyDescription(for: "stations")))
+                ContentUnavailableView("common.noStationsHeard", systemImage: "antenna.radiowaves.left.and.right", description: Text("aprsListPane.decodedStationsWillAppear \(Self.megahertz(frequencyHz))"))
             } else if filteredStations.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
@@ -138,46 +138,42 @@ struct APRSListPane: View {
 
     private var messageTable: some View {
         Table(filteredMessages) {
-            TableColumn("From") { message in
+            TableColumn("common.from") { message in
                 Text(message.from).fontDesign(.monospaced)
             }
-            TableColumn("To") { message in
+            TableColumn("common.to") { message in
                 Text(message.to).fontDesign(.monospaced)
             }
-            TableColumn("Source") { message in
+            TableColumn("common.source") { message in
                 Text(message.source == .main ? "Main" : "Sub")
             }
             .width(60)
-            TableColumn("Message") { message in
+            TableColumn("common.message") { message in
                 Text(message.text)
             }
-            TableColumn("Received") { message in
+            TableColumn("common.received") { message in
                 Text(message.receivedAt, style: .relative)
             }
         }
         .overlay {
             if messages.isEmpty {
-                ContentUnavailableView("No Messages", systemImage: "envelope", description: Text(emptyDescription(for: "messages")))
+                ContentUnavailableView("common.noMessages", systemImage: "envelope", description: Text("aprsListPane.decodedMessagesWillAppear \(Self.megahertz(frequencyHz))"))
             } else if filteredMessages.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
         }
     }
 
-    private func emptyDescription(for what: String) -> String {
-        "Decoded APRS \(what) will appear here while tuned to \(Self.megahertz(frequencyHz)) MHz."
-    }
-
     @ViewBuilder
     private var footnote: some View {
         if onClearHistory != nil {
             if !decodeEnabled {
-                Text("APRS decoding is off — turn it on with the gear button.")
+                Text("aprsListPane.aprsDecodingIsOff")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         } else {
-            Text("Decoded by the Mac — its Settings → APRS sets the frequency.")
+            Text("aprsListPane.decodedByTheMac")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -187,16 +183,16 @@ struct APRSListPane: View {
 
     private var decoderSettings: some View {
         Form {
-            Toggle("Decode APRS", isOn: $decodeEnabled)
-            LabeledContent("Frequency (MHz)") {
+            Toggle("common.decodeAprs", isOn: $decodeEnabled)
+            LabeledContent("common.frequencyMHz") {
                 TextField("MHz", value: megahertzBinding, format: FrequencyFormat.mhzField(fractionLength: 3...3))
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
             }
-            Text("Decodes MAIN or SUB while tuned within \(APRSSettings.toleranceHz / 1000) kHz of this frequency.")
+            Text("aprsListPane.decodesMainOrSub \(APRSSettings.toleranceHz / 1000)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Button("Clear History", role: .destructive) {
+            Button("common.clearHistory", role: .destructive) {
                 onClearHistory?()
                 showingSettings = false
             }

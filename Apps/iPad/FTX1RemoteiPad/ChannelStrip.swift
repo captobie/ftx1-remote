@@ -69,7 +69,7 @@ struct ChannelStrip: View {
                 .foregroundStyle(isMuted ? Color.white : Color.primary)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(isMuted ? "Unmute \(label)" : "Mute \(label)")
+        .accessibilityLabel(isMuted ? "common.unmute \(label)" : "common.mute \(label)")
     }
 
     private func sliderRow(_ title: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
@@ -80,7 +80,7 @@ struct ChannelStrip: View {
                 .frame(width: 26, alignment: .leading)
             Slider(value: value, in: range)
                 .controlSize(.small)
-                .accessibilityLabel("\(label) \(title == "SQL" ? "squelch" : "volume")")
+                .accessibilityLabel(title == "SQL" ? "channelStrip.squelchOf \(label)" : "channelStrip.volumeOf \(label)")
         }
     }
 

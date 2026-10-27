@@ -42,7 +42,7 @@ struct CWPane<SendSection: View>: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Picker("Receiver", selection: $receiver.channel) {
+            Picker("common.receiver", selection: $receiver.channel) {
                 ForEach([CWAudioChannel.main, .sub], id: \.self) { channel in
                     Text(channel.title).tag(channel)
                         .selectionDisabled(channel == .sub && subUnavailableReason != nil)
@@ -58,21 +58,21 @@ struct CWPane<SendSection: View>: View {
             Button {
                 UIPasteboard.general.string = receiver.decodedText
             } label: {
-                Label("Copy", systemImage: "doc.on.doc")
+                Label("common.copy", systemImage: "doc.on.doc")
             }
             .disabled(receiver.decodedText.isEmpty)
 
             Button {
                 receiver.clearText()
             } label: {
-                Label("Clear", systemImage: "trash")
+                Label("common.clear", systemImage: "trash")
             }
             .disabled(receiver.decodedText.isEmpty)
 
             Button {
                 isShowing = false
             } label: {
-                Label("Close", systemImage: "xmark")
+                Label("common.close", systemImage: "xmark")
             }
         }
         .buttonStyle(.bordered)
@@ -82,20 +82,20 @@ struct CWPane<SendSection: View>: View {
     /// Why SUB can't be picked, or nil when it can. On the hub route the
     /// Mac relays SUB audio only from a stereo input.
     private var subUnavailableReason: String? {
-        if singleReceive { return "SUB is off: the rig is in single-receive display" }
-        if !receiver.isSubAudioAvailable { return "No SUB audio yet" }
+        if singleReceive { return String(localized: "common.subIsOffThe") }
+        if !receiver.isSubAudioAvailable { return String(localized: "cwPane.noSubAudioYet") }
         return nil
     }
 
     private var sourceNote: String? {
         if receiver.isPausedForTransmit {
-            return "Paused while transmitting"
+            return String(localized: "common.pausedWhileTransmitting")
         }
         if receiver.channel == .sub, let subUnavailableReason {
             return subUnavailableReason
         }
         if let mode = receiver.sourceModeIfNotCW {
-            return "\(receiver.channel.title) is in \(mode.displayName), not CW — decoding anyway"
+            return String(localized: "common.isInNotCw \(receiver.channel.title) \(mode.displayName)")
         }
         return nil
     }
@@ -111,7 +111,7 @@ private struct CWDecodedText: View {
         ScrollView {
             Group {
                 if text.isEmpty && tentative.isEmpty {
-                    Text("Decoded CW from the selected receiver appears here. Tune to a CW signal.")
+                    Text("common.decodedCwFromThe")
                         .foregroundStyle(.secondary)
                 } else {
                     Text("\(text)\(Text(tentative).foregroundStyle(.tertiary))")
@@ -144,7 +144,7 @@ struct CWPaneButton: View {
                 .foregroundStyle(isShowing ? Color.white : Color.primary)
         }
         .tint(isShowing ? .accentColor : nil)
-        .accessibilityLabel(isShowing ? "Hide the CW decoder" : "Show the CW decoder")
+        .accessibilityLabel(isShowing ? "common.hideTheCwDecoder" : "common.showTheCwDecoder")
     }
 }
 

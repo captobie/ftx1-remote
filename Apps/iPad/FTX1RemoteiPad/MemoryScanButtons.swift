@@ -19,7 +19,7 @@ struct MemoryScanButtons: View {
                 Button {
                     send(.setMemoryScan(.off, side: side))
                 } label: {
-                    Text("Stop \(side.displayName)")
+                    Text("memoryScanButtons.stop \(side.displayName)")
                         .foregroundStyle(Color.white)
                 }
                 .tint(.accentColor)
@@ -29,11 +29,11 @@ struct MemoryScanButtons: View {
                 Menu {
                     // SUB first, matching the VFO boxes' left-to-right order.
                     ForEach([FilterSide.sub, .main], id: \.self) { side in
-                        Button("Scan \(side.displayName)") { send(.setMemoryScan(.up, side: side)) }
+                        Button("common.scanX \(side.displayName)") { send(.setMemoryScan(.up, side: side)) }
                             .disabled(!state.canStartMemoryScan(on: side))
                     }
                 } label: {
-                    Text("Scan")
+                    Text("common.scan")
                 }
                 .buttonStyle(.bordered)
                 .disabled(!isConnected || !FilterSide.allCases.contains { state.canStartMemoryScan(on: $0) })
@@ -42,7 +42,7 @@ struct MemoryScanButtons: View {
             // Same command again on a paused scan = resume past the busy
             // channel (rig-confirmed on the Mac, 2026-10-06). Upward: the
             // iPad only starts upward scans.
-            Button("Skip") {
+            Button("common.skip") {
                 if let side = activeSide { send(.setMemoryScan(.up, side: side)) }
             }
             .buttonStyle(.bordered)

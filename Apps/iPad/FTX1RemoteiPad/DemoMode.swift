@@ -71,7 +71,7 @@ final class DemoSession: ObservableObject {
                 begin(pi: pi, endpoint: endpoint)
             } catch {
                 pi.stop()
-                problem = "Demo Mode couldn't start: \(error.localizedDescription)"
+                problem = String(localized: "demoMode.demoModeCouldntStart \(error.localizedDescription)")
             }
             isStarting = false
         }
@@ -169,7 +169,7 @@ struct DemoBanner: View {
         HStack(spacing: 8) {
             Text("DEMO")
                 .font(.headline.weight(.heavy))
-            Text("Simulated radio — no FTX-1, Pi or Mac involved; nothing is transmitted.")
+            Text("demoMode.simulatedRadioNoFtx")
                 .font(.subheadline)
             Spacer(minLength: 0)
         }

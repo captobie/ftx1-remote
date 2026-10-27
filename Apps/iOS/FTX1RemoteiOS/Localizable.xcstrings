@@ -1,5 +1,231 @@
 {
   "sourceLanguage" : "en",
-  "strings" : {},
+  "strings" : {
+    "PTT" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "SQL" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "TRANSMITTING" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "VOL" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "common.connected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected"
+          }
+        }
+      }
+    },
+    "common.connecting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting…"
+          }
+        }
+      }
+    },
+    "common.connection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection"
+          }
+        }
+      }
+    },
+    "common.disconnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnected"
+          }
+        }
+      }
+    },
+    "common.piHostnameTailscale" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pi hostname (Tailscale)"
+          }
+        }
+      }
+    },
+    "common.receiver" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receiver"
+          }
+        }
+      }
+    },
+    "common.retrying" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retrying…"
+          }
+        }
+      }
+    },
+    "common.transmitDisabled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit disabled"
+          }
+        }
+      }
+    },
+    "common.transmitDisabledOutsideAn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit disabled: outside an amateur band"
+          }
+        }
+      }
+    },
+    "content.macHostnameTailscale" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac hostname (Tailscale)"
+          }
+        }
+      }
+    },
+    "content.macHub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac hub"
+          }
+        }
+      }
+    },
+    "content.piDirect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pi direct"
+          }
+        }
+      }
+    },
+    "piDirect.audio %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ audio"
+          }
+        }
+      }
+    },
+    "piDirect.audioMuted %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ audio (muted)"
+          }
+        }
+      }
+    },
+    "piDirect.audioOff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio off"
+          }
+        }
+      }
+    },
+    "piDirect.muteAudio %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mute %@ audio"
+          }
+        }
+      }
+    },
+    "piDirect.receiveOnlyDirectTo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receive only — direct to rigctld on the Pi, no Mac hub."
+          }
+        }
+      }
+    },
+    "piDirect.unmuteAudio %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unmute %@ audio"
+          }
+        }
+      }
+    },
+    "piDirect.waitingForAudioIs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for audio — is the Mac using the Pi's stream?"
+          }
+        }
+      }
+    }
+  },
   "version" : "1.0"
 }

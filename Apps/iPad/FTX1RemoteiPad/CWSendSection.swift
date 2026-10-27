@@ -44,18 +44,18 @@ struct CWSendSection<Controller: RigController>: View {
             Button {
                 isEditingMacros = true
             } label: {
-                Label("Macros", systemImage: "square.grid.3x2")
+                Label("common.macros", systemImage: "square.grid.3x2")
             }
             Button {
                 sender.clearLog()
             } label: {
-                Label("Clear", systemImage: "trash")
+                Label("common.clear", systemImage: "trash")
             }
             .disabled(!sender.items.contains { !$0.isWaiting })
             Button(role: .destructive) {
                 sender.stop()
             } label: {
-                Label("Stop", systemImage: "stop.fill")
+                Label("common.stop", systemImage: "stop.fill")
             }
             .disabled(!sender.canStop)
         }
@@ -69,7 +69,7 @@ struct CWSendSection<Controller: RigController>: View {
     /// portrait).
     private var macroRow: some View {
         HStack(spacing: 8) {
-            TextField("Their call", text: $sender.theirCall)
+            TextField("common.theirCall", text: $sender.theirCall)
                 .textFieldStyle(.roundedBorder)
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled()
@@ -91,7 +91,7 @@ struct CWSendSection<Controller: RigController>: View {
 
     private var inputRow: some View {
         HStack(spacing: 8) {
-            TextField("Type a line and press Return to send", text: $line)
+            TextField("common.typeALineAnd", text: $line)
                 .textFieldStyle(.roundedBorder)
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled()
@@ -102,7 +102,7 @@ struct CWSendSection<Controller: RigController>: View {
                 .onChange(of: line) { _, new in
                     if !new.isEmpty { note = nil }
                 }
-            Button("Send", action: submit)
+            Button("common.send", action: submit)
                 .buttonStyle(.borderedProminent)
                 .disabled(line.trimmingCharacters(in: .whitespaces).isEmpty)
         }
@@ -113,7 +113,7 @@ struct CWSendSection<Controller: RigController>: View {
     /// Adds a macro's text to the send line (after a space if there's
     /// already something there); macros don't send by themselves.
     private func insert(_ macro: CWMacro) {
-        switch sender.text(for: macro, stationSettings: "CW pane → Macros") {
+        switch sender.text(for: macro, stationSettings: String(localized: "cwSendSection.cwPaneMacros")) {
         case .failure(let problem):
             note = problem.message
         case .success(let text):
@@ -144,7 +144,7 @@ private struct CWKeyerControls<Controller: RigController>: View {
                 .monospacedDigit()
                 .fixedSize()
                 .frame(minWidth: 64, alignment: .trailing)
-            Stepper("Keyer speed", onIncrement: {
+            Stepper("common.keyerSpeed", onIncrement: {
                 rig.send(.setCWSpeed(wpm: min((wpm ?? 20) + 1, 60)))
             }, onDecrement: {
                 rig.send(.setCWSpeed(wpm: max((wpm ?? 20) - 1, 4)))
@@ -167,10 +167,10 @@ private struct CWKeyerControls<Controller: RigController>: View {
             .fixedSize()
             .tint(breakIn ? .accentColor : nil)
             .disabled(rig.rigState.breakIn == nil)
-            .accessibilityLabel(breakIn ? "Break-in on; tap to turn off" : "Break-in off; tap to turn on")
+            .accessibilityLabel(breakIn ? "cwSendSection.breakInOnTap" : "cwSendSection.breakInOffTap")
 
-            Picker("Memory", selection: $sender.slot) {
-                ForEach(1...5, id: \.self) { Text("Memory \($0)").tag($0) }
+            Picker("common.memory", selection: $sender.slot) {
+                ForEach(1...5, id: \.self) { Text("common.memoryX \($0)").tag($0) }
             }
             .pickerStyle(.menu)
             .fixedSize()
@@ -189,14 +189,14 @@ private struct CWMonitorButton: View {
         Button {
             monitor.isEnabled.toggle()
         } label: {
-            Label("Monitor", systemImage: monitor.isEnabled ? "speaker.wave.2.fill" : "speaker.slash")
+            Label("common.monitor", systemImage: monitor.isEnabled ? "speaker.wave.2.fill" : "speaker.slash")
                 .fontWeight(monitor.isEnabled ? .bold : .regular)
                 .foregroundStyle(monitor.isEnabled ? Color.white : Color.primary)
         }
         .buttonStyle(.bordered)
         .fixedSize()
         .tint(monitor.isEnabled ? .accentColor : nil)
-        .accessibilityLabel(monitor.isEnabled ? "Sidetone monitor on; tap to turn off" : "Sidetone monitor off; tap to turn on")
+        .accessibilityLabel(monitor.isEnabled ? "cwSendSection.sidetoneMonitorOnTap" : "cwSendSection.sidetoneMonitorOffTap")
     }
 }
 
@@ -216,14 +216,14 @@ private struct CWSendStatus<Controller: RigController>: View {
                 ProgressView().controlSize(.small)
                 Text(activity)
             } else if let block = sender.block {
-                Label("Can't send: \(block.message)", systemImage: "exclamationmark.triangle")
+                Label("common.cantSend \(block.message)", systemImage: "exclamationmark.triangle")
                 if block == .breakInOff {
-                    Button("Turn On BK-IN") { rig.send(.setBreakIn(true)) }
+                    Button("common.turnOnBkIn") { rig.send(.setBreakIn(true)) }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                 }
             } else {
-                Text("Ready — \(rig.rigState.cwSpeedWpm.map { "\($0) WPM" } ?? "rig keyer"), memory \(sender.slot)")
+                Text("common.readyMemory \(rig.rigState.cwSpeedWpm.map { "\($0) WPM" } ?? "rig keyer") \(sender.slot)")
             }
             Spacer()
         }
@@ -243,7 +243,7 @@ private struct CWSendLog: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 4) {
                 if items.isEmpty {
-                    Text("Lines you send appear here. Type below, or use a macro.")
+                    Text("common.linesYouSendAppear")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(items) { item in
@@ -283,7 +283,7 @@ private struct CWSendRow: View {
                 Text(reason).font(.caption).foregroundStyle(.red).padding(.leading, 26)
             }
             if !item.dropped.isEmpty {
-                Text("Left out (the keyer can't send them): \(item.dropped)")
+                Text("common.leftOutTheKeyer \(item.dropped)")
                     .font(.caption).foregroundStyle(.secondary).padding(.leading, 26)
             }
         }
@@ -322,22 +322,22 @@ private struct CWMacroEditor: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("My callsign", text: $myCall)
+                    TextField("cwSendSection.myCallsign", text: $myCall)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
-                    TextField("My grid square", text: $myGrid)
+                    TextField("cwSendSection.myGridSquare", text: $myGrid)
                         .autocorrectionDisabled()
                 } header: {
-                    Text("Station")
+                    Text("cwSendSection.station")
                 } footer: {
-                    Text("{MYCALL} and {MYGRID} in a macro. {CALL} is the Their call field. Prosigns: <BT>, <AR>, <KN>.")
+                    Text("cwSendSection.mycallAndMygridIn")
                 }
-                Section("Macros") {
+                Section("common.macros") {
                     ForEach($macros) { $macro in
                         HStack {
-                            TextField("Label", text: $macro.label)
+                            TextField("common.label", text: $macro.label)
                                 .frame(width: 100)
-                            TextField("Text", text: $macro.text)
+                            TextField("common.text", text: $macro.text)
                                 .font(.system(.body, design: .monospaced))
                                 .textInputAutocapitalization(.characters)
                                 .autocorrectionDisabled()
@@ -345,20 +345,20 @@ private struct CWMacroEditor: View {
                     }
                     .onDelete { macros.remove(atOffsets: $0) }
                     .onMove { macros.move(fromOffsets: $0, toOffset: $1) }
-                    Button("Add Macro") {
+                    Button("common.addMacro") {
                         macros.append(CWMacro(label: "New", text: ""))
                     }
-                    Button("Restore Defaults") {
+                    Button("common.restoreDefaults") {
                         macros = CWMacro.defaults
                     }
                 }
             }
-            .navigationTitle("CW Macros")
+            .navigationTitle("common.cwMacros")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { EditButton() }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("common.done") { dismiss() }
                 }
             }
         }

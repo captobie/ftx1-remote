@@ -27,7 +27,7 @@ struct PiDirectView: View {
     var body: some View {
         VStack(spacing: 16) {
             if viewModel.connectionState != .connected {
-                TextField("Pi hostname (Tailscale)", text: $host)
+                TextField("common.piHostnameTailscale", text: $host)
                     .textFieldStyle(.roundedBorder)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -47,7 +47,7 @@ struct PiDirectView: View {
                     audioRow
                     audioSliders
                 }
-                Text("Receive only — direct to rigctld on the Pi, no Mac hub.")
+                Text("piDirect.receiveOnlyDirectTo")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -75,7 +75,7 @@ struct PiDirectView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(isMuted ? "Unmute \(side.label) audio" : "Mute \(side.label) audio")
+            .accessibilityLabel(isMuted ? "piDirect.unmuteAudio \(side.label)" : "piDirect.muteAudio \(side.label)")
 
             Text(audioStatus)
                 .font(.footnote)
@@ -118,9 +118,9 @@ struct PiDirectView: View {
 
     private var audioStatus: String {
         switch viewModel.audioState {
-        case .off: "Audio off"
-        case .waiting: "Waiting for audio — is the Mac using the Pi's stream?"
-        case .playing: isMuted ? "\(side.label) audio (muted)" : "\(side.label) audio"
+        case .off: String(localized: "piDirect.audioOff")
+        case .waiting: String(localized: "piDirect.waitingForAudioIs")
+        case .playing: isMuted ? String(localized: "piDirect.audioMuted \(side.label)") : String(localized: "piDirect.audio \(side.label)")
         }
     }
 
@@ -147,10 +147,10 @@ struct PiDirectView: View {
     /// Connecting/retrying is tappable too — it cancels the retry loop.
     private var buttonTitle: String {
         switch viewModel.connectionState {
-        case .disconnected: "Disconnected"
-        case .connecting: "Connecting…"
-        case .connected: "Connected"
-        case .failed: "Retrying…"
+        case .disconnected: String(localized: "common.disconnected")
+        case .connecting: String(localized: "common.connecting")
+        case .connected: String(localized: "common.connected")
+        case .failed: String(localized: "common.retrying")
         }
     }
 

@@ -16,8 +16,8 @@ struct ContentView: View {
 
         var label: String {
             switch self {
-            case .desktopHub: "Desktop hub"
-            case .piDirect: "Pi direct"
+            case .desktopHub: String(localized: "content.desktopHub")
+            case .piDirect: String(localized: "content.piDirect")
             }
         }
     }
@@ -32,7 +32,7 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             if !isConnected {
-                Picker("Connection", selection: $route) {
+                Picker("common.connection", selection: $route) {
                     ForEach(ConnectionRoute.allCases, id: \.self) { route in
                         Text(route.label).tag(route)
                     }
@@ -106,7 +106,7 @@ struct HubControlView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     if viewModel.connectionState != .connected {
-                        RecentHostField(placeholder: "Desktop hostname (Tailscale)", host: $host, recentHosts: $recentHosts.recentHostList)
+                        RecentHostField(placeholder: String(localized: "content.desktopHostnameTailscale"), host: $host, recentHosts: $recentHosts.recentHostList)
                     }
                     connectButton
                     if viewModel.connectionState == .connected {
@@ -209,7 +209,7 @@ struct HubControlView: View {
         }
         .buttonStyle(.bordered)
         .tint(enabled ? .red : nil)
-        .accessibilityLabel(enabled ? "Transmit enabled on the Mac; tap to disable" : "Transmit disabled on the Mac; tap to enable")
+        .accessibilityLabel(enabled ? "content.transmitEnabledOnThe" : "content.transmitDisabledOnThe")
     }
 
     /// Scan/Skip, V/M, swap and audio-channel override — the same buttons,
@@ -241,7 +241,7 @@ struct HubControlView: View {
             } label: {
                 Image(systemName: "arrow.left.arrow.right")
             }
-            .accessibilityLabel("Swap MAIN and SUB")
+            .accessibilityLabel("common.swapMainAndSub")
 
             Button {
                 viewModel.send(.setAudioChannelsSwapped(!audioSwapped))
@@ -252,7 +252,7 @@ struct HubControlView: View {
             .tint(audioSwapped ? .orange : nil)
             // nil: a hub from before this override was on the wire.
             .disabled(state.audioChannelsSwapped == nil)
-            .accessibilityLabel(audioSwapped ? "Audio channels swapped; tap to swap back" : "Swap audio channels")
+            .accessibilityLabel(audioSwapped ? "common.audioChannelsSwappedTap" : "common.swapAudioChannels")
         }
         .buttonStyle(.bordered)
     }
@@ -263,9 +263,9 @@ struct HubControlView: View {
     /// hub regardless, since every command here goes out over the
     /// WebSocket, but a silent no-op with no visual cue would be confusing.
     private var transmitBlockReason: String? {
-        guard viewModel.rigState.transmitEnabled else { return "Transmit disabled on the Mac" }
+        guard viewModel.rigState.transmitEnabled else { return String(localized: "content.transmitDisabledOnTheMac") }
         guard BandPlan.band(containing: viewModel.rigState.frequencyHz) != nil else {
-            return "Transmit disabled: outside an amateur band"
+            return String(localized: "common.transmitDisabledOutsideAn")
         }
         return nil
     }
@@ -281,7 +281,7 @@ struct HubControlView: View {
                 viewModel.connect(toHost: host)
             }
         } label: {
-            Text(viewModel.connectionState == .connected ? "Connected" : "Disconnected")
+            Text(viewModel.connectionState == .connected ? "common.connected" : "common.disconnected")
                 .font(.headline)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)

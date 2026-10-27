@@ -27,8 +27,8 @@ struct ContentView: View {
 
         var label: String {
             switch self {
-            case .macHub: "Mac hub"
-            case .piDirect: "Pi direct"
+            case .macHub: String(localized: "content.macHub")
+            case .piDirect: String(localized: "content.piDirect")
             }
         }
     }
@@ -50,13 +50,13 @@ struct ContentView: View {
         VStack(spacing: 0) {
             Group {
                 if isConnected {
-                    Picker("Receiver", selection: $side) {
+                    Picker("common.receiver", selection: $side) {
                         ForEach(DisplaySide.allCases, id: \.self) { side in
                             Text(side.label).tag(side)
                         }
                     }
                 } else {
-                    Picker("Connection", selection: $route) {
+                    Picker("common.connection", selection: $route) {
                         ForEach(ConnectionRoute.allCases, id: \.self) { route in
                             Text(route.label).tag(route)
                         }
@@ -94,7 +94,7 @@ struct HubControlView: View {
     var body: some View {
         VStack(spacing: 16) {
             if viewModel.connectionState != .connected {
-                TextField("Mac hostname (Tailscale)", text: $host)
+                TextField("content.macHostnameTailscale", text: $host)
                     .textFieldStyle(.roundedBorder)
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
@@ -139,8 +139,8 @@ struct HubControlView: View {
             .opacity(canTransmit ? 1 : 0.4)
             .help(
                 viewModel.rigState.transmitEnabled
-                    ? (canTransmit ? "" : "Transmit disabled: outside an amateur band")
-                    : "Transmit disabled"
+                    ? (canTransmit ? "" : "common.transmitDisabledOutsideAn")
+                    : "common.transmitDisabled"
             )
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -167,7 +167,7 @@ struct HubControlView: View {
                 viewModel.connect(toHost: host)
             }
         } label: {
-            Text(viewModel.connectionState == .connected ? "Connected" : "Disconnected")
+            Text(viewModel.connectionState == .connected ? "common.connected" : "common.disconnected")
                 .font(.headline)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)

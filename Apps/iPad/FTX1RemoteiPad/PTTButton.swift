@@ -18,7 +18,7 @@ struct PTTButton: View {
 
     var body: some View {
         ZStack {
-            Text("Connected").hidden()
+            Text("common.connected").hidden()
             Text(isTransmitting ? "TX" : "PTT")
         }
         .font(.headline)
@@ -41,8 +41,8 @@ struct PTTButton: View {
                     onRelease()
                 }
         )
-        .accessibilityLabel(isTransmitting ? "Transmitting" : "Push to talk")
-        .accessibilityHint(blockReason ?? "Hold to transmit")
+        .accessibilityLabel(isTransmitting ? "pttButton.transmitting" : "pttButton.pushToTalk")
+        .accessibilityHint(blockReason ?? String(localized: "pttButton.holdToTransmit"))
         .accessibilityAddTraits(.isButton)
     }
 }
@@ -51,7 +51,7 @@ struct PTTButton: View {
     HStack {
         PTTButton(isTransmitting: false, blockReason: nil, onPress: {}, onRelease: {})
         PTTButton(isTransmitting: true, blockReason: nil, onPress: {}, onRelease: {})
-        PTTButton(isTransmitting: false, blockReason: "Transmit disabled", onPress: {}, onRelease: {})
+        PTTButton(isTransmitting: false, blockReason: String(localized: "common.transmitDisabled"), onPress: {}, onRelease: {})
     }
     .padding()
 }

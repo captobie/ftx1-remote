@@ -64,7 +64,7 @@ struct RecentHostField: View {
                             .imageScale(.large)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Forget \(recent)")
+                    .accessibilityLabel("recentHostField.forget \(recent)")
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
