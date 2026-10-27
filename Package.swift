@@ -3,6 +3,9 @@ import PackageDescription
 
 let package = Package(
     name: "FTX1Core",
+    // English is the development language; UI strings live in each
+    // target's Localizable.xcstrings and are looked up with `bundle: .module`.
+    defaultLocalization: "en",
     platforms: [
         .macOS("15.0"),
         .iOS("18.0")
@@ -42,11 +45,12 @@ let package = Package(
             dependencies: [],
             // DSEG7 Classic (SIL OFL, DSEG-LICENSE.txt) for the VFO boxes'
             // 7-segment digits — see `VFODigitFonts`.
-            resources: [.copy("Resources/Fonts")]
+            resources: [.copy("Resources/Fonts"), .process("Resources/Localizable.xcstrings")]
         ),
         .target(
             name: "FTX1CW",
-            dependencies: ["FTX1Core", .product(name: "CWKit", package: "cwdecode")]
+            dependencies: ["FTX1Core", .product(name: "CWKit", package: "cwdecode")],
+            resources: [.process("Resources/Localizable.xcstrings")]
         ),
         .testTarget(
             name: "FTX1CoreTests",

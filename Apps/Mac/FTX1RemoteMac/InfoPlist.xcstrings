@@ -1,0 +1,50 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "CFBundleName" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "NSAudioCaptureUsageDescription" : {
+      "comment" : "System Audio Recording permission prompt",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1Remote captures what the WebSDR window is playing so the CW window can decode it."
+          }
+        }
+      }
+    },
+    "NSLocalNetworkUsageDescription" : {
+      "comment" : "Local Network permission prompt",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote needs to accept connections from your iPhone/iPad to control the radio remotely."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "comment" : "Microphone permission prompt",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote uses audio from the selected input device to draw a waterfall display of receive audio."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
