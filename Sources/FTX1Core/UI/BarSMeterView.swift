@@ -72,7 +72,7 @@ public struct BarSMeterView: View {
                 .presentationCompactAdaptation(.popover)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label) meter")
+        .accessibilityLabel(String(localized: "barSMeter.meter \(label)", bundle: .module))
         .accessibilityValue(readout)
     }
 

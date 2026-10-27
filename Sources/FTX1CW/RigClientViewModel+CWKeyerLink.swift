@@ -20,9 +20,9 @@ extension RigClientViewModel: CWKeyerLink {
     public var cwSendBlock: CWSendBlock? {
         guard connectionState == .connected else { return .notConnected }
         if !rigState.transmitEnabled {
-            return .transmitBlocked("Transmit is locked on the Mac — unlock it with the lock button next to PTT")
+            return .transmitBlocked(String(localized: "rigClient.transmitIsLockedOn", bundle: .module))
         }
-        if isTransmitting { return .transmitBlocked("PTT is held") }
+        if isTransmitting { return .transmitBlocked(String(localized: "common.pttIsHeld", bundle: .module)) }
         if rigState.mode != .cw { return .notCW(rigState.mode) }
         if BandPlan.band(containing: rigState.frequencyHz) == nil { return .outsideBand }
         if rigState.breakIn == false { return .breakInOff }

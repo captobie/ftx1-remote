@@ -145,7 +145,7 @@ public final class CWSender: ObservableObject {
     public func enqueue(_ line: String) -> String? {
         let prepared = CWText.prepare(line)
         guard !prepared.text.isEmpty else {
-            return prepared.dropped.isEmpty ? nil : "Nothing the keyer can send in that line"
+            return prepared.dropped.isEmpty ? nil : String(localized: "cwSender.nothingTheKeyerCan", bundle: .module)
         }
         items.append(CWSendItem(text: prepared.text, chunks: CWText.chunks(prepared.text), dropped: prepared.dropped))
         if items.count > Self.maxItems { items.removeFirst(items.count - Self.maxItems) }
@@ -157,7 +157,7 @@ public final class CWSender: ObservableObject {
     /// send line (macros don't send directly — user decision 2026-10-03, so
     /// the text can be edited first). `stationSettings` says where the
     /// user sets their own call and grid, for the message when one is empty.
-    public func text(for macro: CWMacro, stationSettings: String = "Settings → Station") -> Result<String, CWMacro.Problem> {
+    public func text(for macro: CWMacro, stationSettings: String? = nil) -> Result<String, CWMacro.Problem> {
         macro.expanded(myCall: StationSettings.callsign, myGrid: StationSettings.gridSquare, theirCall: theirCall,
                        stationSettings: stationSettings)
     }
@@ -235,11 +235,11 @@ public final class CWSender: ObservableObject {
             items[index].state = .sending
 
             if slotCheckedAsText != slot {
-                activity = "Checking keyer memory \(slot)…"
+                activity = String(localized: "cwSender.checkingKeyerMemory \(slot)", bundle: .module)
                 try await link.ensureCWTextMemory(slot: slot)
                 slotCheckedAsText = slot
             }
-            activity = "Writing keyer memory \(slot)…"
+            activity = String(localized: "cwSender.writingKeyerMemory \(slot)", bundle: .module)
             let stored = try await link.writeCWKeyerMemory(slot: slot, text: chunk)
             try Task.checkCancellation()
             if stored != chunk {
@@ -253,7 +253,7 @@ public final class CWSender: ObservableObject {
             }
             let wpm = max(link.cwRigState.cwSpeedWpm ?? 20, 4)
             let expected = CWText.duration(of: chunk, wpm: wpm)
-            activity = "Sending at \(wpm) WPM…"
+            activity = String(localized: "cwSender.sendingAtWpm \(wpm)", bundle: .module)
             let startedAt = Date()
             link.playCWTextMemory(slot: slot)
             onKeying?(CWKeyingChunk(text: chunk, wpm: wpm, pitchHz: link.cwRigState.cwPitchHz))
@@ -269,7 +269,7 @@ public final class CWSender: ObservableObject {
     /// Waits while something blocks sending (showing it in the pane).
     private func waitUntilSendable() async throws {
         while let link, let block = link.cwSendBlock {
-            activity = "Waiting: \(block.message)"
+            activity = String(localized: "cwSender.waiting \(block.message)", bundle: .module)
             try await Task.sleep(for: .milliseconds(500))
         }
         guard link != nil else { throw CancellationError() }
@@ -285,10 +285,10 @@ public final class CWSender: ObservableObject {
                 return
             }
             activity = switch holder {
-            case .holder(.macCWWindow): "Waiting: the Mac's CW window is sending"
-            case .holder(.hubDevice): "Waiting: a device on the hub is sending"
-            case .holder(.otherHubDevice): "Waiting: another device on the hub is sending"
-            case .text(let text): "Waiting: \(text) is sending"
+            case .holder(.macCWWindow): String(localized: "cwSender.waitingTheMacsCw", bundle: .module)
+            case .holder(.hubDevice): String(localized: "cwSender.waitingADeviceOn", bundle: .module)
+            case .holder(.otherHubDevice): String(localized: "cwSender.waitingAnotherDeviceOn", bundle: .module)
+            case .text(let text): String(localized: "cwSender.waitingIsSending \(text)", bundle: .module)
             }
             try await Task.sleep(for: .seconds(1))
             // Whatever blocked before may have changed while waiting.
@@ -372,12 +372,12 @@ public enum CWSendBlock: Equatable, Sendable {
 
     public var message: String {
         switch self {
-        case .notConnected: "the rig isn't connected"
-        case .transmitDisabled: "transmit is turned off (Settings → rigctld → Enable Transmit)"
+        case .notConnected: String(localized: "cwSender.theRigIsntConnected", bundle: .module)
+        case .transmitDisabled: String(localized: "cwSender.transmitIsTurnedOff", bundle: .module)
         case .transmitBlocked(let reason): reason.prefix(1).lowercased() + reason.dropFirst()
-        case .notCW(let mode): "the rig is in \(mode.displayName), not CW"
-        case .outsideBand: "the rig is outside the amateur bands"
-        case .breakInOff: "break-in is off — the rig only keys its memory with BK-IN on"
+        case .notCW(let mode): String(localized: "cwSender.theRigIsIn \(mode.displayName)", bundle: .module)
+        case .outsideBand: String(localized: "cwSender.theRigIsOutside", bundle: .module)
+        case .breakInOff: String(localized: "cwSender.breakInIsOff", bundle: .module)
         }
     }
 }
@@ -387,7 +387,7 @@ public enum CWSendError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .blocked(let reason): "Not sent: \(reason)"
+        case .blocked(let reason): String(localized: "cwSender.notSent \(reason)", bundle: .module)
         }
     }
 }
@@ -527,7 +527,7 @@ public struct CWMacro: Identifiable, Codable, Equatable, Sendable {
 
         public var message: String {
             switch self {
-            case .missing(let what): "\(what) is empty"
+            case .missing(let what): String(localized: "cwSender.isEmpty \(what)", bundle: .module)
             }
         }
     }
@@ -536,11 +536,12 @@ public struct CWMacro: Identifiable, Codable, Equatable, Sendable {
     /// `stationSettings`), `{CALL}` from the
     /// pane's Their call field.
     public func expanded(myCall: String, myGrid: String, theirCall: String,
-                         stationSettings: String = "Settings → Station") -> Result<String, Problem> {
+                         stationSettings: String? = nil) -> Result<String, Problem> {
+        let stationSettings = stationSettings ?? String(localized: "common.settingsStation", bundle: .module)
         let values: [(String, String, String)] = [
-            ("{MYCALL}", myCall, "Your callsign (\(stationSettings))"),
-            ("{MYGRID}", myGrid, "Your grid square (\(stationSettings))"),
-            ("{CALL}", theirCall, "Their call"),
+            ("{MYCALL}", myCall, String(localized: "cwSender.yourCallsign \(stationSettings)", bundle: .module)),
+            ("{MYGRID}", myGrid, String(localized: "cwSender.yourGridSquare \(stationSettings)", bundle: .module)),
+            ("{CALL}", theirCall, String(localized: "common.theirCall", bundle: .module)),
         ]
         var result = text
         for (placeholder, value, name) in values where result.uppercased().contains(placeholder) {

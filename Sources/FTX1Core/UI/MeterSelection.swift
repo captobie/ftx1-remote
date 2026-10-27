@@ -28,12 +28,12 @@ public enum MeterSelection: String, CaseIterable, Sendable {
     /// One-line description, shown in the picker like the manual's callouts.
     public var detail: String {
         switch self {
-        case .po: "RF power output"
-        case .comp: "Speech processor compression"
-        case .alc: "Relative ALC voltage"
-        case .vdd: "Final amplifier drain voltage"
-        case .id: "Final amplifier drain current"
-        case .swr: "Standing wave ratio"
+        case .po: String(localized: "meterSelection.rfPowerOutput", bundle: .module)
+        case .comp: String(localized: "meterSelection.speechProcessorCompression", bundle: .module)
+        case .alc: String(localized: "meterSelection.relativeAlcVoltage", bundle: .module)
+        case .vdd: String(localized: "meterSelection.finalAmplifierDrainVoltage", bundle: .module)
+        case .id: String(localized: "meterSelection.finalAmplifierDrainCurrent", bundle: .module)
+        case .swr: String(localized: "meterSelection.standingWaveRatio", bundle: .module)
         }
     }
 

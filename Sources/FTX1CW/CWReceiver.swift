@@ -297,7 +297,7 @@ public final class CWReceiver: ObservableObject {
     }
 
     private func reportFileError(_ error: any Error, url: URL) {
-        errorMessage = "Couldn't read “\(url.lastPathComponent)”: \(error.localizedDescription)"
+        errorMessage = String(localized: "cwReceiver.couldntRead \(url.lastPathComponent) \(error.localizedDescription)", bundle: .module)
     }
 
     // MARK: - Text

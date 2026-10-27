@@ -196,7 +196,7 @@ public final class CWRemoteKeyingDriver: CWKeyingDriving, @unchecked Sendable {
             sendHello()
             receive(on: changed)
         case .waiting(let error), .failed(let error):
-            dropped("Pi keyer: \(error.localizedDescription)")
+            dropped(String(localized: "cwRemoteKeyingDriver.piKeyer \(error.localizedDescription)", bundle: .module))
         case .cancelled:
             break
         default:
@@ -229,7 +229,7 @@ public final class CWRemoteKeyingDriver: CWKeyingDriving, @unchecked Sendable {
                 self.parseStatuses()
             }
             if isComplete || error != nil {
-                self.dropped(error.map { "Pi keyer: \($0.localizedDescription)" } ?? "Pi keyer closed the connection")
+                self.dropped(error.map { String(localized: "cwRemoteKeyingDriver.piKeyer \($0.localizedDescription)", bundle: .module) } ?? String(localized: "cwRemoteKeyingDriver.piKeyerClosedThe", bundle: .module))
                 self.publish()
                 return
             }
@@ -270,7 +270,7 @@ public final class CWRemoteKeyingDriver: CWKeyingDriving, @unchecked Sendable {
         guard let connection, connectionReady else { return }
         connection.send(content: CWKeyWire.line(message), completion: .contentProcessed { [weak self] error in
             guard let error else { return }
-            self?.queue.async { self?.dropped("Pi keyer: \(error.localizedDescription)") }
+            self?.queue.async { self?.dropped(String(localized: "cwRemoteKeyingDriver.piKeyer \(error.localizedDescription)", bundle: .module)) }
         })
     }
 
@@ -355,7 +355,7 @@ public final class CWRemoteKeyingDriver: CWKeyingDriving, @unchecked Sendable {
         } else if let blockReason {
             snapshot.cutoff = .blocked(blockReason)
         } else if !connectionReady || piStatus == nil {
-            snapshot.cutoff = .remote(connectionError ?? "Connecting to the Pi keyer…")
+            snapshot.cutoff = .remote(connectionError ?? String(localized: "cwRemoteKeyingDriver.connectingToThePi", bundle: .module))
         } else if let cutoff = piStatus?.cutoff {
             snapshot.cutoff = .remote(cutoff)
         }

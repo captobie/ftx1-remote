@@ -136,7 +136,7 @@ public actor RigWebSocketClient {
 
     private func errorMessage(for error: Error) -> String {
         if error is RigWebSocketError {
-            return "Timed out connecting"
+            return String(localized: "rigWebSocketClient.timedOutConnecting", bundle: .module)
         }
         return error.localizedDescription
     }
@@ -301,7 +301,7 @@ public actor RigWebSocketClient {
         task?.cancel(with: .abnormalClosure, reason: nil)
         task = nil
         heartbeatTask = nil
-        setState(.failed("Connection timed out"))
+        setState(.failed(String(localized: "rigWebSocketClient.connectionTimedOut", bundle: .module)))
     }
 }
 

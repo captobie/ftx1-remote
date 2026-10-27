@@ -27,7 +27,7 @@ public struct IFShiftControl<Controller: RigController>: View {
         let mode = hub.rigState.filterMode
         if mode != .c4fm && mode != .unknown {
             HStack(spacing: 6) {
-                Text("Shift")
+                Text("ifShiftControl.shift", bundle: .module)
 
                 Slider(
                     value: sliderValue,
@@ -53,7 +53,7 @@ public struct IFShiftControl<Controller: RigController>: View {
                 }
                 .buttonStyle(ThemedButtonStyle())
                 .disabled(hub.rigState.ifShiftHz == nil || hub.rigState.ifShiftHz == 0)
-                .help("Center")
+                .help(String(localized: "ifShiftControl.center", bundle: .module))
             }
             .disabled(!IFShift.isSupported(mode: mode))
         }

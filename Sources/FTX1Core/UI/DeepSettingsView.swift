@@ -56,9 +56,9 @@ public struct DeepSettingsView<Controller: RigController>: View {
             Group {
                 if tabs.isEmpty {
                     ContentUnavailableView(
-                        "Not catalogued yet",
+                        String(localized: "deepSettings.notCataloguedYet", bundle: .module),
                         systemImage: "list.bullet.rectangle",
-                        description: Text("\(title) items haven't been added to the Deep Settings catalog.")
+                        description: Text("deepSettings.itemsHaventBeenAdded \(title)", bundle: .module)
                     )
                 } else if let selectedTab {
                     List(itemsForSelectedTab) { item in
@@ -73,7 +73,7 @@ public struct DeepSettingsView<Controller: RigController>: View {
                         if isLoading { ProgressView() }
                     }
                 } else {
-                    ContentUnavailableView("Select a tab", systemImage: "sidebar.left")
+                    ContentUnavailableView(String(localized: "deepSettings.selectATab", bundle: .module), systemImage: "sidebar.left")
                 }
             }
             #if os(iOS)
@@ -95,7 +95,7 @@ public struct DeepSettingsView<Controller: RigController>: View {
 
     private var doneButton: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("Done") { dismiss() }
+            Button(String(localized: "common.done", bundle: .module)) { dismiss() }
         }
     }
 

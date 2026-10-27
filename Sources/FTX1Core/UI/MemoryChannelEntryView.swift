@@ -30,14 +30,14 @@ public struct MemoryChannelEntryView: View {
     public var body: some View {
         VStack(spacing: 12) {
             HStack {
-                TextField("Channel", text: $text)
+                TextField(String(localized: "memoryChannelEntry.channel", bundle: .module), text: $text)
                     #if os(iOS)
                     .keyboardType(.numberPad)
                     #endif
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 80)
                     .onSubmit(commitText)
-                Button("Set", action: commitText)
+                Button(String(localized: "memoryChannelEntry.set", bundle: .module), action: commitText)
             }
 
             HStack(spacing: 20) {

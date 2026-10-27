@@ -18,16 +18,16 @@ public enum TransmitGate {
     /// segment can't open a broadcast band.
     public static func blockReason(transmitEnabled: Bool, state: RigState,
                                    privileges: PrivilegeProfile? = nil) -> String? {
-        guard transmitEnabled else { return "Transmit disabled" }
+        guard transmitEnabled else { return String(localized: "common.transmitDisabled", bundle: .module) }
         let hz = transmitFrequencyHz(of: state)
         guard BandPlan.band(containing: hz) != nil else {
-            return "Transmit disabled: outside an amateur band"
+            return String(localized: "common.transmitDisabledOutsideAn", bundle: .module)
         }
         if let privileges {
             let mode = transmitMode(of: state)
-            guard mode != .unknown else { return "Transmit disabled: the transmitting side's mode isn't known yet" }
+            guard mode != .unknown else { return String(localized: "transmitGate.transmitDisabledTheTransmitting", bundle: .module) }
             guard privileges.allows(dialHz: hz, mode: mode) else {
-                return "Transmit disabled: \(mode.displayName) on \(formatMHz(hz)) MHz is outside \(privileges.name) privileges"
+                return String(localized: "transmitGate.transmitDisabledOnMHz \(mode.displayName) \(formatMHz(hz)) \(privileges.name)", bundle: .module)
             }
         }
         return nil

@@ -27,7 +27,7 @@ public struct NarrowControl<Controller: RigController>: View {
                 hub.send(.setNarrow(!isOn))
             }
             .disabled(hub.rigState.narrowEnabled == nil)
-            .help("Narrow filter on/off")
+            .help(String(localized: "narrowControl.narrowFilterOnOff", bundle: .module))
             button.buttonStyle(ThemedButtonStyle(isOn: isOn))
         }
     }

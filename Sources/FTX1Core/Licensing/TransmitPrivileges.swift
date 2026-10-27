@@ -12,8 +12,8 @@ public enum TransmitEmission: String, Codable, Sendable, CaseIterable, Hashable 
     public var displayName: String {
         switch self {
         case .cw: "CW"
-        case .phone: "Phone"
-        case .data: "Data"
+        case .phone: String(localized: "transmitPrivileges.phone", bundle: .module)
+        case .data: String(localized: "transmitPrivileges.data", bundle: .module)
         }
     }
 }

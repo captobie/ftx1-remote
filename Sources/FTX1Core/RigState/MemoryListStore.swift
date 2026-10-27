@@ -80,7 +80,7 @@ public final class MemoryListStore: ObservableObject {
         var blankRun = 0
         for channel in RigState.memoryChannelRange {
             if Task.isCancelled {
-                scanError = "Stopped at channel \(channel)."
+                scanError = String(localized: "memoryListStore.stoppedAtChannel \(channel)", bundle: .module)
                 return
             }
             scanningChannel = channel
@@ -92,7 +92,7 @@ public final class MemoryListStore: ObservableObject {
                     blankRun += 1
                 }
             } catch RigctldError.notConnected, RigctldError.connectionLost {
-                scanError = "Lost the rig connection at channel \(channel)."
+                scanError = String(localized: "memoryListStore.lostTheRigConnection \(channel)", bundle: .module)
                 return
             } catch {
                 // A timed-out read (the client has already reconnected):

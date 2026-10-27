@@ -13,12 +13,12 @@ public enum SerialPortError: Error, Equatable, CustomStringConvertible {
         switch self {
         case .open(let path, let code):
             code == EBUSY
-                ? "\(path) is in use by another program"
-                : "Can't open \(path): \(String(cString: strerror(code)))"
-        case .configure(let path, let code): "Can't configure \(path): \(String(cString: strerror(code)))"
-        case .modemLines(let path, let code): "Can't set RTS/DTR on \(path): \(String(cString: strerror(code)))"
-        case .write(let path, let code): "Can't write to \(path): \(String(cString: strerror(code)))"
-        case .closed: "Port closed"
+                ? String(localized: "posixSerialPort.isInUseBy \(path)", bundle: .module)
+                : String(localized: "posixSerialPort.cantOpen \(path) \(String(cString: strerror(code)))", bundle: .module)
+        case .configure(let path, let code): String(localized: "posixSerialPort.cantConfigure \(path) \(String(cString: strerror(code)))", bundle: .module)
+        case .modemLines(let path, let code): String(localized: "posixSerialPort.cantSetRtsDtr \(path) \(String(cString: strerror(code)))", bundle: .module)
+        case .write(let path, let code): String(localized: "posixSerialPort.cantWriteTo \(path) \(String(cString: strerror(code)))", bundle: .module)
+        case .closed: String(localized: "posixSerialPort.portClosed", bundle: .module)
         }
     }
 }

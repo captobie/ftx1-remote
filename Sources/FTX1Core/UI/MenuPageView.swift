@@ -133,7 +133,7 @@ public struct MenuPageView<Controller: RigController>: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if showsPagePicker {
-                Picker("Menu page", selection: $selectedPage) {
+                Picker(String(localized: "menuPage.menuPage", bundle: .module), selection: $selectedPage) {
                     ForEach(MenuPage.allCases) { page in
                         Text(page.rawValue).tag(page)
                     }
@@ -810,7 +810,7 @@ public struct MenuPageView<Controller: RigController>: View {
                         Image(systemName: "chevron.left")
                     }
                     .disabled(displayedRFPowerLevel <= RigState.minimumPowerLevel)
-                    .help("Decrease RF power by 1 W")
+                    .help(String(localized: "menuPage.decreaseRfPowerBy", bundle: .module))
                     Slider(
                         value: Binding(
                             get: { displayedRFPowerLevel },
@@ -832,7 +832,7 @@ public struct MenuPageView<Controller: RigController>: View {
                         Image(systemName: "chevron.right")
                     }
                     .disabled(displayedRFPowerLevel >= 1)
-                    .help("Increase RF power by 1 W")
+                    .help(String(localized: "menuPage.increaseRfPowerBy", bundle: .module))
                 }
             }
             .padding()

@@ -103,7 +103,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
 
     public func connect(toHost host: String) {
         guard !host.isEmpty, let url = URL(string: "ws://\(host):\(port)") else {
-            connectionState = .failed("Invalid host")
+            connectionState = .failed(String(localized: "rigClient.invalidHost", bundle: .module))
             return
         }
 
@@ -327,7 +327,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
         guard TXAudioCapture.permissionGranted else {
             Task {
                 if await !TXAudioCapture.requestPermission() {
-                    transmitProblem = "Microphone access is off — allow it in Settings to transmit audio"
+                    transmitProblem = String(localized: "common.microphoneAccessIsOff", bundle: .module)
                 }
             }
             return
@@ -364,7 +364,7 @@ public final class RigClientViewModel: ObservableObject, RigController {
                 try? await client.sendTXAudio(pcm)
             }
         } catch {
-            transmitProblem = "Microphone didn't start: \(error.localizedDescription)"
+            transmitProblem = String(localized: "common.microphoneDidntStart \(error.localizedDescription)", bundle: .module)
             // Keyed with nothing to send: unkey rather than carry dead air.
             stopTransmit()
         }
@@ -455,12 +455,12 @@ public enum CWKeyerRequestError: LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .notConnected: "Not connected to the Mac"
-        case .noReply: "The Mac didn't answer — update the Mac app to send CW from here"
-        case .refused(.badSlot, let slot, _): "Keyer memory \(slot) doesn't exist (1–5)"
-        case .refused(.badText, _, _): "The Mac refused the text: up to 50 characters the keyer can send"
-        case .refused(.notHolder, _, .macCWWindow?): "The keyer is in use by the Mac's CW window"
-        case .refused(.notHolder, _, _): "The keyer is in use by another device on the hub"
+        case .notConnected: String(localized: "rigClient.notConnectedToThe", bundle: .module)
+        case .noReply: String(localized: "rigClient.theMacDidntAnswer", bundle: .module)
+        case .refused(.badSlot, let slot, _): String(localized: "rigClient.keyerMemoryDoesntExist \(slot)", bundle: .module)
+        case .refused(.badText, _, _): String(localized: "rigClient.theMacRefusedThe", bundle: .module)
+        case .refused(.notHolder, _, .macCWWindow?): String(localized: "rigClient.theKeyerIsIn", bundle: .module)
+        case .refused(.notHolder, _, _): String(localized: "rigClient.theKeyerIsInUse", bundle: .module)
         case .refused(let code, _, _): RigctldError(keyerErrorCode: code)?.errorDescription
         case .failed(let message): message
         }

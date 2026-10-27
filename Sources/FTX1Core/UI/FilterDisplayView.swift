@@ -44,7 +44,7 @@ public struct FilterDisplayView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.black))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.gray.opacity(0.4), lineWidth: 1.5))
-        .help("Filter function display: passband (WIDTH/SHIFT), notch, contour/APF")
+        .help(String(localized: "filterDisplay.filterFunctionDisplayPassband", bundle: .module))
     }
 
     /// The passband trapezoid (flat top, short skirts), or nil.

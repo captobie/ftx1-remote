@@ -28,7 +28,7 @@ public struct FilterWidthControl<Controller: RigController>: View {
         let entries = FilterWidthTable.entries(for: mode)
         if !entries.isEmpty {
             HStack(spacing: 6) {
-                Picker("Width", selection: selection(entries: entries)) {
+                Picker(String(localized: "filterWidthControl.width", bundle: .module), selection: selection(entries: entries)) {
                     // Right after a mode change `filterWidthIndex` still
                     // holds the previous mode's index until the next
                     // slow-tier poll re-reads it (and before any poll at

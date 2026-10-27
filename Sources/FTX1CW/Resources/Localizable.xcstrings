@@ -1,5 +1,468 @@
 {
   "sourceLanguage" : "en",
-  "strings" : {},
+  "strings" : {
+    "common.pttIsHeld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PTT is held"
+          }
+        }
+      }
+    },
+    "common.settingsStation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings → Station"
+          }
+        }
+      }
+    },
+    "common.theirCall" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Their call"
+          }
+        }
+      }
+    },
+    "cwReceiver.couldntRead %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read “%@”: %@"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.autoTune" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-tune"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.decoder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decoder"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.decoderClassic" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.decoderNeural" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neural"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.decodingFile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decoding file…"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.elementsOfTheCharacter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elements of the character being received (Classic decoder)"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.followTheStrongestTone %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow the strongest tone between %lld and %lld Hz"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.keyDown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key down"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.minimumSignalToNoise" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimum signal-to-noise ratio needed before anything is decoded"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.neuralAModelTrained" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neural: a model trained on simulated CW, best on weak and noisy signals; text runs about 3½ s behind. Classic: tone threshold and timing rules."
+          }
+        }
+      }
+    },
+    "cwReceiverControls.rigPitch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig Pitch"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.snrDB %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SNR %lld dB"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.squelch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squelch"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.theNeuralDecoderDoesnt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The neural decoder doesn't need a squelch: it stays silent on noise"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.theRigsCwPitch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rig's CW pitch hasn't been read yet"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.tone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tone"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.toneLevelBetweenThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tone level between the noise floor and the signal peak"
+          }
+        }
+      }
+    },
+    "cwReceiverControls.turnOffAutoTune %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off auto-tune and use the rig's CW pitch, %lld Hz — where a zero-beat signal sounds"
+          }
+        }
+      }
+    },
+    "cwSender.breakInIsOff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "break-in is off — the rig only keys its memory with BK-IN on"
+          }
+        }
+      }
+    },
+    "cwSender.checkingKeyerMemory %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking keyer memory %lld…"
+          }
+        }
+      }
+    },
+    "cwSender.isEmpty %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is empty"
+          }
+        }
+      }
+    },
+    "cwSender.notSent %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not sent: %@"
+          }
+        }
+      }
+    },
+    "cwSender.nothingTheKeyerCan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing the keyer can send in that line"
+          }
+        }
+      }
+    },
+    "cwSender.sendingAtWpm %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending at %lld WPM…"
+          }
+        }
+      }
+    },
+    "cwSender.theRigIsIn %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the rig is in %@, not CW"
+          }
+        }
+      }
+    },
+    "cwSender.theRigIsOutside" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the rig is outside the amateur bands"
+          }
+        }
+      }
+    },
+    "cwSender.theRigIsntConnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the rig isn't connected"
+          }
+        }
+      }
+    },
+    "cwSender.transmitIsTurnedOff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "transmit is turned off (Settings → rigctld → Enable Transmit)"
+          }
+        }
+      }
+    },
+    "cwSender.waiting %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting: %@"
+          }
+        }
+      }
+    },
+    "cwSender.waitingADeviceOn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting: a device on the hub is sending"
+          }
+        }
+      }
+    },
+    "cwSender.waitingAnotherDeviceOn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting: another device on the hub is sending"
+          }
+        }
+      }
+    },
+    "cwSender.waitingIsSending %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting: %@ is sending"
+          }
+        }
+      }
+    },
+    "cwSender.waitingTheMacsCw" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting: the Mac's CW window is sending"
+          }
+        }
+      }
+    },
+    "cwSender.writingKeyerMemory %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Writing keyer memory %lld…"
+          }
+        }
+      }
+    },
+    "cwSender.yourCallsign %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your callsign (%@)"
+          }
+        }
+      }
+    },
+    "cwSender.yourGridSquare %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your grid square (%@)"
+          }
+        }
+      }
+    },
+    "piDirect.transmitIsLockedUnlock" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit is locked — unlock it with the lock button next to PTT"
+          }
+        }
+      }
+    },
+    "rigClient.transmitIsLockedOn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit is locked on the Mac — unlock it with the lock button next to PTT"
+          }
+        }
+      }
+    }
+  },
   "version" : "1.0"
 }

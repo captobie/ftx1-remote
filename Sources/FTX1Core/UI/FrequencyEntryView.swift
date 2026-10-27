@@ -46,10 +46,10 @@ public struct FrequencyEntryView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 140)
                     .onSubmit(commitText)
-                Button("Set", action: commitText)
+                Button(String(localized: "frequencyEntry.set", bundle: .module), action: commitText)
             }
 
-            Picker("Step", selection: $stepSize) {
+            Picker(String(localized: "frequencyEntry.step", bundle: .module), selection: $stepSize) {
                 ForEach(StepSize.allCases, id: \.self) { size in
                     Text(size.label).tag(size)
                 }

@@ -24,7 +24,7 @@ public enum VFODigitFont: String, CaseIterable, Codable, Sendable, Hashable {
         switch self {
         case .systemMono: "SF Mono"
         case .menlo: "Menlo"
-        case .sevenSegment: "7-segment"
+        case .sevenSegment: String(localized: "vfoDigitFont.sevenSegment", bundle: .module)
         }
     }
 }
@@ -366,6 +366,21 @@ public enum ThemePresets {
 
     /// The names the picker lists, Auto first.
     public static let names: [String] = [auto] + all.map(\.name)
+
+    /// What the picker shows for a theme. The names themselves are what
+    /// gets saved (`appearance.themeName`), so they stay English; this is
+    /// the localized label.
+    public static func displayName(_ name: String) -> String {
+        switch name {
+        case auto: String(localized: "themePresets.auto", bundle: .module)
+        case defaultLight.name: String(localized: "themePresets.defaultLight", bundle: .module)
+        case defaultDark.name: String(localized: "themePresets.defaultDark", bundle: .module)
+        case glossyBlack.name: String(localized: "themePresets.glossyBlack", bundle: .module)
+        case dustyRose.name: String(localized: "themePresets.dustyRose", bundle: .module)
+        case icyMint.name: String(localized: "themePresets.icyMint", bundle: .module)
+        default: name
+        }
+    }
 
     /// The theme for a saved name, or nil for Auto (or a name that no
     /// longer exists): the system appearance, no overrides.

@@ -27,8 +27,8 @@ public struct ContourAPFControl<Controller: RigController>: View {
             EmptyView()
         case .contour?:
             FilterToggleSlider(
-                title: "Contour",
-                help: "Contour on/off",
+                title: String(localized: "contourAPFControl.contour", bundle: .module),
+                help: String(localized: "contourAPFControl.contourOnOff", bundle: .module),
                 range: IFContour.contourRangeHz,
                 stepHz: IFContour.stepHz,
                 isOn: hub.rigState.contourEnabled,
@@ -43,7 +43,7 @@ public struct ContourAPFControl<Controller: RigController>: View {
         case .apf?:
             FilterToggleSlider(
                 title: "APF",
-                help: "Audio peak filter on/off",
+                help: String(localized: "contourAPFControl.audioPeakFilterOn", bundle: .module),
                 range: IFContour.apfRangeHz,
                 stepHz: IFContour.stepHz,
                 isOn: hub.rigState.apfEnabled,

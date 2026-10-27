@@ -18,14 +18,14 @@ public enum ButtonValueColor: String, CaseIterable, Codable, Sendable, Hashable 
 
     public var displayName: String {
         switch self {
-        case .orange: "Orange"
-        case .red: "Red"
-        case .yellow: "Yellow"
-        case .green: "Green"
-        case .cyan: "Cyan"
-        case .blue: "Blue"
-        case .pink: "Pink"
-        case .white: "White"
+        case .orange: String(localized: "buttonValueColor.orange", bundle: .module)
+        case .red: String(localized: "buttonValueColor.red", bundle: .module)
+        case .yellow: String(localized: "buttonValueColor.yellow", bundle: .module)
+        case .green: String(localized: "buttonValueColor.green", bundle: .module)
+        case .cyan: String(localized: "buttonValueColor.cyan", bundle: .module)
+        case .blue: String(localized: "buttonValueColor.blue", bundle: .module)
+        case .pink: String(localized: "buttonValueColor.pink", bundle: .module)
+        case .white: String(localized: "buttonValueColor.white", bundle: .module)
         }
     }
 

@@ -112,12 +112,12 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
             if armed {
                 guard keyer == nil else { return }
                 guard releasing == nil else {
-                    keyerError = "Still releasing the keying line after a port error — try again shortly"
+                    keyerError = String(localized: "cwKeyingDriver.stillReleasingTheKeying", bundle: .module)
                     update()
                     return
                 }
                 guard let newKeyer = makeKeyer() else {
-                    keyerError = "No keying port selected"
+                    keyerError = String(localized: "cwKeyingDriver.noKeyingPortSelected", bundle: .module)
                     update()
                     return
                 }
@@ -219,7 +219,7 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
     }
 
     public static let feedbackMessage =
-        "RF feedback detected: the key input was following the rig's own transmissions, so keying stopped and the key was disarmed. Check the key lead's ferrite, then re-arm."
+        String(localized: "cwKeyingDriver.rfFeedbackDetectedThe", bundle: .module)
 
 
     private func timerFired() {
@@ -287,7 +287,7 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
     private func startReleasing(_ keyer: CWKeyer, reason: String) {
         let now = clock.now()
         logger.error("releasing the keying line (\(reason, privacy: .public))")
-        keyerError = "Keying port failed (\(reason)) — releasing the line"
+        keyerError = String(localized: "cwKeyingDriver.keyingPortFailedReleasing \(reason)", bundle: .module)
         releasing = (keyer, reason, 0, now, now, now)
     }
 
@@ -304,7 +304,7 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
             if now - entry.loggedAt >= 1 {
                 entry.loggedAt = now
                 logger.error("keying line still not confirmed up after \(entry.tries) tries: \(String(describing: error), privacy: .public)")
-                keyerError = "Keying port failed (\(entry.reason)) — still releasing the line, \(entry.tries) tries"
+                keyerError = String(localized: "cwKeyingDriver.keyingPortFailedStill \(entry.reason) \(entry.tries)", bundle: .module)
             }
             releasing = entry
             return
@@ -313,7 +313,7 @@ public final class CWKeyingDriver: CWKeyingDriving, @unchecked Sendable {
         releasing = nil
         let ms = Int((now - entry.since) * 1000)
         logger.notice("keying line released and confirmed after \(entry.tries) tries (\(ms) ms)")
-        keyerError = "Keying port failed (\(entry.reason)); the line was released — re-arm to key again"
+        keyerError = String(localized: "cwKeyingDriver.keyingPortFailedThe \(entry.reason)", bundle: .module)
     }
 
     private func publish() {

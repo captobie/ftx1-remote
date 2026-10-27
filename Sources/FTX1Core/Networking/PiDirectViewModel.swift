@@ -184,7 +184,7 @@ public final class PiDirectViewModel: ObservableObject {
     /// nil when a press would key — for the PTT button's look.
     public var transmitBlockReason: String? {
         if rigState.memoryScan == .scanning || rigState.memoryScan == .paused {
-            return "Transmit disabled while the rig scans"
+            return String(localized: "piDirect.transmitDisabledWhileThe", bundle: .module)
         }
         return TransmitGate.blockReason(transmitEnabled: transmitEnabled, state: rigState)
     }
@@ -369,7 +369,7 @@ public final class PiDirectViewModel: ObservableObject {
     public func connect(to endpoint: PiEndpoint, wpsdHost: String = "") {
         let host = endpoint.host.trimmingCharacters(in: .whitespaces)
         guard !host.isEmpty else {
-            connectionState = .failed("Enter the Pi's hostname")
+            connectionState = .failed(String(localized: "piDirect.enterThePisHostname", bundle: .module))
             return
         }
         disconnect()
@@ -822,7 +822,7 @@ public final class PiDirectViewModel: ObservableObject {
         guard TXAudioCapture.permissionGranted else {
             Task {
                 if await !TXAudioCapture.requestPermission() {
-                    transmitProblem = "Microphone access is off — allow it in Settings to transmit audio"
+                    transmitProblem = String(localized: "common.microphoneAccessIsOff", bundle: .module)
                 }
             }
             return
@@ -864,7 +864,7 @@ public final class PiDirectViewModel: ObservableObject {
             )
         } catch {
             Task { await txClient.finish() }
-            transmitProblem = "Microphone didn't start: \(error.localizedDescription)"
+            transmitProblem = String(localized: "common.microphoneDidntStart \(error.localizedDescription)", bundle: .module)
             // Keyed with nothing to send: unkey rather than carry dead air.
             stopTransmit()
         }

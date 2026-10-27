@@ -78,7 +78,7 @@ public enum FilterWidthTable {
     /// re-reads it.
     public static func label(forIndex index: Int?, mode: RigMode) -> String {
         guard let index else { return "—" }
-        if index == 0 { return "Default" }
+        if index == 0 { return String(localized: "filterWidthTable.default", bundle: .module) }
         guard let hz = hz(forIndex: index, mode: mode) else { return "—" }
         return "\(hz) Hz"
     }

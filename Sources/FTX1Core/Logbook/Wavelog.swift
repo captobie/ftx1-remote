@@ -80,13 +80,13 @@ public enum Wavelog {
         public var description: String {
             switch self {
             case .badURL:
-                "The Wavelog URL isn't valid"
+                String(localized: "wavelog.theWavelogUrlIsnt", bundle: .module)
             case .refused(let message):
-                "Wavelog: \(message)"
+                String(localized: "wavelog.wavelog \(message)", bundle: .module)
             case .unexpectedReply(let status, let body):
                 body.isEmpty
-                    ? "Unexpected reply from Wavelog (HTTP \(status)) — is the URL right, and is it Wavelog 3.1 or newer?"
-                    : "Unexpected reply from Wavelog (HTTP \(status)): \(body)"
+                    ? String(localized: "wavelog.unexpectedReplyFromWavelog \(status)", bundle: .module)
+                    : String(localized: "wavelog.unexpectedReplyFromWavelogHttp \(status) \(body)", bundle: .module)
             case .network(let message):
                 message
             }
@@ -216,7 +216,7 @@ public enum Wavelog {
             .compactMap { $0 as? String }
             .map(plainText)
             .filter { !$0.isEmpty }
-        return .rejected(messages.isEmpty ? "Wavelog didn't import the QSO" : messages.joined(separator: "; "))
+        return .rejected(messages.isEmpty ? String(localized: "wavelog.wavelogDidntImportThe", bundle: .module) : messages.joined(separator: "; "))
     }
 
     public static func parseStations(status: Int, body: Data) throws(APIError) -> [Station] {
@@ -338,14 +338,14 @@ public enum Wavelog {
         } catch let error as URLError {
             switch error.code {
             case .cannotFindHost, .dnsLookupFailed:
-                throw .network("Couldn't find the host \(request.url?.host ?? "")")
+                throw .network(String(localized: "common.couldntFindTheHost \(request.url?.host ?? "")", bundle: .module))
             case .timedOut:
-                throw .network("Wavelog didn't answer within \(Int(timeout)) s")
+                throw .network(String(localized: "wavelog.wavelogDidntAnswerWithin \(Int(timeout))", bundle: .module))
             default:
-                throw .network("Couldn't reach Wavelog: \(error.localizedDescription)")
+                throw .network(String(localized: "wavelog.couldntReachWavelog \(error.localizedDescription)", bundle: .module))
             }
         } catch {
-            throw .network("Couldn't reach Wavelog: \(error.localizedDescription)")
+            throw .network(String(localized: "wavelog.couldntReachWavelog \(error.localizedDescription)", bundle: .module))
         }
     }
 }

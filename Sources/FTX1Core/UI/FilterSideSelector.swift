@@ -40,8 +40,8 @@ public struct FilterSideSelector<Controller: RigController>: View {
         }
         .disabled(unavailable)
         .help(unavailable
-              ? "SUB receiver isn't shown in single-receive display"
-              : "Apply the filter controls to the \(side.displayName) receiver")
+              ? String(localized: "filterSideSelector.subReceiverIsntShown", bundle: .module)
+              : String(localized: "filterSideSelector.applyTheFilterControls \(side.displayName)", bundle: .module))
         button.buttonStyle(ThemedButtonStyle(isOn: side == selected))
     }
 }

@@ -102,7 +102,7 @@ public enum ModemLineError: Error, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .stillKeyed(let path): "\(path): the line still reads keyed after key-up"
+        case .stillKeyed(let path): String(localized: "modemLineCWKeyer.theLineStillReads \(path)", bundle: .module)
         }
     }
 }

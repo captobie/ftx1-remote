@@ -125,7 +125,7 @@ public final class SerialCWKeySource: CWKeySource, @unchecked Sendable {
         let thisOpen = generation
         queue.asyncAfter(deadline: .now() + silentPortTimeout) { [weak self] in
             guard let self, self.generation == thisOpen, self.link == .opening else { return }
-            self.report(.failed("No key interface answering on \(self.path)"))
+            self.report(.failed(String(localized: "serialCWKeySource.noKeyInterfaceAnswering \(self.path)", bundle: .module)))
             // Stays open: an UNO that is just slow to boot still connects.
         }
     }
@@ -137,7 +137,7 @@ public final class SerialCWKeySource: CWKeySource, @unchecked Sendable {
             do {
                 count = try port.readAvailable(into: &readBuffer)
             } catch {
-                fail("Key interface disconnected")
+                fail(String(localized: "serialCWKeySource.keyInterfaceDisconnected", bundle: .module))
                 return
             }
             guard let count else { return }

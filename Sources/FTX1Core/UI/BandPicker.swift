@@ -15,23 +15,23 @@ public struct BandPicker: View {
     }
 
     public var body: some View {
-        Picker("Band", selection: binding) {
+        Picker(String(localized: "common.band", bundle: .module), selection: binding) {
             // Outside every band and segment (e.g. not read yet): a blank
             // row to show instead of a wrong band.
             if currentBand == nil {
                 Text("—").tag("")
             }
-            Section("Amateur") {
+            Section(String(localized: "common.amateur", bundle: .module)) {
                 ForEach(BandPlan.all, id: \.name) { band in
                     Text(band.name).tag(band.name)
                 }
             }
-            Section("Broadcast") {
+            Section(String(localized: "common.broadcast", bundle: .module)) {
                 ForEach(GeneralCoverageSegments.all.filter { $0.category == .broadcast }, id: \.name) { segment in
                     Text(segment.name).tag(segment.name)
                 }
             }
-            Section("Utility") {
+            Section(String(localized: "common.utility", bundle: .module)) {
                 ForEach(GeneralCoverageSegments.all.filter { $0.category == .utility }, id: \.name) { segment in
                     Text(segment.name).tag(segment.name)
                 }

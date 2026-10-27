@@ -1127,7 +1127,22 @@ public enum RigctldError: Error, Equatable {
 /// displayed when the Pi lost the rig's USB (2026-10-02). Shown by the CW
 /// send pane; also what `HubService.connectionState`'s `.failed` carries.
 extension RigctldError: LocalizedError {
-    public var errorDescription: String? { wireText }
+    public var errorDescription: String? {
+        switch self {
+        case .notConnected:
+            String(localized: "rigctldError.notConnected", bundle: .module)
+        case .badResponse:
+            String(localized: "rigctldError.badResponse", bundle: .module)
+        case .connectTimedOut:
+            String(localized: "rigctldError.connectTimedOut", bundle: .module)
+        case .rawCommandTimedOut, .replyTimedOut:
+            String(localized: "rigctldError.timedOut", bundle: .module)
+        case .connectionLost:
+            String(localized: "rigctldError.connectionLost", bundle: .module)
+        case .keyerMemoryRejected:
+            String(localized: "rigctldError.keyerMemoryRejected", bundle: .module)
+        }
+    }
 
     /// Always English: what the hub puts in a `CWKeyerReply`'s `error` for
     /// clients without the codes.
@@ -1164,6 +1179,6 @@ public struct RigctldRigModel: Equatable, Sendable {
     /// e.g. "Yaesu FT-991 (model 1035)".
     public var displayName: String {
         let label = [manufacturer, name].filter { !$0.isEmpty }.joined(separator: " ")
-        return label.isEmpty ? "model \(number)" : "\(label) (model \(number))"
+        return label.isEmpty ? String(localized: "rigctldClient.model \(number)", bundle: .module) : String(localized: "rigctldClient.xModelX \(label) \(number)", bundle: .module)
     }
 }

@@ -30,12 +30,12 @@ public struct CWKeyingSafety: Sendable {
         /// For the UI.
         public var description: String {
             switch self {
-            case .disarmed: "Not armed"
-            case .linkDown: "Key interface not connected"
-            case .heartbeatTimeout: "Key interface stopped responding"
-            case .keyerUnavailable: "Keying port not open"
+            case .disarmed: String(localized: "cwKeyingSafety.notArmed", bundle: .module)
+            case .linkDown: String(localized: "cwKeyingSafety.keyInterfaceNotConnected", bundle: .module)
+            case .heartbeatTimeout: String(localized: "cwKeyingSafety.keyInterfaceStoppedResponding", bundle: .module)
+            case .keyerUnavailable: String(localized: "cwKeyingSafety.keyingPortNotOpen", bundle: .module)
             case .blocked(let reason): reason
-            case .maxKeyDown: "Key held too long — release the key"
+            case .maxKeyDown: String(localized: "cwKeyingSafety.keyHeldTooLong", bundle: .module)
             case .remote(let reason): reason
             }
         }

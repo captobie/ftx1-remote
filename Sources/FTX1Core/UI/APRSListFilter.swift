@@ -14,10 +14,10 @@ public enum APRSHeardWindow: Hashable, CaseIterable {
 
     public var label: String {
         switch self {
-        case .any: "Any Time"
-        case .lastHour: "Last Hour"
-        case .last24Hours: "Last 24 Hours"
-        case .last7Days: "Last 7 Days"
+        case .any: String(localized: "aprsListFilter.anyTime", bundle: .module)
+        case .lastHour: String(localized: "aprsListFilter.lastHour", bundle: .module)
+        case .last24Hours: String(localized: "aprsListFilter.last24Hours", bundle: .module)
+        case .last7Days: String(localized: "aprsListFilter.last7Days", bundle: .module)
         }
     }
 
@@ -73,8 +73,8 @@ public struct APRSSourcePicker: View {
     }
 
     public var body: some View {
-        Picker("Source", selection: $selection) {
-            Text("All").tag(APRSSource?.none)
+        Picker(String(localized: "common.source", bundle: .module), selection: $selection) {
+            Text("aprsListFilter.all", bundle: .module).tag(APRSSource?.none)
             Text("Main").tag(APRSSource?.some(.main))
             Text("Sub").tag(APRSSource?.some(.sub))
         }

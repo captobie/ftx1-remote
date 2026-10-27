@@ -39,7 +39,7 @@ public struct MemoryChannelListView: View {
 
     public var body: some View {
         VStack(spacing: 8) {
-            TextField("Filter channels", text: $filter)
+            TextField(String(localized: "memoryChannelList.filterChannels", bundle: .module), text: $filter)
                 .textFieldStyle(.roundedBorder)
                 .autocorrectionDisabled()
                 #if os(iOS)
@@ -54,7 +54,7 @@ public struct MemoryChannelListView: View {
                 .listStyle(.plain)
                 .overlay {
                     if entries.isEmpty {
-                        Text(isScanning ? "Reading channels…" : "No channel list yet")
+                        Text(isScanning ? String(localized: "memoryChannelList.readingChannels", bundle: .module) : String(localized: "memoryChannelList.noChannelListYet", bundle: .module))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -73,7 +73,7 @@ public struct MemoryChannelListView: View {
                     .lineLimit(1)
                 Spacer()
                 if let onRefresh {
-                    Button("Refresh", systemImage: "arrow.clockwise", action: onRefresh)
+                    Button(String(localized: "common.refresh", bundle: .module), systemImage: "arrow.clockwise", action: onRefresh)
                         .labelStyle(.titleAndIcon)
                         .disabled(isScanning)
                 }
@@ -116,9 +116,9 @@ public struct MemoryChannelListView: View {
     }
 
     private var status: String {
-        if let channel = list?.scanningChannel { return "Reading channel \(channel)…" }
+        if let channel = list?.scanningChannel { return String(localized: "memoryChannelList.readingChannel \(channel)", bundle: .module) }
         if let scanned = list?.scanned {
-            return "\(entries.count) channels · read \(scanned.formatted(date: .abbreviated, time: .shortened))"
+            return String(localized: "memoryChannelList.channelsRead \(entries.count) \(scanned.formatted(date: .abbreviated, time: .shortened))", bundle: .module)
         }
         return ""
     }

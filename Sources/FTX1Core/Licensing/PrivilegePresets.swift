@@ -22,14 +22,14 @@ public enum PrivilegePreset: String, CaseIterable, Sendable, Hashable {
 
     public var displayName: String {
         switch self {
-        case .usExtra: "US Amateur Extra"
-        case .usAdvanced: "US Advanced"
-        case .usGeneral: "US General"
-        case .usTechnician: "US Technician"
-        case .usNovice: "US Novice"
-        case .ituRegion1: "ITU Region 1 allocation"
-        case .ituRegion2: "ITU Region 2 allocation"
-        case .ituRegion3: "ITU Region 3 allocation"
+        case .usExtra: String(localized: "privilegePresets.usAmateurExtra", bundle: .module)
+        case .usAdvanced: String(localized: "privilegePresets.usAdvanced", bundle: .module)
+        case .usGeneral: String(localized: "privilegePresets.usGeneral", bundle: .module)
+        case .usTechnician: String(localized: "privilegePresets.usTechnician", bundle: .module)
+        case .usNovice: String(localized: "privilegePresets.usNovice", bundle: .module)
+        case .ituRegion1: String(localized: "privilegePresets.ituRegion1Allocation", bundle: .module)
+        case .ituRegion2: String(localized: "privilegePresets.ituRegion2Allocation", bundle: .module)
+        case .ituRegion3: String(localized: "privilegePresets.ituRegion3Allocation", bundle: .module)
         }
     }
 

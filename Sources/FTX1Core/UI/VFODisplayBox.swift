@@ -288,7 +288,7 @@ public struct VFODisplayBox: View {
                                     FrequencyEntryView(currentHz: frequencyHz ?? 0, onSetFrequency: onSetFrequency)
                                     if let onSetBand {
                                         HStack {
-                                            Text("Band")
+                                            Text("common.band", bundle: .module)
                                             Spacer()
                                             BandPicker(currentBand: currentBand, onSetBand: onSetBand)
                                         }

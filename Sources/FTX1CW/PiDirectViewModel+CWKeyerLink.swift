@@ -18,10 +18,10 @@ extension PiDirectViewModel: CWKeyerLink {
     public var cwSendBlock: CWSendBlock? {
         guard connectionState == .connected else { return .notConnected }
         if !transmitEnabled {
-            return .transmitBlocked("Transmit is locked — unlock it with the lock button next to PTT")
+            return .transmitBlocked(String(localized: "piDirect.transmitIsLockedUnlock", bundle: .module))
         }
         if let reason = transmitBlockReason { return .transmitBlocked(reason) }
-        if isTransmitting { return .transmitBlocked("PTT is held") }
+        if isTransmitting { return .transmitBlocked(String(localized: "common.pttIsHeld", bundle: .module)) }
         if rigState.mode != .cw { return .notCW(rigState.mode) }
         if rigState.breakIn == false { return .breakInOff }
         return nil

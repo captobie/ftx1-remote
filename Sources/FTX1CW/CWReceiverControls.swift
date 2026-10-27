@@ -11,10 +11,18 @@ public struct CWDecoderPicker: View {
 
     public init() {}
 
+    /// CWKit's own `title` is English; the picker's label is ours.
+    static func label(_ kind: DecoderKind) -> String {
+        switch kind {
+        case .neural: String(localized: "cwReceiverControls.decoderNeural", bundle: .module)
+        case .classic: String(localized: "cwReceiverControls.decoderClassic", bundle: .module)
+        }
+    }
+
     public var body: some View {
-        Picker("Decoder", selection: $receiver.decoder) {
+        Picker(String(localized: "cwReceiverControls.decoder", bundle: .module), selection: $receiver.decoder) {
             ForEach(DecoderKind.allCases, id: \.self) { kind in
-                Text(kind.title).tag(kind)
+                Text(Self.label(kind)).tag(kind)
             }
         }
         .pickerStyle(.segmented)
@@ -22,7 +30,7 @@ public struct CWDecoderPicker: View {
         .fixedSize()
         .disabled(receiver.neuralUnavailableReason != nil)
         .help(receiver.neuralUnavailableReason
-              ?? "Neural: a model trained on simulated CW, best on weak and noisy signals; text runs about 3½ s behind. Classic: tone threshold and timing rules.")
+              ?? String(localized: "cwReceiverControls.neuralAModelTrained", bundle: .module))
     }
 }
 
@@ -44,22 +52,22 @@ public struct CWSignalStatusBar: View {
             Circle()
                 .fill(meters.keyDown ? Color.green : Color.secondary.opacity(0.25))
                 .frame(width: 12, height: 12)
-                .help("Key down")
+                .help(String(localized: "cwReceiverControls.keyDown", bundle: .module))
 
             CWLevelMeter(level: meters.signalLevel)
                 .frame(width: 120, height: 8)
-                .help("Tone level between the noise floor and the signal peak")
+                .help(String(localized: "cwReceiverControls.toneLevelBetweenThe", bundle: .module))
 
             Text(String(meters.pendingSymbols.map { $0 == "." ? "·" : "–" }))
                 .font(.system(.title3, design: .monospaced))
                 .frame(minWidth: 110, alignment: .leading)
-                .help("Elements of the character being received (Classic decoder)")
+                .help(String(localized: "cwReceiverControls.elementsOfTheCharacter", bundle: .module))
 
             Spacer()
 
             if isDecodingFile {
                 ProgressView().controlSize(.small)
-                Text("Decoding file…").foregroundStyle(.secondary)
+                Text("cwReceiverControls.decodingFile", bundle: .module).foregroundStyle(.secondary)
             } else if let sourceNote {
                 Label(sourceNote, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.secondary)
@@ -70,7 +78,7 @@ public struct CWSignalStatusBar: View {
 
             Group {
                 Text("\(Int(meters.detectedFrequency.rounded())) Hz")
-                Text("SNR \(Int(meters.snrDB.rounded())) dB")
+                Text("cwReceiverControls.snrDB \(Int(meters.snrDB.rounded()))", bundle: .module)
                 Text(meters.wpm > 0 ? "\(Int(meters.wpm.rounded())) WPM" : "– WPM")
             }
             .monospacedDigit()
@@ -127,14 +135,14 @@ public struct CWTuningControls: View {
     }
 
     private var autoTune: some View {
-        Toggle("Auto-tune", isOn: $receiver.autoTune)
+        Toggle(String(localized: "cwReceiverControls.autoTune", bundle: .module), isOn: $receiver.autoTune)
             .fixedSize()
-            .help("Follow the strongest tone between \(Int(FrequencyTracker.searchRange.lowerBound)) and \(Int(FrequencyTracker.searchRange.upperBound)) Hz")
+            .help(String(localized: "cwReceiverControls.followTheStrongestTone \(Int(FrequencyTracker.searchRange.lowerBound)) \(Int(FrequencyTracker.searchRange.upperBound))", bundle: .module))
     }
 
     private var tone: some View {
         HStack {
-            Text("Tone")
+            Text("cwReceiverControls.tone", bundle: .module)
             Slider(value: frequency, in: FrequencyTracker.searchRange, step: 10)
                 .frame(minWidth: 160)
                 .disabled(receiver.autoTune)
@@ -142,20 +150,20 @@ public struct CWTuningControls: View {
                 .monospacedDigit()
                 .fixedSize()
                 .frame(minWidth: 64, alignment: .trailing)
-            Button("Rig Pitch") {
+            Button(String(localized: "cwReceiverControls.rigPitch", bundle: .module)) {
                 receiver.useRigPitch()
             }
             .controlSize(.small)
             .fixedSize()
             .disabled(receiver.rigPitchHz == nil)
-            .help(receiver.rigPitchHz.map { "Turn off auto-tune and use the rig's CW pitch, \($0) Hz — where a zero-beat signal sounds" }
-                  ?? "The rig's CW pitch hasn't been read yet")
+            .help(receiver.rigPitchHz.map { String(localized: "cwReceiverControls.turnOffAutoTune \($0)", bundle: .module) }
+                  ?? String(localized: "cwReceiverControls.theRigsCwPitch", bundle: .module))
         }
     }
 
     private var squelch: some View {
         HStack {
-            Text("Squelch")
+            Text("cwReceiverControls.squelch", bundle: .module)
             Slider(value: $receiver.squelchDB, in: 3...30, step: 1)
                 .frame(minWidth: 120, maxWidth: 160)
             Text("\(Int(receiver.squelchDB)) dB")
@@ -165,8 +173,8 @@ public struct CWTuningControls: View {
         }
         .disabled(receiver.decoder == .neural)
         .help(receiver.decoder == .neural
-              ? "The neural decoder doesn't need a squelch: it stays silent on noise"
-              : "Minimum signal-to-noise ratio needed before anything is decoded")
+              ? String(localized: "cwReceiverControls.theNeuralDecoderDoesnt", bundle: .module)
+              : String(localized: "cwReceiverControls.minimumSignalToNoise", bundle: .module))
     }
 
     private var frequency: Binding<Double> {

@@ -15,9 +15,9 @@ public enum AppTheme: String, CaseIterable, Codable, Sendable, Hashable {
 
     public var displayName: String {
         switch self {
-        case .system: "Auto"
-        case .light: "Light"
-        case .dark: "Dark"
+        case .system: String(localized: "appTheme.auto", bundle: .module)
+        case .light: String(localized: "appTheme.light", bundle: .module)
+        case .dark: String(localized: "appTheme.dark", bundle: .module)
         }
     }
 

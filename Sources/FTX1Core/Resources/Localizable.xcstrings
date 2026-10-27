@@ -1,5 +1,1513 @@
 {
   "sourceLanguage" : "en",
-  "strings" : {},
+  "strings" : {
+    "appTheme.auto" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto"
+          }
+        }
+      }
+    },
+    "appTheme.dark" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark"
+          }
+        }
+      }
+    },
+    "appTheme.light" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light"
+          }
+        }
+      }
+    },
+    "aprsListFilter.all" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        }
+      }
+    },
+    "aprsListFilter.anyTime" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Any Time"
+          }
+        }
+      }
+    },
+    "aprsListFilter.last24Hours" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last 24 Hours"
+          }
+        }
+      }
+    },
+    "aprsListFilter.last7Days" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last 7 Days"
+          }
+        }
+      }
+    },
+    "aprsListFilter.lastHour" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last Hour"
+          }
+        }
+      }
+    },
+    "barSMeter.meter %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ meter"
+          }
+        }
+      }
+    },
+    "buttonValueColor.blue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blue"
+          }
+        }
+      }
+    },
+    "buttonValueColor.cyan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cyan"
+          }
+        }
+      }
+    },
+    "buttonValueColor.green" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Green"
+          }
+        }
+      }
+    },
+    "buttonValueColor.orange" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Orange"
+          }
+        }
+      }
+    },
+    "buttonValueColor.pink" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pink"
+          }
+        }
+      }
+    },
+    "buttonValueColor.red" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Red"
+          }
+        }
+      }
+    },
+    "buttonValueColor.white" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "White"
+          }
+        }
+      }
+    },
+    "buttonValueColor.yellow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yellow"
+          }
+        }
+      }
+    },
+    "common.amateur" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amateur"
+          }
+        }
+      }
+    },
+    "common.band" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Band"
+          }
+        }
+      }
+    },
+    "common.broadcast" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Broadcast"
+          }
+        }
+      }
+    },
+    "common.couldntFindTheHost %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't find the host %@"
+          }
+        }
+      }
+    },
+    "common.done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "common.microphoneAccessIsOff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Microphone access is off — allow it in Settings to transmit audio"
+          }
+        }
+      }
+    },
+    "common.microphoneDidntStart %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Microphone didn't start: %@"
+          }
+        }
+      }
+    },
+    "common.refresh" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh"
+          }
+        }
+      }
+    },
+    "common.source" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source"
+          }
+        }
+      }
+    },
+    "common.transmitDisabled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit disabled"
+          }
+        }
+      }
+    },
+    "common.transmitDisabledOutsideAn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit disabled: outside an amateur band"
+          }
+        }
+      }
+    },
+    "common.utility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utility"
+          }
+        }
+      }
+    },
+    "contourAPFControl.audioPeakFilterOn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio peak filter on/off"
+          }
+        }
+      }
+    },
+    "contourAPFControl.contour" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contour"
+          }
+        }
+      }
+    },
+    "contourAPFControl.contourOnOff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contour on/off"
+          }
+        }
+      }
+    },
+    "cwKeyingDriver.keyingPortFailedReleasing %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keying port failed (%@) — releasing the line"
+          }
+        }
+      }
+    },
+    "cwKeyingDriver.keyingPortFailedStill %@ %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keying port failed (%1$@) — still releasing the line, %#@tries@"
+          },
+          "substitutions" : {
+            "tries" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg try"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg tries"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cwKeyingDriver.keyingPortFailedThe %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keying port failed (%@); the line was released — re-arm to key again"
+          }
+        }
+      }
+    },
+    "cwKeyingDriver.noKeyingPortSelected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No keying port selected"
+          }
+        }
+      }
+    },
+    "cwKeyingDriver.rfFeedbackDetectedThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RF feedback detected: the key input was following the rig's own transmissions, so keying stopped and the key was disarmed. Check the key lead's ferrite, then re-arm."
+          }
+        }
+      }
+    },
+    "cwKeyingDriver.stillReleasingTheKeying" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still releasing the keying line after a port error — try again shortly"
+          }
+        }
+      }
+    },
+    "cwKeyingSafety.keyHeldTooLong" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key held too long — release the key"
+          }
+        }
+      }
+    },
+    "cwKeyingSafety.keyInterfaceNotConnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key interface not connected"
+          }
+        }
+      }
+    },
+    "cwKeyingSafety.keyInterfaceStoppedResponding" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key interface stopped responding"
+          }
+        }
+      }
+    },
+    "cwKeyingSafety.keyingPortNotOpen" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keying port not open"
+          }
+        }
+      }
+    },
+    "cwKeyingSafety.notArmed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not armed"
+          }
+        }
+      }
+    },
+    "cwRemoteKeyingDriver.connectingToThePi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to the Pi keyer…"
+          }
+        }
+      }
+    },
+    "cwRemoteKeyingDriver.piKeyer %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pi keyer: %@"
+          }
+        }
+      }
+    },
+    "cwRemoteKeyingDriver.piKeyerClosedThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pi keyer closed the connection"
+          }
+        }
+      }
+    },
+    "deepSettings.itemsHaventBeenAdded %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ items haven't been added to the Deep Settings catalog."
+          }
+        }
+      }
+    },
+    "deepSettings.notCataloguedYet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not catalogued yet"
+          }
+        }
+      }
+    },
+    "deepSettings.selectATab" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a tab"
+          }
+        }
+      }
+    },
+    "filterDisplay.filterFunctionDisplayPassband" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter function display: passband (WIDTH/SHIFT), notch, contour/APF"
+          }
+        }
+      }
+    },
+    "filterSideSelector.applyTheFilterControls %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply the filter controls to the %@ receiver"
+          }
+        }
+      }
+    },
+    "filterSideSelector.subReceiverIsntShown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SUB receiver isn't shown in single-receive display"
+          }
+        }
+      }
+    },
+    "filterWidthControl.width" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Width"
+          }
+        }
+      }
+    },
+    "filterWidthTable.default" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default"
+          }
+        }
+      }
+    },
+    "frequencyEntry.set" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set"
+          }
+        }
+      }
+    },
+    "frequencyEntry.step" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step"
+          }
+        }
+      }
+    },
+    "ifNotchControl.manualNotchOnOff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manual notch on/off"
+          }
+        }
+      }
+    },
+    "ifNotchControl.notch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notch"
+          }
+        }
+      }
+    },
+    "ifShiftControl.center" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Center"
+          }
+        }
+      }
+    },
+    "ifShiftControl.shift" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift"
+          }
+        }
+      }
+    },
+    "memoryChannelEntry.channel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Channel"
+          }
+        }
+      }
+    },
+    "memoryChannelEntry.set" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set"
+          }
+        }
+      }
+    },
+    "memoryChannelList.channelsRead %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@channels@ · read %2$@"
+          },
+          "substitutions" : {
+            "channels" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg channel"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg channels"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "memoryChannelList.filterChannels" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter channels"
+          }
+        }
+      }
+    },
+    "memoryChannelList.noChannelListYet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No channel list yet"
+          }
+        }
+      }
+    },
+    "memoryChannelList.readingChannel %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading channel %lld…"
+          }
+        }
+      }
+    },
+    "memoryChannelList.readingChannels" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading channels…"
+          }
+        }
+      }
+    },
+    "memoryListStore.lostTheRigConnection %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lost the rig connection at channel %lld."
+          }
+        }
+      }
+    },
+    "memoryListStore.stoppedAtChannel %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopped at channel %lld."
+          }
+        }
+      }
+    },
+    "menuPage.decreaseRfPowerBy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decrease RF power by 1 W"
+          }
+        }
+      }
+    },
+    "menuPage.increaseRfPowerBy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Increase RF power by 1 W"
+          }
+        }
+      }
+    },
+    "menuPage.menuPage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menu page"
+          }
+        }
+      }
+    },
+    "meterSelection.finalAmplifierDrainCurrent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final amplifier drain current"
+          }
+        }
+      }
+    },
+    "meterSelection.finalAmplifierDrainVoltage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final amplifier drain voltage"
+          }
+        }
+      }
+    },
+    "meterSelection.relativeAlcVoltage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relative ALC voltage"
+          }
+        }
+      }
+    },
+    "meterSelection.rfPowerOutput" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RF power output"
+          }
+        }
+      }
+    },
+    "meterSelection.speechProcessorCompression" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speech processor compression"
+          }
+        }
+      }
+    },
+    "meterSelection.standingWaveRatio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standing wave ratio"
+          }
+        }
+      }
+    },
+    "modemLineCWKeyer.theLineStillReads %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: the line still reads keyed after key-up"
+          }
+        }
+      }
+    },
+    "narrowControl.narrowFilterOnOff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Narrow filter on/off"
+          }
+        }
+      }
+    },
+    "piDirect.enterThePisHostname" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the Pi's hostname"
+          }
+        }
+      }
+    },
+    "piDirect.transmitDisabledWhileThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit disabled while the rig scans"
+          }
+        }
+      }
+    },
+    "posixSerialPort.cantConfigure %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't configure %@: %@"
+          }
+        }
+      }
+    },
+    "posixSerialPort.cantOpen %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't open %@: %@"
+          }
+        }
+      }
+    },
+    "posixSerialPort.cantSetRtsDtr %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't set RTS/DTR on %@: %@"
+          }
+        }
+      }
+    },
+    "posixSerialPort.cantWriteTo %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't write to %@: %@"
+          }
+        }
+      }
+    },
+    "posixSerialPort.isInUseBy %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is in use by another program"
+          }
+        }
+      }
+    },
+    "posixSerialPort.portClosed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port closed"
+          }
+        }
+      }
+    },
+    "privilegePresets.ituRegion1Allocation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ITU Region 1 allocation"
+          }
+        }
+      }
+    },
+    "privilegePresets.ituRegion2Allocation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ITU Region 2 allocation"
+          }
+        }
+      }
+    },
+    "privilegePresets.ituRegion3Allocation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ITU Region 3 allocation"
+          }
+        }
+      }
+    },
+    "privilegePresets.usAdvanced" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "US Advanced"
+          }
+        }
+      }
+    },
+    "privilegePresets.usAmateurExtra" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "US Amateur Extra"
+          }
+        }
+      }
+    },
+    "privilegePresets.usGeneral" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "US General"
+          }
+        }
+      }
+    },
+    "privilegePresets.usNovice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "US Novice"
+          }
+        }
+      }
+    },
+    "privilegePresets.usTechnician" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "US Technician"
+          }
+        }
+      }
+    },
+    "rigClient.invalidHost" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid host"
+          }
+        }
+      }
+    },
+    "rigClient.keyerMemoryDoesntExist %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyer memory %lld doesn't exist (1–5)"
+          }
+        }
+      }
+    },
+    "rigClient.notConnectedToThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected to the Mac"
+          }
+        }
+      }
+    },
+    "rigClient.theKeyerIsIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The keyer is in use by the Mac's CW window"
+          }
+        }
+      }
+    },
+    "rigClient.theKeyerIsInUse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The keyer is in use by another device on the hub"
+          }
+        }
+      }
+    },
+    "rigClient.theMacDidntAnswer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Mac didn't answer — update the Mac app to send CW from here"
+          }
+        }
+      }
+    },
+    "rigClient.theMacRefusedThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Mac refused the text: up to 50 characters the keyer can send"
+          }
+        }
+      }
+    },
+    "rigWebSocketClient.connectionTimedOut" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection timed out"
+          }
+        }
+      }
+    },
+    "rigWebSocketClient.timedOutConnecting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timed out connecting"
+          }
+        }
+      }
+    },
+    "rigctldClient.model %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "model %lld"
+          }
+        }
+      }
+    },
+    "rigctldClient.xModelX %@ %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (model %lld)"
+          }
+        }
+      }
+    },
+    "rigctldError.badResponse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld sent a reply the app didn't expect."
+          }
+        }
+      }
+    },
+    "rigctldError.connectTimedOut" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't reach rigctld (the connection timed out)."
+          }
+        }
+      }
+    },
+    "rigctldError.connectionLost" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connection to rigctld was lost."
+          }
+        }
+      }
+    },
+    "rigctldError.keyerMemoryRejected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rig rejected the keyer memory write."
+          }
+        }
+      }
+    },
+    "rigctldError.notConnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected to rigctld."
+          }
+        }
+      }
+    },
+    "rigctldError.timedOut" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld didn't answer in time. If this keeps happening, the rig may be off or its USB connection to the computer running rigctld may have dropped."
+          }
+        }
+      }
+    },
+    "serialCWKeySource.keyInterfaceDisconnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key interface disconnected"
+          }
+        }
+      }
+    },
+    "serialCWKeySource.noKeyInterfaceAnswering %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No key interface answering on %@"
+          }
+        }
+      }
+    },
+    "themePresets.auto" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto"
+          }
+        }
+      }
+    },
+    "themePresets.defaultDark" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default Dark"
+          }
+        }
+      }
+    },
+    "themePresets.defaultLight" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default Light"
+          }
+        }
+      }
+    },
+    "themePresets.dustyRose" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dusty Rose"
+          }
+        }
+      }
+    },
+    "themePresets.glossyBlack" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glossy Black"
+          }
+        }
+      }
+    },
+    "themePresets.icyMint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Icy Mint"
+          }
+        }
+      }
+    },
+    "transmitGate.transmitDisabledOnMHz %@ %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit disabled: %@ on %@ MHz is outside %@ privileges"
+          }
+        }
+      }
+    },
+    "transmitGate.transmitDisabledTheTransmitting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit disabled: the transmitting side's mode isn't known yet"
+          }
+        }
+      }
+    },
+    "transmitPrivileges.data" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data"
+          }
+        }
+      }
+    },
+    "transmitPrivileges.phone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phone"
+          }
+        }
+      }
+    },
+    "vfoDigitFont.sevenSegment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "7-segment"
+          }
+        }
+      }
+    },
+    "wavelog.couldntReachWavelog %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't reach Wavelog: %@"
+          }
+        }
+      }
+    },
+    "wavelog.theWavelogUrlIsnt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Wavelog URL isn't valid"
+          }
+        }
+      }
+    },
+    "wavelog.unexpectedReplyFromWavelog %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unexpected reply from Wavelog (HTTP %lld) — is the URL right, and is it Wavelog 3.1 or newer?"
+          }
+        }
+      }
+    },
+    "wavelog.unexpectedReplyFromWavelogHttp %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unexpected reply from Wavelog (HTTP %lld): %@"
+          }
+        }
+      }
+    },
+    "wavelog.wavelog %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog: %@"
+          }
+        }
+      }
+    },
+    "wavelog.wavelogDidntAnswerWithin %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog didn't answer within %lld s"
+          }
+        }
+      }
+    },
+    "wavelog.wavelogDidntImportThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog didn't import the QSO"
+          }
+        }
+      }
+    }
+  },
   "version" : "1.0"
 }

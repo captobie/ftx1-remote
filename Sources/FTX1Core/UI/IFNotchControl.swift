@@ -62,11 +62,11 @@ public struct IFNotchControl<Controller: RigController>: View {
     /// on — `ThemedButtonStyle(isOn:)`.
     @ViewBuilder
     private func toggleButton(isOn: Bool) -> some View {
-        let button = Button("Notch") {
+        let button = Button(String(localized: "ifNotchControl.notch", bundle: .module)) {
             hub.send(.setNotch(!isOn))
         }
         .disabled(hub.rigState.notchEnabled == nil)
-        .help("Manual notch on/off")
+        .help(String(localized: "ifNotchControl.manualNotchOnOff", bundle: .module))
         // Fixed: a theme's face, unlike the system's bordered button,
         // would otherwise give up width to the slider beside it.
         button.buttonStyle(ThemedButtonStyle(isOn: isOn))
