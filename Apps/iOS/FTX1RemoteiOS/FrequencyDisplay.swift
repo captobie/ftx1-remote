@@ -47,12 +47,7 @@ struct FrequencyDisplay: View {
     /// a plain Hz count, so it reads the way a radio operator expects.
     private var formattedFrequency: String {
         guard let frequencyHz, frequencyHz > 0 else { return "--.---.---" }
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.groupingSeparator = "."
-        formatter.groupingSize = 3
-        formatter.usesGroupingSeparator = true
-        return formatter.string(from: NSNumber(value: frequencyHz)) ?? "\(frequencyHz)"
+        return FrequencyFormat.dotted(frequencyHz)
     }
 }
 

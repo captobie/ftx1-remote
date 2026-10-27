@@ -977,7 +977,7 @@ private struct APRSSettingsTab: View {
     var body: some View {
         Form {
             Toggle("Decode APRS", isOn: $enabled)
-            TextField("Frequency (MHz)", value: megahertz, format: .number.precision(.fractionLength(0...6)))
+            TextField("Frequency (MHz)", value: megahertz, format: FrequencyFormat.mhzField(fractionLength: 0...6))
             TextField("Tolerance (Hz)", value: $toleranceHz, format: .number)
             TextField("Stations to retain", value: $maxStations, format: .number.grouping(.never))
             TextField("Messages to retain", value: $maxMessages, format: .number.grouping(.never))
@@ -1012,7 +1012,7 @@ private struct HomeFrequencyField: View {
     }
 
     var body: some View {
-        TextField("\(band.displayName) (MHz)", value: megahertz, format: .number.precision(.fractionLength(0...6)))
+        TextField("\(band.displayName) (MHz)", value: megahertz, format: FrequencyFormat.mhzField(fractionLength: 0...6))
     }
 }
 

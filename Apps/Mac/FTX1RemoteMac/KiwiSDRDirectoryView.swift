@@ -167,7 +167,7 @@ struct KiwiSDRDirectoryView: View {
 
     private var coversFrequencyLabel: String {
         guard let hz = rigFrequencyUsable else { return "Covers rig frequency" }
-        return String(format: "Covers %.3f MHz", Double(hz) / 1_000_000)
+        return "Covers \(FrequencyFormat.mhz(hz, fractionDigits: 3)) MHz"
     }
 
     @ViewBuilder

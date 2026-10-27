@@ -234,9 +234,7 @@ struct LicenseSettingsTab: View {
 
     // MARK: Formatting
 
-    private static let mhzFormat = FloatingPointFormatStyle<Double>.number
-        .precision(.fractionLength(3...6))
-        .grouping(.never)
+    private static let mhzFormat = FrequencyFormat.mhzField(fractionLength: 3...6)
 
     private static func mhz(_ hz: Int) -> String {
         (Double(hz) / 1_000_000).formatted(mhzFormat)

@@ -169,7 +169,7 @@ final class WavelogTuneListener: ObservableObject {
             return
         }
         let modeText = request.mode?.displayName ?? "mode unchanged"
-        let mhz = String(format: "%.4f MHz", Double(request.frequencyHz) / 1_000_000)
+        let mhz = "\(FrequencyFormat.mhz(request.frequencyHz, fractionDigits: 4)) MHz"
         if let refusal = tune(request) {
             record("Didn't tune to \(mhz): \(refusal)", ok: false)
             send(409, refusal, origin: origin, on: connection)

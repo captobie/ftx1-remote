@@ -766,7 +766,7 @@ final class WebSDRFollowModel: ObservableObject {
         case let .outOfRange(hz, bands):
             if forceHostPage { issue(base) }
             let range = bands.map(KiwiSDRStation.describe).joined(separator: ", ")
-            status = String(format: "Not retuned: %.3f MHz is outside this ", Double(hz) / 1_000_000)
+            status = "Not retuned: \(FrequencyFormat.mhz(hz, fractionDigits: 3)) MHz is outside this "
                 + currentPlatform.displayName + "'s range (" + range + ")"
         case .noFrequency:
             if forceHostPage { issue(base) }

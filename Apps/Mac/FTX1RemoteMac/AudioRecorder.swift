@@ -135,12 +135,7 @@ final class AudioRecorder {
     }
 
     static func label(frequencyHz: Int, modeName: String) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.groupingSeparator = "."
-        formatter.groupingSize = 3
-        formatter.usesGroupingSeparator = true
-        let frequency = formatter.string(from: NSNumber(value: frequencyHz)) ?? "\(frequencyHz)"
+        let frequency = FrequencyFormat.dotted(frequencyHz)
         return modeName.isEmpty ? frequency : "\(frequency) \(modeName)"
     }
 

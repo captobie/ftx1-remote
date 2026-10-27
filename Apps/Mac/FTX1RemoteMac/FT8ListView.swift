@@ -25,7 +25,7 @@ struct FT8ListView: View {
                     Text(spot.utcTimestamp, style: .time)
                 }
                 TableColumn("Freq (MHz)") { spot in
-                    Text(String(format: "%.4f", spot.absoluteFrequencyHz / 1_000_000))
+                    Text(FrequencyFormat.mhz(spot.absoluteFrequencyHz, fractionDigits: 4))
                         .fontDesign(.monospaced)
                 }
                 TableColumn("SNR") { spot in

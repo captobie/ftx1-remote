@@ -45,8 +45,7 @@ public enum TransmitGate {
 
     /// "14.225.000"-style, the VFO boxes' grouping.
     static func formatMHz(_ hz: Int) -> String {
-        let mhz = hz / 1_000_000, khz = (hz / 1_000) % 1_000, rest = hz % 1_000
-        return String(format: "%d.%03d.%03d", mhz, khz, rest)
+        FrequencyFormat.dotted(hz)
     }
 
     /// MAIN's or SUB's frequency, whichever transmits — the VFO boxes'

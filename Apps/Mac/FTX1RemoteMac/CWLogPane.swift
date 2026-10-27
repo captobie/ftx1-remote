@@ -392,7 +392,7 @@ private struct CWLogRigReadout: View {
         let rig = hub.rigState
         let tx = rig.transmitter
         HStack(spacing: 8) {
-            Text(tx.frequencyHz.flatMap { $0 > 0 ? String(format: "%.4f MHz", Double($0) / 1_000_000) : nil } ?? "— MHz")
+            Text(tx.frequencyHz.flatMap { $0 > 0 ? "\(FrequencyFormat.mhz($0, fractionDigits: 4)) MHz" : nil } ?? "— MHz")
             Text(tx.mode?.displayName ?? "—")
             Text(rig.powerLevel.map { "\(Int(($0 * 100).rounded())) W" } ?? "— W")
         }

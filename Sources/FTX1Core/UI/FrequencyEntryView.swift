@@ -91,7 +91,7 @@ public struct FrequencyEntryView: View {
     }
 
     private static func formatMHz(_ hz: Int) -> String {
-        String(format: "%.6f", Double(hz) / 1_000_000)
+        FrequencyFormat.mhz(hz, fractionDigits: 6)
     }
 }
 

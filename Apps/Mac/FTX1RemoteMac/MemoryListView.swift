@@ -201,6 +201,6 @@ struct MemoryListView: View {
 
     /// "431.075.000" — MHz.kHz.Hz, like the VFO boxes.
     static func frequencyLabel(_ hz: Int) -> String {
-        String(format: "%d.%03d.%03d", hz / 1_000_000, (hz / 1_000) % 1_000, hz % 1_000)
+        FrequencyFormat.dotted(hz)
     }
 }

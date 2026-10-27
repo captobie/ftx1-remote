@@ -125,7 +125,7 @@ public struct MemoryChannelListView: View {
 
     /// Same grouping as the Mac's memory list window.
     static func frequencyLabel(_ hz: Int) -> String {
-        String(format: "%d.%03d.%03d", hz / 1_000_000, (hz / 1_000) % 1_000, hz % 1_000)
+        FrequencyFormat.dotted(hz)
     }
 }
 

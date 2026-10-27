@@ -189,7 +189,7 @@ struct APRSListPane: View {
         Form {
             Toggle("Decode APRS", isOn: $decodeEnabled)
             LabeledContent("Frequency (MHz)") {
-                TextField("MHz", value: megahertzBinding, format: .number.precision(.fractionLength(3)))
+                TextField("MHz", value: megahertzBinding, format: FrequencyFormat.mhzField(fractionLength: 3...3))
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
             }
@@ -212,7 +212,7 @@ struct APRSListPane: View {
     }
 
     private static func megahertz(_ hz: Int) -> String {
-        String(format: "%.3f", Double(hz) / 1_000_000)
+        FrequencyFormat.mhz(hz, fractionDigits: 3)
     }
 
     // MARK: - Filtering (as the Mac's list windows)
