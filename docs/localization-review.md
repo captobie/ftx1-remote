@@ -76,7 +76,7 @@ Conventions used throughout:
 | `ft8List.idle` | Idle | de "Untätig", es "Inactivo" | de "Bereit" is an alternative. |
 | `pttButton.pushToTalk` | Push to talk (accessibility) | de "Sprechtaste", es "Pulsar para hablar" | |
 | `settings.macLoggerDX.logSummary` | N QSOs, N calls | es plural "QSO" unchanged | Spanish usually leaves acronyms unchanged in the plural. de "QSOs". |
-| `common.readyMemory` | Ready — <speed>, memory N | | The speed argument falls back to the English "rig keyer" in code (`CWSendPane.swift`, `CWSendSection.swift`), which isn't localized. **Code fix needed.** |
+| `common.readyMemoryRigKeyer` | Ready — rig keyer, memory N | de "Bereit – Keyer des Geräts, Speicher N", es "Listo: keyer del equipo, memoria N" | Shown until the rig's keyer speed has been read; `common.readyMemoryWpm` once it has. |
 
 ## Not translated, on purpose
 

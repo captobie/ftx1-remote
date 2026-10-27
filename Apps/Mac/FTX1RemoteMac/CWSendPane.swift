@@ -234,8 +234,10 @@ private struct CWSendStatus: View {
                     Button("common.turnOnBkIn") { hub.send(.setBreakIn(true)) }
                         .controlSize(.small)
                 }
+            } else if let wpm = hub.rigState.cwSpeedWpm {
+                Text("common.readyMemoryWpm \(wpm) \(sender.slot)")
             } else {
-                Text("common.readyMemory \(hub.rigState.cwSpeedWpm.map { "\($0) WPM" } ?? "rig keyer") \(sender.slot)")
+                Text("common.readyMemoryRigKeyer \(sender.slot)")
             }
             Spacer()
         }

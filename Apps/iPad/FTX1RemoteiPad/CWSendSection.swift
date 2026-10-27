@@ -233,8 +233,10 @@ private struct CWSendStatus<Controller: RigController>: View {
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                 }
+            } else if let wpm = rig.rigState.cwSpeedWpm {
+                Text("common.readyMemoryWpm \(wpm) \(sender.slot)")
             } else {
-                Text("common.readyMemory \(rig.rigState.cwSpeedWpm.map { "\($0) WPM" } ?? "rig keyer") \(sender.slot)")
+                Text("common.readyMemoryRigKeyer \(sender.slot)")
             }
             Spacer()
         }

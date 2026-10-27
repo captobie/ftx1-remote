@@ -1333,25 +1333,48 @@
         }
       }
     },
-    "common.readyMemory %@ %lld" : {
+    "common.readyMemoryWpm %lld %lld" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bereit – %@, Speicher %lld"
+            "value" : "Bereit – %lld WPM, Speicher %lld"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ready — %@, memory %lld"
+            "value" : "Ready — %lld WPM, memory %lld"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Listo: %@, memoria %lld"
+            "value" : "Listo: %lld WPM, memoria %lld"
+          }
+        }
+      }
+    },
+    "common.readyMemoryRigKeyer %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereit – Keyer des Geräts, Speicher %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready — rig keyer, memory %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listo: keyer del equipo, memoria %lld"
           }
         }
       }
