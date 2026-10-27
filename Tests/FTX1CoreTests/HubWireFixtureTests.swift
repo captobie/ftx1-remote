@@ -339,8 +339,13 @@ final class HubWireFixtureTests: XCTestCase {
         cwKeyer("cw-keyer-request.release.json", CWKeyerRequest(id: 10, action: .release)),
         cwKeyer("cw-keyer-reply.stored.json", CWKeyerReply(id: 7, stored: "CQ CQ DE W1AW K", error: nil)),
         cwKeyer("cw-keyer-reply.checked.json", CWKeyerReply(id: 8, stored: nil, error: nil)),
-        cwKeyer("cw-keyer-reply.error.json", CWKeyerReply(id: 7, stored: nil, error: "Keyer memory 9 doesn't exist (1–5)")),
-        cwKeyer("cw-keyer-reply.busy.json", CWKeyerReply(id: 9, stored: nil, error: nil, busy: "the Mac's CW window")),
+        cwKeyer("cw-keyer-reply.error.json", CWKeyerReply(id: 7, stored: nil, error: "Keyer memory 9 doesn't exist (1–5)",
+                                                          errorCode: "keyer_bad_slot")),
+        cwKeyer("cw-keyer-reply.busy.json", CWKeyerReply(id: 9, stored: nil, error: nil, busy: "the Mac's CW window",
+                                                         busyCode: "mac_cw_window")),
+        cwKeyer("cw-keyer-reply.not-holder.json", CWKeyerReply(id: 11, stored: nil,
+                                                               error: "The keyer isn't yours to write (held by another device on the hub)",
+                                                               errorCode: "keyer_not_holder", busyCode: "other_hub_device")),
     ]
 
     private static func cwKeyer<T: Codable & Equatable>(_ file: String, _ value: T) -> (file: String, encode: () throws -> Data, check: (Data) throws -> Void) {

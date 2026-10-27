@@ -1127,7 +1127,11 @@ public enum RigctldError: Error, Equatable {
 /// displayed when the Pi lost the rig's USB (2026-10-02). Shown by the CW
 /// send pane; also what `HubService.connectionState`'s `.failed` carries.
 extension RigctldError: LocalizedError {
-    public var errorDescription: String? {
+    public var errorDescription: String? { wireText }
+
+    /// Always English: what the hub puts in a `CWKeyerReply`'s `error` for
+    /// clients without the codes.
+    public var wireText: String {
         switch self {
         case .notConnected:
             "Not connected to rigctld."

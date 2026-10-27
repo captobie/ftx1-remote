@@ -28,7 +28,7 @@ extension HubService: CWKeyerLink {
 
     /// Shared with hub clients through the server's coordinator, so this
     /// window and an iPad take turns line by line.
-    func acquireCWKeyer() async throws -> String? {
+    func acquireCWKeyer() async throws -> CWKeyerBusy? {
         await acquireCWKeyerLease()
     }
 

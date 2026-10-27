@@ -1,0 +1,7 @@
+{
+  "busyCode" : "other_hub_device",
+  "error" : "The keyer isn't yours to write (held by another device on the hub)",
+  "errorCode" : "keyer_not_holder",
+  "id" : 11,
+  "type" : "cw_keyer_reply"
+}

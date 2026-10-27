@@ -34,7 +34,7 @@ extension RigClientViewModel: CWKeyerLink {
     }
 
     /// Through the hub's coordinator (`CWKeyerRequest` `.acquire`).
-    public func acquireCWKeyer() async throws -> String? {
+    public func acquireCWKeyer() async throws -> CWKeyerBusy? {
         try await acquireCWKeyerLease()
     }
 

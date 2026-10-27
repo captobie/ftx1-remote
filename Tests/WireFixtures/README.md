@@ -21,8 +21,12 @@ Shared between the Swift package and the Windows app's hub (see
   no text = make the slot a TEXT memory, `acquire`/`release` with slot 0)
   and `cw-keyer-reply.*.json` (hub → iPad: `stored` = what the rig kept,
   `checked` = success with no fields but `id`/`type` — also what a granted
-  `acquire` or a `release` gets, `error`, `busy`): phase 6's pair. A reply
-  carries the request's `id`; the iPad matches on it.
+  `acquire` or a `release` gets, `error`, `busy`, `not-holder`): phase 6's
+  pair. A reply carries the request's `id`; the iPad matches on it. Since
+  localization the Mac also sends `errorCode`/`busyCode` (stable codes,
+  `CWKeyerReply.ErrorCode`/`.Holder`) beside the English `error`/`busy`;
+  the iPad shows its own text for a code it knows and the English
+  otherwise, so the Windows hub can keep sending text only.
 - `rig-commands.json`: one of every `RigCommand` (`{"cmd": …, "value": …}`)
   as the iPad sends it. `HubWireFixtureTests` fails if a command is
   added to `WireMessage.swift` without an example here.

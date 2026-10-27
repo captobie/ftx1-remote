@@ -837,8 +837,8 @@ final class HubService: ObservableObject {
     /// The CW keyer lease for this Mac's own CW window — the server is the
     /// coordinator, since it also sees every hub client's (see
     /// `RigWebSocketServer.acquireKeyer`). nil = granted.
-    func acquireCWKeyerLease() async -> String? {
-        await server.acquireKeyer(.mac)
+    func acquireCWKeyerLease() async -> CWKeyerBusy? {
+        await server.acquireKeyer(.mac).map(CWKeyerBusy.holder)
     }
 
     func releaseCWKeyerLease() {
@@ -2496,10 +2496,20 @@ enum RemoteCWKeyerError: LocalizedError {
     case badSlot(Int)
     case badText
 
-    var errorDescription: String? {
+    var code: CWKeyerReply.ErrorCode {
+        switch self {
+        case .badSlot: .badSlot
+        case .badText: .badText
+        }
+    }
+
+    /// The reply's English `error`, for clients without the codes.
+    var wireText: String {
         switch self {
         case .badSlot(let slot): "Keyer memory \(slot) doesn't exist (1–5)"
         case .badText: "The Mac refused the text: up to 50 characters the keyer can send"
         }
     }
+
+    var errorDescription: String? { wireText }
 }

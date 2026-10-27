@@ -264,9 +264,9 @@ public final class RigClientViewModel: ObservableObject, RigController {
 
     /// The hub's CW keyer lease (`CWKeyerRequest` `.acquire`): nil when
     /// granted, otherwise who has the keyer.
-    public func acquireCWKeyerLease() async throws -> String? {
+    public func acquireCWKeyerLease() async throws -> CWKeyerBusy? {
         let reply = try await keyerRequest { CWKeyerRequest(id: $0, action: .acquire) }
-        return reply.busy
+        return CWKeyerBusy(reply: reply)
     }
 
     /// Gives the lease back; doesn't wait for the answer (the hub also
@@ -301,6 +301,10 @@ public final class RigClientViewModel: ObservableObject, RigController {
             }
         }
         guard let reply else { throw CWKeyerRequestError.noReply }
+        if let code = reply.errorCode.flatMap(CWKeyerReply.ErrorCode.init(rawValue:)) {
+            throw CWKeyerRequestError.refused(code, slot: request.slot,
+                                              holder: reply.busyCode.flatMap(CWKeyerReply.Holder.init(rawValue:)))
+        }
         if let error = reply.error { throw CWKeyerRequestError.failed(error) }
         return reply
     }
@@ -442,13 +446,22 @@ public enum CWKeyerRequestError: LocalizedError, Equatable {
     /// No `CWKeyerReply` in time — most likely a Mac app from before CW
     /// sending on the hub route.
     case noReply
-    /// The hub answered with an error (e.g. the rig rejected the write).
+    /// The hub refused or failed the request, with a code this client
+    /// knows (described here, in this device's language).
+    case refused(CWKeyerReply.ErrorCode, slot: Int, holder: CWKeyerReply.Holder?)
+    /// The hub answered with an error this client has no code for (an
+    /// older or the Windows hub, or an unknown code): its English text.
     case failed(String)
 
     public var errorDescription: String? {
         switch self {
         case .notConnected: "Not connected to the Mac"
         case .noReply: "The Mac didn't answer — update the Mac app to send CW from here"
+        case .refused(.badSlot, let slot, _): "Keyer memory \(slot) doesn't exist (1–5)"
+        case .refused(.badText, _, _): "The Mac refused the text: up to 50 characters the keyer can send"
+        case .refused(.notHolder, _, .macCWWindow?): "The keyer is in use by the Mac's CW window"
+        case .refused(.notHolder, _, _): "The keyer is in use by another device on the hub"
+        case .refused(let code, _, _): RigctldError(keyerErrorCode: code)?.errorDescription
         case .failed(let message): message
         }
     }

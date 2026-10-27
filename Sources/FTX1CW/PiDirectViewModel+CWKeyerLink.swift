@@ -33,7 +33,7 @@ extension PiDirectViewModel: CWKeyerLink {
 
     /// No coordinator on this route: the hub isn't in the path (a Mac in
     /// remote mode on the same Pi isn't coordinated with — known gap).
-    public func acquireCWKeyer() async throws -> String? { nil }
+    public func acquireCWKeyer() async throws -> CWKeyerBusy? { nil }
 
     public func releaseCWKeyer() {}
 }

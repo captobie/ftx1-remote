@@ -320,7 +320,8 @@ actor RigWebSocketServer {
             switch request.action {
             case .acquire:
                 let busy = acquireKeyer(.client(id))
-                reply(CWKeyerReply(id: request.id, stored: nil, error: nil, busy: busy), to: id)
+                reply(CWKeyerReply(id: request.id, stored: nil, error: nil,
+                                   busy: busy?.wireText, busyCode: busy?.rawValue), to: id)
                 return
             case .release:
                 releaseKeyer(.client(id))
@@ -330,9 +331,11 @@ actor RigWebSocketServer {
                 break
             }
             guard holdsKeyer(.client(id)) else {
-                let who = keyerHolder.map { describe($0, to: .client(id)) } ?? "nobody"
+                let who = keyerHolder.map { describe($0, to: .client(id)) }
                 reply(CWKeyerReply(id: request.id, stored: nil,
-                                   error: "The keyer isn't yours to write (held by \(who))"), to: id)
+                                   error: "The keyer isn't yours to write (held by \(who?.wireText ?? "nobody"))",
+                                   errorCode: CWKeyerReply.ErrorCode.notHolder.rawValue,
+                                   busyCode: who?.rawValue), to: id)
                 return
             }
             // Off the stream too: a keyer write takes ~2 s over the Pi. The
@@ -344,6 +347,12 @@ actor RigWebSocketServer {
                 do {
                     let stored = try await keyer(request.slot, request.text)
                     reply = CWKeyerReply(id: request.id, stored: stored, error: nil)
+                } catch let error as RemoteCWKeyerError {
+                    reply = CWKeyerReply(id: request.id, stored: nil, error: error.wireText,
+                                         errorCode: error.code.rawValue)
+                } catch let error as RigctldError {
+                    reply = CWKeyerReply(id: request.id, stored: nil, error: error.wireText,
+                                         errorCode: error.keyerErrorCode.rawValue)
                 } catch {
                     reply = CWKeyerReply(id: request.id, stored: nil, error: error.localizedDescription)
                 }
@@ -354,7 +363,7 @@ actor RigWebSocketServer {
 
     /// The keyer lease for `holder`: nil if granted (or already held —
     /// that refreshes it), otherwise who has it, for the waiting sender.
-    func acquireKeyer(_ holder: KeyerHolder) -> String? {
+    func acquireKeyer(_ holder: KeyerHolder) -> CWKeyerReply.Holder? {
         if let current = keyerHolder, current != holder,
            Date().timeIntervalSince(keyerHolderActiveAt) < Self.keyerLeaseTimeout {
             return describe(current, to: holder)
@@ -376,10 +385,10 @@ actor RigWebSocketServer {
         return true
     }
 
-    private func describe(_ current: KeyerHolder, to asker: KeyerHolder) -> String {
+    private func describe(_ current: KeyerHolder, to asker: KeyerHolder) -> CWKeyerReply.Holder {
         switch current {
-        case .mac: "the Mac's CW window"
-        case .client: asker == .mac ? "a device on the hub" : "another device on the hub"
+        case .mac: .macCWWindow
+        case .client: asker == .mac ? .hubDevice : .otherHubDevice
         }
     }
 

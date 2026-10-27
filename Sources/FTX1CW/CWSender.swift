@@ -23,9 +23,9 @@ public protocol CWKeyerLink: AnyObject {
     func playCWTextMemory(slot: Int)
     /// The keyer lease (the hub's CW keyer coordinator, so the Mac's CW
     /// window and the iPad's don't overwrite or restart each other): nil
-    /// when it's ours (granted or refreshed), otherwise who has it, e.g.
-    /// "the Mac's CW window". Taken before every chunk.
-    func acquireCWKeyer() async throws -> String?
+    /// when it's ours (granted or refreshed), otherwise who has it.
+    /// Taken before every chunk.
+    func acquireCWKeyer() async throws -> CWKeyerBusy?
     /// Gives the lease back — after each line, and on Stop.
     func releaseCWKeyer()
 }
@@ -284,7 +284,12 @@ public final class CWSender: ObservableObject {
                 holdsKeyer = true
                 return
             }
-            activity = "Waiting: \(holder) is sending"
+            activity = switch holder {
+            case .holder(.macCWWindow): "Waiting: the Mac's CW window is sending"
+            case .holder(.hubDevice): "Waiting: a device on the hub is sending"
+            case .holder(.otherHubDevice): "Waiting: another device on the hub is sending"
+            case .text(let text): "Waiting: \(text) is sending"
+            }
             try await Task.sleep(for: .seconds(1))
             // Whatever blocked before may have changed while waiting.
             try await waitUntilSendable()

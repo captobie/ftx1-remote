@@ -1,5 +1,6 @@
 {
   "error" : "Keyer memory 9 doesn't exist (1–5)",
+  "errorCode" : "keyer_bad_slot",
   "id" : 7,
   "type" : "cw_keyer_reply"
 }

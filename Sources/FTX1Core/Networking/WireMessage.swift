@@ -923,20 +923,113 @@ public struct CWKeyerRequest: Codable, Sendable, Equatable {
 /// write), or `error` if it failed. Both nil after a successful TEXT check
 /// or a granted acquire. `busy` answers an acquire the hub couldn't grant:
 /// who has the keyer, e.g. "the Mac's CW window".
+///
+/// `error` and `busy` are English text. Since localization, the Mac hub
+/// also sends `errorCode`/`busyCode` (`ErrorCode`/`Holder` raw values) and
+/// clients show their own text for a code they know; the English stays
+/// for clients from before the codes, and is all the Windows hub sends.
+/// The codes are plain strings on the wire, never decoded as enums, so a
+/// code added later can't make an older client drop the reply.
 public struct CWKeyerReply: Codable, Sendable, Equatable {
     public let type: String  // "cw_keyer_reply"
     public let id: Int
     public let stored: String?
     public let error: String?
     public let busy: String?
+    public let errorCode: String?
+    public let busyCode: String?
 
     public static let typeName = "cw_keyer_reply"
 
-    public init(id: Int, stored: String?, error: String?, busy: String? = nil) {
+    public init(id: Int, stored: String?, error: String?, busy: String? = nil,
+                errorCode: String? = nil, busyCode: String? = nil) {
         self.type = Self.typeName
         self.id = id
         self.stored = stored
         self.error = error
         self.busy = busy
+        self.errorCode = errorCode
+        self.busyCode = busyCode
+    }
+
+    /// Why the hub refused or failed a keyer request (`errorCode`).
+    public enum ErrorCode: String, Sendable, CaseIterable {
+        /// The request's slot isn't 1–5.
+        case badSlot = "keyer_bad_slot"
+        /// Over 50 characters, or one the keyer can't send.
+        case badText = "keyer_bad_text"
+        /// Another sender holds the keyer lease; `busyCode` says who.
+        case notHolder = "keyer_not_holder"
+        // The rig link failed: one per `RigctldError` case.
+        case rigctldNotConnected = "rigctld_not_connected"
+        case rigctldBadResponse = "rigctld_bad_response"
+        case rigctldUnreachable = "rigctld_unreachable"
+        case rigctldTimeout = "rigctld_timeout"
+        case rigctldConnectionLost = "rigctld_connection_lost"
+        case keyerRejected = "keyer_rejected"
+    }
+
+    /// Who holds the keyer lease (`busyCode`), as seen by the asker.
+    public enum Holder: String, Sendable, CaseIterable {
+        case macCWWindow = "mac_cw_window"
+        /// A hub client, told to the Mac's own CW window.
+        case hubDevice = "hub_device"
+        /// A hub client other than the asking one.
+        case otherHubDevice = "other_hub_device"
+
+        /// The fixed English `busy` text, for clients without the codes.
+        public var wireText: String {
+            switch self {
+            case .macCWWindow: "the Mac's CW window"
+            case .hubDevice: "a device on the hub"
+            case .otherHubDevice: "another device on the hub"
+            }
+        }
+    }
+}
+
+/// Who has the keyer when an acquire isn't granted: a `Holder` code, or
+/// just the hub's English `busy` text (an older or the Windows hub).
+public enum CWKeyerBusy: Sendable, Equatable {
+    case holder(CWKeyerReply.Holder)
+    case text(String)
+
+    /// Reads an acquire's reply: nil = granted.
+    public init?(reply: CWKeyerReply) {
+        if let code = reply.busyCode, let holder = CWKeyerReply.Holder(rawValue: code) {
+            self = .holder(holder)
+        } else if let text = reply.busy {
+            self = .text(text)
+        } else {
+            return nil
+        }
+    }
+}
+
+extension RigctldError {
+    /// This error as a `CWKeyerReply.ErrorCode`.
+    public var keyerErrorCode: CWKeyerReply.ErrorCode {
+        switch self {
+        case .notConnected: .rigctldNotConnected
+        case .badResponse: .rigctldBadResponse
+        case .connectTimedOut: .rigctldUnreachable
+        case .rawCommandTimedOut, .replyTimedOut: .rigctldTimeout
+        case .connectionLost: .rigctldConnectionLost
+        case .keyerMemoryRejected: .keyerRejected
+        }
+    }
+
+    /// The error a code stands for, so a client describes it the same way
+    /// the hub would; nil for the hub-side refusals.
+    public init?(keyerErrorCode code: CWKeyerReply.ErrorCode) {
+        switch code {
+        case .rigctldNotConnected: self = .notConnected
+        case .rigctldBadResponse: self = .badResponse
+        case .rigctldUnreachable: self = .connectTimedOut
+        case .rigctldTimeout: self = .replyTimedOut
+        case .rigctldConnectionLost: self = .connectionLost
+        case .keyerRejected: self = .keyerMemoryRejected
+        case .badSlot, .badText, .notHolder: return nil
+        }
     }
 }
