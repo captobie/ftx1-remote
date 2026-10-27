@@ -54,7 +54,18 @@ struct CWPane<SendSection: View>: View {
             CWDecoderPicker()
 
             Spacer()
+            // Icons alone when the titles don't fit (longer translations).
+            ViewThatFits(in: .horizontal) {
+                actionButtons.labelStyle(.titleAndIcon)
+                actionButtons.labelStyle(.iconOnly)
+            }
+        }
+        .buttonStyle(.bordered)
+        .padding(12)
+    }
 
+    private var actionButtons: some View {
+        HStack(spacing: 12) {
             Button {
                 UIPasteboard.general.string = receiver.decodedText
             } label: {
@@ -75,8 +86,7 @@ struct CWPane<SendSection: View>: View {
                 Label("common.close", systemImage: "xmark")
             }
         }
-        .buttonStyle(.bordered)
-        .padding(12)
+        .lineLimit(1)
     }
 
     /// Why SUB can't be picked, or nil when it can. On the hub route the

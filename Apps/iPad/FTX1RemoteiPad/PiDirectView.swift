@@ -309,6 +309,10 @@ struct PiDirectView: View {
             .accessibilityLabel(viewModel.audioChannelsSwapped ? "common.audioChannelsSwappedTap" : "common.swapAudioChannels")
         }
         .buttonStyle(.bordered)
+        // Natural width, one line: with longer translations the row is
+        // full in portrait, and PTT is the one that gives way.
+        .lineLimit(1)
+        .fixedSize()
     }
 
     /// Under the host fields while disconnected: the same screen against a
@@ -344,6 +348,8 @@ struct PiDirectView: View {
         } label: {
             Text("common.exitDemo")
                 .font(.headline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(Color.yellow)

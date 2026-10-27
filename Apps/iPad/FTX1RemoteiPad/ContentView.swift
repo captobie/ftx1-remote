@@ -255,6 +255,10 @@ struct HubControlView: View {
             .accessibilityLabel(audioSwapped ? "common.audioChannelsSwappedTap" : "common.swapAudioChannels")
         }
         .buttonStyle(.bordered)
+        // Natural width, one line: with longer translations the row is
+        // full in portrait, and PTT is the one that gives way.
+        .lineLimit(1)
+        .fixedSize()
     }
 
     /// Mirrors `HubService.send(_:)`'s TX gate (transmit-enabled toggle AND

@@ -328,6 +328,8 @@ struct ContentView: View {
         } label: {
             Text("content.memList")
                 .font(.caption)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
         }
@@ -380,6 +382,8 @@ struct ContentView: View {
     private func memoryScanLabel(_ title: String) -> some View {
         Text(title)
             .font(.caption)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
     }
@@ -402,6 +406,8 @@ struct ContentView: View {
         } label: {
             Text(title)
                 .font(.caption)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
         }
@@ -414,6 +420,8 @@ struct ContentView: View {
         Button(action: action) {
             Text(label)
                 .font(.caption2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
         }

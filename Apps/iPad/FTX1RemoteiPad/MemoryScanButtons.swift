@@ -48,6 +48,10 @@ struct MemoryScanButtons: View {
             .buttonStyle(.bordered)
             .disabled(!isConnected || state.memoryScan != .paused)
         }
+        // A longer translation ("Überspringen") would otherwise squeeze
+        // these to one letter per line; PTT next to them gives way instead.
+        .lineLimit(1)
+        .fixedSize()
     }
 
     /// The side whose memory scan is running or paused, nil when none is.

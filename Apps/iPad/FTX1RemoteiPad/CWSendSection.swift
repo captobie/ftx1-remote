@@ -41,6 +41,19 @@ struct CWSendSection<Controller: RigController>: View {
         HStack(spacing: 12) {
             CWKeyerControls<Controller>()
             Spacer()
+            // Icons alone when the titles don't fit (longer translations).
+            ViewThatFits(in: .horizontal) {
+                actionButtons.labelStyle(.titleAndIcon)
+                actionButtons.labelStyle(.iconOnly)
+            }
+        }
+        .buttonStyle(.bordered)
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+    }
+
+    private var actionButtons: some View {
+        HStack(spacing: 12) {
             Button {
                 isEditingMacros = true
             } label: {
@@ -59,9 +72,7 @@ struct CWSendSection<Controller: RigController>: View {
             }
             .disabled(!sender.canStop)
         }
-        .buttonStyle(.bordered)
-        .padding(.horizontal)
-        .padding(.vertical, 8)
+        .lineLimit(1)
     }
 
     /// Their call (for `{CALL}`), the macro buttons, scrolling sideways if
