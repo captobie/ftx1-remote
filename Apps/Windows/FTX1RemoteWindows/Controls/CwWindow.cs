@@ -50,8 +50,8 @@ public sealed class CwWindow : Window
     private readonly SelectorBarItem _subItem = new() { Text = "SUB", Tag = CwAudioChannel.Sub };
     private readonly SelectorBarItem _webSdrItem = new() { Text = "WebSDR", Tag = CwAudioChannel.WebSdr };
     private readonly SelectorBar _decoderBar = new();
-    private readonly SelectorBarItem _neuralItem = new() { Text = "Neural", Tag = CwDecoderKind.Neural };
-    private readonly SelectorBarItem _classicItem = new() { Text = "Classic", Tag = CwDecoderKind.Classic };
+    private readonly SelectorBarItem _neuralItem = new() { Text = Loc.S("cwWindow.neural"), Tag = CwDecoderKind.Neural };
+    private readonly SelectorBarItem _classicItem = new() { Text = Loc.S("cwWindow.classic"), Tag = CwDecoderKind.Classic };
     private readonly StackPanel _squelchPanel = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     private readonly Button _openButton = new();
     private readonly Button _copyButton = new();
@@ -70,13 +70,13 @@ public sealed class CwWindow : Window
     private readonly TextBlock _decodedText = new() { FontFamily = MonoFont, FontSize = 20, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
     private readonly TextBlock _placeholder = new()
     {
-        Text = "Decoded CW from the selected receiver appears here. Tune to a CW signal, or open a recording.",
+        Text = Loc.S("cwWindow.decodedCWFromThe"),
         FontSize = 20,
         TextWrapping = TextWrapping.Wrap,
         Margin = new Thickness(16, 12, 16, 12),
     };
 
-    private readonly CheckBox _autoTuneBox = new() { Content = "Auto-tune", MinWidth = 0 };
+    private readonly CheckBox _autoTuneBox = new() { Content = Loc.S("cwWindow.autoTune"), MinWidth = 0 };
     private readonly Slider _toneSlider = new()
     {
         Minimum = FrequencyTracker.SearchMin,
@@ -87,7 +87,7 @@ public sealed class CwWindow : Window
         IsThumbToolTipEnabled = false,
     };
     private readonly TextBlock _toneValue = new() { Width = 64, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-    private readonly Button _rigPitchButton = new() { Content = "Rig Pitch" };
+    private readonly Button _rigPitchButton = new() { Content = Loc.S("cwWindow.rigPitch") };
     private readonly Slider _squelchSlider = new()
     {
         Minimum = 3,
@@ -237,7 +237,7 @@ public sealed class CwWindow : Window
         _channelBar.Items.Add(_mainItem);
         _channelBar.Items.Add(_subItem);
         _channelBar.Items.Add(_webSdrItem);
-        ToolTipService.SetToolTip(_webSdrItem, "Decode what the WebSDR window is playing");
+        ToolTipService.SetToolTip(_webSdrItem, Loc.S("cwWindow.decodeWhatTheWebSDR"));
         _channelBar.SelectionChanged += (bar, _) =>
         {
             if (_updating || bar.SelectedItem?.Tag is not CwAudioChannel channel)
@@ -246,7 +246,7 @@ public sealed class CwWindow : Window
             }
             _receiver.Channel = channel;
         };
-        ToolTipService.SetToolTip(_mainItem, "Decode the rig's MAIN receiver");
+        ToolTipService.SetToolTip(_mainItem, Loc.S("cwWindow.decodeTheRigsMAIN"));
 
         _decoderBar.Items.Add(_neuralItem);
         _decoderBar.Items.Add(_classicItem);
@@ -268,12 +268,12 @@ public sealed class CwWindow : Window
         header.Children.Add(pickers);
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-        SetContent(_openButton, "", "Open Audio File…");
-        ToolTipService.SetToolTip(_openButton, "Decode a recording (the Recordings folder opens first)");
+        SetContent(_openButton, "", Loc.S("cwWindow.openAudioFile"));
+        ToolTipService.SetToolTip(_openButton, Loc.S("cwWindow.decodeARecordingThe"));
         _openButton.KeyboardAccelerators.Add(new KeyboardAccelerator { Key = VirtualKey.O, Modifiers = VirtualKeyModifiers.Control });
         _openButton.Click += async (_, _) => await OpenFileAsync();
-        SetContent(_copyButton, "", "Copy");
-        ToolTipService.SetToolTip(_copyButton, "Copy the decoded text");
+        SetContent(_copyButton, "", Loc.S("cwWindow.copy"));
+        ToolTipService.SetToolTip(_copyButton, Loc.S("cwWindow.copyTheDecodedText"));
         _copyButton.KeyboardAccelerators.Add(new KeyboardAccelerator { Key = VirtualKey.C, Modifiers = VirtualKeyModifiers.Control | VirtualKeyModifiers.Shift });
         _copyButton.Click += (_, _) =>
         {
@@ -281,8 +281,8 @@ public sealed class CwWindow : Window
             package.SetText(_receiver.DecodedText);
             Clipboard.SetContent(package);
         };
-        SetContent(_clearButton, "", "Clear");
-        ToolTipService.SetToolTip(_clearButton, "Clear the decoded text");
+        SetContent(_clearButton, "", Loc.S("common.clear"));
+        ToolTipService.SetToolTip(_clearButton, Loc.S("cwWindow.clearTheDecodedText"));
         _clearButton.KeyboardAccelerators.Add(new KeyboardAccelerator { Key = VirtualKey.K, Modifiers = VirtualKeyModifiers.Control });
         _clearButton.Click += (_, _) => _receiver.ClearText();
         buttons.Children.Add(_openButton);
@@ -300,9 +300,9 @@ public sealed class CwWindow : Window
         {
             bar.ColumnDefinitions.Add(new ColumnDefinition { Width = i == 4 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
         }
-        ToolTipService.SetToolTip(_keyLed, "Key down");
-        ToolTipService.SetToolTip(_levelMeter, "Tone level between the noise floor and the signal peak");
-        ToolTipService.SetToolTip(_pendingText, "Elements of the character being received (Classic decoder)");
+        ToolTipService.SetToolTip(_keyLed, Loc.S("cwWindow.keyDown"));
+        ToolTipService.SetToolTip(_levelMeter, Loc.S("cwWindow.toneLevelBetweenThe"));
+        ToolTipService.SetToolTip(_pendingText, Loc.S("cwWindow.elementsOfTheCharacter"));
         _keyLed.VerticalAlignment = VerticalAlignment.Center;
         var note = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
         note.Children.Add(_fileRing);
@@ -324,13 +324,13 @@ public sealed class CwWindow : Window
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 24, Padding = new Thickness(16, 8, 16, 8) };
 
         ToolTipService.SetToolTip(_autoTuneBox,
-            $"Follow the strongest tone between {FrequencyTracker.SearchMin:0} and {FrequencyTracker.SearchMax:0} Hz");
+            Loc.F("cwWindow.followTheStrongestTone", FrequencyTracker.SearchMin, FrequencyTracker.SearchMax));
         _autoTuneBox.Checked += (_, _) => { if (!_updating) _receiver.AutoTune = true; };
         _autoTuneBox.Unchecked += (_, _) => { if (!_updating) _receiver.AutoTune = false; };
         row.Children.Add(_autoTuneBox);
 
         var tone = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        tone.Children.Add(Label("Tone"));
+        tone.Children.Add(Label(Loc.S("common.tone")));
         _toneSlider.ValueChanged += (_, e) =>
         {
             if (!_updating && !_receiver.AutoTune)
@@ -345,7 +345,7 @@ public sealed class CwWindow : Window
         row.Children.Add(tone);
 
         var squelch = _squelchPanel;
-        squelch.Children.Add(Label("Squelch"));
+        squelch.Children.Add(Label(Loc.S("cwWindow.squelch")));
         _squelchSlider.ValueChanged += (_, e) =>
         {
             if (!_updating)
@@ -415,13 +415,13 @@ public sealed class CwWindow : Window
             var unavailable = _receiver.NeuralUnavailableReason;
             _decoderBar.IsEnabled = unavailable is null;
             ToolTipService.SetToolTip(_decoderBar, unavailable
-                ?? "Neural: a model trained on simulated CW, best on weak and noisy signals; text runs about 3½ s behind. Classic: tone threshold and timing rules.");
+                ?? Loc.S("cwWindow.neuralAModelTrained"));
             var neural = _receiver.EffectiveDecoder == CwDecoderKind.Neural;
             _squelchPanel.Opacity = neural ? 0.5 : 1;
             _squelchSlider.IsEnabled = !neural;
             ToolTipService.SetToolTip(_squelchPanel, neural
-                ? "The neural decoder doesn't need a squelch: it stays silent on noise"
-                : "Minimum signal-to-noise ratio needed before anything is decoded");
+                ? Loc.S("cwWindow.theNeuralDecoderDoesnt")
+                : Loc.S("cwWindow.minimumSignalToNoise"));
 
             _autoTuneBox.IsChecked = _receiver.AutoTune;
             _toneSlider.IsEnabled = !_receiver.AutoTune;
@@ -432,8 +432,8 @@ public sealed class CwWindow : Window
             }
             _rigPitchButton.IsEnabled = _receiver.RigPitchHz is not null;
             ToolTipService.SetToolTip(_rigPitchButton, _receiver.RigPitchHz is { } pitch
-                ? $"Turn off auto-tune and use the rig's CW pitch, {pitch} Hz — where a zero-beat signal sounds"
-                : "The rig's CW pitch hasn't been read yet (it's read in CW mode, or with the MENU grid's CW page open)");
+                ? Loc.F("cwWindow.turnOffAutoTune", pitch)
+                : Loc.S("cwWindow.theRigsCWPitch"));
             _squelchSlider.Value = _receiver.SquelchDb;
             _squelchValue.Text = $"{_receiver.SquelchDb:0} dB";
         }
@@ -497,7 +497,7 @@ public sealed class CwWindow : Window
             var link = new Hyperlink { UnderlineStyle = UnderlineStyle.Single };
             link.Inlines.Add(new Run { Text = call });
             link.Foreground = CwLogPane.WorkedBrush(_worked.Worked.StatusOf(call, _worked.Band)) ?? CwLogPane.NewStationBrush;
-            ToolTipService.SetToolTip(link, $"Use {call} as Their call");
+            ToolTipService.SetToolTip(link, Loc.F("cwWindow.useXAsTheir", call));
             link.Click += (_, _) => _logPane.FillTheirCall(call);
             inlines.Add(link);
             position = start + length;
@@ -532,9 +532,9 @@ public sealed class CwWindow : Window
         _legend.Children.Clear();
         foreach (var (brush, title) in new[]
                  {
-                     (CwLogPane.WorkedBrush(WorkedStations.Status.ThisBand)!, $"Worked on {_worked.Band ?? "this band"}"),
-                     (CwLogPane.WorkedBrush(WorkedStations.Status.OtherBand)!, "Worked, other band"),
-                     (CwLogPane.NewStationBrush, "New"),
+                     (CwLogPane.WorkedBrush(WorkedStations.Status.ThisBand)!, Loc.F("cwWindow.workedOnX", _worked.Band ?? Loc.S("cwWindow.thisBand"))),
+                     (CwLogPane.WorkedBrush(WorkedStations.Status.OtherBand)!, Loc.S("cwWindow.workedOtherBand")),
+                     (CwLogPane.NewStationBrush, Loc.S("common.new")),
                  })
         {
             var entry = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
@@ -553,11 +553,11 @@ public sealed class CwWindow : Window
         string? note;
         if (_receiver.IsDecodingFile)
         {
-            note = "Decoding file…";
+            note = Loc.S("cwWindow.decodingFile");
         }
         else if (_receiver.IsPausedForTransmit)
         {
-            note = "Paused while transmitting";
+            note = Loc.S("cwWindow.pausedWhileTransmitting");
         }
         else if (_receiver.Channel == CwAudioChannel.WebSdr)
         {
@@ -565,7 +565,7 @@ public sealed class CwWindow : Window
         }
         else if (_receiver.SourceModeIfNotCw is { } mode)
         {
-            note = $"{(_receiver.Channel == CwAudioChannel.Main ? "MAIN" : "SUB")} is in {mode.DisplayName()}, not CW — decoding anyway";
+            note = Loc.F("cwWindow.xIsInX", (_receiver.Channel == CwAudioChannel.Main ? "MAIN" : "SUB"), mode.DisplayName());
         }
         else
         {
@@ -582,20 +582,20 @@ public sealed class CwWindow : Window
     {
         if (_receiver.WebSdr is not { } webSdr)
         {
-            return "Open the WebSDR window (WebSDR button) and connect it to decode what it plays";
+            return Loc.S("cwWindow.openTheWebSDRWindow");
         }
         if (!webSdr.Connected)
         {
-            return "Connect the WebSDR window to decode what it plays";
+            return Loc.S("cwWindow.connectTheWebSDRWindow");
         }
         return _receiver.WebSdrPhase switch
         {
-            WebSdrTapPhase.Failed => $"Can't capture the WebSDR's audio: {_receiver.WebSdrFailure}",
+            WebSdrTapPhase.Failed => Loc.F("cwWindow.cantCaptureTheWebSDRs", _receiver.WebSdrFailure),
             // Only once the capture has gone quiet: a page the window's Mute
             // doesn't reach would still be decoding.
-            WebSdrTapPhase.Silent when webSdr.Muted => "The WebSDR is muted — unmute it to decode (Windows can't capture it while muted)",
-            WebSdrTapPhase.Silent => "The WebSDR is silent — check that its page is playing",
-            WebSdrTapPhase.WaitingForWebSdr => "Waiting for the WebSDR window's audio",
+            WebSdrTapPhase.Silent when webSdr.Muted => Loc.S("cwWindow.theWebSDRIsMuted"),
+            WebSdrTapPhase.Silent => Loc.S("cwWindow.theWebSDRIsSilent"),
+            WebSdrTapPhase.WaitingForWebSdr => Loc.S("cwWindow.waitingForTheWebSDR"),
             _ => null,
         };
     }
@@ -606,16 +606,16 @@ public sealed class CwWindow : Window
     private void UpdateSubAvailability()
     {
         string? reason = !_receiver.IsSubAudioAvailable
-            ? "No SUB audio: the audio is off, or the input is mono"
+            ? Loc.S("cwWindow.noSUBAudioThe")
             : _link.SingleReceive() == true
-                ? "SUB is off: the rig is in single-receive display"
+                ? Loc.S("cwWindow.sUBIsOffThe")
                 : null;
         var enabled = reason is null || _receiver.Channel == CwAudioChannel.Sub;
         if (_subItem.IsEnabled != enabled)
         {
             _subItem.IsEnabled = enabled;
         }
-        ToolTipService.SetToolTip(_subItem, reason ?? "Decode the rig's SUB receiver");
+        ToolTipService.SetToolTip(_subItem, reason ?? Loc.S("cwWindow.decodeTheRigsSUB"));
     }
 
     private void UpdateMeters()

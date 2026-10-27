@@ -50,7 +50,7 @@ internal sealed class VfoEntryFlyout
         _stepChannel = stepChannel;
         _showError = showError;
         anchor.Tapped += (_, _) => Open();
-        ToolTipService.SetToolTip(anchor, "Click to enter a frequency or memory channel");
+        ToolTipService.SetToolTip(anchor, Loc.S("vfoEntryFlyout.clickToEnterA"));
     }
 
     private void Open()
@@ -78,11 +78,11 @@ internal sealed class VfoEntryFlyout
         {
             if (ParseMHz(box.Text) is not { } hz)
             {
-                _showError("Enter a frequency in MHz.");
+                _showError(Loc.S("vfoEntryFlyout.enterAFrequencyIn"));
                 return;
             }
             flyout.Hide();
-            await RunAsync(() => _setFrequency(hz), "Set frequency failed");
+            await RunAsync(() => _setFrequency(hz), Loc.S("vfoEntryFlyout.setFrequencyFailed"));
         }
         box.KeyDown += async (_, e) =>
         {
@@ -92,7 +92,7 @@ internal sealed class VfoEntryFlyout
                 await CommitAsync();
             }
         };
-        var set = new Button { Content = "Set" };
+        var set = new Button { Content = Loc.S("vfoEntryFlyout.set") };
         set.Click += async (_, _) => await CommitAsync();
 
         var step = new ComboBox { Width = 220, HorizontalAlignment = HorizontalAlignment.Center };
@@ -114,13 +114,13 @@ internal sealed class VfoEntryFlyout
             var stepHz = step.SelectedItem is ComboBoxItem { Tag: int hz } ? hz : 1_000;
             currentHz = Math.Max(0, currentHz + direction * stepHz);
             box.Text = FormatMHz(currentHz);
-            await RunAsync(() => _setFrequency(currentHz), "Set frequency failed");
+            await RunAsync(() => _setFrequency(currentHz), Loc.S("vfoEntryFlyout.setFrequencyFailed"));
         }
 
         return Layout(
             Row(box, set),
             step,
-            UpDown(() => StepAsync(-1), () => StepAsync(1), "Step down", "Step up"));
+            UpDown(() => StepAsync(-1), () => StepAsync(1), Loc.S("vfoEntryFlyout.stepDown"), Loc.S("vfoEntryFlyout.stepUp")));
     }
 
     private UIElement BuildChannelContent(Flyout flyout, VfoEntryState state)
@@ -135,11 +135,11 @@ internal sealed class VfoEntryFlyout
         {
             if (!int.TryParse(box.Text.Trim(), out var channel) || channel is < MinChannel or > MaxChannel)
             {
-                _showError($"Enter a memory channel from {MinChannel} to {MaxChannel}.");
+                _showError(Loc.F("vfoEntryFlyout.enterAMemoryChannel", MinChannel, MaxChannel));
                 return;
             }
             flyout.Hide();
-            await RunAsync(() => _setChannel(channel), "Set memory channel failed");
+            await RunAsync(() => _setChannel(channel), Loc.S("vfoEntryFlyout.setMemoryChannelFailed"));
         }
         box.KeyDown += async (_, e) =>
         {
@@ -149,7 +149,7 @@ internal sealed class VfoEntryFlyout
                 await CommitAsync();
             }
         };
-        var set = new Button { Content = "Set" };
+        var set = new Button { Content = Loc.S("vfoEntryFlyout.set") };
         set.Click += async (_, _) => await CommitAsync();
 
         // The channel isn't read back here: the rig resolves the step (and
@@ -157,9 +157,9 @@ internal sealed class VfoEntryFlyout
         // until the flyout is reopened after the next poll.
         return Layout(
             Row(box, set),
-            UpDown(() => RunAsync(() => _stepChannel(false), "Memory channel step failed"),
-                   () => RunAsync(() => _stepChannel(true), "Memory channel step failed"),
-                   "Previous channel", "Next channel"));
+            UpDown(() => RunAsync(() => _stepChannel(false), Loc.S("vfoEntryFlyout.memoryChannelStepFailed")),
+                   () => RunAsync(() => _stepChannel(true), Loc.S("vfoEntryFlyout.memoryChannelStepFailed")),
+                   Loc.S("vfoEntryFlyout.previousChannel"), Loc.S("vfoEntryFlyout.nextChannel")));
     }
 
     private async Task RunAsync(Func<Task> action, string failure)

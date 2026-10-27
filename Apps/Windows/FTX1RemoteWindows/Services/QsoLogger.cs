@@ -78,7 +78,7 @@ public static class QsoLogger
             AppLog.Write($"Logbook: logging {qso.Call} to Wavelog failed: {e.Message}");
             return new QsoLogOutcome.Failed(e.Message);
         }
-        return new QsoLogOutcome.Failed("Wavelog didn't import the QSO");
+        return new QsoLogOutcome.Failed(Loc.S("common.wavelogDidntImportThe"));
     }
 
     /// Where Wavelog QSOs go, or why they can't, in words for the Log pane.
@@ -87,17 +87,17 @@ public static class QsoLogger
         var url = AppSettings.WavelogUrl.Trim();
         if (url.Length == 0)
         {
-            return ("", "", "", "Wavelog has no URL — set it in Settings → Logbook");
+            return ("", "", "", Loc.S("qsoLogger.wavelogHasNoURL"));
         }
         var token = WavelogToken.Read();
         if (token.Length == 0)
         {
-            return ("", "", "", "Wavelog has no API token — set it in Settings → Logbook");
+            return ("", "", "", Loc.S("qsoLogger.wavelogHasNoAPI"));
         }
         var station = AppSettings.WavelogStationId;
         if (station.Length == 0)
         {
-            return ("", "", "", "No Wavelog station location — pick one in Settings → Logbook");
+            return ("", "", "", Loc.S("qsoLogger.noWavelogStationLocation"));
         }
         return (url, token, station, null);
     }
@@ -120,8 +120,8 @@ public static class QsoLogger
         {
             AppLog.Write($"Logbook: sending {qso.Call} to {host}:{port} failed: {e.Message}");
             return new QsoLogOutcome.Failed(e is SocketException { SocketErrorCode: SocketError.HostNotFound }
-                ? $"Couldn't find the host {host}"
-                : $"Couldn't send to {host}:{port}: {e.Message}");
+                ? Loc.F("common.couldntFindTheHost", host)
+                : Loc.F("qsoLogger.couldntSendToX", host, port, e.Message));
         }
         AppLog.Write($"Logbook: sent {qso.Call} ({qso.Mode}, {qso.FrequencyHz} Hz) to {program.Name} at {host}:{port}");
         return await ConfirmAsync(program, qso, host, port);
@@ -132,7 +132,7 @@ public static class QsoLogger
     {
         if (program.LogPath is not { } path)
         {
-            return new QsoLogOutcome.SentUnconfirmed($"Sent, but {program.MissingLogReason} to check it");
+            return new QsoLogOutcome.SentUnconfirmed(Loc.F("qsoLogger.sentButXTo", program.MissingLogReason));
         }
         var clock = Stopwatch.StartNew();
         string? lastError = null;
@@ -157,11 +157,11 @@ public static class QsoLogger
 
         if (lastError is not null)
         {
-            return new QsoLogOutcome.SentUnconfirmed($"Sent, but the log couldn't be checked: {lastError}");
+            return new QsoLogOutcome.SentUnconfirmed(Loc.F("qsoLogger.sentButTheLog", lastError));
         }
         var reason = await Task.Run(() => program.UnconfirmedReason(host, port));
         AppLog.Write($"Logbook: {qso.Call} not found in the {program.Name} log: {reason}");
-        return new QsoLogOutcome.SentUnconfirmed($"Sent, but {reason}");
+        return new QsoLogOutcome.SentUnconfirmed(Loc.F("qsoLogger.sentButX", reason));
     }
 
     /// Asks Log4OM to fill its call field and look the call up — the Mac's
@@ -171,7 +171,7 @@ public static class QsoLogger
     {
         if (LogbookPrograms.Current is not { SupportsLookup: true } program)
         {
-            return "Lookup needs Log4OM as the logbook";
+            return Loc.S("qsoLogger.lookupNeedsLog4OMAs");
         }
         var reply = await Log4OmLogbook.SetCallsignAsync(call);
         AppLog.Write($"Logbook: lookup of {call} in {program.Name}: {(reply is null ? "no answer" : reply.Done ? "done" : reply.Error ?? "refused")}");
@@ -179,11 +179,11 @@ public static class QsoLogger
         {
             var (host, port) = Log4OmLogbook.RemoteControlEndpoint();
             return await Task.Run(() => !Log4OmLogbook.IsRunning && LogbookPrograms.IsLocalHost(host)
-                ? "Log4OM isn't running"
+                ? Loc.S("common.log4OMIsntRunning")
                 : Log4OmLogbook.ReadConfig() is { RemoteControlEnabled: false }
-                    ? "Log4OM's remote control is off — turn it on in its Program Configuration"
-                    : $"Log4OM didn't answer on UDP {port}");
+                    ? Loc.S("qsoLogger.log4OMsRemoteControlIs")
+                    : Loc.F("qsoLogger.log4OMDidntAnswerOn", port));
         }
-        return reply.Done ? null : $"Log4OM refused the lookup: {reply.Error ?? "no reason given"}";
+        return reply.Done ? null : Loc.F("qsoLogger.log4OMRefusedTheLookup", reply.Error ?? Loc.S("qsoLogger.noReasonGiven"));
     }
 }

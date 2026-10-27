@@ -140,10 +140,10 @@ public static class Log4OmLogbook
     /// Why Log4OM's log can't be read here.
     public static string UnreadableDatabaseReason() => ReadConfig() switch
     {
-        null => "Log4OM's settings weren't found",
-        { DatabaseType: 2 or 3 } => "Log4OM's log is on a MySQL/MariaDB server; only a SQLite log can be read",
-        { DatabasePath.Length: 0 } => "Log4OM has no log open — create or open one in Log4OM",
-        _ => "Log4OM's log file wasn't found",
+        null => Loc.S("log4OmLogbook.log4OMsSettingsWerentFound"),
+        { DatabaseType: 2 or 3 } => Loc.S("log4OmLogbook.log4OMsLogIsOn"),
+        { DatabasePath.Length: 0 } => Loc.S("log4OmLogbook.log4OMHasNoLog"),
+        _ => Loc.S("log4OmLogbook.log4OMsLogFileWasnt"),
     };
 
     /// The log file to read: the hand-picked one if set, otherwise Log4OM's.
@@ -182,20 +182,20 @@ public static class Log4OmLogbook
         public string MissingLogReason => UnreadableDatabaseReason();
         public (string Host, int Port)? Destination() => Log4OmLogbook.Destination();
         public string MissingDestinationReason =>
-            "Log4OM has no ADIF_MESSAGE UDP inbound connection — add one (see Settings → Logbook)";
+            Loc.S("log4OmLogbook.log4OMHasNoADIF");
         public string UnconfirmedReason(string host, int port)
         {
             if (!IsRunning)
             {
-                return "Log4OM isn't running";
+                return Loc.S("common.log4OMIsntRunning");
             }
             if (AppSettings.Log4OmUdpPort == 0 && ReadConfig()?.Adif is { Enabled: false } adif)
             {
-                return $"Log4OM's \"{adif.Name}\" connection is off";
+                return Loc.F("log4OmLogbook.log4OMsXConnectionIs", adif.Name);
             }
             return LogbookPrograms.IsLocalHost(host) && !LogbookPrograms.IsListening(port)
-                ? $"nothing is listening on UDP {port}"
-                : $"it didn't show up in the log within {QsoLogger.ConfirmationTimeout.TotalSeconds:0} s";
+                ? Loc.F("common.nothingIsListeningOn", port)
+                : Loc.F("common.itDidntShowUp", QsoLogger.ConfirmationTimeout.TotalSeconds);
         }
         public List<WorkedStations.Qso> ReadWorkedQsos(string path) => Log4OmLogbook.ReadWorkedQsos(path);
         public bool ContainsQso(string call, DateTimeOffset start, string path) => Log4OmLogbook.ContainsQso(call, start, path);
@@ -259,7 +259,7 @@ public static class Log4OmLogbook
         command.CommandText = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'Log' COLLATE NOCASE";
         if (command.ExecuteScalar() is null)
         {
-            throw new LogbookDatabase.LogException("This isn't a Log4OM log (no Log table)");
+            throw new LogbookDatabase.LogException(Loc.S("log4OmLogbook.thisIsntALog4OM"));
         }
     }
 

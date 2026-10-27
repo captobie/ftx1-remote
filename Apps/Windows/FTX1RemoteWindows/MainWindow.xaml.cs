@@ -488,8 +488,8 @@ public sealed partial class MainWindow : Window
     private void ShowDisconnected()
     {
         ConnectionStateText.Text = AppSettings.ConnectionMode == ConnectionMode.Local
-            ? $"Disconnected · Local, {(AppSettings.ComPort.Length > 0 ? AppSettings.ComPort : "no COM port set")} @ {AppSettings.BaudRate}"
-            : $"Disconnected · Remote, {(AppSettings.PiHost.Length > 0 ? AppSettings.PiHost : "no Pi host set")}";
+            ? Loc.F("mainWindow.disconnectedLocalXX", (AppSettings.ComPort.Length > 0 ? AppSettings.ComPort : Loc.S("mainWindow.noCOMPortSet")), AppSettings.BaudRate)
+            : Loc.F("mainWindow.disconnectedRemoteX", (AppSettings.PiHost.Length > 0 ? AppSettings.PiHost : Loc.S("mainWindow.noPiHostSet")));
         ConnectionStateText.Foreground = ThemeEngine.SecondaryTextBrush;
     }
 
@@ -509,10 +509,10 @@ public sealed partial class MainWindow : Window
             {
                 XamlRoot = Content.XamlRoot,
                 RequestedTheme = (Content as FrameworkElement)?.RequestedTheme ?? ElementTheme.Default,
-                Title = "Update available",
-                Content = $"FTX1Remote {UpdateChecker.Display(update.Version)} is available (you have {UpdateChecker.CurrentVersionText}).",
-                PrimaryButtonText = "Download",
-                CloseButtonText = "Later",
+                Title = Loc.S("mainWindow.updateAvailable"),
+                Content = Loc.F("mainWindow.fTX1RemoteXIsAvailable", UpdateChecker.Display(update.Version), UpdateChecker.CurrentVersionText),
+                PrimaryButtonText = Loc.S("mainWindow.download"),
+                CloseButtonText = Loc.S("mainWindow.later"),
                 DefaultButton = ContentDialogButton.Primary,
             };
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
@@ -672,7 +672,7 @@ public sealed partial class MainWindow : Window
             host = AppSettings.PiHost;
             if (host.Length == 0)
             {
-                StatusText.Text = "Set the Pi's Tailscale hostname in Settings first.";
+                StatusText.Text = Loc.S("mainWindow.setThePisTailscale");
                 return;
             }
             description = $"{host}:{RigctldPort}";
@@ -682,14 +682,14 @@ public sealed partial class MainWindow : Window
             host = LocalHost;
             if (AppSettings.ComPort.Length == 0)
             {
-                StatusText.Text = "Set the COM port in Settings first.";
+                StatusText.Text = Loc.S("mainWindow.setTheCOMPort");
                 return;
             }
-            description = $"{AppSettings.ComPort} @ {AppSettings.BaudRate} via local rigctld";
+            description = Loc.F("mainWindow.xXViaLocal", AppSettings.ComPort, AppSettings.BaudRate);
         }
 
         ConnectButton.IsEnabled = false;
-        ConnectionStateText.Text = mode == ConnectionMode.Local ? "Starting rigctld…" : "Connecting…";
+        ConnectionStateText.Text = mode == ConnectionMode.Local ? Loc.S("mainWindow.startingRigctld") : Loc.S("mainWindow.connecting");
         ConnectionStateText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Orange);
         StatusText.Text = "";
 
@@ -709,12 +709,12 @@ public sealed partial class MainWindow : Window
                 {
                     // Its COM port/baud rate are whatever it was started
                     // with — rigctld can't report them, so don't claim ours.
-                    description = $"already-running rigctld on localhost:{RigctldPort}";
+                    description = Loc.F("mainWindow.alreadyRunningRigctldOn", RigctldPort);
                     await client.ConnectAsync();
                 }
                 else
                 {
-                    ConnectionStateText.Text = "Connecting…";
+                    ConnectionStateText.Text = Loc.S("mainWindow.connecting");
                     await ConnectToFreshRigctldAsync(client);
                 }
             }
@@ -736,12 +736,12 @@ public sealed partial class MainWindow : Window
             ClearC4fmState();
             // Run the slow tier (FR, MENU grid) on the first poll.
             _pollCount = 0;
-            ConnectionStateText.Text = $"Connected to {description}";
+            ConnectionStateText.Text = Loc.F("mainWindow.connectedToX", description);
             AppLog.Write($"connection: connected to {description} ({mode}); audio swapped={_swapTracker.Swapped}");
             _cwSender.OnConnected();
             ConnectionStateText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green);
             _scope.SetActive(true);
-            ConnectButton.Content = "Disconnect";
+            ConnectButton.Content = Loc.S("common.disconnect");
             _connectedMode = mode;
             _connectedHost = host;
             _pollTimer.Start();
@@ -760,7 +760,7 @@ public sealed partial class MainWindow : Window
             await client.DisposeAsync();
             _rigctldProcess.Stop();
             ShowDisconnected();
-            StatusText.Text = $"Connect failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.connectFailedX", ex.Message);
             AppLog.Write($"connection: connect failed: {ex.Message}");
         }
         finally
@@ -791,7 +791,7 @@ public sealed partial class MainWindow : Window
         {
             if (!_rigctldProcess.IsOwnedProcessRunning)
             {
-                throw new RigctldError(WithStderr("rigctld exited during startup"));
+                throw new RigctldError(WithStderr(Loc.S("mainWindow.rigctldExitedDuringStartup")));
             }
             try
             {
@@ -819,14 +819,14 @@ public sealed partial class MainWindow : Window
             }
         }
         throw new RigctldError(WithStderr(reachedRigctld
-            ? "rigctld is running but the radio isn't answering — check the COM port, baud rate, and that the radio is on"
-            : $"couldn't reach rigctld on localhost:{RigctldPort} ({lastError?.Message})"));
+            ? Loc.S("mainWindow.rigctldIsRunningBut")
+            : Loc.F("mainWindow.couldntReachRigctldOn", RigctldPort, lastError?.Message)));
     }
 
     private string WithStderr(string message)
     {
         var tail = _rigctldProcess.StderrTail();
-        return tail.Length > 0 ? $"{message}. rigctld said: {tail}" : message;
+        return tail.Length > 0 ? Loc.F("mainWindow.xRigctldSaidX", message, tail) : message;
     }
 
     /// Tears down the connection (and a rigctld this app spawned). A
@@ -860,7 +860,7 @@ public sealed partial class MainWindow : Window
         }
         _rigctldProcess.Stop();
         ShowDisconnected();
-        ConnectButton.Content = "Connect";
+        ConnectButton.Content = Loc.S("common.connect");
         if (reason is not null)
         {
             StatusText.Text = reason;
@@ -1328,7 +1328,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Set frequency failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.setFrequencyFailedX", ex.Message);
         }
     }
 
@@ -1383,7 +1383,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Swap VFO failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.swapVFOFailedX", ex.Message);
             AppLog.Write($"swap: SV failed: {ex.Message}");
         }
     }
@@ -1438,7 +1438,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Set TX side failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.setTXSideFailed", ex.Message);
         }
     }
 
@@ -1452,8 +1452,8 @@ public sealed partial class MainWindow : Window
     private void UpdateAudioSwapTooltip()
     {
         ToolTipService.SetToolTip(AudioSwapToggle, _swapTracker.Swapped
-            ? "Audio channels are swapped relative to the rig's default (L=Main, R=Sub). Click to swap back."
-            : "Swap which audio channel plays as Main and Sub — use if the audio doesn't match the VFO it's under.");
+            ? Loc.S("mainWindow.audioChannelsAreSwapped")
+            : Loc.S("mainWindow.swapWhichAudioChannel"));
     }
 
     // V/M memory mode (parity plan step 5)
@@ -1613,7 +1613,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"V/M failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.vMFailedX", ex.Message);
             AppLog.Write($"memory: V/M failed: {ex.Message}");
         }
     }
@@ -1724,7 +1724,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Recall channel {channel} failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.recallChannelXFailed", channel, ex.Message);
             AppLog.Write($"memory: list recall failed: {ex.Message}");
         }
     }
@@ -1780,7 +1780,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Set mode failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.setModeFailedX", ex.Message);
         }
     }
 
@@ -1805,7 +1805,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Set mode failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.setModeFailedX", ex.Message);
         }
     }
 
@@ -1838,7 +1838,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Set SUB mode failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.setSUBModeFailed", ex.Message);
         }
     }
 
@@ -1881,7 +1881,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Set band failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.setBandFailedX", ex.Message);
         }
     }
 
@@ -1924,7 +1924,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Set PTT failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.setPTTFailedX", ex.Message);
         }
     }
 
@@ -1962,7 +1962,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Unkey failed — check the rig: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.unkeyFailedCheckThe", ex.Message);
         }
     }
 
@@ -2041,7 +2041,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Unkey failed — check the rig: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.unkeyFailedCheckThe", ex.Message);
         }
         try
         {
@@ -2049,7 +2049,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"MOX off failed — check the rig: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.mOXOffFailedCheck", ex.Message);
         }
         UpdateTransmitControls();
     }
@@ -2080,7 +2080,7 @@ public sealed partial class MainWindow : Window
         {
             PttText.ClearValue(TextBlock.ForegroundProperty);
         }
-        ToolTipService.SetToolTip(PttButton, reason ?? "Hold to transmit");
+        ToolTipService.SetToolTip(PttButton, reason ?? Loc.S("mainWindow.holdToTransmit"));
         _menuGrid.RefreshLabels();
         EnforcePrivilegesWhileKeyed();
     }
@@ -2215,7 +2215,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Set power failed: {ex.Message}";
+            StatusText.Text = Loc.F("mainWindow.setPowerFailedX", ex.Message);
         }
     }
 
@@ -2437,12 +2437,12 @@ public sealed partial class MainWindow : Window
         }
         if (_audioSource is null)
         {
-            StatusText.Text = "Turn on audio to record.";
+            StatusText.Text = Loc.S("mainWindow.turnOnAudioTo");
             return;
         }
         var mode = _lastState.MainIsC4fm == true ? "C4FM" : _lastState.Mode?.DisplayName() ?? "";
         _audioRecorder.Start(IsConnected && _lastState.FrequencyHz > 0 ? Recordings.Label(_lastState.FrequencyHz, mode) : "");
-        StatusText.Text = "Recording Main audio…";
+        StatusText.Text = Loc.S("mainWindow.recordingMainAudio");
         UpdateRecordingState();
     }
 
@@ -2454,8 +2454,8 @@ public sealed partial class MainWindow : Window
         }
         var path = _audioRecorder.Stop();
         StatusText.Text = path is null
-            ? "Recording stopped — no audio arrived, nothing saved."
-            : $"Saved {System.IO.Path.GetFileName(path)} to Recordings.";
+            ? Loc.S("mainWindow.recordingStoppedNoAudio")
+            : Loc.F("mainWindow.savedXToRecordings", System.IO.Path.GetFileName(path));
         UpdateRecordingState();
     }
 
@@ -2543,7 +2543,7 @@ public sealed partial class MainWindow : Window
         }
         if (_lastState.Mode != RigMode.Cw)
         {
-            return CwSendBlock.NotCw(_lastState.Mode?.DisplayName() ?? "an unknown mode");
+            return CwSendBlock.NotCw(_lastState.Mode?.DisplayName() ?? Loc.S("common.anUnknownMode"));
         }
         if (_lastState.BreakIn == false)
         {
@@ -2591,7 +2591,7 @@ public sealed partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                StatusText.Text = $"Set mode failed: {ex.Message}";
+                StatusText.Text = Loc.F("mainWindow.setModeFailedX", ex.Message);
             }
         }
     }
@@ -2701,7 +2701,7 @@ public sealed partial class MainWindow : Window
             }
             if (deviceId.Length == 0)
             {
-                _audioSetupError = "Choose the radio's audio input in Settings → Audio.";
+                _audioSetupError = Loc.S("mainWindow.chooseTheRadiosAudio");
                 UpdateAudioStatus();
                 return;
             }
@@ -2712,7 +2712,7 @@ public sealed partial class MainWindow : Window
             catch (Exception ex)
             {
                 AppLog.Write($"local-audio: can't open {deviceId}: {ex.Message}");
-                _audioSetupError = $"\"{AppSettings.LocalAudioDeviceName}\" isn't available — is the radio plugged in and on? Pick it again in Settings → Audio once it is.";
+                _audioSetupError = Loc.F("mainWindow.xIsntAvailableIs", AppSettings.LocalAudioDeviceName);
                 UpdateAudioStatus();
                 return;
             }
@@ -2748,7 +2748,7 @@ public sealed partial class MainWindow : Window
         var usingDefault = chosenId.Length == 0 || outputId != chosenId;
         if (chosenId.Length > 0 && usingDefault)
         {
-            _playbackNote = $"\"{AppSettings.AudioOutputDeviceName}\" isn't connected, playing on Windows' default output";
+            _playbackNote = Loc.F("mainWindow.xIsntConnectedPlaying", AppSettings.AudioOutputDeviceName);
         }
 
         var captureId = AppSettings.LocalAudioDeviceId;
@@ -2758,8 +2758,8 @@ public sealed partial class MainWindow : Window
             _playbackBlockedForDeviceId = captureId;
             _playbackRecheckCountdown = PlaybackRecheckTicks;
             _playbackError = usingDefault
-                ? "Windows' default output is the radio's own USB audio, which would feed its transmit input — pick your speakers in Settings → Audio (or as Windows' default; Windows switches to the radio's audio when it's plugged in). Playback starts by itself once the default changes"
-                : "the output chosen in Settings → Audio is the radio's own USB audio, which would feed its transmit input — pick your speakers there";
+                ? Loc.S("mainWindow.windowsDefaultOutputIs")
+                : Loc.S("mainWindow.theOutputChosenIn");
             return;
         }
         _playbackError = _playback.Start(source.SampleRate, outputId);
@@ -2816,8 +2816,8 @@ public sealed partial class MainWindow : Window
         var gray = new SolidColorBrush(Colors.Gray);
         if (_audioSource is not { } source)
         {
-            AudioStateText.Text = !IsConnected ? "Not connected"
-                : _audioSetupError ?? (AudioSwitch.IsOn ? "Starting…" : "Off");
+            AudioStateText.Text = !IsConnected ? Loc.S("common.notConnected")
+                : _audioSetupError ?? (AudioSwitch.IsOn ? Loc.S("mainWindow.starting") : Loc.S("mainWindow.off"));
             AudioStateText.Foreground = _audioSetupError is null ? ThemeEngine.SecondaryTextBrush : new SolidColorBrush(Colors.Firebrick);
             AudioLevelsText.Text = "";
             MainSquelchLed.Fill = gray;
@@ -2828,17 +2828,17 @@ public sealed partial class MainWindow : Window
         var status = source.GetStatus();
         var (text, color) = status.Phase switch
         {
-            AudioLinkPhase.Streaming when _connectedMode == ConnectionMode.Local => ($"Capturing — {status.Detail}", Colors.Green),
-            AudioLinkPhase.DeviceUnavailable => ($"Audio input unavailable, retrying — {status.Detail}", Colors.Firebrick),
-            AudioLinkPhase.Connecting => ("Connecting to :8532…", Colors.Orange),
-            AudioLinkPhase.Unreachable => ($"Can't reach the Pi's audio stream (:8532), retrying — {status.Detail}", Colors.Firebrick),
-            AudioLinkPhase.WaitingForStream => ("Connected, no audio — another client (the Mac?) probably has the Pi's stream; will pick it up when it's free", Colors.Orange),
-            AudioLinkPhase.Streaming => ("Streaming", Colors.Green),
-            _ => ("Off", Colors.Gray),
+            AudioLinkPhase.Streaming when _connectedMode == ConnectionMode.Local => (Loc.F("mainWindow.capturingX", status.Detail), Colors.Green),
+            AudioLinkPhase.DeviceUnavailable => (Loc.F("mainWindow.audioInputUnavailableRetrying", status.Detail), Colors.Firebrick),
+            AudioLinkPhase.Connecting => (Loc.S("mainWindow.connectingTo8532"), Colors.Orange),
+            AudioLinkPhase.Unreachable => (Loc.F("mainWindow.cantReachThePis", status.Detail), Colors.Firebrick),
+            AudioLinkPhase.WaitingForStream => (Loc.S("mainWindow.connectedNoAudioAnother"), Colors.Orange),
+            AudioLinkPhase.Streaming => (Loc.S("mainWindow.streaming"), Colors.Green),
+            _ => (Loc.S("mainWindow.off"), Colors.Gray),
         };
         if (_playbackError is not null)
         {
-            text += $" · no audio output: {_playbackError}";
+            text += Loc.F("mainWindow.noAudioOutputX", _playbackError);
             color = Colors.Firebrick;
         }
         else if (_playbackNote is not null)

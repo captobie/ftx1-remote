@@ -25,7 +25,7 @@ public sealed partial class SettingsDialog
 
     private void InitLicense()
     {
-        LicenseChoiceComboBox.Items.Add(new ComboBoxItem { Content = "Off (amateur bands only)", Tag = PrivilegeChoice.Off });
+        LicenseChoiceComboBox.Items.Add(new ComboBoxItem { Content = Loc.S("settings.license.offAmateurBandsOnly"), Tag = PrivilegeChoice.Off });
         foreach (var preset in PrivilegePresets.All.Where(p => p.IsUS).Concat(PrivilegePresets.All.Where(p => !p.IsUS)))
         {
             LicenseChoiceComboBox.Items.Add(new ComboBoxItem { Content = preset.DisplayName, Tag = preset.RawValue });
@@ -33,7 +33,7 @@ public sealed partial class SettingsDialog
             item.Click += async (_, _) => await CopyToCustomAsync(preset);
             LicenseStartFromMenu.Items.Add(item);
         }
-        LicenseChoiceComboBox.Items.Add(new ComboBoxItem { Content = "Custom", Tag = PrivilegeChoice.Custom });
+        LicenseChoiceComboBox.Items.Add(new ComboBoxItem { Content = Loc.S("settings.license.custom"), Tag = PrivilegeChoice.Custom });
 
         _customDraft = AppSettings.LicenseCustomProfile.Copy();
         LicenseCustomNameBox.Text = _customDraft.Name;
@@ -63,12 +63,12 @@ public sealed partial class SettingsDialog
         LicensePresetTitle.Text = preset.DisplayName;
         if (preset.IsUS)
         {
-            LicensePresetNote.Text = "47 CFR §97.301/§97.305 as of October 2026, continental US. 60 m is the five channels; 70 cm is 420–450 MHz without the Line A exclusion.";
+            LicensePresetNote.Text = Loc.S("settings.license.47CFR97301");
             LicensePresetNote.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray);
         }
         else
         {
-            LicensePresetNote.Text = "The region's amateur allocations as outer band edges, every mode allowed — not any country's rules. Copy it to Custom and edit it to your license.";
+            LicensePresetNote.Text = Loc.S("settings.license.theRegionsAmateurAllocations");
             LicensePresetNote.Foreground = new SolidColorBrush(Microsoft.UI.Colors.DarkOrange);
         }
         BuildPresetTable(preset);
@@ -86,7 +86,7 @@ public sealed partial class SettingsDialog
         {
             table.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         }
-        AddRow(table, 0, Header("From (MHz)"), Header("To (MHz)"), Header("Modes"));
+        AddRow(table, 0, Header(Loc.S("settings.license.fromMHz")), Header(Loc.S("settings.license.toMHz")), Header(Loc.S("settings.license.modes")));
         var row = 1;
         foreach (var segment in preset.Segments)
         {
@@ -105,11 +105,11 @@ public sealed partial class SettingsDialog
     private async Task CopyToCustomAsync(PrivilegePreset preset)
     {
         if (_customDraft.Segments.Count > 0
-            && !await ConfirmReplaceAsync($"Your custom table ({_customDraft.Segments.Count} segments) is replaced by a copy of {preset.DisplayName}."))
+            && !await ConfirmReplaceAsync(Loc.F("settings.license.yourCustomTableX", _customDraft.Segments.Count, preset.DisplayName)))
         {
             return;
         }
-        _customDraft = preset.Profile.Copy($"Custom (from {preset.DisplayName})");
+        _customDraft = preset.Profile.Copy(Loc.F("settings.license.customFromX", preset.DisplayName));
         LicenseCustomNameBox.Text = _customDraft.Name;
         BuildCustomTable();
         SelectLicenseChoice(PrivilegeChoice.Custom);
@@ -121,10 +121,10 @@ public sealed partial class SettingsDialog
         {
             XamlRoot = RootGrid.XamlRoot,
             RequestedTheme = RootGrid.RequestedTheme,
-            Title = "Replace your custom privileges?",
+            Title = Loc.S("settings.license.replaceYourCustomPrivileges"),
             Content = message,
-            PrimaryButtonText = "Replace",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = Loc.S("settings.license.replace"),
+            CloseButtonText = Loc.S("common.cancel"),
             DefaultButton = ContentDialogButton.Close,
         };
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
@@ -150,7 +150,7 @@ public sealed partial class SettingsDialog
         {
             return;
         }
-        AddRow(table, 0, Header("From (MHz)"), Header("To (MHz)"), Header("CW"), Header("Phone"), Header("Data"), Header(""));
+        AddRow(table, 0, Header(Loc.S("settings.license.fromMHz")), Header(Loc.S("settings.license.toMHz")), Header("CW"), Header(Loc.S("common.phone")), Header(Loc.S("common.data")), Header(""));
         var row = 1;
         foreach (var segment in _customDraft.Segments)
         {
@@ -182,7 +182,7 @@ public sealed partial class SettingsDialog
             }).ToArray();
 
             var remove = new Button { Content = new SymbolIcon(Symbol.Remove), Padding = new Thickness(6, 4, 6, 4) };
-            ToolTipService.SetToolTip(remove, "Remove this segment");
+            ToolTipService.SetToolTip(remove, Loc.S("settings.license.removeThisSegment"));
             remove.Click += (_, _) =>
             {
                 CommitCustomEdits();
@@ -203,19 +203,19 @@ public sealed partial class SettingsDialog
     {
         if (ParseMhz(from.Text) is null || ParseMhz(to.Text) is null)
         {
-            note.Text = "Not a frequency in MHz";
+            note.Text = Loc.S("settings.license.notAFrequencyIn");
             note.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Firebrick);
         }
         else if (segment.LowerHz > segment.UpperHz)
         {
-            note.Text = "From is above To";
+            note.Text = Loc.S("settings.license.fromIsAboveTo");
             note.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Firebrick);
         }
         else if (segment.OnlyModes is { } only)
         {
-            note.Text = $"only {ModeList(only)}";
+            note.Text = Loc.F("settings.license.onlyX", ModeList(only));
             note.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray);
-            ToolTipService.SetToolTip(note, "From the preset this table was copied from; the other modes of the ticked kinds are refused here.");
+            ToolTipService.SetToolTip(note, Loc.S("settings.license.fromThePresetThis"));
         }
         else
         {
@@ -266,16 +266,16 @@ public sealed partial class SettingsDialog
         }
         catch (Exception ex)
         {
-            ErrorText.Text = $"Couldn't read {file.Name}: {ex.Message}";
+            ErrorText.Text = Loc.F("settings.license.couldntReadXX", file.Name, ex.Message);
             return;
         }
         if (profile is null)
         {
-            ErrorText.Text = $"{file.Name} isn't a privileges file exported from FTX1Remote.";
+            ErrorText.Text = Loc.F("settings.license.xIsntAPrivileges", file.Name);
             return;
         }
         if (_customDraft.Segments.Count > 0
-            && !await ConfirmReplaceAsync($"Your custom table is replaced by \"{profile.Name}\" ({profile.Segments.Count} segments) from {file.Name}."))
+            && !await ConfirmReplaceAsync(Loc.F("settings.license.yourCustomTableIs", profile.Name, profile.Segments.Count, file.Name)))
         {
             return;
         }
@@ -302,7 +302,7 @@ public sealed partial class SettingsDialog
         }
         catch (Exception ex)
         {
-            ErrorText.Text = $"Couldn't write {file.Name}: {ex.Message}";
+            ErrorText.Text = Loc.F("settings.license.couldntWriteXX", file.Name, ex.Message);
         }
     }
 
@@ -322,7 +322,7 @@ public sealed partial class SettingsDialog
             {
                 if (ParseMhz(box.Text) is null)
                 {
-                    return $"Custom privileges: \"{box.Text}\" isn't a frequency in MHz.";
+                    return Loc.F("settings.license.customPrivilegesXIsnt", box.Text);
                 }
             }
         }
@@ -369,7 +369,7 @@ public sealed partial class SettingsDialog
     {
         text = text.Trim();
         if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var mhz)
-            && !double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out mhz))
+            && !double.TryParse(text, NumberStyles.Float, Loc.OsCulture, out mhz))
         {
             return null;
         }

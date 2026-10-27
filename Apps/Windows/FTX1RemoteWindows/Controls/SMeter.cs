@@ -66,7 +66,7 @@ public sealed class SMeter : UserControl
     {
         _isSub = isSub;
         _selection = isSub ? AppSettings.SubMeterSelection : AppSettings.MainMeterSelection;
-        AutomationProperties.SetName(this, isSub ? "Sub meter" : "Main meter");
+        AutomationProperties.SetName(this, isSub ? Loc.S("sMeter.subMeter") : Loc.S("sMeter.mainMeter"));
 
         // Design-space content: backlit face, scales, needle, bezel shading.
         var content = new Grid
@@ -116,7 +116,7 @@ public sealed class SMeter : UserControl
             },
         };
         Tapped += (_, _) => _pickerFlyout.ShowAt(this);
-        ToolTipService.SetToolTip(this, "Click to choose what the meter shows while transmitting");
+        ToolTipService.SetToolTip(this, Loc.S("sMeter.clickToChooseWhat"));
 
         DrawFace();
         UpdateNeedle(animate: false);

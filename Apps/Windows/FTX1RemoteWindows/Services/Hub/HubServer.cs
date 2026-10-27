@@ -656,11 +656,13 @@ public sealed class HubServer : IAsyncDisposable
                 {
                     AppLog.Write($"hub: client {id}: {what} — refused: {refusal}");
                     reply.Error = refusal;
+                    reply.ErrorCode = HubKeyerPolicy.RequestRefusalCode(request.Slot, request.Text);
                 }
                 else if (CwKeyerHandler is not { } handler)
                 {
                     AppLog.Write($"hub: client {id}: {what} — refused: not connected to the rig");
                     reply.Error = "Not connected to the rig";
+                    reply.ErrorCode = CwKeyerReplyWire.NotConnectedCode;
                 }
                 else
                 {

@@ -73,7 +73,7 @@ public sealed partial class MainWindow
         var result = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         if (!DispatcherQueue.TryEnqueue(() => result.TrySetResult(TuneFromWavelog(request))))
         {
-            result.TrySetResult("the app is closing");
+            result.TrySetResult(Loc.S("mainWindow.theAppIsClosing"));
         }
         return result.Task;
     }
@@ -86,15 +86,15 @@ public sealed partial class MainWindow
     {
         if (!IsConnected)
         {
-            return "the rig isn't connected";
+            return Loc.S("common.theRigIsntConnected");
         }
         if (_lastState.Ptt || _pttHeld)
         {
-            return "the rig is transmitting";
+            return Loc.S("mainWindow.theRigIsTransmitting");
         }
         if (_lastState.InMemoryMode)
         {
-            return "MAIN is in Memory mode — press V/M first";
+            return Loc.S("mainWindow.mAINIsInMemory");
         }
         long? hz = request.FrequencyHz != _lastState.FrequencyHz ? request.FrequencyHz : null;
         RigMode? mode = request.Mode is { } m && (m != _lastState.Mode || _lastState.MainIsC4fm == true) ? m : null;

@@ -84,7 +84,7 @@ public static class FilterWidthTable
         }
         if (i == 0)
         {
-            return "Default";
+            return Loc.S("filterModels.default");
         }
         return Hz(i, mode) is { } hz ? $"{hz} Hz" : "—";
     }

@@ -50,6 +50,9 @@
     <Compile Include="..\FTX1RemoteWindows\Services\WavelogTuneListener.cs" Link="Linked\WavelogTuneListener.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\LoggedQso.cs" Link="Linked\LoggedQso.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\ThemeDefinition.cs" Link="Linked\ThemeDefinition.cs" />
+    <!-- The strings those files show (English only here; LocalizationTests reads all three .resx). -->
+    <Compile Include="..\FTX1RemoteWindows\Localization\Loc.cs" Link="Linked\Loc.cs" />
+    <EmbeddedResource Include="..\FTX1RemoteWindows\Localization\Strings.resx" Link="Linked\Strings.resx" LogicalName="FTX1RemoteWindows.Localization.Strings.resources" />
   </ItemGroup>
 
   <ItemGroup>

@@ -171,7 +171,7 @@ public sealed class KiwiSdrDirectory
             var parsed = await Task.Run(() => Parse(bytes));
             if (parsed is not { Count: > 0 })
             {
-                throw new InvalidDataException("The station list couldn't be read.");
+                throw new InvalidDataException(Loc.S("kiwiSdrDirectory.theStationListCouldnt"));
             }
             try
             {
@@ -193,8 +193,8 @@ public sealed class KiwiSdrDirectory
             AppLog.Write($"kiwisdr-directory: fetch failed: {ex.Message}");
             State = LoadState.Failed;
             FailureMessage = Stations.Count == 0
-                ? $"Couldn't load the station list: {ex.Message}"
-                : $"Couldn't refresh — showing the cached list. ({ex.Message})";
+                ? Loc.F("kiwiSdrDirectory.couldntLoadTheStation", ex.Message)
+                : Loc.F("kiwiSdrDirectory.couldntRefreshShowingThe", ex.Message);
         }
         Changed?.Invoke();
     }

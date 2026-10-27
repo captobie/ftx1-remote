@@ -40,21 +40,21 @@ public static class TransmitGate
     {
         if (!transmitEnabled)
         {
-            return "Transmit disabled";
+            return Loc.S("transmitGate.transmitDisabled");
         }
         if (BandPlan.BandContaining(transmitter.FrequencyHz) is null)
         {
-            return "Transmit disabled: outside an amateur band";
+            return Loc.S("transmitGate.transmitDisabledOutsideAn");
         }
         if (privileges is not null)
         {
             if (transmitter.ModeKey is null)
             {
-                return "Transmit disabled: the transmitting side's mode isn't known yet";
+                return Loc.S("transmitGate.transmitDisabledTheTransmitting");
             }
             if (!privileges.Allows(transmitter))
             {
-                return $"Transmit disabled: {transmitter.ModeDisplayName} on {FormatMHz(transmitter.FrequencyHz)} MHz is outside {privileges.Name} privileges";
+                return Loc.F("transmitGate.transmitDisabledXOn", transmitter.ModeDisplayName, FormatMHz(transmitter.FrequencyHz), privileges.Name);
             }
         }
         return null;

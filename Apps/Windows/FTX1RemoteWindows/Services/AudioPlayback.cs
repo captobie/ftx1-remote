@@ -103,7 +103,7 @@ public sealed class AudioPlayback : IDisposable
         {
             if (outputDeviceId is null)
             {
-                return "no audio output device";
+                return Loc.S("audioPlayback.noAudioOutputDevice");
             }
             using (var enumerator = new MMDeviceEnumerator())
             {

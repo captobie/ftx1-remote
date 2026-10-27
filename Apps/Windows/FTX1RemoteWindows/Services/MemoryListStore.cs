@@ -93,7 +93,7 @@ public sealed class MemoryListStore
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                ScanError = $"Stopped at channel {channel}.";
+                ScanError = Loc.F("memoryListStore.stoppedAtChannelX", channel);
                 return;
             }
             ScanningChannel = channel;
@@ -117,7 +117,7 @@ public sealed class MemoryListStore
                 if (!ReferenceEquals(clientProvider(), client) || ex.Message.StartsWith("Not connected", StringComparison.Ordinal)
                     || ex.Message.StartsWith("Connection closed", StringComparison.Ordinal))
                 {
-                    ScanError = $"Lost the rig connection at channel {channel}.";
+                    ScanError = Loc.F("memoryListStore.lostTheRigConnection", channel);
                     AppLog.Write($"memory-list: scan stopped at channel {channel}: {ex.Message}");
                     return;
                 }

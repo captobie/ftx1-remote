@@ -56,7 +56,7 @@ public sealed class LocalTxAudioPlayer : ITxAudioSink
         error = null;
         if (deviceId.Length == 0)
         {
-            error = "no Transmit audio output device set (Settings → Audio)";
+            error = Loc.S("localTxAudioPlayer.noTransmitAudioOutput");
             return null;
         }
         MMDevice? device = null;
@@ -66,7 +66,7 @@ public sealed class LocalTxAudioPlayer : ITxAudioSink
             device = enumerator.GetDevice(deviceId);
             if (device.State != DeviceState.Active)
             {
-                error = $"Transmit audio output \"{deviceName}\" isn't connected";
+                error = Loc.F("localTxAudioPlayer.transmitAudioOutputX2", deviceName);
                 device.Dispose();
                 return null;
             }
@@ -77,7 +77,7 @@ public sealed class LocalTxAudioPlayer : ITxAudioSink
         catch (Exception ex)
         {
             device?.Dispose();
-            error = $"Transmit audio output \"{deviceName}\" couldn't be opened: {ex.Message}";
+            error = Loc.F("localTxAudioPlayer.transmitAudioOutputX", deviceName, ex.Message);
             return null;
         }
     }

@@ -305,6 +305,19 @@ public static class ThemePresets
     /// The names the picker lists, Auto first.
     public static IReadOnlyList<string> Names { get; } = [Auto, .. All.Select(t => t.Name)];
 
+    /// The picker's label for a saved name (the name itself stays English:
+    /// it's what settings.json and theme JSON store).
+    public static string DisplayName(string name) => name switch
+    {
+        Auto => Loc.S("themePresets.auto"),
+        "Default Light" => Loc.S("themePresets.defaultLight"),
+        "Default Dark" => Loc.S("themePresets.defaultDark"),
+        "Glossy Black" => Loc.S("themePresets.glossyBlack"),
+        "Dusty Rose" => Loc.S("themePresets.dustyRose"),
+        "Icy Mint" => Loc.S("themePresets.icyMint"),
+        _ => name,
+    };
+
     /// The theme for a saved name; Auto (or a name that no longer exists)
     /// is Default Light/Dark by Windows' app mode.
     public static ThemeDefinition Resolve(string? name, bool systemIsDark) =>

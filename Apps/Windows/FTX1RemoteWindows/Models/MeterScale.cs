@@ -116,12 +116,12 @@ public static class MeterSelectionExtensions
 
     public static string Detail(this MeterSelection s) => s switch
     {
-        MeterSelection.Po => "RF power output",
-        MeterSelection.Comp => "Speech processor compression",
-        MeterSelection.Alc => "Relative ALC voltage",
-        MeterSelection.Vdd => "Final amplifier drain voltage",
-        MeterSelection.Id => "Final amplifier drain current",
-        MeterSelection.Swr => "Standing wave ratio",
+        MeterSelection.Po => Loc.S("meterScale.rFPowerOutput"),
+        MeterSelection.Comp => Loc.S("meterScale.speechProcessorCompression"),
+        MeterSelection.Alc => Loc.S("meterScale.relativeALCVoltage"),
+        MeterSelection.Vdd => Loc.S("meterScale.finalAmplifierDrainVoltage"),
+        MeterSelection.Id => Loc.S("meterScale.finalAmplifierDrainCurrent"),
+        MeterSelection.Swr => Loc.S("meterScale.standingWaveRatio"),
         _ => "",
     };
 

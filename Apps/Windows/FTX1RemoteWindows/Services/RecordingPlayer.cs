@@ -38,12 +38,12 @@ public sealed class RecordingPlayer : IDisposable
         var outputId = AudioPlayback.ResolveOutputId(AppSettings.AudioOutputDeviceId);
         if (outputId is null)
         {
-            return "There's no audio output device.";
+            return Loc.S("recordingPlayer.theresNoAudioOutput");
         }
         var captureId = AppSettings.LocalAudioDeviceId;
         if (captureId.Length > 0 && LocalAudioCapture.IsSameAdapter(captureId, outputId))
         {
-            return "The audio output is the radio's own USB audio, which would feed its transmit input. Pick your speakers in Settings → Audio (or as Windows' default output).";
+            return Loc.S("recordingPlayer.theAudioOutputIs");
         }
         try
         {
@@ -60,7 +60,7 @@ public sealed class RecordingPlayer : IDisposable
                 }
                 else if (chain.WaveFormat.Channels > 2)
                 {
-                    throw new NotSupportedException($"{chain.WaveFormat.Channels}-channel files aren't supported");
+                    throw new NotSupportedException(Loc.F("recordingPlayer.xChannelFilesArent", chain.WaveFormat.Channels));
                 }
                 // Resampled here rather than left to WasapiOut, as in AudioPlayback.
                 if (chain.WaveFormat.SampleRate != mixRate)
@@ -89,7 +89,7 @@ public sealed class RecordingPlayer : IDisposable
         {
             AppLog.Write($"recordings: couldn't play {recording.Name}: {ex.Message}");
             Stop();
-            return $"Couldn't play \"{recording.Name}\": {ex.Message}";
+            return Loc.F("recordingPlayer.couldntPlayXX", recording.Name, ex.Message);
         }
     }
 

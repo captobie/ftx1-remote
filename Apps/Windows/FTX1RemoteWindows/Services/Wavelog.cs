@@ -58,13 +58,13 @@ public static class Wavelog
     /// unusable reply or no reply. Message is the text the window shows.
     public sealed class ApiException(string message) : Exception(message)
     {
-        public static ApiException BadUrl() => new("The Wavelog URL isn't valid");
+        public static ApiException BadUrl() => new(Loc.S("wavelog.theWavelogURLIsnt"));
 
-        public static ApiException Refused(string message) => new($"Wavelog: {message}");
+        public static ApiException Refused(string message) => new(Loc.F("common.wavelogX", message));
 
         public static ApiException UnexpectedReply(int status, string body) => new(body.Length == 0
-            ? $"Unexpected reply from Wavelog (HTTP {status}) — is the URL right, and is it Wavelog 3.1 or newer?"
-            : $"Unexpected reply from Wavelog (HTTP {status}): {body}");
+            ? Loc.F("wavelog.unexpectedReplyFromWavelog2", status)
+            : Loc.F("wavelog.unexpectedReplyFromWavelog", status, body));
     }
 
     /// What a CAT client reports about the rig: the transmit frequency and
@@ -217,7 +217,7 @@ public static class Wavelog
             .Select(m => m is JsonValue v && v.TryGetValue<string>(out var s) ? PlainText(s) : "")
             .Where(m => m.Length > 0)
             .ToList();
-        return new LogResult.Rejected(messages.Count == 0 ? "Wavelog didn't import the QSO" : string.Join("; ", messages));
+        return new LogResult.Rejected(messages.Count == 0 ? Loc.S("common.wavelogDidntImportThe") : string.Join("; ", messages));
     }
 
     public static List<Station> ParseStations(int status, string body)
@@ -370,15 +370,15 @@ public static class Wavelog
         }
         catch (OperationCanceledException) when (timeout.IsCancellationRequested)
         {
-            throw new ApiException($"Wavelog didn't answer within {Timeout.TotalSeconds:0} s");
+            throw new ApiException(Loc.F("wavelog.wavelogDidntAnswerWithin", Timeout.TotalSeconds));
         }
         catch (HttpRequestException e) when (e.InnerException is SocketException { SocketErrorCode: SocketError.HostNotFound or SocketError.NoData or SocketError.TryAgain })
         {
-            throw new ApiException($"Couldn't find the host {request.RequestUri?.Host}");
+            throw new ApiException(Loc.F("common.couldntFindTheHost", request.RequestUri?.Host));
         }
         catch (HttpRequestException e)
         {
-            throw new ApiException($"Couldn't reach Wavelog: {e.Message}");
+            throw new ApiException(Loc.F("wavelog.couldntReachWavelogX", e.Message));
         }
     }
 }
