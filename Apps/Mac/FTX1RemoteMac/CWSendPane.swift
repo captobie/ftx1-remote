@@ -40,6 +40,18 @@ struct CWSendPane: View {
             CWKeyerControls()
             Spacer()
             CWMonitorToggle()
+            // Icons alone when the titles don't fit (longer translations).
+            ViewThatFits(in: .horizontal) {
+                actionButtons.labelStyle(.titleAndIcon)
+                actionButtons.labelStyle(.iconOnly)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+    }
+
+    private var actionButtons: some View {
+        HStack(spacing: 12) {
             Button {
                 isEditingMacros = true
             } label: {
@@ -62,9 +74,7 @@ struct CWSendPane: View {
             .help("cwSendPane.stopKeyingNowAnd")
             .disabled(!sender.canStop)
         }
-        .labelStyle(.titleAndIcon)
-        .padding(.horizontal)
-        .padding(.vertical, 8)
+        .lineLimit(1)
     }
 
     private var macroRow: some View {
@@ -198,6 +208,9 @@ private struct CWKeyerControls: View {
             .disabled(sender.isSending)
             .help("cwSendPane.theRigsCwText")
         }
+        // Natural width, one line: squeezed, BK-IN collapsed to a sliver.
+        .lineLimit(1)
+        .fixedSize()
     }
 }
 
