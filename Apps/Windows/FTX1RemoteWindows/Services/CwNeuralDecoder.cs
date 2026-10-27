@@ -262,7 +262,7 @@ public sealed class CwNetModel : IDisposable
         path ??= DefaultPath;
         if (!File.Exists(path))
         {
-            throw new InvalidOperationException("The neural decoder's model (Assets\\CWNet.onnx) is missing.");
+            throw new InvalidOperationException(Loc.S("cwNeuralDecoder.theNeuralDecodersModel3"));
         }
         var options = new SessionOptions
         {
@@ -279,13 +279,13 @@ public sealed class CwNetModel : IDisposable
             || vocabulary[0] != "<blank>")
         {
             _session.Dispose();
-            throw new InvalidOperationException("The neural decoder's model doesn't match this version of the app (no vocabulary).");
+            throw new InvalidOperationException(Loc.S("cwNeuralDecoder.theNeuralDecodersModel2"));
         }
         Vocabulary = vocabulary;
         if (!metadata.TryGetValue("features", out var featuresJson) || !FeaturesMatch(featuresJson))
         {
             _session.Dispose();
-            throw new InvalidOperationException("The neural decoder's model doesn't match this version of the app (feature settings differ).");
+            throw new InvalidOperationException(Loc.S("cwNeuralDecoder.theNeuralDecodersModel"));
         }
     }
 

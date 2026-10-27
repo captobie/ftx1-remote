@@ -29,8 +29,8 @@ public sealed class WebSdrFavoritesDialog : ContentDialog
         _model = model;
         XamlRoot = root;
         RequestedTheme = theme;
-        Title = "Favorites";
-        CloseButtonText = "Done";
+        Title = Loc.S("common.favorites");
+        CloseButtonText = Loc.S("common.done");
         DefaultButton = ContentDialogButton.None;
         Resources["ContentDialogMaxWidth"] = 640.0;
 
@@ -38,7 +38,7 @@ public sealed class WebSdrFavoritesDialog : ContentDialog
         panel.Children.Add(_list);
         panel.Children.Add(new TextBlock
         {
-            Text = "Click a name to rename it; use the arrows to reorder.",
+            Text = Loc.S("webSdrFavoritesDialog.clickANameTo"),
             FontSize = 12,
             Foreground = new SolidColorBrush(Colors.Gray),
         });
@@ -67,7 +67,7 @@ public sealed class WebSdrFavoritesDialog : ContentDialog
         }
         if (_model.Favorites.Count == 0)
         {
-            _list.Items.Add(new TextBlock { Text = "No favorites. Star a station to add it.", Foreground = new SolidColorBrush(Colors.Gray), Tag = "" });
+            _list.Items.Add(new TextBlock { Text = Loc.S("webSdrFavoritesDialog.noFavoritesStarA"), Foreground = new SolidColorBrush(Colors.Gray), Tag = "" });
         }
     }
 
@@ -84,7 +84,7 @@ public sealed class WebSdrFavoritesDialog : ContentDialog
 
         var fields = new StackPanel { Spacing = 2 };
         var name = new TextBox { Text = favorite.Name, BorderThickness = new Thickness(0), Background = new SolidColorBrush(Colors.Transparent) };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(name, "Name");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(name, Loc.S("common.name"));
         name.KeyDown += (_, e) =>
         {
             if (e.Key == Windows.System.VirtualKey.Enter)
@@ -109,7 +109,7 @@ public sealed class WebSdrFavoritesDialog : ContentDialog
         }
         parts.Add(favorite.BandRanges is { } bands
             ? FrequencyRange.Describe(bands)
-            : favorite.Platform is SdrPlatform.WebSdr or SdrPlatform.OpenWebRx ? "range read on next connect" : "0–30 MHz (range unknown)");
+            : favorite.Platform is SdrPlatform.WebSdr or SdrPlatform.OpenWebRx ? Loc.S("webSdrFavoritesDialog.rangeReadOnNext") : Loc.S("webSdrFavoritesDialog.030MHzRange"));
         var details = string.Join(" · ", parts);
         var detailsText = new TextBlock
         {
@@ -123,9 +123,9 @@ public sealed class WebSdrFavoritesDialog : ContentDialog
         fields.Children.Add(detailsText);
         row.Children.Add(fields);
 
-        AddButton(row, 1, "", "Move up", index > 0, () => Move(index, index - 1));
-        AddButton(row, 2, "", "Move down", index < _model.Favorites.Count - 1, () => Move(index, index + 1));
-        AddButton(row, 3, "", "Remove from Favorites", true, () =>
+        AddButton(row, 1, "", Loc.S("common.moveUp"), index > 0, () => Move(index, index - 1));
+        AddButton(row, 2, "", Loc.S("common.moveDown"), index < _model.Favorites.Count - 1, () => Move(index, index + 1));
+        AddButton(row, 3, "", Loc.S("common.removeFromFavorites"), true, () =>
         {
             CommitAll();
             _model.RemoveFavorite(favorite.HostPort);

@@ -182,7 +182,7 @@ public sealed class RemoteAudioStreamClient : IAudioSource
                     else
                     {
                         _phase = AudioLinkPhase.Connecting;
-                        _detail = "stream ended, reconnecting";
+                        _detail = Loc.S("remoteAudioStreamClient.streamEndedReconnecting");
                     }
                     _socketConnected = false;
                 }
@@ -219,7 +219,7 @@ public sealed class RemoteAudioStreamClient : IAudioSource
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !token.IsCancellationRequested)
             {
-                throw new IOException($"timed out connecting to {_host}:{_port}");
+                throw new IOException(Loc.F("remoteAudioStreamClient.timedOutConnectingTo", _host, _port));
             }
         }
 
@@ -246,7 +246,7 @@ public sealed class RemoteAudioStreamClient : IAudioSource
             var read = await stream.ReadAsync(readBuffer, token).ConfigureAwait(false);
             if (read == 0)
             {
-                throw new IOException("stream closed by the Pi");
+                throw new IOException(Loc.S("remoteAudioStreamClient.streamClosedByThe"));
             }
             lock (_statusLock)
             {

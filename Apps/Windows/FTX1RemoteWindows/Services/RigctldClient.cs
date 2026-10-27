@@ -63,12 +63,12 @@ public sealed class RigctldClient : IAsyncDisposable
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
         {
             client.Dispose();
-            throw new RigctldError($"Timed out connecting to {_host}:{_port}");
+            throw new RigctldError(Loc.F("rigctldClient.timedOutConnectingTo", _host, _port));
         }
         catch (Exception ex)
         {
             client.Dispose();
-            throw new RigctldError($"Failed to connect to {_host}:{_port}: {ex.Message}");
+            throw new RigctldError(Loc.F("rigctldClient.failedToConnectTo", _host, _port, ex.Message));
         }
 
         _tcpClient = client;
@@ -223,7 +223,7 @@ public sealed class RigctldClient : IAsyncDisposable
     public async Task<double?> GetLevelAsync(string name, CancellationToken cancellationToken = default)
     {
         var line = await SendAsync($"l {CurrentVfoArg} {name}", cancellationToken).ConfigureAwait(false);
-        return double.TryParse(line, out var value) ? value : null;
+        return double.TryParse(line, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value) ? value : null;
     }
 
     /// RFPOWER setting, 0.0-1.0 relative — matches CommandQueue.apply's
@@ -829,11 +829,11 @@ public sealed class RigctldClient : IAsyncDisposable
                 {
                     AppLog.Write($"rigctld: reconnect failed: {ex.Message}");
                 }
-                throw new RigctldError("rigctld didn't answer the keyer memory write in time. If this keeps happening, the rig may be off or its USB connection may have dropped.");
+                throw new RigctldError(Loc.S("rigctldClient.rigctldDidntAnswerThe"));
             }
             if (rejected)
             {
-                throw new RigctldError("The rig rejected the keyer memory write.");
+                throw new RigctldError(Loc.S("rigctldClient.theRigRejectedThe"));
             }
             var stored = reply[read.Length..];
             if (stored.EndsWith(';'))
@@ -942,7 +942,7 @@ public sealed class RigctldClient : IAsyncDisposable
     {
         if (_stream is null)
         {
-            throw new RigctldError("Not connected");
+            throw new RigctldError(Loc.S("common.notConnected"));
         }
         // Every round trip reads its whole reply before releasing the lock,
         // so anything still buffered now is stale. Drop it, as
@@ -971,12 +971,12 @@ public sealed class RigctldClient : IAsyncDisposable
 
             if (_stream is null)
             {
-                throw new RigctldError("Not connected");
+                throw new RigctldError(Loc.S("common.notConnected"));
             }
             var read = await _stream.ReadAsync(_recvBuffer, cancellationToken).ConfigureAwait(false);
             if (read == 0)
             {
-                throw new RigctldError("Connection closed by remote end");
+                throw new RigctldError(Loc.S("rigctldClient.connectionClosedByRemote"));
             }
             _readBuffer.Append(Encoding.UTF8.GetString(_recvBuffer, 0, read));
         }

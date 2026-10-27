@@ -52,7 +52,7 @@ public sealed class AprsListWindow : Window
     {
         _kind = kind;
         _store = store;
-        Title = kind == AprsListKind.Stations ? "APRS Stations" : "APRS Messages";
+        Title = kind == AprsListKind.Stations ? Loc.S("aprsListWindow.aPRSStations") : Loc.S("aprsListWindow.aPRSMessages");
         // AppWindow sizes are physical pixels; scale from DIPs so the columns
         // fit at any display scaling.
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
@@ -64,7 +64,7 @@ public sealed class AprsListWindow : Window
         _root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
         var filterBar = new SelectorBar();
-        foreach (var (label, tag) in new[] { ("All", ""), ("Main", nameof(AprsSource.Main)), ("Sub", nameof(AprsSource.Sub)) })
+        foreach (var (label, tag) in new[] { (Loc.S("common.all"), ""), ("Main", nameof(AprsSource.Main)), ("Sub", nameof(AprsSource.Sub)) })
         {
             filterBar.Items.Add(new SelectorBarItem { Text = label, Tag = tag, IsSelected = tag.Length == 0 });
         }
@@ -83,8 +83,8 @@ public sealed class AprsListWindow : Window
         _root.Children.Add(toolbar);
 
         var header = kind == AprsListKind.Stations
-            ? Row(StationColumns, bold: true, "Callsign", "Source", "Position", "Symbol", "Comment", "Last heard")
-            : Row(MessageColumns, bold: true, "From", "To", "Source", "Message", "Received");
+            ? Row(StationColumns, bold: true, Loc.S("aprsListWindow.callsign"), Loc.S("aprsListWindow.source"), Loc.S("aprsListWindow.position"), Loc.S("aprsListWindow.symbol"), Loc.S("common.comment"), Loc.S("aprsListWindow.lastHeard"))
+            : Row(MessageColumns, bold: true, Loc.S("aprsListWindow.from"), Loc.S("aprsListWindow.to"), Loc.S("aprsListWindow.source"), Loc.S("aprsListWindow.message"), Loc.S("aprsListWindow.received"));
         // Lines the header up with the ListView items' own inner padding.
         header.Padding = new Thickness(16, 0, 12, 4);
         Grid.SetRow(header, 1);
@@ -92,7 +92,7 @@ public sealed class AprsListWindow : Window
 
         _emptyPanel.Children.Add(new TextBlock
         {
-            Text = kind == AprsListKind.Stations ? "No Stations Heard" : "No Messages",
+            Text = kind == AprsListKind.Stations ? Loc.S("aprsListWindow.noStationsHeard") : Loc.S("aprsListWindow.noMessages"),
             FontSize = 18,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -180,16 +180,17 @@ public sealed class AprsListWindow : Window
         }
 
         var total = _kind == AprsListKind.Stations ? _store.Stations.Count : _store.Messages.Count;
-        var noun = _kind == AprsListKind.Stations ? "station" : "message";
+        var isStations = _kind == AprsListKind.Stations;
         _countText.Text = shown == total
-            ? $"{total} {noun}{(total == 1 ? "" : "s")}"
-            : $"{shown} of {total} {noun}s";
+            ? Loc.P(isStations ? "aprsListWindow.stationCount" : "aprsListWindow.messageCount", total)
+            : Loc.P(isStations ? "aprsListWindow.stationsShown" : "aprsListWindow.messagesShown", total, shown);
         _emptyPanel.Visibility = shown == 0 ? Visibility.Visible : Visibility.Collapsed;
         _emptyHint.Text = !AppSettings.AprsEnabled
-            ? "APRS decoding is off. Turn it on in Settings → APRS."
+            ? Loc.S("common.aPRSDecodingIsOff")
             : total > 0
-                ? "Nothing from this receiver yet."
-                : $"Decoded APRS {noun}s will appear here while a VFO is tuned to {AppSettings.AprsFrequencyHz / 1_000_000.0:0.000###} MHz, with audio on.";
+                ? Loc.S("aprsListWindow.nothingFromThisReceiver")
+                : Loc.F(isStations ? "aprsListWindow.decodedStationsAppearHere" : "aprsListWindow.decodedMessagesAppearHere",
+                    AppSettings.AprsFrequencyHz / 1_000_000.0);
     }
 
     /// The callsign column in a monospaced font, and the full local time as
@@ -243,10 +244,10 @@ public sealed class AprsListWindow : Window
         var elapsed = now - at;
         return elapsed.TotalSeconds switch
         {
-            < 60 => "just now",
-            < 3600 => $"{(int)elapsed.TotalMinutes} min ago",
-            < 86400 => $"{(int)elapsed.TotalHours} h ago",
-            _ => $"{(int)elapsed.TotalDays} d ago",
+            < 60 => Loc.S("common.justNow"),
+            < 3600 => Loc.F("common.xMinAgo", (int)elapsed.TotalMinutes),
+            < 86400 => Loc.F("common.xHAgo", (int)elapsed.TotalHours),
+            _ => Loc.F("common.xDAgo", (int)elapsed.TotalDays),
         };
     }
 }

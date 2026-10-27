@@ -184,7 +184,7 @@ public sealed partial class SettingsDialog : Window
                 Text = FormatMHz(AppSettings.HomeFrequencyHz(band)),
                 PlaceholderText = FormatMHz(band.FrequencyHz),
             };
-            ToolTipService.SetToolTip(box, $"{FormatMHz(band.LowHz)}–{FormatMHz(band.HighHz)} MHz; factory {FormatMHz(band.FrequencyHz)}");
+            ToolTipService.SetToolTip(box, Loc.F("settings.xXMHzFactory", FormatMHz(band.LowHz), FormatMHz(band.HighHz), FormatMHz(band.FrequencyHz)));
             _homeFields.Add((band, box));
             HomeFieldsPanel.Children.Add(box);
         }
@@ -198,16 +198,16 @@ public sealed partial class SettingsDialog : Window
         // Appearance
         foreach (var name in ThemePresets.Names)
         {
-            ThemeComboBox.Items.Add(new ComboBoxItem { Content = name, Tag = name });
+            ThemeComboBox.Items.Add(new ComboBoxItem { Content = ThemePresets.DisplayName(name), Tag = name });
         }
         ThemeComboBox.SelectedIndex = Math.Max(0, ThemePresets.Names.ToList().IndexOf(AppSettings.ThemeName));
-        VfoDigitFontComboBox.Items.Add(new ComboBoxItem { Content = "Theme default", Tag = null });
+        VfoDigitFontComboBox.Items.Add(new ComboBoxItem { Content = Loc.S("settings.themeDefault"), Tag = null });
         foreach (var font in Enum.GetValues<VfoDigitFont>())
         {
             VfoDigitFontComboBox.Items.Add(new ComboBoxItem { Content = font.DisplayName(), Tag = font });
         }
         VfoDigitFontComboBox.SelectedIndex = AppSettings.VfoDigitFont is { } digitFont ? (int)digitFont + 1 : 0;
-        VfoDigitColorComboBox.Items.Add(new ComboBoxItem { Content = "Theme default", Tag = null });
+        VfoDigitColorComboBox.Items.Add(new ComboBoxItem { Content = Loc.S("settings.themeDefault"), Tag = null });
         foreach (var color in Enum.GetValues<ButtonValueColor>())
         {
             VfoDigitColorComboBox.Items.Add(new ComboBoxItem { Content = color.DisplayName(), Tag = color });
@@ -220,12 +220,12 @@ public sealed partial class SettingsDialog : Window
         ButtonValueColorComboBox.SelectedIndex = (int)AppSettings.ButtonValueColor;
 
         // About
-        VersionText.Text = $"Version {UpdateChecker.CurrentVersionText}";
+        VersionText.Text = Loc.F("settings.versionX", UpdateChecker.CurrentVersionText);
         CheckAtLaunchCheckBox.IsChecked = AppSettings.CheckForUpdatesAtLaunch;
 
         // Hub
         HubEnabledSwitch.IsOn = AppSettings.HubEnabled;
-        HubPortText.Text = $"Port {HubServer.Port} (ws://<this PC's Tailscale name or LAN address>:{HubServer.Port})";
+        HubPortText.Text = Loc.F("settings.portXWsThis", HubServer.Port, HubServer.Port);
     }
 
     /// Raised once the window is shown (the ContentDialog's Opened).
@@ -346,13 +346,13 @@ public sealed partial class SettingsDialog : Window
             if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var mhz)
                 && !double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out mhz))
             {
-                Fail("Home", $"{band.Name}: \"{text}\" isn't a frequency in MHz.");
+                Fail("Home", Loc.F("settings.homeXIsntAFrequency", band.Name, text));
                 return false;
             }
             var hz = (long)Math.Round(mhz * 1_000_000);
             if (hz < band.LowHz || hz > band.HighHz)
             {
-                Fail("Home", $"{band.Name}: {FormatMHz(hz)} MHz is outside the band group ({FormatMHz(band.LowHz)}–{FormatMHz(band.HighHz)} MHz).");
+                Fail("Home", Loc.F("settings.homeXOutsideBandGroup", band.Name, FormatMHz(hz), FormatMHz(band.LowHz), FormatMHz(band.HighHz)));
                 return false;
             }
             homeFrequencies.Add((band, hz));
@@ -365,13 +365,13 @@ public sealed partial class SettingsDialog : Window
             if (!double.TryParse(aprsFrequencyText, NumberStyles.Float, CultureInfo.InvariantCulture, out var aprsMhz)
                 && !double.TryParse(aprsFrequencyText, NumberStyles.Float, CultureInfo.CurrentCulture, out aprsMhz))
             {
-                Fail("Aprs", $"\"{aprsFrequencyText}\" isn't a frequency in MHz.");
+                Fail("Aprs", Loc.F("settings.aprsXIsntAFrequency", aprsFrequencyText));
                 return false;
             }
             aprsFrequencyHz = (long)Math.Round(aprsMhz * 1_000_000);
             if (aprsFrequencyHz <= 0)
             {
-                Fail("Aprs", "The APRS frequency has to be above 0 MHz.");
+                Fail("Aprs", Loc.S("settings.aprsFrequencyAboveZero"));
                 return false;
             }
         }
@@ -385,7 +385,7 @@ public sealed partial class SettingsDialog : Window
         var gridSquare = GridSquareBox.Text.Trim();
         if (gridSquare.Length > 0 && Maidenhead.Coordinates(gridSquare) is null)
         {
-            Fail("Station", $"\"{gridSquare}\" isn't a Maidenhead grid square (e.g. FN31 or FN31pr).");
+            Fail("Station", Loc.F("settings.xIsntAMaidenheadGrid", gridSquare));
             return false;
         }
 
@@ -395,7 +395,7 @@ public sealed partial class SettingsDialog : Window
         {
             if (host.Contains(' ') || host.Contains('/'))
             {
-                Fail("Logbook", $"\"{host}\" isn't a host name or address.");
+                Fail("Logbook", Loc.F("settings.xIsntAHostName", host));
                 return false;
             }
         }
@@ -403,7 +403,7 @@ public sealed partial class SettingsDialog : Window
         var wavelogUrl = WavelogUrlBox.Text.Trim();
         if (wavelogUrl.Length > 0 && Wavelog.ApiUrl(wavelogUrl, "qso") is null)
         {
-            Fail("Logbook", $"\"{wavelogUrl}\" isn't a Wavelog URL (e.g. https://log.example.org).");
+            Fail("Logbook", Loc.F("settings.xIsntAWavelogUrl", wavelogUrl));
             return false;
         }
 
@@ -533,9 +533,9 @@ public sealed partial class SettingsDialog : Window
     private void AprsClearHistoryButton_Click(object sender, RoutedEventArgs e)
     {
         AprsClearHistory = !AprsClearHistory;
-        AprsClearHistoryButton.Content = AprsClearHistory ? "Don't Clear" : "Clear History…";
+        AprsClearHistoryButton.Content = AprsClearHistory ? Loc.S("settings.dontClear") : Loc.S("settings.clearHistory");
         AprsClearNote.Text = AprsClearHistory
-            ? "Every decoded station and message will be deleted when you Save."
+            ? Loc.S("settings.everyDecodedStationAnd")
             : "";
     }
 
@@ -598,7 +598,7 @@ public sealed partial class SettingsDialog : Window
         var typedPath = HrdLogPathBox.Text.Trim().Trim('"');
         var typedHost = HrdHostBox.Text.Trim();
         var typedPort = double.IsNaN(HrdPortBox.Value) ? 0 : (int)Math.Round(HrdPortBox.Value);
-        HrdRunningText.Text = HrdReceiverText.Text = HrdLogText.Text = "Checking…";
+        HrdRunningText.Text = HrdReceiverText.Text = HrdLogText.Text = Loc.S("settings.checking");
         var status = await Task.Run(() =>
         {
             var receiver = HrdLogbook.Receiver();
@@ -608,41 +608,41 @@ public sealed partial class SettingsDialog : Window
             string receiving;
             if (port == 0)
             {
-                receiving = "HRD's ADIF receiver port isn't set — turn it on in HRD (see above)";
+                receiving = Loc.S("settings.hRDsADIFReceiverPort");
             }
             else if (typedPort == 0 && receiver is { Enabled: false })
             {
-                receiving = $"Off in HRD (UDP9/ADIF receive, port {port}) — turn it on (see above)";
+                receiving = Loc.F("settings.offInHRDUDP9", port);
             }
             else if (LogbookPrograms.IsLocalHost(host))
             {
                 receiving = LogbookPrograms.IsListening(port)
-                    ? $"Listening on UDP {port} — QSOs go to {host}:{port}"
-                    : $"Nothing is listening on UDP {port} on this PC";
+                    ? Loc.F("settings.listeningOnUDPX", port, host, port)
+                    : Loc.F("settings.nothingIsListeningOn", port);
             }
             else
             {
-                receiving = $"QSOs go to {host}:{port} (another computer; not checked)";
+                receiving = Loc.F("settings.qSOsGoToX", host, port);
             }
             var path = typedPath.Length > 0 ? typedPath : detectedPath;
             string log;
             if (path is null)
             {
-                log = HrdLogbook.UnreadableDatabaseReason() ?? "HRD's log wasn't found — choose its .hrdsql file";
+                log = HrdLogbook.UnreadableDatabaseReason() ?? Loc.S("settings.hRDsLogWasntFound2");
             }
             else
             {
                 try
                 {
                     var (qsos, stations) = LogbookDatabase.Summary(HrdLogbook.Program, path);
-                    log = $"{qsos:N0} QSOs with {stations:N0} stations, read only\n{path}";
+                    log = Loc.F("settings.xQSOsWithX", qsos, stations, path);
                 }
                 catch (LogbookDatabase.LogException ex)
                 {
                     log = $"{ex.Message}\n{path}";
                 }
             }
-            var running = HrdLogbook.IsRunning ? "Running" : "Not running";
+            var running = HrdLogbook.IsRunning ? Loc.S("settings.running") : Loc.S("settings.notRunning");
             return (running, receiving, log, receiver, detectedPath);
         });
         if (generation != _hrdStatusGeneration)
@@ -652,7 +652,7 @@ public sealed partial class SettingsDialog : Window
         HrdRunningText.Text = status.running;
         HrdReceiverText.Text = status.receiving;
         HrdLogText.Text = status.log;
-        HrdLogPathBox.PlaceholderText = status.detectedPath ?? "HRD's log wasn't found";
+        HrdLogPathBox.PlaceholderText = status.detectedPath ?? Loc.S("settings.hRDsLogWasntFound");
         HrdHostBox.PlaceholderText = status.receiver?.Address ?? "127.0.0.1";
         HrdPortBox.PlaceholderText = status.receiver is { Port: > 0 } r ? r.Port.ToString(CultureInfo.InvariantCulture) : "";
     }
@@ -694,7 +694,7 @@ public sealed partial class SettingsDialog : Window
         var typedPath = Log4OmLogPathBox.Text.Trim().Trim('"');
         var typedHost = Log4OmHostBox.Text.Trim();
         var typedPort = double.IsNaN(Log4OmPortBox.Value) ? 0 : (int)Math.Round(Log4OmPortBox.Value);
-        Log4OmRunningText.Text = Log4OmReceiverText.Text = Log4OmRemoteText.Text = Log4OmLogText.Text = "Checking…";
+        Log4OmRunningText.Text = Log4OmReceiverText.Text = Log4OmRemoteText.Text = Log4OmLogText.Text = Loc.S("settings.checking");
         var status = await Task.Run(async () =>
         {
             var config = Log4OmLogbook.ReadConfig();
@@ -706,34 +706,34 @@ public sealed partial class SettingsDialog : Window
             string receiving;
             if (port == 0)
             {
-                receiving = "No ADIF_MESSAGE UDP inbound connection in Log4OM — add one (see above)";
+                receiving = Loc.S("settings.noADIFMESSAGEUDP");
             }
             else if (typedPort == 0 && adif is { Enabled: false })
             {
-                receiving = $"Log4OM's \"{adif.Name}\" connection (port {port}) is off — turn it on";
+                receiving = Loc.F("settings.log4OMsXConnectionPort", adif.Name, port);
             }
             else if (local)
             {
                 receiving = LogbookPrograms.IsListening(port)
-                    ? $"Listening on UDP {port} — QSOs go to {host}:{port}"
-                    : $"Nothing is listening on UDP {port} on this PC";
+                    ? Loc.F("settings.listeningOnUDPX", port, host, port)
+                    : Loc.F("settings.nothingIsListeningOn", port);
             }
             else
             {
-                receiving = $"QSOs go to {host}:{port} (another computer; not checked)";
+                receiving = Loc.F("settings.qSOsGoToX", host, port);
             }
 
             var remotePort = config?.RemoteControlPort ?? Log4OmLogbook.DefaultRemoteControlPort;
             string remote;
             if (local && config is { RemoteControlEnabled: false })
             {
-                remote = "Log4OM's remote control is off — turn it on for the Lookup button";
+                remote = Loc.S("settings.log4OMsRemoteControlIs");
             }
             else
             {
                 remote = await Log4OmLogbook.AliveAsync(host, remotePort) is { Done: true }
-                    ? $"Remote control answering on {host}:{remotePort}"
-                    : $"No answer from remote control on {host}:{remotePort}";
+                    ? Loc.F("settings.remoteControlAnsweringOn", host, remotePort)
+                    : Loc.F("settings.noAnswerFromRemote", host, remotePort);
             }
 
             var path = typedPath.Length > 0 ? typedPath : detectedPath;
@@ -747,14 +747,14 @@ public sealed partial class SettingsDialog : Window
                 try
                 {
                     var (qsos, stations) = LogbookDatabase.Summary(Log4OmLogbook.Program, path);
-                    log = $"{qsos:N0} QSOs with {stations:N0} stations, read only\n{path}";
+                    log = Loc.F("settings.xQSOsWithX", qsos, stations, path);
                 }
                 catch (LogbookDatabase.LogException ex)
                 {
                     log = $"{ex.Message}\n{path}";
                 }
             }
-            var running = Log4OmLogbook.IsRunning ? "Running" : "Not running";
+            var running = Log4OmLogbook.IsRunning ? Loc.S("settings.running") : Loc.S("settings.notRunning");
             return (running, receiving, remote, log, adif, detectedPath);
         });
         if (generation != _log4OmStatusGeneration)
@@ -765,7 +765,7 @@ public sealed partial class SettingsDialog : Window
         Log4OmReceiverText.Text = status.receiving;
         Log4OmRemoteText.Text = status.remote;
         Log4OmLogText.Text = status.log;
-        Log4OmLogPathBox.PlaceholderText = status.detectedPath ?? "Log4OM's log wasn't found";
+        Log4OmLogPathBox.PlaceholderText = status.detectedPath ?? Loc.S("settings.log4OMsLogWasntFound");
         Log4OmPortBox.PlaceholderText = status.adif is { Port: > 0 } a ? a.Port.ToString(CultureInfo.InvariantCulture) : "";
     }
 
@@ -878,7 +878,7 @@ public sealed partial class SettingsDialog : Window
         var theirs = _wavelogStation?.Callsign ?? "";
         var mismatch = mine.Length > 0 && theirs.Length > 0 && mine != theirs.ToUpperInvariant();
         WavelogMismatchText.Text = mismatch
-            ? $"Settings → Station's callsign {mine} isn't this location's ({theirs}) — Wavelog will file QSOs under {theirs}, not {mine}."
+            ? Loc.F("settings.settingsStationsCallsignX", mine, theirs, theirs, mine)
             : "";
         WavelogMismatchText.Visibility = mismatch ? Visibility.Visible : Visibility.Collapsed;
 
@@ -894,7 +894,7 @@ public sealed partial class SettingsDialog : Window
         }
         if (!AppSettings.WavelogCatEnabled || _wavelogReporter is null)
         {
-            SetStatusLine(WavelogCatStatusText, "Starts when you Save", StatusTone.Secondary);
+            SetStatusLine(WavelogCatStatusText, Loc.S("settings.startsWhenYouSave"), StatusTone.Secondary);
         }
         else if (_wavelogReporter.LastResult is { } result)
         {
@@ -904,12 +904,12 @@ public sealed partial class SettingsDialog : Window
             }
             else
             {
-                SetStatusLine(WavelogCatStatusText, $"Wavelog updated {result.At.ToLocalTime():HH:mm:ss}", StatusTone.Success);
+                SetStatusLine(WavelogCatStatusText, Loc.F("settings.wavelogUpdatedX", result.At.ToLocalTime()), StatusTone.Success);
             }
         }
         else
         {
-            SetStatusLine(WavelogCatStatusText, "Sent once the rig is connected", StatusTone.Secondary);
+            SetStatusLine(WavelogCatStatusText, Loc.S("settings.sentOnceTheRig"), StatusTone.Secondary);
         }
     }
 
@@ -928,7 +928,7 @@ public sealed partial class SettingsDialog : Window
             case WavelogTuneListener.ListenerState.Listening(var port) when port == typedPort:
                 if (WavelogTuneRequest.OriginOfWavelogUrl(WavelogUrlBox.Text) is null)
                 {
-                    SetStatusLine(WavelogTuneStatusText, "Set the Wavelog URL above — only requests from its pages tune the rig", StatusTone.Warning);
+                    SetStatusLine(WavelogTuneStatusText, Loc.S("settings.setTheWavelogURL"), StatusTone.Warning);
                 }
                 else if (_wavelogTuner.LastEvent is { } last)
                 {
@@ -936,11 +936,11 @@ public sealed partial class SettingsDialog : Window
                 }
                 else
                 {
-                    SetStatusLine(WavelogTuneStatusText, $"Listening on 127.0.0.1:{port} — click a spot in Wavelog's DX cluster", StatusTone.Secondary);
+                    SetStatusLine(WavelogTuneStatusText, Loc.F("settings.listeningOn1270", port), StatusTone.Secondary);
                 }
                 break;
             default:
-                SetStatusLine(WavelogTuneStatusText, $"Listens on 127.0.0.1:{typedPort} when you Save", StatusTone.Secondary);
+                SetStatusLine(WavelogTuneStatusText, Loc.F("settings.listensOn1270", typedPort), StatusTone.Secondary);
                 break;
         }
     }
@@ -968,11 +968,11 @@ public sealed partial class SettingsDialog : Window
         var choices = _wavelogStations ?? (_wavelogStation is { } pick ? [pick] : []);
         if (_wavelogStation is null)
         {
-            WavelogStationComboBox.Items.Add(new ComboBoxItem { Content = "None", Tag = null });
+            WavelogStationComboBox.Items.Add(new ComboBoxItem { Content = Loc.S("settings.none"), Tag = null });
         }
         foreach (var station in choices)
         {
-            var name = station.Name.Length == 0 ? $"Location {station.Id}" : station.Name;
+            var name = station.Name.Length == 0 ? Loc.F("settings.locationX", station.Id) : station.Name;
             WavelogStationComboBox.Items.Add(new ComboBoxItem
             {
                 Content = station.Callsign.Length == 0 ? name : $"{name} ({station.Callsign})",
@@ -1027,7 +1027,7 @@ public sealed partial class SettingsDialog : Window
             FillWavelogStations();
             if (list.Count == 0)
             {
-                SetStatusLine(WavelogStatusText, "This Wavelog account has no station locations", StatusTone.Failure);
+                SetStatusLine(WavelogStatusText, Loc.S("settings.thisWavelogAccountHas"), StatusTone.Failure);
             }
         }
         catch (Wavelog.ApiException ex)
@@ -1071,7 +1071,7 @@ public sealed partial class SettingsDialog : Window
                     SetStatusLine(WavelogStatusText, reason, StatusTone.Failure);
                     break;
                 default:
-                    SetStatusLine(WavelogStatusText, "Connected — the token can log to this location", StatusTone.Success);
+                    SetStatusLine(WavelogStatusText, Loc.S("settings.connectedTheTokenCan"), StatusTone.Success);
                     break;
             }
         }
@@ -1104,7 +1104,7 @@ public sealed partial class SettingsDialog : Window
         RemoteSettingsPanel.Visibility = local ? Visibility.Collapsed : Visibility.Visible;
         InstalledVersionLabel.Visibility = local ? Visibility.Visible : Visibility.Collapsed;
         InstalledVersionPanel.Visibility = local ? Visibility.Visible : Visibility.Collapsed;
-        RunningVersionLabel.Text = local ? "Running" : "Running on Pi";
+        RunningVersionLabel.Text = local ? Loc.S("settings.running") : Loc.S("settings.runningOnPi");
     }
 
     // --- rigctld choice (the Mac's rigctld Picker) ---
@@ -1127,8 +1127,8 @@ public sealed partial class SettingsDialog : Window
         _rigctldChoice = selected;
         var items = RigctldChoiceComboBox.Items;
         items.Clear();
-        items.Add(new ComboBoxItem { Content = "Automatic (recommended)", Tag = RigctldBinary.Choice.Automatic });
-        var builtIn = new ComboBoxItem { Content = "Built-in (Hamlib)", Tag = RigctldBinary.Choice.BuiltIn };
+        items.Add(new ComboBoxItem { Content = Loc.S("settings.automaticRecommended"), Tag = RigctldBinary.Choice.Automatic });
+        var builtIn = new ComboBoxItem { Content = Loc.S("settings.builtInHamlib"), Tag = RigctldBinary.Choice.BuiltIn };
         items.Add(builtIn);
         var paths = RigctldBinary.SearchPaths().ToList();
         if (selected.ExplicitPath is { } chosen && !paths.Contains(chosen, StringComparer.OrdinalIgnoreCase))
@@ -1139,7 +1139,7 @@ public sealed partial class SettingsDialog : Window
         {
             items.Add(new ComboBoxItem { Content = path, Tag = RigctldBinary.Choice.ForPath(path) });
         }
-        items.Add(new ComboBoxItem { Content = "Browse…", Tag = BrowseTag });
+        items.Add(new ComboBoxItem { Content = Loc.S("settings.browse"), Tag = BrowseTag });
         RigctldChoiceComboBox.SelectedItem = items.OfType<ComboBoxItem>().FirstOrDefault(i =>
             i.Tag is RigctldBinary.Choice c
             && string.Equals(c.StoredValue, selected.StoredValue, StringComparison.OrdinalIgnoreCase));
@@ -1150,7 +1150,7 @@ public sealed partial class SettingsDialog : Window
     private static async Task LabelBuiltInAsync(ComboBoxItem item)
     {
         var version = await RigctldBinary.BuiltInVersionAsync();
-        item.Content = version is { } v ? $"Built-in (Hamlib {v})" : "Built-in (missing from the app folder)";
+        item.Content = version is { } v ? Loc.F("settings.builtInHamlibX", v) : Loc.S("settings.builtInMissingFrom");
     }
 
     private async void RigctldChoiceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1202,15 +1202,15 @@ public sealed partial class SettingsDialog : Window
             return;
         }
         HubStatusText.Text = _hub.IsListening
-            ? $"Listening on port {HubServer.Port}."
+            ? Loc.F("settings.listeningOnPortX", HubServer.Port)
             : _hub.LastError is { } error
-                ? $"Not listening: {error}"
-                : "Not listening.";
+                ? Loc.F("settings.notListeningX", error)
+                : Loc.S("settings.notListening");
         var clients = _hub.Clients;
         HubClientsList.Items.Clear();
         foreach (var client in clients)
         {
-            HubClientsList.Items.Add($"{client.Address} — connected {client.ConnectedAt:HH:mm:ss}");
+            HubClientsList.Items.Add(Loc.F("settings.xConnectedX", client.Address, client.ConnectedAt));
         }
         HubNoClientsText.Visibility = clients.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         HubAudioOffText.Visibility = _hubAudioRunning ? Visibility.Collapsed : Visibility.Visible;
@@ -1234,11 +1234,11 @@ public sealed partial class SettingsDialog : Window
         var choice = SelectedRigctldChoice;
         var model = double.IsNaN(ModelNumberBox.Value) ? AppSettings.ModelNumber : (int)ModelNumberBox.Value;
         var host = local ? "127.0.0.1" : PiHostBox.Text.Trim();
-        InstalledVersionText.Text = "Checking…";
+        InstalledVersionText.Text = Loc.S("settings.checking");
         ResolutionSummaryText.Visibility = Visibility.Collapsed;
         ResolutionWarningText.Visibility = Visibility.Collapsed;
         InUseText.Visibility = Visibility.Collapsed;
-        RunningVersionText.Text = "Checking…";
+        RunningVersionText.Text = Loc.S("settings.checking");
         RefreshVersionButton.IsEnabled = false;
         try
         {
@@ -1250,7 +1250,7 @@ public sealed partial class SettingsDialog : Window
                 var resolution = await Task.Run(() => RigctldBinary.ResolveAsync(choice, model), token);
                 var installed = resolution.Path is { } path
                     ? await Task.Run(() => BinaryVersionAsync(path), token)
-                    : "No usable rigctld";
+                    : Loc.S("settings.noUsableRigctld");
                 if (token.IsCancellationRequested) return;
                 InstalledVersionText.Text = installed;
                 ResolutionSummaryText.Text = resolution.Summary;
@@ -1259,11 +1259,11 @@ public sealed partial class SettingsDialog : Window
                 ResolutionWarningText.Visibility = resolution.Warning is null ? Visibility.Collapsed : Visibility.Visible;
                 if (_inUse is { } inUse && inUse != resolution)
                 {
-                    InUseText.Text = $"Started this session: {inUse.Summary}";
+                    InUseText.Text = Loc.F("settings.startedThisSessionX", inUse.Summary);
                     InUseText.Visibility = Visibility.Visible;
                 }
             }
-            var running = host.Length == 0 ? "No Pi hostname set" : await RunningVersionAsync(host, local, token);
+            var running = host.Length == 0 ? Loc.S("settings.noPiHostnameSet") : await RunningVersionAsync(host, local, token);
             if (token.IsCancellationRequested) return;
             RunningVersionText.Text = running;
         }
@@ -1286,12 +1286,12 @@ public sealed partial class SettingsDialog : Window
     {
         if (!File.Exists(path))
         {
-            return "No rigctld.exe at this path";
+            return Loc.S("settings.noRigctldExeAt");
         }
         var output = await RigctldBinary.RunAsync(path, "--version", TimeSpan.FromSeconds(3));
         if (output is null)
         {
-            return "Couldn't run rigctld.exe";
+            return Loc.S("settings.couldntRunRigctldExe");
         }
         var line = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .FirstOrDefault() ?? "";
@@ -1299,7 +1299,7 @@ public sealed partial class SettingsDialog : Window
         {
             line = line["rigctld ".Length..];
         }
-        return line.Length == 0 ? "No version reported" : line;
+        return line.Length == 0 ? Loc.S("settings.noVersionReported") : line;
     }
 
     private static async Task<string> RunningVersionAsync(string host, bool local, CancellationToken token)
@@ -1314,19 +1314,19 @@ public sealed partial class SettingsDialog : Window
         }
         catch (RigctldError)
         {
-            return local ? "Not running" : "Unreachable";
+            return local ? Loc.S("settings.notRunning") : Loc.S("settings.unreachable");
         }
         try
         {
-            return await client.ReadHamlibVersionAsync(token) ?? "No version reported";
+            return await client.ReadHamlibVersionAsync(token) ?? Loc.S("settings.noVersionReported");
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested)
         {
-            return "No reply from rigctld";
+            return Loc.S("settings.noReplyFromRigctld");
         }
         catch (Exception ex) when (ex is RigctldError or IOException)
         {
-            return "No reply from rigctld";
+            return Loc.S("settings.noReplyFromRigctld");
         }
     }
 
@@ -1430,7 +1430,7 @@ public sealed partial class SettingsDialog : Window
         if (selected is null && keepId.Length > 0)
         {
             var name = keepId == AppSettings.LocalAudioDeviceId ? AppSettings.LocalAudioDeviceName : keepId;
-            selected = new ComboBoxItem { Content = $"{name} (not connected)", Tag = keepId };
+            selected = new ComboBoxItem { Content = Loc.F("settings.xNotConnected", name), Tag = keepId };
             AudioInputComboBox.Items.Add(selected);
         }
         if (selected is null)
@@ -1454,7 +1454,7 @@ public sealed partial class SettingsDialog : Window
             ? current
             : AppSettings.AudioOutputDeviceId;
         AudioOutputComboBox.Items.Clear();
-        var defaultItem = new ComboBoxItem { Content = "Windows default", Tag = "" };
+        var defaultItem = new ComboBoxItem { Content = Loc.S("settings.windowsDefault"), Tag = "" };
         AudioOutputComboBox.Items.Add(defaultItem);
         var selected = defaultItem;
         foreach (var (id, name) in AudioPlayback.ListOutputDevices())
@@ -1469,7 +1469,7 @@ public sealed partial class SettingsDialog : Window
         if (keepId.Length > 0 && ReferenceEquals(selected, defaultItem))
         {
             var name = keepId == AppSettings.AudioOutputDeviceId ? AppSettings.AudioOutputDeviceName : keepId;
-            selected = new ComboBoxItem { Content = $"{name} (not connected)", Tag = keepId };
+            selected = new ComboBoxItem { Content = Loc.F("settings.xNotConnected", name), Tag = keepId };
             AudioOutputComboBox.Items.Add(selected);
         }
         AudioOutputComboBox.SelectedItem = selected;
@@ -1487,7 +1487,7 @@ public sealed partial class SettingsDialog : Window
             ? current
             : AppSettings.TxAudioOutputDeviceId;
         TxAudioOutputComboBox.Items.Clear();
-        var noneItem = new ComboBoxItem { Content = "None", Tag = "" };
+        var noneItem = new ComboBoxItem { Content = Loc.S("settings.none"), Tag = "" };
         TxAudioOutputComboBox.Items.Add(noneItem);
         var selected = noneItem;
         foreach (var (id, name) in AudioPlayback.ListOutputDevices())
@@ -1502,7 +1502,7 @@ public sealed partial class SettingsDialog : Window
         if (keepId.Length > 0 && ReferenceEquals(selected, noneItem))
         {
             var name = keepId == AppSettings.TxAudioOutputDeviceId ? AppSettings.TxAudioOutputDeviceName : keepId;
-            selected = new ComboBoxItem { Content = $"{name} (not connected)", Tag = keepId };
+            selected = new ComboBoxItem { Content = Loc.F("settings.xNotConnected", name), Tag = keepId };
             TxAudioOutputComboBox.Items.Add(selected);
         }
         TxAudioOutputComboBox.SelectedItem = selected;
@@ -1516,7 +1516,7 @@ public sealed partial class SettingsDialog : Window
         box.Maximum = setting.Max;
         box.Value = value;
         box.ValidationMode = NumberBoxValidationMode.InvalidInputOverwritten;
-        box.Description = $"{setting.Min}–{setting.Max}, default {setting.Default}";
+        box.Description = Loc.F("settings.xXDefaultX", setting.Min, setting.Max, setting.Default);
     }
 
     /// An emptied box (NaN) saves the default.
@@ -1541,19 +1541,19 @@ public sealed partial class SettingsDialog : Window
         UpdateProgress.IsActive = true;
         DownloadUpdateButton.Visibility = Visibility.Collapsed;
         ReleaseNotesBox.Visibility = Visibility.Collapsed;
-        UpdateStatusText.Text = "Checking…";
+        UpdateStatusText.Text = Loc.S("settings.checking");
         try
         {
             var update = await UpdateChecker.CheckAsync();
             if (update is null)
             {
-                UpdateStatusText.Text = $"You're up to date (version {UpdateChecker.CurrentVersionText}).";
+                UpdateStatusText.Text = Loc.F("settings.youreUpToDate", UpdateChecker.CurrentVersionText);
             }
             else
             {
                 _updatePageUrl = update.PageUrl;
-                UpdateStatusText.Text = $"Version {UpdateChecker.Display(update.Version)} is available.";
-                DownloadUpdateButton.Content = $"Download {UpdateChecker.Display(update.Version)}";
+                UpdateStatusText.Text = Loc.F("settings.versionXIsAvailable", UpdateChecker.Display(update.Version));
+                DownloadUpdateButton.Content = Loc.F("settings.downloadX", UpdateChecker.Display(update.Version));
                 DownloadUpdateButton.Visibility = Visibility.Visible;
                 if (update.Notes.Length > 0)
                 {
@@ -1565,7 +1565,7 @@ public sealed partial class SettingsDialog : Window
         catch (Exception ex)
         {
             AppLog.Write($"update check failed: {ex.Message}");
-            UpdateStatusText.Text = $"Couldn't check for updates: {ex.Message}";
+            UpdateStatusText.Text = Loc.F("settings.couldntCheckForUpdates", ex.Message);
         }
         finally
         {

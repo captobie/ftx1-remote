@@ -146,7 +146,7 @@ public sealed class WavelogRadioReporter
         var token = WavelogToken.Read();
         if (url.Length == 0 || token.Length == 0)
         {
-            Fail("Wavelog needs a URL and an API token");
+            Fail(Loc.S("wavelogRadioReporter.wavelogNeedsAURL"));
             return;
         }
         _isSending = true;

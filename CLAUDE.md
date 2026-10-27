@@ -2842,8 +2842,8 @@ WebSDR differences are in their own bullet at the end.
 ## Localization (phase 1, 2026-10-27: English catalogs only; built, Simulator-checked on iPad/iPhone with the double-length pseudolanguage, Mac checked by build and code only)
 
 Groundwork for Spanish and German on the Mac, iPhone and iPad (Windows
-not in scope). The app follows the OS language; there's no in-app
-picker (user decision).
+followed the same day, see the last bullet). The app follows the OS
+language; there's no in-app picker (user decision).
 
 **Phase 2 (2026-10-27): es + de in every catalog**, all entries
 (infinitive/impersonal forms, no Sie/du or tú/usted; radio terms
@@ -2888,8 +2888,9 @@ those terms.
   `CWKeyerReply.error`/`busy`; it now also sends `errorCode`/`busyCode`
   (`CWKeyerReply.ErrorCode`/`.Holder`), and clients word the message
   themselves. The English stays on the wire (`wireText`, fixed English,
-  not localized) for older iPads and is all the Windows hub sends;
-  codes are plain strings, so an unknown one falls back to the text.
+  not localized) for older iPads; the Windows hub sends the codes for
+  its own refusals (bad slot/text, not connected) beside that English.
+  Codes are plain strings, so an unknown one falls back to the text.
 - **Checking**: build the three apps with `-derivedDataPath build/l10n`,
   then `Scripts/check-localization.py` — every namespaced key the
   compiler extracted (`*.stringsdata`) must be in its catalog with the
@@ -2901,6 +2902,17 @@ those terms.
   Layout check: launch with `-NSDoubleLocalizedStrings YES` (Demo Mode
   on the iPad); a unit-only format then shows garbled ("lld Hz 500 Hz")
   — that's the pseudolanguage, not a bug.
+- **Windows (2026-10-27; key checks run by script, not yet built or
+  run in Spanish/German on the PC)**: the same es/de wording, ported from
+  the Mac/iPad catalogs. `Apps/Windows/FTX1RemoteWindows/Localization/`:
+  `Strings.resx` (English) + `.es`/`.de` (same keys, sorted), `Loc.S/F/P`
+  in code (`P` = `.one`/`.other`), `{l:Str Key=…}` in XAML. Same
+  namespaced keys and same "stays English" list; `Loc.ApplyNumberFormat`
+  keeps "." as the decimal separator for frequencies (and rigctld
+  parsing). `LocalizationTests` (Windows test project) is the
+  `check-localization.py` there. Debug builds: `FTX1REMOTE_UI_LANGUAGE=
+  es`/`de` to try a language. See `Apps/Windows/README.md`'s
+  "Localization".
 
 ## Structure
 

@@ -46,7 +46,18 @@ public static class AppearanceExtensions
         _ => Microsoft.UI.Xaml.ElementTheme.Default,
     };
 
-    public static string DisplayName(this ButtonValueColor color) => color.ToString();
+    public static string DisplayName(this ButtonValueColor color) => color switch
+    {
+        ButtonValueColor.Orange => Loc.S("buttonValueColor.orange"),
+        ButtonValueColor.Red => Loc.S("buttonValueColor.red"),
+        ButtonValueColor.Yellow => Loc.S("buttonValueColor.yellow"),
+        ButtonValueColor.Green => Loc.S("buttonValueColor.green"),
+        ButtonValueColor.Cyan => Loc.S("buttonValueColor.cyan"),
+        ButtonValueColor.Blue => Loc.S("buttonValueColor.blue"),
+        ButtonValueColor.Pink => Loc.S("buttonValueColor.pink"),
+        ButtonValueColor.White => Loc.S("buttonValueColor.white"),
+        _ => color.ToString(),
+    };
 
     /// The color as theme JSON writes it ("#AARRGGBB").
     public static string Hex(this ButtonValueColor color)
@@ -58,7 +69,7 @@ public static class AppearanceExtensions
     public static string DisplayName(this VfoDigitFont font) => font switch
     {
         VfoDigitFont.CascadiaMono => "Cascadia Mono",
-        VfoDigitFont.SevenSegment => "7-segment",
+        VfoDigitFont.SevenSegment => Loc.S("vfoDigitFont.sevenSegment"),
         _ => "Consolas",
     };
 

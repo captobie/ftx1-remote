@@ -20,7 +20,7 @@ public sealed class WorkedStationsStore : IDisposable
     /// or while the frequency is unknown.
     public string? Band { get; private set; }
     /// Why there's no index, for the Log pane; null when it loaded.
-    public string? Problem { get; private set; } = "Not read yet";
+    public string? Problem { get; private set; } = Loc.S("workedStationsStore.notReadYet");
 
     /// The index, band or problem changed — on the UI thread.
     public event Action? Changed;
@@ -71,7 +71,7 @@ public sealed class WorkedStationsStore : IDisposable
     {
         if (LogbookPrograms.Current is not { } program)
         {
-            Show(WorkedStations.Empty, "No logbook selected", null);
+            Show(WorkedStations.Empty, Loc.S("workedStationsStore.noLogbookSelected"), null);
             return;
         }
         if (_isLoading)
@@ -91,7 +91,7 @@ public sealed class WorkedStationsStore : IDisposable
             }
             var result = task.IsCompletedSuccessfully
                 ? task.Result
-                : new LoadResult(null, null, task.Exception?.InnerException?.Message ?? "The log couldn't be read");
+                : new LoadResult(null, null, task.Exception?.InnerException?.Message ?? Loc.S("workedStationsStore.theLogCouldntBe"));
             if (result.Problem is { } problem)
             {
                 // _loadedStamp is cleared, so the next check tries again;

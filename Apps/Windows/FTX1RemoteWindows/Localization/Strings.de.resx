@@ -1,0 +1,2485 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  User-facing strings of the Windows app (see Localization/Loc.cs). Keys are
+  namespaced like the Mac's String Catalogs; {0}, {1}… are Loc.F arguments.
+  Keep Strings.resx, Strings.es.resx and Strings.de.resx in step: every key in
+  all three, with the same placeholders (FTX1RemoteWindows.Tests checks).
+-->
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="aprsListWindow.aPRSMessages" xml:space="preserve">
+    <value>APRS-Nachrichten</value>
+  </data>
+  <data name="aprsListWindow.aPRSStations" xml:space="preserve">
+    <value>APRS-Stationen</value>
+  </data>
+  <data name="aprsListWindow.callsign" xml:space="preserve">
+    <value>Rufzeichen</value>
+  </data>
+  <data name="aprsListWindow.decodedMessagesAppearHere" xml:space="preserve">
+    <value>Dekodierte APRS-Nachrichten erscheinen hier, solange ein VFO auf {0:0.000###} MHz steht und Audio an ist.</value>
+  </data>
+  <data name="aprsListWindow.decodedStationsAppearHere" xml:space="preserve">
+    <value>Dekodierte APRS-Stationen erscheinen hier, solange ein VFO auf {0:0.000###} MHz steht und Audio an ist.</value>
+  </data>
+  <data name="aprsListWindow.from" xml:space="preserve">
+    <value>Von</value>
+  </data>
+  <data name="aprsListWindow.lastHeard" xml:space="preserve">
+    <value>Zuletzt gehört</value>
+  </data>
+  <data name="aprsListWindow.message" xml:space="preserve">
+    <value>Nachricht</value>
+  </data>
+  <data name="aprsListWindow.messageCount.one" xml:space="preserve">
+    <value>{0} Nachricht</value>
+  </data>
+  <data name="aprsListWindow.messageCount.other" xml:space="preserve">
+    <value>{0} Nachrichten</value>
+  </data>
+  <data name="aprsListWindow.messagesShown.one" xml:space="preserve">
+    <value>{1} von {0} Nachricht</value>
+  </data>
+  <data name="aprsListWindow.messagesShown.other" xml:space="preserve">
+    <value>{1} von {0} Nachrichten</value>
+  </data>
+  <data name="aprsListWindow.noMessages" xml:space="preserve">
+    <value>Keine Nachrichten</value>
+  </data>
+  <data name="aprsListWindow.noStationsHeard" xml:space="preserve">
+    <value>Keine Stationen gehört</value>
+  </data>
+  <data name="aprsListWindow.nothingFromThisReceiver" xml:space="preserve">
+    <value>Noch nichts von diesem Empfänger.</value>
+  </data>
+  <data name="aprsListWindow.position" xml:space="preserve">
+    <value>Position</value>
+  </data>
+  <data name="aprsListWindow.received" xml:space="preserve">
+    <value>Empfangen</value>
+  </data>
+  <data name="aprsListWindow.source" xml:space="preserve">
+    <value>Quelle</value>
+  </data>
+  <data name="aprsListWindow.stationCount.one" xml:space="preserve">
+    <value>{0} Station</value>
+  </data>
+  <data name="aprsListWindow.stationCount.other" xml:space="preserve">
+    <value>{0} Stationen</value>
+  </data>
+  <data name="aprsListWindow.stationsShown.one" xml:space="preserve">
+    <value>{1} von {0} Station</value>
+  </data>
+  <data name="aprsListWindow.stationsShown.other" xml:space="preserve">
+    <value>{1} von {0} Stationen</value>
+  </data>
+  <data name="aprsListWindow.symbol" xml:space="preserve">
+    <value>Symbol</value>
+  </data>
+  <data name="aprsListWindow.to" xml:space="preserve">
+    <value>An</value>
+  </data>
+  <data name="aprsMapWindow.aPRSMap" xml:space="preserve">
+    <value>APRS-Karte</value>
+  </data>
+  <data name="aprsMapWindow.decodedAPRSPositionReports" xml:space="preserve">
+    <value>Dekodierte APRS-Positionsmeldungen erscheinen hier, solange ein VFO auf {0:0.000###} MHz steht und Audio an ist.</value>
+  </data>
+  <data name="aprsMapWindow.fitAll" xml:space="preserve">
+    <value>Alles zeigen</value>
+  </data>
+  <data name="aprsMapWindow.noPositionReportsFrom" xml:space="preserve">
+    <value>Noch keine Positionsmeldungen von diesem Empfänger.</value>
+  </data>
+  <data name="aprsMapWindow.noPositionsHeard" xml:space="preserve">
+    <value>Keine Positionen gehört</value>
+  </data>
+  <data name="aprsMapWindow.nothingFromThisReceiver" xml:space="preserve">
+    <value>Nichts von diesem Empfänger</value>
+  </data>
+  <data name="aprsMapWindow.stationsWithAPosition.one" xml:space="preserve">
+    <value>{0} Station mit Position</value>
+  </data>
+  <data name="aprsMapWindow.stationsWithAPosition.other" xml:space="preserve">
+    <value>{0} Stationen mit Position</value>
+  </data>
+  <data name="aprsMapWindow.theMapCouldntLoad" xml:space="preserve">
+    <value>Die Karte konnte nicht geladen werden</value>
+  </data>
+  <data name="aprsMapWindow.theMapCouldntStart" xml:space="preserve">
+    <value>Die Karte konnte nicht starten</value>
+  </data>
+  <data name="aprsMapWindow.theMapPageFailed" xml:space="preserve">
+    <value>Die Kartenseite konnte nicht geladen werden ({0}).</value>
+  </data>
+  <data name="aprsMapWindow.xOfXStations" xml:space="preserve">
+    <value>{0} von {1} Stationen mit Position</value>
+  </data>
+  <data name="aprsMapWindow.zoomToShowEvery" xml:space="preserve">
+    <value>Zoomen, um alle Stationen auf der Karte zu zeigen</value>
+  </data>
+  <data name="audioPlayback.noAudioOutputDevice" xml:space="preserve">
+    <value>kein Audioausgabegerät</value>
+  </data>
+  <data name="buttonValueColor.blue" xml:space="preserve">
+    <value>Blau</value>
+  </data>
+  <data name="buttonValueColor.cyan" xml:space="preserve">
+    <value>Cyan</value>
+  </data>
+  <data name="buttonValueColor.green" xml:space="preserve">
+    <value>Grün</value>
+  </data>
+  <data name="buttonValueColor.orange" xml:space="preserve">
+    <value>Orange</value>
+  </data>
+  <data name="buttonValueColor.pink" xml:space="preserve">
+    <value>Rosa</value>
+  </data>
+  <data name="buttonValueColor.red" xml:space="preserve">
+    <value>Rot</value>
+  </data>
+  <data name="buttonValueColor.white" xml:space="preserve">
+    <value>Weiß</value>
+  </data>
+  <data name="buttonValueColor.yellow" xml:space="preserve">
+    <value>Gelb</value>
+  </data>
+  <data name="common.addToFavorites" xml:space="preserve">
+    <value>Zu Favoriten hinzufügen</value>
+  </data>
+  <data name="common.all" xml:space="preserve">
+    <value>Alle</value>
+  </data>
+  <data name="common.anUnknownMode" xml:space="preserve">
+    <value>einem unbekannten Modus</value>
+  </data>
+  <data name="common.aPRSDecodingIsOff" xml:space="preserve">
+    <value>Die APRS-Dekodierung ist aus. Unter Einstellungen → APRS einschalten.</value>
+  </data>
+  <data name="common.cancel" xml:space="preserve">
+    <value>Abbrechen</value>
+  </data>
+  <data name="common.clear" xml:space="preserve">
+    <value>Löschen</value>
+  </data>
+  <data name="common.comment" xml:space="preserve">
+    <value>Kommentar</value>
+  </data>
+  <data name="common.connect" xml:space="preserve">
+    <value>Verbinden</value>
+  </data>
+  <data name="common.couldntFindTheHost" xml:space="preserve">
+    <value>Host {0} nicht gefunden</value>
+  </data>
+  <data name="common.data" xml:space="preserve">
+    <value>Daten</value>
+  </data>
+  <data name="common.disconnect" xml:space="preserve">
+    <value>Trennen</value>
+  </data>
+  <data name="common.done" xml:space="preserve">
+    <value>Fertig</value>
+  </data>
+  <data name="common.favorites" xml:space="preserve">
+    <value>Favoriten</value>
+  </data>
+  <data name="common.itDidntShowUp" xml:space="preserve">
+    <value>es ist nicht innerhalb von {0:0} s im Log erschienen</value>
+  </data>
+  <data name="common.justNow" xml:space="preserve">
+    <value>gerade eben</value>
+  </data>
+  <data name="common.log4OMIsntRunning" xml:space="preserve">
+    <value>Log4OM läuft nicht</value>
+  </data>
+  <data name="common.moveDown" xml:space="preserve">
+    <value>Nach unten</value>
+  </data>
+  <data name="common.moveUp" xml:space="preserve">
+    <value>Nach oben</value>
+  </data>
+  <data name="common.name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="common.new" xml:space="preserve">
+    <value>Neu</value>
+  </data>
+  <data name="common.notConnected" xml:space="preserve">
+    <value>Nicht verbunden</value>
+  </data>
+  <data name="common.nothingIsListeningOn" xml:space="preserve">
+    <value>auf UDP {0} lauscht nichts</value>
+  </data>
+  <data name="common.phone" xml:space="preserve">
+    <value>Sprechfunk</value>
+  </data>
+  <data name="common.recordings" xml:space="preserve">
+    <value>Aufnahmen</value>
+  </data>
+  <data name="common.refresh" xml:space="preserve">
+    <value>Aktualisieren</value>
+  </data>
+  <data name="common.removeFromFavorites" xml:space="preserve">
+    <value>Aus Favoriten entfernen</value>
+  </data>
+  <data name="common.shift" xml:space="preserve">
+    <value>Shift</value>
+  </data>
+  <data name="common.stop" xml:space="preserve">
+    <value>Stopp</value>
+  </data>
+  <data name="common.theirCall" xml:space="preserve">
+    <value>Gegenstation</value>
+  </data>
+  <data name="common.theRigIsntConnected" xml:space="preserve">
+    <value>das Gerät ist nicht verbunden</value>
+  </data>
+  <data name="common.theWebViewCouldnt" xml:space="preserve">
+    <value>Die Webansicht konnte nicht starten ({0}). Die Installation der WebView2 Runtime von Microsoft sollte das beheben.</value>
+  </data>
+  <data name="common.tone" xml:space="preserve">
+    <value>Ton</value>
+  </data>
+  <data name="common.wavelogDidntImportThe" xml:space="preserve">
+    <value>Wavelog hat das QSO nicht importiert</value>
+  </data>
+  <data name="common.wavelogX" xml:space="preserve">
+    <value>Wavelog: {0}</value>
+  </data>
+  <data name="common.xDAgo" xml:space="preserve">
+    <value>vor {0} T</value>
+  </data>
+  <data name="common.xHAgo" xml:space="preserve">
+    <value>vor {0} h</value>
+  </data>
+  <data name="common.xMinAgo" xml:space="preserve">
+    <value>vor {0} min</value>
+  </data>
+  <data name="cwLogPane.alreadyInWavelog" xml:space="preserve">
+    <value>schon in Wavelog</value>
+  </data>
+  <data name="cwLogPane.cantLogInX" xml:space="preserve">
+    <value>Loggen in {0} nicht möglich</value>
+  </data>
+  <data name="cwLogPane.dontSendXTo" xml:space="preserve">
+    <value>{0} nicht an Wavelog senden</value>
+  </data>
+  <data name="cwLogPane.loggedFromTheTransmitting" xml:space="preserve">
+    <value>Geloggt wird die Sendeseite: Frequenz, Betriebsart und eingestellte RF-Leistung</value>
+  </data>
+  <data name="cwLogPane.logging" xml:space="preserve">
+    <value>Wird geloggt…</value>
+  </data>
+  <data name="cwLogPane.logQSO" xml:space="preserve">
+    <value>QSO loggen</value>
+  </data>
+  <data name="cwLogPane.logThisQSOCtrl" xml:space="preserve">
+    <value>Dieses QSO loggen (Strg+L)</value>
+  </data>
+  <data name="cwLogPane.lookTheCallUp" xml:space="preserve">
+    <value>Das Rufzeichen in Log4OM nachschlagen (füllt dessen Rufzeichenfeld)</value>
+  </data>
+  <data name="cwLogPane.lookup" xml:space="preserve">
+    <value>Nachschlagen</value>
+  </data>
+  <data name="cwLogPane.newOnX" xml:space="preserve">
+    <value> · neu auf {0}</value>
+  </data>
+  <data name="cwLogPane.newStation" xml:space="preserve">
+    <value>Neue Station</value>
+  </data>
+  <data name="cwLogPane.noLogbookChooseOne" xml:space="preserve">
+    <value>Kein Logbuch – eines unter Einstellungen → Logbuch auswählen</value>
+  </data>
+  <data name="cwLogPane.noLogbookIsSelected" xml:space="preserve">
+    <value>Unter Einstellungen → Logbuch ist kein Logbuch ausgewählt</value>
+  </data>
+  <data name="cwLogPane.notConnectedToThe" xml:space="preserve">
+    <value>Nicht mit dem Gerät verbunden – Frequenz und Betriebsart unbekannt</value>
+  </data>
+  <data name="cwLogPane.on" xml:space="preserve">
+    <value>Beginn</value>
+  </data>
+  <data name="cwLogPane.retryWavelogX" xml:space="preserve">
+    <value>Wavelog erneut versuchen ({0})</value>
+  </data>
+  <data name="cwLogPane.rSTReceived" xml:space="preserve">
+    <value>RST empfangen</value>
+  </data>
+  <data name="cwLogPane.rSTSent" xml:space="preserve">
+    <value>RST gesendet</value>
+  </data>
+  <data name="cwLogPane.sendXToWavelog" xml:space="preserve">
+    <value>{0} erneut an Wavelog senden, so wie geloggt – nicht an {1}</value>
+  </data>
+  <data name="cwLogPane.setTheTimeOn" xml:space="preserve">
+    <value>Beginnzeit auf jetzt setzen</value>
+  </data>
+  <data name="cwLogPane.theLogbook" xml:space="preserve">
+    <value>das Logbuch</value>
+  </data>
+  <data name="cwLogPane.theOtherLogbook" xml:space="preserve">
+    <value>das andere Logbuch</value>
+  </data>
+  <data name="cwLogPane.theStationYoureWorking" xml:space="preserve">
+    <value>Die gearbeitete Station – auch {CALL} in Makros. Ein Rufzeichen im dekodierten Text anklicken, um es einzutragen.</value>
+  </data>
+  <data name="cwLogPane.theTransmittingSidesFrequency" xml:space="preserve">
+    <value>Die Frequenz der Sendeseite ist noch nicht bekannt</value>
+  </data>
+  <data name="cwLogPane.toX" xml:space="preserve">
+    <value>An {0}</value>
+  </data>
+  <data name="cwLogPane.workedBeforeX" xml:space="preserve">
+    <value>Schon gearbeitet: {0}</value>
+  </data>
+  <data name="cwLogPane.workedXLastX" xml:space="preserve">
+    <value>{0}× gearbeitet · zuletzt {1:yyyy-MM-dd} {2} {3}</value>
+  </data>
+  <data name="cwLogPane.xAndWavelog" xml:space="preserve">
+    <value>{0} und Wavelog</value>
+  </data>
+  <data name="cwLogPane.xCheckXBefore" xml:space="preserve">
+    <value>{0} – {1} prüfen, bevor {2} erneut geloggt wird</value>
+  </data>
+  <data name="cwLogPane.xLoggedToWavelog" xml:space="preserve">
+    <value>{0} in Wavelog geloggt</value>
+  </data>
+  <data name="cwLogPane.xLoggedToX" xml:space="preserve">
+    <value>{0} in {1} geloggt</value>
+  </data>
+  <data name="cwLogPane.xNotLogged" xml:space="preserve">
+    <value>{0} nicht geloggt</value>
+  </data>
+  <data name="cwLogPane.xSentToLog4OM" xml:space="preserve">
+    <value>{0} zum Nachschlagen an Log4OM gesendet</value>
+  </data>
+  <data name="cwLogPane.xWasAlreadyIn" xml:space="preserve">
+    <value>{0} war schon in Wavelog</value>
+  </data>
+  <data name="cwNeuralDecoder.theNeuralDecodersModel" xml:space="preserve">
+    <value>Das Modell des neuronalen Decoders passt nicht zu dieser App-Version (abweichende Merkmalseinstellungen).</value>
+  </data>
+  <data name="cwNeuralDecoder.theNeuralDecodersModel2" xml:space="preserve">
+    <value>Das Modell des neuronalen Decoders passt nicht zu dieser App-Version (kein Vokabular).</value>
+  </data>
+  <data name="cwNeuralDecoder.theNeuralDecodersModel3" xml:space="preserve">
+    <value>Das Modell des neuronalen Decoders (Assets\CWNet.onnx) fehlt.</value>
+  </data>
+  <data name="cwReceiver.couldntReadXX" xml:space="preserve">
+    <value>„{0}“ konnte nicht gelesen werden: {1}</value>
+  </data>
+  <data name="cwSender.breakInIsOff" xml:space="preserve">
+    <value>Break-in ist aus – das Gerät sendet seinen Speicher nur mit BK-IN ein</value>
+  </data>
+  <data name="cwSender.checkingKeyerMemoryX" xml:space="preserve">
+    <value>Keyer-Speicher {0} wird geprüft…</value>
+  </data>
+  <data name="cwSender.nothingTheKeyerCan" xml:space="preserve">
+    <value>Nichts in dieser Zeile, das der Keyer senden kann</value>
+  </data>
+  <data name="cwSender.notSentX" xml:space="preserve">
+    <value>Nicht gesendet: {0}</value>
+  </data>
+  <data name="cwSender.sendingAtXWPM" xml:space="preserve">
+    <value>Senden mit {0} WPM…</value>
+  </data>
+  <data name="cwSender.theRigIsIn" xml:space="preserve">
+    <value>das Gerät ist in {0}, nicht in CW</value>
+  </data>
+  <data name="cwSender.theRigIsOutside" xml:space="preserve">
+    <value>das Gerät ist außerhalb der Amateurfunkbänder</value>
+  </data>
+  <data name="cwSender.transmitIsTurnedOff" xml:space="preserve">
+    <value>Senden ist ausgeschaltet (Senden erlauben)</value>
+  </data>
+  <data name="cwSender.waitingX" xml:space="preserve">
+    <value>Warten: {0}</value>
+  </data>
+  <data name="cwSender.writingKeyerMemoryX" xml:space="preserve">
+    <value>Keyer-Speicher {0} wird geschrieben…</value>
+  </data>
+  <data name="cwSender.xIsEmpty" xml:space="preserve">
+    <value>{0} ist leer</value>
+  </data>
+  <data name="cwSender.yourCallsignSettingsStation" xml:space="preserve">
+    <value>Eigenes Rufzeichen (Einstellungen → Station)</value>
+  </data>
+  <data name="cwSender.yourGridSquareSettings" xml:space="preserve">
+    <value>Eigener Locator (Einstellungen → Station)</value>
+  </data>
+  <data name="cwSendPane.add" xml:space="preserve">
+    <value>Hinzufügen</value>
+  </data>
+  <data name="cwSendPane.breakInTheRig" xml:space="preserve">
+    <value>Break-in. Das Gerät sendet den Keyer-Speicher nur mit BK-IN ein.</value>
+  </data>
+  <data name="cwSendPane.cantSendX" xml:space="preserve">
+    <value>Senden nicht möglich: {0}</value>
+  </data>
+  <data name="cwSendPane.clearWhatsBeenSent" xml:space="preserve">
+    <value>Bereits Gesendetes aus dem Protokoll löschen</value>
+  </data>
+  <data name="cwSendPane.cWMacros" xml:space="preserve">
+    <value>CW-Makros</value>
+  </data>
+  <data name="cwSendPane.editTheMacroButtons" xml:space="preserve">
+    <value>Makrotasten bearbeiten</value>
+  </data>
+  <data name="cwSendPane.faster" xml:space="preserve">
+    <value>Schneller</value>
+  </data>
+  <data name="cwSendPane.keyerMemory" xml:space="preserve">
+    <value>Keyer-Speicher</value>
+  </data>
+  <data name="cwSendPane.label" xml:space="preserve">
+    <value>Beschriftung</value>
+  </data>
+  <data name="cwSendPane.leftOutTheKeyer" xml:space="preserve">
+    <value>Ausgelassen (kann der Keyer nicht senden): {0}</value>
+  </data>
+  <data name="cwSendPane.linesYouSendAppear" xml:space="preserve">
+    <value>Gesendete Zeilen erscheinen hier. Unten eintippen oder ein Makro verwenden.</value>
+  </data>
+  <data name="cwSendPane.macros" xml:space="preserve">
+    <value>Makros…</value>
+  </data>
+  <data name="cwSendPane.macroXLabel" xml:space="preserve">
+    <value>Beschriftung von Makro {0}</value>
+  </data>
+  <data name="cwSendPane.macroXText" xml:space="preserve">
+    <value>Text von Makro {0}</value>
+  </data>
+  <data name="cwSendPane.memoryX" xml:space="preserve">
+    <value>Speicher {0}</value>
+  </data>
+  <data name="cwSendPane.monitor" xml:space="preserve">
+    <value>Mithören</value>
+  </data>
+  <data name="cwSendPane.placeholdersMYCALLAndMYGRID" xml:space="preserve">
+    <value>Platzhalter: {MYCALL} und {MYGRID} (Einstellungen → Station), {CALL} (Gegenstation – ein Rufzeichen im dekodierten Text anklicken, um es einzutragen). Betriebszeichen: &lt;BT&gt;, &lt;AR&gt;, &lt;KN&gt;.</value>
+  </data>
+  <data name="cwSendPane.playASidetoneOn" xml:space="preserve">
+    <value>Einen Mithörton auf diesem PC abspielen, während der Keyer des Geräts sendet, mit dessen Tempo und CW-Pitch – für ein entferntes Gerät, bei dem nichts zu hören ist</value>
+  </data>
+  <data name="cwSendPane.putXInThe" xml:space="preserve">
+    <value>„{0}“ in die Sendezeile setzen</value>
+  </data>
+  <data name="cwSendPane.readyMemoryRigKeyer" xml:space="preserve">
+    <value>Bereit – Keyer des Geräts, Speicher {0}</value>
+  </data>
+  <data name="cwSendPane.readyMemoryWpm" xml:space="preserve">
+    <value>Bereit – {0} WPM, Speicher {1}</value>
+  </data>
+  <data name="cwSendPane.remove" xml:space="preserve">
+    <value>Entfernen</value>
+  </data>
+  <data name="cwSendPane.restoreDefaults" xml:space="preserve">
+    <value>Standardwerte wiederherstellen</value>
+  </data>
+  <data name="cwSendPane.save" xml:space="preserve">
+    <value>Speichern</value>
+  </data>
+  <data name="cwSendPane.send" xml:space="preserve">
+    <value>Senden</value>
+  </data>
+  <data name="cwSendPane.sendLine" xml:space="preserve">
+    <value>Sendezeile</value>
+  </data>
+  <data name="cwSendPane.slower" xml:space="preserve">
+    <value>Langsamer</value>
+  </data>
+  <data name="cwSendPane.stopKeyingNowAnd" xml:space="preserve">
+    <value>Tasten sofort beenden und alles Wartende verwerfen (Esc)</value>
+  </data>
+  <data name="cwSendPane.text" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="cwSendPane.theRigsCWTEXT" xml:space="preserve">
+    <value>Der CW-TEXT-Keyer-Speicher des Geräts, in den der Sendebereich schreibt. Was dort gespeichert ist, wird überschrieben.</value>
+  </data>
+  <data name="cwSendPane.theRigsKeyerSpeed" xml:space="preserve">
+    <value>Keyer-Tempo des Geräts (KS), 4–60 WPM</value>
+  </data>
+  <data name="cwSendPane.turnOnBKIN" xml:space="preserve">
+    <value>BK-IN einschalten</value>
+  </data>
+  <data name="cwSendPane.typeALineAnd" xml:space="preserve">
+    <value>Eine Zeile eingeben und zum Senden die Eingabetaste drücken</value>
+  </data>
+  <data name="cwWindow.autoTune" xml:space="preserve">
+    <value>Auto-Abstimmung</value>
+  </data>
+  <data name="cwWindow.cantCaptureTheWebSDRs" xml:space="preserve">
+    <value>Audio des WebSDR kann nicht aufgenommen werden: {0}</value>
+  </data>
+  <data name="cwWindow.classic" xml:space="preserve">
+    <value>Klassisch</value>
+  </data>
+  <data name="cwWindow.clearTheDecodedText" xml:space="preserve">
+    <value>Dekodierten Text löschen</value>
+  </data>
+  <data name="cwWindow.connectTheWebSDRWindow" xml:space="preserve">
+    <value>Das WebSDR-Fenster verbinden, um zu dekodieren, was es abspielt</value>
+  </data>
+  <data name="cwWindow.copy" xml:space="preserve">
+    <value>Kopieren</value>
+  </data>
+  <data name="cwWindow.copyTheDecodedText" xml:space="preserve">
+    <value>Dekodierten Text kopieren</value>
+  </data>
+  <data name="cwWindow.decodeARecordingThe" xml:space="preserve">
+    <value>Eine Aufnahme dekodieren (zuerst öffnet sich der Ordner Aufnahmen)</value>
+  </data>
+  <data name="cwWindow.decodedCWFromThe" xml:space="preserve">
+    <value>Hier erscheint dekodiertes CW vom gewählten Empfänger. Auf ein CW-Signal abstimmen oder eine Aufnahme öffnen.</value>
+  </data>
+  <data name="cwWindow.decodeTheRigsMAIN" xml:space="preserve">
+    <value>Den MAIN-Empfänger des Geräts dekodieren</value>
+  </data>
+  <data name="cwWindow.decodeTheRigsSUB" xml:space="preserve">
+    <value>Den SUB-Empfänger des Geräts dekodieren</value>
+  </data>
+  <data name="cwWindow.decodeWhatTheWebSDR" xml:space="preserve">
+    <value>Dekodieren, was das WebSDR-Fenster abspielt</value>
+  </data>
+  <data name="cwWindow.decodingFile" xml:space="preserve">
+    <value>Datei wird dekodiert…</value>
+  </data>
+  <data name="cwWindow.elementsOfTheCharacter" xml:space="preserve">
+    <value>Elemente des gerade empfangenen Zeichens (klassischer Decoder)</value>
+  </data>
+  <data name="cwWindow.followTheStrongestTone" xml:space="preserve">
+    <value>Dem stärksten Ton zwischen {0:0} und {1:0} Hz folgen</value>
+  </data>
+  <data name="cwWindow.keyDown" xml:space="preserve">
+    <value>Taste gedrückt</value>
+  </data>
+  <data name="cwWindow.minimumSignalToNoise" xml:space="preserve">
+    <value>Mindest-Signal-Rausch-Abstand, bevor etwas dekodiert wird</value>
+  </data>
+  <data name="cwWindow.neural" xml:space="preserve">
+    <value>Neuronal</value>
+  </data>
+  <data name="cwWindow.neuralAModelTrained" xml:space="preserve">
+    <value>Neuronal: ein mit simuliertem CW trainiertes Modell, am besten bei schwachen und verrauschten Signalen; der Text läuft etwa 3½ s hinterher. Klassisch: Tonschwelle und Timing-Regeln.</value>
+  </data>
+  <data name="cwWindow.noSUBAudioThe" xml:space="preserve">
+    <value>Kein SUB-Audio: Audio ist aus oder der Eingang ist mono</value>
+  </data>
+  <data name="cwWindow.openAudioFile" xml:space="preserve">
+    <value>Audiodatei öffnen…</value>
+  </data>
+  <data name="cwWindow.openTheWebSDRWindow" xml:space="preserve">
+    <value>Das WebSDR-Fenster öffnen (Schaltfläche WebSDR) und verbinden, um zu dekodieren, was es abspielt</value>
+  </data>
+  <data name="cwWindow.pausedWhileTransmitting" xml:space="preserve">
+    <value>Pausiert während des Sendens</value>
+  </data>
+  <data name="cwWindow.rigPitch" xml:space="preserve">
+    <value>Pitch des Geräts</value>
+  </data>
+  <data name="cwWindow.squelch" xml:space="preserve">
+    <value>Squelch</value>
+  </data>
+  <data name="cwWindow.sUBIsOffThe" xml:space="preserve">
+    <value>SUB ist aus: das Gerät zeigt Einzelempfang</value>
+  </data>
+  <data name="cwWindow.theNeuralDecoderDoesnt" xml:space="preserve">
+    <value>Der neuronale Decoder braucht keinen Squelch: Bei Rauschen bleibt er still</value>
+  </data>
+  <data name="cwWindow.theRigsCWPitch" xml:space="preserve">
+    <value>Der CW-Pitch des Geräts wurde noch nicht gelesen (er wird im CW-Modus gelesen oder bei geöffneter CW-Seite des MENU-Rasters)</value>
+  </data>
+  <data name="cwWindow.theWebSDRIsMuted" xml:space="preserve">
+    <value>Das WebSDR ist stummgeschaltet – zum Dekodieren den Ton einschalten (Windows kann es stummgeschaltet nicht aufnehmen)</value>
+  </data>
+  <data name="cwWindow.theWebSDRIsSilent" xml:space="preserve">
+    <value>Das WebSDR ist still – prüfen, ob seine Seite abspielt</value>
+  </data>
+  <data name="cwWindow.thisBand" xml:space="preserve">
+    <value>diesem Band</value>
+  </data>
+  <data name="cwWindow.toneLevelBetweenThe" xml:space="preserve">
+    <value>Tonpegel zwischen Grundrauschen und Signalspitze</value>
+  </data>
+  <data name="cwWindow.turnOffAutoTune" xml:space="preserve">
+    <value>Auto-Abstimmung ausschalten und den CW-Pitch des Geräts verwenden, {0} Hz – dort klingt ein auf Schwebungsnull abgestimmtes Signal</value>
+  </data>
+  <data name="cwWindow.useXAsTheir" xml:space="preserve">
+    <value>{0} als Gegenstation verwenden</value>
+  </data>
+  <data name="cwWindow.waitingForTheWebSDR" xml:space="preserve">
+    <value>Warten auf das Audio des WebSDR-Fensters</value>
+  </data>
+  <data name="cwWindow.workedOnX" xml:space="preserve">
+    <value>Gearbeitet auf {0}</value>
+  </data>
+  <data name="cwWindow.workedOtherBand" xml:space="preserve">
+    <value>Gearbeitet, anderes Band</value>
+  </data>
+  <data name="cwWindow.xIsInX" xml:space="preserve">
+    <value>{0} ist in {1}, nicht in CW – es wird trotzdem dekodiert</value>
+  </data>
+  <data name="deepSettingsDialog.1ItemDidntAnswer" xml:space="preserve">
+    <value>1 Eintrag hat nicht geantwortet.</value>
+  </data>
+  <data name="deepSettingsDialog.momentaryOrIrreversibleNot" xml:space="preserve">
+    <value>Kurzzeitig oder nicht umkehrbar – wird von dieser App nicht gesendet</value>
+  </data>
+  <data name="deepSettingsDialog.xItemsDidntAnswer" xml:space="preserve">
+    <value>{0} Einträge haben nicht geantwortet.</value>
+  </data>
+  <data name="deepSettingsDialog.xItemsHaventBeen" xml:space="preserve">
+    <value>Die Einträge von {0} sind noch nicht im Deep-Settings-Katalog.</value>
+  </data>
+  <data name="deepSettingsDialog.xNotSentX" xml:space="preserve">
+    <value>{0}: nicht gesendet ({1})</value>
+  </data>
+  <data name="filterModels.default" xml:space="preserve">
+    <value>Standard</value>
+  </data>
+  <data name="filterPanel.applyTheFilterControls" xml:space="preserve">
+    <value>Die Filterregler auf den MAIN-Empfänger anwenden</value>
+  </data>
+  <data name="filterPanel.applyTheFilterControls2" xml:space="preserve">
+    <value>Die Filterregler auf den SUB-Empfänger anwenden</value>
+  </data>
+  <data name="filterPanel.audioPeakFilterOn" xml:space="preserve">
+    <value>Audio-Peak-Filter (APF) ein/aus</value>
+  </data>
+  <data name="filterPanel.center" xml:space="preserve">
+    <value>Mitte</value>
+  </data>
+  <data name="filterPanel.contourOnOff" xml:space="preserve">
+    <value>Contour ein/aus</value>
+  </data>
+  <data name="filterPanel.filterFunctionDisplay" xml:space="preserve">
+    <value>Anzeige der Filterfunktion</value>
+  </data>
+  <data name="filterPanel.filterFunctionDisplayPassband" xml:space="preserve">
+    <value>Filteranzeige: Durchlassbereich (WIDTH/SHIFT), Notch, Contour/APF</value>
+  </data>
+  <data name="filterPanel.filterWidth" xml:space="preserve">
+    <value>Filterbreite</value>
+  </data>
+  <data name="filterPanel.filterX" xml:space="preserve">
+    <value>Filter {0}</value>
+  </data>
+  <data name="filterPanel.iFShift" xml:space="preserve">
+    <value>IF-Shift</value>
+  </data>
+  <data name="filterPanel.manualNotchOnOff" xml:space="preserve">
+    <value>Manueller Notch ein/aus</value>
+  </data>
+  <data name="filterPanel.narrower" xml:space="preserve">
+    <value>Schmaler</value>
+  </data>
+  <data name="filterPanel.narrowFilterOnOff" xml:space="preserve">
+    <value>Schmalfilter ein/aus</value>
+  </data>
+  <data name="filterPanel.sUBReceiverIsntShown" xml:space="preserve">
+    <value>Der SUB-Empfänger wird in der Einzelempfangsanzeige nicht gezeigt</value>
+  </data>
+  <data name="filterPanel.wider" xml:space="preserve">
+    <value>Breiter</value>
+  </data>
+  <data name="filterPanel.width" xml:space="preserve">
+    <value>Breite</value>
+  </data>
+  <data name="filterPanel.xFailedY" xml:space="preserve">
+    <value>{0} fehlgeschlagen: {1}</value>
+  </data>
+  <data name="hrdLogbook.hRDLogbookIsntRunning" xml:space="preserve">
+    <value>HRD Logbook läuft nicht</value>
+  </data>
+  <data name="hrdLogbook.hRDsADIFReceiverPort" xml:space="preserve">
+    <value>Der Port des ADIF-Empfängers von HRD ist unbekannt – dessen UDP9/ADIF-Empfang einschalten (siehe Einstellungen → Logbuch)</value>
+  </data>
+  <data name="hrdLogbook.hRDsLogFileWasnt" xml:space="preserve">
+    <value>Logdatei von HRD nicht gefunden</value>
+  </data>
+  <data name="hrdLogbook.hRDsUDP9ADIFReceive" xml:space="preserve">
+    <value>der UDP9/ADIF-Empfang von HRD ist aus</value>
+  </data>
+  <data name="hrdLogbook.hRDsXLogIs" xml:space="preserve">
+    <value>Das Log „{0}“ von HRD ist {1}; nur ein lokales SQLite-Log kann gelesen werden</value>
+  </data>
+  <data name="hrdLogbook.thisIsntAnHRD" xml:space="preserve">
+    <value>Das ist kein HRD-Log (keine Tabelle TABLE_HRD_CONTACTS)</value>
+  </data>
+  <data name="kiwiSdrDirectory.couldntLoadTheStation" xml:space="preserve">
+    <value>Stationsliste konnte nicht geladen werden: {0}</value>
+  </data>
+  <data name="kiwiSdrDirectory.couldntRefreshShowingThe" xml:space="preserve">
+    <value>Aktualisieren fehlgeschlagen – zwischengespeicherte Liste wird gezeigt. ({0})</value>
+  </data>
+  <data name="kiwiSdrDirectory.theStationListCouldnt" xml:space="preserve">
+    <value>Die Stationsliste konnte nicht gelesen werden.</value>
+  </data>
+  <data name="localAudioCapture.captureStopped" xml:space="preserve">
+    <value>Aufnahme gestoppt</value>
+  </data>
+  <data name="localAudioCapture.theInputDeviceStopped" xml:space="preserve">
+    <value>das Eingabegerät liefert kein Audio mehr</value>
+  </data>
+  <data name="localAudioCapture.theSelectedInputDevice" xml:space="preserve">
+    <value>das gewählte Eingabegerät ist {0}</value>
+  </data>
+  <data name="localAudioCapture.theSelectedInputDevice2" xml:space="preserve">
+    <value>das gewählte Eingabegerät ist nicht verfügbar (abgesteckt oder deaktiviert?)</value>
+  </data>
+  <data name="localAudioCapture.unsupportedCaptureFormatX" xml:space="preserve">
+    <value>nicht unterstütztes Aufnahmeformat ({0})</value>
+  </data>
+  <data name="localAudioCapture.windowsDeniedMicrophoneAccess" xml:space="preserve">
+    <value>Windows hat den Mikrofonzugriff verweigert – unter Einstellungen → Datenschutz und Sicherheit → Mikrofon „Desktop-Apps den Zugriff auf Ihr Mikrofon erlauben“ einschalten</value>
+  </data>
+  <data name="localAudioCapture.xXHz" xml:space="preserve">
+    <value>{0}, {1} Hz</value>
+  </data>
+  <data name="localAudioCapture.xXHzMono" xml:space="preserve">
+    <value>{0}, {1} Hz – mono, daher kein Sub-Audio (das Gerät in den Soundeinstellungen von Windows auf 2 Kanäle stellen)</value>
+  </data>
+  <data name="localTxAudioPlayer.noTransmitAudioOutput" xml:space="preserve">
+    <value>keine Sendeaudio-Ausgabe festgelegt (Einstellungen → Audio)</value>
+  </data>
+  <data name="localTxAudioPlayer.transmitAudioOutputX" xml:space="preserve">
+    <value>Die Sendeaudio-Ausgabe „{0}“ konnte nicht geöffnet werden: {1}</value>
+  </data>
+  <data name="localTxAudioPlayer.transmitAudioOutputX2" xml:space="preserve">
+    <value>Die Sendeaudio-Ausgabe „{0}“ ist nicht verbunden</value>
+  </data>
+  <data name="log4OmLogbook.log4OMHasNoADIF" xml:space="preserve">
+    <value>Log4OM hat keine eingehende UDP-Verbindung ADIF_MESSAGE – eine hinzufügen (siehe Einstellungen → Logbuch)</value>
+  </data>
+  <data name="log4OmLogbook.log4OMHasNoLog" xml:space="preserve">
+    <value>Log4OM hat kein Log geöffnet – in Log4OM eines anlegen oder öffnen</value>
+  </data>
+  <data name="log4OmLogbook.log4OMsLogFileWasnt" xml:space="preserve">
+    <value>Logdatei von Log4OM nicht gefunden</value>
+  </data>
+  <data name="log4OmLogbook.log4OMsLogIsOn" xml:space="preserve">
+    <value>Das Log von Log4OM liegt auf einem MySQL/MariaDB-Server; nur ein SQLite-Log kann gelesen werden</value>
+  </data>
+  <data name="log4OmLogbook.log4OMsSettingsWerentFound" xml:space="preserve">
+    <value>Einstellungen von Log4OM nicht gefunden</value>
+  </data>
+  <data name="log4OmLogbook.log4OMsXConnectionIs" xml:space="preserve">
+    <value>die Verbindung „{0}“ von Log4OM ist aus</value>
+  </data>
+  <data name="log4OmLogbook.thisIsntALog4OM" xml:space="preserve">
+    <value>Das ist kein Log4OM-Log (keine Tabelle Log)</value>
+  </data>
+  <data name="logbookProgram.couldntReadTheLog" xml:space="preserve">
+    <value>Das Log konnte nicht gelesen werden: {0}</value>
+  </data>
+  <data name="logbookProgram.noLogFileAt" xml:space="preserve">
+    <value>Keine Logdatei unter {0}</value>
+  </data>
+  <data name="mainWindow.alreadyRunningRigctldOn" xml:space="preserve">
+    <value>bereits laufendes rigctld auf localhost:{0}</value>
+  </data>
+  <data name="mainWindow.audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="mainWindow.audioChannelsAreSwapped" xml:space="preserve">
+    <value>Die Audiokanäle sind gegenüber der Grundeinstellung des Geräts vertauscht (L=Main, R=Sub). Zum Zurücktauschen klicken.</value>
+  </data>
+  <data name="mainWindow.audioInputUnavailableRetrying" xml:space="preserve">
+    <value>Audioeingang nicht verfügbar, neuer Versuch – {0}</value>
+  </data>
+  <data name="mainWindow.band" xml:space="preserve">
+    <value>Band</value>
+  </data>
+  <data name="mainWindow.cantReachThePis" xml:space="preserve">
+    <value>Audio-Stream des Pi (:8532) nicht erreichbar, neuer Versuch – {0}</value>
+  </data>
+  <data name="mainWindow.capturingX" xml:space="preserve">
+    <value>Aufnahme – {0}</value>
+  </data>
+  <data name="mainWindow.chooseTheRadiosAudio" xml:space="preserve">
+    <value>Den Audioeingang des Geräts unter Einstellungen → Audio wählen.</value>
+  </data>
+  <data name="mainWindow.connectedNoAudioAnother" xml:space="preserve">
+    <value>Verbunden, kein Audio – vermutlich hat ein anderer Client (der Mac?) den Stream des Pi; er wird übernommen, sobald er frei ist</value>
+  </data>
+  <data name="mainWindow.connectedToX" xml:space="preserve">
+    <value>Verbunden mit {0}</value>
+  </data>
+  <data name="mainWindow.connectFailedX" xml:space="preserve">
+    <value>Verbinden fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.connecting" xml:space="preserve">
+    <value>Verbinden…</value>
+  </data>
+  <data name="mainWindow.connectingTo8532" xml:space="preserve">
+    <value>Verbinden mit :8532…</value>
+  </data>
+  <data name="mainWindow.couldntReachRigctldOn" xml:space="preserve">
+    <value>rigctld auf localhost:{0} nicht erreichbar ({1})</value>
+  </data>
+  <data name="mainWindow.decodeCWFromThe" xml:space="preserve">
+    <value>CW aus dem MAIN- oder SUB-Audio des Geräts oder aus einer Aufnahme dekodieren</value>
+  </data>
+  <data name="mainWindow.decodedAPRSStationsMessages" xml:space="preserve">
+    <value>Dekodierte APRS-Stationen, -Nachrichten und Karte</value>
+  </data>
+  <data name="mainWindow.decreasePowerBy1" xml:space="preserve">
+    <value>Leistung um 1 W senken</value>
+  </data>
+  <data name="mainWindow.decreaseRFPowerBy" xml:space="preserve">
+    <value>RF-Leistung um 1 W verringern</value>
+  </data>
+  <data name="mainWindow.disconnected" xml:space="preserve">
+    <value>Getrennt</value>
+  </data>
+  <data name="mainWindow.disconnectedLocalXX" xml:space="preserve">
+    <value>Getrennt · Lokal, {0} @ {1}</value>
+  </data>
+  <data name="mainWindow.disconnectedRemoteX" xml:space="preserve">
+    <value>Getrennt · Remote, {0}</value>
+  </data>
+  <data name="mainWindow.download" xml:space="preserve">
+    <value>Herunterladen</value>
+  </data>
+  <data name="mainWindow.enableTransmit" xml:space="preserve">
+    <value>Senden erlauben</value>
+  </data>
+  <data name="mainWindow.fTX1RemoteXIsAvailable" xml:space="preserve">
+    <value>FTX1Remote {0} ist verfügbar (installiert: {1}).</value>
+  </data>
+  <data name="mainWindow.holdToTransmit" xml:space="preserve">
+    <value>Zum Senden gedrückt halten</value>
+  </data>
+  <data name="mainWindow.increasePowerBy1" xml:space="preserve">
+    <value>Leistung um 1 W erhöhen</value>
+  </data>
+  <data name="mainWindow.increaseRFPowerBy" xml:space="preserve">
+    <value>RF-Leistung um 1 W erhöhen</value>
+  </data>
+  <data name="mainWindow.later" xml:space="preserve">
+    <value>Später</value>
+  </data>
+  <data name="mainWindow.listenOnAKiwiSDR" xml:space="preserve">
+    <value>Über ein KiwiSDR oder WebSDR hören, das dem Gerät folgt</value>
+  </data>
+  <data name="mainWindow.listTheRigsMemory" xml:space="preserve">
+    <value>Die Speicherkanäle des Geräts auflisten und einen auf MAIN oder SUB abrufen</value>
+  </data>
+  <data name="mainWindow.mAINIsInMemory" xml:space="preserve">
+    <value>MAIN ist im Speichermodus – zuerst V/M drücken</value>
+  </data>
+  <data name="mainWindow.mAINSquelch" xml:space="preserve">
+    <value>Squelch von MAIN</value>
+  </data>
+  <data name="mainWindow.mAINVolume" xml:space="preserve">
+    <value>Lautstärke von MAIN</value>
+  </data>
+  <data name="mainWindow.map" xml:space="preserve">
+    <value>Karte</value>
+  </data>
+  <data name="mainWindow.memList" xml:space="preserve">
+    <value>Speicherliste</value>
+  </data>
+  <data name="mainWindow.memoryScanFailedX" xml:space="preserve">
+    <value>Speicherscan fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.messagesMLIST" xml:space="preserve">
+    <value>Nachrichten (M.LIST)</value>
+  </data>
+  <data name="mainWindow.mode" xml:space="preserve">
+    <value>Betriebsart</value>
+  </data>
+  <data name="mainWindow.mOXOffFailedCheck" xml:space="preserve">
+    <value>MOX aus fehlgeschlagen – Gerät prüfen: {0}</value>
+  </data>
+  <data name="mainWindow.mute" xml:space="preserve">
+    <value>Stumm</value>
+  </data>
+  <data name="mainWindow.muteMAIN" xml:space="preserve">
+    <value>MAIN stummschalten</value>
+  </data>
+  <data name="mainWindow.muteSUB" xml:space="preserve">
+    <value>SUB stummschalten</value>
+  </data>
+  <data name="mainWindow.noAudioOutputX" xml:space="preserve">
+    <value> · keine Audioausgabe: {0}</value>
+  </data>
+  <data name="mainWindow.noCOMPortSet" xml:space="preserve">
+    <value>kein COM-Port festgelegt</value>
+  </data>
+  <data name="mainWindow.noPiHostSet" xml:space="preserve">
+    <value>kein Pi-Host festgelegt</value>
+  </data>
+  <data name="mainWindow.off" xml:space="preserve">
+    <value>Aus</value>
+  </data>
+  <data name="mainWindow.on" xml:space="preserve">
+    <value>Beginn</value>
+  </data>
+  <data name="mainWindow.oscilloscope" xml:space="preserve">
+    <value>Oszilloskop</value>
+  </data>
+  <data name="mainWindow.powerLevel" xml:space="preserve">
+    <value>Leistungsstufe</value>
+  </data>
+  <data name="mainWindow.powerOut" xml:space="preserve">
+    <value>Ausgangsleistung</value>
+  </data>
+  <data name="mainWindow.pushToTalk" xml:space="preserve">
+    <value>Sprechtaste</value>
+  </data>
+  <data name="mainWindow.putXInMemory" xml:space="preserve">
+    <value>{0} zum Scannen in den Speichermodus schalten</value>
+  </data>
+  <data name="mainWindow.recallChannelXFailed" xml:space="preserve">
+    <value>Kanal {0} abrufen fehlgeschlagen: {1}</value>
+  </data>
+  <data name="mainWindow.recordingMainAudio" xml:space="preserve">
+    <value>Main-Audio wird aufgenommen…</value>
+  </data>
+  <data name="mainWindow.recordingStoppedNoAudio" xml:space="preserve">
+    <value>Aufnahme beendet – kein Audio angekommen, nichts gespeichert.</value>
+  </data>
+  <data name="mainWindow.resumeThePausedScan" xml:space="preserve">
+    <value>Den pausierten Scan nach diesem Kanal fortsetzen</value>
+  </data>
+  <data name="mainWindow.rigctldExitedDuringStartup" xml:space="preserve">
+    <value>rigctld wurde beim Start beendet</value>
+  </data>
+  <data name="mainWindow.rigctldIsRunningBut" xml:space="preserve">
+    <value>rigctld läuft, aber das Gerät antwortet nicht – COM-Port, Baudrate prüfen und ob das Gerät eingeschaltet ist</value>
+  </data>
+  <data name="mainWindow.savedXToRecordings" xml:space="preserve">
+    <value>{0} unter Aufnahmen gespeichert.</value>
+  </data>
+  <data name="mainWindow.scan" xml:space="preserve">
+    <value>Scan</value>
+  </data>
+  <data name="mainWindow.scanMAINsOrSUBs" xml:space="preserve">
+    <value>Speicherkanäle von MAIN oder SUB scannen (Speichermodus)</value>
+  </data>
+  <data name="mainWindow.scanX" xml:space="preserve">
+    <value>{0} scannen</value>
+  </data>
+  <data name="mainWindow.setBandFailedX" xml:space="preserve">
+    <value>Band setzen fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.setFrequencyFailedX" xml:space="preserve">
+    <value>Frequenz setzen fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.setModeFailedX" xml:space="preserve">
+    <value>Modus setzen fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.setPowerFailedX" xml:space="preserve">
+    <value>Leistung setzen fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.setPTTFailedX" xml:space="preserve">
+    <value>PTT setzen fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.setSUBModeFailed" xml:space="preserve">
+    <value>SUB-Modus setzen fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.setTheCOMPort" xml:space="preserve">
+    <value>Zuerst den COM-Port in den Einstellungen festlegen.</value>
+  </data>
+  <data name="mainWindow.setThePisTailscale" xml:space="preserve">
+    <value>Zuerst den Tailscale-Namen des Pi in den Einstellungen festlegen.</value>
+  </data>
+  <data name="mainWindow.settings" xml:space="preserve">
+    <value>Einstellungen</value>
+  </data>
+  <data name="mainWindow.setTXSideFailed" xml:space="preserve">
+    <value>TX-Seite setzen fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.skip" xml:space="preserve">
+    <value>Überspringen</value>
+  </data>
+  <data name="mainWindow.skipFailedX" xml:space="preserve">
+    <value>Überspringen fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.squelchOpen" xml:space="preserve">
+    <value>Squelch offen</value>
+  </data>
+  <data name="mainWindow.starting" xml:space="preserve">
+    <value>Startet…</value>
+  </data>
+  <data name="mainWindow.startingRigctld" xml:space="preserve">
+    <value>rigctld wird gestartet…</value>
+  </data>
+  <data name="mainWindow.stationsSLIST" xml:space="preserve">
+    <value>Stationen (S.LIST)</value>
+  </data>
+  <data name="mainWindow.stopScanFailedX" xml:space="preserve">
+    <value>Scan stoppen fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.stopsTheFFTToo" xml:space="preserve">
+    <value>Hält auch die FFT an (und das Spektrum der Filteranzeige); das Audio läuft weiter</value>
+  </data>
+  <data name="mainWindow.stopX" xml:space="preserve">
+    <value>{0} stoppen</value>
+  </data>
+  <data name="mainWindow.streaming" xml:space="preserve">
+    <value>Audio läuft</value>
+  </data>
+  <data name="mainWindow.sUBIsntShownIn" xml:space="preserve">
+    <value>SUB wird in der Einzelempfangsanzeige nicht angezeigt</value>
+  </data>
+  <data name="mainWindow.sUBSquelch" xml:space="preserve">
+    <value>Squelch von SUB</value>
+  </data>
+  <data name="mainWindow.sUBVolume" xml:space="preserve">
+    <value>Lautstärke von SUB</value>
+  </data>
+  <data name="mainWindow.swapMainAndSub" xml:space="preserve">
+    <value>Main und Sub tauschen (SV-Befehl des Geräts)</value>
+  </data>
+  <data name="mainWindow.swapVFOFailedX" xml:space="preserve">
+    <value>VFO-Tausch fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.swapWhichAudioChannel" xml:space="preserve">
+    <value>Tauschen, welcher Audiokanal als Main und als Sub spielt – verwenden, wenn das Audio nicht zum VFO darüber passt.</value>
+  </data>
+  <data name="mainWindow.switchMAINBetweenVFO" xml:space="preserve">
+    <value>MAIN zwischen VFO und Speichermodus umschalten (V/M des Geräts)</value>
+  </data>
+  <data name="mainWindow.switchTheTransmitSide" xml:space="preserve">
+    <value>Sendeseite zwischen MAIN und SUB wechseln</value>
+  </data>
+  <data name="mainWindow.theAppIsClosing" xml:space="preserve">
+    <value>die App wird beendet</value>
+  </data>
+  <data name="mainWindow.theKeyerMayStill" xml:space="preserve">
+    <value>Der Keyer sendet eventuell noch – Gerät prüfen</value>
+  </data>
+  <data name="mainWindow.theOutputChosenIn" xml:space="preserve">
+    <value>die unter Einstellungen → Audio gewählte Ausgabe ist das USB-Audio des Geräts selbst und würde dessen Sendeeingang speisen – dort die Lautsprecher wählen</value>
+  </data>
+  <data name="mainWindow.thePiStreamsAudio" xml:space="preserve">
+    <value>Der Pi streamt Audio jeweils nur an einen Client. Ausschalten, damit der Mac es bekommt.</value>
+  </data>
+  <data name="mainWindow.theRigIsTransmitting" xml:space="preserve">
+    <value>das Gerät sendet</value>
+  </data>
+  <data name="mainWindow.turnOnAudioTo" xml:space="preserve">
+    <value>Zum Aufnehmen Audio einschalten.</value>
+  </data>
+  <data name="mainWindow.unkeyFailedCheckThe" xml:space="preserve">
+    <value>Entasten fehlgeschlagen – Gerät prüfen: {0}</value>
+  </data>
+  <data name="mainWindow.updateAvailable" xml:space="preserve">
+    <value>Update verfügbar</value>
+  </data>
+  <data name="mainWindow.vMFailedX" xml:space="preserve">
+    <value>V/M fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.waterfall" xml:space="preserve">
+    <value>Wasserfall</value>
+  </data>
+  <data name="mainWindow.whenOffPTTAnd" xml:space="preserve">
+    <value>Wenn aus, ist PTT gesperrt (und MOX, Antennenabstimmung und CW-MESSAGE-Wiedergabe, sobald diese App sie hat). Ausschalten während des Sendens entastet das Gerät sofort.</value>
+  </data>
+  <data name="mainWindow.windowsDefaultOutputIs" xml:space="preserve">
+    <value>Die Standardausgabe von Windows ist das USB-Audio des Geräts selbst und würde dessen Sendeeingang speisen – die Lautsprecher unter Einstellungen → Audio wählen (oder als Windows-Standard; Windows wechselt beim Anstecken auf das Audio des Geräts). Die Wiedergabe startet von selbst, sobald sich der Standard ändert</value>
+  </data>
+  <data name="mainWindow.xIsntAvailableIs" xml:space="preserve">
+    <value>„{0}“ ist nicht verfügbar – ist das Gerät angeschlossen und eingeschaltet? Danach unter Einstellungen → Audio erneut auswählen.</value>
+  </data>
+  <data name="mainWindow.xIsntConnectedPlaying" xml:space="preserve">
+    <value>„{0}“ ist nicht verbunden, Wiedergabe über die Standardausgabe von Windows</value>
+  </data>
+  <data name="mainWindow.xRigctldSaidX" xml:space="preserve">
+    <value>{0}. rigctld meldete: {1}</value>
+  </data>
+  <data name="mainWindow.xXViaLocal" xml:space="preserve">
+    <value>{0} @ {1} über lokales rigctld</value>
+  </data>
+  <data name="mainWindow.zoomIn" xml:space="preserve">
+    <value>Vergrößern</value>
+  </data>
+  <data name="mainWindow.zoomOut" xml:space="preserve">
+    <value>Verkleinern</value>
+  </data>
+  <data name="memoryListStore.lostTheRigConnection" xml:space="preserve">
+    <value>Verbindung zum Gerät bei Kanal {0} verloren.</value>
+  </data>
+  <data name="memoryListStore.stoppedAtChannelX" xml:space="preserve">
+    <value>Bei Kanal {0} angehalten.</value>
+  </data>
+  <data name="memoryListWindow.aBusyChannel" xml:space="preserve">
+    <value>einem belegten Kanal</value>
+  </data>
+  <data name="memoryListWindow.clickRefreshToRead" xml:space="preserve">
+    <value>Auf Aktualisieren klicken, um die Speicherkanäle des Geräts zu lesen.</value>
+  </data>
+  <data name="memoryListWindow.connectToTheRig" xml:space="preserve">
+    <value>Mit dem Gerät verbinden, dann auf Aktualisieren klicken.</value>
+  </data>
+  <data name="memoryListWindow.frequency" xml:space="preserve">
+    <value>Frequenz</value>
+  </data>
+  <data name="memoryListWindow.memoryChannels" xml:space="preserve">
+    <value>Speicherkanäle</value>
+  </data>
+  <data name="memoryListWindow.mode" xml:space="preserve">
+    <value>Betriebsart</value>
+  </data>
+  <data name="memoryListWindow.nameChannelFrequency" xml:space="preserve">
+    <value>Name, Kanal, Frequenz</value>
+  </data>
+  <data name="memoryListWindow.noChannelMatchesThe" xml:space="preserve">
+    <value>Kein Kanal passt zur Suche.</value>
+  </data>
+  <data name="memoryListWindow.noChannels" xml:space="preserve">
+    <value>Keine Kanäle</value>
+  </data>
+  <data name="memoryListWindow.putXInMemory" xml:space="preserve">
+    <value> (zuerst {0} in den Speichermodus schalten)</value>
+  </data>
+  <data name="memoryListWindow.readingChannelX" xml:space="preserve">
+    <value>Kanal {0} wird gelesen…</value>
+  </data>
+  <data name="memoryListWindow.recallChannelXOn" xml:space="preserve">
+    <value>Kanal {0} auf {1} abrufen</value>
+  </data>
+  <data name="memoryListWindow.resumeTheScanPast" xml:space="preserve">
+    <value>Scan nach diesem Kanal fortsetzen</value>
+  </data>
+  <data name="memoryListWindow.scanDown" xml:space="preserve">
+    <value>Abwärts scannen</value>
+  </data>
+  <data name="memoryListWindow.scanUp" xml:space="preserve">
+    <value>Aufwärts scannen</value>
+  </data>
+  <data name="memoryListWindow.scanXSMemory" xml:space="preserve">
+    <value>Speicherkanäle von {0} aufwärts scannen{1}</value>
+  </data>
+  <data name="memoryListWindow.scanXSMemory2" xml:space="preserve">
+    <value>Speicherkanäle von {0} abwärts scannen{1}</value>
+  </data>
+  <data name="memoryListWindow.skip" xml:space="preserve">
+    <value>Überspringen</value>
+  </data>
+  <data name="memoryListWindow.stopScan" xml:space="preserve">
+    <value>Scan stoppen</value>
+  </data>
+  <data name="memoryListWindow.stopTheXMemory" xml:space="preserve">
+    <value>Speicherscan von {0} stoppen</value>
+  </data>
+  <data name="memoryListWindow.whichReceiverToScan" xml:space="preserve">
+    <value>Welcher Empfänger gescannt wird</value>
+  </data>
+  <data name="memoryListWindow.xChannelsReadX" xml:space="preserve">
+    <value>{0} Kanäle · gelesen {1:g}</value>
+  </data>
+  <data name="memoryListWindow.xMemoryScanPaused" xml:space="preserve">
+    <value>Speicherscan von {0} pausiert auf {1}</value>
+  </data>
+  <data name="memoryListWindow.xMemoryScanRunning" xml:space="preserve">
+    <value>Speicherscan von {0} läuft…</value>
+  </data>
+  <data name="menuGrid.decreaseRfPowerBy" xml:space="preserve">
+    <value>RF-Leistung um 1 W verringern</value>
+  </data>
+  <data name="menuGrid.increaseRfPowerBy" xml:space="preserve">
+    <value>RF-Leistung um 1 W erhöhen</value>
+  </data>
+  <data name="menuGrid.recordTheMainAudio" xml:space="preserve">
+    <value>Main-Audio in Aufnahmen aufnehmen</value>
+  </data>
+  <data name="menuGrid.stopRecordingAndSave" xml:space="preserve">
+    <value>Aufnahme stoppen und in Aufnahmen sichern</value>
+  </data>
+  <data name="menuGrid.turnOnAudioToRecord" xml:space="preserve">
+    <value>Zum Aufnehmen Audio einschalten</value>
+  </data>
+  <data name="meterScale.finalAmplifierDrainCurrent" xml:space="preserve">
+    <value>Drainstrom der Endstufe</value>
+  </data>
+  <data name="meterScale.finalAmplifierDrainVoltage" xml:space="preserve">
+    <value>Drainspannung der Endstufe</value>
+  </data>
+  <data name="meterScale.relativeALCVoltage" xml:space="preserve">
+    <value>Relative ALC-Spannung</value>
+  </data>
+  <data name="meterScale.rFPowerOutput" xml:space="preserve">
+    <value>HF-Ausgangsleistung</value>
+  </data>
+  <data name="meterScale.speechProcessorCompression" xml:space="preserve">
+    <value>Kompression des Sprachprozessors</value>
+  </data>
+  <data name="meterScale.standingWaveRatio" xml:space="preserve">
+    <value>Stehwellenverhältnis</value>
+  </data>
+  <data name="privilegePresets.iTURegion1Allocation" xml:space="preserve">
+    <value>Zuweisung ITU-Region 1</value>
+  </data>
+  <data name="privilegePresets.iTURegion2Allocation" xml:space="preserve">
+    <value>Zuweisung ITU-Region 2</value>
+  </data>
+  <data name="privilegePresets.iTURegion3Allocation" xml:space="preserve">
+    <value>Zuweisung ITU-Region 3</value>
+  </data>
+  <data name="privilegePresets.uSAdvanced" xml:space="preserve">
+    <value>USA Advanced</value>
+  </data>
+  <data name="privilegePresets.uSAmateurExtra" xml:space="preserve">
+    <value>USA Amateur Extra</value>
+  </data>
+  <data name="privilegePresets.uSGeneral" xml:space="preserve">
+    <value>USA General</value>
+  </data>
+  <data name="privilegePresets.uSNovice" xml:space="preserve">
+    <value>USA Novice</value>
+  </data>
+  <data name="privilegePresets.uSTechnician" xml:space="preserve">
+    <value>USA Technician</value>
+  </data>
+  <data name="qsoLogger.couldntSendToX" xml:space="preserve">
+    <value>Senden an {0}:{1} fehlgeschlagen: {2}</value>
+  </data>
+  <data name="qsoLogger.log4OMDidntAnswerOn" xml:space="preserve">
+    <value>Log4OM hat auf UDP {0} nicht geantwortet</value>
+  </data>
+  <data name="qsoLogger.log4OMRefusedTheLookup" xml:space="preserve">
+    <value>Log4OM hat das Nachschlagen abgelehnt: {0}</value>
+  </data>
+  <data name="qsoLogger.log4OMsRemoteControlIs" xml:space="preserve">
+    <value>Die Fernsteuerung von Log4OM ist aus – in dessen Program Configuration einschalten</value>
+  </data>
+  <data name="qsoLogger.lookupNeedsLog4OMAs" xml:space="preserve">
+    <value>Nachschlagen braucht Log4OM als Logbuch</value>
+  </data>
+  <data name="qsoLogger.noReasonGiven" xml:space="preserve">
+    <value>kein Grund angegeben</value>
+  </data>
+  <data name="qsoLogger.noWavelogStationLocation" xml:space="preserve">
+    <value>Kein Wavelog-Stationsstandort – einen unter Einstellungen → Logbuch auswählen</value>
+  </data>
+  <data name="qsoLogger.sentButTheLog" xml:space="preserve">
+    <value>Gesendet, aber das Log konnte nicht geprüft werden: {0}</value>
+  </data>
+  <data name="qsoLogger.sentButX" xml:space="preserve">
+    <value>Gesendet, aber {0}</value>
+  </data>
+  <data name="qsoLogger.sentButXTo" xml:space="preserve">
+    <value>Gesendet, aber {0} zum Prüfen</value>
+  </data>
+  <data name="qsoLogger.wavelogHasNoAPI" xml:space="preserve">
+    <value>Wavelog hat kein API-Token – unter Einstellungen → Logbuch eintragen</value>
+  </data>
+  <data name="qsoLogger.wavelogHasNoURL" xml:space="preserve">
+    <value>Wavelog hat keine URL – unter Einstellungen → Logbuch eintragen</value>
+  </data>
+  <data name="recordingPlayer.couldntPlayXX" xml:space="preserve">
+    <value>„{0}“ konnte nicht abgespielt werden: {1}</value>
+  </data>
+  <data name="recordingPlayer.theAudioOutputIs" xml:space="preserve">
+    <value>Die Audioausgabe ist das USB-Audio des Geräts selbst und würde dessen Sendeeingang speisen. Die Lautsprecher unter Einstellungen → Audio wählen (oder als Standardausgabe von Windows).</value>
+  </data>
+  <data name="recordingPlayer.theresNoAudioOutput" xml:space="preserve">
+    <value>Es gibt kein Audioausgabegerät.</value>
+  </data>
+  <data name="recordingPlayer.xChannelFilesArent" xml:space="preserve">
+    <value>Dateien mit {0} Kanälen werden nicht unterstützt</value>
+  </data>
+  <data name="recordings.theNameCantBe" xml:space="preserve">
+    <value>Der Name darf nicht leer sein.</value>
+  </data>
+  <data name="recordings.theresAlreadyARecording" xml:space="preserve">
+    <value>Es gibt bereits eine Aufnahme namens „{0}“.</value>
+  </data>
+  <data name="recordingsWindow.cantPlay" xml:space="preserve">
+    <value>Wiedergabe nicht möglich</value>
+  </data>
+  <data name="recordingsWindow.cantRename" xml:space="preserve">
+    <value>Umbenennen nicht möglich</value>
+  </data>
+  <data name="recordingsWindow.delete" xml:space="preserve">
+    <value>Löschen</value>
+  </data>
+  <data name="recordingsWindow.deleteAll" xml:space="preserve">
+    <value>Alle löschen</value>
+  </data>
+  <data name="recordingsWindow.deleteAllXRecordings" xml:space="preserve">
+    <value>Alle {0} Aufnahmen löschen? Das lässt sich nicht widerrufen.</value>
+  </data>
+  <data name="recordingsWindow.deleteSelected" xml:space="preserve">
+    <value>Auswahl löschen</value>
+  </data>
+  <data name="recordingsWindow.deleteSelectedConfirm.one" xml:space="preserve">
+    <value>{0} ausgewählte Aufnahme löschen? Das lässt sich nicht rückgängig machen.</value>
+  </data>
+  <data name="recordingsWindow.deleteSelectedConfirm.other" xml:space="preserve">
+    <value>{0} ausgewählte Aufnahmen löschen? Das lässt sich nicht rückgängig machen.</value>
+  </data>
+  <data name="recordingsWindow.deleteSelectedX" xml:space="preserve">
+    <value>Auswahl löschen ({0})</value>
+  </data>
+  <data name="recordingsWindow.export" xml:space="preserve">
+    <value>Exportieren</value>
+  </data>
+  <data name="recordingsWindow.exportComplete" xml:space="preserve">
+    <value>Export abgeschlossen</value>
+  </data>
+  <data name="recordingsWindow.exportedXOfY.one" xml:space="preserve">
+    <value>{1} von {0} Aufnahme nach {2} exportiert.</value>
+  </data>
+  <data name="recordingsWindow.exportedXOfY.other" xml:space="preserve">
+    <value>{1} von {0} Aufnahmen nach {2} exportiert.</value>
+  </data>
+  <data name="recordingsWindow.exportSelected" xml:space="preserve">
+    <value>Auswahl exportieren</value>
+  </data>
+  <data name="recordingsWindow.exportSelectedX" xml:space="preserve">
+    <value>Auswahl exportieren ({0})</value>
+  </data>
+  <data name="recordingsWindow.noRecordingsYet" xml:space="preserve">
+    <value>Noch keine Aufnahmen</value>
+  </data>
+  <data name="recordingsWindow.openFolder" xml:space="preserve">
+    <value>Ordner öffnen</value>
+  </data>
+  <data name="recordingsWindow.play" xml:space="preserve">
+    <value>Abspielen</value>
+  </data>
+  <data name="recordingsWindow.recording" xml:space="preserve">
+    <value>Aufnahme läuft…</value>
+  </data>
+  <data name="recordingsWindow.recordingCount.one" xml:space="preserve">
+    <value>{0} Aufnahme</value>
+  </data>
+  <data name="recordingsWindow.recordingCount.other" xml:space="preserve">
+    <value>{0} Aufnahmen</value>
+  </data>
+  <data name="recordingsWindow.recordingsMadeWithThe" xml:space="preserve">
+    <value>Aufnahmen mit der RECORD-Taste der CW-Seite oder der Schaltfläche Aufnehmen des WebSDR-Fensters erscheinen hier.</value>
+  </data>
+  <data name="recordingsWindow.rename" xml:space="preserve">
+    <value>Umbenennen</value>
+  </data>
+  <data name="recordingsWindow.renameRecording" xml:space="preserve">
+    <value>Aufnahme umbenennen</value>
+  </data>
+  <data name="recordingsWindow.selectX" xml:space="preserve">
+    <value>{0} auswählen</value>
+  </data>
+  <data name="recordingsWindow.showTheRecordingsFolder" xml:space="preserve">
+    <value>Den Ordner Aufnahmen im Explorer zeigen</value>
+  </data>
+  <data name="remoteAudioStreamClient.streamClosedByThe" xml:space="preserve">
+    <value>Stream vom Pi geschlossen</value>
+  </data>
+  <data name="remoteAudioStreamClient.streamEndedReconnecting" xml:space="preserve">
+    <value>Stream beendet, neue Verbindung</value>
+  </data>
+  <data name="remoteAudioStreamClient.timedOutConnectingTo" xml:space="preserve">
+    <value>Zeitüberschreitung beim Verbinden mit {0}:{1}</value>
+  </data>
+  <data name="rigctldBinary.chosenInSettings" xml:space="preserve">
+    <value>in den Einstellungen gewählt</value>
+  </data>
+  <data name="rigctldBinary.hamlibX" xml:space="preserve">
+    <value>Hamlib {0}</value>
+  </data>
+  <data name="rigctldBinary.noInstalledRigctldFound" xml:space="preserve">
+    <value>kein installiertes rigctld gefunden</value>
+  </data>
+  <data name="rigctldBinary.noRigctldExeAt" xml:space="preserve">
+    <value>Kein rigctld.exe unter diesem Pfad.</value>
+  </data>
+  <data name="rigctldBinary.noUsableRigctldThe" xml:space="preserve">
+    <value>Kein brauchbares rigctld: die integrierte Kopie fehlt im App-Ordner ({0}).</value>
+  </data>
+  <data name="rigctldBinary.reinstallFTX1RemoteOrInstall" xml:space="preserve">
+    <value>FTX1Remote neu installieren oder Hamlib 4.7 oder neuer installieren.</value>
+  </data>
+  <data name="rigctldBinary.theFTX1" xml:space="preserve">
+    <value>den FTX-1</value>
+  </data>
+  <data name="rigctldBinary.unknownVersion" xml:space="preserve">
+    <value>unbekannte Version</value>
+  </data>
+  <data name="rigctldBinary.usingBuiltInX" xml:space="preserve">
+    <value>Integriertes {0} wird verwendet – {1}.</value>
+  </data>
+  <data name="rigctldBinary.usingInstalledXX" xml:space="preserve">
+    <value>Installiertes {0} wird verwendet ({1}){2}.</value>
+  </data>
+  <data name="rigctldBinary.usingXChosenIn" xml:space="preserve">
+    <value>{0} wird verwendet (in den Einstellungen gewählt).</value>
+  </data>
+  <data name="rigctldBinary.usingXXChosen" xml:space="preserve">
+    <value>{0} wird verwendet ({1}, in den Einstellungen gewählt).</value>
+  </data>
+  <data name="rigctldBinary.xAutomaticWouldUse" xml:space="preserve">
+    <value>{0}. Automatisch würde eine neuere Kopie oder die integrierte verwenden.</value>
+  </data>
+  <data name="rigctldBinary.xDidntAnswerVersion" xml:space="preserve">
+    <value>{0} hat auf --version nicht geantwortet</value>
+  </data>
+  <data name="rigctldBinary.xIsUnusable" xml:space="preserve">
+    <value>{0} ist unbrauchbar</value>
+  </data>
+  <data name="rigctldBinary.xIsXToo" xml:space="preserve">
+    <value>{0} ist {1}, zu alt für {2}</value>
+  </data>
+  <data name="rigctldBinary.xReportedNoHamlib" xml:space="preserve">
+    <value>{0} hat keine Hamlib-Version gemeldet</value>
+  </data>
+  <data name="rigctldBinary.xXDoesntList" xml:space="preserve">
+    <value>{0} ({1}) führt {2} nicht</value>
+  </data>
+  <data name="rigctldClient.connectionClosedByRemote" xml:space="preserve">
+    <value>Verbindung von der Gegenseite geschlossen</value>
+  </data>
+  <data name="rigctldClient.failedToConnectTo" xml:space="preserve">
+    <value>Verbindung mit {0}:{1} fehlgeschlagen: {2}</value>
+  </data>
+  <data name="rigctldClient.rigctldDidntAnswerThe" xml:space="preserve">
+    <value>rigctld hat auf das Schreiben des Keyer-Speichers nicht rechtzeitig geantwortet. Passiert das öfter, ist das Gerät vielleicht aus oder seine USB-Verbindung unterbrochen.</value>
+  </data>
+  <data name="rigctldClient.theRigRejectedThe" xml:space="preserve">
+    <value>Das Gerät hat das Schreiben des Keyer-Speichers abgelehnt.</value>
+  </data>
+  <data name="rigctldClient.timedOutConnectingTo" xml:space="preserve">
+    <value>Zeitüberschreitung beim Verbinden mit {0}:{1}</value>
+  </data>
+  <data name="rigctldProcessController.couldntStartRigctldX" xml:space="preserve">
+    <value>rigctld konnte nicht gestartet werden: {0}</value>
+  </data>
+  <data name="rigctldProcessController.pickTheRadiosCOM" xml:space="preserve">
+    <value>Zuerst den COM-Port des Geräts wählen.</value>
+  </data>
+  <data name="rigctldProcessController.rigctldExeNotFound" xml:space="preserve">
+    <value>rigctld.exe nicht gefunden unter {0}</value>
+  </data>
+  <data name="rigctldProcessController.rigctldExitedUnexpectedlyCode" xml:space="preserve">
+    <value>rigctld wurde unerwartet beendet (Code {0})</value>
+  </data>
+  <data name="rigctldProcessController.runningForAnotherRig" xml:space="preserve">
+    <value>Das bereits auf Port {0} laufende rigctld ist für {1}, nicht für {2}. Es beenden (oder das Programm, das es gestartet hat, z. B. WSJT-X), dann erneut verbinden.</value>
+  </data>
+  <data name="scopeDisplay.waterfallAndOscilloscopeDisplay" xml:space="preserve">
+    <value>Wasserfall- und Oszilloskopanzeige</value>
+  </data>
+  <data name="settings.about" xml:space="preserve">
+    <value>Über</value>
+  </data>
+  <data name="settings.aChangeAppliesOn" xml:space="preserve">
+    <value>Eine Änderung gilt beim Speichern, auch während der Verbindung.</value>
+  </data>
+  <data name="settings.addSegment" xml:space="preserve">
+    <value>Segment hinzufügen</value>
+  </data>
+  <data name="settings.allowIPadConnections" xml:space="preserve">
+    <value>iPad-Verbindungen erlauben</value>
+  </data>
+  <data name="settings.allReleasesOnGitHub" xml:space="preserve">
+    <value>Alle Versionen auf GitHub</value>
+  </data>
+  <data name="settings.alsoLogQSOsTo" xml:space="preserve">
+    <value>QSOs auch in Wavelog loggen</value>
+  </data>
+  <data name="settings.anAPIV2Token" xml:space="preserve">
+    <value>Ein API-v2-Token von der API-Seite von Wavelog (Wavelog 3.1 oder neuer) mit den Bereichen qso:write und station:read, dazu radio:write für CAT. Wird in der Windows-Anmeldeinformationsverwaltung gespeichert.</value>
+  </data>
+  <data name="settings.aPIToken" xml:space="preserve">
+    <value>API-Token</value>
+  </data>
+  <data name="settings.appearance" xml:space="preserve">
+    <value>Darstellung</value>
+  </data>
+  <data name="settings.aprsFrequencyAboveZero" xml:space="preserve">
+    <value>Die APRS-Frequenz muss über 0 MHz liegen.</value>
+  </data>
+  <data name="settings.aprsXIsntAFrequency" xml:space="preserve">
+    <value>„{0}“ ist keine Frequenz in MHz.</value>
+  </data>
+  <data name="settings.aShorterIntervalUpdates" xml:space="preserve">
+    <value>Ein kürzeres Intervall aktualisiert VFO-Anzeige und Instrumente schneller; häufigeres Lesen der Menüeinstellungen erfasst Änderungen am Bedienfeld früher. Über die Pi-Verbindung dauert eine Abfrage etwa eine halbe Sekunde, ein kürzeres Intervall bringt also nichts mehr.</value>
+  </data>
+  <data name="settings.aSignalHasTo" xml:space="preserve">
+    <value>Ein Signal muss in Segmente passen, die seine Emissionsart erlauben – Seitenbänder eingeschlossen (LSB reicht 2,9 kHz unter die Anzeige, FM ±8 kHz). Die Amateurfunkbänder bleiben die äußere Grenze. Dateien lassen sich zwischen dieser App und der des Mac austauschen.</value>
+  </data>
+  <data name="settings.audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="settings.audioIsOffOn" xml:space="preserve">
+    <value>Audio ist auf diesem PC aus, das iPad hört also nichts. Audio im Hauptfenster einschalten (mit verbundenem Gerät).</value>
+  </data>
+  <data name="settings.autoFollowsWindowsLight" xml:space="preserve">
+    <value>Automatisch folgt dem hellen oder dunklen App-Modus von Windows</value>
+  </data>
+  <data name="settings.automaticRecommended" xml:space="preserve">
+    <value>Automatisch (empfohlen)</value>
+  </data>
+  <data name="settings.automaticUsesAnInstalled" xml:space="preserve">
+    <value>Automatisch verwendet ein installiertes Hamlib ab 4.7, das das Gerät kennt, sonst die in die App integrierte Kopie.</value>
+  </data>
+  <data name="settings.baudRate" xml:space="preserve">
+    <value>Baudrate</value>
+  </data>
+  <data name="settings.blocksPTTMOXAntenna" xml:space="preserve">
+    <value>Sperrt PTT, MOX, Antennenabstimmung und CW-Senden – von diesem PC und von einem verbundenen iPad –, sofern das Signal der sendenden Seite nicht in ihrem Modus in diese Berechtigungen passt. Abstimmen oder ein Moduswechsel aus ihnen heraus während des Sendens entastet das Gerät. Nur eine Schutzschranke: für den Betrieb innerhalb der Lizenz bleibt der Funkamateur verantwortlich.</value>
+  </data>
+  <data name="settings.browse" xml:space="preserve">
+    <value>Durchsuchen…</value>
+  </data>
+  <data name="settings.builtInHamlib" xml:space="preserve">
+    <value>Integriert (Hamlib)</value>
+  </data>
+  <data name="settings.builtInHamlibX" xml:space="preserve">
+    <value>Integriert (Hamlib {0})</value>
+  </data>
+  <data name="settings.builtInMissingFrom" xml:space="preserve">
+    <value>Integriert (fehlt im App-Ordner)</value>
+  </data>
+  <data name="settings.buttonValueColor" xml:space="preserve">
+    <value>Farbe der Tastenwerte</value>
+  </data>
+  <data name="settings.callerLookupEveryS" xml:space="preserve">
+    <value>Anruferabfrage alle (s)</value>
+  </data>
+  <data name="settings.callsign" xml:space="preserve">
+    <value>Rufzeichen</value>
+  </data>
+  <data name="settings.checkForUpdates" xml:space="preserve">
+    <value>Nach Updates suchen</value>
+  </data>
+  <data name="settings.checkForUpdatesWhen" xml:space="preserve">
+    <value>Beim Start der App nach Updates suchen</value>
+  </data>
+  <data name="settings.checking" xml:space="preserve">
+    <value>Wird geprüft…</value>
+  </data>
+  <data name="settings.clearHistory" xml:space="preserve">
+    <value>Verlauf löschen…</value>
+  </data>
+  <data name="settings.clickingASpotIn" xml:space="preserve">
+    <value>Ein Klick auf einen Spot in Wavelog stimmt MAIN ab. Wavelog ruft diesen PC über die CAT-URL seines Funkgeräts auf, http://127.0.0.1:54321, sofern dort nicht geändert – der Browser muss also auf diesem PC laufen.</value>
+  </data>
+  <data name="settings.cOMPort" xml:space="preserve">
+    <value>COM-Port</value>
+  </data>
+  <data name="settings.connectedClients" xml:space="preserve">
+    <value>Verbundene Clients</value>
+  </data>
+  <data name="settings.connectedTheTokenCan" xml:space="preserve">
+    <value>Verbunden – das Token darf an diesem Standort loggen</value>
+  </data>
+  <data name="settings.connection" xml:space="preserve">
+    <value>Verbindung</value>
+  </data>
+  <data name="settings.copyToCustom" xml:space="preserve">
+    <value>In Eigene kopieren…</value>
+  </data>
+  <data name="settings.couldntCheckForUpdates" xml:space="preserve">
+    <value>Suche nach Updates fehlgeschlagen: {0}</value>
+  </data>
+  <data name="settings.couldntRunRigctldExe" xml:space="preserve">
+    <value>rigctld.exe konnte nicht ausgeführt werden</value>
+  </data>
+  <data name="settings.customPrivileges" xml:space="preserve">
+    <value>Eigene Berechtigungen</value>
+  </data>
+  <data name="settings.decodeAPRS" xml:space="preserve">
+    <value>APRS dekodieren</value>
+  </data>
+  <data name="settings.disconnectToChangeThe" xml:space="preserve">
+    <value>Zum Ändern der Verbindungseinstellungen trennen.</value>
+  </data>
+  <data name="settings.dontClear" xml:space="preserve">
+    <value>Nicht löschen</value>
+  </data>
+  <data name="settings.downloadX" xml:space="preserve">
+    <value>{0} herunterladen</value>
+  </data>
+  <data name="settings.eachReceiverIsDecoded" xml:space="preserve">
+    <value>Jeder Empfänger wird dekodiert, solange sein VFO innerhalb der Toleranz dieser Frequenz liegt und Audio an ist – MAIN und SUB getrennt, sodass APRS auf beiden liegen kann.</value>
+  </data>
+  <data name="settings.eGFN31pr" xml:space="preserve">
+    <value>z. B. FN31pr</value>
+  </data>
+  <data name="settings.eGFtx1Pi" xml:space="preserve">
+    <value>z. B. ftx1-pi (MagicDNS-Name in Tailscale)</value>
+  </data>
+  <data name="settings.eGUKFull" xml:space="preserve">
+    <value>z. B. UK Full</value>
+  </data>
+  <data name="settings.eGW1AW" xml:space="preserve">
+    <value>z. B. W1AW</value>
+  </data>
+  <data name="settings.everyDecodedStationAnd" xml:space="preserve">
+    <value>Alle dekodierten Stationen und Nachrichten werden beim Speichern gelöscht.</value>
+  </data>
+  <data name="settings.export" xml:space="preserve">
+    <value>Exportieren…</value>
+  </data>
+  <data name="settings.frequencyMHz" xml:space="preserve">
+    <value>Frequenz (MHz)</value>
+  </data>
+  <data name="settings.fTX1RemoteForWindows" xml:space="preserve">
+    <value>FTX1Remote für Windows</value>
+  </data>
+  <data name="settings.gridSquare" xml:space="preserve">
+    <value>Locator</value>
+  </data>
+  <data name="settings.hamlibsRigModel1051" xml:space="preserve">
+    <value>Gerätemodell von hamlib – 1051 ist das FTX-1</value>
+  </data>
+  <data name="settings.homeFreq" xml:space="preserve">
+    <value>HOME-Freq.</value>
+  </data>
+  <data name="settings.homeXIsntAFrequency" xml:space="preserve">
+    <value>{0}: „{1}“ ist keine Frequenz in MHz.</value>
+  </data>
+  <data name="settings.homeXOutsideBandGroup" xml:space="preserve">
+    <value>{0}: {1} MHz liegt außerhalb der Bandgruppe ({2}–{3} MHz).</value>
+  </data>
+  <data name="settings.hotspotAddress" xml:space="preserve">
+    <value>Hotspot-Adresse</value>
+  </data>
+  <data name="settings.hRDsADIFReceiverPort" xml:space="preserve">
+    <value>Der Port des ADIF-Empfängers von HRD ist nicht gesetzt – in HRD einschalten (siehe oben)</value>
+  </data>
+  <data name="settings.hRDsLogWasntFound" xml:space="preserve">
+    <value>Log von HRD nicht gefunden</value>
+  </data>
+  <data name="settings.hRDsLogWasntFound2" xml:space="preserve">
+    <value>Log von HRD nicht gefunden – seine .hrdsql-Datei wählen</value>
+  </data>
+  <data name="settings.hRDsSQLiteLogHrdsql" xml:space="preserve">
+    <value>Das SQLite-Log von HRD (.hrdsql), nur lesend – für schon gearbeitete Stationen und um zu bestätigen, dass ein geloggtes QSO angekommen ist</value>
+  </data>
+  <data name="settings.import" xml:space="preserve">
+    <value>Importieren…</value>
+  </data>
+  <data name="settings.inputDeviceLocalMode" xml:space="preserve">
+    <value>Eingabegerät (lokaler Modus)</value>
+  </data>
+  <data name="settings.inRemoteModeThe" xml:space="preserve">
+    <value>Im Remote-Modus kommt das Audio stattdessen aus dem Stream des Pi (Port 8532).</value>
+  </data>
+  <data name="settings.leaveTheseEmptyTo" xml:space="preserve">
+    <value>Leer lassen, um den eigenen ADIF-Empfänger von HRD zu verwenden. In HRD Logbook einschalten: Tools → Configure → QSO Forwarding → „Receive QSO notifications using UDP9/ADIF from other logging programs (eg. WSJT-X)“. HRD trägt das Stationsrufzeichen ein und schlägt das Rufzeichen nach, wenn ein QSO ankommt.</value>
+  </data>
+  <data name="settings.leaveTheseEmptyTo2" xml:space="preserve">
+    <value>Leer lassen, um an Log4OM auf diesem PC zu senden. In Log4OM: Settings → Program Configuration → Software Integration → Connections eine eingehende UDP-Verbindung vom Typ ADIF_MESSAGE hinzufügen (z. B. Port 2236). Log4OM schlägt das Rufzeichen nach, wenn ein QSO ankommt; die Schaltfläche Nachschlagen des CW-Fensters lässt es früher nachschlagen, über seine Fernsteuerung (UDP 2241, standardmäßig an).</value>
+  </data>
+  <data name="settings.letsTheIPadsDesktop" xml:space="preserve">
+    <value>Lässt den Desktop-Hub-Weg des iPad über Tailscale oder das lokale Netz mit dieser App verbinden (andere Adressen werden abgewiesen). Das iPad zeigt den Zustand dieser App, steuert das Gerät über sie und hört ihr MAIN/SUB-Audio; Senden, die Speicher-/APRS-Listen, Deep-Settings-Werte und CW-Senden vom iPad werden noch nicht unterstützt.</value>
+  </data>
+  <data name="settings.license" xml:space="preserve">
+    <value>Lizenz</value>
+  </data>
+  <data name="settings.license.47CFR97301" xml:space="preserve">
+    <value>47 CFR §97.301/§97.305, Stand Oktober 2026, kontinentale USA. 60 m sind die fünf Kanäle; 70 cm ist 420–450 MHz ohne den Ausschluss nach Line A.</value>
+  </data>
+  <data name="settings.license.couldntReadXX" xml:space="preserve">
+    <value>{0} konnte nicht gelesen werden: {1}</value>
+  </data>
+  <data name="settings.license.couldntWriteXX" xml:space="preserve">
+    <value>{0} konnte nicht geschrieben werden: {1}</value>
+  </data>
+  <data name="settings.license.custom" xml:space="preserve">
+    <value>Eigene</value>
+  </data>
+  <data name="settings.license.customFromX" xml:space="preserve">
+    <value>Eigene (aus {0})</value>
+  </data>
+  <data name="settings.license.customPrivilegesXIsnt" xml:space="preserve">
+    <value>Eigene Berechtigungen: „{0}“ ist keine Frequenz in MHz.</value>
+  </data>
+  <data name="settings.license.fromIsAboveTo" xml:space="preserve">
+    <value>Von liegt über Bis</value>
+  </data>
+  <data name="settings.license.fromMHz" xml:space="preserve">
+    <value>Von (MHz)</value>
+  </data>
+  <data name="settings.license.fromThePresetThis" xml:space="preserve">
+    <value>Aus der Vorlage, von der diese Tabelle kopiert wurde; die übrigen Betriebsarten der angehakten Sendearten werden hier abgelehnt.</value>
+  </data>
+  <data name="settings.license.modes" xml:space="preserve">
+    <value>Betriebsarten</value>
+  </data>
+  <data name="settings.license.notAFrequencyIn" xml:space="preserve">
+    <value>Keine Frequenz in MHz</value>
+  </data>
+  <data name="settings.license.offAmateurBandsOnly" xml:space="preserve">
+    <value>Aus (nur Amateurfunkbänder)</value>
+  </data>
+  <data name="settings.license.onlyX" xml:space="preserve">
+    <value>nur {0}</value>
+  </data>
+  <data name="settings.license.removeThisSegment" xml:space="preserve">
+    <value>Dieses Segment entfernen</value>
+  </data>
+  <data name="settings.license.replace" xml:space="preserve">
+    <value>Ersetzen</value>
+  </data>
+  <data name="settings.license.replaceYourCustomPrivileges" xml:space="preserve">
+    <value>Eigene Berechtigungen ersetzen?</value>
+  </data>
+  <data name="settings.license.theRegionsAmateurAllocations" xml:space="preserve">
+    <value>Die Amateurfunkzuweisungen der Region als äußere Bandgrenzen, alle Betriebsarten erlaubt – nicht die Regeln eines Landes. In Eigene kopieren und an die eigene Lizenz anpassen.</value>
+  </data>
+  <data name="settings.license.toMHz" xml:space="preserve">
+    <value>Bis (MHz)</value>
+  </data>
+  <data name="settings.license.xIsntAPrivileges" xml:space="preserve">
+    <value>{0} ist keine aus FTX1Remote exportierte Berechtigungsdatei.</value>
+  </data>
+  <data name="settings.license.yourCustomTableIs" xml:space="preserve">
+    <value>Die eigene Tabelle wird durch „{0}“ ({1} Segmente) aus {2} ersetzt.</value>
+  </data>
+  <data name="settings.license.yourCustomTableX" xml:space="preserve">
+    <value>Die eigene Tabelle ({0} Segmente) wird durch eine Kopie von {1} ersetzt.</value>
+  </data>
+  <data name="settings.listeningOn1270" xml:space="preserve">
+    <value>Lauscht auf 127.0.0.1:{0} – einen Spot im DX-Cluster von Wavelog anklicken</value>
+  </data>
+  <data name="settings.listeningOnPortX" xml:space="preserve">
+    <value>Lauscht auf Port {0}.</value>
+  </data>
+  <data name="settings.listeningOnUDPX" xml:space="preserve">
+    <value>Lauscht auf UDP {0} – QSOs gehen an {1}:{2}</value>
+  </data>
+  <data name="settings.listenOnPort" xml:space="preserve">
+    <value>Auf Port warten</value>
+  </data>
+  <data name="settings.listensOn1270" xml:space="preserve">
+    <value>Lauscht nach dem Speichern auf 127.0.0.1:{0}</value>
+  </data>
+  <data name="settings.localUSBOnThis" xml:space="preserve">
+    <value>Lokal (USB an diesem PC)</value>
+  </data>
+  <data name="settings.locationX" xml:space="preserve">
+    <value>Standort {0}</value>
+  </data>
+  <data name="settings.log" xml:space="preserve">
+    <value>Log</value>
+  </data>
+  <data name="settings.log4OMsLogWasntFound" xml:space="preserve">
+    <value>Log von Log4OM nicht gefunden</value>
+  </data>
+  <data name="settings.log4OMsRemoteControlIs" xml:space="preserve">
+    <value>Die Fernsteuerung von Log4OM ist aus – für die Schaltfläche Nachschlagen einschalten</value>
+  </data>
+  <data name="settings.log4OMsSQLiteLogSQLite" xml:space="preserve">
+    <value>Das SQLite-Log von Log4OM (.SQLite), nur lesend – für schon gearbeitete Stationen und um zu bestätigen, dass ein geloggtes QSO angekommen ist</value>
+  </data>
+  <data name="settings.log4OMsXConnectionPort" xml:space="preserve">
+    <value>Die Verbindung „{0}“ von Log4OM (Port {1}) ist aus – einschalten</value>
+  </data>
+  <data name="settings.logbook" xml:space="preserve">
+    <value>Logbuch</value>
+  </data>
+  <data name="settings.logFile" xml:space="preserve">
+    <value>Logdatei</value>
+  </data>
+  <data name="settings.lookup" xml:space="preserve">
+    <value>Nachschlagen</value>
+  </data>
+  <data name="settings.menuSettingsReadEvery" xml:space="preserve">
+    <value>Menüeinstellungen: alle N Abfragen lesen</value>
+  </data>
+  <data name="settings.messagesToKeep" xml:space="preserve">
+    <value>Zu behaltende Nachrichten</value>
+  </data>
+  <data name="settings.modelNumber" xml:space="preserve">
+    <value>Modellnummer</value>
+  </data>
+  <data name="settings.noADIFMESSAGEUDP" xml:space="preserve">
+    <value>Keine eingehende UDP-Verbindung ADIF_MESSAGE in Log4OM – eine hinzufügen (siehe oben)</value>
+  </data>
+  <data name="settings.noAnswerFromRemote" xml:space="preserve">
+    <value>Keine Antwort der Fernsteuerung auf {0}:{1}</value>
+  </data>
+  <data name="settings.none" xml:space="preserve">
+    <value>Keiner</value>
+  </data>
+  <data name="settings.noPiHostnameSet" xml:space="preserve">
+    <value>Kein Hostname für den Pi eingetragen</value>
+  </data>
+  <data name="settings.noReplyFromRigctld" xml:space="preserve">
+    <value>Keine Antwort von rigctld</value>
+  </data>
+  <data name="settings.noRigctldExeAt" xml:space="preserve">
+    <value>Kein rigctld.exe unter diesem Pfad</value>
+  </data>
+  <data name="settings.noSegmentsYetSo" xml:space="preserve">
+    <value>Noch keine Segmente, daher ist jedes Senden gesperrt. Segmente hinzufügen oder eine Vorlage kopieren und bearbeiten.</value>
+  </data>
+  <data name="settings.nothingIsListeningOn" xml:space="preserve">
+    <value>Auf diesem PC lauscht nichts auf UDP {0}</value>
+  </data>
+  <data name="settings.notListening" xml:space="preserve">
+    <value>Lauscht nicht.</value>
+  </data>
+  <data name="settings.notListeningX" xml:space="preserve">
+    <value>Lauscht nicht: {0}</value>
+  </data>
+  <data name="settings.notRunning" xml:space="preserve">
+    <value>Läuft nicht</value>
+  </data>
+  <data name="settings.noUsableRigctld" xml:space="preserve">
+    <value>Kein brauchbares rigctld</value>
+  </data>
+  <data name="settings.noVersionReported" xml:space="preserve">
+    <value>Keine Version gemeldet</value>
+  </data>
+  <data name="settings.offInHRDUDP9" xml:space="preserve">
+    <value>In HRD aus (UDP9/ADIF-Empfang, Port {0}) – einschalten (siehe oben)</value>
+  </data>
+  <data name="settings.outputDevice" xml:space="preserve">
+    <value>Ausgabegerät</value>
+  </data>
+  <data name="settings.piHostname" xml:space="preserve">
+    <value>Hostname des Pi</value>
+  </data>
+  <data name="settings.polling" xml:space="preserve">
+    <value>Abfrage</value>
+  </data>
+  <data name="settings.portXWsThis" xml:space="preserve">
+    <value>Port {0} (ws://&lt;Tailscale-Name oder LAN-Adresse dieses PCs&gt;:{1})</value>
+  </data>
+  <data name="settings.privileges" xml:space="preserve">
+    <value>Berechtigungen</value>
+  </data>
+  <data name="settings.qSOsGoToX" xml:space="preserve">
+    <value>QSOs gehen an {0}:{1} (anderer Computer; nicht geprüft)</value>
+  </data>
+  <data name="settings.radioName" xml:space="preserve">
+    <value>Name des Funkgeräts</value>
+  </data>
+  <data name="settings.radioRigctld" xml:space="preserve">
+    <value>Funkgerät (rigctld)</value>
+  </data>
+  <data name="settings.readTheLogHRD" xml:space="preserve">
+    <value>Das Log lesen, in das HRD QSOs empfängt</value>
+  </data>
+  <data name="settings.readTheLogLog4OM" xml:space="preserve">
+    <value>Das Log lesen, das Log4OM geöffnet hat</value>
+  </data>
+  <data name="settings.receiving" xml:space="preserve">
+    <value>Empfang</value>
+  </data>
+  <data name="settings.reflectorLookupEveryS" xml:space="preserve">
+    <value>Reflektorabfrage alle (s)</value>
+  </data>
+  <data name="settings.remoteControlAnsweringOn" xml:space="preserve">
+    <value>Fernsteuerung antwortet auf {0}:{1}</value>
+  </data>
+  <data name="settings.remotePiOverTailscale" xml:space="preserve">
+    <value>Remote (Pi über Tailscale)</value>
+  </data>
+  <data name="settings.restoreDefaults" xml:space="preserve">
+    <value>Standardwerte wiederherstellen</value>
+  </data>
+  <data name="settings.rigctldIsStartedOn" xml:space="preserve">
+    <value>rigctld wird auf 127.0.0.1:4532 gestartet (oder ein bereits laufendes verwendet), sodass „Hamlib NET rigctl“ von WSJT-X es mitnutzen kann.</value>
+  </data>
+  <data name="settings.rigctldOnThePi" xml:space="preserve">
+    <value>rigctld auf dem Pi, Port 4532.</value>
+  </data>
+  <data name="settings.running" xml:space="preserve">
+    <value>Läuft</value>
+  </data>
+  <data name="settings.runningOnPi" xml:space="preserve">
+    <value>Läuft auf dem Pi</value>
+  </data>
+  <data name="settings.save" xml:space="preserve">
+    <value>Speichern</value>
+  </data>
+  <data name="settings.sendRigFrequencyAnd" xml:space="preserve">
+    <value>Frequenz und Betriebsart des Geräts an Wavelog senden (CAT)</value>
+  </data>
+  <data name="settings.sendToHost" xml:space="preserve">
+    <value>An Host senden</value>
+  </data>
+  <data name="settings.sentOnceTheRig" xml:space="preserve">
+    <value>Wird gesendet, sobald das Gerät verbunden ist</value>
+  </data>
+  <data name="settings.setTheWavelogURL" xml:space="preserve">
+    <value>Oben die Wavelog-URL eintragen – nur Anfragen von deren Seiten stimmen das Gerät ab</value>
+  </data>
+  <data name="settings.settings" xml:space="preserve">
+    <value>Einstellungen</value>
+  </data>
+  <data name="settings.settingsStationsCallsignX" xml:space="preserve">
+    <value>Das Rufzeichen unter Einstellungen → Station, {0}, ist nicht das dieses Standorts ({1}) – Wavelog legt QSOs unter {2} ab, nicht unter {3}.</value>
+  </data>
+  <data name="settings.showReceivedCallsignVia" xml:space="preserve">
+    <value>Empfangenes Rufzeichen anzeigen (über WPSD)</value>
+  </data>
+  <data name="settings.startedThisSessionX" xml:space="preserve">
+    <value>In dieser Sitzung gestartet: {0}</value>
+  </data>
+  <data name="settings.startFrom" xml:space="preserve">
+    <value>Ausgehend von</value>
+  </data>
+  <data name="settings.startsWhenYouSave" xml:space="preserve">
+    <value>Startet beim Speichern</value>
+  </data>
+  <data name="settings.station" xml:space="preserve">
+    <value>Station</value>
+  </data>
+  <data name="settings.stationLocation" xml:space="preserve">
+    <value>Stationsstandort</value>
+  </data>
+  <data name="settings.stationsToKeep" xml:space="preserve">
+    <value>Zu behaltende Stationen</value>
+  </data>
+  <data name="settings.status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="settings.test" xml:space="preserve">
+    <value>Testen</value>
+  </data>
+  <data name="settings.theColorOfEach" xml:space="preserve">
+    <value>Die Farbe der aktuellen Einstellung jeder Taste des MENU-Rasters</value>
+  </data>
+  <data name="settings.theColorOfThe" xml:space="preserve">
+    <value>Die Farbe der Frequenz in den VFO-Feldern; Wie im Thema verwendet die des Themas</value>
+  </data>
+  <data name="settings.theCWWindowsLog" xml:space="preserve">
+    <value>Der Bereich QSO loggen des CW-Fensters sendet QSOs hierhin, und dekodierte Rufzeichen werden danach eingefärbt, ob dieses Log sie schon gearbeitet hat.</value>
+  </data>
+  <data name="settings.theFMPagesHOME" xml:space="preserve">
+    <value>Die HOME-Taste der FM-Seite stimmt auf die Frequenz der Bandgruppe ab, in der Main ist (die eigenen HOME-Kanäle des Geräts lassen sich über CAT nicht lesen).</value>
+  </data>
+  <data name="settings.theFontOfThe" xml:space="preserve">
+    <value>Die Schrift der Frequenz in den VFO-Feldern; Wie im Thema verwendet die des Themas</value>
+  </data>
+  <data name="settings.theFTX1sCAT" xml:space="preserve">
+    <value>Der CAT-Port des FTX-1 (der erweiterte COM-Port seines CP210x-Paars)</value>
+  </data>
+  <data name="settings.theFTX1sUSB" xml:space="preserve">
+    <value>Das USB-Audio des FTX-1 als Aufnahmegerät von Windows (meist „Mikrofon (USB Audio Device)“)</value>
+  </data>
+  <data name="settings.theFTX1sUSB2" xml:space="preserve">
+    <value>Das USB-Audio des FTX-1 als Wiedergabegerät von Windows (meist „Lautsprecher (USB Audio Device)“)</value>
+  </data>
+  <data name="settings.theme" xml:space="preserve">
+    <value>Thema</value>
+  </data>
+  <data name="settings.themeDefault" xml:space="preserve">
+    <value>Wie im Thema</value>
+  </data>
+  <data name="settings.thePortInWavelogs" xml:space="preserve">
+    <value>Der Port in der CAT-URL von Wavelog für dieses Funkgerät (Wavelog → Radio → CAT-URL des Funkgeräts; leer bedeutet dort 54321)</value>
+  </data>
+  <data name="settings.theRadiosUSBAudio" xml:space="preserve">
+    <value>Der USB-Audioeingang des Geräts</value>
+  </data>
+  <data name="settings.theRadioWavelogShows" xml:space="preserve">
+    <value>Das Funkgerät, das Wavelog im QSO-Formular zeigt. Meldet WaveLogGate dieses Gerät ebenfalls, es beenden oder ihm einen anderen Namen geben.</value>
+  </data>
+  <data name="settings.thisLooksLikeAn" xml:space="preserve">
+    <value>Das sieht nach einem API-v1-Schlüssel aus. FTX1Remote verwendet API v2: auf der API-Seite von Wavelog ein Token (wl2_…) mit den Bereichen qso:write und station:read (radio:write für CAT) anlegen.</value>
+  </data>
+  <data name="settings.thisWavelogAccountHas" xml:space="preserve">
+    <value>Dieses Wavelog-Konto hat keine Stationsstandorte</value>
+  </data>
+  <data name="settings.toleranceHz" xml:space="preserve">
+    <value>Toleranz (Hz)</value>
+  </data>
+  <data name="settings.transmitAudioOutputLocal" xml:space="preserve">
+    <value>Sendeaudio-Ausgabe (lokaler Modus)</value>
+  </data>
+  <data name="settings.tuneTheRigFrom" xml:space="preserve">
+    <value>Gerät aus Wavelog abstimmen (DX-Cluster, Bandmap)</value>
+  </data>
+  <data name="settings.uDPPort" xml:space="preserve">
+    <value>UDP-Port</value>
+  </data>
+  <data name="settings.unreachable" xml:space="preserve">
+    <value>Nicht erreichbar</value>
+  </data>
+  <data name="settings.uRL" xml:space="preserve">
+    <value>URL</value>
+  </data>
+  <data name="settings.useHRDs" xml:space="preserve">
+    <value>Das von HRD</value>
+  </data>
+  <data name="settings.useLog4OMs" xml:space="preserve">
+    <value>Das von Log4OM</value>
+  </data>
+  <data name="settings.uses" xml:space="preserve">
+    <value>Verwendet</value>
+  </data>
+  <data name="settings.version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="settings.versionX" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="settings.versionXIsAvailable" xml:space="preserve">
+    <value>Version {0} ist verfügbar.</value>
+  </data>
+  <data name="settings.vFODigitColor" xml:space="preserve">
+    <value>Farbe der VFO-Ziffern</value>
+  </data>
+  <data name="settings.vFODigits" xml:space="preserve">
+    <value>VFO-Ziffern</value>
+  </data>
+  <data name="settings.vFOMetersIntervalMs" xml:space="preserve">
+    <value>Intervall VFO / Instrumente (ms)</value>
+  </data>
+  <data name="settings.wavelogsDryRunChecks" xml:space="preserve">
+    <value>Probelauf von Wavelog: prüft Token und Stationsstandort, schreibt nichts</value>
+  </data>
+  <data name="settings.wavelogsQSOFormAnd" xml:space="preserve">
+    <value>QSO-Formular und Bandmap von Wavelog folgen dem Gerät, wie mit WaveLogGate. Braucht den Bereich radio:write.</value>
+  </data>
+  <data name="settings.wavelogUpdatedX" xml:space="preserve">
+    <value>Wavelog aktualisiert {0:HH:mm:ss}</value>
+  </data>
+  <data name="settings.whatsNew" xml:space="preserve">
+    <value>Neuigkeiten</value>
+  </data>
+  <data name="settings.whereAnIPadsMicrophone" xml:space="preserve">
+    <value>Wo das Mikrofon eines iPad spielt, während es PTT über den Desktop-Hub hält: das USB-Audio des Geräts wählen. Keines sendet nichts (die Standardausgabe von Windows wird nie verwendet). Im Remote-Modus geht es stattdessen an den Pi (Port 8533). MOD SOURCE des Geräts muss für den Modus USB sein.</value>
+  </data>
+  <data name="settings.whereTheRadiosAudio" xml:space="preserve">
+    <value>Wo das Audio des Geräts spielt. Mit den hier gewählten Lautsprechern bleibt es dort, auch wenn Windows die Standardausgabe wechselt (z. B. auf das Gerät beim Anstecken).</value>
+  </data>
+  <data name="settings.whileAVFOIs" xml:space="preserve">
+    <value>Solange ein VFO in C4FM ist, zeigt es, wer über den WPSD-Hotspot sendet und mit welchem YSF-Reflektor er verbunden ist, gelesen aus dem Dashboard des Hotspots.</value>
+  </data>
+  <data name="settings.windowsDefault" xml:space="preserve">
+    <value>Windows-Standard</value>
+  </data>
+  <data name="settings.windowsFirewallHasTo" xml:space="preserve">
+    <value>Die Windows-Firewall muss eingehendes TCP 8765 für FTX1RemoteWindows.exe erlauben. Der Adapter von Tailscale ist oft ein öffentliches Netzwerk, daher bei der Nachfrage von Windows Öffentlich wie Privat erlauben (oder siehe README).</value>
+  </data>
+  <data name="settings.wPSDHotspot" xml:space="preserve">
+    <value>WPSD-Hotspot</value>
+  </data>
+  <data name="settings.xConnectedX" xml:space="preserve">
+    <value>{0} – verbunden {1:HH:mm:ss}</value>
+  </data>
+  <data name="settings.xIsntAHostName" xml:space="preserve">
+    <value>„{0}“ ist kein Hostname und keine Adresse.</value>
+  </data>
+  <data name="settings.xIsntAMaidenheadGrid" xml:space="preserve">
+    <value>„{0}“ ist kein Maidenhead-Locator (z. B. FN31 oder FN31pr).</value>
+  </data>
+  <data name="settings.xIsntAWavelogUrl" xml:space="preserve">
+    <value>„{0}“ ist keine Wavelog-URL (z. B. https://log.example.org).</value>
+  </data>
+  <data name="settings.xNotConnected" xml:space="preserve">
+    <value>{0} (nicht verbunden)</value>
+  </data>
+  <data name="settings.xQSOsWithX" xml:space="preserve">
+    <value>{0:N0} QSOs mit {1:N0} Stationen, nur lesend
+{2}</value>
+  </data>
+  <data name="settings.xXDefaultX" xml:space="preserve">
+    <value>{0}–{1}, Standard {2}</value>
+  </data>
+  <data name="settings.xXMHzFactory" xml:space="preserve">
+    <value>{0}–{1} MHz; Werkseinstellung {2}</value>
+  </data>
+  <data name="settings.yourCallsignMYCALLIn" xml:space="preserve">
+    <value>Eigenes Rufzeichen: {MYCALL} in den Makros des CW-Fensters. Im dekodierten CW wird es nicht anklickbar.</value>
+  </data>
+  <data name="settings.youreUpToDate" xml:space="preserve">
+    <value>Auf dem neuesten Stand (Version {0}).</value>
+  </data>
+  <data name="settings.yourMaidenheadLocator4" xml:space="preserve">
+    <value>Eigener Maidenhead-Locator (4 oder 6 Zeichen): {MYGRID} in CW-Makros. Die KiwiSDR-Liste des WebSDR-Fensters zeigt damit die Entfernung jeder Station und sortiert die nächsten zuerst.</value>
+  </data>
+  <data name="sMeter.clickToChooseWhat" xml:space="preserve">
+    <value>Klicken, um zu wählen, was das Instrument beim Senden zeigt</value>
+  </data>
+  <data name="sMeter.mainMeter" xml:space="preserve">
+    <value>Main-Instrument</value>
+  </data>
+  <data name="sMeter.subMeter" xml:space="preserve">
+    <value>Sub-Instrument</value>
+  </data>
+  <data name="themePresets.auto" xml:space="preserve">
+    <value>Automatisch</value>
+  </data>
+  <data name="themePresets.defaultDark" xml:space="preserve">
+    <value>Standard dunkel</value>
+  </data>
+  <data name="themePresets.defaultLight" xml:space="preserve">
+    <value>Standard hell</value>
+  </data>
+  <data name="themePresets.dustyRose" xml:space="preserve">
+    <value>Altrosa</value>
+  </data>
+  <data name="themePresets.glossyBlack" xml:space="preserve">
+    <value>Glanzschwarz</value>
+  </data>
+  <data name="themePresets.icyMint" xml:space="preserve">
+    <value>Eisminze</value>
+  </data>
+  <data name="transmitGate.transmitDisabled" xml:space="preserve">
+    <value>Senden gesperrt</value>
+  </data>
+  <data name="transmitGate.transmitDisabledOutsideAn" xml:space="preserve">
+    <value>Senden gesperrt: außerhalb eines Amateurfunkbands</value>
+  </data>
+  <data name="transmitGate.transmitDisabledTheTransmitting" xml:space="preserve">
+    <value>Senden gesperrt: die Betriebsart der Sendeseite ist noch nicht bekannt</value>
+  </data>
+  <data name="transmitGate.transmitDisabledXOn" xml:space="preserve">
+    <value>Senden gesperrt: {0} auf {1} MHz liegt außerhalb der Berechtigung {2}</value>
+  </data>
+  <data name="vfoDigitFont.sevenSegment" xml:space="preserve">
+    <value>7-Segment</value>
+  </data>
+  <data name="vfoEntryFlyout.clickToEnterA" xml:space="preserve">
+    <value>Klicken, um eine Frequenz oder einen Speicherkanal einzugeben</value>
+  </data>
+  <data name="vfoEntryFlyout.enterAFrequencyIn" xml:space="preserve">
+    <value>Eine Frequenz in MHz eingeben.</value>
+  </data>
+  <data name="vfoEntryFlyout.enterAMemoryChannel" xml:space="preserve">
+    <value>Einen Speicherkanal von {0} bis {1} eingeben.</value>
+  </data>
+  <data name="vfoEntryFlyout.memoryChannelStepFailed" xml:space="preserve">
+    <value>Speicherkanal-Schritt fehlgeschlagen</value>
+  </data>
+  <data name="vfoEntryFlyout.nextChannel" xml:space="preserve">
+    <value>Nächster Kanal</value>
+  </data>
+  <data name="vfoEntryFlyout.previousChannel" xml:space="preserve">
+    <value>Vorheriger Kanal</value>
+  </data>
+  <data name="vfoEntryFlyout.set" xml:space="preserve">
+    <value>Setzen</value>
+  </data>
+  <data name="vfoEntryFlyout.setFrequencyFailed" xml:space="preserve">
+    <value>Frequenz setzen fehlgeschlagen</value>
+  </data>
+  <data name="vfoEntryFlyout.setMemoryChannelFailed" xml:space="preserve">
+    <value>Speicherkanal setzen fehlgeschlagen</value>
+  </data>
+  <data name="vfoEntryFlyout.stepDown" xml:space="preserve">
+    <value>Schritt abwärts</value>
+  </data>
+  <data name="vfoEntryFlyout.stepUp" xml:space="preserve">
+    <value>Schritt aufwärts</value>
+  </data>
+  <data name="wavelog.couldntReachWavelogX" xml:space="preserve">
+    <value>Wavelog nicht erreichbar: {0}</value>
+  </data>
+  <data name="wavelog.theWavelogURLIsnt" xml:space="preserve">
+    <value>Die Wavelog-URL ist ungültig</value>
+  </data>
+  <data name="wavelog.unexpectedReplyFromWavelog" xml:space="preserve">
+    <value>Unerwartete Antwort von Wavelog (HTTP {0}): {1}</value>
+  </data>
+  <data name="wavelog.unexpectedReplyFromWavelog2" xml:space="preserve">
+    <value>Unerwartete Antwort von Wavelog (HTTP {0}) – stimmt die URL, und ist es Wavelog 3.1 oder neuer?</value>
+  </data>
+  <data name="wavelog.wavelogDidntAnswerWithin" xml:space="preserve">
+    <value>Wavelog hat nicht innerhalb von {0:0} s geantwortet</value>
+  </data>
+  <data name="wavelogRadioReporter.wavelogNeedsAURL" xml:space="preserve">
+    <value>Wavelog braucht eine URL und ein API-Token</value>
+  </data>
+  <data name="wavelogTuneListener.aRequestWithoutAn" xml:space="preserve">
+    <value>einer Anfrage ohne Origin</value>
+  </data>
+  <data name="wavelogTuneListener.couldntListenOnPort" xml:space="preserve">
+    <value>Port {0} kann nicht geöffnet werden: {1}</value>
+  </data>
+  <data name="wavelogTuneListener.didntTuneToX" xml:space="preserve">
+    <value>Nicht auf {0} abgestimmt: {1}</value>
+  </data>
+  <data name="wavelogTuneListener.ignoredATuneRequest" xml:space="preserve">
+    <value>Abstimmanfrage von {0} ignoriert – das ist nicht die Wavelog-URL aus den Einstellungen</value>
+  </data>
+  <data name="wavelogTuneListener.modeUnchanged" xml:space="preserve">
+    <value>Betriebsart unverändert</value>
+  </data>
+  <data name="wavelogTuneListener.portXIsIn" xml:space="preserve">
+    <value>Port {0} ist belegt – läuft WaveLogGate?</value>
+  </data>
+  <data name="wavelogTuneListener.tunedToXX" xml:space="preserve">
+    <value>Abgestimmt auf {0} {1}</value>
+  </data>
+  <data name="webSdrFavoritesDialog.030MHzRange" xml:space="preserve">
+    <value>0–30 MHz (Bereich unbekannt)</value>
+  </data>
+  <data name="webSdrFavoritesDialog.clickANameTo" xml:space="preserve">
+    <value>Einen Namen zum Umbenennen anklicken; mit den Pfeilen umsortieren.</value>
+  </data>
+  <data name="webSdrFavoritesDialog.noFavoritesStarA" xml:space="preserve">
+    <value>Keine Favoriten. Eine Station mit dem Stern hinzufügen.</value>
+  </data>
+  <data name="webSdrFavoritesDialog.rangeReadOnNext" xml:space="preserve">
+    <value>Bereich wird bei der nächsten Verbindung gelesen</value>
+  </data>
+  <data name="webSdrFollowModel.couldntLoadXX" xml:space="preserve">
+    <value>{0} konnte nicht geladen werden: {1}</value>
+  </data>
+  <data name="webSdrFollowModel.couldntRetuneTheX" xml:space="preserve">
+    <value>{0} konnte nicht auf {1} kHz abgestimmt werden</value>
+  </data>
+  <data name="webSdrFollowModel.disconnected" xml:space="preserve">
+    <value>Getrennt</value>
+  </data>
+  <data name="webSdrFollowModel.enterAKiwiSDRWebSDR" xml:space="preserve">
+    <value>Einen KiwiSDR-, WebSDR- oder OpenWebRX-Host:Port eingeben und Verbinden drücken.</value>
+  </data>
+  <data name="webSdrFollowModel.followOff" xml:space="preserve">
+    <value>Folgen aus</value>
+  </data>
+  <data name="webSdrFollowModel.itsProfileSwitchDidnt" xml:space="preserve">
+    <value> – der Profilwechsel hat nicht gegriffen (ist dieses SDR angeschlossen?)</value>
+  </data>
+  <data name="webSdrFollowModel.lastTunedToX" xml:space="preserve">
+    <value> – zuletzt abgestimmt auf {0}</value>
+  </data>
+  <data name="webSdrFollowModel.notRetunedNoRig" xml:space="preserve">
+    <value>Nicht nachgestimmt: noch keine Gerätefrequenz (Gerät nicht verbunden?)</value>
+  </data>
+  <data name="webSdrFollowModel.notRetunedXMHz" xml:space="preserve">
+    <value>Nicht nachgestimmt: {0:0.000} MHz liegt außerhalb des Bereichs dieses {1} ({2})</value>
+  </data>
+  <data name="webSdrFollowModel.recordingDidntStartThe" xml:space="preserve">
+    <value>Die Aufnahme ist nicht gestartet – das Audio des {0} läuft nicht.</value>
+  </data>
+  <data name="webSdrFollowModel.recordingStoppedByThe" xml:space="preserve">
+    <value>Aufnahme vom KiwiSDR beendet (Verbindung geschlossen)</value>
+  </data>
+  <data name="webSdrFollowModel.rigNotTunedTo" xml:space="preserve">
+    <value>Gerät nicht auf {0} abgestimmt: es ist im Speichermodus</value>
+  </data>
+  <data name="webSdrFollowModel.rigNotTunedTo2" xml:space="preserve">
+    <value>Gerät nicht auf {0} abgestimmt: es sendet</value>
+  </data>
+  <data name="webSdrFollowModel.rigNotTunedTo3" xml:space="preserve">
+    <value>Gerät nicht auf {0} abgestimmt: noch keine Gerätefrequenz (Gerät nicht verbunden?)</value>
+  </data>
+  <data name="webSdrFollowModel.savedX" xml:space="preserve">
+    <value> – „{0}“ gespeichert</value>
+  </data>
+  <data name="webSdrFollowModel.savedX2" xml:space="preserve">
+    <value>„{0}“ gesichert</value>
+  </data>
+  <data name="webSdrFollowModel.thisMode" xml:space="preserve">
+    <value>dieser Modus</value>
+  </data>
+  <data name="webSdrFollowModel.tunedTheRigTo" xml:space="preserve">
+    <value>Gerät auf {0} abgestimmt, vom {1} um {2}</value>
+  </data>
+  <data name="webSdrFollowModel.tunedToXAt" xml:space="preserve">
+    <value>Abgestimmt auf {0} um {1}</value>
+  </data>
+  <data name="webSdrFollowModel.tunedToXAt2" xml:space="preserve">
+    <value>Abgestimmt auf {0} um {1} (Betriebsart unverändert – {2} hat keine Entsprechung im {3})</value>
+  </data>
+  <data name="webSdrFollowModel.waitingForRigState" xml:space="preserve">
+    <value>Warten auf den Gerätezustand…</value>
+  </data>
+  <data name="webSdrFollowModel.xIsntAValid" xml:space="preserve">
+    <value>„{0}“ ist kein gültiger Host:Port.</value>
+  </data>
+  <data name="webSdrStationsWindow.antenna" xml:space="preserve">
+    <value>Antenne</value>
+  </data>
+  <data name="webSdrStationsWindow.availableOnceTheRigs" xml:space="preserve">
+    <value>Verfügbar, sobald die Frequenz des Geräts bekannt ist.</value>
+  </data>
+  <data name="webSdrStationsWindow.checkTheSpellingOr" xml:space="preserve">
+    <value>Schreibweise prüfen oder eine andere Suche bzw. einen anderen Filter versuchen.</value>
+  </data>
+  <data name="webSdrStationsWindow.clickAStationTo" xml:space="preserve">
+    <value>Zum Verwenden auf eine Station klicken · Liste von websdr.org</value>
+  </data>
+  <data name="webSdrStationsWindow.couldntLoadWebsdrOrg" xml:space="preserve">
+    <value>websdr.org konnte nicht geladen werden ({0}).</value>
+  </data>
+  <data name="webSdrStationsWindow.coversRigFrequency" xml:space="preserve">
+    <value>Deckt die Gerätefrequenz ab</value>
+  </data>
+  <data name="webSdrStationsWindow.coversXMHz" xml:space="preserve">
+    <value>Deckt {0:0.000} MHz ab</value>
+  </data>
+  <data name="webSdrStationsWindow.distance" xml:space="preserve">
+    <value>Entfernung</value>
+  </data>
+  <data name="webSdrStationsWindow.favoritesOnly" xml:space="preserve">
+    <value>Nur Favoriten</value>
+  </data>
+  <data name="webSdrStationsWindow.hideFull" xml:space="preserve">
+    <value>Volle ausblenden</value>
+  </data>
+  <data name="webSdrStationsWindow.listFromLinkfanel" xml:space="preserve">
+    <value>Liste von rx.linkfanel.net</value>
+  </data>
+  <data name="webSdrStationsWindow.loadingKiwiSDRList" xml:space="preserve">
+    <value>KiwiSDR-Liste wird geladen…</value>
+  </data>
+  <data name="webSdrStationsWindow.location" xml:space="preserve">
+    <value>Standort</value>
+  </data>
+  <data name="webSdrStationsWindow.noResults" xml:space="preserve">
+    <value>Keine Ergebnisse</value>
+  </data>
+  <data name="webSdrStationsWindow.onlyStationsWhoseReceive" xml:space="preserve">
+    <value>Nur Stationen, deren Empfangsbereich die aktuelle Gerätefrequenz enthält.</value>
+  </data>
+  <data name="webSdrStationsWindow.range" xml:space="preserve">
+    <value>Bereich</value>
+  </data>
+  <data name="webSdrStationsWindow.reload" xml:space="preserve">
+    <value>Neu laden</value>
+  </data>
+  <data name="webSdrStationsWindow.searchNameLocationGrid" xml:space="preserve">
+    <value>Name, Standort, Locator, Antenne suchen</value>
+  </data>
+  <data name="webSdrStationsWindow.setYourGridSquare" xml:space="preserve">
+    <value>Eigenen Locator unter Einstellungen → Station eintragen, um nach Entfernung zu sortieren.</value>
+  </data>
+  <data name="webSdrStationsWindow.stationListUnavailable" xml:space="preserve">
+    <value>Stationsliste nicht verfügbar</value>
+  </data>
+  <data name="webSdrStationsWindow.stationsShown.one" xml:space="preserve">
+    <value>{1} von {0} Station</value>
+  </data>
+  <data name="webSdrStationsWindow.stationsShown.other" xml:space="preserve">
+    <value>{1} von {0} Stationen</value>
+  </data>
+  <data name="webSdrStationsWindow.theWebViewCouldnt" xml:space="preserve">
+    <value>Die Webansicht konnte nicht starten ({0}).</value>
+  </data>
+  <data name="webSdrStationsWindow.updatedX" xml:space="preserve">
+    <value>aktualisiert {0}</value>
+  </data>
+  <data name="webSdrStationsWindow.users" xml:space="preserve">
+    <value>Nutzer</value>
+  </data>
+  <data name="webSdrStationsWindow.useStation" xml:space="preserve">
+    <value>Station verwenden</value>
+  </data>
+  <data name="webSdrStationsWindow.websdrOrgUnavailable" xml:space="preserve">
+    <value>websdr.org nicht verfügbar</value>
+  </data>
+  <data name="webSdrStationsWindow.webSDRStations" xml:space="preserve">
+    <value>WebSDR-Stationen</value>
+  </data>
+  <data name="webSdrWindow.addThisStationTo" xml:space="preserve">
+    <value>Diese Station zu Favoriten hinzufügen</value>
+  </data>
+  <data name="webSdrWindow.chooseAPublicKiwiSDR" xml:space="preserve">
+    <value>Einen öffentlichen KiwiSDR oder WebSDR wählen</value>
+  </data>
+  <data name="webSdrWindow.chooseASavedStation" xml:space="preserve">
+    <value>Eine gespeicherte Station wählen</value>
+  </data>
+  <data name="webSdrWindow.connectToAStation" xml:space="preserve">
+    <value>Zum Aufnehmen mit einer Station verbinden</value>
+  </data>
+  <data name="webSdrWindow.couldntConnect" xml:space="preserve">
+    <value>keine Verbindung möglich</value>
+  </data>
+  <data name="webSdrWindow.followRig" xml:space="preserve">
+    <value>Gerät folgen</value>
+  </data>
+  <data name="webSdrWindow.hostNotFound" xml:space="preserve">
+    <value>Host nicht gefunden</value>
+  </data>
+  <data name="webSdrWindow.kiwiSDRWebSDROrOpenWebRX" xml:space="preserve">
+    <value>Host:Port von KiwiSDR, WebSDR oder OpenWebRX</value>
+  </data>
+  <data name="webSdrWindow.manageFavorites" xml:space="preserve">
+    <value>Favoriten verwalten…</value>
+  </data>
+  <data name="webSdrWindow.mute" xml:space="preserve">
+    <value>Stumm</value>
+  </data>
+  <data name="webSdrWindow.muted" xml:space="preserve">
+    <value>Stumm</value>
+  </data>
+  <data name="webSdrWindow.muteOnTX" xml:space="preserve">
+    <value>Stumm bei TX</value>
+  </data>
+  <data name="webSdrWindow.muteTheWebSDRAnd" xml:space="preserve">
+    <value>WebSDR stummschalten und das Main-Audio des Geräts zurückholen</value>
+  </data>
+  <data name="webSdrWindow.muteTheWebSDRWhile" xml:space="preserve">
+    <value>WebSDR stummschalten, während das Gerät sendet</value>
+  </data>
+  <data name="webSdrWindow.noFavoritesYetStar" xml:space="preserve">
+    <value>Noch keine Favoriten – eine Station mit dem Stern markieren</value>
+  </data>
+  <data name="webSdrWindow.notConnected" xml:space="preserve">
+    <value>Nicht verbunden</value>
+  </data>
+  <data name="webSdrWindow.openTheRecordingsWindow" xml:space="preserve">
+    <value>Das Fenster Aufnahmen öffnen</value>
+  </data>
+  <data name="webSdrWindow.pickAStationOr" xml:space="preserve">
+    <value>Eine Station wählen oder Host:Port eines KiwiSDR, WebSDR oder OpenWebRX eingeben, dann auf Verbinden klicken.</value>
+  </data>
+  <data name="webSdrWindow.pressEnterToUse" xml:space="preserve">
+    <value>Eingabetaste drücken, um diesen Host zu verwenden, dann zu den Favoriten hinzufügen</value>
+  </data>
+  <data name="webSdrWindow.record" xml:space="preserve">
+    <value>Aufnehmen</value>
+  </data>
+  <data name="webSdrWindow.recordTheWebSDRsAudio" xml:space="preserve">
+    <value>Audio des WebSDR aufnehmen</value>
+  </data>
+  <data name="webSdrWindow.removeThisStationFrom" xml:space="preserve">
+    <value>Diese Station aus Favoriten entfernen</value>
+  </data>
+  <data name="webSdrWindow.retuneTheWebSDRWhen" xml:space="preserve">
+    <value>WebSDR nachstimmen, wenn sich der Main-VFO des Geräts ändert</value>
+  </data>
+  <data name="webSdrWindow.stations" xml:space="preserve">
+    <value>Stationen…</value>
+  </data>
+  <data name="webSdrWindow.stopRecording" xml:space="preserve">
+    <value>Aufnahme beenden</value>
+  </data>
+  <data name="webSdrWindow.stopRecordingAndSave" xml:space="preserve">
+    <value>Aufnahme stoppen und in Aufnahmen sichern</value>
+  </data>
+  <data name="webSdrWindow.timedOut" xml:space="preserve">
+    <value>Zeitüberschreitung</value>
+  </data>
+  <data name="webSdrWindow.tuneRig" xml:space="preserve">
+    <value>Gerät abstimmen</value>
+  </data>
+  <data name="webSdrWindow.tuneTheRigsMain" xml:space="preserve">
+    <value>Main-VFO des Geräts abstimmen, wenn auf der WebSDR-Seite abgestimmt wird (Klick in den Wasserfall, Frequenz eingeben, Betriebsart wählen)</value>
+  </data>
+  <data name="webSdrWindow.unmuteTheWebSDRMutes" xml:space="preserve">
+    <value>Ton des WebSDR einschalten (schaltet das Main-Audio des Geräts stumm, solange verbunden)</value>
+  </data>
+  <data name="webSdrWindow.webSDRHost" xml:space="preserve">
+    <value>WebSDR-Host</value>
+  </data>
+  <data name="workedStationsStore.noLogbookSelected" xml:space="preserve">
+    <value>Kein Logbuch ausgewählt</value>
+  </data>
+  <data name="workedStationsStore.notReadYet" xml:space="preserve">
+    <value>Noch nicht gelesen</value>
+  </data>
+  <data name="workedStationsStore.theLogCouldntBe" xml:space="preserve">
+    <value>Das Log konnte nicht gelesen werden</value>
+  </data>
+</root>

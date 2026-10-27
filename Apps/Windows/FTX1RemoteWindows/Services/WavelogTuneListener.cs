@@ -95,8 +95,8 @@ public sealed class WavelogTuneListener
         catch (SocketException e)
         {
             State = new ListenerState.Failed(e.SocketErrorCode is SocketError.AddressAlreadyInUse or SocketError.AccessDenied
-                ? $"Port {port} is in use — is WaveLogGate running?"
-                : $"Couldn't listen on port {port}: {e.Message}");
+                ? Loc.F("wavelogTuneListener.portXIsIn", port)
+                : Loc.F("wavelogTuneListener.couldntListenOnPort", port, e.Message));
             AppLog.Write($"Wavelog: tune listener failed on port {port}: {e.Message}");
             Changed?.Invoke();
             return;
@@ -196,17 +196,17 @@ public sealed class WavelogTuneListener
         }
         if (!originOk)
         {
-            Record($"Ignored a tune request from {origin ?? "a request without an Origin"} — it isn't the Wavelog URL in Settings", ok: false);
+            Record(Loc.F("wavelogTuneListener.ignoredATuneRequest", origin ?? Loc.S("wavelogTuneListener.aRequestWithoutAn")), ok: false);
             return (403, "Origin not allowed", null, false);
         }
-        var modeText = request.Mode?.DisplayName() ?? "mode unchanged";
+        var modeText = request.Mode?.DisplayName() ?? Loc.S("wavelogTuneListener.modeUnchanged");
         var mhz = (request.FrequencyHz / 1_000_000.0).ToString("0.0000", CultureInfo.InvariantCulture) + " MHz";
         if (await _tune(request) is { } refusal)
         {
-            Record($"Didn't tune to {mhz}: {refusal}", ok: false);
+            Record(Loc.F("wavelogTuneListener.didntTuneToX", mhz, refusal), ok: false);
             return (409, refusal, origin, false);
         }
-        Record($"Tuned to {mhz} {modeText}", ok: true);
+        Record(Loc.F("wavelogTuneListener.tunedToXX", mhz, modeText), ok: true);
         return (200, "OK", origin, false);
     }
 

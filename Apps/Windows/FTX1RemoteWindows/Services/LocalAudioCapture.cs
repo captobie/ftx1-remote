@@ -153,7 +153,7 @@ public sealed class LocalAudioCapture : IAudioSource
                 // WASAPI normally delivers buffers (silence included) all
                 // the time, so a long gap means the device stopped feeding.
                 phase = AudioLinkPhase.DeviceUnavailable;
-                detail = "the input device stopped delivering audio";
+                detail = Loc.S("localAudioCapture.theInputDeviceStopped");
             }
             return new AudioLinkStatus(phase, detail, _leftRms, _rightRms);
         }
@@ -205,12 +205,12 @@ public sealed class LocalAudioCapture : IAudioSource
         }
         catch (Exception)
         {
-            return "the selected input device isn't available (unplugged or disabled?)";
+            return Loc.S("localAudioCapture.theSelectedInputDevice2");
         }
         if (device.State is var state && state != DeviceState.Active)
         {
             device.Dispose();
-            return $"the selected input device is {state.ToString().ToLowerInvariant()}";
+            return Loc.F("localAudioCapture.theSelectedInputDevice", state.ToString().ToLowerInvariant());
         }
 
         using var capture = new WasapiCapture(device, useEventSync: true, audioBufferMillisecondsLength: 50);
@@ -218,7 +218,7 @@ public sealed class LocalAudioCapture : IAudioSource
         var reader = SampleReader(format);
         if (reader is null)
         {
-            return $"unsupported capture format ({format})";
+            return Loc.F("localAudioCapture.unsupportedCaptureFormatX", format);
         }
         var channels = format.Channels;
         var bytesPerFrame = format.BlockAlign;
@@ -241,7 +241,7 @@ public sealed class LocalAudioCapture : IAudioSource
             }
         };
         capture.RecordingStopped += (_, e) =>
-            stopped.TrySetResult(e.Exception is { } ex ? Describe(ex) : "capture stopped");
+            stopped.TrySetResult(e.Exception is { } ex ? Describe(ex) : Loc.S("localAudioCapture.captureStopped"));
 
         _filled = 0;
         capture.StartRecording();
@@ -249,8 +249,8 @@ public sealed class LocalAudioCapture : IAudioSource
         {
             _phase = AudioLinkPhase.Streaming;
             _detail = channels >= 2
-                ? $"{device.FriendlyName}, {format.SampleRate} Hz"
-                : $"{device.FriendlyName}, {format.SampleRate} Hz — mono, so no Sub audio (set the device to 2 channels in Windows Sound settings)";
+                ? Loc.F("localAudioCapture.xXHz", device.FriendlyName, format.SampleRate)
+                : Loc.F("localAudioCapture.xXHzMono", device.FriendlyName, format.SampleRate);
             _capturing = true;
             _lastDataTicks = Stopwatch.GetTimestamp();
         }
@@ -313,6 +313,6 @@ public sealed class LocalAudioCapture : IAudioSource
 
     private static string Describe(Exception ex) =>
         ex is UnauthorizedAccessException || (ex is COMException com && com.HResult == unchecked((int)0x80070005))
-            ? "Windows denied microphone access — turn on Settings → Privacy & security → Microphone → \"Let desktop apps access your microphone\""
+            ? Loc.S("localAudioCapture.windowsDeniedMicrophoneAccess")
             : ex.Message;
 }

@@ -807,20 +807,20 @@ public sealed class WebSdrFollowModel
         var description = KiwiSdrUrlBuilder.KHzString(reading.FrequencyHz) + " kHz " + reading.Mode.ToUpperInvariant();
         if (rig.FrequencyHz <= 0)
         {
-            Status = $"Rig not tuned to {description}: no rig frequency yet (rig not connected?)";
+            Status = Loc.F("webSdrFollowModel.rigNotTunedTo3", description);
             Notify();
             return;
         }
         if (rig.Ptt)
         {
-            Status = $"Rig not tuned to {description}: it's transmitting";
+            Status = Loc.F("webSdrFollowModel.rigNotTunedTo2", description);
             Notify();
             return;
         }
         // The rig rejects a VFO frequency set while in Memory mode.
         if (rig.InMemoryMode)
         {
-            Status = $"Rig not tuned to {description}: it's in Memory mode";
+            Status = Loc.F("webSdrFollowModel.rigNotTunedTo", description);
             Notify();
             return;
         }
@@ -829,7 +829,7 @@ public sealed class WebSdrFollowModel
         _pendingRigTune = (reading.FrequencyHz, newMode, until);
         _rig.Tune(frequencyChanged ? reading.FrequencyHz : null, newMode);
         _lastTunedDescription = description;
-        Status = $"Tuned the rig to {description} from the {Bridge.Platform.DisplayName()} at {Now()}";
+        Status = Loc.F("webSdrFollowModel.tunedTheRigTo", description, Bridge.Platform.DisplayName(), Now());
         Notify();
         // If the rig never shows the new tuning (rejected, disconnected),
         // follow its actual state again once the grace period is over.
@@ -884,7 +884,7 @@ public sealed class WebSdrFollowModel
             else
             {
                 EndRecording();
-                RecordingNote = $"Recording didn't start — the {Bridge.Platform.DisplayName()}'s audio isn't running.";
+                RecordingNote = Loc.F("webSdrFollowModel.recordingDidntStartThe", Bridge.Platform.DisplayName());
             }
             Notify();
         });
@@ -902,7 +902,7 @@ public sealed class WebSdrFollowModel
     {
         if (path is not null)
         {
-            RecordingNote = $"Saved “{Path.GetFileNameWithoutExtension(path)}”";
+            RecordingNote = Loc.F("webSdrFollowModel.savedX2", Path.GetFileNameWithoutExtension(path));
         }
     }
 
@@ -917,8 +917,8 @@ public sealed class WebSdrFollowModel
         else
         {
             EndRecording();
-            RecordingNote = "Recording stopped by the KiwiSDR (its connection closed)"
-                + (path is null ? "" : $" — saved “{Path.GetFileNameWithoutExtension(path)}”");
+            RecordingNote = Loc.S("webSdrFollowModel.recordingStoppedByThe")
+                + (path is null ? "" : Loc.F("webSdrFollowModel.savedX", Path.GetFileNameWithoutExtension(path)));
         }
         Notify();
     }
@@ -927,7 +927,7 @@ public sealed class WebSdrFollowModel
     /// down) so the status line says so instead of a stale "Tuned to".
     public void ReportLoadFailure(string message)
     {
-        Status = $"Couldn't load {_hostPort}: {message}";
+        Status = Loc.F("webSdrFollowModel.couldntLoadXX", _hostPort, message);
         Notify();
     }
 
@@ -939,15 +939,15 @@ public sealed class WebSdrFollowModel
         if (KiwiSdrUrlBuilder.BaseUrl(_hostPort) is not { } baseUrl)
         {
             Status = _hostPort.Length == 0
-                ? "Enter a KiwiSDR, WebSDR or OpenWebRX host:port and press Connect."
-                : $"“{_hostPort}” isn't a valid host:port.";
+                ? Loc.S("webSdrFollowModel.enterAKiwiSDRWebSDR")
+                : Loc.F("webSdrFollowModel.xIsntAValid", _hostPort);
             return;
         }
 
-        var lastTuned = _lastTunedDescription is null ? "" : $" — last tuned to {_lastTunedDescription}";
+        var lastTuned = _lastTunedDescription is null ? "" : Loc.F("webSdrFollowModel.lastTunedToX", _lastTunedDescription);
         if (!IsConnected)
         {
-            Status = "Disconnected" + lastTuned;
+            Status = Loc.S("webSdrFollowModel.disconnected") + lastTuned;
             return;
         }
 
@@ -957,7 +957,7 @@ public sealed class WebSdrFollowModel
             {
                 Issue(baseUrl);
             }
-            Status = "Follow off" + lastTuned;
+            Status = Loc.S("webSdrFollowModel.followOff") + lastTuned;
             return;
         }
 
@@ -967,7 +967,7 @@ public sealed class WebSdrFollowModel
             {
                 Issue(baseUrl);
             }
-            Status = "Waiting for rig state…";
+            Status = Loc.S("webSdrFollowModel.waitingForRigState");
             return;
         }
 
@@ -1002,22 +1002,22 @@ public sealed class WebSdrFollowModel
                 }
                 var time = _lastTunedAt.ToString("T");
                 Status = token is null
-                    ? $"Tuned to {_lastTunedDescription} at {time} (mode unchanged — {latest.Mode?.DisplayName() ?? "this mode"} has no {CurrentPlatform.DisplayName()} equivalent)"
-                    : $"Tuned to {_lastTunedDescription} at {time}";
+                    ? Loc.F("webSdrFollowModel.tunedToXAt2", _lastTunedDescription, time, latest.Mode?.DisplayName() ?? Loc.S("webSdrFollowModel.thisMode"), CurrentPlatform.DisplayName())
+                    : Loc.F("webSdrFollowModel.tunedToXAt", _lastTunedDescription, time);
                 break;
             case SdrRetune.OutOfRange(var hz, var bands):
                 if (forceHostPage)
                 {
                     Issue(baseUrl);
                 }
-                Status = $"Not retuned: {hz / 1_000_000.0:0.000} MHz is outside this {CurrentPlatform.DisplayName()}'s range ({FrequencyRange.Describe(bands)})";
+                Status = Loc.F("webSdrFollowModel.notRetunedXMHz", hz / 1_000_000.0, CurrentPlatform.DisplayName(), FrequencyRange.Describe(bands));
                 break;
             case SdrRetune.NoFrequency:
                 if (forceHostPage)
                 {
                     Issue(baseUrl);
                 }
-                Status = "Not retuned: no rig frequency yet (rig not connected?)";
+                Status = Loc.S("webSdrFollowModel.notRetunedNoRig");
                 break;
         }
     }
@@ -1151,8 +1151,8 @@ public sealed class WebSdrFollowModel
                     var retuned = await Bridge.RetuneInPlaceAsync(next.Tuning.FrequencyHz, next.Tuning.ModeToken, cts.Token);
                     if (!retuned && _pendingInPlace is null && IsConnected)
                     {
-                        Status = $"Couldn't retune the {Bridge.Platform.DisplayName()} to {KiwiSdrUrlBuilder.KHzString(next.Tuning.FrequencyHz)} kHz"
-                            + (Bridge.Platform == SdrPlatform.OpenWebRx ? " — its profile switch didn't take (is that SDR connected?)" : "");
+                        Status = Loc.F("webSdrFollowModel.couldntRetuneTheX", Bridge.Platform.DisplayName(), KiwiSdrUrlBuilder.KHzString(next.Tuning.FrequencyHz))
+                            + (Bridge.Platform == SdrPlatform.OpenWebRx ? Loc.S("webSdrFollowModel.itsProfileSwitchDidnt") : "");
                     }
                     _tunedTarget = next.Tuned;
                     _pageTuning = null;

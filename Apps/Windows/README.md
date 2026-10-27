@@ -2205,6 +2205,40 @@ the command path.
   ranges. Public addresses are refused.
 - **No shared CW keying in v1** — see phase 6.
 
+## Localization (Spanish and German, 2026-10-27)
+
+The Mac/iPad's es/de port (see CLAUDE.md's "Localization"). The app follows
+Windows' display language (`CurrentUICulture`); no in-app picker. Key
+checks run by script; not yet built or run in Spanish/German on the PC.
+
+- **Strings**: `Localization/Strings.resx` (English), `Strings.es.resx`,
+  `Strings.de.resx` — the same keys in each, sorted case-insensitively.
+  Keys are namespaced like the Mac's (`mainWindow.connectFailedX`,
+  `common.cancel`), wording reused from the Mac/iPad catalogs. Code uses
+  `Loc.S(key)`, `Loc.F(key, args…)` (arguments as `{0}`, `{1}`… so a
+  translation can move them — never concatenate a sentence) and
+  `Loc.P(key, count)` (`<key>.one`/`<key>.other`); XAML uses
+  `{l:Str Key=…}` (`xmlns:l="using:FTX1RemoteWindows.Localization"`). A
+  missing key shows as the key. **A new string needs all three files.**
+  Keep the key a literal in the call (`Loc.S("x.y")`, not built with `+`),
+  or `LocalizationTests` can't check it.
+- **Stays English**: radio terms and rig labels (modes, MAIN/SUB, PTT,
+  the MENU grid, `DeepSettingsCatalog`), unit-only formats, wire values
+  and everything on the hub's wire, log text, saved IDs (theme names are
+  stored in English, `ThemePresets.DisplayName` is the label), HRD/Log4OM/
+  Wavelog program names.
+- **Numbers**: `Loc.ApplyNumberFormat()` (App startup) keeps the regional
+  format but with "." as the decimal separator, so es/de don't show
+  "14,074"; `Loc.OsCulture` is Windows' own, for parsing what the user typed.
+- **Satellite assemblies**: the build puts `es\` and `de\`
+  (`FTX1RemoteWindows.resources.dll`) next to the exe — the release zip
+  must keep those folders.
+- **Checking**: `LocalizationTests` (same keys/placeholders in the three
+  files, every `Loc.*`/`l:Str` key exists, every formatted string
+  formats). Debug builds: set `FTX1REMOTE_UI_LANGUAGE=es` (or `de`, `en`)
+  before launching to see a language whatever Windows uses (WinUI's own
+  control strings still follow Windows).
+
 ## Explicitly deferred (not v1, but not architecturally foreclosed either)
 
 - **APRS map** — see "APRS decode" above.

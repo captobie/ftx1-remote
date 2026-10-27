@@ -23,8 +23,8 @@ public static class TransmitEmissionExtensions
     public static string DisplayName(this TransmitEmission emission) => emission switch
     {
         TransmitEmission.Cw => "CW",
-        TransmitEmission.Phone => "Phone",
-        _ => "Data",
+        TransmitEmission.Phone => Loc.S("common.phone"),
+        _ => Loc.S("common.data"),
     };
 
     /// Swift's raw values ("cw", "phone", "data"), so a profile exported on
@@ -61,7 +61,7 @@ public readonly record struct TransmitSignal(long FrequencyHz, RigMode? Mode, bo
     /// Null while the mode isn't known.
     public string? ModeKey => IsC4fm ? "C4FM" : Mode?.RawValue();
 
-    public string ModeDisplayName => IsC4fm ? "C4FM" : Mode?.DisplayName() ?? "an unknown mode";
+    public string ModeDisplayName => IsC4fm ? "C4FM" : Mode?.DisplayName() ?? Loc.S("common.anUnknownMode");
 
     /// The emission this mode transmits. C4FM is digital *voice*, which the
     /// FCC counts as phone; DATA-FM and RTTY are data. Null while the mode

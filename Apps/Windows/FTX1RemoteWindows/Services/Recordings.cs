@@ -118,7 +118,7 @@ public static class Recordings
         var sanitized = new string(trimmed.Select(c => invalid.Contains(c) ? '-' : c).ToArray()).Trim();
         if (sanitized.Length == 0)
         {
-            return "The name can't be empty.";
+            return Loc.S("recordings.theNameCantBe");
         }
         var newPath = Path.Combine(Directory, sanitized + ".wav");
         if (string.Equals(newPath, recording.Path, StringComparison.Ordinal))
@@ -128,7 +128,7 @@ public static class Recordings
         // A case-only rename is the same file to Windows, so let it through.
         if (File.Exists(newPath) && !string.Equals(newPath, recording.Path, StringComparison.OrdinalIgnoreCase))
         {
-            return $"There's already a recording named \"{sanitized}\".";
+            return Loc.F("recordings.theresAlreadyARecording", sanitized);
         }
         try
         {

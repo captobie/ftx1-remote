@@ -65,7 +65,7 @@ public sealed class ScopeDisplay : UserControl
             Rect = new Rect(0, 0, e.NewSize.Width, e.NewSize.Height),
         };
         Content = border;
-        AutomationProperties.SetName(this, "Waterfall and oscilloscope display");
+        AutomationProperties.SetName(this, Loc.S("scopeDisplay.waterfallAndOscilloscopeDisplay"));
         ApplyMode();
         SetActive(false);
     }

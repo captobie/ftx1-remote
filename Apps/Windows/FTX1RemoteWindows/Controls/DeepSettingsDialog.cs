@@ -48,7 +48,7 @@ public sealed class DeepSettingsDialog : ContentDialog
         XamlRoot = root;
         RequestedTheme = theme;
         Title = title;
-        CloseButtonText = "Done";
+        CloseButtonText = Loc.S("common.done");
         DefaultButton = ContentDialogButton.Close;
         Resources["ContentDialogMaxWidth"] = 900.0;
         Resources["ContentDialogMaxHeight"] = 800.0;
@@ -89,7 +89,7 @@ public sealed class DeepSettingsDialog : ContentDialog
         }
         else
         {
-            _rows.Children.Add(new TextBlock { Text = $"{title} items haven't been added to the Deep Settings catalog.", Foreground = Secondary });
+            _rows.Children.Add(new TextBlock { Text = Loc.F("deepSettingsDialog.xItemsHaventBeen", title), Foreground = Secondary });
         }
     }
 
@@ -121,7 +121,7 @@ public sealed class DeepSettingsDialog : ContentDialog
         var slot = new Border { VerticalAlignment = VerticalAlignment.Center, Child = Placeholder("—") };
         if (item.ValueType is Momentary)
         {
-            ToolTipService.SetToolTip(slot, "Momentary or irreversible — not sent from this app");
+            ToolTipService.SetToolTip(slot, Loc.S("deepSettingsDialog.momentaryOrIrreversibleNot"));
         }
         Grid.SetColumn(slot, 1);
         row.Children.Add(slot);
@@ -166,7 +166,7 @@ public sealed class DeepSettingsDialog : ContentDialog
             }
             if (unanswered > 0)
             {
-                _status.Text = unanswered == 1 ? "1 item didn't answer." : $"{unanswered} items didn't answer.";
+                _status.Text = unanswered == 1 ? Loc.S("deepSettingsDialog.1ItemDidntAnswer") : Loc.F("deepSettingsDialog.xItemsDidntAnswer", unanswered);
             }
         }
         finally
@@ -311,7 +311,7 @@ public sealed class DeepSettingsDialog : ContentDialog
         }
         catch (Exception ex)
         {
-            _status.Text = $"{item.Label}: not sent ({ex.Message})";
+            _status.Text = Loc.F("deepSettingsDialog.xNotSentX", item.Label, ex.Message);
         }
     }
 

@@ -422,8 +422,8 @@ public sealed class MenuGrid : UserControl
             // Stays clickable while recording, so it can always be stopped.
             record.IsEnabled = _isRecording || _canRecord;
             ToolTipService.SetToolTip(record, _isRecording
-                ? "Stop recording and save to Recordings"
-                : _canRecord ? "Record the Main audio to Recordings" : "Turn on audio to record");
+                ? Loc.S("menuGrid.stopRecordingAndSave")
+                : _canRecord ? Loc.S("menuGrid.recordTheMainAudio") : Loc.S("menuGrid.turnOnAudioToRecord"));
         });
 
         AddNav(22, "◀", MenuPage.Ssb);
@@ -983,7 +983,7 @@ public sealed class MenuGrid : UserControl
     /// doesn't carry. Until set, everything is blocked.
     public Func<TransmitAction, string?>? GateReason { get; set; }
 
-    private string? GateReasonFor(TransmitAction action) => GateReason is { } gate ? gate(action) : "Transmit disabled";
+    private string? GateReasonFor(TransmitAction action) => GateReason is { } gate ? gate(action) : Loc.S("transmitGate.transmitDisabled");
 
     /// 22: RF POWER (the "RFPOWER" level, 5-100%; the rig's floor is 5 W). A slider rather than a
     /// stepper, as on the Mac: sends once on release (or per key press),
@@ -1051,9 +1051,9 @@ public sealed class MenuGrid : UserControl
             Spacing = 4,
             Children =
             {
-                StepButton(-1, "\uE76B", "Decrease RF power by 1 W"),
+                StepButton(-1, "\uE76B", Loc.S("menuGrid.decreaseRfPowerBy")),
                 slider,
-                StepButton(1, "\uE76C", "Increase RF power by 1 W"),
+                StepButton(1, "\uE76C", Loc.S("menuGrid.increaseRfPowerBy")),
             },
         };
 

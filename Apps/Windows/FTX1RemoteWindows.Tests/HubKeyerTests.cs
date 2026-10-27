@@ -96,6 +96,15 @@ public class HubKeyerTests
     public void RequestRefusal(int slot, string? text, string? expected) =>
         Assert.Equal(expected, HubKeyerPolicy.RequestRefusal(slot, text));
 
+    [Theory]
+    [InlineData(1, "CQ", null)]
+    [InlineData(1, null, null)]
+    [InlineData(9, "CQ", "keyer_bad_slot")]
+    [InlineData(1, "", "keyer_bad_text")]
+    [InlineData(1, "cq", "keyer_bad_text")]
+    public void RequestRefusalCode(int slot, string? text, string? expected) =>
+        Assert.Equal(expected, HubKeyerPolicy.RequestRefusalCode(slot, text));
+
     [Fact]
     public void LengthLimitIsFifty()
     {
@@ -293,7 +302,7 @@ public class HubKeyerTests
         Assert.Equal("""{"type":"cw_keyer_reply","id":10}""",
             await AskAsync(asker, """{"type":"cw_keyer","id":10,"slot":0,"action":"release"}"""));
         // Refused before the rig: slot, ";".
-        Assert.Equal("""{"type":"cw_keyer_reply","id":11,"error":"Keyer memory 9 doesn't exist (1–5)"}""",
+        Assert.Equal("""{"type":"cw_keyer_reply","id":11,"error":"Keyer memory 9 doesn't exist (1–5)","errorCode":"keyer_bad_slot"}""",
             Decode(await AskAsync(asker, """{"type":"cw_keyer","id":11,"slot":9,"text":"CQ"}""")));
         Assert.Contains("can't send \\\";\\\"",
             Decode(await AskAsync(asker, """{"type":"cw_keyer","id":12,"slot":1,"text":"CQ;TX1"}""")));
@@ -321,7 +330,7 @@ public class HubKeyerTests
     {
         await using var hub = await StartHubAsync();
         using var asker = await ConnectAsync(hub);
-        Assert.Equal("""{"type":"cw_keyer_reply","id":1,"error":"Not connected to the rig"}""",
+        Assert.Equal("""{"type":"cw_keyer_reply","id":1,"error":"Not connected to the rig","errorCode":"rigctld_not_connected"}""",
             await AskAsync(asker, """{"type":"cw_keyer","id":1,"slot":1,"text":"CQ"}"""));
         hub.CwKeyerHandler = (_, _) => throw new InvalidOperationException("The rig rejected the keyer memory write.");
         Assert.Equal("""{"type":"cw_keyer_reply","id":2,"error":"The rig rejected the keyer memory write."}""",
