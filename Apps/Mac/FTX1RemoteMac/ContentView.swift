@@ -125,7 +125,9 @@ struct ContentView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                .frame(width: 130)
+                // Sized to its label and longest band name: a fixed width
+                // truncated the band once the label got longer.
+                .fixedSize()
 
                 Picker("common.mode", selection: modeBinding) {
                     ForEach(RigMode.allCases.filter { $0 != .unknown }, id: \.self) { mode in
