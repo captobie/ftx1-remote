@@ -171,6 +171,9 @@
   <data name="common.cancel" xml:space="preserve">
     <value>Cancel</value>
   </data>
+  <data name="common.checking" xml:space="preserve">
+    <value>Checking…</value>
+  </data>
   <data name="common.clear" xml:space="preserve">
     <value>Clear</value>
   </data>
@@ -179,6 +182,9 @@
   </data>
   <data name="common.connect" xml:space="preserve">
     <value>Connect</value>
+  </data>
+  <data name="common.copy" xml:space="preserve">
+    <value>Copy</value>
   </data>
   <data name="common.couldntFindTheHost" xml:space="preserve">
     <value>Couldn't find the host {0}</value>
@@ -1575,9 +1581,6 @@
   <data name="settings.cOMPort" xml:space="preserve">
     <value>COM port</value>
   </data>
-  <data name="settings.connectedClients" xml:space="preserve">
-    <value>Connected clients</value>
-  </data>
   <data name="settings.connectedTheTokenCan" xml:space="preserve">
     <value>Connected — the token can log to this location</value>
   </data>
@@ -1681,7 +1684,7 @@
     <value>Leave these empty to send to Log4OM on this PC. In Log4OM: Settings → Program Configuration → Software Integration → Connections, add a UDP inbound connection of type ADIF_MESSAGE (e.g. port 2236). Log4OM looks the call up when a QSO arrives; the CW window's Lookup button asks it to look one up sooner, through its remote control (UDP 2241, on by default).</value>
   </data>
   <data name="settings.letsTheIPadsDesktop" xml:space="preserve">
-    <value>Lets the iPad's Desktop hub route connect to this app over Tailscale or the local network (other addresses are refused). The iPad shows this app's state, controls the rig through it and hears its MAIN/SUB audio; transmitting, the memory/APRS lists, Deep Settings values and CW sending from the iPad aren't supported yet.</value>
+    <value>Lets the iPad's Desktop hub route connect to this app over Tailscale or the local network (other addresses are refused). The iPad then shows this app's state and controls the rig through it.</value>
   </data>
   <data name="settings.license" xml:space="preserve">
     <value>License</value>
@@ -1800,6 +1803,105 @@
   <data name="settings.messagesToKeep" xml:space="preserve">
     <value>Messages to keep</value>
   </data>
+  <data name="settings.mobile" xml:space="preserve">
+    <value>Mobile</value>
+  </data>
+  <data name="settings.mobile.client" xml:space="preserve">
+    <value>{0}, since {1}</value>
+  </data>
+  <data name="settings.mobile.clientNamed" xml:space="preserve">
+    <value>{0} ({1}), since {2}</value>
+  </data>
+  <data name="settings.mobile.connectedDevices" xml:space="preserve">
+    <value>Connected devices</value>
+  </data>
+  <data name="settings.mobile.firewall" xml:space="preserve">
+    <value>Windows Firewall</value>
+  </data>
+  <data name="settings.mobile.firewallAllows" xml:space="preserve">
+    <value>On, allows FTX1 Remote</value>
+  </data>
+  <data name="settings.mobile.firewallBlocksAll" xml:space="preserve">
+    <value>Blocks all incoming connections ({0}) — turn that off in Windows Security → Firewall &amp; network protection</value>
+  </data>
+  <data name="settings.mobile.firewallBlocksApp" xml:space="preserve">
+    <value>Blocks FTX1 Remote ({0}) — allow it in Windows Security → Firewall &amp; network protection → Allow an app through firewall</value>
+  </data>
+  <data name="settings.mobile.firewallNoRule" xml:space="preserve">
+    <value>No rule for FTX1 Remote yet ({0}) — Windows asks when the hub starts listening: allow it on private and public networks</value>
+  </data>
+  <data name="settings.mobile.firewallOff" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="settings.mobile.fromAnywhere" xml:space="preserve">
+    <value>From anywhere (Tailscale)</value>
+  </data>
+  <data name="settings.mobile.getTailscale" xml:space="preserve">
+    <value>Get Tailscale…</value>
+  </data>
+  <data name="settings.mobile.getTailscaleForIPad" xml:space="preserve">
+    <value>Get Tailscale</value>
+  </data>
+  <data name="settings.mobile.hubOff" xml:space="preserve">
+    <value>Off — turn on Allow iPad connections above, then Save</value>
+  </data>
+  <data name="settings.mobile.hubServer" xml:space="preserve">
+    <value>Hub server</value>
+  </data>
+  <data name="settings.mobile.intro" xml:space="preserve">
+    <value>To connect the iPad, pick Desktop hub in the app and type one of the addresses below into its host field. The port, 8765, is filled in for you.</value>
+  </data>
+  <data name="settings.mobile.localHostName" xml:space="preserve">
+    <value>Local name</value>
+  </data>
+  <data name="settings.mobile.magicDNSName" xml:space="preserve">
+    <value>MagicDNS name</value>
+  </data>
+  <data name="settings.mobile.networkDomain" xml:space="preserve">
+    <value>domain network</value>
+  </data>
+  <data name="settings.mobile.networkPrivate" xml:space="preserve">
+    <value>private network</value>
+  </data>
+  <data name="settings.mobile.networkPublic" xml:space="preserve">
+    <value>public network</value>
+  </data>
+  <data name="settings.mobile.noDevicesConnected" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="settings.mobile.noLocalNetwork" xml:space="preserve">
+    <value>Not connected to Wi-Fi or Ethernet</value>
+  </data>
+  <data name="settings.mobile.onTheSameNetwork" xml:space="preserve">
+    <value>On the same network</value>
+  </data>
+  <data name="settings.mobile.openTailscale" xml:space="preserve">
+    <value>Open Tailscale</value>
+  </data>
+  <data name="settings.mobile.sameNetworkNote" xml:space="preserve">
+    <value>These work only while the iPad is on the same Wi-Fi or network as this PC, and the IP address can change when the PC reconnects.</value>
+  </data>
+  <data name="settings.mobile.shortName" xml:space="preserve">
+    <value>Short name</value>
+  </data>
+  <data name="settings.mobile.status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="settings.mobile.tailscaleConnected" xml:space="preserve">
+    <value>Connected</value>
+  </data>
+  <data name="settings.mobile.tailscaleExplanation" xml:space="preserve">
+    <value>Tailscale is a free VPN that lets the iPad reach this PC from anywhere — at home, on cellular or on another Wi-Fi — without opening ports on your router. Install it on this PC and the iPad, and sign in to the same account on both.</value>
+  </data>
+  <data name="settings.mobile.tailscaleIP" xml:space="preserve">
+    <value>Tailscale IP</value>
+  </data>
+  <data name="settings.mobile.tailscaleNotConnected" xml:space="preserve">
+    <value>Installed, not connected</value>
+  </data>
+  <data name="settings.mobile.tailscaleNotInstalled" xml:space="preserve">
+    <value>Not installed</value>
+  </data>
   <data name="settings.modelNumber" xml:space="preserve">
     <value>Model number</value>
   </data>
@@ -1853,9 +1955,6 @@
   </data>
   <data name="settings.polling" xml:space="preserve">
     <value>Polling</value>
-  </data>
-  <data name="settings.portXWsThis" xml:space="preserve">
-    <value>Port {0} (ws://&lt;this PC's Tailscale name or LAN address&gt;:{1})</value>
   </data>
   <data name="settings.privileges" xml:space="preserve">
     <value>Privileges</value>
@@ -2069,9 +2168,6 @@
   </data>
   <data name="settings.wPSDHotspot" xml:space="preserve">
     <value>WPSD hotspot</value>
-  </data>
-  <data name="settings.xConnectedX" xml:space="preserve">
-    <value>{0} — connected {1:HH:mm:ss}</value>
   </data>
   <data name="settings.xIsntAHostName" xml:space="preserve">
     <value>"{0}" isn't a host name or address.</value>

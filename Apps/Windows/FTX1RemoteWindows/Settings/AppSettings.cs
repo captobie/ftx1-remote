@@ -770,7 +770,7 @@ public static class AppSettings
         }
     }
 
-    /// Settings → Hub's "Allow iPad connections": serve the Mac hub's
+    /// Settings → Mobile's "Allow iPad connections": serve the Mac hub's
     /// WebSocket protocol (Services/Hub/HubServer.cs). Off by default — once
     /// commands land, anyone who can reach the port can key the rig.
     public static bool HubEnabled

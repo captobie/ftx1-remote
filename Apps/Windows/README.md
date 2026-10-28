@@ -2084,6 +2084,23 @@ already using, Local or Remote.
   the play refusal over another transmitter is new; refusal messages are
   per reason rather than the Mac's one "refused the text".
 
+**Settings → Mobile** (2026-10-28, the Mac's Settings → Mobile; was
+Settings → Hub): the "Allow iPad connections" switch, then what to type
+into the iPad's Desktop hub host field — the hub server's state, Windows
+Firewall's verdict for TCP 8765 on the networks this PC is on, the
+connected devices (IP, plus the MagicDNS short name for tailnet clients),
+the Wi-Fi/Ethernet addresses and `<hostname>.local`, and Tailscale's IP,
+MagicDNS name and short name (each with a copy button), or Open
+Tailscale / Get Tailscale… when it's down or missing. Re-read every 5 s
+while the tab shows (`Services/Hub/HubNetworkProbe.cs`; the logic is in
+`HubConnectionInfo.cs`, unit-tested). Built and checked on the user's PC
+(2026-10-28): LAN address and `.local` name, Tailscale IP/MagicDNS/short
+name, every copy button, the firewall verdict ("On, allows FTX1
+Remote"), "Listening on port 8765", and a test client from the PC's own
+Tailscale IP under Connected devices; then a live connection from a real
+iPhone, tested by the user, working. Not yet tried with Tailscale down or
+the firewall blocking.
+
 **Windows Firewall.** The app is unpackaged, so Windows asks "Allow
 FTX1RemoteWindows to communicate on these networks?" the first time the
 hub listens. Tick **Public** as well as Private: Tailscale's adapter is
@@ -2199,7 +2216,7 @@ the command path.
 
 ### Decisions (user, 2026-10-15)
 
-- **Hub off by default**, behind Settings → Hub's "Allow iPad
+- **Hub off by default**, behind Settings → Mobile's "Allow iPad
   connections" toggle (anyone who can reach the port can key the rig).
 - **Tailscale and local network only** — see phase 1 for the address
   ranges. Public addresses are refused.

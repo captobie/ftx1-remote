@@ -47,7 +47,7 @@ in C#.
 - **Desktop hub for the iPad/iPhone.** The Mac app runs a WebSocket server
   (`RigWebSocketServer`, `NWListener` + `NWProtocolWebSocket`) that
   broadcasts state and accepts commands; the Windows app serves the same
-  protocol (Settings → Hub, off by default, port 8765). The mobile apps'
+  protocol (Settings → Mobile, off by default, port 8765). The mobile apps'
   "Desktop hub" route (`RigClientViewModel` over `RigWebSocketClient`)
   connects to either over Tailscale.
 - **The Mac's own UI calls `HubService` directly**, not through a WebSocket

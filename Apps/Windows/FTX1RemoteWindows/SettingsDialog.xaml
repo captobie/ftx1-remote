@@ -29,7 +29,7 @@
             <SelectorBarItem Text="{l:Str Key=settings.homeFreq}" Tag="Home" />
             <SelectorBarItem Text="{l:Str Key=settings.polling}" Tag="Polling" />
             <SelectorBarItem Text="{l:Str Key=settings.appearance}" Tag="Appearance" />
-            <SelectorBarItem Text="Hub" Tag="Hub" />
+            <SelectorBarItem Text="{l:Str Key=settings.mobile}" Tag="Hub" />
             <SelectorBarItem Text="{l:Str Key=settings.about}" Tag="About" />
         </SelectorBar>
 
@@ -398,21 +398,33 @@
                               ToolTipService.ToolTip="{l:Str Key=settings.theColorOfEach}" />
                 </StackPanel>
 
-                <!-- Hub: the iPad's Desktop hub (Services/Hub/HubServer.cs). The
-                     switch applies on Save; the status and clients are live. -->
-                <StackPanel x:Name="HubTab" Spacing="12" Visibility="Collapsed">
+                <!-- Mobile (Tag "Hub"): the iPad's Desktop hub (Services/Hub/HubServer.cs)
+                     and what to type into the iPad, as on the Mac's Settings → Mobile
+                     (MobileSettingsTab.swift). The switch applies on Save; the rest is live:
+                     the server's state and clients from HubServer, the addresses, Tailscale
+                     and the firewall from HubNetworkProbe every 5 s while this tab shows.
+                     The three panels are filled in code (RefreshHubStatus). -->
+                <StackPanel x:Name="HubTab" Spacing="12" Visibility="Collapsed" MaxWidth="640" HorizontalAlignment="Left">
                     <ToggleSwitch x:Name="HubEnabledSwitch" Header="{l:Str Key=settings.allowIPadConnections}" />
                     <TextBlock Text="{l:Str Key=settings.letsTheIPadsDesktop}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
-                    <TextBlock x:Name="HubPortText" />
-                    <TextBlock x:Name="HubStatusText" />
+                    <TextBlock Text="{l:Str Key=settings.mobile.intro}" TextWrapping="Wrap" />
+
+                    <TextBlock Text="{l:Str Key=settings.mobile.status}" FontWeight="SemiBold" FontSize="16" Margin="0,8,0,0" />
+                    <StackPanel x:Name="HubStatusPanel" Spacing="8" />
                     <TextBlock x:Name="HubAudioOffText" Visibility="Collapsed" TextWrapping="Wrap"
                                Text="{l:Str Key=settings.audioIsOffOn}" />
-                    <TextBlock Text="{l:Str Key=settings.connectedClients}" FontWeight="SemiBold" />
-                    <TextBlock x:Name="HubNoClientsText" Text="{l:Str Key=settings.none}" Foreground="Gray" />
-                    <ListView x:Name="HubClientsList" SelectionMode="None" MaxHeight="140" />
-                    <TextBlock Text="{l:Str Key=settings.windowsFirewallHasTo}"
+
+                    <TextBlock Text="{l:Str Key=settings.mobile.onTheSameNetwork}" FontWeight="SemiBold" FontSize="16" Margin="0,8,0,0" />
+                    <StackPanel x:Name="HubLanPanel" Spacing="8" />
+                    <TextBlock Text="{l:Str Key=settings.mobile.sameNetworkNote}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
+
+                    <TextBlock Text="{l:Str Key=settings.mobile.fromAnywhere}" FontWeight="SemiBold" FontSize="16" Margin="0,8,0,0" />
+                    <StackPanel x:Name="HubTailscalePanel" Spacing="8" />
+
+                    <TextBlock Text="{l:Str Key=settings.windowsFirewallHasTo}"
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0" />
                 </StackPanel>
 
                 <!-- About: version + update check (notify-only). -->
