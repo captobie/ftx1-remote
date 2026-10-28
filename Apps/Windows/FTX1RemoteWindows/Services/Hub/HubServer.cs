@@ -29,7 +29,7 @@ namespace FTX1RemoteWindows.Services.Hub;
 /// iPad's RigClientViewModel has it fixed). Connections from outside
 /// loopback, Tailscale and the private ranges are refused before the
 /// upgrade (<see cref="HubAddressFilter"/>). Runs independently of the
-/// rigctld connection: MainWindow starts/stops it with Settings → Hub and
+/// rigctld connection: MainWindow starts/stops it with Settings → Mobile and
 /// just keeps handing it the latest state.
 ///
 /// Thread-safe: <see cref="Publish"/>, the list publishes and

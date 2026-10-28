@@ -4,10 +4,12 @@ using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Services;
 using FTX1RemoteWindows.Services.Hub;
 using FTX1RemoteWindows.Settings;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage.Pickers;
 
 namespace FTX1RemoteWindows;
@@ -49,7 +51,7 @@ public sealed partial class SettingsDialog : Window
     /// (RigctldProcessController.LastResolution), shown when it differs
     /// from what the edited choice resolves to.
     /// `hubAudioRunning`: whether this app's audio is on, which the iPad's
-    /// receive audio comes through (Settings → Hub says so when it isn't).
+    /// receive audio comes through (Settings → Mobile says so when it isn't).
     /// `wavelogReporter`/`wavelogTuner`: the running Wavelog CAT pieces,
     /// for the Logbook tab's live status lines.
     public SettingsDialog(Window owner, bool connected, RigctldBinary.Resolution? inUse = null, HubServer? hub = null,
@@ -108,6 +110,7 @@ public sealed partial class SettingsDialog : Window
                 _hub.StatusChanged += OnHubStatusChanged;
             }
             RefreshHubStatus();
+            StartHubProbe();
             RefreshVersions();
             RefreshHrdStatus();
             RefreshLog4OmStatus();
@@ -129,6 +132,7 @@ public sealed partial class SettingsDialog : Window
             {
                 _hub.StatusChanged -= OnHubStatusChanged;
             }
+            _hubProbeTimer?.Stop();
             _versionLookup?.Cancel();
             if (_wavelogReporter is not null)
             {
@@ -225,7 +229,6 @@ public sealed partial class SettingsDialog : Window
 
         // Hub
         HubEnabledSwitch.IsOn = AppSettings.HubEnabled;
-        HubPortText.Text = Loc.F("settings.portXWsThis", HubServer.Port, HubServer.Port);
     }
 
     /// Raised once the window is shown (the ContentDialog's Opened).
@@ -313,6 +316,10 @@ public sealed partial class SettingsDialog : Window
         if (item is not null && !ReferenceEquals(TabBar.SelectedItem, item))
         {
             TabBar.SelectedItem = item;
+        }
+        if (tag == "Hub")
+        {
+            ProbeHubNetwork();
         }
     }
 
@@ -950,14 +957,17 @@ public sealed partial class SettingsDialog : Window
     private static void SetStatusLine(TextBlock text, string message, StatusTone tone)
     {
         text.Text = message;
-        text.Foreground = tone switch
+        text.Foreground = ToneBrush(tone);
+    }
+
+    private static Brush ToneBrush(StatusTone tone) =>
+        tone switch
         {
             StatusTone.Success => (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"],
             StatusTone.Warning => new SolidColorBrush(Microsoft.UI.Colors.DarkOrange),
             StatusTone.Failure => (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"],
             _ => new SolidColorBrush(Microsoft.UI.Colors.Gray),
         };
-    }
 
     /// The fetched list, or the saved pick alone until it's fetched; "None"
     /// while nothing is picked.
@@ -1188,33 +1198,330 @@ public sealed partial class SettingsDialog : Window
 
     private bool _isOpen;
 
-    // Hub: the server's live state; the switch itself applies on Save.
+    // Mobile (Tag "Hub"): what to type into the iPad's Desktop hub host
+    // field, whether the hub is reachable and who's connected — the Mac's
+    // Settings → Mobile (MobileSettingsTab.swift). The switch itself applies
+    // on Save; the rest is live.
 
     private readonly HubServer? _hub;
     private readonly bool _hubAudioRunning;
+    private DispatcherQueueTimer? _hubProbeTimer;
+    /// The addresses, Tailscale and firewall, re-read every 5 s while the
+    /// tab shows (null until the first read).
+    private HubNetworkProbe.Snapshot? _hubSnapshot;
+    private bool _hubProbing;
+    /// MagicDNS short names of connected tailnet clients, by IP; null while
+    /// looking up or when there's none. Tailnet clients only: a LAN address
+    /// rarely has a reverse name, and looking one up can stall.
+    private readonly Dictionary<string, string?> _hubClientNames = [];
+    /// What each panel last showed, so a refresh that changes nothing
+    /// doesn't rebuild it (and drop a text selection).
+    private readonly Dictionary<Panel, string> _hubShown = [];
+
+    private const string TailscaleDownload = "https://tailscale.com/download";
+
+    private enum HubLineKind { Status, Address, Note, OpenTailscale, GetTailscale, TailscaleLink }
+
+    private sealed record HubLine(HubLineKind Kind, string Label, string Value, StatusTone Tone = StatusTone.Secondary);
 
     private void OnHubStatusChanged() => DispatcherQueue.TryEnqueue(RefreshHubStatus);
 
-    private void RefreshHubStatus()
+    /// From Opened; stopped on Closed.
+    private void StartHubProbe()
     {
-        if (_hub is null)
+        _hubProbeTimer = DispatcherQueue.CreateTimer();
+        _hubProbeTimer.Interval = TimeSpan.FromSeconds(5);
+        _hubProbeTimer.Tick += (_, _) => ProbeHubNetwork();
+        _hubProbeTimer.Start();
+        ProbeHubNetwork();
+    }
+
+    /// Only while the tab shows, one read at a time (it blocks for up to a
+    /// few seconds: tailscale.exe, the firewall's COM API, reverse DNS).
+    private async void ProbeHubNetwork()
+    {
+        if (_hubProbing || !_isOpen || HubTab.Visibility != Visibility.Visible)
         {
             return;
         }
-        HubStatusText.Text = _hub.IsListening
-            ? Loc.F("settings.listeningOnPortX", HubServer.Port)
-            : _hub.LastError is { } error
-                ? Loc.F("settings.notListeningX", error)
-                : Loc.S("settings.notListening");
-        var clients = _hub.Clients;
-        HubClientsList.Items.Clear();
-        foreach (var client in clients)
+        _hubProbing = true;
+        try
         {
-            HubClientsList.Items.Add(Loc.F("settings.xConnectedX", client.Address, client.ConnectedAt));
+            var appPath = Environment.ProcessPath;
+            _hubSnapshot = await Task.Run(() => HubNetworkProbe.Read(appPath, HubServer.Port));
         }
-        HubNoClientsText.Visibility = clients.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        HubAudioOffText.Visibility = _hubAudioRunning ? Visibility.Collapsed : Visibility.Visible;
+        finally
+        {
+            _hubProbing = false;
+        }
+        if (_isOpen)
+        {
+            RefreshHubStatus();
+        }
     }
+
+    private void RefreshHubStatus()
+    {
+        HubAudioOffText.Visibility = _hubAudioRunning ? Visibility.Collapsed : Visibility.Visible;
+        var clients = _hub?.Clients ?? [];
+        ResolveHubClientNames(clients);
+        ShowHubLines(HubStatusPanel, HubStatusLines(clients));
+        ShowHubLines(HubLanPanel, HubLanLines());
+        ShowHubLines(HubTailscalePanel, HubTailscaleLines());
+    }
+
+    private List<HubLine> HubStatusLines(IReadOnlyList<HubServer.ClientInfo> clients)
+    {
+        var lines = new List<HubLine>();
+        var server = Loc.S("settings.mobile.hubServer");
+        if (_hub is { IsListening: true })
+        {
+            lines.Add(new(HubLineKind.Status, server, Loc.F("settings.listeningOnPortX", HubServer.Port), StatusTone.Success));
+        }
+        else if (!AppSettings.HubEnabled)
+        {
+            lines.Add(new(HubLineKind.Status, server, Loc.S("settings.mobile.hubOff")));
+        }
+        else
+        {
+            lines.Add(new(HubLineKind.Status, server, _hub?.LastError is { } error
+                ? Loc.F("settings.notListeningX", error)
+                : Loc.S("settings.notListening"), StatusTone.Warning));
+        }
+
+        var firewall = Loc.S("settings.mobile.firewall");
+        lines.Add(_hubSnapshot switch
+        {
+            null => new(HubLineKind.Status, firewall, Loc.S("common.checking")),
+            { Firewall: null } => new(HubLineKind.Status, firewall, "—"),
+            { Firewall: { } verdict } => FirewallLine(firewall, verdict),
+        });
+
+        var devices = Loc.S("settings.mobile.connectedDevices");
+        if (clients.Count == 0)
+        {
+            lines.Add(new(HubLineKind.Status, devices, Loc.S("settings.mobile.noDevicesConnected")));
+        }
+        foreach (var (client, index) in clients.Select((c, i) => (c, i)))
+        {
+            var text = _hubClientNames.GetValueOrDefault(client.Address) is { } name
+                ? Loc.F("settings.mobile.clientNamed", name, client.Address, client.ConnectedAt)
+                : Loc.F("settings.mobile.client", client.Address, client.ConnectedAt);
+            lines.Add(new(HubLineKind.Status, index == 0 ? devices : "", text, StatusTone.Success));
+        }
+        return lines;
+    }
+
+    private static HubLine FirewallLine(string label, FirewallVerdict verdict)
+    {
+        var networks = string.Join(", ", new[] { FirewallProfiles.Domain, FirewallProfiles.Private, FirewallProfiles.Public }
+            .Where(p => verdict.Profiles.HasFlag(p))
+            .Select(p => Loc.S($"settings.mobile.network{p}")));
+        return verdict.Kind switch
+        {
+            FirewallVerdictKind.Off => new(HubLineKind.Status, label, Loc.S("settings.mobile.firewallOff"), StatusTone.Success),
+            FirewallVerdictKind.AllowsApp => new(HubLineKind.Status, label, Loc.S("settings.mobile.firewallAllows"), StatusTone.Success),
+            FirewallVerdictKind.NoRule => new(HubLineKind.Status, label, Loc.F("settings.mobile.firewallNoRule", networks), StatusTone.Warning),
+            FirewallVerdictKind.BlocksApp => new(HubLineKind.Status, label, Loc.F("settings.mobile.firewallBlocksApp", networks), StatusTone.Failure),
+            _ => new(HubLineKind.Status, label, Loc.F("settings.mobile.firewallBlocksAll", networks), StatusTone.Failure),
+        };
+    }
+
+    private List<HubLine> HubLanLines()
+    {
+        if (_hubSnapshot is not { } snapshot)
+        {
+            return [new(HubLineKind.Note, "", Loc.S("common.checking"))];
+        }
+        if (snapshot.Lan.Count == 0)
+        {
+            return [new(HubLineKind.Status, "", Loc.S("settings.mobile.noLocalNetwork"), StatusTone.Warning)];
+        }
+        var lines = snapshot.Lan.Select(a => new HubLine(HubLineKind.Address, a.InterfaceName, a.Ip)).ToList();
+        if (snapshot.LocalHostName is { } host)
+        {
+            lines.Add(new(HubLineKind.Address, Loc.S("settings.mobile.localHostName"), host));
+        }
+        return lines;
+    }
+
+    private List<HubLine> HubTailscaleLines()
+    {
+        var tailscale = "Tailscale";
+        if (_hubSnapshot is not { } snapshot)
+        {
+            return [new(HubLineKind.Note, "", Loc.S("common.checking"))];
+        }
+        if (snapshot.TailnetIp is { } ip)
+        {
+            var lines = new List<HubLine>
+            {
+                new(HubLineKind.Status, tailscale, Loc.S("settings.mobile.tailscaleConnected"), StatusTone.Success),
+            };
+            if (snapshot.TailnetName is { } name)
+            {
+                lines.Add(new(HubLineKind.Address, Loc.S("settings.mobile.magicDNSName"), name));
+                // The short name works on the iPad too while MagicDNS is on.
+                var shortName = HubConnectionInfo.ShortName(name);
+                if (shortName != name)
+                {
+                    lines.Add(new(HubLineKind.Address, Loc.S("settings.mobile.shortName"), shortName));
+                }
+            }
+            lines.Add(new(HubLineKind.Address, Loc.S("settings.mobile.tailscaleIP"), ip));
+            lines.Add(new(HubLineKind.TailscaleLink, "", Loc.S("settings.mobile.getTailscaleForIPad")));
+            return lines;
+        }
+        return snapshot.TailscaleInstalled
+            ?
+            [
+                new(HubLineKind.Status, tailscale, Loc.S("settings.mobile.tailscaleNotConnected"), StatusTone.Warning),
+                new(HubLineKind.Note, "", Loc.S("settings.mobile.tailscaleExplanation")),
+                new(HubLineKind.OpenTailscale, "", Loc.S("settings.mobile.openTailscale")),
+            ]
+            :
+            [
+                new(HubLineKind.Status, tailscale, Loc.S("settings.mobile.tailscaleNotInstalled")),
+                new(HubLineKind.Note, "", Loc.S("settings.mobile.tailscaleExplanation")),
+                new(HubLineKind.GetTailscale, "", Loc.S("settings.mobile.getTailscale")),
+            ];
+    }
+
+    /// Looks up the MagicDNS names of tailnet clients not looked up yet; a
+    /// found name refreshes the list.
+    private void ResolveHubClientNames(IReadOnlyList<HubServer.ClientInfo> clients)
+    {
+        foreach (var ip in clients.Select(c => c.Address).Distinct()
+                     .Where(ip => HubConnectionInfo.IsTailnet(ip) && !_hubClientNames.ContainsKey(ip)))
+        {
+            _hubClientNames[ip] = null;
+            _ = Task.Run(() => HubNetworkProbe.ReverseTailnetName(ip)).ContinueWith(lookup =>
+            {
+                if (lookup.Result is { } name)
+                {
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        _hubClientNames[ip] = HubConnectionInfo.ShortName(name);
+                        if (_isOpen)
+                        {
+                            RefreshHubStatus();
+                        }
+                    });
+                }
+            }, TaskContinuationOptions.OnlyOnRanToCompletion);
+        }
+    }
+
+    private void ShowHubLines(Panel panel, List<HubLine> lines)
+    {
+        var shown = string.Join("\n", lines.Select(l => $"{l.Kind}\t{l.Label}\t{l.Value}\t{l.Tone}"));
+        if (_hubShown.TryGetValue(panel, out var last) && last == shown)
+        {
+            return;
+        }
+        _hubShown[panel] = shown;
+        panel.Children.Clear();
+        foreach (var line in lines)
+        {
+            panel.Children.Add(HubElement(line));
+        }
+    }
+
+    private static UIElement HubElement(HubLine line)
+    {
+        switch (line.Kind)
+        {
+            case HubLineKind.Status:
+                return HubLabeled(line.Label, HubStatusLine(line.Value, line.Tone));
+            case HubLineKind.Address:
+                return HubLabeled(line.Label, HubAddress(line.Value));
+            case HubLineKind.Note:
+                return new TextBlock { Text = line.Value, Foreground = ToneBrush(StatusTone.Secondary), TextWrapping = TextWrapping.Wrap };
+            case HubLineKind.TailscaleLink:
+                return new HyperlinkButton { Content = line.Value, NavigateUri = new Uri(TailscaleDownload), Padding = new Thickness(0) };
+            default:
+                var button = new Button { Content = line.Value };
+                if (line.Kind == HubLineKind.GetTailscale)
+                {
+                    button.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+                }
+                var target = line.Kind == HubLineKind.GetTailscale ? TailscaleDownload : HubNetworkProbe.TailscaleGuiPath;
+                button.Click += (_, _) =>
+                {
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+                    }
+                    catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+                    {
+                        AppLog.Write($"settings: couldn't open {target}: {ex.Message}");
+                    }
+                };
+                return button;
+        }
+    }
+
+    /// A label column and its value, like the Mac's LabeledContent.
+    private static Grid HubLabeled(string label, UIElement value)
+    {
+        var grid = new Grid { ColumnSpacing = 12 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var text = new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+        grid.Children.Add(text);
+        Grid.SetColumn((FrameworkElement)value, 1);
+        grid.Children.Add(value);
+        return grid;
+    }
+
+    /// A coloured dot and a line of text.
+    private static Grid HubStatusLine(string text, StatusTone tone)
+    {
+        var grid = new Grid { ColumnSpacing = 8 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.Children.Add(new Microsoft.UI.Xaml.Shapes.Ellipse
+        {
+            Width = 8,
+            Height = 8,
+            Fill = ToneBrush(tone),
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 6, 0, 0),
+        });
+        var line = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
+        Grid.SetColumn(line, 1);
+        grid.Children.Add(line);
+        return grid;
+    }
+
+    /// An address to type into the iPad, selectable, with a copy button.
+    private static StackPanel HubAddress(string value)
+    {
+        var copy = new Button
+        {
+            Content = new FontIcon { Glyph = "\uE8C8", FontSize = 14 },
+            Padding = new Thickness(6, 4, 6, 4),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        ToolTipService.SetToolTip(copy, Loc.S("common.copy"));
+        copy.Click += (_, _) =>
+        {
+            var package = new DataPackage();
+            package.SetText(value);
+            Clipboard.SetContent(package);
+        };
+        var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = value,
+            FontFamily = new FontFamily("Consolas"),
+            IsTextSelectionEnabled = true,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        panel.Children.Add(copy);
+        return panel;
+    }
+
     private CancellationTokenSource? _versionLookup;
 
     private void RefreshVersionButton_Click(object sender, RoutedEventArgs e) => RefreshVersions();

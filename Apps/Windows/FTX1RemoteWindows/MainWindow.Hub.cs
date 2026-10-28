@@ -23,7 +23,7 @@ namespace FTX1RemoteWindows;
 /// disconnected, confirming each stop (phase 6, <see cref="_hubKeyer"/> and
 /// the keyer members at the end).
 ///
-/// The hub runs whenever Settings → Hub allows it, connected to the rig or
+/// The hub runs whenever Settings → Mobile allows it, connected to the rig or
 /// not, so an iPad stays connected across rigctld reconnects. Pushes are
 /// driven by one 100 ms timer that sends the state whenever its JSON
 /// changed: each poll stamps LastUpdated (so every poll is pushed) and a
@@ -84,7 +84,7 @@ public sealed partial class MainWindow : IHubRigHost
         }
     }
 
-    /// Settings → Hub's server, for its live status and client list.
+    /// Settings → Mobile's server, for its live status and client list.
     internal HubServer Hub => _hub;
 
     /// Matches the hub to the saved setting.
@@ -234,7 +234,7 @@ public sealed partial class MainWindow : IHubRigHost
         }
     }
 
-    /// Whether this app's audio is running — Settings → Hub says so when
+    /// Whether this app's audio is running — Settings → Mobile says so when
     /// not, since the iPad then hears nothing.
     internal bool HubAudioRunning => _audioSource is not null;
 

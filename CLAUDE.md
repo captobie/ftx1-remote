@@ -1513,8 +1513,27 @@ lists every platform). Re-read every 5 s while the tab shows; client
 names are reverse-looked-up for tailnet IPs only (a LAN PTR lookup can
 stall). Long Texts inside the tab's Form need a max width (the Form
 offers its full width to the trailing column, past the window's edge).
-Windows' Desktop hub has no equivalent yet. Not seen: the not-installed
-and not-connected Tailscale states, firewall-on states.
+Not seen: the not-installed and not-connected Tailscale states,
+firewall-on states.
+
+**Windows port (2026-10-28; written without a Windows build — not yet
+compiled, unit-tested or run)**: the Windows hub's Settings → Hub tab is
+now **Mobile** (tag still "Hub"), with the same sections under its "Allow
+iPad connections" switch. `Services/Hub/HubConnectionInfo.cs` (OS-free,
+`HubConnectionInfoTests`): tailnet range, MagicDNS names (only `.ts.net`/
+`.tailscale.net` — Windows answers a reverse lookup of its own address
+with its bare computer name), `tailscale status --json` parsing, and
+`FirewallCheck.Evaluate`: per network profile the PC is on (none = judge
+Private + Public), off / block-all / a block rule for this exe (beats
+allow) / an allow rule / no rule yet; rules count for this exe (TCP or
+any, port incl. 8765) or for no program naming 8765 — not services, not
+any-program any-port. `HubNetworkProbe.cs` (Windows): `NetworkInterface`
+(LAN = IPv4 on an interface with an IPv4 gateway, which leaves out
+Hyper-V/WSL switches), `<hostname>.local`, `%ProgramFiles%\Tailscale\
+tailscale.exe status --json --peers=false` for the name (reverse DNS as
+fallback), Windows Firewall through `HNetCfg.FwPolicy2` with `dynamic`
+(reads without admin; any failure shows "—", logged once). Open
+Tailscale starts `tailscale-ipn.exe`.
 
 ## License-class guardrail (Mac, 2026-10-25; unit-tested, then rig-tested by the user the same day)
 
@@ -1648,7 +1667,7 @@ coordinated); the last player's disconnect, the lock, hub off and rig
 disconnect send a **confirmed** "KY00" (read PTT, up to 5 tries, then
 `T currVFO 0`, every try logged); a play is refused while something else
 transmits. Known gap: a dropped iPad Wi-Fi is noticed only after ~20 s
-(user decision not to add a stalled-send check). Settings → Hub,
+(user decision not to add a stalled-send check). Settings → Mobile (was Hub),
 off by default; only loopback, Tailscale and private addresses are let
 in. This reverses "leaf client only" for this one feature. The wire
 types copy Swift's `RigState`/`RigCommand`; `Apps/Windows/FTX1RemoteWindows.Tests`
