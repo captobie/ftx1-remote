@@ -7,6 +7,7 @@ using FTX1RemoteWindows.Settings;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel.DataTransfer;
@@ -1305,8 +1306,8 @@ public sealed partial class SettingsDialog : Window
         foreach (var (client, index) in clients.Select((c, i) => (c, i)))
         {
             var text = _hubClientNames.GetValueOrDefault(client.Address) is { } name
-                ? Loc.F("settings.mobile.clientNamed", name, client.Address, client.ConnectedAt)
-                : Loc.F("settings.mobile.client", client.Address, client.ConnectedAt);
+                ? Loc.F("settings.mobile.clientNamed", name, client.Address, client.ConnectedAt.ToString("t"))
+                : Loc.F("settings.mobile.client", client.Address, client.ConnectedAt.ToString("t"));
             lines.Add(new(HubLineKind.Status, index == 0 ? devices : "", text, StatusTone.Success));
         }
         return lines;
@@ -1504,6 +1505,7 @@ public sealed partial class SettingsDialog : Window
             VerticalAlignment = VerticalAlignment.Center,
         };
         ToolTipService.SetToolTip(copy, Loc.S("common.copy"));
+        AutomationProperties.SetName(copy, Loc.S("common.copy"));
         copy.Click += (_, _) =>
         {
             var package = new DataPackage();

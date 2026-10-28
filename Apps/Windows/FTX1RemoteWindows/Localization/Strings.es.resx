@@ -1807,10 +1807,10 @@
     <value>Móvil</value>
   </data>
   <data name="settings.mobile.client" xml:space="preserve">
-    <value>{0}, desde las {1:t}</value>
+    <value>{0}, desde las {1}</value>
   </data>
   <data name="settings.mobile.clientNamed" xml:space="preserve">
-    <value>{0} ({1}), desde las {2:t}</value>
+    <value>{0} ({1}), desde las {2}</value>
   </data>
   <data name="settings.mobile.connectedDevices" xml:space="preserve">
     <value>Dispositivos conectados</value>

@@ -1516,8 +1516,9 @@ offers its full width to the trailing column, past the window's edge).
 Not seen: the not-installed and not-connected Tailscale states,
 firewall-on states.
 
-**Windows port (2026-10-28; written without a Windows build — not yet
-compiled, unit-tested or run)**: the Windows hub's Settings → Hub tab is
+**Windows port (2026-10-28; written in a cloud session without a .NET
+SDK, then built, unit-tested and run on the user's PC the same day; not
+yet tried from the real iPad)**: the Windows hub's Settings → Hub tab is
 now **Mobile** (tag still "Hub"), with the same sections under its "Allow
 iPad connections" switch. `Services/Hub/HubConnectionInfo.cs` (OS-free,
 `HubConnectionInfoTests`): tailnet range, MagicDNS names (only `.ts.net`/
@@ -1533,7 +1534,19 @@ Hyper-V/WSL switches), `<hostname>.local`, `%ProgramFiles%\Tailscale\
 tailscale.exe status --json --peers=false` for the name (reverse DNS as
 fallback), Windows Firewall through `HNetCfg.FwPolicy2` with `dynamic`
 (reads without admin; any failure shows "—", logged once). Open
-Tailscale starts `tailscale-ipn.exe`.
+Tailscale starts `tailscale-ipn.exe`. Seen on the PC through UI
+Automation: Ethernet's address and the `.local` name, Tailscale
+Connected with the right IP, MagicDNS and short name (all five copy
+buttons copy the right text), the firewall line "On, allows FTX1
+Remote" (`dynamic` COM reads work — matches `Get-NetFirewallRule`),
+"Listening on port 8765", and a test WebSocket client from the PC's own
+Tailscale IP listed as "desktop (100.127.46.4), since 10:23 AM", then
+None after it closed. A disconnected Wi-Fi and the Surfshark tunnel are
+correctly left out. Fixed on the way: "since {1:t}" failed
+`LocalizationTests.FormattedStringsFormat` (`t` is DateTime-only, the
+test formats with numbers), so the time is passed pre-formatted; the
+copy buttons got an accessible name. Not seen: Tailscale down/missing,
+the firewall-off/blocked states.
 
 ## License-class guardrail (Mac, 2026-10-25; unit-tested, then rig-tested by the user the same day)
 

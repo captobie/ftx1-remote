@@ -2093,7 +2093,12 @@ the Wi-Fi/Ethernet addresses and `<hostname>.local`, and Tailscale's IP,
 MagicDNS name and short name (each with a copy button), or Open
 Tailscale / Get Tailscale… when it's down or missing. Re-read every 5 s
 while the tab shows (`Services/Hub/HubNetworkProbe.cs`; the logic is in
-`HubConnectionInfo.cs`, unit-tested). Not yet built or run on Windows.
+`HubConnectionInfo.cs`, unit-tested). Built and checked on the user's PC
+(2026-10-28): LAN address and `.local` name, Tailscale IP/MagicDNS/short
+name, every copy button, the firewall verdict ("On, allows FTX1
+Remote"), "Listening on port 8765", and a test client from the PC's own
+Tailscale IP under Connected devices. Not yet tried from the real iPad,
+or with Tailscale down or the firewall blocking.
 
 **Windows Firewall.** The app is unpackaged, so Windows asks "Allow
 FTX1RemoteWindows to communicate on these networks?" the first time the
