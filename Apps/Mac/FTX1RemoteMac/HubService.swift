@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import CoreGraphics
 import FTX1CW
@@ -33,6 +34,7 @@ final class HubService: ObservableObject {
         didSet { enforcePrivilegesWhileKeyed() }
     }
     @Published private(set) var connectionState: ConnectionState = .disconnected
+    private var wakeObserver: NSObjectProtocol?
     @Published private(set) var rigctldProcessState: RigctldProcessController.State = .stopped
     /// Which rigctld the last Local-mode start launched and why (nil
     /// before the first start, or when an already-running one was
@@ -653,6 +655,13 @@ final class HubService: ObservableObject {
     /// the rigctld link — mobile/local clients can connect immediately and
     /// see "rig offline" rather than being unable to reach the Mac at all.
     func start() {
+        if wakeObserver == nil {
+            wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.restartAudioAfterWake() }
+            }
+        }
         straightKey.start()
         wavelogRadio.start()
         wavelogTuner.applySettings()
@@ -1867,6 +1876,37 @@ final class HubService: ObservableObject {
     /// isn't APRS-specific (the waterfall/scope hop the same way), but
     /// APRS is the first feature in this app where a multi-second delay
     /// is actually noticeable rather than just a dropped animation frame.
+    private func startAudio() {
+        audioCapture.start(deviceUID: AudioInputSettings.deviceUID)
+        let outputDeviceID = AudioOutputDeviceLister.deviceID(forUID: AudioOutputSettings.deviceUID)
+        mainAudioPlayback.setOutputDevice(outputDeviceID)
+        mainAudioPlayback.start()
+        // Unconditional in both modes now (2026-09-18) — Local
+        // capture can deliver a genuine Sub channel too, when the
+        // selected input device is stereo (see
+        // `AudioCaptureEngine.process(buffer:bitmap:gain:)`). If
+        // it isn't, `onSubChannelSamples` simply never fires and
+        // this sits idle — harmless, and simpler than tracking
+        // "is the current device actually stereo" as its own piece
+        // of state just to decide whether to start it.
+        subAudioPlayback.setOutputDevice(outputDeviceID)
+        subAudioPlayback.start()
+    }
+
+    /// After a full wake, rebuilds the audio engines if the rig is
+    /// connected. A reconnect during a lid-closed DarkWake starts them
+    /// with no audio hardware, so they stay stopped (see
+    /// `AudioPlaybackEngine.start()`) until something starts them again.
+    private func restartAudioAfterWake() {
+        guard connectionState == .connected else { return }
+        Self.connectionLogger.notice("wake: restarting audio")
+        audioCapture.stop()
+        mainAudioPlayback.stop()
+        subAudioPlayback.stop()
+        scopeFrames.clear()
+        startAudio()
+    }
+
     private func beginBackgroundActivity() {
         guard backgroundActivityToken == nil else { return }
         backgroundActivityToken = ProcessInfo.processInfo.beginActivity(
@@ -1919,20 +1959,7 @@ final class HubService: ObservableObject {
             do {
                 try await rigctld.connect()
                 connectionState = .connected
-                audioCapture.start(deviceUID: AudioInputSettings.deviceUID)
-                let outputDeviceID = AudioOutputDeviceLister.deviceID(forUID: AudioOutputSettings.deviceUID)
-                mainAudioPlayback.setOutputDevice(outputDeviceID)
-                mainAudioPlayback.start()
-                // Unconditional in both modes now (2026-09-18) — Local
-                // capture can deliver a genuine Sub channel too, when the
-                // selected input device is stereo (see
-                // `AudioCaptureEngine.process(buffer:bitmap:gain:)`). If
-                // it isn't, `onSubChannelSamples` simply never fires and
-                // this sits idle — harmless, and simpler than tracking
-                // "is the current device actually stereo" as its own piece
-                // of state just to decide whether to start it.
-                subAudioPlayback.setOutputDevice(outputDeviceID)
-                subAudioPlayback.start()
+                startAudio()
                 beginBackgroundActivity()
                 try await pollLoop()
             } catch {

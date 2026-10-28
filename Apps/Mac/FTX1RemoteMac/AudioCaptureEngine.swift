@@ -365,6 +365,14 @@ final class AudioCaptureEngine {
         // converter as needed, same as it would for any other explicit
         // tap format.
         let tapFormat = inputNode.inputFormat(forBus: 0)
+        // 0 Hz / 0 channels with no input device (e.g. a DarkWake
+        // reconnect) — `installTap` raises an Objective-C exception on
+        // it, which crashed the app later (see `AudioPlaybackEngine.
+        // start()`). Stay stopped until the next start.
+        guard tapFormat.sampleRate > 0, tapFormat.channelCount > 0 else {
+            Self.logger.error("startEngine: no usable input format (sampleRate=\(tapFormat.sampleRate, privacy: .public) channels=\(tapFormat.channelCount, privacy: .public)) — not starting")
+            return
+        }
         Self.logger.notice("startEngine: after prepare(), inputNode input format channels=\(tapFormat.channelCount, privacy: .public) (output side reports \(inputNode.outputFormat(forBus: 0).channelCount, privacy: .public) — installTap uses the input side explicitly, see above)")
 
         // Created fresh per startEngine() call and captured directly by

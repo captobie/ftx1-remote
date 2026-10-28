@@ -115,6 +115,18 @@ public final class AudioPlaybackEngine {
         #endif
 
         let hardwareFormat = engine.outputNode.inputFormat(forBus: 0)
+        // With no output device (seen in a lid-closed DarkWake, when a
+        // reconnect started playback) this reads 0 Hz / 0 channels, and
+        // `connect` with it raises an Objective-C exception. AppKit
+        // swallowed it, but it left the main thread's Swift executor
+        // tracking pointing at a dead stack frame, so the next hover
+        // crashed the app (2026-10-28). Stay stopped; the next `start()`
+        // (reconnect or `HubService`'s wake restart) tries again.
+        guard hardwareFormat.sampleRate > 0, hardwareFormat.channelCount > 0 else {
+            Self.logger.error("start: no usable output format (sampleRate=\(hardwareFormat.sampleRate, privacy: .public) channels=\(hardwareFormat.channelCount, privacy: .public)) — not starting")
+            releaseSessionIfHeld()
+            return
+        }
         let format = AVAudioFormat(
             commonFormat: .pcmFormatFloat32,
             sampleRate: hardwareFormat.sampleRate,
