@@ -175,6 +175,12 @@ public sealed partial class MainWindow : Window
     /// Windows' default is used instead), shown after the link state.
     private string? _playbackNote;
     private const int PlaybackRecheckTicks = 8;
+    /// Counts down to restarting playback after its output device went
+    /// away (<see cref="AudioPlayback.StoppedUnexpectedly"/>); 0 = none
+    /// pending. Retried every <see cref="PlaybackRestartTicks"/> ticks until
+    /// it starts or audio is turned off.
+    private int _playbackRestartCountdown;
+    private const int PlaybackRestartTicks = 8;
 
     /// Suppresses the audio controls' change handlers while the constructor
     /// loads saved values into them.
@@ -416,7 +422,16 @@ public sealed partial class MainWindow : Window
         }
         _mainPlayer = new ChannelPlayer((float)mainAudio.Volume, (float)mainAudio.SquelchThreshold, mainAudio.Muted);
         _subPlayer = new ChannelPlayer((float)subAudio.Volume, (float)subAudio.SquelchThreshold, subAudio.Muted);
-        _playback = new AudioPlayback(_mainPlayer, _subPlayer);
+        _playback = new AudioPlayback(_mainPlayer, _subPlayer, DispatcherQueue);
+        _playback.StoppedUnexpectedly += () =>
+        {
+            if (_audioSource is null)
+            {
+                return;
+            }
+            _playbackError = Loc.S("audioPlayback.outputDeviceStoppedRetrying");
+            _playbackRestartCountdown = PlaybackRestartTicks;
+        };
 
         _pttIdleBackground = PttButton.Background;
         TransmitEnabledSwitch.IsOn = AppSettings.TransmitEnabled;
@@ -437,6 +452,7 @@ public sealed partial class MainWindow : Window
         _audioStatusTimer.Tick += (_, _) =>
         {
             RecheckBlockedPlayback();
+            RestartLostPlayback();
             UpdateAudioStatus();
         };
 
@@ -2740,6 +2756,7 @@ public sealed partial class MainWindow : Window
         }
         _playback.Stop();
         _playbackBlockedForDeviceId = null;
+        _playbackRestartCountdown = 0;
         _playbackError = null;
         _playbackNote = null;
 
@@ -2789,11 +2806,35 @@ public sealed partial class MainWindow : Window
         StartPlayback();
     }
 
+    /// Restarts playback after its output device went away, on the device
+    /// chosen in Settings → Audio or, while that one is gone, Windows'
+    /// default (<see cref="StartPlayback"/>'s rules, feedback guard
+    /// included).
+    private void RestartLostPlayback()
+    {
+        if (_playbackRestartCountdown == 0 || --_playbackRestartCountdown > 0)
+        {
+            return;
+        }
+        if (_audioSource is null || _playback.IsRunning)
+        {
+            return;
+        }
+        AppLog.Write("audio-playback: restarting after the output device stopped");
+        StartPlayback();
+        if (!_playback.IsRunning && _playbackBlockedForDeviceId is null)
+        {
+            _playbackError ??= Loc.S("audioPlayback.outputDeviceStoppedRetrying");
+            _playbackRestartCountdown = PlaybackRestartTicks;
+        }
+    }
+
     private async Task StopAudioAsync()
     {
         var source = _audioSource;
         _audioSource = null;
         _playbackBlockedForDeviceId = null;
+        _playbackRestartCountdown = 0;
         _audioStatusTimer.Stop();
         if (source is not null)
         {

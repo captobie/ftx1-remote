@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.UI.Dispatching;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -20,8 +21,17 @@ public sealed class AudioPlayback : IDisposable
     public ChannelPlayer Main { get; }
     public ChannelPlayer Sub { get; }
 
+    private readonly DispatcherQueue _dispatcher;
     private WasapiOut? _output;
     private MMDevice? _device;
+
+    /// Raised on the UI thread when playback stops by itself — the output
+    /// device went away (unplugged, sleep, driver reset) — not on
+    /// <see cref="Stop"/>. Playback is already stopped by then; the owner
+    /// restarts it. Without this a lost device left a dead WasapiOut in
+    /// place, and <see cref="Start"/> returned early on it, so audio stayed
+    /// silent until Audio was toggled.
+    public event Action? StoppedUnexpectedly;
 
     /// Active output devices, for the picker.
     public static List<(string Id, string Name)> ListOutputDevices()
@@ -76,8 +86,9 @@ public sealed class AudioPlayback : IDisposable
         }
     }
 
-    public AudioPlayback(ChannelPlayer main, ChannelPlayer sub)
+    public AudioPlayback(ChannelPlayer main, ChannelPlayer sub, DispatcherQueue dispatcher)
     {
+        _dispatcher = dispatcher;
         Main = main;
         Sub = sub;
     }
@@ -127,8 +138,20 @@ public sealed class AudioPlayback : IDisposable
 
             var output = new WasapiOut(_device, AudioClientShareMode.Shared, useEventSync: true, latency: 60);
             output.Init(chain);
-            output.Play();
+            output.PlaybackStopped += (sender, e) => _dispatcher.TryEnqueue(() =>
+            {
+                // Stop() clears _output first, so this is only a stop the
+                // app didn't ask for.
+                if (!ReferenceEquals(sender, _output))
+                {
+                    return;
+                }
+                AppLog.Write($"audio-playback: stopped on its own: {e.Exception?.Message ?? "no error"}");
+                Stop();
+                StoppedUnexpectedly?.Invoke();
+            });
             _output = output;
+            output.Play();
             AppLog.Write($"audio-playback: started on {_device.FriendlyName}, mix rate {mixRate} Hz");
             return null;
         }

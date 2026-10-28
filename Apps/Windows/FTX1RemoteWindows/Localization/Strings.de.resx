@@ -132,6 +132,9 @@
   <data name="audioPlayback.noAudioOutputDevice" xml:space="preserve">
     <value>kein Audioausgabegerät</value>
   </data>
+  <data name="audioPlayback.outputDeviceStoppedRetrying" xml:space="preserve">
+    <value>Ausgabegerät gestoppt, neuer Versuch</value>
+  </data>
   <data name="buttonValueColor.blue" xml:space="preserve">
     <value>Blau</value>
   </data>

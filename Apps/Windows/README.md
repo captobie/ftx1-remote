@@ -725,6 +725,18 @@ following polls, front-panel swap, both in single-receive, manual override,
 persisted state on relaunch, an unanswered raw command not wedging the
 poll loop), not yet on the rig.
 
+**Lost output device (2026-10-28, not yet built or tested on the PC)**:
+when playback stops by itself — the output device unplugged, the PC
+asleep, a driver reset — `AudioPlayback.StoppedUnexpectedly` fires (from
+WasapiOut's `PlaybackStopped`, on the UI thread), the status shows
+"output device stopped, retrying", and `MainWindow.RestartLostPlayback`
+runs `StartPlayback` every 2 s (feedback guard included) until it starts
+or Audio goes off. Before, the dead WasapiOut stayed in place and
+`Start` returned early on it: silent until Audio was toggled. Found while
+checking the Mac's DarkWake audio crash, which can't happen here (that
+was an Objective-C exception unwinding through Swift). Capture already
+retried on its own.
+
 Not done yet:
 - Local mode: no automatic check that the input device is really the
   rig's (it only pre-selects by name).
