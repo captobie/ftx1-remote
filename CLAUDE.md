@@ -1517,8 +1517,8 @@ Not seen: the not-installed and not-connected Tailscale states,
 firewall-on states.
 
 **Windows port (2026-10-28; written in a cloud session without a .NET
-SDK, then built, unit-tested and run on the user's PC the same day; not
-yet tried from the real iPad)**: the Windows hub's Settings → Hub tab is
+SDK, then built, unit-tested and run on the user's PC the same day, and
+a live connection from a real iPhone tested by the user, working)**: the Windows hub's Settings → Hub tab is
 now **Mobile** (tag still "Hub"), with the same sections under its "Allow
 iPad connections" switch. `Services/Hub/HubConnectionInfo.cs` (OS-free,
 `HubConnectionInfoTests`): tailnet range, MagicDNS names (only `.ts.net`/
@@ -1545,7 +1545,8 @@ None after it closed. A disconnected Wi-Fi and the Surfshark tunnel are
 correctly left out. Fixed on the way: "since {1:t}" failed
 `LocalizationTests.FormattedStringsFormat` (`t` is DateTime-only, the
 test formats with numbers), so the time is passed pre-formatted; the
-copy buttons got an accessible name. Not seen: Tailscale down/missing,
+copy buttons got an accessible name. Then the user connected a real
+iPhone to the PC's hub, working. Not seen: Tailscale down/missing,
 the firewall-off/blocked states.
 
 ## License-class guardrail (Mac, 2026-10-25; unit-tested, then rig-tested by the user the same day)

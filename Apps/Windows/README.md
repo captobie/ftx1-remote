@@ -2097,8 +2097,9 @@ while the tab shows (`Services/Hub/HubNetworkProbe.cs`; the logic is in
 (2026-10-28): LAN address and `.local` name, Tailscale IP/MagicDNS/short
 name, every copy button, the firewall verdict ("On, allows FTX1
 Remote"), "Listening on port 8765", and a test client from the PC's own
-Tailscale IP under Connected devices. Not yet tried from the real iPad,
-or with Tailscale down or the firewall blocking.
+Tailscale IP under Connected devices; then a live connection from a real
+iPhone, tested by the user, working. Not yet tried with Tailscale down or
+the firewall blocking.
 
 **Windows Firewall.** The app is unpackaged, so Windows asks "Allow
 FTX1RemoteWindows to communicate on these networks?" the first time the
