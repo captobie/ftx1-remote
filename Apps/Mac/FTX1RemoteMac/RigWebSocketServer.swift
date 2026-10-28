@@ -21,6 +21,9 @@ actor RigWebSocketServer {
     /// before the OS confirms the bind actually succeeded.
     private var isReady = false
     private var connections: [ObjectIdentifier: Connection] = [:]
+    /// Told the connected clients whenever one connects or drops — for
+    /// Settings → Mobile.
+    private var onClientsChanged: (@Sendable ([HubClientInfo]) -> Void)?
     private var latestState: RigState?
     /// Sent to each client on connect, like `latestState`.
     private var latestMemoryList: MemoryListSnapshot?
@@ -200,6 +203,15 @@ actor RigWebSocketServer {
         isReady
     }
 
+    func setOnClientsChanged(_ handler: @escaping @Sendable ([HubClientInfo]) -> Void) {
+        onClientsChanged = handler
+        handler(clientInfos)
+    }
+
+    private var clientInfos: [HubClientInfo] {
+        connections.values.map(\.info).sorted { $0.connectedAt < $1.connectedAt }
+    }
+
     func stop() {
         listener?.cancel()
         listener = nil
@@ -208,6 +220,7 @@ actor RigWebSocketServer {
             connection.close()
         }
         connections.removeAll()
+        onClientsChanged?([])
         latestState = nil
         onCommandReceived = nil
     }
@@ -289,6 +302,7 @@ actor RigWebSocketServer {
         )
         connections[client.id] = client
         client.start()
+        onClientsChanged?(clientInfos)
 
         if let latestState, let data = try? JSONEncoder().encode(RigStatePush(state: latestState)) {
             client.send(data)
@@ -420,7 +434,9 @@ actor RigWebSocketServer {
     }
 
     private func remove(_ id: ObjectIdentifier) {
-        connections.removeValue(forKey: id)
+        if connections.removeValue(forKey: id) != nil {
+            onClientsChanged?(clientInfos)
+        }
         if pttHolder == id {
             pttHolder = nil
             onCommandReceived?(.setPTT(false))
@@ -433,6 +449,15 @@ actor RigWebSocketServer {
     }
 }
 
+/// One connected hub client, as Settings → Mobile lists it.
+struct HubClientInfo: Identifiable, Equatable, Sendable {
+    let id: ObjectIdentifier
+    /// The client's IP address ("100.101.102.103"), or "?" if the
+    /// connection didn't say.
+    let address: String
+    let connectedAt: Date
+}
+
 enum RigWebSocketServerError: Error {
     case invalidPort
 }
@@ -441,6 +466,7 @@ enum RigWebSocketServerError: Error {
 /// receive loop and JSON encode/decode against the shared wire types.
 private final class Connection {
     let id: ObjectIdentifier
+    let info: HubClientInfo
 
     private let connection: NWConnection
     private let onCommand: (RigCommand) -> Void
@@ -459,11 +485,27 @@ private final class Connection {
     ) {
         self.connection = connection
         self.id = ObjectIdentifier(connection)
+        self.info = HubClientInfo(id: id, address: Self.address(of: connection.endpoint), connectedAt: Date())
         self.onCommand = onCommand
         self.onTXAudio = onTXAudio
         self.onMenuItemRead = onMenuItemRead
         self.onCWKeyer = onCWKeyer
         self.onClose = onClose
+    }
+
+    /// The peer's IP without its port, interface scope ("%en0") or IPv4-in-
+    /// IPv6 prefix.
+    private static func address(of endpoint: NWEndpoint) -> String {
+        guard case .hostPort(let host, _) = endpoint else { return "?" }
+        var text: String
+        switch host {
+        case .ipv4(let address): text = "\(address)"
+        case .ipv6(let address): text = address.asIPv4.map { "\($0)" } ?? "\(address)"
+        case .name(let name, _): text = name
+        @unknown default: text = "\(host)"
+        }
+        if let scope = text.firstIndex(of: "%") { text = String(text[..<scope]) }
+        return text
     }
 
     func start() {

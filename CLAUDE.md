@@ -1491,6 +1491,31 @@ All apply at once, every window.
   the 7-segment font, the secondary windows (CW, APRS, WebSDR…) under a
   theme, and picking from the Settings pop-ups.
 
+## Settings → Mobile (Mac, 2026-10-28; checked in the built app with a test WebSocket client over Tailscale, then confirmed by the user with a real iPhone the same day)
+
+User request, for the iPad public beta: a tab that tells a user what to
+type into the iPad's Desktop hub host field (`MobileSettingsTab.swift`).
+Shows the hub server's state (`HubServerStatus`, a `let` on `HubService`
+— its own object so a client connecting doesn't re-render `ContentView`;
+listening comes from the rebind loop, so it lags up to 3 s; clients from
+`RigWebSocketServer.setOnClientsChanged`, each a `HubClientInfo` with the
+peer IP and connect time), the macOS application firewall
+(`socketfilterfw --getglobalstate`/`--getappblocked`, readable without
+admin), Tailscale (this Mac's 100.64.0.0/10 address, its MagicDNS name by
+reverse lookup — MagicDNS answers PTR for tailnet IPs — plus the short
+name; installed-but-down vs not installed via the app's bundle IDs
+`io.tailscale.ipn.macsys`/`.macos`, with Open Tailscale or a Get
+Tailscale… link to tailscale.com/download) and the Wi-Fi/Ethernet
+addresses (`en*` IPv4, not link-local) plus the `.local` name. Each
+address has a copy button; the same-network section comes before
+Tailscale's, and both Tailscale links go to tailscale.com/download (it
+lists every platform). Re-read every 5 s while the tab shows; client
+names are reverse-looked-up for tailnet IPs only (a LAN PTR lookup can
+stall). Long Texts inside the tab's Form need a max width (the Form
+offers its full width to the trailing column, past the window's edge).
+Windows' Desktop hub has no equivalent yet. Not seen: the not-installed
+and not-connected Tailscale states, firewall-on states.
+
 ## License-class guardrail (Mac, 2026-10-25; unit-tested, then rig-tested by the user the same day)
 
 Settings → **License** (user request): Off (default — the gate checks the

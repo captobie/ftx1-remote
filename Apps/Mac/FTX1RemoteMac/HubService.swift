@@ -303,6 +303,10 @@ final class HubService: ObservableObject {
     /// Where the WebSDR window's Mute goes while the CW window captures its
     /// audio — see `WebSDRAudioRouting`.
     let webSDRAudioRouting = WebSDRAudioRouting()
+    /// The WebSocket server's listening state and connected clients, for
+    /// Settings → Mobile — its own object, so a client connecting doesn't
+    /// re-render `ContentView`.
+    let hubServerStatus: HubServerStatus
     /// Tools → CW's send pane (keys the rig's CW TEXT keyer memory) — see
     /// `CWSender`. `lazy` so it can be handed `self`.
     lazy var cwSender = CWSender(link: self, logSubsystem: "com.ftx1remote.mac")
@@ -469,6 +473,7 @@ final class HubService: ObservableObject {
         self.commandQueue = CommandQueue(rigctld: client)
         self.server = RigWebSocketServer()
         self.webSocketPort = webSocketPort
+        self.hubServerStatus = HubServerStatus(port: webSocketPort)
         self.rigctldHost = rigctldHost
         self.rigctldPort = rigctldPort
         self.startupRetryInterval = startupRetryInterval
@@ -695,8 +700,14 @@ final class HubService: ObservableObject {
             // nothing is broadcast, and a client would show `RigState()`'s
             // defaults — Enable Transmit on, whatever it really is here.
             if let state = self?.rigState { await server.broadcast(state) }
+            let status = self?.hubServerStatus
+            await server.setOnClientsChanged { clients in
+                Task { @MainActor in status?.clients = clients }
+            }
             while !Task.isCancelled {
-                if await server.isListening() {
+                let listening = await server.isListening()
+                if status?.isListening != listening { status?.isListening = listening }
+                if listening {
                     try? await Task.sleep(for: webSocketRebindDelay)
                     continue
                 }
@@ -799,6 +810,7 @@ final class HubService: ObservableObject {
         cwMonitor.stop()
         webSocketServerTask?.cancel()
         webSocketServerTask = nil
+        hubServerStatus.isListening = false
         Task { [server] in await server.stop() }
     }
 
