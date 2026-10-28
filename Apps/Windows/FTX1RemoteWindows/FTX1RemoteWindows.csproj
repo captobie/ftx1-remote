@@ -8,7 +8,7 @@
     <!-- Matches the Mac app's version; Settings → About shows it and the
          update check compares it with the GitHub releases that carry a Windows
          zip (combined "v<version>" since 0.9; see Services/UpdateChecker.cs). -->
-    <Version>0.10</Version>
+    <Version>0.11</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <Platforms>x64;ARM64</Platforms>
