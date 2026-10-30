@@ -4,40 +4,64 @@ import SwiftUI
 /// (S0–S9 in the first 60%, over-S9 red) and an "S7"/"S9+12" readout, on
 /// a dark background. The iPad's `ChannelStrip` puts it on its top row
 /// beside the mute button; the iPhone shows it on its own under the
-/// frequency (MAIN only, 2026-10-22).
+/// frequency (2026-10-22).
 ///
-/// While transmitting, a MAIN meter (`txReadings` non-nil) shows the TX
-/// meter chosen by tapping it (PO/SWR/ALC/…, the same `MeterSettings.key`
-/// selection the Mac's analog meter uses) with the SWR under the readout;
-/// SUB stays on its S-meter, since the TX readings are Main's (see
-/// `SMeterView.isSub`).
+/// While transmitting, the transmitting side's meter (`txReadings`
+/// non-nil and `transmits`) shows the TX meter chosen by tapping it
+/// (PO/SWR/ALC/…, the same `MeterSettings` selection the Mac's analog
+/// meter uses) with the SWR under the readout.
+///
+/// `twoLines` (the iPhone, 2026-10-30) adds a second line, like the Mac's
+/// Digital S-meter style: the S-meter on top and the picked TX meter
+/// underneath, dim until this side transmits; then the top line is PO
+/// (SWR when PO is the picked meter), so two TX readings show at once.
+/// Tapping picks the second line's meter on either side. No MAIN/SUB
+/// label beside it: `label` is only the accessibility name then.
 public struct BarSMeterView: View {
     let label: String
     let smeterDb: Double?
-    /// TX readings for MAIN's meter; nil for SUB (always shows S).
+    /// The rig's TX readings; nil = this meter never shows them.
     let txReadings: MeterReadings?
     let ptt: Bool
+    /// This meter's receiver is the TX side (`RigState.subTransmits`).
+    let transmits: Bool
+    let twoLines: Bool
 
-    @AppStorage(MeterSettings.key) private var txSelectionRaw: String = MeterSelection.po.rawValue
+    @AppStorage private var txSelectionRaw: String
     @State private var showingMeterPicker = false
 
-    public init(label: String, smeterDb: Double?, txReadings: MeterReadings?, ptt: Bool) {
+    /// `isSub` picks SUB's own remembered meter (`MeterSettings.subKey`),
+    /// as on the Mac.
+    public init(label: String, smeterDb: Double?, txReadings: MeterReadings?, ptt: Bool,
+                transmits: Bool = true, twoLines: Bool = false, isSub: Bool = false) {
         self.label = label
         self.smeterDb = smeterDb
         self.txReadings = txReadings
         self.ptt = ptt
+        self.transmits = transmits
+        self.twoLines = twoLines
+        _txSelectionRaw = AppStorage(wrappedValue: MeterSelection.po.rawValue, isSub ? MeterSettings.subKey : MeterSettings.key)
     }
 
     private var txSelection: MeterSelection { MeterSelection(rawValue: txSelectionRaw) ?? .po }
-    private var showsTX: Bool { ptt && txReadings != nil }
+    private var showsTX: Bool { ptt && transmits && txReadings != nil }
+    /// The two-line top row's meter while transmitting.
+    private var topTXMeter: MeterSelection { txSelection == .po ? .swr : .po }
 
     public var body: some View {
-        HStack(spacing: 10) {
-            Text(showsTX ? txSelection.title : label)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(showsTX ? Color.orange : Color.secondary)
-                .frame(width: 38, alignment: .leading)
-            meter
+        // Two lines name their meters on each line and leave the receiver
+        // to the screen (the iPhone's MAIN/SUB switch), so no side label.
+        if twoLines {
+            twoLineMeter
+        } else {
+            HStack(spacing: 10) {
+                // The meter's name while it shows TX.
+                Text(showsTX ? txSelection.title : label)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(showsTX ? Color.orange : Color.secondary)
+                    .frame(width: 38, alignment: .leading)
+                meter
+            }
         }
     }
 
@@ -65,15 +89,81 @@ public struct BarSMeterView: View {
         .padding(.horizontal, 8)
         .frame(height: 34)
         .background(RoundedRectangle(cornerRadius: 6).fill(Color.black))
-        .contentShape(Rectangle())
-        .onTapGesture { if txReadings != nil { showingMeterPicker = true } }
-        .popover(isPresented: $showingMeterPicker) {
-            meterPicker
-                .presentationCompactAdaptation(.popover)
+        .meterPicker(isPresented: $showingMeterPicker, enabled: txReadings != nil, selection: txSelection) {
+            txSelectionRaw = $0.rawValue
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: "barSMeter.meter \(label)", bundle: .module))
         .accessibilityValue(readout)
+    }
+
+    private var twoLineMeter: some View {
+        VStack(spacing: 2) {
+            if showsTX {
+                txLine(topTXMeter, active: true)
+            } else {
+                line(
+                    title: "S",
+                    titleColor: .white.opacity(0.6),
+                    readout: Self.sUnitText(smeterDb),
+                    bar: BarMeter(
+                        fraction: BarMeter.fraction(forStrengthDb: smeterDb),
+                        ticks: BarMeter.sTicks,
+                        hotFrom: BarMeter.s9Fraction,
+                        litColor: .green
+                    )
+                )
+            }
+            txLine(txSelection, active: showsTX)
+                .opacity(showsTX ? 1 : 0.45)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.black))
+        .meterPicker(isPresented: $showingMeterPicker, enabled: true, selection: txSelection) {
+            txSelectionRaw = $0.rawValue
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "barSMeter.meter \(label)", bundle: .module))
+        .accessibilityValue(twoLineReadout)
+    }
+
+    /// A TX meter's line; inactive = no reading (bar unlit, "—").
+    private func txLine(_ meter: MeterSelection, active: Bool) -> some View {
+        line(
+            title: meter.title,
+            titleColor: active ? .orange : .white.opacity(0.6),
+            readout: active ? txReadings.map { Self.txReadout(meter, $0) } ?? "—" : "—",
+            bar: BarMeter(
+                fraction: active ? txReadings.map { BarMeter.fraction(fromFace: meter.fraction(from: $0)) } ?? 0 : 0,
+                ticks: meter.ticks.map { ($0.label, BarMeter.fraction(fromFace: $0.fraction)) },
+                hotFrom: 1.1,
+                litColor: .orange
+            )
+        )
+    }
+
+    private func line(title: String, titleColor: Color, readout: String, bar: BarMeter) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text(verbatim: title)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(titleColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(width: 32, alignment: .leading)
+            bar
+            Text(verbatim: readout)
+                .font(.system(.callout, design: .monospaced).weight(.semibold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(width: 56, alignment: .trailing)
+        }
+    }
+
+    private var twoLineReadout: String {
+        guard showsTX, let readings = txReadings else { return Self.sUnitText(smeterDb) }
+        return "\(topTXMeter.title) \(Self.txReadout(topTXMeter, readings)), \(txSelection.title) \(Self.txReadout(txSelection, readings))"
     }
 
     private var readout: String {
@@ -112,23 +202,38 @@ public struct BarSMeterView: View {
         return "\(min(max(raw, 0), 255) * 100 / 255)%"
     }
 
-    /// The rig's METER selector for MAIN's TX reading, like tapping the
-    /// analog meter on the Mac.
-    private var meterPicker: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("TX METER").font(.headline)
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(70), spacing: 8), count: 3), spacing: 8) {
-                ForEach(MeterSelection.allCases, id: \.self) { item in
-                    Button(item.title) {
-                        txSelectionRaw = item.rawValue
-                        showingMeterPicker = false
+}
+
+private extension View {
+    /// Tap to open the rig's METER selector (like tapping the Mac's analog
+    /// meter) as a popover grid.
+    func meterPicker(isPresented: Binding<Bool>, enabled: Bool, selection: MeterSelection,
+                     onPick: @escaping (MeterSelection) -> Void) -> some View {
+        contentShape(Rectangle())
+            .onTapGesture { if enabled { isPresented.wrappedValue = true } }
+            .popover(isPresented: isPresented) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(verbatim: "TX METER").font(.headline)
+                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(84), spacing: 8), count: 3), spacing: 8) {
+                        ForEach(MeterSelection.allCases, id: \.self) { item in
+                            Button {
+                                onPick(item)
+                                isPresented.wrappedValue = false
+                            } label: {
+                                // One line: "COMP" wrapped in iOS 26's capsule.
+                                Text(verbatim: item.title)
+                                    .lineLimit(1)
+                                    .fixedSize()
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(item == selection ? .accentColor : .gray)
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(item == txSelection ? .accentColor : .gray)
                 }
+                .padding(14)
+                .presentationCompactAdaptation(.popover)
             }
-        }
-        .padding(14)
     }
 }
 

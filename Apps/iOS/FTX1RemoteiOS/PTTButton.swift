@@ -54,12 +54,21 @@ struct TransmitLockButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: isEnabled ? "lock.open.fill" : "lock.fill")
-                .font(.headline)
-                .foregroundStyle(isEnabled ? Color.white : Color.primary)
+            // The Connected button's shape: same font, padding and corner
+            // radius, with a hidden line of text setting the height.
+            ZStack {
+                Text(verbatim: " ").hidden()
+                Image(systemName: isEnabled ? "lock.open.fill" : "lock.fill")
+            }
+            .frame(minWidth: 24)
+            .font(.headline)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isEnabled ? Color.red : Color.gray.opacity(0.25))
+            .foregroundStyle(isEnabled ? Color.white : Color.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
         }
-        .buttonStyle(.bordered)
-        .tint(isEnabled ? .red : nil)
+        .buttonStyle(.plain)
         .accessibilityLabel(isEnabled ? enabledLabel : disabledLabel)
     }
 }

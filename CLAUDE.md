@@ -794,6 +794,16 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   frequency on both routes (the hub screen's standalone SWR line is gone,
   as on the iPad), and its `PiDirectViewModel` now passes `readsSMeter:
   true` — which also reads SUB's unused "RM2". SUB's meter: see below.
+  **Two lines (2026-10-30, Simulator against the real Pi, receive only)**:
+  user request. `BarSMeterView(twoLines: true)` (iPhone only; the iPad's
+  strips are unchanged) is the Mac's Digital style: S on top, the TX
+  meter picked by tapping it underneath (dim until this side transmits;
+  then PO on top — SWR if PO is picked), with no MAIN/SUB label (the
+  screen's selector says which). Tap works on either side, and SUB
+  keeps its own pick (`MeterSettings.subKey`). The TX readings go to the
+  transmitting side (`transmits:`, `RigState.subTransmits`) — though Pi
+  direct on the iPhone doesn't read "FT", so it treats MAIN as TX there.
+  The picker's buttons no longer wrap "COMP" (iPad too).
 - **iPhone MAIN/SUB selector (2026-10-22, Simulator against the real Pi
   on Pi direct, then confirmed on a real iPhone by the user the same
   day)**:

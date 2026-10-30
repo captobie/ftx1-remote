@@ -211,13 +211,15 @@ struct SideDisplay<Extra: View>: View {
                 mode: state.mode.displayName,
                 onSetFrequency: { send(.setFrequency(hz: $0)) }
             )
-            // Same bar as the iPad's MAIN strip; while transmitting it
-            // shows the TX meter (tap to pick) with the SWR under it.
+            // The iPad strip's bar on two lines: S over the TX meter
+            // picked by tapping it (see `BarSMeterView.twoLines`).
             BarSMeterView(
                 label: "MAIN",
                 smeterDb: state.smeterDb,
-                txReadings: MeterReadings(powerWatts: state.powerWatts, swr: state.swr, tx: state.txMeters),
-                ptt: state.ptt
+                txReadings: txReadings,
+                ptt: state.ptt,
+                transmits: !state.subTransmits,
+                twoLines: true
             )
             extra
             ControlRow(
@@ -234,8 +236,16 @@ struct SideDisplay<Extra: View>: View {
                 mode: state.secondaryMode?.displayName ?? "—",
                 onSetFrequency: { send(.setSecondaryFrequency(hz: $0)) }
             )
-            // The TX readings are Main's, so SUB always shows its S-meter.
-            BarSMeterView(label: "SUB", smeterDb: state.subSmeterDb, txReadings: nil, ptt: state.ptt)
+            // SUB's own meter pick; TX readings only with TX:SUB or split.
+            BarSMeterView(
+                label: "SUB",
+                smeterDb: state.subSmeterDb,
+                txReadings: txReadings,
+                ptt: state.ptt,
+                transmits: state.subTransmits,
+                twoLines: true,
+                isSub: true
+            )
             extra
             ControlRow(
                 currentBand: state.secondaryFrequencyHz.flatMap(BandPicker.name(containing:)),
@@ -246,6 +256,11 @@ struct SideDisplay<Extra: View>: View {
                 onSetPower: { send(.setPowerLevel($0)) }
             )
         }
+    }
+
+    /// The rig's one transmitter's readings, shown on the TX side's meter.
+    private var txReadings: MeterReadings {
+        MeterReadings(powerWatts: state.powerWatts, swr: state.swr, tx: state.txMeters)
     }
 
     /// `.setBand` is MAIN's (and, on the hub, its band memory), so SUB
