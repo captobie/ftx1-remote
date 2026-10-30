@@ -4,7 +4,8 @@ import SwiftUI
 /// then the general-coverage broadcast and utility segments, the same list
 /// the Mac's band picker offers. Picking one calls `onSetBand` with its
 /// name (`RigCommand.setBand`), which the hub resolves to that band's last
-/// frequency/mode.
+/// frequency/mode. The caller picks the picker style: `.menu` on the iPad,
+/// `.inline` inside the iPhone's own `Menu` tile.
 public struct BandPicker: View {
     let currentBand: String?
     let onSetBand: (String) -> Void
@@ -37,7 +38,6 @@ public struct BandPicker: View {
                 }
             }
         }
-        .pickerStyle(.menu)
     }
 
     /// The picker entry a frequency falls in: the amateur band, else the

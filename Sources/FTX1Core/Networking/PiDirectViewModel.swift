@@ -221,6 +221,10 @@ public final class PiDirectViewModel: ObservableObject {
     /// Adds the MENU grid's fields (the iPad), `menuReadsPerTick` of
     /// `menuSettingReads` per tick, round-robin.
     private let readsMenuSettings: Bool
+    /// Accepts RF POWER (`.setPowerLevel`) and reads it with the slow reads (`slowReadEvery`),
+    /// without the rest of the MENU grid (the iPhone's power slider).
+    /// Implied by `readsMenuSettings`, whose round-robin reads it already.
+    private let readsPower: Bool
     /// Where the next tick resumes `menuSettingReads`.
     private var menuReadCursor = 0
     /// Adds the filter row (the iPad): accepts its commands and reads the
@@ -276,6 +280,7 @@ public final class PiDirectViewModel: ObservableObject {
         readsSMeter: Bool = false,
         readsVFODetails: Bool = false,
         readsMenuSettings: Bool = false,
+        readsPower: Bool = false,
         readsFilters: Bool = false,
         decodesAPRS: Bool = false
     ) {
@@ -285,6 +290,7 @@ public final class PiDirectViewModel: ObservableObject {
         self.readsSMeter = readsSMeter
         self.readsVFODetails = readsVFODetails
         self.readsMenuSettings = readsMenuSettings
+        self.readsPower = readsPower
         self.readsFilters = readsFilters
         if decodesAPRS {
             aprsStore = APRSStore()
@@ -627,6 +633,8 @@ public final class PiDirectViewModel: ObservableObject {
             Task { await queue.enqueue(command) }
             return
         case _ where readsMenuSettings && Self.isMenuSetting(command):
+            break
+        case .setPowerLevel where readsPower:
             break
         case .setFilterSide(let side) where readsFilters:
             // As on the hub: SUB isn't shown in single-receive display.
@@ -1091,6 +1099,8 @@ public final class PiDirectViewModel: ObservableObject {
                 await reads[menuReadCursor % reads.count](rigctld, &state)
                 menuReadCursor = (menuReadCursor + 1) % reads.count
             }
+        } else if readsPower, tick % Self.slowReadEvery == 0, let level = try? await rigctld.getLevel("RFPOWER") {
+            state.powerLevel = level
         }
         if readsFilters {
             // The selected side as of this tick, at the mode just read; a

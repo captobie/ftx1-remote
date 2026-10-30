@@ -809,6 +809,21 @@ passes `"com.ftx1remote.ios"` and neither option, the iPad
   true`: both channels play, each by its own mute, and the mute/VOL/SQL
   row shown is the selected side's (same keys as the iPad's). The old
   SUB/TX status line is gone (MAIN's bar shows TX).
+- **iPhone band/mode/power row (2026-10-30, Simulator against the real
+  Pi on Pi direct, then on a real iPhone by the user the same day)**: user
+  request; tested live by the user). The mode grid gave way to one
+  line of drop-downs under the meter (`ControlRow`, iPhone's
+  `ContentView.swift`, both routes), Power/Band/Mode, each an outlined
+  accent tile (`DropDownTile`): `PowerControl` (popover with a 5–100 W
+  slider, sent on release, and ±1 W steps), then `Menu`s over the shared
+  `BandPicker` and a mode picker, both `.inline` (`BandPicker` no longer
+  fixes its style; the iPad's VFO popover passes `.menu`).
+  MAIN's band is `.setBand`; SUB's goes to the band's default frequency
+  with `.setSecondaryFrequency` (+ a segment's default mode). Power is the
+  rig's one RF POWER, either side. Pi direct takes it through the new
+  `PiDirectViewModel(readsPower:)` (iPhone only; the iPad's
+  `readsMenuSettings` already covers it): `.setPowerLevel` accepted,
+  "RFPOWER" read with the slow reads.
 - **iPad VFO boxes at Mac parity (2026-10-09, Simulator against the real
   Pi and WPSD hotspot)**: `PiDirectViewModel(readsVFODetails: true)` (iPad
   only; the iPhone is unchanged) adds the rest of what the Mac's
@@ -2992,8 +3007,9 @@ those terms.
     CONTOUR not in CW), `FilterSide` (MAIN/SUB — the CAT P1 digit the
     filter commands take; `RigState.filterSide`/`filterMode` say which
     receiver the filter fields, controls and display currently address).
-  - `Appearance/` — `AppTheme` (the old Light/Dark/Auto, still the
-    iPhone's), `ButtonValueColor` (MENU grid button value color),
+  - `Appearance/` — `AppTheme` (the old Light/Dark/Auto, now only
+    read to migrate the Mac's setting; the iPhone and iPad are dark only,
+    `UIUserInterfaceStyle = Dark` + `.preferredColorScheme(.dark)`), `ButtonValueColor` (MENU grid button value color),
     `ThemeDefinition`/`ThemeStyling` (the Mac's themes, see "Themes
     (Mac)"), `AppearanceSettings` (the `@AppStorage` keys all of these are
     read/written through) — shared so any future app target reads

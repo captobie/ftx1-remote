@@ -180,10 +180,10 @@ struct HubControlView: View {
     }
 }
 
-/// The selected receiver's frequency, S-meter and mode grid — MAIN's or
-/// SUB's, tuned with `.setFrequency`/`.setMode` or their SUB
+/// The selected receiver's frequency, S-meter and band/mode/power row —
+/// MAIN's or SUB's, tuned with `.setFrequency`/`.setMode` or their SUB
 /// counterparts. Shared by the hub and Pi-direct screens; `extra` goes
-/// between the meter and the mode grid (Pi direct's audio controls).
+/// between the meter and the row (Pi direct's audio controls).
 struct SideDisplay<Extra: View>: View {
     let side: DisplaySide
     let state: RigState
@@ -214,7 +214,14 @@ struct SideDisplay<Extra: View>: View {
                 ptt: state.ptt
             )
             extra
-            ModeGrid(selected: state.mode) { send(.setMode($0)) }
+            ControlRow(
+                currentBand: BandPicker.name(containing: state.frequencyHz),
+                onSetBand: { send(.setBand($0)) },
+                mode: state.mode,
+                onSetMode: { send(.setMode($0)) },
+                powerLevel: state.powerLevel,
+                onSetPower: { send(.setPowerLevel($0)) }
+            )
         case .sub:
             FrequencyDisplay(
                 frequencyHz: state.secondaryFrequencyHz,
@@ -224,37 +231,174 @@ struct SideDisplay<Extra: View>: View {
             // The TX readings are Main's, so SUB always shows its S-meter.
             BarSMeterView(label: "SUB", smeterDb: state.subSmeterDb, txReadings: nil, ptt: state.ptt)
             extra
-            ModeGrid(selected: state.secondaryMode ?? .unknown) { send(.setSecondaryMode($0)) }
+            ControlRow(
+                currentBand: state.secondaryFrequencyHz.flatMap(BandPicker.name(containing:)),
+                onSetBand: setSubBand,
+                mode: state.secondaryMode ?? .unknown,
+                onSetMode: { send(.setSecondaryMode($0)) },
+                powerLevel: state.powerLevel,
+                onSetPower: { send(.setPowerLevel($0)) }
+            )
+        }
+    }
+
+    /// `.setBand` is MAIN's (and, on the hub, its band memory), so SUB
+    /// goes to the band's default frequency with its mode kept — and a
+    /// general-coverage segment's default mode, as Pi direct does for MAIN.
+    private func setSubBand(_ name: String) {
+        if let band = BandPlan.band(named: name) {
+            send(.setSecondaryFrequency(hz: band.defaultFrequencyHz))
+        } else if let segment = GeneralCoverageSegments.segment(named: name) {
+            send(.setSecondaryFrequency(hz: segment.defaultFrequencyHz))
+            send(.setSecondaryMode(segment.defaultMode))
         }
     }
 }
 
-/// Grid of mode buttons — iOS has no room for the Mac's segmented
-/// `Picker`, and a grid keeps every mode a single tap away instead of
-/// buried in a menu. 4 columns fits all 8 `RigMode` cases (excluding
-/// `.unknown`) in two rows on an iPhone-width screen. Shared by the hub
-/// and Pi-direct views.
-struct ModeGrid: View {
-    let selected: RigMode
-    let onSelect: (RigMode) -> Void
+/// RF power, band and mode on one line, each a drop-down tile
+/// (`DropDownTile`): a power button whose popover holds a slider, and
+/// menus over the shared `BandPicker` and a mode picker. Power is the
+/// rig's one RF POWER setting, whichever side is shown.
+struct ControlRow: View {
+    let currentBand: String?
+    let onSetBand: (String) -> Void
+    let mode: RigMode
+    let onSetMode: (RigMode) -> Void
+    let powerLevel: Double?
+    let onSetPower: (Double) -> Void
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
-            ForEach(RigMode.allCases.filter { $0 != .unknown }, id: \.self) { mode in
-                Button {
-                    onSelect(mode)
-                } label: {
-                    Text(mode.displayName)
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(mode == selected ? Color.accentColor : Color.gray.opacity(0.25))
-                        .foregroundStyle(mode == selected ? Color.white : Color.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
+        HStack(spacing: 8) {
+            PowerControl(level: powerLevel, onSet: onSetPower)
+            Menu {
+                BandPicker(currentBand: currentBand, onSetBand: onSetBand)
+                    .pickerStyle(.inline)
+            } label: {
+                DropDownTile(text: currentBand ?? "—")
             }
+            .accessibilityLabel("common.band")
+            Menu {
+                Picker("sideDisplay.mode", selection: Binding(
+                    get: { mode },
+                    set: { if $0 != .unknown { onSetMode($0) } }
+                )) {
+                    ForEach(RigMode.allCases.filter { $0 != .unknown }, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                DropDownTile(text: mode == .unknown ? "—" : mode.displayName)
+            }
+            .accessibilityLabel("sideDisplay.mode")
         }
+    }
+}
+
+/// The face of a `ControlRow` drop-down: the current value and a chevron
+/// on an accent-tinted, outlined tile filling its third of the row, so the
+/// whole tile is the tap target and reads as a control, not a label.
+struct DropDownTile: View {
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(verbatim: text)
+                .font(.headline.monospacedDigit())
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(Color.accentColor)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .background(Color.accentColor.opacity(0.18), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 1))
+        .contentShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+/// RF POWER as a drop-down: the button shows the setting in watts (the
+/// rig reads 0–1 as 0–100 W), its popover a 5–100 W slider with 1 W
+/// steps either side. The slider sends on release, not per tick. The hub
+/// route doesn't update `rigState` optimistically, so the dragged or
+/// stepped value is shown until the next read brings the new one back —
+/// same as the MENU grid's RF POWER.
+struct PowerControl: View {
+    let level: Double?
+    let onSet: (Double) -> Void
+
+    @State private var isShowingPopover = false
+    @State private var isDragging = false
+    @State private var dragLevel: Double = 0
+    @State private var pendingLevel: Double?
+
+    private var displayedLevel: Double {
+        if isDragging { return dragLevel }
+        return max(pendingLevel ?? level ?? 0, RigState.minimumPowerLevel)
+    }
+
+    var body: some View {
+        Button {
+            isShowingPopover = true
+        } label: {
+            DropDownTile(text: Self.label(pendingLevel ?? level))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("sideDisplay.rfPower")
+        .accessibilityValue(Text(verbatim: Self.label(pendingLevel ?? level)))
+        .popover(isPresented: $isShowingPopover) {
+            VStack(spacing: 8) {
+                Text(verbatim: "RF POWER \(Self.label(displayedLevel))")
+                    .font(.headline.monospacedDigit())
+                HStack(spacing: 12) {
+                    Button { step(by: -1) } label: {
+                        Image(systemName: "minus")
+                    }
+                    .disabled(displayedLevel <= RigState.minimumPowerLevel)
+                    .accessibilityLabel("sideDisplay.decreasePower")
+                    Slider(
+                        value: Binding(get: { displayedLevel }, set: { dragLevel = $0 }),
+                        in: RigState.minimumPowerLevel...1,
+                        step: 0.01
+                    ) { editing in
+                        if editing {
+                            dragLevel = displayedLevel
+                            isDragging = true
+                        } else {
+                            isDragging = false
+                            pendingLevel = dragLevel
+                            onSet(dragLevel)
+                        }
+                    }
+                    Button { step(by: 1) } label: {
+                        Image(systemName: "plus")
+                    }
+                    .disabled(displayedLevel >= 1)
+                    .accessibilityLabel("sideDisplay.increasePower")
+                }
+            }
+            .padding()
+            .frame(width: 300)
+            .presentationCompactAdaptation(.popover)
+        }
+        .onChange(of: level) { _, _ in
+            pendingLevel = nil
+        }
+    }
+
+    /// One watt per press, snapped to whole watts; quick presses add up
+    /// before the next read.
+    private func step(by watts: Int) {
+        let current = (displayedLevel * 100).rounded()
+        let next = min(max(current + Double(watts), RigState.minimumPowerLevel * 100), 100) / 100
+        pendingLevel = next
+        onSet(next)
+    }
+
+    private static func label(_ level: Double?) -> String {
+        guard let level else { return "— W" }
+        return "\(Int((level * 100).rounded())) W"
     }
 }
 

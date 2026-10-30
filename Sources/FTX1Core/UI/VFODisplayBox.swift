@@ -291,6 +291,7 @@ public struct VFODisplayBox: View {
                                             Text("common.band", bundle: .module)
                                             Spacer()
                                             BandPicker(currentBand: currentBand, onSetBand: onSetBand)
+                                                .pickerStyle(.menu)
                                         }
                                         .padding([.horizontal, .bottom])
                                     }
