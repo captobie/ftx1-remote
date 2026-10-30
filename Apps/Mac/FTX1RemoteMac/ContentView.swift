@@ -29,6 +29,8 @@ struct ContentView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var isPTTPressed = false
     @AppStorage(ScopeDisplayMode.storageKey) private var scopeDisplayMode: ScopeDisplayMode = .waterfall
+    /// Settings → Appearance → S-Meter: lighted (default), unlighted or digital.
+    @AppStorage(AppearanceSettings.sMeterStyleKey) private var sMeterStyle: SMeterStyle = .lighted
     /// Settings → Appearance's theme, for the filter block's panel and the
     /// buttons that only show "on" under a theme.
     @Environment(\.appTheme) private var appTheme
@@ -447,7 +449,9 @@ struct ContentView: View {
                 ptt: hub.rigState.ptt,
                 powerWatts: hub.rigState.powerWatts,
                 txMeters: hub.rigState.txMeters,
-                isSub: isSub
+                isSub: isSub,
+                transmits: isSub == hub.rigState.subTransmits,
+                style: sMeterStyle
             )
             .frame(width: meterWidth, height: meterWidth * 120 / 280)
             VStack(spacing: 4) {

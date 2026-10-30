@@ -261,11 +261,16 @@ public struct RigState: Codable, Equatable, Sendable {
     /// (the default until `txSide` is read); "RX" when SUB transmits or split
     /// is on (split-on labels are still unconfirmed on hardware).
     public var mainTxRxLabel: String {
-        splitEnabled == true || txSide == .sub ? "RX" : "TXRX"
+        subTransmits ? "RX" : "TXRX"
     }
     /// Same for the SUB box: "TXRX" only while SUB is the TX side.
     public var subTxRxLabel: String {
         splitEnabled != true && txSide == .sub ? "TXRX" : "RX"
+    }
+    /// SUB's side transmits: TX:SUB, or split on (`mainTxRxLabel`'s rule).
+    /// Which S-meter shows the TX readings, and what the CW Log pane logs.
+    public var subTransmits: Bool {
+        splitEnabled == true || txSide == .sub
     }
     /// Squelch type, 0-5 (OFF/ENC/TSQ/DCS/PR FREQ/REV TONE) — the FTX-1's raw
     /// "CT" CAT command, P1 fixed to "0" (MAIN-side). Same setting as Deep

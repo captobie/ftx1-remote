@@ -92,6 +92,23 @@ public enum SMeterScale {
     }
 }
 
+/// How the Mac draws its S-meters (Settings → Appearance → S-Meter):
+/// the backlit analog face, the same face unlit, or a digital bar with a
+/// numeric readout like the iPad's strips.
+public enum SMeterStyle: String, CaseIterable, Sendable {
+    case lighted
+    case unlighted
+    case digital
+
+    public var displayName: String {
+        switch self {
+        case .lighted: String(localized: "sMeterStyle.lighted", bundle: .module)
+        case .unlighted: String(localized: "sMeterStyle.unlighted", bundle: .module)
+        case .digital: String(localized: "sMeterStyle.digital", bundle: .module)
+        }
+    }
+}
+
 /// The rig display's upper-left analog meter, recreated: arc-style S scale
 /// (white S1-S9, blue +20/+40/+60 dB) over an SWR scale (1.0-∞), with a
 /// red needle sweeping both from a pivot below the visible box. Shows
@@ -102,12 +119,15 @@ public struct SMeterView: View {
     let smeterDb: Double?
     let readings: MeterReadings
     let ptt: Bool
-    /// The Sub VFO's meter: identical face and tap-to-choose lower scale
-    /// (with its own remembered selection, like the rig's separate MAIN/SUB
-    /// METER SW settings), but the needle stays on the S scale — Sub can't
-    /// transmit today, and the TX readings (PO/SWR/COMP/...) are Main's.
-    /// When Sub TX exists, feed it its own readings and drop this override.
+    /// The Sub VFO's meter: identical face, with its own remembered lower
+    /// scale, like the rig's separate MAIN/SUB METER SW settings.
     let isSub: Bool
+    /// Whether this meter's receiver is the transmitting side (TX:SUB or
+    /// split puts SUB there — `RigState.subTransmits`). Only that meter
+    /// shows the TX readings while `ptt` is on; the other stays on its S
+    /// scale. The readings themselves are the rig's one transmitter's.
+    let transmits: Bool
+    let style: SMeterStyle
 
     /// Which reading the lower scale shows while transmitting — picked by
     /// tapping the meter, like the rig (see `MeterSelection`). Default PO,
@@ -115,8 +135,10 @@ public struct SMeterView: View {
     @AppStorage private var selectionRaw: String
     @State private var showingPicker = false
 
-    public init(smeterDb: Double?, swr: Double?, ptt: Bool, powerWatts: Double? = nil, txMeters: TXMeterReadings? = nil, isSub: Bool = false) {
+    public init(smeterDb: Double?, swr: Double?, ptt: Bool, powerWatts: Double? = nil, txMeters: TXMeterReadings? = nil, isSub: Bool = false, transmits: Bool = true, style: SMeterStyle = .lighted) {
         self.isSub = isSub
+        self.transmits = transmits
+        self.style = style
         _selectionRaw = AppStorage(wrappedValue: MeterSelection.po.rawValue, isSub ? MeterSettings.subKey : MeterSettings.key)
         self.smeterDb = smeterDb
         self.readings = MeterReadings(powerWatts: powerWatts, swr: swr, tx: txMeters)
@@ -125,11 +147,41 @@ public struct SMeterView: View {
 
     private var selection: MeterSelection { MeterSelection(rawValue: selectionRaw) ?? .po }
 
+    private var showsTX: Bool { ptt && transmits }
+
     private var needleFraction: Double {
-        ptt && !isSub ? selection.fraction(from: readings) : SMeterScale.fraction(forStrengthDb: smeterDb)
+        showsTX ? selection.fraction(from: readings) : SMeterScale.fraction(forStrengthDb: smeterDb)
     }
 
     public var body: some View {
+        face
+            .aspectRatio(MeterFace.designSize.width / MeterFace.designSize.height, contentMode: .fit)
+            .contentShape(Rectangle())
+            .onTapGesture { showingPicker = true }
+            .popover(isPresented: $showingPicker) {
+                MeterPickerView(selection: selection) {
+                    selectionRaw = $0.rawValue
+                    showingPicker = false
+                }
+            }
+    }
+
+    @ViewBuilder private var face: some View {
+        switch style {
+        case .lighted: analogFace(lit: true)
+        case .unlighted: analogFace(lit: false)
+        case .digital:
+            DigitalMeterFace(
+                label: isSub ? "SUB" : "MAIN",
+                smeterDb: smeterDb,
+                readings: readings,
+                showsTX: showsTX,
+                selection: selection
+            )
+        }
+    }
+
+    private func analogFace(lit: Bool) -> some View {
         ZStack {
             Canvas { context, size in
                 MeterFace.draw(in: &context, size: size, lower: selection)
@@ -139,7 +191,7 @@ public struct SMeterView: View {
                 .shadow(color: .black.opacity(0.3), radius: 1.5, x: 1, y: 1)
         }
         .animation(.easeOut(duration: 0.4), value: needleFraction)
-        .background(MeterFace.backlight)
+        .background { if lit { MeterFace.backlight } else { MeterFace.unlit } }
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             // Recessed-bezel shading: darkens the rim so the lit face
@@ -153,15 +205,94 @@ public struct SMeterView: View {
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(Color.gray.opacity(0.6), lineWidth: 1.5)
         )
-        .aspectRatio(MeterFace.designSize.width / MeterFace.designSize.height, contentMode: .fit)
-        .contentShape(Rectangle())
-        .onTapGesture { showingPicker = true }
-        .popover(isPresented: $showingPicker) {
-            MeterPickerView(selection: selection) {
-                selectionRaw = $0.rawValue
-                showingPicker = false
+    }
+}
+
+/// `SMeterStyle.digital`: two lines of the iPad strip's segmented bar,
+/// laid out like the analog face — the S-meter on top, the picked TX meter
+/// (PO/SWR/ALC/…) underneath. The lower line is dim until this meter's
+/// side transmits; then both lines are TX readings: the top one PO (SWR
+/// when PO is the picked meter), so two readings show at once.
+private struct DigitalMeterFace: View {
+    let label: String
+    let smeterDb: Double?
+    let readings: MeterReadings
+    /// Transmitting, and this meter's side is the TX side.
+    let showsTX: Bool
+    let selection: MeterSelection
+
+    /// The top line's meter while transmitting.
+    private var topTXMeter: MeterSelection { selection == .po ? .swr : .po }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            if showsTX {
+                txLine(topTXMeter, active: true)
+            } else {
+                line(
+                    title: "S",
+                    titleColor: .white.opacity(0.6),
+                    readout: BarSMeterView.sUnitText(smeterDb),
+                    bar: BarMeter(
+                        fraction: BarMeter.fraction(forStrengthDb: smeterDb),
+                        ticks: BarMeter.sTicks,
+                        hotFrom: BarMeter.s9Fraction,
+                        litColor: .green
+                    )
+                )
             }
+            txLine(selection, active: showsTX)
+                .opacity(showsTX ? 1 : 0.45)
         }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.black))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.gray.opacity(0.6), lineWidth: 1.5)
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "barSMeter.meter \(label)", bundle: .module))
+        .accessibilityValue(accessibilityReadout)
+    }
+
+    /// A TX meter's line; inactive = no reading (bar unlit, "—").
+    private func txLine(_ meter: MeterSelection, active: Bool) -> some View {
+        line(
+            title: meter.title,
+            titleColor: active ? .orange : .white.opacity(0.6),
+            readout: active ? BarSMeterView.txReadout(meter, readings) : "—",
+            bar: BarMeter(
+                fraction: active ? BarMeter.fraction(fromFace: meter.fraction(from: readings)) : 0,
+                ticks: meter.ticks.map { ($0.label, BarMeter.fraction(fromFace: $0.fraction)) },
+                hotFrom: 1.1,
+                litColor: .orange
+            )
+        )
+    }
+
+    private func line(title: String, titleColor: Color, readout: String, bar: BarMeter) -> some View {
+        HStack(alignment: .top, spacing: 4) {
+            Text(title)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(titleColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(width: 24, alignment: .leading)
+            bar
+            Text(readout)
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(width: 36, alignment: .trailing)
+        }
+    }
+
+    private var accessibilityReadout: String {
+        guard showsTX else { return BarSMeterView.sUnitText(smeterDb) }
+        return "\(topTXMeter.title) \(BarSMeterView.txReadout(topTXMeter, readings)), \(selection.title) \(BarSMeterView.txReadout(selection, readings))"
     }
 }
 
@@ -230,6 +361,19 @@ private enum MeterFace {
             center: UnitPoint(x: 0.5, y: 0.8),
             startRadius: 0,
             endRadius: 190
+        )
+    }
+
+    /// The same face with the lamp off: flat, slightly grey paper, a touch
+    /// darker toward the bottom where the bezel shades it.
+    static var unlit: some View {
+        LinearGradient(
+            colors: [
+                Color(red: 0.86, green: 0.85, blue: 0.82),
+                Color(red: 0.78, green: 0.77, blue: 0.74),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
         )
     }
 
@@ -342,6 +486,30 @@ private struct NeedleShape: Shape {
 #Preview("TX SWR 1.5") {
     SMeterView(smeterDb: nil, swr: 1.5, ptt: true)
         .frame(width: 280)
+        .padding()
+}
+
+#Preview("Unlighted") {
+    SMeterView(smeterDb: -12, swr: nil, ptt: false, style: .unlighted)
+        .frame(width: 280)
+        .padding()
+}
+
+#Preview("Digital") {
+    SMeterView(smeterDb: 12, swr: nil, ptt: false, style: .digital)
+        .frame(width: 190)
+        .padding()
+}
+
+#Preview("Digital TX") {
+    SMeterView(smeterDb: nil, swr: 1.4, ptt: true, powerWatts: 10, style: .digital)
+        .frame(width: 190)
+        .padding()
+}
+
+#Preview("Digital, other side transmitting") {
+    SMeterView(smeterDb: -30, swr: 1.4, ptt: true, powerWatts: 10, isSub: true, transmits: false, style: .digital)
+        .frame(width: 190)
         .padding()
 }
 

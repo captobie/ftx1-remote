@@ -8125,6 +8125,29 @@
         }
       }
     },
+    "settings.appearanceSettings.sMeter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S-Meter"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S-Meter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S-meter"
+          }
+        }
+      }
+    },
     "settings.appearanceSettings.theme" : {
       "extractionState" : "manual",
       "localizations" : {

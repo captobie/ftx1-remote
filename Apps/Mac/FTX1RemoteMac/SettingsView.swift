@@ -1095,13 +1095,14 @@ private struct PollingSettingsTab: View {
 }
 
 /// App appearance controls: the theme (`ThemePresets`, applied to every
-/// window by `.appTheme()`), the VFO digits' font and colour overrides, and
-/// the MENU grid's button value color. All apply at once.
+/// window by `.appTheme()`), the VFO digits' font and colour overrides, the
+/// S-meter style (`SMeterStyle`) and the MENU grid's button value color. All apply at once.
 private struct AppearanceSettingsTab: View {
     @AppStorage(AppearanceSettings.themeNameKey) private var themeName: String?
     @AppStorage(AppearanceSettings.themeKey) private var legacyTheme = AppTheme.system.rawValue
     @AppStorage(AppearanceSettings.vfoDigitFontKey) private var vfoDigitFont = ""
     @AppStorage(AppearanceSettings.vfoDigitColorKey) private var vfoDigitColor = ""
+    @AppStorage(AppearanceSettings.sMeterStyleKey) private var sMeterStyle: SMeterStyle = .lighted
     @AppStorage(AppearanceSettings.buttonValueColorKey) private var buttonValueColorRawValue = ButtonValueColor.orange.rawValue
 
     /// Before the first pick, the old Light/Dark/Auto setting's theme.
@@ -1141,6 +1142,12 @@ private struct AppearanceSettingsTab: View {
                 Text("settings.appearanceSettings.themeDefault").tag("")
                 ForEach(ButtonValueColor.allCases, id: \.self) { option in
                     Text(option.displayName).tag(option.rawValue)
+                }
+            }
+
+            Picker("settings.appearanceSettings.sMeter", selection: $sMeterStyle) {
+                ForEach(SMeterStyle.allCases, id: \.self) { style in
+                    Text(style.displayName).tag(style)
                 }
             }
 

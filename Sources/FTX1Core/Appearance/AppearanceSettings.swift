@@ -16,6 +16,8 @@ public enum AppearanceSettings {
     public static let vfoDigitFontKey = "appearance.vfoDigitFont"
     /// A `ButtonValueColor` raw value; empty or unset = the theme's colour.
     public static let vfoDigitColorKey = "appearance.vfoDigitColor"
+    /// An `SMeterStyle` raw value; unset = lighted.
+    public static let sMeterStyleKey = "appearance.sMeterStyle"
 
     public static var theme: AppTheme {
         get {

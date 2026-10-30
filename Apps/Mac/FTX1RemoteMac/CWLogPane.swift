@@ -411,7 +411,7 @@ extension RigState {
     /// `secondaryMode` are SUB's. What a QSO is logged with, and the band
     /// worked-before compares against.
     var transmitter: (frequencyHz: Int?, mode: RigMode?) {
-        if splitEnabled == true || txSide == .sub {
+        if subTransmits {
             return (secondaryFrequencyHz, secondaryMode)
         }
         return (frequencyHz, mode)

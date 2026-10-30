@@ -78,7 +78,12 @@ public struct BarSMeterView: View {
 
     private var readout: String {
         guard showsTX, let readings = txReadings else { return Self.sUnitText(smeterDb) }
-        switch txSelection {
+        return Self.txReadout(txSelection, readings)
+    }
+
+    /// The TX meter's readout: "10 W", "1.5", "42%", or "—".
+    static func txReadout(_ selection: MeterSelection, _ readings: MeterReadings) -> String {
+        switch selection {
         case .po: return readings.powerWatts.map { String(format: "%.0f W", $0) } ?? "—"
         case .swr: return readings.swr.map { String(format: "%.1f", $0) } ?? "—"
         case .comp: return Self.percentText(readings.tx?.comp)
@@ -128,14 +133,16 @@ public struct BarSMeterView: View {
 }
 
 /// Segmented LED-style bar with tick labels underneath, drawn on the dark
-/// meter background. Its own 0…1 scale: S0–S9 fill the first 60%, the
+/// meter background (also `SMeterView`'s digital style). Its own 0…1 scale: S0–S9 fill the first 60%, the
 /// over-S9 dB the rest (drawn red, like a rig's over-S9 zone).
-private struct BarMeter: View {
+struct BarMeter: View {
     let fraction: Double
     let ticks: [(String, Double)]
     /// Segments at or past this fraction are drawn red.
     let hotFrom: Double
     let litColor: Color
+    /// The segments' height; the tick labels sit under them.
+    var barHeight: CGFloat = 10
 
     static let s9Fraction = 0.6
     /// No "+40": at strip width it runs into "+60".
@@ -162,7 +169,6 @@ private struct BarMeter: View {
 
     var body: some View {
         Canvas { context, size in
-            let barHeight: CGFloat = 10
             let gap: CGFloat = 1.5
             let n = Self.segmentCount
             let segWidth = (size.width - gap * CGFloat(n - 1)) / CGFloat(n)
@@ -182,6 +188,6 @@ private struct BarMeter: View {
                 )
             }
         }
-        .frame(height: 26)
+        .frame(height: barHeight + 16)
     }
 }
