@@ -5,8 +5,9 @@ import SwiftUI
 /// the selected receiver's (MAIN or SUB, `DisplaySide`) frequency, mode
 /// and S-meter, tunable, plus its audio from the Pi's stream with mute,
 /// VOL and SQL. Both channels play, each by its own mute; the controls
-/// shown are the selected side's.
-/// Receive-only — no PTT.
+/// shown are the selected side's. Hold-to-talk PTT along the bottom keys
+/// through rigctld and sends the microphone to the Pi's TX audio service,
+/// behind this route's own transmit lock (off by default), as on the iPad.
 struct PiDirectView: View {
     @EnvironmentObject private var viewModel: PiDirectViewModel
     @AppStorage("piHost") private var host: String = "ftx1pi"
@@ -16,6 +17,7 @@ struct PiDirectView: View {
     @AppStorage(AudioPlaybackSettings.squelchThresholdKey) private var mainSquelchThreshold: Double = 0.015
     @AppStorage(AudioPlaybackSettings.subVolumeKey) private var subVolume: Double = 0.8
     @AppStorage(AudioPlaybackSettings.subSquelchThresholdKey) private var subSquelchThreshold: Double = 0.015
+    @Environment(\.scenePhase) private var scenePhase
 
     /// Upper bound of the squelch slider's displayed range, as on the iPad:
     /// the slider shows `range - threshold`, so left is open (the
@@ -33,7 +35,18 @@ struct PiDirectView: View {
                     .autocorrectionDisabled()
             }
 
-            connectButton
+            HStack(spacing: 12) {
+                connectButton
+                if viewModel.connectionState == .connected {
+                    TransmitLockButton(
+                        isEnabled: viewModel.transmitEnabled,
+                        enabledLabel: "common.transmitEnabledTapTo",
+                        disabledLabel: "common.transmitDisabledTapTo"
+                    ) {
+                        viewModel.transmitEnabled.toggle()
+                    }
+                }
+            }
 
             if case .failed(let message) = viewModel.connectionState {
                 Text(message)
@@ -47,12 +60,30 @@ struct PiDirectView: View {
                     audioRow
                     audioSliders
                 }
-                Text("piDirect.receiveOnlyDirectTo")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+
+            if viewModel.connectionState == .connected {
+                if let problem = viewModel.transmitProblem {
+                    Text(problem)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                PTTButton(
+                    isTransmitting: viewModel.isTransmitting || viewModel.rigState.ptt,
+                    blockReason: viewModel.transmitBlockReason,
+                    onPress: viewModel.startTransmit,
+                    onRelease: viewModel.stopTransmit
+                )
             }
         }
         .padding(24)
+        // A press can't be released from the background; don't stay keyed.
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { viewModel.stopTransmit() }
+        }
     }
 
     private var isMuted: Bool {

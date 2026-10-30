@@ -1,23 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {},
-    "PTT" : {
-      "extractionState" : "manual",
-      "shouldTranslate" : false
-    },
-    "SQL" : {
-      "extractionState" : "manual",
-      "shouldTranslate" : false
-    },
-    "TRANSMITTING" : {
-      "extractionState" : "manual",
-      "shouldTranslate" : false
-    },
-    "VOL" : {
-      "extractionState" : "manual",
-      "shouldTranslate" : false
-    },
     "common.band" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -248,6 +231,52 @@
         }
       }
     },
+    "common.transmitDisabledTapTo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden gesperrt; zum Freigeben tippen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit disabled; tap to enable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmisión desactivada; tocar para activarla"
+          }
+        }
+      }
+    },
+    "common.transmitEnabledTapTo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden freigegeben; zum Sperren tippen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit enabled; tap to disable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmisión activada; tocar para desactivarla"
+          }
+        }
+      }
+    },
     "content.macHostnameTailscale" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -313,6 +342,75 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pi directo"
+          }
+        }
+      }
+    },
+    "content.transmitDisabledOnThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden am Mac gesperrt; zum Freigeben tippen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit disabled on the Mac; tap to enable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmisión desactivada en el Mac; tocar para activarla"
+          }
+        }
+      }
+    },
+    "content.transmitDisabledOnTheMac" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden am Mac gesperrt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit disabled on the Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmisión desactivada en el Mac"
+          }
+        }
+      }
+    },
+    "content.transmitEnabledOnThe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden am Mac freigegeben; zum Sperren tippen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit enabled on the Mac; tap to disable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmisión activada en el Mac; tocar para desactivarla"
           }
         }
       }
@@ -409,29 +507,6 @@
         }
       }
     },
-    "piDirect.receiveOnlyDirectTo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nur Empfang – direkt zu rigctld auf dem Pi, ohne Mac-Hub."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Receive only — direct to rigctld on the Pi, no Mac hub."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Solo recepción: directo a rigctld en el Pi, sin hub del Mac."
-          }
-        }
-      }
-    },
     "piDirect.unmuteAudio %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -474,6 +549,79 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Esperando audio: ¿está el Mac usando el flujo del Pi?"
+          }
+        }
+      }
+    },
+    "PTT" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "pttButton.holdToTransmit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zum Senden gedrückt halten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold to transmit"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantener pulsado para transmitir"
+          }
+        }
+      }
+    },
+    "pttButton.pushToTalk" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprechtaste"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push to talk"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pulsar para hablar"
+          }
+        }
+      }
+    },
+    "pttButton.transmitting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmitting"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmitiendo"
           }
         }
       }
@@ -570,9 +718,17 @@
         }
       }
     },
-    "—" : {
-      "comment" : "A placeholder for the mode picker when the mode is unknown.",
-      "isCommentAutoGenerated" : true
+    "SQL" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "TRANSMITTING" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "VOL" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
     }
   },
   "version" : "1.1"

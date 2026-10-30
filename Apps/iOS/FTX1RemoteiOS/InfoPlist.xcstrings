@@ -1,6 +1,18 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "FTX1RemoteiOS"
+          }
+        }
+      }
+    },
     "NSLocalNetworkUsageDescription" : {
       "comment" : "Local Network permission prompt",
       "extractionState" : "manual",
@@ -21,6 +33,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "FTX1 Remote se conecta al Mac o a la Raspberry Pi para controlar el equipo."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "comment" : "Microphone permission prompt",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote sendet die Stimme an das Funkgerät, solange PTT gedrückt ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote sends your voice to the radio while you hold PTT."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote envía la voz al equipo mientras se mantiene pulsado PTT."
           }
         }
       }

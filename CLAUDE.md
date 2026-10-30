@@ -1154,8 +1154,18 @@ keys the rig and sends the iPad's microphone to the rig's USB audio input.
 - **Not yet done**: any on-air test (dummy
   load first: MOD SOURCE AUTO vs USB, all three paths, tail clipping,
   backgrounding and Wi-Fi loss while keyed); the iPad hub screen's PTT
-  checked only by build, not on screen (needs a live hub). iPhone and
-  Windows are out of scope.
+  checked only by build, not on screen (needs a live hub). Windows is
+  out of scope.
+- **iPhone (2026-10-30, Simulator against the real Pi; lock and PTT
+  look only, nothing keyed or sent on the air)**: user request. The same
+  model code on both routes: a full-width hold-to-talk `PTTButton` at the
+  bottom of each screen and a `TransmitLockButton` right of Connected
+  (`Apps/iOS/FTX1RemoteiOS/PTTButton.swift`) — Pi direct's own
+  `piDirect.transmitEnabled`, or on the hub route the hub's Enable
+  Transmit (`.setTransmitEnabled`). The hub screen's old PTT keyed with
+  `.setPTT` and sent no audio; it now goes through `startTransmit`.
+  `NSMicrophoneUsageDescription` added to the iOS target. Release on
+  leaving `.active`, as on the iPad.
 
 ## iPad CW decoder (phase 1 decode, 2026-10-14, confirmed on a real iPad; phase 2 sending on Pi direct, transmit-tested by the user; phase 3 sending on the hub route, transmit-tested by the user; CW sent on the air from the iPad, user-confirmed by 2026-10-18)
 
