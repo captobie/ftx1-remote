@@ -64,17 +64,26 @@ struct ContentView: View {
             Grid(horizontalSpacing: 12, verticalSpacing: 6) {
                 GridRow(alignment: .top) {
                     subVFOBox
-                    VStack(spacing: 8) {
-                        HStack(spacing: 12) {
-                            vmToggleButton
-                            txSideButton
-                            splitButton
-                            vfoSwapButton
-                            audioChannelSwapButton
-                        }
-                        HStack(alignment: .top, spacing: 8) {
+                    // The rig buttons share the scope buttons' column, so
+                    // they start at Waterfall's left edge and end at Off's
+                    // right, spread evenly between; SWR stays level with
+                    // the Waterfall row.
+                    HStack(alignment: .scopeButtonsTop, spacing: 8) {
+                        VStack(spacing: 8) {
+                            HStack(spacing: 0) {
+                                vmToggleButton
+                                Spacer(minLength: 8)
+                                txSideButton
+                                Spacer(minLength: 8)
+                                splitButton
+                                Spacer(minLength: 8)
+                                vfoSwapButton
+                                Spacer(minLength: 8)
+                                audioChannelSwapButton
+                            }
                             VStack(spacing: 4) {
                                 scopeDisplayModeButtons
+                                    .alignmentGuide(.scopeButtonsTop) { $0[.top] }
                                 // Under Waterfall: the same three equal
                                 // columns.
                                 HStack(spacing: 4) {
@@ -83,11 +92,11 @@ struct ContentView: View {
                                     memoryScanSkipButton
                                 }
                             }
-                            Text(swrLabel)
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(hub.rigState.swr == nil ? secondaryStyle : AnyShapeStyle(.primary))
-                                .fixedSize()
                         }
+                        Text(swrLabel)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(hub.rigState.swr == nil ? secondaryStyle : AnyShapeStyle(.primary))
+                            .fixedSize()
                     }
                     VFODisplayBox(label: "MAIN", frequencyHz: hub.rigState.frequencyHz, isActive: true, mode: hub.rigState.mode.displayName, txRxLabel: hub.rigState.mainTxRxLabel, callsign: hub.rigState.mode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsActive ? hub.rigState.aprsLastCallsign : nil), reflector: hub.rigState.mode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsActive, onSetFrequency: { hub.send(.setFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.vfoMemoryMode, memoryChannel: hub.rigState.memoryChannel, memoryChannelTag: hub.rigState.memoryChannelTag, onSetMemoryChannel: { hub.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepMemoryChannel(up: $0)) }, memoryScan: hub.rigState.memoryScan(on: .main))
                 }
@@ -673,4 +682,15 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environmentObject(HubService())
+}
+
+private extension VerticalAlignment {
+    /// The scope mode buttons' top edge, so the SWR readout beside the
+    /// middle column lines up with them rather than with the rig buttons
+    /// above.
+    enum ScopeButtonsTop: AlignmentID {
+        static func defaultValue(in context: ViewDimensions) -> CGFloat { context[.top] }
+    }
+
+    static let scopeButtonsTop = VerticalAlignment(ScopeButtonsTop.self)
 }
