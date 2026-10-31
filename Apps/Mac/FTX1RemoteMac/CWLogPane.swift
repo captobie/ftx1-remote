@@ -406,15 +406,11 @@ private struct CWLogRigReadout: View {
 }
 
 extension RigState {
-    /// MAIN or SUB, whichever transmits — the same rule as the VFO boxes'
-    /// TXRX caption (`mainTxRxLabel`); `secondaryFrequencyHz`/
-    /// `secondaryMode` are SUB's. What a QSO is logged with, and the band
-    /// worked-before compares against.
+    /// What the rig transmits on (`transmitFrequencyHz`/`transmitMode`:
+    /// SUB with TX:SUB, the split TX VFO in MAIN's mode in split). What a
+    /// QSO is logged with, and the band worked-before compares against.
     var transmitter: (frequencyHz: Int?, mode: RigMode?) {
-        if subTransmits {
-            return (secondaryFrequencyHz, secondaryMode)
-        }
-        return (frequencyHz, mode)
+        (transmitFrequencyHz, transmitMode)
     }
 }
 

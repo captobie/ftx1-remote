@@ -1685,7 +1685,7 @@ the iPad sends its JSON as *binary* frames — only a 0x02-tagged binary
 frame is TX audio)**: this app now also
 serves the Mac hub's WebSocket protocol on 8765 (`Services/Hub/`,
 Kestrel), so the iPad's "Desktop hub" route can show its state and,
-since phase 2, drive the rig: `RigCommandWire` parses all 71
+since phase 2, drive the rig: `RigCommandWire` parses all 72
 `RigCommand`s, `RigCommandDispatcher` runs them through one FIFO on the
 UI thread via the *same* methods the window's controls use (MainWindow
 through `IHubRigHost`, `MenuGrid`/`FilterPanel` public setters — put a
@@ -2532,6 +2532,43 @@ is running and listening.
   with the reason, which Wavelog shows only as its generic "not
   responding" toast; Settings shows the last request. Wavelog sends "rtty"
   for most digital spots, FT8 included, so those put the rig in RTTY.
+
+## Split (Mac, 2026-10-31; rig-tested by the user the same day)
+
+User request. A **SPLIT** button between TX:MAIN/SUB and the swap button
+(`ContentView.splitButton`) toggles the rig's SPLIT — raw "ST0"/"ST1",
+bare like "TS" (`RigCommand.setSplit`, `"set_split"`). The chevron beside
+it is **quick split** (`HubService.quickSplit(offsetHz:)`): split on,
+then the TX VFO to MAIN + 1/2/3/5/10 kHz or − 1/5 kHz, queued in that
+order as one task. Both refused while PTT/MOX is on or a memory scan runs
+(`canChangeSplit`). Like `.setTXSide`, a split change clears
+`txSideBeforeMemoryScan`.
+
+- **What split is on the FTX-1** (read from the rig in Local mode with
+  the user, 2026-10-31): not "transmit on the SUB receiver". "ST1" turns
+  the dual display off ("FR01"); MAIN receives; the rig transmits from a
+  second VFO that "FB" (and hamlib's `f Sub`) reads — FB equalled FA right
+  after "ST1" — always in **MAIN's mode** (user: changing the mode changes
+  both); "FT" stays 0. The SUB receiver keeps its own state ("OI" =
+  CH 34, 440.400 FM; "VM1"/"MC1"/"MD1" too). "ST0" restores the dual
+  display. So in split `secondaryFrequencyHz` is the TX frequency but
+  `secondaryMode` isn't the TX mode: `RigState.transmitFrequencyHz`/
+  `transmitMode` are the one rule, used by the TX gate, the CW Log pane,
+  Wavelog and the CW Key mode warning.
+- **Left box in split** (`ContentView.subVFOBox`): label SPLIT, "TX" tag,
+  FB's frequency, MAIN's mode, no memory channel; frequency entry sends
+  `.setSecondaryFrequency` (FB) — the first try showed SUB's channel tag
+  and opened the channel picker. The iPad's boxes don't do this yet.
+- After each split write `refreshAfterSplit` reads ST, FT, FR and FB
+  (logged as `After split write: …`, "connection" category) and falls back
+  to the MAIN filter side, as the slow tier does in single receive. In
+  split, `trackExternalSwap` is off (an FB/FA exchange is MAIN's A/B swap,
+  not a receiver swap) and the app's swap leaves the modes alone.
+- Tested on the rig by the user after the TX VFO box landed, working.
+  Not covered by what was reported: the rig's A/B swap in split.
+- iPad: no UI (user decision); the wire command exists. Windows parses
+  `set_split` and sends "ST" from its hub (`SetSplit`, fixture count 72) —
+  not yet built on the PC.
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 

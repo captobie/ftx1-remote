@@ -70,6 +70,7 @@ public class HubCommandTests
         ["set_ant_select"] = typeof(SetAntSelect),
         ["set_txw"] = typeof(SetTxw),
         ["set_tx_side"] = typeof(SetTxSide),
+        ["set_split"] = typeof(SetSplit),
         ["set_squelch_type"] = typeof(SetSquelchType),
         ["set_tone_freq"] = typeof(SetToneFrequency),
         ["set_dcs_code"] = typeof(SetDcsCode),
@@ -102,7 +103,7 @@ public class HubCommandTests
     public void FixtureHasEveryCommandOnce()
     {
         var names = FixtureCommands().Select(e => e.GetProperty("cmd").GetString()!).ToList();
-        Assert.Equal(71, names.Count);
+        Assert.Equal(72, names.Count);
         Assert.Equal(names.Count, names.Distinct().Count());
         Assert.Equal(ExpectedTypes.Keys.Order(), names.Order());
         Assert.Equal(ExpectedTypes.Keys.Order(), RigCommandWire.Names.Order());

@@ -33,14 +33,10 @@ public enum TransmitGate {
         return nil
     }
 
-    /// MAIN's or SUB's mode, whichever transmits (`.unknown` for SUB until
-    /// it has been read).
+    /// The transmitting mode — `RigState.transmitMode` (`.unknown` for SUB
+    /// until it has been read).
     public static func transmitMode(of state: RigState) -> RigMode {
-        transmitsOnSub(state) ? (state.secondaryMode ?? .unknown) : state.mode
-    }
-
-    private static func transmitsOnSub(_ state: RigState) -> Bool {
-        state.splitEnabled == true || state.txSide == .sub
+        state.transmitMode ?? .unknown
     }
 
     /// "14.225.000"-style, the VFO boxes' grouping.
@@ -48,12 +44,8 @@ public enum TransmitGate {
         FrequencyFormat.dotted(hz)
     }
 
-    /// MAIN's or SUB's frequency, whichever transmits — the VFO boxes'
-    /// TXRX rule (`RigState.mainTxRxLabel`).
+    /// The transmitting frequency — `RigState.transmitFrequencyHz`.
     public static func transmitFrequencyHz(of state: RigState) -> Int {
-        if transmitsOnSub(state) {
-            return state.secondaryFrequencyHz ?? 0
-        }
-        return state.frequencyHz
+        state.transmitFrequencyHz ?? 0
     }
 }

@@ -177,6 +177,7 @@ final class HubWireFixtureTests: XCTestCase {
         .setAntSelect(1),
         .setTXW(false),
         .setTXSide(.sub),
+        .setSplit(true),
         .setSquelchType(1),
         .setToneFreq(index: 12),
         .setDCSCode(index: 3),

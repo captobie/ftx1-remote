@@ -1915,29 +1915,6 @@
         }
       }
     },
-    "common.readyMemoryWpm %lld %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bereit – %lld WPM, Speicher %lld"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ready — %lld WPM, memory %lld"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Listo: %lld WPM, memoria %lld"
-          }
-        }
-      }
-    },
     "common.readyMemoryRigKeyer %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1957,6 +1934,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Listo: keyer del equipo, memoria %lld"
+          }
+        }
+      }
+    },
+    "common.readyMemoryWpm %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereit – %lld WPM, Speicher %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready — %lld WPM, memory %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listo: %lld WPM, memoria %lld"
           }
         }
       }
@@ -2697,6 +2697,98 @@
         }
       }
     },
+    "content.quickSplit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnell-Split"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick split"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split rápido"
+          }
+        }
+      }
+    },
+    "content.quickSplitDown %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnell-Split: %lld kHz tiefer"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick split: down %lld kHz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split rápido: %lld kHz abajo"
+          }
+        }
+      }
+    },
+    "content.quickSplitHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnell-Split: Split einschalten und auf der MAIN-Frequenz plus Versatz senden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick split: turn split on and transmit on MAIN's frequency plus an offset"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split rápido: activar el split y transmitir en la frecuencia de MAIN más un desplazamiento"
+          }
+        }
+      }
+    },
+    "content.quickSplitUp %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnell-Split: %lld kHz höher"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick split: up %lld kHz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split rápido: %lld kHz arriba"
+          }
+        }
+      }
+    },
     "content.running" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2762,6 +2854,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Explorar los canales de memoria de MAIN o SUB (modo memoria)"
+          }
+        }
+      }
+    },
+    "content.splitHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split: Empfang und Senden auf verschiedenen Frequenzen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split: receive and transmit on different frequencies"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split: recibir y transmitir en frecuencias distintas"
           }
         }
       }
@@ -8801,26 +8916,6 @@
             "value" : "%#@qsos@, %#@calls@"
           },
           "substitutions" : {
-            "qsos" : {
-              "argNum" : 1,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%arg QSO"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%arg QSOs"
-                    }
-                  }
-                }
-              }
-            },
             "calls" : {
               "argNum" : 2,
               "formatSpecifier" : "lld",
@@ -8836,6 +8931,26 @@
                     "stringUnit" : {
                       "state" : "translated",
                       "value" : "%arg Rufzeichen"
+                    }
+                  }
+                }
+              }
+            },
+            "qsos" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg QSO"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg QSOs"
                     }
                   }
                 }
@@ -8897,26 +9012,6 @@
             "value" : "%#@qsos@, %#@calls@"
           },
           "substitutions" : {
-            "qsos" : {
-              "argNum" : 1,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%arg QSO"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%arg QSO"
-                    }
-                  }
-                }
-              }
-            },
             "calls" : {
               "argNum" : 2,
               "formatSpecifier" : "lld",
@@ -8936,20 +9031,7 @@
                   }
                 }
               }
-            }
-          }
-        }
-      }
-    },
-    "settings.macLoggerDX.logSummaryLast %lld %lld %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%#@qsos@, %#@calls@, zuletzt %3$@"
-          },
-          "substitutions" : {
+            },
             "qsos" : {
               "argNum" : 1,
               "formatSpecifier" : "lld",
@@ -8964,12 +9046,25 @@
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg QSOs"
+                      "value" : "%arg QSO"
                     }
                   }
                 }
               }
-            },
+            }
+          }
+        }
+      }
+    },
+    "settings.macLoggerDX.logSummaryLast %lld %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@qsos@, %#@calls@, zuletzt %3$@"
+          },
+          "substitutions" : {
             "calls" : {
               "argNum" : 2,
               "formatSpecifier" : "lld",
@@ -8985,6 +9080,26 @@
                     "stringUnit" : {
                       "state" : "translated",
                       "value" : "%arg Rufzeichen"
+                    }
+                  }
+                }
+              }
+            },
+            "qsos" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg QSO"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg QSOs"
                     }
                   }
                 }
@@ -9046,26 +9161,6 @@
             "value" : "%#@qsos@, %#@calls@, último %3$@"
           },
           "substitutions" : {
-            "qsos" : {
-              "argNum" : 1,
-              "formatSpecifier" : "lld",
-              "variations" : {
-                "plural" : {
-                  "one" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%arg QSO"
-                    }
-                  },
-                  "other" : {
-                    "stringUnit" : {
-                      "state" : "translated",
-                      "value" : "%arg QSO"
-                    }
-                  }
-                }
-              }
-            },
             "calls" : {
               "argNum" : 2,
               "formatSpecifier" : "lld",
@@ -9081,6 +9176,26 @@
                     "stringUnit" : {
                       "state" : "translated",
                       "value" : "%arg indicativos"
+                    }
+                  }
+                }
+              }
+            },
+            "qsos" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg QSO"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg QSO"
                     }
                   }
                 }
@@ -11567,6 +11682,10 @@
     "SNR" : {
       "extractionState" : "manual",
       "shouldTranslate" : false
+    },
+    "SPLIT" : {
+      "comment" : "A button to enable or disable split mode.",
+      "isCommentAutoGenerated" : true
     },
     "straightKey.armed" : {
       "extractionState" : "manual",

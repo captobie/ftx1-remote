@@ -133,6 +133,7 @@ public sealed record SetFilterSide(FilterSide Side) : SideCommand(Side) { public
 public sealed record SetAntSelect(int Value) : IntCommand(Value) { public override string Name => "set_ant_select"; }
 public sealed record SetTxw(bool On) : BoolCommand(On) { public override string Name => "set_txw"; }
 public sealed record SetTxSide(FilterSide Side) : SideCommand(Side) { public override string Name => "set_tx_side"; }
+public sealed record SetSplit(bool On) : BoolCommand(On) { public override string Name => "set_split"; }
 public sealed record SetSquelchType(int Value) : IntCommand(Value) { public override string Name => "set_squelch_type"; }
 /// Index into RigCtcssTone.AllValuesHz.
 public sealed record SetToneFrequency(int Value) : IntCommand(Value) { public override string Name => "set_tone_freq"; }
@@ -296,6 +297,7 @@ public static class RigCommandWire
         Int("set_ant_select", i => new SetAntSelect(i));
         Bool("set_txw", b => new SetTxw(b));
         Side("set_tx_side", s => new SetTxSide(s));
+        Bool("set_split", b => new SetSplit(b));
         Int("set_squelch_type", i => new SetSquelchType(i));
         Int("set_tone_freq", i => new SetToneFrequency(i));
         Int("set_dcs_code", i => new SetDcsCode(i));

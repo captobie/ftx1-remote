@@ -63,11 +63,12 @@ struct ContentView: View {
             // the VFO boxes; the scope mode buttons sit below it.
             Grid(horizontalSpacing: 12, verticalSpacing: 6) {
                 GridRow(alignment: .top) {
-                    VFODisplayBox(label: "SUB", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: hub.rigState.singleReceive != true, mode: hub.rigState.secondaryMode?.displayName ?? "—", txRxLabel: hub.rigState.subTxRxLabel, callsign: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsSubActive ? hub.rigState.aprsSubLastCallsign : nil), reflector: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsSubActive, onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.subVfoMemoryMode, memoryChannel: hub.rigState.subMemoryChannel, memoryChannelTag: hub.rigState.subMemoryChannelTag, onSetMemoryChannel: { hub.send(.setSubMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepSubMemoryChannel(up: $0)) }, memoryScan: hub.rigState.memoryScan(on: .sub))
+                    subVFOBox
                     VStack(spacing: 8) {
                         HStack(spacing: 12) {
                             vmToggleButton
                             txSideButton
+                            splitButton
                             vfoSwapButton
                             audioChannelSwapButton
                         }
@@ -219,6 +220,59 @@ struct ContentView: View {
         .buttonStyle(ThemedButtonStyle())
         .help("content.switchTheTransmitSide")
     }
+
+    /// The left box: the SUB receiver, or in split the rig's split TX VFO
+    /// — "FB" with MAIN's mode, no memory channel, frequency entry writes
+    /// "FB" (rig-confirmed 2026-10-31; see `RigState.splitEnabled`).
+    @ViewBuilder
+    private var subVFOBox: some View {
+        if hub.rigState.splitEnabled == true {
+            VFODisplayBox(label: "SPLIT", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: true, mode: hub.rigState.mode.displayName, txRxLabel: hub.rigState.subTxRxLabel, onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) })
+        } else {
+            VFODisplayBox(label: "SUB", frequencyHz: hub.rigState.secondaryFrequencyHz, isActive: hub.rigState.singleReceive != true, mode: hub.rigState.secondaryMode?.displayName ?? "—", txRxLabel: hub.rigState.subTxRxLabel, callsign: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmCallsign : (hub.rigState.aprsSubActive ? hub.rigState.aprsSubLastCallsign : nil), reflector: hub.rigState.secondaryMode == .c4fm ? hub.rigState.c4fmReflector : nil, aprsActive: hub.rigState.aprsSubActive, onSetFrequency: { hub.send(.setSecondaryFrequency(hz: $0)) }, vfoMemoryMode: hub.rigState.subVfoMemoryMode, memoryChannel: hub.rigState.subMemoryChannel, memoryChannelTag: hub.rigState.subMemoryChannelTag, onSetMemoryChannel: { hub.send(.setSubMemoryChannel($0)) }, onStepMemoryChannel: { hub.send(.stepSubMemoryChannel(up: $0)) }, memoryScan: hub.rigState.memoryScan(on: .sub))
+        }
+    }
+
+    /// SPLIT on/off (raw "ST", see `RigState.splitEnabled`): receive on
+    /// MAIN, transmit on the split TX VFO. The chevron beside it is quick
+    /// split — split on, then the TX VFO to MAIN's frequency plus an offset
+    /// (`HubService.quickSplit`). Both refused while transmitting.
+    private var splitButton: some View {
+        let isOn = hub.rigState.splitEnabled == true
+        return HStack(spacing: 2) {
+            Button {
+                hub.send(.setSplit(!isOn))
+            } label: {
+                Text("SPLIT")
+                    .font(.caption)
+                    .fontWeight(isOn ? .bold : .regular)
+            }
+            .buttonStyle(ThemedButtonStyle(isOn: isOn, prominentWhenOn: false))
+            .disabled(!hub.canChangeSplit)
+            .help("content.splitHelp")
+            Menu {
+                ForEach(Self.quickSplitOffsetsKHz, id: \.self) { kHz in
+                    if kHz > 0 {
+                        Button("content.quickSplitUp \(kHz)") { hub.quickSplit(offsetHz: kHz * 1000) }
+                    } else {
+                        Button("content.quickSplitDown \(-kHz)") { hub.quickSplit(offsetHz: kHz * 1000) }
+                    }
+                }
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+                    .accessibilityLabel(Text("content.quickSplit"))
+            }
+            .menuStyle(.button)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .disabled(!hub.canQuickSplit)
+            .help("content.quickSplitHelp")
+        }
+    }
+
+    /// Quick split offsets, kHz: the usual "up 1"/"up 5" and friends.
+    private static let quickSplitOffsetsKHz = [1, 2, 3, 5, 10, -1, -5]
 
     /// Manual override for which physical audio channel (L/R) plays under
     /// the Main/Sub controls — see `HubService.audioChannelsSwapped`. The

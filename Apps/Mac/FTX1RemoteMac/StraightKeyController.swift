@@ -274,8 +274,10 @@ final class StraightKeyController: ObservableObject {
             driver.setBlockReason(reason)
         }
 
-        let transmitsOnSub = state.splitEnabled == true || state.txSide == .sub
-        let mode = transmitsOnSub ? state.secondaryMode : state.mode
+        // Whose mode the rig transmits in: SUB's only with TX:SUB (split
+        // follows MAIN's, see `RigState.splitEnabled`).
+        let transmitsOnSub = state.splitEnabled != true && state.txSide == .sub
+        let mode = state.transmitMode
         let warning = (connection == .connected && mode != nil && mode != .cw)
             ? String(localized: "straightKeyController.transmittingIsInNot \(transmitsOnSub ? "SUB" : "MAIN") \(mode!.displayName)")
             : nil

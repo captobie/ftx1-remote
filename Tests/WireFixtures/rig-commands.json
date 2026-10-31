@@ -213,6 +213,10 @@
     "value" : 1
   },
   {
+    "cmd" : "set_split",
+    "value" : true
+  },
+  {
     "cmd" : "set_squelch_type",
     "value" : 1
   },

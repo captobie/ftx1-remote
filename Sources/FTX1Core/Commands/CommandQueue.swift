@@ -348,6 +348,9 @@ public actor CommandQueue {
         case .setTXSide(let side):
             // "FT" is a bare single digit (0 MAIN-side, 1 SUB-side), no P1.
             try await rigctld.setRawInt("FT", side.rawValue, digits: 1)
+        case .setSplit(let on):
+            // "ST" is a bare boolean like "TS" below, no P1.
+            try await rigctld.setRawBool("ST", on)
         case .setTXW(let on):
             // "TS" has no MAIN/SUB P1 selector at all — a bare boolean like
             // "MX"/"VX", not baked into a fixed-P1 mnemonic like most of the

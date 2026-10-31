@@ -271,6 +271,9 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
             // TXW is a disabled placeholder in both grids; the Mac sends
             // the bare "TS", and so does this.
             case SetTxw c: await client.SetRawBoolAsync("TS", c.On); break;
+            // SPLIT, a bare "ST" like "TS" (the Mac's RigCommand.setSplit).
+            // The iPad doesn't send it yet.
+            case SetSplit c: await client.SetRawBoolAsync("ST", c.On); break;
 
             // MENU grid, CW page
             case SetMoniLevel c: await menu.SetMoniLevelAsync(c.Value); break;

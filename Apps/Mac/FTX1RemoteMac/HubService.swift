@@ -966,6 +966,40 @@ final class HubService: ObservableObject {
         return nil
     }
 
+    /// Quick split: SPLIT on, then the split TX VFO to MAIN's frequency
+    /// plus `offsetHz` (e.g. +1 kHz, "up 1"). In that order: only in split
+    /// does "FB" address the TX VFO — before, it's the SUB receiver (see
+    /// `RigState.splitEnabled`). No mode to set: the TX VFO follows MAIN's.
+    /// Queued as one task so the two can't swap places.
+    func quickSplit(offsetHz: Int) {
+        guard canQuickSplit else {
+            Self.connectionLogger.notice("Ignored quick split (offset \(offsetHz) Hz)")
+            return
+        }
+        let target = rigState.frequencyHz + offsetHz
+        guard target > 0 else { return }
+        Self.connectionLogger.notice("Quick split: split on, TX VFO to \(target) Hz")
+        txSideBeforeMemoryScan = nil
+        Task {
+            await commandQueue.enqueue(.setSplit(true))
+            await commandQueue.enqueue(.setSecondaryFrequency(hz: target))
+            await refreshAfterSplit()
+        }
+    }
+
+    /// Whether `quickSplit` can run: `canChangeSplit`, and MAIN's
+    /// frequency known.
+    var canQuickSplit: Bool {
+        canChangeSplit && rigState.frequencyHz > 0
+    }
+
+    /// Whether SPLIT can be switched now: connected, not transmitting
+    /// (switching it moves the transmitter to the other VFO's frequency),
+    /// and no memory scan running (the scan moves the TX side itself).
+    var canChangeSplit: Bool {
+        connectionState == .connected && !rigState.ptt && rigState.moxEnabled != true && !isMemoryScanActive
+    }
+
     /// Skip on a paused memory scan: the same scan command again, which the
     /// rig takes as "resume past this channel" (rig-confirmed 2026-10-06).
     /// A scan started from the front panel resumes upward.
@@ -1035,9 +1069,12 @@ final class HubService: ObservableObject {
             memoryList.refresh()
             return
         }
-        if case .setTXSide = command {
+        switch command {
+        case .setTXSide, .setSplit:
             // Chosen by the operator: not undone when a scan stops.
             txSideBeforeMemoryScan = nil
+        default:
+            break
         }
         if case .setMemoryScan(let direction, let side) = command {
             if direction == .off {
@@ -1179,6 +1216,19 @@ final class HubService: ObservableObject {
             }
             return
         }
+        if case .setSplit(let on) = command {
+            guard canChangeSplit else {
+                Self.connectionLogger.notice("Ignored split \(on ? "on" : "off", privacy: .public): not connected or transmitting")
+                return
+            }
+            // How "ST" moves "FT"/"VS" (one setting, see `RigState.txSide`)
+            // isn't documented, so both are read back rather than guessed.
+            Task {
+                await commandQueue.enqueue(command)
+                await refreshAfterSplit()
+            }
+            return
+        }
         if case .setNarrow = command {
             // NAR moves the passband to the mode's narrow preset, so the
             // width the slow tier last read is stale the moment this
@@ -1276,7 +1326,7 @@ final class HubService: ObservableObject {
              .setCWMessageRecording, .setAtt, .setPreamp, .setTuner, .setDisplayContrast,
              .setDisplayDimmer, .setDisplayLevel, .setDisplayPeak, .setDisplayMarker, .setMicGain,
              .setAMCLevel, .setVox, .setVoxGain, .setVoxDelay, .setDNF, .setAGC, .setMicEQ,
-             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow, .setFilterSide, .setAntSelect, .setTXW, .setTXSide, .setSquelchType,
+             .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow, .setFilterSide, .setAntSelect, .setTXW, .setTXSide, .setSplit, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
              .setMenuItem, .setVFOMemoryMode, .setMemoryChannel, .stepMemoryChannel,
              .setSubMemoryChannel, .stepSubMemoryChannel, .recallMemoryChannel, .setMemoryScan,
@@ -1350,7 +1400,9 @@ final class HubService: ObservableObject {
             let freq = rigState.frequencyHz
             rigState.frequencyHz = rigState.secondaryFrequencyHz ?? freq
             rigState.secondaryFrequencyHz = freq
-            if let newMode = rigState.secondaryMode {
+            // In split both VFOs are MAIN's and share its mode, and
+            // `secondaryMode` is still the SUB receiver's — leave both.
+            if rigState.splitEnabled != true, let newMode = rigState.secondaryMode {
                 rigState.secondaryMode = rigState.mode
                 rigState.mode = newMode
             }
@@ -1424,6 +1476,7 @@ final class HubService: ObservableObject {
         case .setAntSelect(let mode): rigState.antSelect = mode
         case .setTXW(let on): rigState.txwEnabled = on
         case .setTXSide(let side): rigState.txSide = side
+        case .setSplit(let on): rigState.splitEnabled = on
         case .setSquelchType(let mode): rigState.squelchType = mode
         case .setToneFreq(let index): rigState.ctcssToneIndex = index
         case .setDCSCode(let index): rigState.dcsCodeIndex = index
@@ -1674,6 +1727,33 @@ final class HubService: ObservableObject {
         await server.broadcast(rigState)
     }
 
+    /// Reads what a split write changes right away instead of waiting for
+    /// the slow tier: SPLIT, the TX side, the display mode ("ST1" turns the
+    /// dual display off, "ST0" back on) and "FB", which switches between
+    /// the TX VFO and the SUB receiver (see `RigState.splitEnabled`) — so
+    /// the left box, the tags and the TX gate follow at once.
+    private func refreshAfterSplit() async {
+        try? await Task.sleep(for: .milliseconds(300))
+        let split = try? await rigctld.getRawBool("ST")
+        let txSide = (try? await rigctld.getRawDigit("FT")).flatMap(FilterSide.init(rawValue:))
+        let single = (try? await rigctld.getRawInt("FR")).map { $0 == 1 }
+        let sub = try? await rigctld.getRawInt("FB")
+        Self.connectionLogger.notice("After split write: ST=\(split.map { $0 ? "1" : "0" } ?? "?", privacy: .public) FT=\(txSide.map { "\($0.rawValue)" } ?? "?", privacy: .public) FR single=\(single.map { "\($0)" } ?? "?", privacy: .public) FB=\(sub.map { "\($0)" } ?? "?", privacy: .public)")
+        guard split != nil || txSide != nil || single != nil || sub != nil else { return }
+        commandGeneration += 1
+        if let split { rigState.splitEnabled = split }
+        if let txSide { rigState.txSide = txSide }
+        if let single { rigState.singleReceive = single }
+        if let sub, sub > 0 {
+            rigState.secondaryFrequencyHz = sub
+            lastDistinctFrequencies = nil
+        }
+        await server.broadcast(rigState)
+        // As in the slow tier's "FR" read: no SUB filter side without the
+        // dual display.
+        if single == true, rigState.activeFilterSide == .sub { send(.setFilterSide(.main)) }
+    }
+
     /// Fast path after a NARROW write: the rig re-filters to the mode's
     /// preset narrow width (or back), changing "SH0"'s answer, and the
     /// Width readout would otherwise sit on the old value until the slow
@@ -1850,6 +1930,12 @@ final class HubService: ObservableObject {
     /// Stepping memory channels changes only Main, so it can't look like
     /// an exchange of both values.
     private func trackExternalSwap(main: Int, sub: Int?) {
+        // In split "FB" is MAIN's TX VFO, not the SUB receiver, so an
+        // exchange there is MAIN's A/B swap and the L/R audio stays put.
+        guard rigState.splitEnabled != true else {
+            lastDistinctFrequencies = nil
+            return
+        }
         guard let sub, sub != main else { return }
         if let last = lastDistinctFrequencies, main == last.sub, sub == last.main {
             setAudioChannelsSwapped(!audioChannelsSwapped, reason: "front-panel swap detected (\(last.main)/\(last.sub) → \(main)/\(sub) Hz)")

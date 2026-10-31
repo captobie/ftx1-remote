@@ -242,16 +242,15 @@ public struct RigState: Codable, Equatable, Sendable {
     /// here, "TS" has no MAIN/SUB P1 selector at all, just a bare 0/1.
     public var txwEnabled: Bool?
     /// SPLIT on/off (the FTX-1's raw "ST" CAT command) — like "TS" above, a
-    /// bare 0/1 with no MAIN/SUB P1 selector. Drives the TXRX/RX label
-    /// `VFODisplayBox` shows next to MAIN, matching the rig's own display:
-    /// `false` (or not yet read) shows "TXRX", `true` shows "RX" —
-    /// confirmed against real hardware. SUB shows a static "RX" regardless
-    /// of this field (see `VFODisplayBox`'s call sites) — confirmed split
-    /// OFF; the exact real-hardware label(s) while split is ON are still
-    /// being confirmed (the rig appears to show a TX/RX pair somewhere in
-    /// that state, not yet pinned down whether that's MAIN-internal or
-    /// spans MAIN/SUB — don't assume the current MAIN ternary above is
-    /// final for the split-ON case).
+    /// bare 0/1 with no MAIN/SUB P1 selector. Not "transmit on the SUB
+    /// receiver" (rig-confirmed 2026-10-31): "ST1" turns the dual display
+    /// off ("FR01"), MAIN receives, and the rig transmits from a second VFO
+    /// that "FB" (`secondaryFrequencyHz`) reads and sets, always in MAIN's
+    /// mode; "FT" stays 0. The SUB receiver keeps its own state ("OI",
+    /// "VM1"/"MC1", "MD1" still describe it), and "ST0" brings the dual
+    /// display back. So while this is true, `secondaryFrequencyHz` is the
+    /// TX frequency and `secondaryMode` is *not* the TX mode — use
+    /// `transmitFrequencyHz`/`transmitMode`.
     public var splitEnabled: Bool?
     /// Which receiver's side transmits (the FTX-1's raw "FT" FUNCTION TX CAT
     /// command: 0 MAIN-side transmitter, 1 SUB-side). Bare single digit, no
@@ -263,14 +262,27 @@ public struct RigState: Codable, Equatable, Sendable {
     public var mainTxRxLabel: String {
         subTransmits ? "RX" : "TXRX"
     }
-    /// Same for the SUB box: "TXRX" only while SUB is the TX side.
+    /// Same for the SUB box: "TXRX" only while SUB is the TX side; "TX"
+    /// in split, where that box shows the split TX VFO.
     public var subTxRxLabel: String {
-        splitEnabled != true && txSide == .sub ? "TXRX" : "RX"
+        if splitEnabled == true { return "TX" }
+        return txSide == .sub ? "TXRX" : "RX"
     }
-    /// SUB's side transmits: TX:SUB, or split on (`mainTxRxLabel`'s rule).
-    /// Which S-meter shows the TX readings, and what the CW Log pane logs.
+    /// The left box's side transmits: TX:SUB, or split on (`mainTxRxLabel`'s
+    /// rule). Which S-meter shows the TX readings.
     public var subTransmits: Bool {
         splitEnabled == true || txSide == .sub
+    }
+    /// The frequency the rig transmits on: SUB's with TX:SUB, the split TX
+    /// VFO's ("FB") in split, else MAIN's. `nil`/0 while not yet read.
+    public var transmitFrequencyHz: Int? {
+        subTransmits ? secondaryFrequencyHz : frequencyHz
+    }
+    /// The mode the rig transmits in: SUB's with TX:SUB, MAIN's otherwise —
+    /// split included, whose TX VFO always follows MAIN's mode (see
+    /// `splitEnabled`). `nil` for SUB until it has been read.
+    public var transmitMode: RigMode? {
+        splitEnabled != true && txSide == .sub ? secondaryMode : mode
     }
     /// Squelch type, 0-5 (OFF/ENC/TSQ/DCS/PR FREQ/REV TONE) — the FTX-1's raw
     /// "CT" CAT command, P1 fixed to "0" (MAIN-side). Same setting as Deep
