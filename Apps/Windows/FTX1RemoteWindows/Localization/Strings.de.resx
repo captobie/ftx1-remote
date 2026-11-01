@@ -954,6 +954,18 @@
   <data name="mainWindow.putXInMemory" xml:space="preserve">
     <value>{0} zum Scannen in den Speichermodus schalten</value>
   </data>
+  <data name="mainWindow.quickSplit" xml:space="preserve">
+    <value>Schnell-Split</value>
+  </data>
+  <data name="mainWindow.quickSplitDown" xml:space="preserve">
+    <value>Schnell-Split: {0} kHz tiefer</value>
+  </data>
+  <data name="mainWindow.quickSplitHelp" xml:space="preserve">
+    <value>Schnell-Split: Split einschalten und auf der MAIN-Frequenz plus Versatz senden</value>
+  </data>
+  <data name="mainWindow.quickSplitUp" xml:space="preserve">
+    <value>Schnell-Split: {0} kHz höher</value>
+  </data>
   <data name="mainWindow.recallChannelXFailed" xml:space="preserve">
     <value>Kanal {0} abrufen fehlgeschlagen: {1}</value>
   </data>
@@ -999,6 +1011,9 @@
   <data name="mainWindow.setPTTFailedX" xml:space="preserve">
     <value>PTT setzen fehlgeschlagen: {0}</value>
   </data>
+  <data name="mainWindow.setSplitFailed" xml:space="preserve">
+    <value>Split setzen fehlgeschlagen: {0}</value>
+  </data>
   <data name="mainWindow.setSUBModeFailed" xml:space="preserve">
     <value>SUB-Modus setzen fehlgeschlagen: {0}</value>
   </data>
@@ -1019,6 +1034,9 @@
   </data>
   <data name="mainWindow.skipFailedX" xml:space="preserve">
     <value>Überspringen fehlgeschlagen: {0}</value>
+  </data>
+  <data name="mainWindow.splitHelp" xml:space="preserve">
+    <value>Split: Empfang und Senden auf verschiedenen Frequenzen</value>
   </data>
   <data name="mainWindow.squelchOpen" xml:space="preserve">
     <value>Squelch offen</value>

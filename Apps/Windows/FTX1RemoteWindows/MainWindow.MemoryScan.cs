@@ -534,6 +534,7 @@ public sealed partial class MainWindow
         }
         MemoryScanButton.IsEnabled = IsConnected && (active || CanStartMemoryScan(false) || CanStartMemoryScan(true));
         MemoryScanSkipButton.IsEnabled = IsConnected && _lastState.MemoryScan == MemoryScanState.Paused;
+        UpdateSplitControls();
         _memoryListWindow?.SetMemoryScan(_lastState.MemoryScan, _lastState.MemoryScanSub,
             CanStartMemoryScan(false), CanStartMemoryScan(true),
             _lastState.MemoryScanSub ? _lastState.SubMemoryChannel : _lastState.MemoryChannel);

@@ -122,8 +122,10 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <!-- Order matches the Mac: V/M, TX side, swap, audio override. -->
+                        <!-- Order matches the Mac: V/M, TX side, SPLIT, swap, audio override. -->
                         <!-- Main's VFO/Memory mode; checked whenever it isn't plain VFO. -->
                         <ToggleButton x:Name="VfoMemoryToggle" Content="V/M"
                                       Click="VfoMemoryToggle_Click"
@@ -131,10 +133,18 @@
                         <!-- Which receiver transmits (raw "FT"); the caption shows the current side. -->
                         <Button x:Name="TxSideButton" Grid.Column="2" Content="TX:MAIN" Click="TxSideButton_Click"
                                 ToolTipService.ToolTip="{l:Str Key=mainWindow.switchTheTransmitSide}" />
-                        <Button x:Name="SwapVfoButton" Grid.Column="4" Content="⇄"
+                        <!-- SPLIT on/off (raw "ST"); the chevron is quick split (MainWindow.Split.cs). -->
+                        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="2">
+                            <ToggleButton x:Name="SplitToggle" Content="SPLIT" IsEnabled="False" Click="SplitToggle_Click"
+                                          ToolTipService.ToolTip="{l:Str Key=mainWindow.splitHelp}" />
+                            <DropDownButton x:Name="QuickSplitButton" IsEnabled="False" Padding="4,5"
+                                            AutomationProperties.Name="{l:Str Key=mainWindow.quickSplit}"
+                                            ToolTipService.ToolTip="{l:Str Key=mainWindow.quickSplitHelp}" />
+                        </StackPanel>
+                        <Button x:Name="SwapVfoButton" Grid.Column="6" Content="⇄"
                                 Click="SwapVfoButton_Click" ToolTipService.ToolTip="{l:Str Key=mainWindow.swapMainAndSub}" />
                         <!-- Manual override for audio swap tracking; checked while L/R are swapped. -->
-                        <ToggleButton x:Name="AudioSwapToggle" Grid.Column="6" Click="AudioSwapToggle_Click">
+                        <ToggleButton x:Name="AudioSwapToggle" Grid.Column="8" Click="AudioSwapToggle_Click">
                             <FontIcon Glyph="&#xE767;" FontSize="14" />
                         </ToggleButton>
                     </Grid>

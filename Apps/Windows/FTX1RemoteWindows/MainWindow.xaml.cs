@@ -252,6 +252,7 @@ public sealed partial class MainWindow : Window
         AppWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));
         Title = "FTX-1 Remote";
         InitVfoEntryFlyouts();
+        InitSplitControls();
         _mainDigits = new VfoDigits(FrequencyAText, FrequencyAGrid);
         _subDigits = new VfoDigits(FrequencyBText, FrequencyBGrid);
         if (!RestoreWindowBounds())
@@ -669,7 +670,8 @@ public sealed partial class MainWindow : Window
     private void ApplySubVfoBorder()
     {
         var vfo = ThemeEngine.Current.Vfo;
-        SubVfoBox.BorderBrush = ThemeEngine.ToBrush(_singleReceive == true ? vfo.BorderInactive : vfo.Border);
+        // Split reads as single receive, but this box shows its TX VFO then.
+        SubVfoBox.BorderBrush = ThemeEngine.ToBrush(_singleReceive == true && _splitOn != true ? vfo.BorderInactive : vfo.Border);
     }
 
     private async void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -749,6 +751,7 @@ public sealed partial class MainWindow : Window
             _filterPanel.ClearState();
             _filterPanel.Client = client;
             ClearMemoryState();
+            ClearSplitState();
             ClearC4fmState();
             // Run the slow tier (FR, MENU grid) on the first poll.
             _pollCount = 0;
@@ -864,6 +867,7 @@ public sealed partial class MainWindow : Window
         _mainMeter.Reset();
         _subMeter.Reset();
         ClearMemoryState();
+        ClearSplitState();
         Volatile.Write(ref _aprsMainGateHz, 0);
         Volatile.Write(ref _aprsSubGateHz, 0);
         ClearC4fmState();
@@ -986,17 +990,11 @@ public sealed partial class MainWindow : Window
         {
             try
             {
-                if (await client.GetRawIntAsync("FR") is { } fr)
+                // Not from a poll that straddled a command: a split write
+                // changes "FR" too, and this read may predate it.
+                if (await client.GetRawIntAsync("FR") is { } fr && generationAtStart == _commandGeneration)
                 {
-                    var single = fr == 1;
-                    if (single != _singleReceive)
-                    {
-                        AppLog.Write($"audio-routing: FR reply {fr} — {(single ? "single" : "dual")} receive");
-                    }
-                    _singleReceive = single;
-                    _filterPanel.SingleReceive = single;
-                    // The Mac's VFODisplayBox: SUB's border goes gray while it isn't shown.
-                    ApplySubVfoBorder();
+                    ApplySingleReceive(fr);
                 }
             }
             catch (Exception ex)
@@ -1006,9 +1004,12 @@ public sealed partial class MainWindow : Window
 
             try
             {
-                if (await client.GetRawBoolAsync("ST") is { } split)
+                if (await client.GetRawBoolAsync("ST") is { } split
+                    && generationAtStart == _commandGeneration && split != _splitOn)
                 {
+                    AppLog.Write($"split: ST reply {(split ? 1 : 0)}");
                     _splitOn = split;
+                    UpdateSplitDisplay();
                 }
                 if (await client.GetRawDigitAsync("FT") is { } ft)
                 {
@@ -1051,7 +1052,13 @@ public sealed partial class MainWindow : Window
             AppLog.Write($"poll: main={polledMain?.ToString() ?? "failed"} sub={polledSub?.ToString() ?? "failed"}{(generationChanged ? " (command mid-poll, swap tracking skipped)" : "")} swapped={_swapTracker.Swapped}");
         }
 
-        if (polledMain is { } main && !generationChanged)
+        // In split "FB" is MAIN's TX VFO, not the SUB receiver, so an exchange
+        // there is MAIN's A/B swap and the L/R audio stays put.
+        if (_splitOn == true)
+        {
+            _swapTracker.ResetBaseline();
+        }
+        else if (polledMain is { } main && !generationChanged)
         {
             _swapTracker.OnPoll(main, polledSub);
         }
@@ -1242,8 +1249,10 @@ public sealed partial class MainWindow : Window
         UpdateModeTags();
         ShowCallsignLine(C4fmCallsignAText, C4fmReflectorAText, _lastState.MainIsC4fm == true,
             AppSettings.IsAprsActive(IsConnected ? _lastState.FrequencyHz : null), _aprsMainLastHeard);
-        ShowCallsignLine(C4fmCallsignBText, C4fmReflectorBText, _lastState.SubIsC4fm == true,
-            AppSettings.IsAprsActive(IsConnected ? _lastState.SecondaryFrequencyHz : null), _aprsSubLastHeard);
+        // In split that box is the TX VFO, which receives nothing.
+        var split = _splitOn == true;
+        ShowCallsignLine(C4fmCallsignBText, C4fmReflectorBText, !split && _lastState.SubIsC4fm == true,
+            !split && AppSettings.IsAprsActive(IsConnected ? _lastState.SecondaryFrequencyHz : null), _aprsSubLastHeard);
         ShowScanIndicators();
     }
 
@@ -1388,11 +1397,16 @@ public sealed partial class MainWindow : Window
             // The modes swap too, so the filter controls match their
             // receivers until the polls confirm; then re-read the selected
             // side's filter, which now holds the other VFO's settings or not.
-            if (_lastState.SubMode is { } subMode)
+            // In split both VFOs are MAIN's and share its mode, and SubMode
+            // is still the SUB receiver's: leave both.
+            if (_splitOn != true)
             {
-                (_lastState.Mode, _lastState.SubMode) = (subMode, _lastState.Mode);
+                if (_lastState.SubMode is { } subMode)
+                {
+                    (_lastState.Mode, _lastState.SubMode) = (subMode, _lastState.Mode);
+                }
+                (_lastState.MainIsC4fm, _lastState.SubIsC4fm) = (_lastState.SubIsC4fm, _lastState.MainIsC4fm);
             }
-            (_lastState.MainIsC4fm, _lastState.SubIsC4fm) = (_lastState.SubIsC4fm, _lastState.MainIsC4fm);
             UpdateModeTags();
             _filterPanel.RefreshUI();
             _filterPanel.RequestRefresh(TimeSpan.FromMilliseconds(400));
@@ -1411,25 +1425,28 @@ public sealed partial class MainWindow : Window
         // Mid-scan the mode is a random channel's (MainWindow.MemoryScan.cs).
         MainModeText.Text = _lastState.MemoryScanOn(false) == MemoryScanState.Scanning ? "—"
             : _lastState.MainIsC4fm == true ? "C4FM" : _lastState.Mode?.DisplayName() ?? "";
-        SubModeText.Text = _lastState.MemoryScanOn(true) == MemoryScanState.Scanning ? "—"
+        // The split TX VFO always follows MAIN's mode.
+        SubModeText.Text = _splitOn == true ? MainModeText.Text
+            : _lastState.MemoryScanOn(true) == MemoryScanState.Scanning ? "—"
             : _lastState.SubIsC4fm == true ? "C4FM" : _lastState.SubMode?.DisplayName() ?? "";
     }
 
     /// The Mac's RigState.mainTxRxLabel/subTxRxLabel: TXRX (red) on the TX
-    /// side, RX (green) on the other; with split on, MAIN shows RX.
+    /// side, RX (green) on the other; with split on, MAIN shows RX and the
+    /// left box, which then shows the split TX VFO, TX (red).
     private void UpdateTxRxIndicators()
     {
         var sub = _txSideSub == true;
         var split = _splitOn == true;
-        SetTxRxTag(MainTxRxTag, MainTxRxText, !(split || sub));
-        SetTxRxTag(SubTxRxTag, SubTxRxText, !split && sub);
+        SetTxRxTag(MainTxRxTag, MainTxRxText, split || sub ? "RX" : "TXRX");
+        SetTxRxTag(SubTxRxTag, SubTxRxText, split ? "TX" : sub ? "TXRX" : "RX");
         TxSideButton.Content = sub ? "TX:SUB" : "TX:MAIN";
     }
 
-    private static void SetTxRxTag(Border tag, TextBlock text, bool txrx)
+    private static void SetTxRxTag(Border tag, TextBlock text, string label)
     {
-        text.Text = txrx ? "TXRX" : "RX";
-        tag.Background = new SolidColorBrush(txrx ? Microsoft.UI.Colors.Red : Microsoft.UI.Colors.Green);
+        text.Text = label;
+        tag.Background = new SolidColorBrush(label == "RX" ? Microsoft.UI.Colors.Green : Microsoft.UI.Colors.Red);
     }
 
     private async void TxSideButton_Click(object sender, RoutedEventArgs e) => await SetTxSideAsync(_txSideSub != true);
@@ -1556,7 +1573,8 @@ public sealed partial class MainWindow : Window
     private void UpdateMemoryDisplay()
     {
         ShowMemoryLabel(MemoryChannelAText, _lastState.VfoMemoryRaw, _lastState.MemoryChannel, _lastState.MemoryChannelTag);
-        ShowMemoryLabel(MemoryChannelBText, _lastState.SubVfoMemoryRaw, _lastState.SubMemoryChannel, _lastState.SubMemoryChannelTag);
+        // No channel in split: that box is the TX VFO, whatever SUB is on.
+        ShowMemoryLabel(MemoryChannelBText, _splitOn == true ? null : _lastState.SubVfoMemoryRaw, _lastState.SubMemoryChannel, _lastState.SubMemoryChannelTag);
         ShowScanningMemoryLabels();
         VfoMemoryToggle.IsChecked = _lastState.VfoMemoryRaw is { } raw && raw != 0;
         // ClearMemoryState runs on every connect and disconnect, after
@@ -1647,7 +1665,11 @@ public sealed partial class MainWindow : Window
             up => StepMemoryChannelAsync(sub: false, up),
             message => StatusText.Text = message);
         _ = new VfoEntryFlyout(FrequencyBText,
-            () => EntryState(_lastState.SubVfoMemoryRaw, _lastState.SecondaryFrequencyHz, _lastState.SubMemoryChannel),
+            // In split the box is the TX VFO, whatever SUB is on, so plain
+            // frequency entry ("FB", rig-confirmed on the Mac 2026-10-31).
+            () => _splitOn == true
+                ? EntryState(0, _lastState.SecondaryFrequencyHz, null)
+                : EntryState(_lastState.SubVfoMemoryRaw, _lastState.SecondaryFrequencyHz, _lastState.SubMemoryChannel),
             SetSubFrequencyAsync,
             channel => SetMemoryChannelAsync(sub: true, channel),
             up => StepMemoryChannelAsync(sub: true, up),
@@ -2097,16 +2119,15 @@ public sealed partial class MainWindow : Window
             PttText.ClearValue(TextBlock.ForegroundProperty);
         }
         ToolTipService.SetToolTip(PttButton, reason ?? Loc.S("mainWindow.holdToTransmit"));
+        UpdateSplitControls();
         _menuGrid.RefreshLabels();
         EnforcePrivilegesWhileKeyed();
     }
 
-    /// The transmitting side's frequency and mode — SUB's with TX:SUB or
-    /// split, the TXRX tags' rule (the Mac's TransmitGate.
-    /// transmitFrequencyHz/transmitMode).
-    private TransmitSignal TransmitterNow() => _splitOn == true || _txSideSub == true
-        ? new TransmitSignal(_lastState.SecondaryFrequencyHz ?? 0, _lastState.SubMode, _lastState.SubIsC4fm == true)
-        : new TransmitSignal(_lastState.FrequencyHz, _lastState.Mode, _lastState.MainIsC4fm == true);
+    /// The frequency and mode the rig transmits on (TransmitGate.Transmitter).
+    private TransmitSignal TransmitterNow() => TransmitGate.Transmitter(_splitOn, _txSideSub,
+        new TransmitSignal(_lastState.FrequencyHz, _lastState.Mode, _lastState.MainIsC4fm == true),
+        new TransmitSignal(_lastState.SecondaryFrequencyHz ?? 0, _lastState.SubMode, _lastState.SubIsC4fm == true));
 
     /// Why a transmit action would be refused right now (null: it goes
     /// through) — Enable Transmit, the amateur bands and, when chosen, the
@@ -2527,17 +2548,16 @@ public sealed partial class MainWindow : Window
     }
 
     /// The side the rig transmits on, for the CW window's Log QSO pane:
-    /// SUB's with TX:SUB or split — the TXRX tags' rule (UpdateTxRxTags),
-    /// the Mac's RigState.transmitter. Null while disconnected.
+    /// TransmitterNow, the Mac's RigState.transmitter. Null while
+    /// disconnected.
     private CwTransmitter? CwTransmitterNow()
     {
         if (!IsConnected)
         {
             return null;
         }
-        return _splitOn == true || _txSideSub == true
-            ? new CwTransmitter(_lastState.SecondaryFrequencyHz ?? 0, _lastState.SubMode, _lastState.SubIsC4fm == true, _lastState.PowerLevel)
-            : new CwTransmitter(_lastState.FrequencyHz, _lastState.Mode, _lastState.MainIsC4fm == true, _lastState.PowerLevel);
+        var tx = TransmitterNow();
+        return new CwTransmitter(tx.FrequencyHz, tx.Mode, tx.IsC4fm, _lastState.PowerLevel);
     }
 
     /// Why the CW send pane can't key the rig right now (the Mac's

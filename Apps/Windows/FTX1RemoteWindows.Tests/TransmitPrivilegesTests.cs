@@ -231,6 +231,23 @@ public class TransmitPrivilegesTests
     // Gate.
 
     [Fact]
+    public void TransmitterFollowsTxSideAndSplit()
+    {
+        var main = new TransmitSignal(14_250_000, RigMode.Usb);
+        var sub = new TransmitSignal(446_000_000, RigMode.Fm);
+        Assert.Equal(main, TransmitGate.Transmitter(null, null, main, sub));
+        Assert.Equal(main, TransmitGate.Transmitter(false, false, main, sub));
+        Assert.Equal(sub, TransmitGate.Transmitter(false, true, main, sub));
+        // Split: "FB"'s frequency, always in MAIN's mode, not the SUB receiver's.
+        var tx = new TransmitSignal(14_251_000, RigMode.Usb);
+        var splitFb = sub with { FrequencyHz = 14_251_000 };
+        Assert.Equal(tx, TransmitGate.Transmitter(true, false, main, splitFb));
+        Assert.Equal(tx, TransmitGate.Transmitter(true, true, main, splitFb));
+        var c4fmMain = new TransmitSignal(446_000_000, null, true);
+        Assert.Equal(c4fmMain with { FrequencyHz = 14_251_000 }, TransmitGate.Transmitter(true, false, c4fmMain, splitFb));
+    }
+
+    [Fact]
     public void GateUsesTheSignalsModeAndFrequency()
     {
         var general = P("us.general");

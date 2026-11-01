@@ -2566,9 +2566,14 @@ order as one task. Both refused while PTT/MOX is on or a memory scan runs
   not a receiver swap) and the app's swap leaves the modes alone.
 - Tested on the rig by the user after the TX VFO box landed, working.
   Not covered by what was reported: the rig's A/B swap in split.
-- iPad: no UI (user decision); the wire command exists. Windows parses
-  `set_split` and sends "ST" from its hub (`SetSplit`, fixture count 72) —
-  not yet built on the PC.
+- iPad: no UI (user decision); the wire command exists.
+- **Windows (2026-11-01; unit-tested, checked in the built app against a
+  stand-in rigctld, then on the rig over the Pi; keyed and tested on the
+  rig by the user the same day, working)**: the same button, quick split
+  and left box (`MainWindow.Split.cs`); the hub's `set_split` runs the
+  button's method, so it's refused while transmitting or scanning too.
+  `TransmitGate.Transmitter` is the `transmitFrequencyHz`/`transmitMode`
+  rule there. See `Apps/Windows/README.md`'s "Split".
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 

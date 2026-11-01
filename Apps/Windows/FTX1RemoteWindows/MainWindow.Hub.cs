@@ -486,6 +486,7 @@ public sealed partial class MainWindow : IHubRigHost
     Task IHubRigHost.SetBandAsync(Band band) => SetBandAsync(band);
     Task IHubRigHost.SetPowerLevelAsync(double level) => SetPowerLevelAsync(level);
     Task IHubRigHost.SetTxSideAsync(bool sub) => SetTxSideAsync(sub);
+    Task IHubRigHost.SetSplitAsync(bool on) => SetSplitAsync(on);
     Task IHubRigHost.SetVfoMemoryModeAsync(bool memory) => SetVfoMemoryModeAsync(memory);
     Task IHubRigHost.SetMemoryChannelAsync(bool sub, int channel) => SetMemoryChannelAsync(sub, channel);
     Task IHubRigHost.StepMemoryChannelAsync(bool sub, bool up) => StepMemoryChannelAsync(sub, up);

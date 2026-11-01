@@ -23,8 +23,8 @@ public enum TransmitAction
 
 /// Port of the Mac's transmit gate (FTX1Core's TransmitGate.blockReason,
 /// which HubService.send and the PTT button use): a transmit action goes
-/// through only while Enable Transmit is on AND the transmitting side
-/// (SUB with TX:SUB or split, the TXRX tags' rule) is inside an amateur
+/// through only while Enable Transmit is on AND the transmitter
+/// (<see cref="Transmitter"/>, the TXRX tags' rule) is inside an amateur
 /// allocation (BandPlan) AND, with Settings → License on, its signal fits
 /// inside those privileges. Every transmit-capable command must call
 /// <see cref="BlockReason"/> first.
@@ -59,6 +59,14 @@ public static class TransmitGate
         }
         return null;
     }
+
+    /// What the rig transmits: SUB's signal with TX:SUB, MAIN's otherwise,
+    /// and in split the TX VFO ("FB", read as SUB's frequency) in MAIN's
+    /// mode (the Mac's RigState.transmitFrequencyHz/transmitMode).
+    public static TransmitSignal Transmitter(bool? splitOn, bool? txSideSub, TransmitSignal main, TransmitSignal sub) =>
+        splitOn == true ? main with { FrequencyHz = sub.FrequencyHz }
+        : txSideSub == true ? sub
+        : main;
 
     /// "14.225.000"-style, the VFO boxes' grouping.
     public static string FormatMHz(long hz) => $"{hz / 1_000_000}.{hz / 1_000 % 1_000:000}.{hz % 1_000:000}";

@@ -42,6 +42,8 @@ public interface IHubRigHost
     int? HubKeyedBy { get; }
     Task SetPowerLevelAsync(double level);
     Task SetTxSideAsync(bool sub);
+    /// Refused while transmitting or scanning, as on the window's button.
+    Task SetSplitAsync(bool on);
     Task SetVfoMemoryModeAsync(bool memory);
     Task SetMemoryChannelAsync(bool sub, int channel);
     Task StepMemoryChannelAsync(bool sub, bool up);
@@ -271,9 +273,9 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
             // TXW is a disabled placeholder in both grids; the Mac sends
             // the bare "TS", and so does this.
             case SetTxw c: await client.SetRawBoolAsync("TS", c.On); break;
-            // SPLIT, a bare "ST" like "TS" (the Mac's RigCommand.setSplit).
-            // The iPad doesn't send it yet.
-            case SetSplit c: await client.SetRawBoolAsync("ST", c.On); break;
+            // The window's SPLIT button (the Mac's RigCommand.setSplit). The
+            // iPad doesn't send it yet.
+            case SetSplit c: await host.SetSplitAsync(c.On); break;
 
             // MENU grid, CW page
             case SetMoniLevel c: await menu.SetMoniLevelAsync(c.Value); break;

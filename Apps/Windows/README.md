@@ -1522,6 +1522,48 @@ row. The button for the channel a receiver is on uses the accent style.
   once and leaves `_lastVfoState` alone, so V/M still returns MAIN to its
   VFO. Leaving Memory mode isn't offered from the list.
 
+## Split (2026-11-01; unit-tested, checked in the built app against a stand-in rigctld, then on the rig over the Pi, then tested by the user on the rig the same day, working)
+
+The Mac's split (repo root CLAUDE.md, "Split"), ported in
+`MainWindow.Split.cs`. The rig's behavior was read on the real rig for the
+Mac and isn't re-probed here.
+
+- **SPLIT** (raw "ST", between TX:MAIN/SUB and the swap button) and its
+  chevron, **quick split**: split on, then the TX VFO to MAIN + 1/2/3/5/10 kHz
+  or − 1/5 kHz, in that order, since "FB" only addresses the TX VFO once split
+  is on. Both are disabled while transmitting or scanning. The hub's
+  `set_split` runs the same method, so the same refusal applies; the iPad
+  doesn't send it yet.
+- **Left box in split**: label SPLIT, red TX tag, FB's frequency, MAIN's
+  mode, no memory channel, callsign or APRS line, normal border even though
+  "FR" reads single receive; frequency entry writes the TX VFO even if the SUB
+  receiver is on a memory channel. MAIN shows RX.
+- **`TransmitGate.Transmitter`** is the one rule for what the rig transmits
+  (FB's frequency in MAIN's mode in split, SUB's signal with TX:SUB, else
+  MAIN's). The gate, the License guardrail, the hub, the CW Log pane and
+  Wavelog all go through it. Before this they used SUB's *mode* in split.
+- ST, FT, FR and FB are read back 300 ms after each split write
+  (`split: after write …` in `app.log`). Slow-tier ST/FR reads from a poll
+  that straddled a command are dropped, so they can't undo the display.
+  In split, front-panel swap tracking is off (an FB/FA exchange is MAIN's A/B
+  swap, not a receiver swap), and the app's swap leaves the modes alone.
+
+Checked against the stand-in: quick split up and down, SPLIT off and on, FB
+following the TX VFO and going back to the SUB receiver, the left box both
+ways, the lock while keyed (the button and `set_split`), the display after a
+disconnect in split, and the License guardrail unkeying on the TX VFO's
+frequency in MAIN's mode.
+
+On the rig (Remote mode, Enable Transmit off, MAIN 10.102 CW, SUB on memory
+channel 34 in FM): quick split up 1 kHz read back ST=1, FT=0, FR=1, FB=10.103,
+the box stayed SPLIT/TX/CW through the slow-tier polls, and SPLIT off brought
+back SUB's channel, frequency and FM with dual receive. SPLIT on by itself
+read FB = MAIN's frequency.
+
+The user then keyed it on the rig the same day and reported everything
+working. Not itemized in that report: typing a TX VFO frequency into the box,
+the rig's A/B swap in split, a front-panel split change, Local mode.
+
 ## Memory scan (MAIN and SUB, 2026-10-06)
 
 The Mac's memory scan (repo root CLAUDE.md, "Memory scan"), ported. Written
@@ -2313,6 +2355,7 @@ Apps/Windows/FTX1RemoteWindows/
   App.xaml(.cs)               standard WinUI 3 application entry point
   MainWindow.xaml(.cs)        v1 core-rig-control UI + poll loop + audio controls
   MainWindow.MemoryScan.cs    the rig's memory scan, MAIN/SUB (HubService.swift's scan parts)
+  MainWindow.Split.cs         SPLIT and quick split (HubService.swift's split parts)
   MainWindow.Hub.cs           starts/stops the hub, pushes state (coalesced, ≤10/s), hub PTT and CW keyer
   Services/Hub/               the hub: HubServer, RigCommandWire/Dispatcher, HubCommandPolicy, wire models,
                               audio encoder, TX audio, HubKeyer (cw_keyer checks, confirmed keyer stop)

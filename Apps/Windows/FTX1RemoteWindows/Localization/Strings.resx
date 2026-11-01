@@ -954,6 +954,18 @@
   <data name="mainWindow.putXInMemory" xml:space="preserve">
     <value>Put {0} in Memory mode to scan</value>
   </data>
+  <data name="mainWindow.quickSplit" xml:space="preserve">
+    <value>Quick split</value>
+  </data>
+  <data name="mainWindow.quickSplitDown" xml:space="preserve">
+    <value>Quick split: down {0} kHz</value>
+  </data>
+  <data name="mainWindow.quickSplitHelp" xml:space="preserve">
+    <value>Quick split: turn split on and transmit on MAIN's frequency plus an offset</value>
+  </data>
+  <data name="mainWindow.quickSplitUp" xml:space="preserve">
+    <value>Quick split: up {0} kHz</value>
+  </data>
   <data name="mainWindow.recallChannelXFailed" xml:space="preserve">
     <value>Recall channel {0} failed: {1}</value>
   </data>
@@ -999,6 +1011,9 @@
   <data name="mainWindow.setPTTFailedX" xml:space="preserve">
     <value>Set PTT failed: {0}</value>
   </data>
+  <data name="mainWindow.setSplitFailed" xml:space="preserve">
+    <value>Set split failed: {0}</value>
+  </data>
   <data name="mainWindow.setSUBModeFailed" xml:space="preserve">
     <value>Set SUB mode failed: {0}</value>
   </data>
@@ -1019,6 +1034,9 @@
   </data>
   <data name="mainWindow.skipFailedX" xml:space="preserve">
     <value>Skip failed: {0}</value>
+  </data>
+  <data name="mainWindow.splitHelp" xml:space="preserve">
+    <value>Split: receive and transmit on different frequencies</value>
   </data>
   <data name="mainWindow.squelchOpen" xml:space="preserve">
     <value>Squelch open</value>
