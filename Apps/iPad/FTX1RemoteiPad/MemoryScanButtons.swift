@@ -14,7 +14,7 @@ struct MemoryScanButtons: View {
     let send: (RigCommand) -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             if let side = activeSide {
                 Button {
                     send(.setMemoryScan(.off, side: side))

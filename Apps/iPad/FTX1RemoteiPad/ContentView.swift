@@ -135,7 +135,12 @@ struct HubControlView: View {
                 }
 
                 HStack(spacing: 12) {
+                    // In split the left box is the rig's split TX VFO, as on the Mac.
+                    if viewModel.rigState.splitEnabled == true {
+                        SplitVFOBox(state: viewModel.rigState, onSetFrequency: { viewModel.send(.setSecondaryFrequency(hz: $0)) })
+                    } else {
                     VFODisplayBox(label: "SUB", frequencyHz: viewModel.rigState.secondaryFrequencyHz, isActive: viewModel.rigState.singleReceive != true, mode: viewModel.rigState.secondaryMode?.displayName ?? "—", txRxLabel: viewModel.rigState.subTxRxLabel, callsign: viewModel.rigState.secondaryMode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsSubActive ? viewModel.rigState.aprsSubLastCallsign : nil), reflector: viewModel.rigState.secondaryMode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsSubActive, onSetFrequency: { viewModel.send(.setSecondaryFrequency(hz: $0)) }, vfoMemoryMode: viewModel.rigState.subVfoMemoryMode, memoryChannel: viewModel.rigState.subMemoryChannel, memoryChannelTag: viewModel.rigState.subMemoryChannelTag, onSetMemoryChannel: { viewModel.send(.setSubMemoryChannel($0)) }, onStepMemoryChannel: { viewModel.send(.stepSubMemoryChannel(up: $0)) }, memoryScan: viewModel.rigState.memoryScan(on: .sub), currentMode: viewModel.rigState.secondaryMode, onSetMode: { viewModel.send(.setSecondaryMode($0)) }, memoryList: viewModel.memoryList, onRefreshMemoryList: { viewModel.send(.refreshMemoryList) })
+                    }
                     VFODisplayBox(label: "MAIN", frequencyHz: viewModel.rigState.frequencyHz, isActive: true, mode: viewModel.rigState.mode.displayName, txRxLabel: viewModel.rigState.mainTxRxLabel, callsign: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsActive ? viewModel.rigState.aprsLastCallsign : nil), reflector: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsActive, onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }, vfoMemoryMode: viewModel.rigState.vfoMemoryMode, memoryChannel: viewModel.rigState.memoryChannel, memoryChannelTag: viewModel.rigState.memoryChannelTag, onSetMemoryChannel: { viewModel.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { viewModel.send(.stepMemoryChannel(up: $0)) }, memoryScan: viewModel.rigState.memoryScan(on: .main), currentMode: viewModel.rigState.mode, onSetMode: { viewModel.send(.setMode($0)) }, memoryList: viewModel.memoryList, onRefreshMemoryList: { viewModel.send(.refreshMemoryList) }, currentBand: viewModel.rigState.band, onSetBand: { viewModel.send(.setBand($0)) })
                 }
 
@@ -212,7 +217,7 @@ struct HubControlView: View {
         .accessibilityLabel(enabled ? "content.transmitEnabledOnThe" : "content.transmitDisabledOnThe")
     }
 
-    /// Scan/Skip, V/M, swap and audio-channel override — the same buttons,
+    /// Scan/Skip, V/M, split, swap and audio-channel override — the same buttons,
     /// in the same order, as the Pi-direct screen's top row. Unlike Pi
     /// direct, swap and V/M stay enabled while the rig scans: the hub stops
     /// the scan first (`HubService.memoryScanStop`). The speaker button is
@@ -221,7 +226,7 @@ struct HubControlView: View {
     private var rigButtons: some View {
         let state = viewModel.rigState
         let audioSwapped = state.audioChannelsSwapped == true
-        return HStack(spacing: 12) {
+        return HStack(spacing: 8) {
             CWPaneButton(isShowing: $showingCW, aprsListKind: $aprsListKind)
 
             MemoryScanButtons(state: state, isConnected: true, send: viewModel.send)
@@ -235,6 +240,8 @@ struct HubControlView: View {
                     .fontWeight(state.vfoMemoryMode == .vfo ? .regular : .bold)
             }
             .disabled(state.vfoMemoryMode == nil)
+
+            SplitButtons(state: state, send: viewModel.send, quickSplit: viewModel.quickSplit)
 
             Button {
                 viewModel.send(.swapActiveVFO)
@@ -287,6 +294,8 @@ struct HubControlView: View {
         } label: {
             Text(viewModel.connectionState == .connected ? "common.connected" : "common.disconnected")
                 .font(.headline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(viewModel.connectionState == .connected ? Color.green : Color.red)

@@ -90,6 +90,10 @@ public final class SimulatedRig: @unchecked Sendable {
     private var channels: [Int: Channel]
     /// "VS"/"FT": 0 MAIN, 1 SUB. Also what `currVFO` means.
     private var activeSide = 0
+    /// The split TX VFO while "ST1": what "FB"/`f Sub` address then, in
+    /// MAIN's mode, with the SUB receiver keeping its own state underneath
+    /// (see `RigState.splitEnabled`). nil out of split.
+    private var splitTxHz: Int?
     /// Whether L carries SUB's signal: each "SV" in dual receive flips it.
     private var audioSwapped = false
     /// Fixed-width raw settings: the reply's value after the prefix.
@@ -316,9 +320,13 @@ public final class SimulatedRig: @unchecked Sendable {
         let vfo = words.count > 1 ? side(named: words[1]) : activeSide
         switch verb {
         case "f":
-            return .lines(String(effective(vfo).hz))
+            return .lines(String(vfo == 1 ? secondaryVFOHz : effective(vfo).hz))
         case "F":
             guard words.count >= 3, let hz = Int(words[2]) else { return .lines("RPRT -1") }
+            if vfo == 1, splitTxHz != nil {
+                splitTxHz = hz
+                return .ok
+            }
             // Like "FA": refused while that side is on a memory channel.
             guard !receivers[vfo].memory else { return .lines("RPRT -9") }
             receivers[vfo].vfoHz = hz
@@ -408,7 +416,7 @@ public final class SimulatedRig: @unchecked Sendable {
     private func answer(_ body: String, now: TimeInterval) -> String? {
         switch body {
         case "FA": return "FA" + String(format: "%09d", effective(0).hz) + ";"
-        case "FB": return "FB" + String(format: "%09d", effective(1).hz) + ";"
+        case "FB": return "FB" + String(format: "%09d", secondaryVFOHz) + ";"
         case "MD0": return "MD0\(effective(0).mode);"
         case "MD1": return "MD1\(effective(1).mode);"
         case "FT", "VS": return "\(body)\(activeSide);"
@@ -470,9 +478,22 @@ public final class SimulatedRig: @unchecked Sendable {
             swap(now: now)
             return true
         }
+        if body == "ST0" || body == "ST1" {
+            // Split turns the dual display off; MAIN receives, and the TX
+            // VFO starts on MAIN's frequency.
+            let on = body == "ST1"
+            registers["ST"] = on ? "1" : "0"
+            registers["FR"] = on ? "01" : "00"
+            splitTxHz = on ? (splitTxHz ?? effective(0).hz) : nil
+            return true
+        }
         if body.count == 11, body.hasPrefix("FA") || body.hasPrefix("FB"), let hz = Int(body.dropFirst(2)) {
             let side = body.hasPrefix("FA") ? 0 : 1
-            if !receivers[side].memory { receivers[side].vfoHz = hz }
+            if side == 1, splitTxHz != nil {
+                splitTxHz = hz
+            } else if !receivers[side].memory {
+                receivers[side].vfoHz = hz
+            }
             return true
         }
         if body.count == 4, body.hasPrefix("MD0") || body.hasPrefix("MD1"), let code = body.last {
@@ -556,7 +577,16 @@ public final class SimulatedRig: @unchecked Sendable {
         receivers[side].memory = memory
     }
 
+    /// "FB"/`f Sub`: the split TX VFO in split, else the SUB receiver.
+    private var secondaryVFOHz: Int { splitTxHz ?? effective(1).hz }
+
     private func swap(now: TimeInterval) {
+        // In split "SV" exchanges MAIN with the TX VFO, not the receivers.
+        if let tx = splitTxHz, !receivers[0].memory {
+            splitTxHz = receivers[0].vfoHz
+            receivers[0].vfoHz = tx
+            return
+        }
         receivers.swapAt(0, 1)
         // The audio stays with the physical receiver; in single-receive
         // display "SV" doesn't move it.

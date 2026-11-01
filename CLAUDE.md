@@ -2558,7 +2558,7 @@ order as one task. Both refused while PTT/MOX is on or a memory scan runs
 - **Left box in split** (`ContentView.subVFOBox`): label SPLIT, "TX" tag,
   FB's frequency, MAIN's mode, no memory channel; frequency entry sends
   `.setSecondaryFrequency` (FB) — the first try showed SUB's channel tag
-  and opened the channel picker. The iPad's boxes don't do this yet.
+  and opened the channel picker.
 - After each split write `refreshAfterSplit` reads ST, FT, FR and FB
   (logged as `After split write: …`, "connection" category) and falls back
   to the MAIN filter side, as the slow tier does in single receive. In
@@ -2566,7 +2566,24 @@ order as one task. Both refused while PTT/MOX is on or a memory scan runs
   not a receiver swap) and the app's swap leaves the modes alone.
 - Tested on the rig by the user after the TX VFO box landed, working.
   Not covered by what was reported: the rig's A/B swap in split.
-- iPad: no UI (user decision); the wire command exists.
+- **iPad (2026-11-01; both routes in the Simulator against the real rig,
+  SPLIT and quick split, nothing keyed; then tested by the user on live
+  hardware the same day, both routes, working)**: user
+  request. `SplitButtons` (`Apps/iPad/SplitButtons.swift`) between V/M and
+  swap in both top rows, and `SplitVFOBox` in place of the SUB box in split
+  (the Mac's box; the strip under it stays the SUB receiver's). The gates
+  moved to `RigState.canChangeSplit`/`canQuickSplit`. Hub route:
+  `RigClientViewModel.quickSplit` sends `.setSplit(true)` and sends the
+  frequency only once the hub reports split on, since before that "FB" is
+  the SUB receiver: a hub that refused or doesn't know `set_split` must not
+  retune SUB (5 s limit, then nothing). Pi direct (`readsVFODetails`):
+  `.setSplit`, `quickSplit` and `refreshAfterSplit` port the hub's, and
+  `trackExternalSwap`/the app swap's mode exchange stay out of split as on
+  the hub. Demo Mode's `SimulatedRig` models it ("ST1" = "FR01", "FB"/
+  `f Sub` the TX VFO, "SV" exchanges it with MAIN). The extra buttons
+  overflowed the portrait row ("Con-nected"), so its spacing went 12 → 8
+  and Connected/PTT are one line, scaling down if needed. The iPhone has
+  no UI.
 - **Windows (2026-11-01; unit-tested, checked in the built app against a
   stand-in rigctld, then on the rig over the Pi; keyed and tested on the
   rig by the user the same day, working)**: the same button, quick split

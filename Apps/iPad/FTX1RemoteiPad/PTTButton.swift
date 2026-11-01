@@ -22,6 +22,8 @@ struct PTTButton: View {
             Text(isTransmitting ? "TX" : "PTT")
         }
         .font(.headline)
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(isTransmitting ? Color.red : Color.gray.opacity(0.25))

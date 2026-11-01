@@ -195,6 +195,28 @@ public final class RigClientViewModel: ObservableObject, RigController {
         Task { try? await client.send(command) }
     }
 
+    /// Quick split over the wire: SPLIT on, then the split TX VFO to MAIN's
+    /// frequency plus `offsetHz` — `HubService.quickSplit`, which isn't a
+    /// command. The frequency waits for the hub to report split on: before
+    /// that "FB" is the SUB receiver, so a hub that refused or didn't know
+    /// the split would retune SUB instead.
+    public func quickSplit(offsetHz: Int) {
+        guard connectionState == .connected, rigState.canQuickSplit else { return }
+        let target = rigState.frequencyHz + offsetHz
+        guard target > 0 else { return }
+        Task {
+            if rigState.splitEnabled != true {
+                send(.setSplit(true))
+                let deadline = ContinuousClock.now + .seconds(5)
+                while rigState.splitEnabled != true {
+                    guard ContinuousClock.now < deadline, connectionState == .connected else { return }
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+            }
+            send(.setSecondaryFrequency(hz: target))
+        }
+    }
+
     /// Deep Settings on the hub route: the hub reads the item from the rig
     /// and answers this client alone (`MenuItemReadRequest`/`MenuItemPush`).
     public var supportsDeepSettings: Bool { true }

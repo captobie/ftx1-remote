@@ -987,17 +987,15 @@ final class HubService: ObservableObject {
         }
     }
 
-    /// Whether `quickSplit` can run: `canChangeSplit`, and MAIN's
-    /// frequency known.
+    /// Whether `quickSplit` can run: connected and `RigState.canQuickSplit`.
     var canQuickSplit: Bool {
-        canChangeSplit && rigState.frequencyHz > 0
+        connectionState == .connected && rigState.canQuickSplit
     }
 
-    /// Whether SPLIT can be switched now: connected, not transmitting
-    /// (switching it moves the transmitter to the other VFO's frequency),
-    /// and no memory scan running (the scan moves the TX side itself).
+    /// Whether SPLIT can be switched now: connected and
+    /// `RigState.canChangeSplit`.
     var canChangeSplit: Bool {
-        connectionState == .connected && !rigState.ptt && rigState.moxEnabled != true && !isMemoryScanActive
+        connectionState == .connected && rigState.canChangeSplit
     }
 
     /// Skip on a paused memory scan: the same scan command again, which the

@@ -284,6 +284,17 @@ public struct RigState: Codable, Equatable, Sendable {
     public var transmitMode: RigMode? {
         splitEnabled != true && txSide == .sub ? secondaryMode : mode
     }
+    /// Whether SPLIT can be switched now: not transmitting (switching it
+    /// moves the transmitter to the other VFO's frequency) and no memory
+    /// scan running (the scan moves the TX side itself).
+    public var canChangeSplit: Bool {
+        !ptt && moxEnabled != true && memoryScan != .scanning && memoryScan != .paused
+    }
+    /// Whether quick split can run: `canChangeSplit`, and MAIN's frequency
+    /// known.
+    public var canQuickSplit: Bool {
+        canChangeSplit && frequencyHz > 0
+    }
     /// Squelch type, 0-5 (OFF/ENC/TSQ/DCS/PR FREQ/REV TONE) — the FTX-1's raw
     /// "CT" CAT command, P1 fixed to "0" (MAIN-side). Same setting as Deep
     /// Settings' RADIO SETTING → MODE FM → SQL TYPE item, but reached here

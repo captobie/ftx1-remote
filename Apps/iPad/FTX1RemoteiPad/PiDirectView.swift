@@ -150,27 +150,32 @@ struct PiDirectView: View {
         HStack(spacing: 12) {
             // Same arguments as the hub screen's boxes; the APRS
             // indicator comes from this iPad's own decode.
-            VFODisplayBox(
-                label: "SUB",
-                frequencyHz: state.secondaryFrequencyHz,
-                isActive: state.singleReceive != true,
-                mode: state.secondaryMode?.displayName ?? "—",
-                txRxLabel: state.subTxRxLabel,
-                callsign: state.secondaryMode == .c4fm ? state.c4fmCallsign : (state.aprsSubActive ? state.aprsSubLastCallsign : nil),
-                reflector: state.secondaryMode == .c4fm ? state.c4fmReflector : nil,
-                aprsActive: state.aprsSubActive,
-                onSetFrequency: editable ? { viewModel.send(.setSecondaryFrequency(hz: $0)) } : nil,
-                vfoMemoryMode: state.subVfoMemoryMode,
-                memoryChannel: state.subMemoryChannel,
-                memoryChannelTag: state.subMemoryChannelTag,
-                onSetMemoryChannel: editable ? { viewModel.send(.setSubMemoryChannel($0)) } : nil,
-                onStepMemoryChannel: editable ? { viewModel.send(.stepSubMemoryChannel(up: $0)) } : nil,
-                memoryScan: state.memoryScan(on: .sub),
-                currentMode: state.secondaryMode,
-                onSetMode: { viewModel.send(.setSecondaryMode($0)) },
-                memoryList: viewModel.memoryListSnapshot,
-                onRefreshMemoryList: { viewModel.send(.refreshMemoryList) }
-            )
+            // In split the left box is the rig's split TX VFO, as on the Mac.
+            if state.splitEnabled == true {
+                SplitVFOBox(state: state, onSetFrequency: editable ? { viewModel.send(.setSecondaryFrequency(hz: $0)) } : nil)
+            } else {
+                VFODisplayBox(
+                    label: "SUB",
+                    frequencyHz: state.secondaryFrequencyHz,
+                    isActive: state.singleReceive != true,
+                    mode: state.secondaryMode?.displayName ?? "—",
+                    txRxLabel: state.subTxRxLabel,
+                    callsign: state.secondaryMode == .c4fm ? state.c4fmCallsign : (state.aprsSubActive ? state.aprsSubLastCallsign : nil),
+                    reflector: state.secondaryMode == .c4fm ? state.c4fmReflector : nil,
+                    aprsActive: state.aprsSubActive,
+                    onSetFrequency: editable ? { viewModel.send(.setSecondaryFrequency(hz: $0)) } : nil,
+                    vfoMemoryMode: state.subVfoMemoryMode,
+                    memoryChannel: state.subMemoryChannel,
+                    memoryChannelTag: state.subMemoryChannelTag,
+                    onSetMemoryChannel: editable ? { viewModel.send(.setSubMemoryChannel($0)) } : nil,
+                    onStepMemoryChannel: editable ? { viewModel.send(.stepSubMemoryChannel(up: $0)) } : nil,
+                    memoryScan: state.memoryScan(on: .sub),
+                    currentMode: state.secondaryMode,
+                    onSetMode: { viewModel.send(.setSecondaryMode($0)) },
+                    memoryList: viewModel.memoryListSnapshot,
+                    onRefreshMemoryList: { viewModel.send(.refreshMemoryList) }
+                )
+            }
             VFODisplayBox(
                 label: "MAIN",
                 frequencyHz: state.frequencyHz,
@@ -270,13 +275,13 @@ struct PiDirectView: View {
             .foregroundStyle(.secondary)
     }
 
-    /// Scan/Skip, V/M, swap and audio-channel override — same as the Mac's
+    /// Scan/Skip, V/M, split, swap and audio-channel override — same as the Mac's
     /// buttons by the VFO boxes. Swap and V/M are refused while the rig
     /// scans; stop the scan first.
     private var rigButtons: some View {
         let state = viewModel.rigState
         let scanning = state.memoryScan == .scanning || state.memoryScan == .paused
-        return HStack(spacing: 12) {
+        return HStack(spacing: 8) {
             CWPaneButton(isShowing: $showingCW, aprsListKind: $aprsListKind)
 
             MemoryScanButtons(state: state, isConnected: true, send: viewModel.send)
@@ -290,6 +295,8 @@ struct PiDirectView: View {
                     .fontWeight(state.vfoMemoryMode == .vfo ? .regular : .bold)
             }
             .disabled(scanning || state.vfoMemoryMode == nil)
+
+            SplitButtons(state: state, send: viewModel.send, quickSplit: viewModel.quickSplit)
 
             Button {
                 viewModel.send(.swapActiveVFO)
@@ -369,6 +376,8 @@ struct PiDirectView: View {
         } label: {
             Text(buttonTitle)
                 .font(.headline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(buttonColor)

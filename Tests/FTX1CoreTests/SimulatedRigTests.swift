@@ -229,6 +229,32 @@ final class SimulatedRigTests: XCTestCase {
         XCTAssertFalse(single.left.receiving == single.right.receiving && single.right.receiving)
     }
 
+    func testSplitTurnsDualOffAndFBAddressesTheTXVFO() async throws {
+        let subBefore = try await client.getFrequency(ofVFO: "Sub")
+        await apply(.setSplit(true))
+        let split = try await client.getRawBool("ST")
+        XCTAssertEqual(split, true)
+        let display = try await client.getRawInt("FR")
+        XCTAssertEqual(display, 1)
+        let side = try await client.getRawDigit("FT")
+        XCTAssertEqual(side, 0, "FT stays on MAIN")
+        let main = try await client.getFrequency()
+        let tx = try await client.getRawInt("FB")
+        XCTAssertEqual(tx, main, "the TX VFO starts on MAIN's frequency")
+
+        await apply(.setSecondaryFrequency(hz: main + 1000))
+        let moved = try await client.getRawInt("FB")
+        XCTAssertEqual(moved, main + 1000)
+        let viaHamlib = try await client.getFrequency(ofVFO: "Sub")
+        XCTAssertEqual(viaHamlib, main + 1000)
+
+        await apply(.setSplit(false))
+        let dual = try await client.getRawInt("FR")
+        XCTAssertEqual(dual, 0)
+        let subAfter = try await client.getFrequency(ofVFO: "Sub")
+        XCTAssertEqual(subAfter, subBefore, "the SUB receiver kept its own frequency")
+    }
+
     func testTXSideMovesCurrVFO() async throws {
         await apply(.setTXSide(.sub))
         let active = try await client.getActiveVFO()

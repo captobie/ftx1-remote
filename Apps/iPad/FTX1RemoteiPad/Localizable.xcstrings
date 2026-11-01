@@ -33,6 +33,79 @@
       "extractionState" : "manual",
       "shouldTranslate" : false
     },
+    "SPLIT" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "splitButtons.quickSplit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnell-Split"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick split"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split rápido"
+          }
+        }
+      }
+    },
+    "splitButtons.quickSplitDown %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnell-Split: %lld kHz tiefer"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick split: down %lld kHz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split rápido: %lld kHz abajo"
+          }
+        }
+      }
+    },
+    "splitButtons.quickSplitUp %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnell-Split: %lld kHz höher"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick split: up %lld kHz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split rápido: %lld kHz arriba"
+          }
+        }
+      }
+    },
     "Sub" : {
       "extractionState" : "manual",
       "shouldTranslate" : false

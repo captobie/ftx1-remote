@@ -398,7 +398,7 @@ public final class PiDirectViewModel: ObservableObject {
                 switch command {
                 case .setSubMemoryChannel, .stepSubMemoryChannel:
                     Task { @MainActor in self?.forceSlowReads = true }
-                case .swapActiveVFO, .setVFOMemoryMode, .setMemoryScan, .setTXSide:
+                case .swapActiveVFO, .setVFOMemoryMode, .setMemoryScan, .setTXSide, .setSplit:
                     Task { @MainActor in self?.commandApplied(command) }
                 case _ where Self.isMenuSetting(command) || command.isFilterSideCommand:
                     // A tick that read the field before the rig took the
@@ -585,6 +585,20 @@ public final class PiDirectViewModel: ObservableObject {
             // One task, so the mode can't overtake the frequency.
             Task { for command in commands { await queue.enqueue(command) } }
             return
+        case .setSplit(let on) where readsVFODetails:
+            // Not transmit-gated, but not while keyed or scanning either:
+            // `RigState.canChangeSplit`. Applied once the rig has taken it
+            // (`commandApplied`), then read back.
+            guard rigState.canChangeSplit else {
+                logger.notice("ignoring split \(on ? "on" : "off", privacy: .public): transmitting or scanning")
+                return
+            }
+            txSideBeforeMemoryScan = nil
+            Task {
+                await queue.enqueue(command)
+                await self.refreshAfterSplit()
+            }
+            return
         case .refreshMemoryList:
             memoryList.refresh()
             return
@@ -671,6 +685,51 @@ public final class PiDirectViewModel: ObservableObject {
         }
         applyOptimistically(command)
         Task { await queue.enqueue(command) }
+    }
+
+    /// Quick split, `HubService.quickSplit`: SPLIT on, then the split TX VFO
+    /// to MAIN's frequency plus `offsetHz`. In that order, as one task: only
+    /// in split does "FB" address the TX VFO (see `RigState.splitEnabled`).
+    public func quickSplit(offsetHz: Int) {
+        guard readsVFODetails, connectionState == .connected, let queue, rigState.canQuickSplit else {
+            logger.notice("ignoring quick split (offset \(offsetHz) Hz)")
+            return
+        }
+        let target = rigState.frequencyHz + offsetHz
+        guard target > 0 else { return }
+        logger.notice("quick split: split on, TX VFO to \(target) Hz")
+        txSideBeforeMemoryScan = nil
+        Task {
+            await queue.enqueue(.setSplit(true))
+            await queue.enqueue(.setSecondaryFrequency(hz: target))
+            await self.refreshAfterSplit()
+        }
+    }
+
+    /// What a split write changes, read right away instead of on the next
+    /// slow reads — `HubService.refreshAfterSplit`: SPLIT, the TX side, the
+    /// display mode and "FB", which switches between the TX VFO and the SUB
+    /// receiver.
+    private func refreshAfterSplit() async {
+        try? await Task.sleep(for: .milliseconds(300))
+        guard let rigctld else { return }
+        let split = try? await rigctld.getRawBool("ST")
+        let txSide = (try? await rigctld.getRawDigit("FT")).flatMap({ $0 }).flatMap(FilterSide.init(rawValue:))
+        let single = (try? await rigctld.getRawInt("FR")).map { $0 == 1 }
+        let sub = try? await rigctld.getRawInt("FB")
+        guard self.rigctld === rigctld else { return }
+        logger.notice("after split write: ST=\(split.map { $0 ? "1" : "0" } ?? "?", privacy: .public) FT=\(txSide.map { "\($0.rawValue)" } ?? "?", privacy: .public) FR single=\(single.map { "\($0)" } ?? "?", privacy: .public) FB=\(sub.map { "\($0)" } ?? "?", privacy: .public)")
+        guard split != nil || txSide != nil || single != nil || sub != nil else { return }
+        commandGeneration += 1
+        if let split { rigState.splitEnabled = split }
+        if let txSide { rigState.txSide = txSide }
+        if let single { rigState.singleReceive = single }
+        if let sub, sub > 0 {
+            rigState.secondaryFrequencyHz = sub
+            lastDistinctFrequencies = nil
+        }
+        // As after the "FR" poll: no SUB filter side without the dual display.
+        if readsFilters, single == true, rigState.activeFilterSide == .sub { send(.setFilterSide(.main)) }
     }
 
     /// The hub's memory-scan rules (`HubService.send(_:memoryScanStopped:)`),
@@ -943,7 +1002,9 @@ public final class PiDirectViewModel: ObservableObject {
             let main = rigState.frequencyHz
             rigState.frequencyHz = rigState.secondaryFrequencyHz ?? main
             rigState.secondaryFrequencyHz = main
-            if let subMode = rigState.secondaryMode {
+            // In split both VFOs are MAIN's and share its mode, and
+            // `secondaryMode` is still the SUB receiver's — leave both.
+            if rigState.splitEnabled != true, let subMode = rigState.secondaryMode {
                 rigState.secondaryMode = rigState.mode
                 rigState.mode = subMode
             }
@@ -985,6 +1046,8 @@ public final class PiDirectViewModel: ObservableObject {
             }
         case .setTXSide(let side):
             rigState.txSide = side
+        case .setSplit(let on):
+            rigState.splitEnabled = on
         default:
             break
         }
@@ -993,6 +1056,12 @@ public final class PiDirectViewModel: ObservableObject {
     /// A front-panel swap: both frequencies exchange at once relative to
     /// the last pair where they differed — `HubService.trackExternalSwap`.
     private func trackExternalSwap(main: Int, sub: Int?) {
+        // In split "FB" is MAIN's TX VFO, not the SUB receiver, so an
+        // exchange there is MAIN's A/B swap and the L/R audio stays put.
+        guard rigState.splitEnabled != true else {
+            lastDistinctFrequencies = nil
+            return
+        }
         guard let sub, sub != main else { return }
         if let last = lastDistinctFrequencies, main == last.sub, sub == last.main {
             setAudioChannelsSwapped(!audioChannelsSwapped, reason: "front-panel swap detected (\(last.main)/\(last.sub) → \(main)/\(sub) Hz)")
