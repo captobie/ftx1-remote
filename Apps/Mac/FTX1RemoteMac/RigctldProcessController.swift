@@ -120,7 +120,14 @@ final class RigctldProcessController {
             // blocks every other pending command too. Shrinking both here
             // makes that "no reply" case fail fast without affecting any
             // command that actually gets a real, fast reply.
-            "-C", "timeout=300,retry=0"
+            //
+            // post_write_delay: hamlib's FTX-1 backend waits 50 ms after
+            // every command, which is nearly all of a read's ~55 ms — the
+            // rig itself answers in ~5 ms (measured over USB, 2026-11-01).
+            // Not lower than 10: at 0 and 5 a reply occasionally came back
+            // out of step, and a hamlib verb that gets the wrong answer
+            // makes rigctld close and reopen the rig (a 1.5 s+ stall).
+            "-C", "timeout=300,retry=0,post_write_delay=10"
         ]
         if !config.pttPort.isEmpty {
             // "RIG" (hamlib's CAT-command PTT type) is a best guess for

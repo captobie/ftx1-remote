@@ -425,6 +425,12 @@ final class HubService: ObservableObject {
     /// `pollInterval` (it does, over the Pi link): leaves rigctld a gap for
     /// other clients (WSJT-X) instead of polling back to back.
     private let minimumPollGap: Duration = .milliseconds(50)
+    /// Idle time between `frequencyLane` reads.
+    private let frequencyLaneInterval: Duration = .milliseconds(50)
+    /// Numbers every MAIN "FA" read by when it started, so the fast tier
+    /// can't publish a value older than one `frequencyLane` already has.
+    private var frequencyReadSerial = 0
+    private var publishedFrequencyRead = 0
 
     /// The Main-side frequency/mode most recently polled while the rig was
     /// in VFO (not Memory) mode — refreshed every poll tick in VFO mode,
@@ -2088,6 +2094,10 @@ final class HubService: ObservableObject {
         // app not reading them at all. Also right on a reconnect: anything
         // could have changed while the link was down.
         var primeSlowTier = true
+        // Local mode only for now: over the Pi a read still costs ~55 ms, so
+        // the lane would take a large share of the link from the other reads.
+        let lane = RigctldSettings.activeConnectionMode == .local ? Task { await frequencyLane() } : nil
+        defer { lane?.cancel() }
         while !Task.isCancelled {
             if rigState.memoryScan == .scanning {
                 try await timed("scan") { try await memoryScanTick() }
@@ -2105,6 +2115,42 @@ final class HubService: ObservableObject {
             }
             let elapsed = ContinuousClock.now - tickStart
             try await Task.sleep(for: max(pollInterval - elapsed, minimumPollGap))
+        }
+    }
+
+    /// Reads MAIN's frequency on its own, several times a second, so a turn
+    /// of the rig's dial shows at once instead of waiting for the fast tier
+    /// to come round again. Runs beside `pollLoop`: `RigctldClient`'s
+    /// round-trip lock is first come, first served, so these reads slot in
+    /// between the tiers' reads. Publishes only a change, since every
+    /// `rigState` write re-renders the Mac's whole window. Failures are
+    /// ignored: the fast tier's own "FA" read is what notices a lost link.
+    ///
+    /// VFO mode only, and not around a memory scan: a memory channel's
+    /// frequency has to appear together with its channel number and tag,
+    /// which the fast tier and `publishMemoryScanStop` read as a set.
+    private func frequencyLane() async {
+        while !Task.isCancelled {
+            if rigState.vfoMemoryMode != .memory, !isMemoryScanActive {
+                let generation = commandGeneration
+                frequencyReadSerial += 1
+                let read = frequencyReadSerial
+                // Same guard as the fast tier's: a command that landed during
+                // the read has already published something newer.
+                if let hz = try? await rigctld.getFrequency(),
+                   commandGeneration == generation,
+                   rigState.vfoMemoryMode != .memory, !isMemoryScanActive,
+                   read > publishedFrequencyRead {
+                    publishedFrequencyRead = read
+                    if hz != rigState.frequencyHz {
+                        rigState.frequencyHz = hz
+                        rigState.band = BandPlan.band(containing: hz)?.name ?? GeneralCoverageSegments.segment(containing: hz)?.name
+                        await server.broadcast(rigState)
+                        Self.pollTimingLogger.debug("frequency lane published \(hz, privacy: .public)")
+                    }
+                }
+            }
+            try? await Task.sleep(for: frequencyLaneInterval)
         }
     }
 
@@ -2160,6 +2206,8 @@ final class HubService: ObservableObject {
         // catch block, which does the normal disconnect/backoff/reconnect
         // dance.
         let frequencyHz: Int
+        frequencyReadSerial += 1
+        var frequencyRead = frequencyReadSerial
         do {
             frequencyHz = try await rigctld.getFrequency()
         } catch let error as RigctldError where error == .connectionLost || error == .notConnected {
@@ -2175,6 +2223,7 @@ final class HubService: ObservableObject {
             throw error
         } catch {
             frequencyHz = rigState.frequencyHz
+            frequencyRead = 0
         }
         // Each box is read by side — MAIN with P1 0, SUB with P1 1 / `f Sub`
         // — not by hamlib's active VFO (`v`). Until 2026-10-06 the mode and
@@ -2330,9 +2379,15 @@ final class HubService: ObservableObject {
             Date().timeIntervalSince(heard.at) < 5 ? heard.callsign : nil
         }
 
-        rigState.frequencyHz = frequencyHz
+        // `frequencyLane` may have read and published a newer frequency
+        // during this tier's reads; going back to this one would make the
+        // display jump backwards while the dial turns.
+        if frequencyRead > publishedFrequencyRead {
+            publishedFrequencyRead = frequencyRead
+            rigState.frequencyHz = frequencyHz
+            rigState.band = bandOrSegmentName
+        }
         rigState.mode = mainMode ?? rigState.mode
-        rigState.band = bandOrSegmentName
         rigState.powerWatts = powerWatts
         rigState.swr = swr
         rigState.ptt = ptt ?? rigState.ptt
@@ -2364,8 +2419,10 @@ final class HubService: ObservableObject {
 
         // Only while genuinely in VFO mode — never from a Memory-mode
         // snapshot, whose frequency/mode are the channel's, not the VFO's.
+        // `frequencyHz`, read before "VM0", so it can't be a memory channel's
+        // that `frequencyLane` caught just after a front-panel V/M.
         if rigState.vfoMemoryMode == .vfo {
-            lastVFOState = (rigState.frequencyHz, rigState.mode)
+            lastVFOState = (frequencyHz, rigState.mode)
         }
         updateWPSDMonitorState()
         let now = ContinuousClock.now
