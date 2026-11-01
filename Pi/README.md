@@ -89,7 +89,7 @@ After=network.target
 Type=simple
 User=rigctld
 Environment=LD_LIBRARY_PATH=/usr/local/lib
-ExecStart=/usr/local/bin/rigctld -m 1051 -r /dev/serial/by-id/usb-Silicon_Labs_CP2105_Dual_USB_to_UART_Bridge_Controller_XXXXXXXX-if00-port0 -s 115200 -t 4532 -o
+ExecStart=/usr/local/bin/rigctld -m 1051 -r /dev/serial/by-id/usb-Silicon_Labs_CP2105_Dual_USB_to_UART_Bridge_Controller_XXXXXXXX-if00-port0 -s 115200 -t 4532 -o -C post_write_delay=10
 Restart=on-failure
 RestartSec=3
 
@@ -99,7 +99,9 @@ WantedBy=multi-user.target
 
 The `LD_LIBRARY_PATH` line makes sure rigctld uses the Hamlib you just
 built, not an older copy another package (such as Direwolf) may have
-installed. Keep `-o`: the apps expect it.
+installed. Keep `-o`: the apps expect it. `post_write_delay=10` replaces
+Hamlib's 50 ms wait after every FTX-1 command, which makes each read about
+four times faster; below 10, replies occasionally came back out of step.
 
 Start it and check that it reads the radio's frequency:
 

@@ -2592,24 +2592,33 @@ order as one task. Both refused while PTT/MOX is on or a memory scan runs
   `TransmitGate.Transmitter` is the `transmitFrequencyHz`/`transmitMode`
   rule there. See `Apps/Windows/README.md`'s "Split".
 
-## VFO frequency responsiveness (Mac, Local mode, 2026-11-01; measured in the built app against the rig, then the dial confirmed by the user the same day: "feels instant")
+## VFO frequency responsiveness (Mac, 2026-11-01; Local mode measured in the built app against the rig, then the dial confirmed by the user the same day: "feels instant"; Remote measured against the Pi, dial confirmed there by the user the same day too)
 
 User request, after rigplane-core followed the dial with no visible lag.
-It polls too (no AI), over direct serial, every ~250 ms. Two changes, Local
-mode only; the Pi path is next.
+It polls too (no AI), over direct serial, every ~250 ms. Two changes, both
+modes.
 
-- **`post_write_delay=10` on the rigctld the app spawns**: Hamlib's FTX-1
+- **`post_write_delay=10` on rigctld** (the Mac's spawned one, and the Pi's
+  systemd unit, deployed by the user; see `Pi/README.md`): Hamlib's FTX-1
   backend sets `.post_write_delay = 50`, which is nearly all of a read's
   ~55 ms; the rig answers in ~5 ms (11,130 raw serial reads, none wrong).
   11 fast-tier reads took 585 ms at 50, 222 at 20, 117 at 10, 66 at 5, 59 at
   0. At 0 and 5 a reply occasionally arrives out of step (cause not found;
   raw serial never did it). A hamlib verb that gets the wrong answer returns
   RPRT -8 and rigctld closes and reopens the rig, a 1.5 s+ stall; raw reads
-  check the prefix and just fail. 10 ran 27,159 replies clean. An adopted
-  rigctld keeps its own setting. Writes, TX and RF at this delay are not
-  soak-tested.
-- **`HubService.frequencyLane`**: a task beside `pollLoop` reads "FA" with 50 ms
-  between reads, relying on `RigctldClient`'s first-come round-trip lock to
+  check the prefix and just fail. 10 ran 27,159 replies clean on the Mac
+  and 16,962 on the Pi with the app polling too (~14 ms a read from the
+  Mac; it was ~52). An adopted rigctld keeps its own setting. Writes, TX and
+  RF at this delay are not soak-tested. In an SSH shell on the Pi `rigctld -V`
+  shows Debian's 4.6.2; the service loads 4.7.2 (`LD_LIBRARY_PATH` in its
+  override.conf), so run `LD_LIBRARY_PATH=/usr/local/lib rigctl -m 1051 -u` to
+  see its real settings. Restarting the service took the full 90 s: the old
+  rigctld ignored SIGTERM and systemd killed it (one occurrence, cause not
+  looked into).
+- **`HubService.frequencyLane`**: a task beside `pollLoop` reads "FA" with
+  at least 50 ms between reads (twice the read's own time if longer, capped
+  at 500 ms, so a rigctld still on the 50 ms delay isn't crowded out),
+  relying on `RigctldClient`'s first-come round-trip lock to
   slot in between the tiers' reads, and publishes only a change (every
   `rigState` write re-renders the Mac's window). VFO mode only, not around a
   memory scan, since a channel's frequency has to appear with its number
@@ -2618,8 +2627,12 @@ mode only; the Pi path is next.
   own read: that's what notices a lost link.
 - **Measured** (a second rigctld client stepping "FA", until the lane's debug
   log under "poll-timing"; 30 steps): median 104 ms, p90 138, max 533 (not
-  explained); 1 of 30 went out through the fast tier instead. The UI's own
-  draw time isn't included.
+  explained); 1 of 30 went out through the fast tier instead. Over the Pi:
+  median 103 ms, p90 155, max 181, 30 of 30. The UI's own draw time isn't
+  included. The first connect after a rebuild stalled 9–19 s in the first
+  fast-tier pass (2 of 2; a later launch of the same build took 338 ms, and
+  fresh connections to the Pi's rigctld answer in ~28 ms). Looks like a macOS
+  first-run check on a new binary, not proven.
 - **The 500 ms tick is now really 500 ms** (it took ~1 s before), so meters
   and mode update twice as often. Cost, Debug build, scope on: 45% of a core,
   vs 32% with `polling.fastPollMs` at 1000.

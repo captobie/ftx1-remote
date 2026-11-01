@@ -425,7 +425,7 @@ final class HubService: ObservableObject {
     /// `pollInterval` (it does, over the Pi link): leaves rigctld a gap for
     /// other clients (WSJT-X) instead of polling back to back.
     private let minimumPollGap: Duration = .milliseconds(50)
-    /// Idle time between `frequencyLane` reads.
+    /// Least idle time between `frequencyLane` reads.
     private let frequencyLaneInterval: Duration = .milliseconds(50)
     /// Numbers every MAIN "FA" read by when it started, so the fast tier
     /// can't publish a value older than one `frequencyLane` already has.
@@ -2094,10 +2094,8 @@ final class HubService: ObservableObject {
         // app not reading them at all. Also right on a reconnect: anything
         // could have changed while the link was down.
         var primeSlowTier = true
-        // Local mode only for now: over the Pi a read still costs ~55 ms, so
-        // the lane would take a large share of the link from the other reads.
-        let lane = RigctldSettings.activeConnectionMode == .local ? Task { await frequencyLane() } : nil
-        defer { lane?.cancel() }
+        let lane = Task { await frequencyLane() }
+        defer { lane.cancel() }
         while !Task.isCancelled {
             if rigState.memoryScan == .scanning {
                 try await timed("scan") { try await memoryScanTick() }
@@ -2129,8 +2127,13 @@ final class HubService: ObservableObject {
     /// VFO mode only, and not around a memory scan: a memory channel's
     /// frequency has to appear together with its channel number and tag,
     /// which the fast tier and `publishMemoryScanStop` read as a set.
+    ///
+    /// Sleeps at least twice as long as a read took, so a rigctld still on
+    /// hamlib's 50 ms post_write_delay (an adopted one, or a Pi that hasn't
+    /// got `-C post_write_delay=10`) gives up a third of its time at most.
     private func frequencyLane() async {
         while !Task.isCancelled {
+            let start = ContinuousClock.now
             if rigState.vfoMemoryMode != .memory, !isMemoryScanActive {
                 let generation = commandGeneration
                 frequencyReadSerial += 1
@@ -2150,7 +2153,10 @@ final class HubService: ObservableObject {
                     }
                 }
             }
-            try? await Task.sleep(for: frequencyLaneInterval)
+            // Capped: one read can take seconds (the first after connecting,
+            // or a timeout), and that says nothing about the next one.
+            let readTime = ContinuousClock.now - start
+            try? await Task.sleep(for: min(max(frequencyLaneInterval, readTime * 2), .milliseconds(500)))
         }
     }
 
