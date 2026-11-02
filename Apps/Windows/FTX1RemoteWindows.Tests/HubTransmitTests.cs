@@ -398,6 +398,22 @@ public class HubTransmitTests
 
     // Helpers
 
+    // A web page on an allowed machine (browsers always send Origin; the apps never do).
+
+    [Fact]
+    public async Task RefusesAWebPageButNotAnApp()
+    {
+        await using var hub = await StartHubAsync();
+        using var page = new ClientWebSocket();
+        page.Options.SetRequestHeader("Origin", "https://example.com");
+        await Assert.ThrowsAnyAsync<WebSocketException>(() =>
+            page.ConnectAsync(new Uri($"ws://127.0.0.1:{hub.ListenPort}/"), CancellationToken.None));
+        Assert.Empty(hub.Clients);
+
+        using var app = await ConnectAsync(hub);
+        await WaitUntilAsync(() => hub.Clients.Count == 1);
+    }
+
     private static async Task<HubServer> StartHubAsync()
     {
         var probe = new TcpListener(IPAddress.Loopback, 0);

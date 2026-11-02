@@ -28,7 +28,8 @@ namespace FTX1RemoteWindows.Services.Hub;
 /// Plain ws:// on every interface, path "/", port <see cref="Port"/> (the
 /// iPad's RigClientViewModel has it fixed). Connections from outside
 /// loopback, Tailscale and the private ranges are refused before the
-/// upgrade (<see cref="HubAddressFilter"/>). Runs independently of the
+/// upgrade (<see cref="HubAddressFilter"/>), and so are web pages (any
+/// request with an Origin header). Runs independently of the
 /// rigctld connection: MainWindow starts/stops it with Settings → Mobile and
 /// just keeps handing it the latest state.
 ///
@@ -270,6 +271,15 @@ public sealed class HubServer : IAsyncDisposable
             if (!HubAddressFilter.IsAllowed(remote))
             {
                 AppLog.Write($"hub: refused {remote} (not loopback, Tailscale or a local network)");
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+            // Browsers always send Origin on a WebSocket and the apps never do.
+            // A page open on an allowed machine could otherwise connect through
+            // localhost and send commands, including keying the radio.
+            if (context.Request.Headers.ContainsKey("Origin"))
+            {
+                AppLog.Write("hub: refused a connection from a web page");
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 return;
             }

@@ -49,7 +49,10 @@ in C#.
   broadcasts state and accepts commands; the Windows app serves the same
   protocol (Settings → Mobile, off by default, port 8765). The mobile apps'
   "Desktop hub" route (`RigClientViewModel` over `RigWebSocketClient`)
-  connects to either over Tailscale.
+  connects to either over Tailscale. The hub has no login, so both only
+  accept connections from the machine itself, Tailscale and private network
+  addresses (`HubAddressFilter`), and refuse web pages (any handshake with an
+  `Origin` header), which could otherwise reach it through `localhost`.
 - **The Mac's own UI calls `HubService` directly**, not through a WebSocket
   round trip to itself; `HubService` still broadcasts every applied command
   to remote clients however it was triggered.

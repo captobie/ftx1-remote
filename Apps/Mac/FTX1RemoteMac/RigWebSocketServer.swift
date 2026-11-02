@@ -1,6 +1,7 @@
 import FTX1Core
 import Foundation
 import Network
+import os
 
 /// Mac-only WebSocket server. iOS/iPadOS clients (and the Mac's own local
 /// UI, once it goes through `RigWebSocketClient` too) connect here to
@@ -10,6 +11,8 @@ import Network
 /// WebSocket implementation, since `URLSessionWebSocketTask` (used by
 /// `RigWebSocketClient`) is client-only — see repo README/CLAUDE.md.
 actor RigWebSocketServer {
+    private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "connection")
+
     private var listener: NWListener?
     /// Set once `listener` actually reports `.ready`, cleared on
     /// `.failed`/`.waiting`/`.cancelled` — see `isListening()`. A bind
@@ -21,6 +24,9 @@ actor RigWebSocketServer {
     /// before the OS confirms the bind actually succeeded.
     private var isReady = false
     private var connections: [ObjectIdentifier: Connection] = [:]
+    /// Accepted, but the WebSocket handshake hasn't finished. Nothing is sent
+    /// to these: a write to a refused handshake's socket still goes out.
+    private var pendingConnections: [ObjectIdentifier: Connection] = [:]
     /// Told the connected clients whenever one connects or drops — for
     /// Settings → Mobile.
     private var onClientsChanged: (@Sendable ([HubClientInfo]) -> Void)?
@@ -114,6 +120,14 @@ actor RigWebSocketServer {
 
         let webSocketOptions = NWProtocolWebSocket.Options()
         webSocketOptions.autoReplyPing = true
+        webSocketOptions.setClientRequestHandler(.global(qos: .userInitiated)) { _, headers in
+            guard !HubAddressFilter.isFromWebPage(headers: headers) else {
+                Self.logger.notice("Hub refused a connection from a web page")
+                return NWProtocolWebSocket.Response(status: .reject, subprotocol: nil)
+            }
+            return NWProtocolWebSocket.Response(status: .accept, subprotocol: nil,
+                                                additionalHeaders: [(name: Connection.acceptedHeader, value: "1")])
+        }
 
         // A connection whose peer just vanishes — e.g. the Mac's own
         // Tailscale interface being disabled mid-session — produces no RST
@@ -220,6 +234,10 @@ actor RigWebSocketServer {
             connection.close()
         }
         connections.removeAll()
+        for connection in pendingConnections.values {
+            connection.close()
+        }
+        pendingConnections.removeAll()
         onClientsChanged?([])
         latestState = nil
         onCommandReceived = nil
@@ -280,6 +298,13 @@ actor RigWebSocketServer {
     }
 
     private func accept(_ connection: NWConnection) {
+        // No login on this hub, so only this Mac, Tailscale and the local
+        // network get in (`HubAddressFilter`, as on the Windows hub).
+        guard HubAddressFilter.isAllowed(connection.endpoint) else {
+            Self.logger.notice("Hub refused \(String(describing: connection.endpoint), privacy: .public): not this Mac, Tailscale or a local network")
+            connection.cancel()
+            return
+        }
         let connectionID = ObjectIdentifier(connection)
         let inbound = inboundContinuation
         let client = Connection(
@@ -296,12 +321,20 @@ actor RigWebSocketServer {
             onCWKeyer: { request in
                 inbound.yield(.cwKeyer(request, connectionID))
             },
+            onReady: { [weak self] id in
+                Task { await self?.handshakeFinished(id) }
+            },
             onClose: { [weak self] id in
                 Task { await self?.remove(id) }
             }
         )
-        connections[client.id] = client
+        pendingConnections[client.id] = client
         client.start()
+    }
+
+    private func handshakeFinished(_ id: ObjectIdentifier) {
+        guard let client = pendingConnections.removeValue(forKey: id) else { return }
+        connections[id] = client
         onClientsChanged?(clientInfos)
 
         if let latestState, let data = try? JSONEncoder().encode(RigStatePush(state: latestState)) {
@@ -434,6 +467,7 @@ actor RigWebSocketServer {
     }
 
     private func remove(_ id: ObjectIdentifier) {
+        pendingConnections.removeValue(forKey: id)
         if connections.removeValue(forKey: id) != nil {
             onClientsChanged?(clientInfos)
         }
@@ -465,6 +499,8 @@ enum RigWebSocketServerError: Error {
 /// Wraps one accepted `NWConnection`, doing the WebSocket message send/
 /// receive loop and JSON encode/decode against the shared wire types.
 private final class Connection {
+    static let acceptedHeader = "X-FTX1-Hub-Accepted"
+
     let id: ObjectIdentifier
     let info: HubClientInfo
 
@@ -473,6 +509,7 @@ private final class Connection {
     private let onTXAudio: (Data) -> Void
     private let onMenuItemRead: (MenuItemReadRequest) -> Void
     private let onCWKeyer: (CWKeyerRequest) -> Void
+    private let onReady: (ObjectIdentifier) -> Void
     private let onClose: (ObjectIdentifier) -> Void
 
     init(
@@ -481,6 +518,7 @@ private final class Connection {
         onTXAudio: @escaping (Data) -> Void,
         onMenuItemRead: @escaping (MenuItemReadRequest) -> Void,
         onCWKeyer: @escaping (CWKeyerRequest) -> Void,
+        onReady: @escaping (ObjectIdentifier) -> Void,
         onClose: @escaping (ObjectIdentifier) -> Void
     ) {
         self.connection = connection
@@ -490,6 +528,7 @@ private final class Connection {
         self.onTXAudio = onTXAudio
         self.onMenuItemRead = onMenuItemRead
         self.onCWKeyer = onCWKeyer
+        self.onReady = onReady
         self.onClose = onClose
     }
 
@@ -512,6 +551,17 @@ private final class Connection {
         connection.stateUpdateHandler = { [weak self] state in
             guard let self else { return }
             switch state {
+            case .ready:
+                // A refused handshake still reaches .ready, and the socket
+                // stays open and usable after its 400. The handler can't say
+                // which connection it refused, so only an accepted handshake
+                // carries this header.
+                guard self.handshakeWasAccepted else {
+                    self.connection.cancel()
+                    return
+                }
+                self.onReady(self.id)
+                self.receiveLoop()
             case .failed, .cancelled:
                 self.onClose(self.id)
             default:
@@ -519,7 +569,11 @@ private final class Connection {
             }
         }
         connection.start(queue: .global(qos: .userInitiated))
-        receiveLoop()
+    }
+
+    private var handshakeWasAccepted: Bool {
+        let metadata = connection.metadata(definition: NWProtocolWebSocket.definition) as? NWProtocolWebSocket.Metadata
+        return metadata?.additionalServerHeaders?.contains { $0.0 == Self.acceptedHeader } == true
     }
 
     func send(_ data: Data) {

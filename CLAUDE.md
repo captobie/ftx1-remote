@@ -1584,6 +1584,38 @@ copy buttons got an accessible name. Then the user connected a real
 iPhone to the PC's hub, working. Not seen: Tailscale down/missing,
 the firewall-off/blocked states.
 
+**Hub address filter (Mac, 2026-11-01; unit-tested, checked in the built
+app from loopback, the LAN address and a real client on the Pi over
+Tailscale, then tested by the user with an iPad the same day)**: the Mac's hub accepted any address
+that could reach port 8765. `RigWebSocketServer.accept` now cancels a
+connection unless `HubAddressFilter` (`FTX1Core/Networking/`) allows it:
+the Windows hub's list (loopback, Tailscale, the private ranges, link-local
+— keep `HubAddressFilter.cs` in step; `HubAddressFilterTests` has its
+cases). A refusal is a TCP reset before anything is sent, logged under
+"connection". Same known limit as Windows: a client on the same LAN using
+a global IPv6 address is refused, which could catch the `.local` name on an
+IPv6 network (the Mac tested on has none).
+
+**Web pages refused (both hubs, 2026-11-01; Mac checked in the built app with
+a real browser page, `URLSessionWebSocketTask`, raw clients and the Pi over
+Tailscale; Windows written on the Mac without a .NET SDK; then tested by the
+user with an iPad, the Mac and the PC the same day)**: a page in a browser on an allowed machine could open
+`ws://localhost:8765` and send commands, keying included (seen connecting and
+receiving state in the in-app browser, from another port's page). Any
+handshake with an `Origin` header is now refused: browsers always send one,
+and `URLSessionWebSocketTask` (the apps' client) sends none. Mac:
+`setClientRequestHandler` + `HubAddressFilter.isFromWebPage`. **Its `.reject`
+isn't enough by itself**: `NWProtocolWebSocket` writes the 400 and then still
+reports `.ready` and leaves the socket open, so writes reach the client (the
+state and whole memory list did). The handler can't say which connection it
+refused, so an accepted handshake's response carries `X-FTX1-Hub-Accepted`,
+read back from the connection's WebSocket metadata at `.ready`; without it the
+connection is cancelled. Clients now stay in `pendingConnections`, and nothing
+is sent or read, until that check passes. Windows: a 403 in `HubServer`'s
+middleware, after the address check, with `RefusesAWebPageButNotAnApp` in
+`HubTransmitTests`. Both log the refusal. In zsh, `log` is a math builtin:
+call `/usr/bin/log` to read these.
+
 ## License-class guardrail (Mac, 2026-10-25; unit-tested, then rig-tested by the user the same day)
 
 Settings → **License** (user request): Off (default — the gate checks the

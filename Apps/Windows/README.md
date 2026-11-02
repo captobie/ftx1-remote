@@ -2424,7 +2424,7 @@ Apps/Windows/FTX1RemoteWindows/
     WorkedStationsStore.cs       Worked-before index for the CW window (WorkedStationsStore.swift)
     WebSdrAudioTap.cs            process-loopback capture of the WebSDR window's audio for the CW window (WebSDRAudioTap.swift)
     Hub/HubServer.cs             the iPad's Desktop hub: Kestrel WebSocket server on 8765 (RigWebSocketServer.swift)
-    Hub/HubAddressFilter.cs      who may connect: loopback, Tailscale, private ranges
+    Hub/HubAddressFilter.cs      who may connect: loopback, Tailscale, private ranges (HubServer also refuses any request with an Origin header, i.e. web pages)
     Hub/WireModels.cs            RigStatePush/RigState wire types + the RigState mapper (WireMessage.swift, RigState.swift)
   Assets/
     CWNet.onnx                    CWKit's neural CW model, converted by ../Tools/cwnet_to_onnx.py
