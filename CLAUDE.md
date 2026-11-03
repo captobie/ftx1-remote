@@ -1415,7 +1415,7 @@ free Mac app and a radio".
   runs (`lsof -nP -iTCP -sTCP:LISTEN | grep FTX1Remot`, lowest port) —
   a second client can read the simulated rig's state directly.
 
-## iPad TestFlight prep (2026-10-15; 0.9 build 6 uploaded the same day, build 7 on 2026-10-16 with the PTT key-before-mic fix, build 8 the same day with the shared audio session, build 9 on 2026-10-26 with the CW Monitor sidetone and the 5 W RF POWER floor)
+## iPad TestFlight prep (2026-10-15; 0.9 build 6 uploaded the same day, build 7 on 2026-10-16 with the PTT key-before-mic fix, build 8 the same day with the shared audio session, build 9 on 2026-10-26 with the CW Monitor sidetone and the 5 W RF POWER floor, build 10 on 2026-11-02 with split, Spanish and German)
 
 App Store/TestFlight requirements on the iPad target: `PrivacyInfo.xcprivacy`
 in `Apps/iPad/FTX1RemoteiPad/` (picked up by the synchronized group as a
@@ -1434,7 +1434,10 @@ Upload: archive with `-destination 'generic/platform=iOS'
 `xcodebuild -exportArchive -exportOptionsPlist Scripts/ExportOptions-iOS.plist
 -allowProvisioningUpdates` (method app-store-connect, destination upload —
 the export itself uploads). The Mac's `Scripts/ExportOptions.plist` is
-Developer ID, keep them apart.
+Developer ID, keep them apart. To archive without uncommitted changes,
+use a `git worktree` whose folder is named `ftx1-remote`: the project
+finds the local package by that name, and any other name fails with
+"Could not resolve package dependencies".
 
 ## Straight-key CW (Mac, Local mode, 2026-10-17; rig-tested by the user the same day)
 
