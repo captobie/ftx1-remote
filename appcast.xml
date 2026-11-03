@@ -3,6 +3,21 @@
     <channel>
         <title>FTX1RemoteMac</title>
         <item>
+            <title>0.12.1</title>
+            <pubDate>Tue, 03 Nov 2026 13:54:31 -0800</pubDate>
+            <sparkle:version>10</sparkle:version>
+            <sparkle:shortVersionString>0.12.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.12.1/FTX1RemoteMac-0.12.1.zip" length="10795304" type="application/octet-stream" sparkle:edSignature="MrzHg7XLSQJLmbKX/xMSISF/R6ocbYrq1TicfoUoPXVhpjST1lGqKWVZiDwn1GYCcgEDAKv+jCyBqQWbK+uzCQ=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.12.1/FTX1RemoteMac10-9.delta" sparkle:deltaFrom="9" length="432710" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="AFPUv/UnhgxkugNV1+wuzZt3GZYeEC24uo9+dyJyFrqcV9YkFtoYOGpkCI9FUWiLX8oIj9OFQ0aqP2JKMO6ZDw=="/>
+                <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.12.1/FTX1RemoteMac10-8.delta" sparkle:deltaFrom="8" length="1053278" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="YHzqEuFYKYCg28XerSKA6f5adDMSqlK9cCzGGb7uhJn4utMLM0TYrT4/CWJyF/gkB5WWOAiOx/ItTbPXWkpRAQ=="/>
+                <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.12.1/FTX1RemoteMac10-7.delta" sparkle:deltaFrom="7" length="1952306" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="xGLCoa1TT3w0B6RomE+6K4J0YrNb08UpFYi77+1DoFlYpw09TVRX67Tv2E+cz7OxWahr7WRbqcoYQ00G+iNSCA=="/>
+                <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.12.1/FTX1RemoteMac10-6.delta" sparkle:deltaFrom="6" length="6459258" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="pAoFA3Ljp7MgLOUxeeoyH6BvW2XKkqtQHCD42UIeclZ9we4bde7f6gqpStHDBw8LGlqGaY/dI7gujyN1hBEABg=="/>
+                <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.12.1/FTX1RemoteMac10-5.delta" sparkle:deltaFrom="5" length="6676646" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="82SXNFlNklGXT6dWWfTzRpQMcLcn72LBhgZ7/1uPaWfxu91q1pNDmzGSJMLHX56u18hEm3dDZ9hOQoA7VjGlDg=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>0.12</title>
             <pubDate>Mon, 02 Nov 2026 16:12:16 -0800</pubDate>
             <sparkle:version>9</sparkle:version>
@@ -30,21 +45,6 @@
                 <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.11/FTX1RemoteMac8-5.delta" sparkle:deltaFrom="5" length="6564146" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="Q7prD59/XaHx1phSeTWnRumZX7yzHH3HSVl/W/wWBrdbAiKYfBG+1gRmM2FfZB/5lpKctZmrVZID8z7cJ9jGAA=="/>
                 <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.11/FTX1RemoteMac8-4.delta" sparkle:deltaFrom="4" length="6759106" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="nZy4yCPVf9Sf1ysasy5DRiPPTE4yiYNWdFAYYLL8AAQQzSr8aD4JhAnRUuleWz3siKWx0ZArbZCMBLGkSErWAw=="/>
                 <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.11/FTX1RemoteMac8-3.delta" sparkle:deltaFrom="3" length="6797470" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="txktgQPPeHuXKemvc6cpcTGA63s6qciHPWfPmUNmYpVa88zdvsGj7m39G2mTv1DA3oQDo/8MsamvD/FawbkUAA=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>0.10</title>
-            <pubDate>Fri, 23 Oct 2026 03:26:19 -0700</pubDate>
-            <sparkle:version>7</sparkle:version>
-            <sparkle:shortVersionString>0.10</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.10/FTX1RemoteMac-0.10.zip" length="10025612" type="application/octet-stream" sparkle:edSignature="nau8WA0fPfoM04+SIu++q6muoEIseK6b9a0cLWA+MImx+Mc3SVARj0nzojyQGKecfSyJRpoFn9BxuA7Z0iKzDQ=="/>
-            <sparkle:deltas>
-                <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.10/FTX1RemoteMac7-6.delta" sparkle:deltaFrom="6" length="5532294" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="51hKNIPwda4k3JDcFeJ7fkuF9+EvlShtuupI5ztdgGXvPQzvtukCOhEDMnddMsC+NW1VKGIi4KRwU5lUfxP0AQ=="/>
-                <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.10/FTX1RemoteMac7-5.delta" sparkle:deltaFrom="5" length="5895750" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="ytb4rEYSYX4oPVP5t0RakQYhEJgrOXBbNQgn8D/kenODvnrdO2MYeN1Uts0rUY2Rutsslv9aKnnBtHyWjChNDQ=="/>
-                <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.10/FTX1RemoteMac7-4.delta" sparkle:deltaFrom="4" length="6129754" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="bjknM9YSknDF50iR5NCQ4FeNEhGM6Nnqkdv6dHFG9OHH8+zwxq/NFUj1bNgtN3eHzeyiNrhJvuAPdR3ExFqvBA=="/>
-                <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.10/FTX1RemoteMac7-3.delta" sparkle:deltaFrom="3" length="6186974" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="vIoinfrTQICw5gEmrjcONq3KVK33ZmLHgRa9LEnheOQ5uKuZGjo+fsBufzrh8LtkKlt7VKBBGu+PLZWdTwS9Dw=="/>
-                <enclosure url="https://github.com/captobie/ftx1-remote/releases/download/v0.10/FTX1RemoteMac7-2.delta" sparkle:deltaFrom="2" length="6188802" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976464" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="h0PPYi+3RVf42v78+FuXBhSFoAI5G3ORiX1cb/2yYZh7q7p4WInRq7fTFR7QtSpzCtbwnsbmM/ugAvIZmPDgDQ=="/>
             </sparkle:deltas>
         </item>
     </channel>
