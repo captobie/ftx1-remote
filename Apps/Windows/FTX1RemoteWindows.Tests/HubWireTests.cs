@@ -132,7 +132,7 @@ public class HubWireTests
         });
         var dir = Path.Combine(FixturesDir, "windows");
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "windows-state-push.json"), indented + "\n");
+        File.WriteAllText(Path.Combine(dir, "windows-state-push.json"), indented.ReplaceLineEndings("\n") + "\n");
     }
 
     /// A state with most fields read, as after a few polls with Main on

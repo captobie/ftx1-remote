@@ -431,7 +431,7 @@ public class HubKeyerTests
         });
         var dir = Path.Combine(FixturesDir, "windows");
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, name), indented + "\n");
+        File.WriteAllText(Path.Combine(dir, name), indented.ReplaceLineEndings("\n") + "\n");
     }
 
     // Helpers.

@@ -346,7 +346,7 @@ public class HubListTests
         });
         var dir = Path.Combine(FixturesDir, "windows");
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, name), indented + "\n");
+        File.WriteAllText(Path.Combine(dir, name), indented.ReplaceLineEndings("\n") + "\n");
         return JsonDocument.Parse(compact).RootElement.Clone();
     }
 }
