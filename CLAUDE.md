@@ -2674,6 +2674,12 @@ modes.
 - `f Sub`, `m` and `t` answer from Hamlib's cache (~0.2 ms; a 1 s cache
   timeout shows in the trace), so SUB's frequency and PTT may lag up to 1 s.
   Not addressed.
+- **Band picker regression, v0.12 (fixed 2026-11-03; unit-tested, then
+  confirmed in the Debug build by the user the same day)**: with the lane reading every ~50 ms, the fast
+  tier's older "FA" almost never publishes, and it was the only thing fixing
+  `RigState.band` after an optimistic `.setFrequency` (which wrote only the
+  frequency; the lane then saw no change). Writing `RigState.frequencyHz`
+  now sets `band` itself (`didSet`; not in `init` or decoding).
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 

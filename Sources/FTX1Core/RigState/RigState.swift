@@ -5,13 +5,25 @@ import Foundation
 /// render against — the Mac derives it from rigctld polling/events,
 /// mobile derives it from WebSocket state pushes.
 public struct RigState: Codable, Equatable, Sendable {
-    public var frequencyHz: Int
+    /// Writing this also sets `band`, so no writer can leave the two apart.
+    /// (2026-11-03: the hub's optimistic tune wrote only the frequency, and
+    /// `frequencyLane` then read the same value and published nothing, so
+    /// the Mac's Band picker stayed on the old band.)
+    public var frequencyHz: Int {
+        didSet { band = Self.bandName(containing: frequencyHz) }
+    }
     public var mode: RigMode
+    /// The Band picker's entry for `frequencyHz`; see `bandName(containing:)`.
     public var band: String?
     public var powerWatts: Double?
     public var swr: Double?
     public var ptt: Bool
     public var lastUpdated: Date
+    /// The picker entry a frequency falls in: the amateur band, which wins on
+    /// overlap, else the general-coverage segment.
+    public static func bandName(containing hz: Int) -> String? {
+        BandPlan.band(containing: hz)?.name ?? GeneralCoverageSegments.segment(containing: hz)?.name
+    }
     /// The other VFO's frequency (whichever isn't currently active) — see
     /// `RigctldClient.getSecondaryFrequency()`.
     public var secondaryFrequencyHz: Int?

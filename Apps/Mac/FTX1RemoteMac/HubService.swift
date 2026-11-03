@@ -2147,7 +2147,6 @@ final class HubService: ObservableObject {
                     publishedFrequencyRead = read
                     if hz != rigState.frequencyHz {
                         rigState.frequencyHz = hz
-                        rigState.band = BandPlan.band(containing: hz)?.name ?? GeneralCoverageSegments.segment(containing: hz)?.name
                         await server.broadcast(rigState)
                         Self.pollTimingLogger.debug("frequency lane published \(hz, privacy: .public)")
                     }
@@ -2343,14 +2342,9 @@ final class HubService: ObservableObject {
             secondaryMode = nil
         }
 
-        // Amateur allocation wins on overlap (see `generalCoverageSegment`) —
-        // `bandOrSegmentName` is what the Band picker's selection binds to,
-        // so it needs to reflect a general-coverage segment too, not just a
-        // ham band, or picking e.g. "FM BCB" would leave the picker showing
-        // whatever ham band was last selected.
+        // Amateur allocation wins on overlap (see `generalCoverageSegment`).
         let band = BandPlan.band(containing: frequencyHz)
         let segment = band == nil ? GeneralCoverageSegments.segment(containing: frequencyHz) : nil
-        let bandOrSegmentName = band?.name ?? segment?.name
         if let band {
             BandMemory.recordFrequencyHz(frequencyHz, forBand: band.name)
             // Segments (NOAA WX, SW broadcast, etc.) always force their own
@@ -2391,7 +2385,6 @@ final class HubService: ObservableObject {
         if frequencyRead > publishedFrequencyRead {
             publishedFrequencyRead = frequencyRead
             rigState.frequencyHz = frequencyHz
-            rigState.band = bandOrSegmentName
         }
         rigState.mode = mainMode ?? rigState.mode
         rigState.powerWatts = powerWatts

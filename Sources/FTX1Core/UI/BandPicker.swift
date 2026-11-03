@@ -40,11 +40,10 @@ public struct BandPicker: View {
         }
     }
 
-    /// The picker entry a frequency falls in: the amateur band, else the
-    /// general-coverage segment — the hub's `RigState.band` rule, for a
-    /// route that doesn't fill `band` (Pi direct).
+    /// The picker entry a frequency falls in (`RigState.bandName`), for a
+    /// band that isn't `RigState.band`: SUB's, on the iPhone.
     public static func name(containing hz: Int) -> String? {
-        BandPlan.band(containing: hz)?.name ?? GeneralCoverageSegments.segment(containing: hz)?.name
+        RigState.bandName(containing: hz)
     }
 
     private var binding: Binding<String> {
