@@ -78,18 +78,14 @@ def build_svg(variant):
     W = H = 1024
     cx = cy = 512
 
-    if variant == "mac":
-        S = 824
-        inset = (1024 - S) / 2
-        rx = S * 0.225
-        bg_shape = f'<rect x="{inset:.1f}" y="{inset:.1f}" width="{S}" height="{S}" rx="{rx:.1f}" fill="url(#bgGrad)" filter="url(#dropShadow)"/>'
-        clip = f'<clipPath id="clip"><rect x="{inset:.1f}" y="{inset:.1f}" width="{S}" height="{S}" rx="{rx:.1f}"/></clipPath>'
-        content_S = S
-    else:
-        S = 1024
-        bg_shape = f'<rect x="0" y="0" width="1024" height="1024" fill="url(#bgGrad)"/>'
-        clip = ''
-        content_S = S
+    # Every variant, the Mac's included, is full-bleed: macOS 26 applies its
+    # own squircle mask to a full-bleed square. The old Mac art (an inset
+    # rounded square with its own drop shadow on a transparent canvas) was
+    # treated as a legacy icon and put inside a white squircle.
+    S = 1024
+    bg_shape = f'<rect x="0" y="0" width="1024" height="1024" fill="url(#bgGrad)"/>'
+    clip = ''
+    content_S = S
 
     palette = {
         "bg1": "#2a2d33", "bg2": "#0a0b0d",
