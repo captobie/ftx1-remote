@@ -1,0 +1,29 @@
+{
+  "sourceLanguage" : "en",
+  "version" : "1.1",
+  "strings" : {
+    "digiReceiver.couldntRead %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%1$@“ konnte nicht gelesen werden: %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read “%@”: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo leer «%1$@»: %2$@"
+          }
+        }
+      }
+    }
+  }
+}

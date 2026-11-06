@@ -1,22 +1,31 @@
 import Combine
 import Foundation
-import FTX1CW
 
-/// The CW window's third source: what the WebSDR window is playing,
-/// through `WebSDRAudioTap`. Mac-only, so it lives beside the shared
-/// `CWReceiver` rather than in it: it follows the receiver's
-/// `onSourceChanged` and runs the tap only while decoding is on with
-/// `.webSDR` selected, feeding the receiver as `.webSDR`.
+/// The decoders' WebSDR source: what the WebSDR window is playing, through
+/// one `WebSDRAudioTap` shared by every window that wants it (the CW
+/// window, the RTTY/PSK window). Mac-only, so it lives beside the shared
+/// receivers rather than in them.
+///
+/// Each consumer says whether it wants WebSDR audio right now and gets the
+/// samples while it does; the tap runs while any consumer wants it. A
+/// consumer calls `update()` whenever its answer may have changed (the
+/// receivers' `onSourceChanged`).
 ///
 /// While the tap runs, the WebSDR window's Mute moves off the page and onto
 /// the tap (`WebSDRAudioRouting`), so the page keeps playing into the tap.
-final class CWWebSDRSource: ObservableObject {
-    /// The tap's state while `.webSDR` is the source and decoding is on;
-    /// `.stopped` otherwise.
+/// Two taps (one per window) would each try to own that hand-off, which is
+/// why there is only one.
+final class WebSDRAudioSource: ObservableObject {
+    /// The tap's state while some consumer wants it; `.stopped` otherwise.
     @Published private(set) var status = WebSDRAudioTap.Status.stopped
 
+    private struct Consumer {
+        let isWanted: @MainActor () -> Bool
+        let onSamples: @MainActor ([Float], Double) -> Void
+    }
+
     private let routing: WebSDRAudioRouting
-    private weak var receiver: CWReceiver?
+    private var consumers: [String: Consumer] = [:]
     /// Created on first use: the tap's permission prompt should only ever
     /// appear once someone picks the WebSDR source.
     private var tap: WebSDRAudioTap?
@@ -30,22 +39,27 @@ final class CWWebSDRSource: ObservableObject {
             .sink { [weak self] muted in self?.tap?.setMuted(muted) }
     }
 
-    func attach(to receiver: CWReceiver) {
-        self.receiver = receiver
-        receiver.onSourceChanged = { [weak self] in self?.update() }
+    /// Adds (or replaces) the consumer named `id`.
+    func addConsumer(
+        id: String,
+        isWanted: @escaping @MainActor () -> Bool,
+        onSamples: @escaping @MainActor ([Float], Double) -> Void
+    ) {
+        consumers[id] = Consumer(isWanted: isWanted, onSamples: onSamples)
+        update()
     }
 
     private var isWanted: Bool {
-        guard let receiver else { return false }
-        return receiver.isRunning && receiver.channel == .webSDR
+        consumers.values.contains { $0.isWanted() }
     }
 
-    private func update() {
+    /// Starts or stops the tap to match what the consumers want.
+    func update() {
         if isWanted {
             if tap == nil {
                 tap = WebSDRAudioTap(
                     onSamples: { [weak self] samples, sampleRate in
-                        self?.receiver?.ingest(samples: samples, sampleRate: sampleRate, channel: .webSDR)
+                        self?.deliver(samples, sampleRate: sampleRate)
                     },
                     onStatus: { [weak self] status in
                         self?.statusChanged(status)
@@ -63,6 +77,12 @@ final class CWWebSDRSource: ObservableObject {
             // own mute a moment longer (see `WebSDRAudioTap.stop()`).
             routing.captureActive = false
             tap?.stop()
+        }
+    }
+
+    private func deliver(_ samples: [Float], sampleRate: Double) {
+        for consumer in consumers.values where consumer.isWanted() {
+            consumer.onSamples(samples, sampleRate)
         }
     }
 

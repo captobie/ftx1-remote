@@ -178,6 +178,7 @@ Sources/FTX1Core/
 │                  TransmitGate
 ├── MenuSettings/  DeepSettingsCatalog, NarrowWidthPreset
 ├── Audio/         AudioStreamFormat, AudioPlaybackEngine, SquelchGate,
+│                  ReceiveAudioChannel (MAIN/SUB/WebSDR for the decoders),
 │                  RemoteAudioStreamClient / RemoteTXAudioClient (the Pi's
 │                  audio ports), PiAudioDownsampler, TXAudioCapture,
 │                  MicrophoneTransmitter, SharedAudioSession, FilterSpectrum
@@ -203,12 +204,16 @@ Sources/FTX1Core/
 Sources/FTX1CW/    CWReceiver, CWSender (on CWKit), the shared receive
                    controls, and the CWKeyerLink conformances for the iPad's
                    two routes
+Sources/FTX1Digi/  RTTY and BPSK31/63 decoding: our own demodulators
+                   (RTTYDemodulator, PSKDemodulator, Baudot, Varicode),
+                   DigiDecoder, DigiReceiver
 Sources/CFT8Lib/   vendored decode-only ft8_lib + kissfft (C)
 Sources/FT8Kit/    its Swift wrapper
 ```
 
-`FTX1CW` and `FT8Kit` are separate products so the iPhone doesn't carry
-CWKit's Core ML model and neither mobile app carries the FT8 C library.
+`FTX1CW`, `FTX1Digi` and `FT8Kit` are separate products so the iPhone
+doesn't carry CWKit's Core ML model and neither mobile app carries the FT8
+C library or the RTTY/PSK decoders.
 
 **Mac app** (`Apps/Mac/FTX1RemoteMac/`, Xcode project in `FTX1RemoteMac/`):
 `HubService` (+ its `RigController` and `CWKeyerLink` conformances),
@@ -217,7 +222,9 @@ CWKit's Core ML model and neither mobile app carries the FT8 C library.
 `FilterDisplayHost`, `AudioRecorder`, `BandMemory`, the APRS windows and
 map, the FT8 files (`FT8DecodeCoordinator`, `FT8Store`, `FT8ListView`,
 `PSKReporterUploader`), the CW window (`CWWindowView`, `CWSendPane`,
-`CWLogPane`, `CWWebSDRSource`, `WebSDRAudioTap`), the logbook
+`CWLogPane`), the RTTY/PSK window (`DigiWindowView`, `DigiTuningStrip`),
+the decoders' shared WebSDR source (`WebSDRAudioSource`, `WebSDRAudioTap`),
+the logbook
 (`MacLoggerDX`, `QSOLogger`, `WorkedStationsStore`), the WebSDR window
 (`WebSDRFollowModel`, `KiwiWebView`, `SDRPageBridge`, directories and
 favorites), `MemoryListView`, the CW key window (`StraightKey*`),
@@ -248,8 +255,8 @@ tracked here.
 Single dense window: VFO A/B, S/SWR meters, waterfall/oscilloscope with
 per-channel (Main/Sub) mute and volume/squelch sliders, band/mode selectors,
 filter controls and display, memory list and scan buttons, and the numbered
-MENU grid, all visible at once. The **Tools** menu opens FT8, CW, CW
-Key, WebSDR and the APRS list/messages/map windows. Settings has tabs for
+MENU grid, all visible at once. The **Tools** menu opens FT8, FT4, CW,
+RTTY/PSK, CW Key, WebSDR and the APRS list/messages/map windows. Settings has tabs for
 rigctld (Local/Remote mode, which rigctld), Audio (input/output devices,
 transmit audio output), C4FM (WPSD hotspot), APRS, Station, Logbook, Home
 Freq, Polling, Appearance and Updates. The Mac is a full control surface,
@@ -391,6 +398,9 @@ category `cw-key`.
   WebSDR in the CW window.
 - The Mac CW window's live decoding on the rig (incl. across a swap) hasn't
   been formally tested (the iPad's, on the same receiver code, works).
+- The Mac's RTTY/PSK window is tested on synthesized signals and files
+  only, not yet on the air; whether the rig's RTTY mode puts the space
+  tone above the mark (what Rig Tones assumes) isn't confirmed.
 - iPhone: no MENU grid; Pi direct there is receive-only.
 - The hub route has no automatic reconnect-and-resync in
   `RigWebSocketClient`.

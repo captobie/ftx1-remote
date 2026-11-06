@@ -365,12 +365,12 @@ nonisolated final class WebSDRAudioTap: @unchecked Sendable {
 /// (`WebSDRAudioTap.setMuted`), since a muted page gives the decoder nothing
 /// to decode. A plain `let` on `HubService`, shared by `WebSDRFollowModel`
 /// (which sets `muteRequested` and mutes the page only while
-/// `!captureActive`) and `CWReceiver` (which sets `captureActive` and mutes
+/// `!captureActive`) and `WebSDRAudioSource` (which sets `captureActive` and mutes
 /// its tap with `muteRequested`).
 final class WebSDRAudioRouting: ObservableObject {
     /// The WebSDR window wants its audio silenced: its Mute, or Mute on TX
     /// while transmitting.
     @Published var muteRequested = false
-    /// The CW window's WebSDR tap is attached to the WebSDR's audio.
+    /// A decoder window's WebSDR tap (`WebSDRAudioSource`) is attached to the WebSDR's audio.
     @Published var captureActive = false
 }

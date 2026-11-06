@@ -4315,6 +4315,466 @@
         }
       }
     },
+    "digiWindow.afcHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dem Signal folgen, wenn es driftet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow the signal when it drifts"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir la señal cuando deriva"
+          }
+        }
+      }
+    },
+    "digiWindow.baud" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baud"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baud"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baudios"
+          }
+        }
+      }
+    },
+    "digiWindow.clearTheText" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den dekodierten Text löschen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear the decoded text"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar el texto decodificado"
+          }
+        }
+      }
+    },
+    "digiWindow.clickToTune" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Signal anklicken, um den Decoder darauf abzustimmen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click a signal to tune the decoder to it"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hacer clic en una señal para sintonizar el decodificador"
+          }
+        }
+      }
+    },
+    "digiWindow.copyTheText" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den dekodierten Text kopieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy the decoded text"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar el texto decodificado"
+          }
+        }
+      }
+    },
+    "digiWindow.decodeARecording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Aufnahme mit der aktuellen Betriebsart und den aktuellen Einstellungen dekodieren (zuerst öffnet sich der Ordner Aufnahmen)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decode a recording with the current mode and settings (the Recordings folder opens first)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodificar una grabación con el modo y los ajustes actuales (se abre primero la carpeta Grabaciones)"
+          }
+        }
+      }
+    },
+    "digiWindow.mode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Betriebsart"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modo"
+          }
+        }
+      }
+    },
+    "digiWindow.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hier erscheint dekodierter Text vom gewählten Empfänger. Ein Signal im Streifen oben anklicken, um darauf abzustimmen, oder eine Aufnahme öffnen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decoded text from the selected receiver appears here. Click a signal in the strip above to tune to it, or open a recording."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aquí aparece el texto decodificado del receptor seleccionado. Hacer clic en una señal de la franja de arriba para sintonizarla, o abrir una grabación."
+          }
+        }
+      }
+    },
+    "digiWindow.quality" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualität"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quality"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calidad"
+          }
+        }
+      }
+    },
+    "digiWindow.reverse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Umkehren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reverse"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invertir"
+          }
+        }
+      }
+    },
+    "digiWindow.reverseHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark und Space tauschen, für ein Signal, dessen Töne umgekehrt ankommen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swap mark and space, for a signal whose tones come out the other way round"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intercambiar mark y space, para una señal cuyos tonos salen al revés"
+          }
+        }
+      }
+    },
+    "digiWindow.rigTones" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Töne des Geräts"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig Tones"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tonos del equipo"
+          }
+        }
+      }
+    },
+    "digiWindow.rigTonesFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Toneinstellungen des Geräts konnten nicht gelesen werden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read the rig's tone settings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron leer los ajustes de tono del equipo"
+          }
+        }
+      }
+    },
+    "digiWindow.rigTonesHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den Decoder auf die RTTY-Töne des Geräts (MARK FREQUENCY und SHIFT FREQUENCY) oder seinen PSK TONE abstimmen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tune the decoder to the rig's RTTY tones (MARK FREQUENCY and SHIFT FREQUENCY) or its PSK TONE"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonizar el decodificador en los tonos RTTY del equipo (MARK FREQUENCY y SHIFT FREQUENCY) o en su PSK TONE"
+          }
+        }
+      }
+    },
+    "digiWindow.shift" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift"
+          }
+        }
+      }
+    },
+    "digiWindow.sourceIsIn %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ ist in %2$@ – es wird trotzdem dekodiert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is in %@ — decoding anyway"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ está en %2$@: se decodifica igualmente"
+          }
+        }
+      }
+    },
+    "digiWindow.squelch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squelch"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squelch"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squelch"
+          }
+        }
+      }
+    },
+    "digiWindow.squelchHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text nur ausgeben, solange die Signalqualität darüber liegt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Print text only while the signal quality is above this"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar texto solo mientras la calidad de la señal esté por encima de este nivel"
+          }
+        }
+      }
+    },
+    "digiWindow.unshiftOnSpaceHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unshift on Space: nach einem Leerzeichen zurück zu Buchstaben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unshift on space: go back to letters after a space"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unshift on space: volver a letras después de un espacio"
+          }
+        }
+      }
+    },
+    "digiWindow.whichAudio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welches Audio dekodiert wird: MAIN- oder SUB-Empfänger des Geräts oder das, was das WebSDR-Fenster abspielt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which audio to decode: the rig's MAIN or SUB receiver, or what the WebSDR window is playing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué audio decodificar: el receptor MAIN o SUB del equipo, o lo que reproduce la ventana WebSDR"
+          }
+        }
+      }
+    },
     "DT" : {
       "extractionState" : "manual",
       "shouldTranslate" : false
@@ -8173,6 +8633,10 @@
           }
         }
       }
+    },
+    "RTTY/PSK" : {
+      "comment" : "The RTTY/PSK window.",
+      "isCommentAutoGenerated" : true
     },
     "scopeDisplay.scopeDisplay" : {
       "extractionState" : "manual",

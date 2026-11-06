@@ -654,7 +654,7 @@ private final class Locked<Value: Sendable>: @unchecked Sendable {
 /// where each lookup's `zip`/`dropFirst` iteration went through unspecialized
 /// generic iterators with a malloc/free per pixel. Now each frame is one
 /// `memmove` plus `binCount` table lookups (see `WaterfallPalette.lut`).
-private final class WaterfallBitmap {
+final class WaterfallBitmap {
     private let binCount: Int
     private let historyRows: Int
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
@@ -714,7 +714,7 @@ private final class WaterfallBitmap {
 /// 256-step quantization of the gradient built once; `color(forIntensity:)`
 /// is the exact definition that table is built from (see `WaterfallBitmap`
 /// for why the per-pixel path no longer calls it directly).
-private enum WaterfallPalette {
+enum WaterfallPalette {
     /// 256 packed RGBA8888 pixels (R in the lowest byte, alpha 255), entry
     /// `i` being the gradient color at intensity `i / 255`.
     nonisolated(unsafe) static let lut: [UInt32] = (0..<256).map { step in

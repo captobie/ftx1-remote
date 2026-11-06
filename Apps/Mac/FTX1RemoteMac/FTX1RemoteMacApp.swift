@@ -42,6 +42,9 @@ struct FTX1RemoteMacApp: App {
                 Button("CW") {
                     openWindow(id: "cw")
                 }
+                Button("RTTY/PSK") {
+                    openWindow(id: "digi")
+                }
                 Button("CW Key") {
                     openWindow(id: "straight-key")
                 }
@@ -102,10 +105,21 @@ struct FTX1RemoteMacApp: App {
             CWWindowView()
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.cwReceiver)
-                .environmentObject(appDelegate.hub.cwWebSDRSource)
+                .environmentObject(appDelegate.hub.webSDRSource)
                 .environmentObject(appDelegate.hub.cwSender)
                 .environmentObject(appDelegate.hub.cwMonitor)
                 .environmentObject(appDelegate.hub.workedStations)
+                .appTheme()
+        }
+
+        // Tools → RTTY/PSK. `hub` for the SUB picker's single-receive check
+        // and Rig Tones, `webSDRSource` for the WebSDR status; decoding runs
+        // while the window is open.
+        Window("RTTY/PSK", id: "digi") {
+            DigiWindowView()
+                .environmentObject(appDelegate.hub)
+                .environmentObject(appDelegate.hub.digiReceiver)
+                .environmentObject(appDelegate.hub.webSDRSource)
                 .appTheme()
         }
 

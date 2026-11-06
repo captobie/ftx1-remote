@@ -33,6 +33,13 @@ let package = Package(
             name: "FTX1CW",
             targets: ["FTX1CW"]
         ),
+        // RTTY and PSK31/63 decoding (Tools → RTTY/PSK on the Mac). Our own
+        // demodulators (fldigi is GPL), separate from FTX1Core so the
+        // iPhone doesn't carry them.
+        .library(
+            name: "FTX1Digi",
+            targets: ["FTX1Digi"]
+        ),
     ],
     dependencies: [
         // CWKit. The Mac app target also names it in the Xcode project;
@@ -55,6 +62,15 @@ let package = Package(
         .testTarget(
             name: "FTX1CoreTests",
             dependencies: ["FTX1Core"]
+        ),
+        .target(
+            name: "FTX1Digi",
+            dependencies: ["FTX1Core"],
+            resources: [.process("Resources/Localizable.xcstrings")]
+        ),
+        .testTarget(
+            name: "FTX1DigiTests",
+            dependencies: ["FTX1Digi"]
         ),
         // Vendored decode-only subset of kgoba/ft8_lib (MIT) + kissfft
         // (BSD-3-Clause) — see Sources/CFT8Lib/LICENSE-ft8lib.txt and

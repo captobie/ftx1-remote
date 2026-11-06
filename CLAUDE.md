@@ -2281,7 +2281,8 @@ vendored here.
   shared with the iPad — see "iPad CW decoder") is a `lazy var` on
   `HubService` (its own object, like `ft8Store`), fed by *both* audio taps
   unconditionally (before the APRS gates); it keeps only the selected
-  channel (`CWAudioChannel`, persisted `cw.channel`) and drops everything
+  channel (`CWAudioChannel`, now a typealias of FTX1Core's
+  `ReceiveAudioChannel`, persisted `cw.channel`) and drops everything
   while the window is closed (`start()`/`stop()` from `CWWindowView`'s
   onAppear/onDisappear; `HubService.stop()` also calls `stop()`). MAIN/SUB
   are roles, so they follow swaps via `audioChannelsSwapped` upstream.
@@ -2291,9 +2292,9 @@ vendored here.
   changes at once) so they never re-render the decoded text. Settings are
   `cw.*` UserDefaults keys. Switching channel flushes the decoder and
   starts a new line.
-  The WebSDR source is the Mac-only `CWWebSDRSource` beside it, which
-  follows the receiver's `onSourceChanged` (running and channel) to run
-  the tap; the meters bar, tuning row and decoder picker are the shared
+  The WebSDR source is the Mac-only `WebSDRAudioSource` (one tap shared
+  with the RTTY/PSK window since 2026-11-06; `HubService` registers the
+  receiver as a consumer and calls `update()` from its `onSourceChanged`); the meters bar, tuning row and decoder picker are the shared
   `FTX1CW` views (`CWReceiverControls.swift`).
 - **Open Audio File** (file dialog opens in the Recordings folder) pauses
   live decoding, decodes into the same text under a "— filename —" header,
@@ -2423,6 +2424,72 @@ vendored here.
     `CWText` checked in a scratch harness. Not tried: SUB as the TX side
     (sending always keys whatever the rig transmits on), WebSDR source
     while sending.
+
+## Digital modes — RTTY/PSK (Mac, 2026-11-06; unit-tested on synthesized signals, decoded synthesized files in the built app; not yet on the air)
+
+User request. Tools → **RTTY/PSK** opens `Window(id: "digi")`
+(`DigiWindowView`, Mac-only): decodes one RTTY, BPSK31 or BPSK63 signal
+at a time from MAIN, SUB or the WebSDR window's audio, or from a file.
+Receive only (user decision); one signal at a time with a click-to-tune
+strip, not a multi-signal PSK browser (user decision, possible later).
+
+- **Our own demodulators, nothing vendored** (`Sources/FTX1Digi/`, a
+  separate product so the iPhone doesn't carry it): fldigi is GPL-3 and
+  would be linked into the MIT app. Everything runs at 8 kHz
+  (`DigiResampler`, one long-lived `AVAudioConverter`); FIRs go through
+  `vDSP_dotpr` (`DecimatingComplexFIR`) so Debug builds stay cheap.
+  - `RTTYDemodulator`: mix to the centre, decimate to 2 kHz, each tone
+    mixed to 0 Hz and low-passed to 0.75 × baud (1 kHz), "optimal ATC"
+    decision (each tone clipped to its own envelope, sliced halfway
+    between the envelopes), framed from the start bit's mark→space edge
+    with each bit integrated over its middle half, dropped unless start =
+    space and stop = mark. Mark is the *lower* audio tone unless Reverse.
+    Quality = average |m − s|/(m + s) mapped from 0.35…0.7 to 0…1 —
+    noise alone measured 0.2–0.4, RTTY at 0 dB SNR ≥ 0.55 (an SNR-style
+    envelope/noise-floor ratio read ~0.8 on pure noise and was dropped).
+    AFC from each tone arm's phase rotation, ± half the shift around the
+    click. Shift 170/200/425/850, 45.45/50/75 baud, USOS, US-TTY figures.
+  - `PSKDemodulator`: NCO, decimate to 1 kHz then to 16 samples/symbol,
+    symbol timing from the circular centroid of the per-slot average
+    amplitude (BPSK dips at reversals), differential bits (no change = 1),
+    `Varicode` (the G3PLX table; checked code by code against fldigi's
+    `pskvaricode.cxx` when written). One average of `d²/|d|²` gives the
+    quality (its length) and the residual rotation (its angle/2), which
+    de-rotates the decisions and drives AFC (±15 Hz of the click).
+  - Squelch (0…1, default 0.3) gates printing for both modes.
+  - Measured on synthesized white noise (`FTX1DigiTests`): BPSK31 clean
+    to −9 dB SNR in 3 kHz, RTTY 45.45/170 clean to −3 dB; pure noise
+    prints nothing. Real QSB/QRM will be harder.
+- **`DigiReceiver`** (FTX1Digi, `lazy var digiReceiver` on `HubService`)
+  mirrors `CWReceiver`: fed both audio taps unconditionally (before the
+  APRS gates), keeps the selected `ReceiveAudioChannel` only while the
+  window is open, decodes on its own serial queue, pauses (and resets)
+  while the rig transmits (`DigiRigInfo`), SUB disabled with no Sub audio
+  or in single-receive display. Settings are `digi.*` keys, centre saved
+  per mode (defaults RTTY 2210 Hz = 2125/2295 tones, PSK 1000 Hz). The
+  strip rows (~10/s, 2048-point FFT on 8 kHz = 3.9 Hz bins, 0–3 kHz) and
+  readings go to `DigiMeterStore`, observed only by the strip and status
+  line. A file gets its own decoder, so the live one keeps its state;
+  the strip doesn't show the file.
+- **Tuning strip** (`DigiTuningStrip`): reuses the main waterfall's
+  `WaterfallBitmap`/`WaterfallPalette` (made internal for it). A click
+  snaps to the signal: PSK to the strongest bin within 15 Hz, RTTY to
+  the centre with the most energy on both tones within half a shift.
+- **Rig Tones** reads MODE RTTY's MARK FREQUENCY/SHIFT FREQUENCY
+  (EX010514/15) or MODE DATA's PSK TONE (EX010417) and centres there.
+  **Unverified**: that the rig's RTTY mode puts the space tone *above*
+  the mark (centre = mark + shift/2, Reverse off). If decoding needs
+  Reverse there, fix the assumption in `DigiSettingsRow.useRigTones`.
+- **Shared WebSDR tap**: `CWWebSDRSource` became `WebSDRAudioSource`
+  (consumers register `isWanted`/`onSamples`; one tap while any wants it;
+  `WebSDRAudioRouting.captureActive` unchanged), so the CW and RTTY/PSK
+  windows can both decode the WebSDR without fighting over its mute.
+  `CWAudioChannel` moved to FTX1Core as `ReceiveAudioChannel` (typealias
+  kept).
+- Not yet done: decoding on the air (MAIN in RTTY mode and DATA-U, SUB,
+  a swap, WebSDR with the CW window open too) and a CPU check against
+  live audio (the decoder itself ran ~30 s of audio in ~0.04 s in a Debug
+  `swift test`).
 
 ## Logbook — MacLoggerDX (started 2026-10-07)
 
@@ -3294,6 +3361,8 @@ those terms.
   (`DemoPi`, `SimulatedRig`, servers, audio synth, APRS encoder), also
   usable as a test fixture; `Sources/FTX1Core/Settings/SettingsStore` —
   where persisted settings live (see "Demo Mode").
+- `Sources/FTX1Digi/` — RTTY/BPSK31/BPSK63 decoding for the Mac's
+  RTTY/PSK window — see "Digital modes — RTTY/PSK" above.
 - `Sources/FTX1CW/` — the CW receiver and sender on CWKit, shared by the
   Mac and the iPad (separate product so the iPhone doesn't carry it) —
   see "iPad CW decoder" above.
@@ -3308,10 +3377,11 @@ those terms.
   the shared `FTX1Core` `RemoteAudioStreamClient`) — Mac-only, see Architecture above. Also owns
   FT8 decoding (`FT8DecodeCoordinator`, `FT8Resampler`, `FT8Store`,
   `FT8Spot`, `FT8ListView`) — see "Digital modes — FT8" above. Also
-  owns CW decoding and sending (`CWWindowView`, `CWWebSDRSource`,
+  owns CW decoding and sending (`CWWindowView`, `WebSDRAudioSource`,
   `HubService+CWKeyerLink`,
   `CWSendPane`, `WebSDRAudioTap`, on CWKit) — see "Digital
-  modes — CW" above. Dense
+  modes — CW" above — and the RTTY/PSK window (`DigiWindowView`,
+  `DigiTuningStrip`, on `FTX1Digi`) — see "Digital modes — RTTY/PSK". Dense
   multi-pane UI (`ContentView`: VFO, meters, scope display,
   band/mode selectors all visible at once), `SettingsView` (tabbed sheet:
   rigctld connection config, Audio input device, Station, Polling —

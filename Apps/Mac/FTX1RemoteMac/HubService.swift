@@ -4,6 +4,7 @@ import CoreGraphics
 import FT8Kit
 import FTX1CW
 import FTX1Core
+import FTX1Digi
 import Foundation
 import os
 
@@ -307,16 +308,39 @@ final class HubService: ObservableObject {
     /// picks the selected receiver itself and drops everything while the
     /// CW window is closed (`CWWindowView` calls `start()`/`stop()`). Its
     /// own object, like `ft8Store`, so decoded text never re-renders the
-    /// main window (`lazy` so it can attach `cwWebSDRSource`, the Mac-only
-    /// WebSDR source).
+    /// main window (`lazy` so it can register with `webSDRSource`, the
+    /// Mac-only WebSDR source).
     lazy var cwReceiver: CWReceiver = {
         let receiver = CWReceiver(logSubsystem: "com.ftx1remote.mac")
-        cwWebSDRSource.attach(to: receiver)
+        webSDRSource.addConsumer(
+            id: "cw",
+            isWanted: { [unowned receiver] in receiver.isRunning && receiver.channel == .webSDR },
+            onSamples: { [unowned receiver] samples, sampleRate in
+                receiver.ingest(samples: samples, sampleRate: sampleRate, channel: .webSDR)
+            }
+        )
+        receiver.onSourceChanged = { [weak self] in self?.webSDRSource.update() }
         return receiver
     }()
-    /// The CW window's WebSDR source, following `cwReceiver`.
-    lazy var cwWebSDRSource = CWWebSDRSource(routing: webSDRAudioRouting)
-    /// Where the WebSDR window's Mute goes while the CW window captures its
+    /// Tools → RTTY/PSK's decoder, fed like `cwReceiver` (both taps
+    /// unconditionally; it keeps the selected channel and drops everything
+    /// while its window is closed). `lazy` to register with `webSDRSource`.
+    lazy var digiReceiver: DigiReceiver = {
+        let receiver = DigiReceiver(logSubsystem: "com.ftx1remote.mac")
+        webSDRSource.addConsumer(
+            id: "digi",
+            isWanted: { [unowned receiver] in receiver.isRunning && receiver.channel == .webSDR },
+            onSamples: { [unowned receiver] samples, sampleRate in
+                receiver.ingest(samples: samples, sampleRate: sampleRate, channel: .webSDR)
+            }
+        )
+        receiver.onSourceChanged = { [weak self] in self?.webSDRSource.update() }
+        return receiver
+    }()
+    /// The decoders' WebSDR source (one tap for the CW and RTTY/PSK
+    /// windows).
+    lazy var webSDRSource = WebSDRAudioSource(routing: webSDRAudioRouting)
+    /// Where the WebSDR window's Mute goes while a decoder captures its
     /// audio — see `WebSDRAudioRouting`.
     let webSDRAudioRouting = WebSDRAudioRouting()
     /// The WebSocket server's listening state and connected clients, for
@@ -349,6 +373,7 @@ final class HubService: ObservableObject {
     lazy var memoryList = MemoryListStore(rigctld: rigctld)
     /// Feeds `cwReceiver` the TX state and the rig's CW pitch/modes.
     private var cwRigCancellable: AnyCancellable?
+    private var digiRigCancellable: AnyCancellable?
     /// Pushes `memoryList` to WebSocket clients (the iPad's channel list).
     private var memoryListCancellable: AnyCancellable?
     /// Pushes `aprsStore` to WebSocket clients (the iPad's S.LIST/M.LIST).
@@ -563,6 +588,7 @@ final class HubService: ObservableObject {
 
             // Same reasoning again: CW isn't tied to a calling frequency.
             self.cwReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .main)
+            self.digiReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .main)
 
             let isActive = APRSSettings.isActive(atFrequencyHz: self.rigState.frequencyHz)
             if isActive != self.aprsGateWasActive {
@@ -591,6 +617,7 @@ final class HubService: ObservableObject {
 
             // Before the APRS gate, like the Main tap's.
             self.cwReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .sub)
+            self.digiReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .sub)
 
             // Same shape as the Main gate above, but against the Sub
             // VFO's frequency (`secondaryFrequencyHz`, `nil`-safe — treated
@@ -650,6 +677,10 @@ final class HubService: ObservableObject {
             .map { rig, connection in CWRigInfo(state: rig, connected: connection == .connected) }
             .removeDuplicates()
             .sink { [weak self] info in self?.cwReceiver.rigInfoChanged(info) }
+        digiRigCancellable = $rigState.combineLatest($connectionState)
+            .map { rig, connection in DigiRigInfo(state: rig, connected: connection == .connected) }
+            .removeDuplicates()
+            .sink { [weak self] info in self?.digiReceiver.rigInfoChanged(info) }
         // Throttled: a scan publishes once per channel. `latest: true` keeps
         // the final state (scan finished) from being dropped.
         memoryListCancellable = memoryList.$entries
@@ -840,6 +871,7 @@ final class HubService: ObservableObject {
         stopDigitalDecoding(.ft8)
         stopDigitalDecoding(.ft4)
         cwReceiver.stop()
+        digiReceiver.stop()
         cwMonitor.stop()
         webSocketServerTask?.cancel()
         webSocketServerTask = nil

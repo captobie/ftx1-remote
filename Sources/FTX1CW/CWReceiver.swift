@@ -4,26 +4,9 @@ import Foundation
 import FTX1Core
 import os
 
-/// Which audio the CW decoder listens to. MAIN/SUB are roles, not L/R
-/// channels: every audio path already swaps the channels to follow a
-/// Main/Sub swap (the Mac's `HubService.audioChannelsSwapped`, the relay
-/// the hub sends the iPad, `PiDirectViewModel.audioChannelsSwapped`), so
-/// `.main` is always the Main VFO's audio. `.webSDR` is whatever the Mac's
-/// WebSDR window is playing (the Mac's `CWWebSDRSource`); the iPad doesn't
-/// offer it.
-public enum CWAudioChannel: String, CaseIterable, Sendable {
-    case main
-    case sub
-    case webSDR
-
-    public var title: String {
-        switch self {
-        case .main: "MAIN"
-        case .sub: "SUB"
-        case .webSDR: "WebSDR"
-        }
-    }
-}
+/// The CW decoder's channel — see `ReceiveAudioChannel` (FTX1Core), which
+/// the RTTY/PSK decoder shares.
+public typealias CWAudioChannel = ReceiveAudioChannel
 
 /// The receive side of CW: decodes rig audio (or an audio file) to text
 /// with CWKit (`captobie/cwdecode`), the same decoders as the standalone
@@ -100,7 +83,7 @@ public final class CWReceiver: ObservableObject {
     /// Whether decoding is on (between `start()` and `stop()`).
     public private(set) var isRunning = false
     /// Called whenever `isRunning` or `channel` changes — the Mac's
-    /// WebSDR source starts or stops its tap from here.
+    /// WebSDR source (`WebSDRAudioSource`) starts or stops its tap from here.
     public var onSourceChanged: (() -> Void)?
 
     private var senderActive = false

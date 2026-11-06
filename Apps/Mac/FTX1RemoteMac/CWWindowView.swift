@@ -53,7 +53,7 @@ struct CWWindowView: View {
 /// input here is always the rig's audio.
 private struct CWReceivePane: View {
     @EnvironmentObject private var receiver: CWReceiver
-    @EnvironmentObject private var webSDRSource: CWWebSDRSource
+    @EnvironmentObject private var webSDRSource: WebSDRAudioSource
     @State private var isShowingFileImporter = false
 
     var body: some View {
