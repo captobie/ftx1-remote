@@ -8611,6 +8611,52 @@
         }
       }
     },
+    "settings.audioSettings.squelchHangTime" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squelch-Nachlauf"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squelch tail"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cola del squelch"
+          }
+        }
+      }
+    },
+    "settings.audioSettings.squelchHangTimeHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie lange der Squelch der App nach dem Ende eines Signals offen bleibt. Kürzer schneidet das Rauschen früher ab; zu kurz kann bei lauter Sprache aussetzen. Gilt sofort für MAIN und SUB."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How long the app's squelch stays open after a signal ends. Shorter cuts the noise burst sooner; too short can drop out during loud speech. Applies to MAIN and SUB at once."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuánto tiempo sigue abierto el squelch de la app cuando termina una señal. Más corto corta antes el ruido; demasiado corto puede cortar durante voz fuerte. Se aplica al instante a MAIN y SUB."
+          }
+        }
+      }
+    },
     "settings.audioSettings.transmitAudioOutput" : {
       "extractionState" : "manual",
       "localizations" : {

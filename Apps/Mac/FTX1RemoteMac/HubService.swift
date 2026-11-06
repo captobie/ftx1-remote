@@ -158,6 +158,15 @@ final class HubService: ObservableObject {
             AudioPlaybackSettings.subSquelchThreshold = Double(subSquelchThreshold)
         }
     }
+    /// Squelch tail (Settings → Audio), shared by the Main and Sub players —
+    /// see `AudioPlaybackSettings.squelchHangTime`.
+    @Published var squelchHangTime: Double = AudioPlaybackSettings.squelchHangTime {
+        didSet {
+            mainAudioPlayback.squelchHangTime = squelchHangTime
+            subAudioPlayback.squelchHangTime = squelchHangTime
+            AudioPlaybackSettings.squelchHangTime = squelchHangTime
+        }
+    }
     /// Bound live by `SettingsView`'s "Enable Transmit" toggle — unlike the
     /// rest of the rigctld tab, this applies immediately rather than
     /// waiting for "Done", since it's a safety cutoff, not a connection

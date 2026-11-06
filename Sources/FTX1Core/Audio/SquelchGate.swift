@@ -36,14 +36,13 @@ struct SquelchGate {
     var threshold: Float
 
     /// How long the gate stays open after the last detected quieting dip —
-    /// needs to comfortably bridge the loud, signal-and-static-
-    /// indistinguishable stretch between one pause and the next in real
-    /// speech, not just the brief "avoid chatter right at the threshold
-    /// edge" window the old amplitude-threshold design needed (0.3s). 4s is
-    /// a starting guess (NOAA's own phrase-to-phrase pauses were well under
-    /// that in the capture this design is based on) pending real ham-voice
-    /// traffic tuning.
-    var releaseDuration: TimeInterval = 4.0
+    /// needs to bridge the loud, signal-and-static-indistinguishable stretch
+    /// between one pause and the next in real speech, and is also the tail
+    /// heard after a transmission ends (once the carrier drops, static
+    /// returns and nothing refreshes the hangover). Was a fixed 4 s, which
+    /// users found too long a tail; now 1.5 s by default and adjustable
+    /// (`AudioPlaybackSettings.squelchHangTime`, Mac Settings → Audio).
+    var releaseDuration: TimeInterval = AudioPlaybackSettings.defaultSquelchHangTime
 
     private(set) var isOpen = false
     private var lastQuietDetected: Date?

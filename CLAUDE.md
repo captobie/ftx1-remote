@@ -377,6 +377,14 @@ re-architecture.
     space). Added specifically because the default squelch threshold (0.02)
     left real, quiet-but-legitimate audio gated silent with no way to
     adjust it on the Mac before this existed.
+  - **Squelch tail (2026-11-06, tested by the user on the rig the same
+    day)**: `SquelchGate`'s hangover after the last quieting dip — also
+    the noise tail after a transmission ends — was a fixed 4 s (user:
+    too long). Now 1.5 s by default and a Settings → Audio slider
+    (0.3–5 s, `AudioPlaybackSettings.squelchHangTime`, live via
+    `HubService.squelchHangTime`, one value for Main and Sub). The iPad/
+    iPhone players read the same key at init, so they get the 1.5 s
+    default too, with no UI.
   - **Device-sharing with Direwolf, two real conflicts hit and fixed**: (1)
     `Device or resource busy` — Direwolf holds the raw capture device open
     continuously; fixed via `Pi/asound-ftx1.conf`'s `dsnoop`+`plug` chain

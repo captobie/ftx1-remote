@@ -43,6 +43,23 @@ public enum AudioPlaybackSettings {
         }
     }
 
+    /// Seconds the virtual squelch stays open after the last quieting dip
+    /// (`SquelchGate.releaseDuration`) — the tail after a transmission
+    /// ends. One value for Main and Sub. Too short and the gate can drop
+    /// out during loud stretches of speech.
+    public static let squelchHangTimeKey = "audio.playback.squelchHangTime"
+    public static let defaultSquelchHangTime: Double = 1.5
+    public static let squelchHangTimeRange: ClosedRange<Double> = 0.3...5.0
+    public static var squelchHangTime: Double {
+        get {
+            let value = (SettingsStore.defaults.object(forKey: squelchHangTimeKey) as? Double) ?? defaultSquelchHangTime
+            return min(max(value, squelchHangTimeRange.lowerBound), squelchHangTimeRange.upperBound)
+        }
+        set {
+            SettingsStore.defaults.set(newValue, forKey: squelchHangTimeKey)
+        }
+    }
+
     public static var isMuted: Bool {
         get { SettingsStore.defaults.bool(forKey: isMutedKey) }
         set { SettingsStore.defaults.set(newValue, forKey: isMutedKey) }

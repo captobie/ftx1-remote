@@ -437,6 +437,7 @@ private struct RigctldVersionBox: View {
 /// list has no invalid-input failure mode, unlike the rigctld tab's free-
 /// text fields.
 private struct AudioSettingsTab: View {
+    @EnvironmentObject private var hub: HubService
     @AppStorage(AudioInputSettings.deviceUIDKey) private var inputDeviceUID = ""
     @AppStorage(AudioOutputSettings.deviceUIDKey) private var outputDeviceUID = ""
     @AppStorage(TXAudioOutputSettings.deviceUIDKey) private var txOutputDeviceUID = ""
@@ -467,6 +468,17 @@ private struct AudioSettingsTab: View {
                 }
             }
             Text("settings.audioSettings.localModeWhereAn")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            LabeledContent("settings.audioSettings.squelchHangTime") {
+                HStack {
+                    Slider(value: $hub.squelchHangTime, in: AudioPlaybackSettings.squelchHangTimeRange, step: 0.1)
+                    Text(String(format: "%.1f s", hub.squelchHangTime))
+                        .monospacedDigit()
+                        .frame(width: 44, alignment: .trailing)
+                }
+            }
+            Text("settings.audioSettings.squelchHangTimeHelp")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

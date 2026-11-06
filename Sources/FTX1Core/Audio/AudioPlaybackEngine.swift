@@ -70,6 +70,13 @@ public final class AudioPlaybackEngine {
         set { squelchGate.threshold = newValue }
     }
 
+    /// Seconds the squelch stays open after the last quieting dip — see
+    /// `SquelchGate.releaseDuration`.
+    public var squelchHangTime: TimeInterval {
+        get { squelchGate.releaseDuration }
+        set { squelchGate.releaseDuration = newValue }
+    }
+
     /// false for a pass-through player (the Mac's transmit audio sink),
     /// which must never gate the operator's voice.
     private let squelchEnabled: Bool
@@ -77,6 +84,7 @@ public final class AudioPlaybackEngine {
     public init(squelchEnabled: Bool = true) {
         self.squelchEnabled = squelchEnabled
         squelchGate = SquelchGate(threshold: Float(AudioPlaybackSettings.squelchThreshold))
+        squelchGate.releaseDuration = AudioPlaybackSettings.squelchHangTime
         player.volume = squelchEnabled ? Float(AudioPlaybackSettings.volume) : 1
     }
 
