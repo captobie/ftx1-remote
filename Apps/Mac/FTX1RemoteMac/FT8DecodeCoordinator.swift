@@ -2,10 +2,11 @@ import FT8Kit
 import Foundation
 import os
 
-/// Coordinates FT8 decoding of live rig audio: resamples
+/// Coordinates FT8 or FT4 decoding of live rig audio (one instance per
+/// mode, `HubService.ft8Coordinator`/`ft4Coordinator`): resamples
 /// `AudioCaptureEngine`'s taps down to 12000 Hz, accumulates them into
 /// exact `FT8Decoder.blockSize`-sized blocks, and runs one decode pass per
-/// UTC 15-second slot boundary (assumes the Mac's clock is NTP-synced —
+/// UTC slot boundary (15 s FT8, 7.5 s FT4) (assumes the Mac's clock is NTP-synced —
 /// same assumption WSJT-X itself makes; see the repo's FT8 plan for the
 /// real-hardware validation step that checks this).
 ///
@@ -36,10 +37,17 @@ final class FT8DecodeCoordinator {
     var onSpotsDecoded: (([Spot]) -> Void)?
     var onCycleStatusChanged: ((CycleStatus) -> Void)?
 
-    private let mode: FT8Kit.Mode = .ft8
-    private let queue = DispatchQueue(label: "com.ftx1remote.ft8-decoder")
+    let mode: FT8Kit.Mode
+    private let queue: DispatchQueue
     private let resampler = FT8Resampler()
-    private let logger = Logger(subsystem: "com.ftx1remote.mac", category: "ft8-decoder")
+    private let logger: Logger
+
+    init(mode: FT8Kit.Mode) {
+        self.mode = mode
+        let tag = mode.name.lowercased()
+        queue = DispatchQueue(label: "com.ftx1remote.\(tag)-decoder")
+        logger = Logger(subsystem: "com.ftx1remote.mac", category: "\(tag)-decoder")
+    }
 
     /// Reads `HubService.rigState.frequencyHz`. A settable closure property
     /// (assigned by `HubService.init`, same as `audioCapture.onAudioSamples`)
@@ -105,7 +113,7 @@ final class FT8DecodeCoordinator {
 
     /// Ticks well inside the slot period so a boundary crossing is never
     /// missed by more than this margin — 0.5s costs nothing against a 15s
-    /// slot and matches the general granularity ft8_lib's own demo uses for
+    /// (or FT4's 7.5s) slot and matches the general granularity ft8_lib's own demo uses for
     /// its live-capture polling loop.
     private func scheduleTimer() {
         let source = DispatchSource.makeTimerSource(queue: queue)
@@ -123,7 +131,7 @@ final class FT8DecodeCoordinator {
         let phase = now.timeIntervalSince1970.truncatingRemainder(dividingBy: mode.slotTimeSeconds)
         defer { lastSlotPhase = phase }
         // A slot boundary was crossed since the last tick when the phase
-        // wraps back down (e.g. 14.7s -> 0.2s). Guards against the trivial
+        // wraps back down (e.g. 14.7s -> 0.2s for FT8, 7.3s -> 0.1s for FT4). Guards against the trivial
         // case of `lastSlotPhase` not yet set (first tick after start()).
         if let lastSlotPhase, phase < lastSlotPhase {
             finishSlotAndStartNext(at: now)

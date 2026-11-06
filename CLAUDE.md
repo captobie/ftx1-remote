@@ -2100,8 +2100,7 @@ those targets.
 
 ## Digital modes — FT8 (2026-09-14)
 
-First digital mode, built with more (FT4 most likely next) explicitly in
-mind. Mac-only, like the waterfall — audio-derived, and the iOS/iPadOS
+First digital mode; FT4 followed (see below). Mac-only, like the waterfall — audio-derived, and the iOS/iPadOS
 targets don't need the extra C dependency this pulls in. Opened via a new
 top-level **Tools** menu bar item (named **Digital** until 2026-09-30) (`CommandMenu`, a genuine sibling of
 File/Edit/View; since 2026-10-01 it also holds the APRS List/Messages/Map
@@ -2208,14 +2207,28 @@ pattern as the APRS windows.
   grid with the R acknowledgement came back as one "R FN42" field.
   `FT8Decoder.classified` makes the first a token and splits the second
   into "R" + the grid (`FT8FieldClassificationTests`).
-- **Extensibility for FT4/future modes deliberately minimal, not
-  speculative**: upstream already shares the same LDPC(174,91) code and
-  `ftx_protocol_t`/slot-timing constants between FT4 and FT8
-  (`FT8Kit.Mode` wraps both), so adding FT4 later is parameterizing
-  `FT8DecodeCoordinator`/widening `FT8Store` and adding a sibling
-  `Window(id: "ft4")` + `CommandMenu` button — not a redesign. Names stay
-  FT8-specific today rather than a premature `DigitalMode`/`DigitalStore`
-  abstraction for a single mode.
+- **FT4 (2026-11-06; unit-tested, then decoding live traffic over the Pi
+  confirmed by the user the same day)**: Tools → **FT4** opens `Window(id: "ft4")`, the
+  same `FT8ListView` over its own `FT8Store(mode: .ft4)` and
+  `FT8DecodeCoordinator(mode: .ft4)` (7.5 s slots, 576-sample blocks at
+  12 kHz). Both windows can decode the same audio at once; the stores are
+  passed to the view directly (two `FT8Store`s can't share the
+  environment). `HubService.startDigitalDecoding(_:)`/
+  `stopDigitalDecoding(_:)` replace the FT8-only pair. PSK Reporter: one
+  uploader and one toggle for both windows, running while either decodes
+  (`start(_:)`/`stop(_:)` per mode); the once-an-hour key is now call +
+  band + mode, and the mode field says FT4. Names stay FT8-prefixed
+  (`FT8Kit`, `FT8Store`, `FT8ListView`) rather than a rename.
+  **Timing limit**: ft8_lib's candidate search covers time offsets -10…19
+  blocks, which for FT4 is only about −0.5 to +0.9 s around the slot start
+  (FT8: −1.6 to +3 s). FT4 transmits from 0.5 s, so audio arriving more than
+  ~0.4 s late (a slow Pi/Tailscale hop) or a Mac clock that far off loses
+  decodes. Worth checking first if FT4 decodes nothing on air.
+  **Test vector**: ft8_lib ships no FT4 recordings, so
+  `Tests/FT8KitTests/Resources/ft4_synthetic.wav` was made with upstream's
+  `gen_ft8 … -ft4` (four messages mixed with noise, moved to start at
+  0.5 s; recipe in `FT8ReferenceVectorTests`), and upstream's
+  `decode_ft8 -ft4` decodes all four.
 - **Verification status**: `Tests/FT8KitTests/FT8ReferenceVectorTests.swift`
   passes real off-air FT8 captures (vendored from ft8_lib's own
   `test/wav/`) through the real wrapper and checks against what ft8_lib's

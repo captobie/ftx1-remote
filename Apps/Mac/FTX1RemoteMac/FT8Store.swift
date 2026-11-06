@@ -1,8 +1,10 @@
 import Combine
+import FT8Kit
 import Foundation
 
-/// Owns the current session's decoded FT8 spots — what `FT8ListView` (the
-/// Tools → FT8 window) displays. Fed by `FT8DecodeCoordinator`'s output,
+/// Owns the current session's decoded FT8 or FT4 spots — what
+/// `FT8ListView` (the Tools → FT8 or FT4 window) displays; one store per
+/// mode (`HubService.ft8Store`/`ft4Store`). Fed by `FT8DecodeCoordinator`'s output,
 /// which always arrives on the main actor (same contract as
 /// `APRSDecoder`'s callbacks), so this itself doesn't need to be an actor.
 ///
@@ -21,9 +23,15 @@ final class FT8Store: ObservableObject {
     /// to 1,000 for the same "bound it, don't tune it precisely" reasoning.
     static let maxSpots = 2_000
 
+    let mode: FT8Kit.Mode
+
     @Published private(set) var spots: [FT8Spot] = []
     @Published private(set) var cycleStatus: FT8DecodeCoordinator.CycleStatus = .idle
     @Published private(set) var lastCycleCompletedAt: Date?
+
+    init(mode: FT8Kit.Mode) {
+        self.mode = mode
+    }
 
     func record(_ newSpots: [FT8Spot]) {
         guard !newSpots.isEmpty else { return }
@@ -38,7 +46,7 @@ final class FT8Store: ObservableObject {
         cycleStatus = status
     }
 
-    /// Called when the Tools/FT8 window closes — clears the display but
+    /// Called when the Tools/FT8 (or FT4) window closes — clears the display but
     /// not any future persisted history, since there isn't one (see above).
     func clear() {
         spots = []

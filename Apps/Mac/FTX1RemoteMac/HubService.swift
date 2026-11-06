@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import CoreGraphics
+import FT8Kit
 import FTX1CW
 import FTX1Core
 import Foundation
@@ -279,14 +280,18 @@ final class HubService: ObservableObject {
     /// Unlike `aprsDecoder`, not wired into `audioCapture.onAudioSamples`
     /// unconditionally — `ingest(samples:sampleRate:)` drops audio on its
     /// own whenever `isRunning` is false, and `isRunning` only becomes true
-    /// between `startFT8Decoding()`/`stopFT8Decoding()`, called from the
-    /// Tools/FT8 window's lifecycle, not from `start()`/`init` here. See
-    /// `FT8DecodeCoordinator`'s doc comment for why FT8 can't reuse APRS's
-    /// always-on frequency-gate pattern.
-    private let ft8Coordinator = FT8DecodeCoordinator()
-    let ft8Store = FT8Store()
-    /// The FT8 window's "Upload to PSK Reporter" — fed every decode cycle,
-    /// runs with the decoder. `lazy` so it can watch `$rigState` (PTT).
+    /// between `startDigitalDecoding(_:)`/`stopDigitalDecoding(_:)`, called
+    /// from the Tools/FT8 or FT4 window's lifecycle, not from `start()`/
+    /// `init` here. See `FT8DecodeCoordinator`'s doc comment for why FT8
+    /// can't reuse APRS's always-on frequency-gate pattern. FT8 and FT4 are
+    /// fully independent pairs (own coordinator, queue and store), so both
+    /// windows can decode the same audio at once.
+    private let ft8Coordinator = FT8DecodeCoordinator(mode: .ft8)
+    let ft8Store = FT8Store(mode: .ft8)
+    private let ft4Coordinator = FT8DecodeCoordinator(mode: .ft4)
+    let ft4Store = FT8Store(mode: .ft4)
+    /// The FT8/FT4 windows' "Upload to PSK Reporter" — fed every decode
+    /// cycle, runs while either decodes. `lazy` so it can watch `$rigState` (PTT).
     lazy var pskReporter = PSKReporterUploader(rigState: $rigState)
 
     /// Tools → CW's decoder. Fed both audio taps unconditionally below; it
@@ -540,6 +545,7 @@ final class HubService: ObservableObject {
             // on the APRS calling frequency specifically and would
             // otherwise silently starve FT8 of audio on every other band.
             self.ft8Coordinator.ingest(samples: samples, sampleRate: sampleRate)
+            self.ft4Coordinator.ingest(samples: samples, sampleRate: sampleRate)
 
             // Same reasoning as ft8Coordinator above — recording isn't tied
             // to any calling frequency either, and `audioRecorder` itself
@@ -602,17 +608,19 @@ final class HubService: ObservableObject {
         aprsDecoderSub.onMessage = { [weak self] from, to, text, messageID in
             self?.aprsStore.recordMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: Date(), source: .sub)
         }
-        ft8Coordinator.dialFrequencyProvider = { [weak self] in
-            self?.rigState.frequencyHz ?? 0
-        }
-        ft8Coordinator.onSpotsDecoded = { [weak self] coordinatorSpots in
-            guard let self else { return }
-            let spots = coordinatorSpots.map { FT8Spot(coordinatorSpot: $0) }
-            self.ft8Store.record(spots)
-            self.pskReporter.enqueue(spots)
-        }
-        ft8Coordinator.onCycleStatusChanged = { [weak self] status in
-            self?.ft8Store.updateCycleStatus(status)
+        for (coordinator, store) in [(ft8Coordinator, ft8Store), (ft4Coordinator, ft4Store)] {
+            coordinator.dialFrequencyProvider = { [weak self] in
+                self?.rigState.frequencyHz ?? 0
+            }
+            coordinator.onSpotsDecoded = { [weak self, weak store] coordinatorSpots in
+                guard let self, let store else { return }
+                let spots = coordinatorSpots.map { FT8Spot(coordinatorSpot: $0, mode: store.mode.name) }
+                store.record(spots)
+                self.pskReporter.enqueue(spots)
+            }
+            coordinator.onCycleStatusChanged = { [weak store] status in
+                store?.updateCycleStatus(status)
+            }
         }
         wpsdMonitor.onCallsignUpdate = { [weak self] callsign in
             self?.rigState.c4fmCallsign = callsign
@@ -820,7 +828,8 @@ final class HubService: ObservableObject {
         wavelogRadio.stop()
         wavelogTuner.stop()
         stopRigctld()
-        stopFT8Decoding()
+        stopDigitalDecoding(.ft8)
+        stopDigitalDecoding(.ft4)
         cwReceiver.stop()
         cwMonitor.stop()
         webSocketServerTask?.cancel()
@@ -829,9 +838,6 @@ final class HubService: ObservableObject {
         Task { [server] in await server.stop() }
     }
 
-    /// Called from the Tools/FT8 window's `.onAppear` — decoding runs
-    /// only while that window is open (see `FT8DecodeCoordinator`'s doc
-    /// comment for why FT8 can't reuse APRS's always-on gate).
     /// CW send pane: writes CW TEXT keyer memory `slot` and returns what
     /// the rig stored — see `RigctldClient.writeKeyerMemory`. Direct rather
     /// than through `CommandQueue` because the caller needs the result;
@@ -883,16 +889,26 @@ final class HubService: ObservableObject {
         }
     }
 
-    func startFT8Decoding() {
-        ft8Coordinator.start()
-        pskReporter.start()
+    /// Called from the Tools/FT8 or FT4 window's `.onAppear` — decoding
+    /// runs only while that window is open (see `FT8DecodeCoordinator`'s
+    /// doc comment for why FT8 can't reuse APRS's always-on gate).
+    func startDigitalDecoding(_ mode: FT8Kit.Mode) {
+        coordinator(for: mode).start()
+        pskReporter.start(mode)
     }
 
-    /// Called from the Tools/FT8 window's `.onDisappear`, and as a safety
-    /// net from `stop()` in case the app quits with that window still open.
-    func stopFT8Decoding() {
-        ft8Coordinator.stop()
-        pskReporter.stop()
+    /// Called from the Tools/FT8 or FT4 window's `.onDisappear`, and as a
+    /// safety net from `stop()` in case the app quits with it still open.
+    func stopDigitalDecoding(_ mode: FT8Kit.Mode) {
+        coordinator(for: mode).stop()
+        pskReporter.stop(mode)
+    }
+
+    private func coordinator(for mode: FT8Kit.Mode) -> FT8DecodeCoordinator {
+        switch mode {
+        case .ft8: return ft8Coordinator
+        case .ft4: return ft4Coordinator
+        }
     }
 
     /// What the on/off switch calls: launches rigctld (clearing out any

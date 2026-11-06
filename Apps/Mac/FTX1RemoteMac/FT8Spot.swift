@@ -2,15 +2,14 @@ import FT8Kit
 import FTX1Core
 import Foundation
 
-/// One decoded FT8 message, mapped from `FT8Kit.RawMessage` into the shape
+/// One decoded FT8 or FT4 message, mapped from `FT8Kit.RawMessage` into the shape
 /// this app displays and reports to PSK Reporter (`PSKReporterUploader`). Mac-only, same reasoning as
 /// `AudioCaptureEngine`/`APRSStation`: audio-derived, not shared with
 /// mobile targets.
 struct FT8Spot: Identifiable, Equatable {
     let id = UUID()
     let utcTimestamp: Date
-    /// String, not an enum, so a future FT4 addition (see `FT8Kit.Mode`)
-    /// doesn't need a model migration — just a different value here.
+    /// "FT8"/"FT4" (`FT8Kit.Mode.name`) — what PSK Reporter is sent.
     let mode: String
     let messageText: String
     let audioFrequencyOffsetHz: Double
@@ -42,7 +41,7 @@ struct FT8Spot: Identifiable, Equatable {
         Double(dialFrequencyHz) + audioFrequencyOffsetHz
     }
 
-    init(coordinatorSpot: FT8DecodeCoordinator.Spot, mode: String = "FT8") {
+    init(coordinatorSpot: FT8DecodeCoordinator.Spot, mode: String) {
         let message = coordinatorSpot.message
         let fields = message.fields
 

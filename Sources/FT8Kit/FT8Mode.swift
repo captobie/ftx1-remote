@@ -4,13 +4,20 @@ import CFT8Lib
 public enum FT8Kit {}
 
 extension FT8Kit {
-    /// The digital mode being decoded. `ft8_lib`'s vendored core already shares
-    /// its LDPC(174,91) code between FT4 and FT8 — only slot/symbol timing and
-    /// the sync pattern differ — so adding FT4 later is a matter of wiring this
-    /// case through, not a decoder rewrite.
-    public enum Mode {
+    /// The digital mode being decoded. `ft8_lib`'s vendored core shares its
+    /// LDPC(174,91) code between FT4 and FT8 — only slot/symbol timing and
+    /// the sync pattern differ.
+    public enum Mode: Sendable {
         case ft8
         case ft4
+
+        /// "FT8"/"FT4" — the ADIF/PSK Reporter mode name.
+        public var name: String {
+            switch self {
+            case .ft8: return "FT8"
+            case .ft4: return "FT4"
+            }
+        }
 
         var protocolValue: ftx_protocol_t {
             switch self {

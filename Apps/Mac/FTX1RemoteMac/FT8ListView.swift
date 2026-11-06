@@ -1,15 +1,17 @@
+import FT8Kit
 import FTX1Core
 import SwiftUI
 
-/// The Tools menu's "FT8" item opens this in its own window (`ft8`,
-/// declared in `FTX1RemoteMacApp`), same pattern as the APRS S.LIST/M.LIST
-/// windows. Unlike those, decoding is tied to this view's own lifecycle —
+/// The Tools menu's "FT8" and "FT4" items open this in their own windows
+/// (`ft8`/`ft4`, declared in `FTX1RemoteMacApp`), each with its own
+/// `FT8Store`, same pattern as the APRS S.LIST/M.LIST windows. Both can be
+/// open (and decoding) at once. Unlike those, decoding is tied to this view's own lifecycle —
 /// `.onAppear`/`.onDisappear` are the start/stop switch (see
 /// `FT8DecodeCoordinator`'s doc comment for why FT8 can't reuse APRS's
 /// always-on frequency gate).
 struct FT8ListView: View {
     @EnvironmentObject private var hub: HubService
-    @EnvironmentObject private var store: FT8Store
+    @ObservedObject var store: FT8Store
     @EnvironmentObject private var pskReporter: PSKReporterUploader
     @AppStorage(StationSettings.callsignKey) private var myCallsign = ""
     @AppStorage(StationSettings.gridSquareKey) private var myGrid = ""
@@ -45,19 +47,19 @@ struct FT8ListView: View {
                 }
             }
         }
-        .navigationTitle("FT8")
+        .navigationTitle(store.mode.name)
         .frame(minWidth: 640, minHeight: 360)
         .overlay {
             if store.spots.isEmpty {
                 ContentUnavailableView(
                     "ft8List.noDecodesYet",
                     systemImage: "antenna.radiowaves.left.and.right",
-                    description: Text("ft8List.decodedFt8MessagesWill")
+                    description: Text("ft8List.decodedMessagesWill \(store.mode.name) \(store.mode.name)")
                 )
             }
         }
-        .onAppear { hub.startFT8Decoding() }
-        .onDisappear { hub.stopFT8Decoding() }
+        .onAppear { hub.startDigitalDecoding(store.mode) }
+        .onDisappear { hub.stopDigitalDecoding(store.mode) }
     }
 
     /// `TimelineView` rather than a separate `Timer`/`@State` refresh loop
@@ -72,7 +74,7 @@ struct FT8ListView: View {
                     Text("ft8List.lastCycle \(lastCycleCompletedAt, style: .time)")
                         .foregroundStyle(.secondary)
                 }
-                Text("ft8List.nextInS \(Self.secondsUntilNextSlot(from: context.date))")
+                Text("ft8List.nextInS \(Self.secondsUntilNextSlot(from: context.date, slotSeconds: store.mode.slotTimeSeconds))")
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -148,8 +150,9 @@ struct FT8ListView: View {
         return Label(text, systemImage: "waveform").foregroundStyle(color)
     }
 
-    private static func secondsUntilNextSlot(from date: Date, slotSeconds: Double = 15) -> Int {
+    /// Rounded up, so FT4's 7.5 s slot counts 8…1 rather than showing 0.
+    private static func secondsUntilNextSlot(from date: Date, slotSeconds: Double) -> Int {
         let phase = date.timeIntervalSince1970.truncatingRemainder(dividingBy: slotSeconds)
-        return Int((slotSeconds - phase).rounded())
+        return Int((slotSeconds - phase).rounded(.up))
     }
 }

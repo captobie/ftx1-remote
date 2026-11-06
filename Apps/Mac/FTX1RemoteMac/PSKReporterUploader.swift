@@ -1,25 +1,28 @@
 import Combine
+import FT8Kit
 import FTX1Core
 import Foundation
 import Network
 import os
 
-/// Uploads the FT8 window's decodes to PSK Reporter (the FT8 window's
-/// "Upload to PSK Reporter" toggle) — packets built by `FTX1Core`'s
-/// `PSKReporterPacket`. Runs only while the FT8 window decodes
-/// (`start()`/`stop()` from `HubService.startFT8Decoding()`/
-/// `stopFT8Decoding()`) *and* the toggle is on; the toggle is remembered,
-/// off by default (user decision, 2026-10-18).
+/// Uploads the FT8 and FT4 windows' decodes to PSK Reporter (their
+/// "Upload to PSK Reporter" toggle — one setting, shared by both windows)
+/// — packets built by `FTX1Core`'s `PSKReporterPacket`. Runs only while at
+/// least one of those windows decodes (`start(_:)`/`stop(_:)` from
+/// `HubService.startDigitalDecoding(_:)`/`stopDigitalDecoding(_:)`) *and*
+/// the toggle is on; the toggle is remembered, off by default (user
+/// decision, 2026-10-18).
 ///
 /// Follows pskdev.html's rules: a callsign at most once per hour per band
+/// (and mode — an FT4 and an FT8 reception are separate reports)
 /// unless it newly carries a grid; one datagram every 5 minutes, timed from
 /// when uploading started plus random jitter (never aligned to the clock),
 /// or sooner once a full datagram's worth is waiting; the record
 /// descriptors in the first 3 datagrams of a connection and hourly after;
 /// one UDP flow (one source port) kept for the whole app session.
 ///
-/// Its own object rather than `@Published` on `HubService` — only the FT8
-/// window observes it, and it changes about once per decode cycle.
+/// Its own object rather than `@Published` on `HubService` — only the FT8/
+/// FT4 windows observe it, and it changes about once per decode cycle.
 @MainActor
 final class PSKReporterUploader: ObservableObject {
     static let enabledKey = "ft8.pskReporterEnabled"
@@ -65,9 +68,11 @@ final class PSKReporterUploader: ObservableObject {
 
     private let logger = Logger(subsystem: "com.ftx1remote.mac", category: "pskreporter")
     private let queue = DispatchQueue(label: "com.ftx1remote.mac.pskreporter")
-    private var isRunning = false
+    /// The modes whose windows are decoding; running while non-empty.
+    private var activeModes: Set<FT8Kit.Mode> = []
+    private var isRunning: Bool { !activeModes.isEmpty }
     private var pending: [PSKReporterPacket.Report] = []
-    /// "CALL band" → when last queued, and whether that one had a grid.
+    /// "CALL band mode" → when last queued, and whether that one had a grid.
     private var lastQueued: [String: (at: Date, hadGrid: Bool)] = [:]
     private var flushTask: Task<Void, Never>?
 
@@ -93,16 +98,16 @@ final class PSKReporterUploader: ObservableObject {
         }
     }
 
-    func start() {
-        guard !isRunning else { return }
-        isRunning = true
-        if isEnabled { scheduleFlush() }
+    func start(_ mode: FT8Kit.Mode) {
+        let wasRunning = isRunning
+        activeModes.insert(mode)
+        if !wasRunning, isEnabled { scheduleFlush() }
     }
 
-    /// The FT8 window closed (or the app quits): what's queued goes out now.
-    func stop() {
-        guard isRunning else { return }
-        isRunning = false
+    /// The last FT8/FT4 window closed (or the app quits): what's queued
+    /// goes out now.
+    func stop(_ mode: FT8Kit.Mode) {
+        guard activeModes.remove(mode) != nil, !isRunning else { return }
         flushTask?.cancel()
         flushTask = nil
         nextUploadAt = nil
@@ -121,7 +126,7 @@ final class PSKReporterUploader: ObservableObject {
         for spot in spots {
             guard let report = Self.report(from: spot), report.callsign != myCall else { continue }
             let band = BandPlan.band(containing: Int(report.frequencyHz))?.name ?? "\(report.frequencyHz / 1_000_000)MHz"
-            let key = "\(report.callsign) \(band)"
+            let key = "\(report.callsign) \(band) \(report.mode)"
             if let previous = lastQueued[key],
                report.time.timeIntervalSince(previous.at) < Self.repeatWindow,
                previous.hadGrid || report.locator == nil {

@@ -15,7 +15,21 @@ import XCTest
 /// hurt decodability.
 final class FT8ResampleFidelityTests: XCTestCase {
     func testStreamingResampleFrom44100StillDecodes() throws {
-        guard let wavURL = Bundle.module.url(forResource: "191111_110130", withExtension: "wav", subdirectory: "Resources") else {
+        try assertStreamingResampleDecodes(
+            "191111_110130", mode: .ft8,
+            expected: ["CQ R7IW LN35", "CQ DX R6WA LN32", "CQ TA6CQ KN70", "OH3NIV ZS6S -03"])
+    }
+
+    /// Same for FT4 (`ft4_synthetic`, see `FT8ReferenceVectorTests`), whose
+    /// 576-sample blocks and 7.5 s slot are what `FT8DecodeCoordinator` feeds in FT4.
+    func testStreamingResampleFrom44100StillDecodesFT4() throws {
+        try assertStreamingResampleDecodes(
+            "ft4_synthetic", mode: .ft4,
+            expected: ["W9XYZ K1ABC -11", "CQ K1ABC FN42", "CQ DX VE3ZZ EN93", "K1ABC W9XYZ R-09"])
+    }
+
+    private func assertStreamingResampleDecodes(_ baseName: String, mode: FT8Kit.Mode, expected: Set<String>) throws {
+        guard let wavURL = Bundle.module.url(forResource: baseName, withExtension: "wav", subdirectory: "Resources") else {
             XCTFail("Missing fixture WAV")
             return
         }
@@ -36,7 +50,7 @@ final class FT8ResampleFidelityTests: XCTestCase {
         let targetFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: targetSampleRate, channels: 1, interleaved: false)!
         let converter = AVAudioConverter(from: sourceFormat, to: targetFormat)!
 
-        let decoder = FT8Decoder(sampleRate: targetSampleRate)
+        let decoder = FT8Decoder(sampleRate: targetSampleRate, mode: mode)
         var pending: [Float] = []
 
         let chunkSize = 2048
@@ -57,11 +71,10 @@ final class FT8ResampleFidelityTests: XCTestCase {
         }
 
         let decodedTexts = Set(decoder.decode().map(\.text))
-        let expected: Set<String> = ["CQ R7IW LN35", "CQ DX R6WA LN32", "CQ TA6CQ KN70", "OH3NIV ZS6S -03"]
         for message in expected {
             XCTAssertTrue(
                 decodedTexts.contains(message),
-                "streaming 44100->12000 resample lost \"\(message)\" — decoded: \(decodedTexts.sorted())"
+                "\(baseName): streaming 44100->12000 resample lost \"\(message)\" — decoded: \(decodedTexts.sorted())"
             )
         }
     }

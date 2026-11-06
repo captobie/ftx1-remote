@@ -18,7 +18,7 @@ struct FTX1RemoteMacApp: App {
                 CheckForUpdatesView(updater: appDelegate.updaterController.updater)
             }
             // A top-level menu (CommandMenu), not nested under an existing
-            // one — holds APRS, the digital modes (FT8, FT4 later, etc.) and
+            // one — holds APRS, the digital modes (FT8, FT4) and
             // other tools like WebSDR, each its own sibling Button/Window here.
             CommandMenu("app.tools") {
                 Menu("APRS") {
@@ -35,6 +35,9 @@ struct FTX1RemoteMacApp: App {
                 Divider()
                 Button("FT8") {
                     openWindow(id: "ft8")
+                }
+                Button("FT4") {
+                    openWindow(id: "ft4")
                 }
                 Button("CW") {
                     openWindow(id: "cw")
@@ -71,14 +74,21 @@ struct FTX1RemoteMacApp: App {
                 .appTheme()
         }
 
-        // Tools → FT8 (Tools menu above). Injects `hub` itself, not just
-        // `hub.ft8Store` (unlike the APRS windows, which only need the
-        // store) — `FT8ListView` calls `hub.startFT8Decoding()`/
-        // `stopFT8Decoding()` from its own onAppear/onDisappear.
+        // Tools → FT8 / FT4 (Tools menu above). Injects `hub` itself, not
+        // just the store (unlike the APRS windows, which only need the
+        // store) — `FT8ListView` calls `hub.startDigitalDecoding(_:)`/
+        // `stopDigitalDecoding(_:)` from its own onAppear/onDisappear. The
+        // store is passed directly: both windows' stores are `FT8Store`s,
+        // so they can't both go through the environment.
         Window("FT8", id: "ft8") {
-            FT8ListView()
+            FT8ListView(store: appDelegate.hub.ft8Store)
                 .environmentObject(appDelegate.hub)
-                .environmentObject(appDelegate.hub.ft8Store)
+                .environmentObject(appDelegate.hub.pskReporter)
+                .appTheme()
+        }
+        Window("FT4", id: "ft4") {
+            FT8ListView(store: appDelegate.hub.ft4Store)
+                .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.pskReporter)
                 .appTheme()
         }

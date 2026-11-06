@@ -4327,29 +4327,32 @@
       "extractionState" : "manual",
       "shouldTranslate" : false
     },
+    "FT4" : {
+
+    },
     "FT8" : {
       "extractionState" : "manual",
       "shouldTranslate" : false
     },
-    "ft8List.decodedFt8MessagesWill" : {
+    "ft8List.decodedMessagesWill %@ %@" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dekodierte FT8-Nachrichten erscheinen hier, sobald auf einen aktiven FT8-Bereich abgestimmt ist."
+            "value" : "Dekodierte %1$@-Nachrichten erscheinen hier, sobald auf einen aktiven %2$@-Bereich abgestimmt ist."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Decoded FT8 messages will appear here once tuned to an active FT8 sub-band."
+            "value" : "Decoded %1$@ messages will appear here once tuned to an active %2$@ sub-band."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Los mensajes FT8 decodificados aparecerán aquí al sintonizar una subbanda FT8 activa."
+            "value" : "Los mensajes %1$@ decodificados aparecerán aquí al sintonizar una subbanda %2$@ activa."
           }
         }
       }

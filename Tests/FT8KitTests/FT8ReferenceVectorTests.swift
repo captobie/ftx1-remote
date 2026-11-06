@@ -36,15 +36,47 @@ final class FT8ReferenceVectorTests: XCTestCase {
         }
     }
 
-    private func assertReferenceVectorDecodes(_ baseName: String, expectedMessages: Set<String>) throws {
+    /// ft8_lib ships no FT4 recordings, so `ft4_synthetic.wav` is made with
+    /// ft8_lib's own encoder: upstream `demo/gen_ft8 "<message>" x.wav <Hz>
+    /// -ft4` (kgoba/ft8_lib 9fec6ca) for each line of `ft4_synthetic.txt`
+    /// (800/1500/2100/1150 Hz), each moved to start 0.5 s into the 7.5 s
+    /// slot as real FT4 does (gen_ft8 centres it at 1.23 s, past the
+    /// decoder's ~1 s candidate-search window, so nothing decodes), mixed at
+    /// gains 1.0/0.5/0.3/0.7 with Gaussian noise (σ 0.35), 12 kHz 16-bit.
+    /// Upstream's own `decode_ft8 -ft4` decodes all four from it.
+    func testSyntheticFT4VectorDecodesExpectedMessages() throws {
+        try assertReferenceVectorDecodes(
+            "ft4_synthetic",
+            mode: .ft4,
+            expectedMessages: ["W9XYZ K1ABC -11", "CQ K1ABC FN42", "CQ DX VE3ZZ EN93", "K1ABC W9XYZ R-09"]
+        )
+    }
+
+    /// The FT8 decoder must not report FT4 signals as FT8 (or vice versa).
+    func testFT4VectorDecodesNothingAsFT8() throws {
+        let decoded = try decodedTexts("ft4_synthetic", mode: .ft8)
+        XCTAssertTrue(decoded.isEmpty, "FT8 decoder found \(decoded.sorted()) in an FT4 recording")
+    }
+
+    private func assertReferenceVectorDecodes(_ baseName: String, mode: FT8Kit.Mode = .ft8, expectedMessages: Set<String>) throws {
+        let decodedTexts = try decodedTexts(baseName, mode: mode)
+        for expected in expectedMessages {
+            XCTAssertTrue(
+                decodedTexts.contains(expected),
+                "\(baseName): expected message \"\(expected)\" not found among decoded: \(decodedTexts.sorted())"
+            )
+        }
+    }
+
+    private func decodedTexts(_ baseName: String, mode: FT8Kit.Mode) throws -> Set<String> {
         guard let wavURL = Bundle.module.url(forResource: baseName, withExtension: "wav", subdirectory: "Resources") else {
             XCTFail("Missing fixture WAV for \(baseName)")
-            return
+            return []
         }
 
         let (samples, sampleRate) = try Self.loadWAV(url: wavURL)
 
-        let decoder = FT8Decoder(sampleRate: sampleRate)
+        let decoder = FT8Decoder(sampleRate: sampleRate, mode: mode)
         var offset = 0
         while offset + decoder.blockSize <= samples.count {
             let block = Array(samples[offset..<(offset + decoder.blockSize)])
@@ -52,14 +84,7 @@ final class FT8ReferenceVectorTests: XCTestCase {
             offset += decoder.blockSize
         }
 
-        let decodedTexts = Set(decoder.decode().map(\.text))
-
-        for expected in expectedMessages {
-            XCTAssertTrue(
-                decodedTexts.contains(expected),
-                "\(baseName): expected message \"\(expected)\" not found among decoded: \(decodedTexts.sorted())"
-            )
-        }
+        return Set(decoder.decode().map(\.text))
     }
 
     /// Minimal WAV reader — 16-bit PCM or 32-bit float, mono or stereo
