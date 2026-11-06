@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using FTX1RemoteWindows.Controls;
 using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Services;
+using FTX1RemoteWindows.Services.Digi;
 using FTX1RemoteWindows.Settings;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
@@ -322,6 +323,13 @@ public sealed partial class MainWindow : Window
         _cwSender.ActiveChanged += _cwReceiver.SetSenderActive;
         _cwMonitor = new CwMonitor(DispatcherQueue);
         _cwSender.Keying += _cwMonitor.Handle;
+        _digiReceiver = new DigiReceiver(DispatcherQueue, () => _webSdrWindow is { } webSdr
+            ? new WebSdrState(webSdr.BrowserProcessId, webSdr.Model.IsConnected, webSdr.Model.IsMuted)
+            : null);
+        _digiSender = new DigiSender(new DigiTransmitLink(this), _digiReceiver,
+            () => AppSettings.Callsign, () => AppSettings.GridSquare, AppSettings.Digi.TxLevelDb, AppLog.Write);
+        _digiSender.StateChanged += state => _digiReceiver.SetSenderActive(state != DigiSender.SenderState.Idle);
+        _digiSender.Echo += _digiReceiver.AppendTransmitted;
         WireAprsDecoder(_aprsMainDecoder, AprsSource.Main);
         WireAprsDecoder(_aprsSubDecoder, AprsSource.Sub);
 
@@ -484,6 +492,9 @@ public sealed partial class MainWindow : Window
             _aprsMapWindow?.Close();
             _webSdrWindow?.Close();
             _cwWindow?.Close();
+            _digiSender.Stop();
+            _digiWindow?.Close();
+            _digiReceiver.Dispose();
             _cwMonitor.Stop();
             _recordingsWindow?.Close();
             _memoryListStore.Cancel();
@@ -629,6 +640,7 @@ public sealed partial class MainWindow : Window
         _aprsMapWindow?.ApplyTheme();
         _webSdrWindow?.ApplyTheme();
         _cwWindow?.ApplyTheme();
+        _digiWindow?.ApplyTheme();
         _recordingsWindow?.ApplyTheme();
         _memoryListWindow?.ApplyTheme();
     }
@@ -2014,8 +2026,12 @@ public sealed partial class MainWindow : Window
         // Keyed for a hub client counts too: its holder would otherwise
         // stay keyed with nobody left to unkey (the Pi's watchdog aside).
         var hubKeyed = _hubTx?.IsKeyed == true;
+        // The RTTY/PSK sender too; its own async unkey goes out ahead of the
+        // blocking one below.
+        var digiKeyed = _digiSender.IsTransmitting;
+        _digiSender.Stop();
         EndHubTransmit("disconnecting from the rig");
-        if (!(_pttHeld || hubKeyed) || _client is not { } client)
+        if (!(_pttHeld || hubKeyed || digiKeyed) || _client is not { } client)
         {
             return;
         }
@@ -2056,6 +2072,7 @@ public sealed partial class MainWindow : Window
             // and a hub client's transmission (ForceUnkeyAsync sends the
             // unkey).
             _cwSender.Stop();
+            _digiSender.Stop();
             EndHubTransmit("lock: Enable Transmit turned off");
             await ForceUnkeyAsync("transmit disabled");
             await StopHubKeyerIfPlayedAsync("lock: Enable Transmit turned off");
@@ -2176,6 +2193,7 @@ public sealed partial class MainWindow : Window
     private async Task UnkeyOutsidePrivilegesAsync(string reason)
     {
         _cwSender.Stop();
+        _digiSender.Stop();
         EndHubTransmit("left the license privileges");
         if (_client is { } client)
         {
@@ -2594,13 +2612,18 @@ public sealed partial class MainWindow : Window
     /// disconnect — the Mac's cwRigCancellable.
     /// Modes only while connected (the last session's would otherwise
     /// linger in _lastState); null in C4FM, which has no RigMode here.
-    private void PushRigStateToCw() => _cwReceiver.RigInfoChanged(IsConnected
-        ? new CwRigInfo(
-            _lastState.Ptt || _pttHeld,
-            _lastState.CwPitchHz,
-            _lastState.MainIsC4fm == true ? null : _lastState.Mode,
-            _lastState.SubIsC4fm == true ? null : _lastState.SubMode)
-        : default);
+    private void PushRigStateToCw()
+    {
+        _cwReceiver.RigInfoChanged(IsConnected
+            ? new CwRigInfo(
+                _lastState.Ptt || _pttHeld,
+                _lastState.CwPitchHz,
+                _lastState.MainIsC4fm == true ? null : _lastState.Mode,
+                _lastState.SubIsC4fm == true ? null : _lastState.SubMode)
+            : default);
+        // The RTTY/PSK window reads the same state.
+        PushRigStateToDigi();
+    }
 
     /// Main's frequency is 0 while disconnected (the last session's would
     /// otherwise linger in _lastState), which the WebSDR window reads as
@@ -2713,6 +2736,8 @@ public sealed partial class MainWindow : Window
             FeedAprs(_aprsSubDecoder, sub, Volatile.Read(ref _aprsSubGateHz), ref _aprsSubGateOpen, "Sub");
             // And CW, which keeps the selected receiver while its window is open.
             _cwReceiver.Ingest(main, sub, _audioSampleRate);
+            // And RTTY/PSK, likewise.
+            _digiReceiver.Ingest(main, sub, _audioSampleRate);
             // And RECORD, Main only as on the Mac.
             _audioRecorder.Ingest(main, _audioSampleRate);
         }

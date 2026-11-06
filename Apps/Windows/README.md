@@ -1275,6 +1275,73 @@ and CLAUDE.md's "v2: CW send pane" have the rig facts this relies on):
   It never plays into the rig's own USB audio (the same check as
   Recordings).
 
+## RTTY/PSK window (2026-11-06; unit-tested and built; receive over WebSDR tested by the user, rig audio and transmit not yet)
+
+The Windows port of the Mac's Tools → RTTY/PSK (see CLAUDE.md, "Digital
+modes — RTTY/PSK"; the Swift files in `Sources/FTX1Digi/` stay the source
+of truth for the DSP): an **RTTY/PSK** button next to CW in the main
+window's toolbar opens `Controls/DigiWindow.cs`. It decodes one RTTY,
+BPSK31 or BPSK63 signal at a time from MAIN, SUB, the WebSDR window's audio
+or an audio file, and sends them with live typeahead.
+
+- **DSP** (`Services/Digi/`, WinUI-free, linked into the test project):
+  `DigiDsp.cs` (FIR/NCO/complex), `Baudot.cs`, `Varicode.cs`,
+  `RttyDemodulator.cs`, `PskDemodulator.cs`, `DigiModulators.cs`,
+  `DigiDecoder.cs` (NAudio WDL resampler to 8 kHz, the strip's 2048-point
+  FFT) — translated line for line, same constants. There is no vDSP, so the
+  FIRs are plain loops (~3 M multiply-adds a second for RTTY; not measured
+  against live audio yet).
+- **Receiver** (`DigiReceiver.cs`, owned by `MainWindow`, so the text
+  outlives the window): fed both channels from the audio callback next to
+  the CW receiver; keeps the selected one only while the window is open;
+  its own worker thread; pauses (and resets) while the rig or the sender
+  transmits; SUB disabled with no Sub audio or in single-receive display;
+  a file decodes on a decoder of its own (Media Foundation reader, first
+  channel). The WebSDR source is the receiver's **own**
+  `WebSdrAudioTap` (the Mac shares one tap; here two loopback captures of
+  the browser's process tree are independent, so the CW window and this one
+  can both decode it — not tried). Settings are `AppSettings.Digi`
+  (`DigiData`: mode, channel, centre per mode — RTTY 2210 Hz, PSK 1000 Hz —,
+  shift, baud, Reverse, USOS, AFC, squelch, TX level, macros).
+- **Polarity** as on the Mac: the decoder and the transmitter get
+  Reverse flipped when the receiver / transmitting side is on USB or DATA-U
+  (`RttySettings.EffectiveReverse`). The rig's RTTY mode is assumed lower
+  sideband — still **unverified** on the rig.
+- **Sender** (`DigiSender.cs`, `IDigiTransmitLink`, implemented by
+  `MainWindow.Digi.cs`): TX keys, RX sends the rest plus the tail and
+  unkeys, Stop unkeys at once, 3-minute limit, stops on the gate closing, on
+  PTT reading off for more than 1 s (after a 2 s grace), on the lock, on a
+  license-privilege exit and on disconnect. Refused unless the transmitting
+  side is in DATA-U/USB/LSB, the rig isn't already keyed, and (Local mode) a
+  Transmit audio output is chosen. Keying is the PTT button's path
+  (`TransmitBlockReason(PttOn)`, memory scan stops first; a generation
+  counter drops a key that an unkey overtook); audio goes through
+  `OpenHubTxSink()` — the Pi's `ftx1-txaudio.py` (Remote) or the Transmit
+  audio output (Local), the same sinks as the iPad's microphone. The status
+  line warns when the transmitting mode's MOD SOURCE (DATA EX010413, SSB
+  EX010113) is MIC or Bluetooth.
+- **Window**: mode and receiver pickers, Open Audio File / Copy / Clear,
+  shift / baud / Reverse / USOS (RTTY), AFC, squelch, Rig Tones (reads
+  EX010514/15 or EX010417), the tuning strip (0–3 kHz, click snaps to the
+  signal, yellow markers), decoded text (own transmissions in red, callsigns
+  link into Their call), then the send pane. The WinUI `TextBox` can't grey
+  part of its text, so **sent text is shown above the box and the box holds
+  only the unsent part** (the sender keeps the whole). Macros are
+  `DigiMacro` (`{MYCALL}`, `{MYGRID}`, `{CALL}`, `{TX}` first, `{RX}` last);
+  Lookup appears when the chosen logbook supports it (Log4OM) and sends the
+  call only — the Mac also passes the frequency and mode.
+- **Tests** (`DigiTests.cs`, 28): Varicode/Baudot round trips, RTTY (both
+  sidebands, noise, AFC on a 12 Hz offset) and BPSK31/63 (noise, 44.1 kHz
+  input) modulator → decoder round trips, noise-only prints nothing, strip
+  rows, tone polarity, and the sender with a fake link and a virtual clock
+  (typeahead, RX tail, Stop, gate loss, PTT loss, the 3-minute limit,
+  macros). Strings are `digi*` keys in all three `.resx` files.
+- **Not done**: anything on the air or against live audio (receive in RTTY
+  mode and DATA-U, SUB, across a swap, WebSDR with the CW window open; transmit
+  into a dummy load in Local and Remote mode, MOD SOURCE/ALC, start and tail
+  not clipped, another receiver decoding it); a look at the window itself
+  (layout, strip, theme) — it was only built.
+
 ## Logbook — HRD Logbook (CW window Log QSO pane, 2026-10-09)
 
 The Mac's MacLoggerDX logbook (CLAUDE.md's "Logbook — MacLoggerDX"), with

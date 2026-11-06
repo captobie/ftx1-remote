@@ -657,6 +657,147 @@
   <data name="deepSettingsDialog.xNotSentX" xml:space="preserve">
     <value>{0}: not sent ({1})</value>
   </data>
+  <data name="digiLink.alreadyTransmitting" xml:space="preserve">
+    <value>The rig is already transmitting (front panel, CW, or another device)</value>
+  </data>
+  <data name="digiLink.modSourceWarning" xml:space="preserve">
+    <value>MOD SOURCE is {1}: the rig will transmit that, not this window's audio. Set it to USB (RADIO SETTING → MODE {0} → MOD SOURCE).</value>
+  </data>
+  <data name="digiLink.notConnected" xml:space="preserve">
+    <value>The rig isn't connected</value>
+  </data>
+  <data name="digiLink.noTransmitAudioOutput" xml:space="preserve">
+    <value>No transmit audio output: choose the rig's USB audio under Settings → Audio → Transmit audio output</value>
+  </data>
+  <data name="digiReceiver.couldntRead" xml:space="preserve">
+    <value>Couldn't read “{0}”: {1}</value>
+  </data>
+  <data name="digiSender.isEmpty" xml:space="preserve">
+    <value>{0} is empty</value>
+  </data>
+  <data name="digiSender.keyingEnded" xml:space="preserve">
+    <value>Stopped: the rig is no longer transmitting</value>
+  </data>
+  <data name="digiSender.limitReached" xml:space="preserve">
+    <value>Transmit limit reached (3 minutes) — unkeyed</value>
+  </data>
+  <data name="digiSender.settingsStation" xml:space="preserve">
+    <value>Settings → Station</value>
+  </data>
+  <data name="digiSender.theirCall" xml:space="preserve">
+    <value>Their call</value>
+  </data>
+  <data name="digiSender.wrongMode" xml:space="preserve">
+    <value>The transmitting side is in {0} — RTTY/PSK goes out as audio, so use DATA-U (or USB/LSB)</value>
+  </data>
+  <data name="digiSender.yourCallsign" xml:space="preserve">
+    <value>Your callsign ({0})</value>
+  </data>
+  <data name="digiSender.yourGridSquare" xml:space="preserve">
+    <value>Your grid square ({0})</value>
+  </data>
+  <data name="digiSendPane.label" xml:space="preserve">
+    <value>Label</value>
+  </data>
+  <data name="digiSendPane.level" xml:space="preserve">
+    <value>Level</value>
+  </data>
+  <data name="digiSendPane.levelHelp" xml:space="preserve">
+    <value>Peak level of the transmit audio. Set the rig's USB MOD GAIN so ALC barely moves.</value>
+  </data>
+  <data name="digiSendPane.macrosHelp" xml:space="preserve">
+    <value>Placeholders: {MYCALL} and {MYGRID} (Settings → Station), {CALL} (Their call). {TX} at the start keys the rig; {RX} at the end returns to receive once the text has gone out.</value>
+  </data>
+  <data name="digiSendPane.macrosTitle" xml:space="preserve">
+    <value>RTTY/PSK Macros</value>
+  </data>
+  <data name="digiSendPane.queued.one" xml:space="preserve">
+    <value>{0} character waiting</value>
+  </data>
+  <data name="digiSendPane.queued.other" xml:space="preserve">
+    <value>{0} characters waiting</value>
+  </data>
+  <data name="digiSendPane.ready" xml:space="preserve">
+    <value>Type in the box, then TX — or start typing after TX. A macro sends on its own.</value>
+  </data>
+  <data name="digiSendPane.removeThisMacro" xml:space="preserve">
+    <value>Remove this macro</value>
+  </data>
+  <data name="digiSendPane.restoreDefaults" xml:space="preserve">
+    <value>Restore Defaults</value>
+  </data>
+  <data name="digiSendPane.rxHelp" xml:space="preserve">
+    <value>Back to receive once the rest of the box has gone out (Ctrl+R)</value>
+  </data>
+  <data name="digiSendPane.stopHelp" xml:space="preserve">
+    <value>Stop transmitting now; text not yet sent is dropped (Esc)</value>
+  </data>
+  <data name="digiSendPane.text" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="digiSendPane.txHelp" xml:space="preserve">
+    <value>Transmit: key the rig and send what's in the box as you type it (Ctrl+T)</value>
+  </data>
+  <data name="digiSendPane.typeHere" xml:space="preserve">
+    <value>Text to send</value>
+  </data>
+  <data name="digiWindow.afcHelp" xml:space="preserve">
+    <value>Follow the signal when it drifts</value>
+  </data>
+  <data name="digiWindow.baud" xml:space="preserve">
+    <value>Baud</value>
+  </data>
+  <data name="digiWindow.clearTheText" xml:space="preserve">
+    <value>Clear the decoded text</value>
+  </data>
+  <data name="digiWindow.clickToTune" xml:space="preserve">
+    <value>Click a signal to tune the decoder to it</value>
+  </data>
+  <data name="digiWindow.copyTheText" xml:space="preserve">
+    <value>Copy the decoded text</value>
+  </data>
+  <data name="digiWindow.decodeARecording" xml:space="preserve">
+    <value>Decode a recording with the current mode and settings (the Recordings folder opens first)</value>
+  </data>
+  <data name="digiWindow.placeholder" xml:space="preserve">
+    <value>Decoded text from the selected receiver appears here. Click a signal in the strip above to tune to it, or open a recording.</value>
+  </data>
+  <data name="digiWindow.quality" xml:space="preserve">
+    <value>Quality</value>
+  </data>
+  <data name="digiWindow.reverse" xml:space="preserve">
+    <value>Reverse</value>
+  </data>
+  <data name="digiWindow.reverseHelp" xml:space="preserve">
+    <value>Swap mark and space, for a signal whose tones come out the other way round</value>
+  </data>
+  <data name="digiWindow.rigTones" xml:space="preserve">
+    <value>Rig Tones</value>
+  </data>
+  <data name="digiWindow.rigTonesFailed" xml:space="preserve">
+    <value>Couldn't read the rig's tone settings</value>
+  </data>
+  <data name="digiWindow.rigTonesHelp" xml:space="preserve">
+    <value>Tune the decoder to the rig's RTTY tones (MARK FREQUENCY and SHIFT FREQUENCY) or its PSK TONE</value>
+  </data>
+  <data name="digiWindow.shift" xml:space="preserve">
+    <value>Shift</value>
+  </data>
+  <data name="digiWindow.sourceIsIn" xml:space="preserve">
+    <value>{0} is in {1} — decoding anyway</value>
+  </data>
+  <data name="digiWindow.squelch" xml:space="preserve">
+    <value>Squelch</value>
+  </data>
+  <data name="digiWindow.squelchHelp" xml:space="preserve">
+    <value>Print text only while the signal quality is above this</value>
+  </data>
+  <data name="digiWindow.unshiftOnSpaceHelp" xml:space="preserve">
+    <value>Unshift on space: go back to letters after a space</value>
+  </data>
+  <data name="digiWindow.whichAudio" xml:space="preserve">
+    <value>Which audio to decode: the rig's MAIN or SUB receiver, or what the WebSDR window is playing</value>
+  </data>
   <data name="filterModels.default" xml:space="preserve">
     <value>Default</value>
   </data>
@@ -839,6 +980,9 @@
   </data>
   <data name="mainWindow.couldntReachRigctldOn" xml:space="preserve">
     <value>couldn't reach rigctld on localhost:{0} ({1})</value>
+  </data>
+  <data name="mainWindow.decodeAndSendRTTY" xml:space="preserve">
+    <value>Decode and send RTTY, BPSK31 and BPSK63</value>
   </data>
   <data name="mainWindow.decodeCWFromThe" xml:space="preserve">
     <value>Decode CW from the rig's MAIN or SUB audio, or a recording</value>

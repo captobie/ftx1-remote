@@ -657,6 +657,147 @@
   <data name="deepSettingsDialog.xNotSentX" xml:space="preserve">
     <value>{0}: nicht gesendet ({1})</value>
   </data>
+  <data name="digiLink.alreadyTransmitting" xml:space="preserve">
+    <value>Das Gerät sendet bereits (Frontplatte, CW oder ein anderes Gerät)</value>
+  </data>
+  <data name="digiLink.modSourceWarning" xml:space="preserve">
+    <value>MOD SOURCE ist {1}: Das Gerät sendet dann das, nicht das Audio dieses Fensters. Auf USB stellen (RADIO SETTING → MODE {0} → MOD SOURCE).</value>
+  </data>
+  <data name="digiLink.notConnected" xml:space="preserve">
+    <value>Das Gerät ist nicht verbunden</value>
+  </data>
+  <data name="digiLink.noTransmitAudioOutput" xml:space="preserve">
+    <value>Keine Ausgabe für Sendeaudio: unter Einstellungen → Audio → Ausgabe für Sendeaudio das USB-Audio des Geräts wählen</value>
+  </data>
+  <data name="digiReceiver.couldntRead" xml:space="preserve">
+    <value>„{0}“ konnte nicht gelesen werden: {1}</value>
+  </data>
+  <data name="digiSender.isEmpty" xml:space="preserve">
+    <value>{0} ist leer</value>
+  </data>
+  <data name="digiSender.keyingEnded" xml:space="preserve">
+    <value>Angehalten: das Gerät sendet nicht mehr</value>
+  </data>
+  <data name="digiSender.limitReached" xml:space="preserve">
+    <value>Sendezeitlimit erreicht (3 Minuten) – Senden beendet</value>
+  </data>
+  <data name="digiSender.settingsStation" xml:space="preserve">
+    <value>Einstellungen → Station</value>
+  </data>
+  <data name="digiSender.theirCall" xml:space="preserve">
+    <value>Gegenstation</value>
+  </data>
+  <data name="digiSender.wrongMode" xml:space="preserve">
+    <value>Die sendende Seite ist in {0} – RTTY/PSK wird als Audio gesendet, also DATA-U (oder USB/LSB) verwenden</value>
+  </data>
+  <data name="digiSender.yourCallsign" xml:space="preserve">
+    <value>Eigenes Rufzeichen ({0})</value>
+  </data>
+  <data name="digiSender.yourGridSquare" xml:space="preserve">
+    <value>Eigener Locator ({0})</value>
+  </data>
+  <data name="digiSendPane.label" xml:space="preserve">
+    <value>Beschriftung</value>
+  </data>
+  <data name="digiSendPane.level" xml:space="preserve">
+    <value>Pegel</value>
+  </data>
+  <data name="digiSendPane.levelHelp" xml:space="preserve">
+    <value>Spitzenpegel des Sendeaudios. USB MOD GAIN am Gerät so einstellen, dass sich die ALC kaum bewegt.</value>
+  </data>
+  <data name="digiSendPane.macrosHelp" xml:space="preserve">
+    <value>Platzhalter: {MYCALL} und {MYGRID} (Einstellungen → Station), {CALL} (Gegenstation). {TX} am Anfang tastet das Gerät; {RX} am Ende schaltet auf Empfang zurück, sobald der Text gesendet ist.</value>
+  </data>
+  <data name="digiSendPane.macrosTitle" xml:space="preserve">
+    <value>RTTY/PSK-Makros</value>
+  </data>
+  <data name="digiSendPane.queued.one" xml:space="preserve">
+    <value>{0} Zeichen in der Warteschlange</value>
+  </data>
+  <data name="digiSendPane.queued.other" xml:space="preserve">
+    <value>{0} Zeichen in der Warteschlange</value>
+  </data>
+  <data name="digiSendPane.ready" xml:space="preserve">
+    <value>Im Feld tippen, dann TX – oder nach TX lostippen. Ein Makro sendet von selbst.</value>
+  </data>
+  <data name="digiSendPane.removeThisMacro" xml:space="preserve">
+    <value>Dieses Makro entfernen</value>
+  </data>
+  <data name="digiSendPane.restoreDefaults" xml:space="preserve">
+    <value>Standardwerte wiederherstellen</value>
+  </data>
+  <data name="digiSendPane.rxHelp" xml:space="preserve">
+    <value>Zurück auf Empfang, sobald der Rest im Feld gesendet ist (Strg+R)</value>
+  </data>
+  <data name="digiSendPane.stopHelp" xml:space="preserve">
+    <value>Senden sofort beenden; noch nicht gesendeter Text wird verworfen (Esc)</value>
+  </data>
+  <data name="digiSendPane.text" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="digiSendPane.txHelp" xml:space="preserve">
+    <value>Senden: das Gerät tasten und den Text im Feld beim Tippen senden (Strg+T)</value>
+  </data>
+  <data name="digiSendPane.typeHere" xml:space="preserve">
+    <value>Zu sendender Text</value>
+  </data>
+  <data name="digiWindow.afcHelp" xml:space="preserve">
+    <value>Dem Signal folgen, wenn es driftet</value>
+  </data>
+  <data name="digiWindow.baud" xml:space="preserve">
+    <value>Baud</value>
+  </data>
+  <data name="digiWindow.clearTheText" xml:space="preserve">
+    <value>Den dekodierten Text löschen</value>
+  </data>
+  <data name="digiWindow.clickToTune" xml:space="preserve">
+    <value>Ein Signal anklicken, um den Decoder darauf abzustimmen</value>
+  </data>
+  <data name="digiWindow.copyTheText" xml:space="preserve">
+    <value>Den dekodierten Text kopieren</value>
+  </data>
+  <data name="digiWindow.decodeARecording" xml:space="preserve">
+    <value>Eine Aufnahme mit der aktuellen Betriebsart und den aktuellen Einstellungen dekodieren (zuerst öffnet sich der Ordner Aufnahmen)</value>
+  </data>
+  <data name="digiWindow.placeholder" xml:space="preserve">
+    <value>Hier erscheint dekodierter Text vom gewählten Empfänger. Ein Signal im Streifen oben anklicken, um darauf abzustimmen, oder eine Aufnahme öffnen.</value>
+  </data>
+  <data name="digiWindow.quality" xml:space="preserve">
+    <value>Qualität</value>
+  </data>
+  <data name="digiWindow.reverse" xml:space="preserve">
+    <value>Umkehren</value>
+  </data>
+  <data name="digiWindow.reverseHelp" xml:space="preserve">
+    <value>Mark und Space tauschen, für ein Signal, dessen Töne umgekehrt ankommen</value>
+  </data>
+  <data name="digiWindow.rigTones" xml:space="preserve">
+    <value>Töne des Geräts</value>
+  </data>
+  <data name="digiWindow.rigTonesFailed" xml:space="preserve">
+    <value>Die Toneinstellungen des Geräts konnten nicht gelesen werden</value>
+  </data>
+  <data name="digiWindow.rigTonesHelp" xml:space="preserve">
+    <value>Den Decoder auf die RTTY-Töne des Geräts (MARK FREQUENCY und SHIFT FREQUENCY) oder seinen PSK TONE abstimmen</value>
+  </data>
+  <data name="digiWindow.shift" xml:space="preserve">
+    <value>Shift</value>
+  </data>
+  <data name="digiWindow.sourceIsIn" xml:space="preserve">
+    <value>{0} ist in {1} – es wird trotzdem dekodiert</value>
+  </data>
+  <data name="digiWindow.squelch" xml:space="preserve">
+    <value>Squelch</value>
+  </data>
+  <data name="digiWindow.squelchHelp" xml:space="preserve">
+    <value>Text nur ausgeben, solange die Signalqualität darüber liegt</value>
+  </data>
+  <data name="digiWindow.unshiftOnSpaceHelp" xml:space="preserve">
+    <value>Unshift on Space: nach einem Leerzeichen zurück zu Buchstaben</value>
+  </data>
+  <data name="digiWindow.whichAudio" xml:space="preserve">
+    <value>Welches Audio dekodiert wird: MAIN- oder SUB-Empfänger des Geräts oder das, was das WebSDR-Fenster abspielt</value>
+  </data>
   <data name="filterModels.default" xml:space="preserve">
     <value>Standard</value>
   </data>
@@ -839,6 +980,9 @@
   </data>
   <data name="mainWindow.couldntReachRigctldOn" xml:space="preserve">
     <value>rigctld auf localhost:{0} nicht erreichbar ({1})</value>
+  </data>
+  <data name="mainWindow.decodeAndSendRTTY" xml:space="preserve">
+    <value>RTTY, BPSK31 und BPSK63 dekodieren und senden</value>
   </data>
   <data name="mainWindow.decodeCWFromThe" xml:space="preserve">
     <value>CW aus dem MAIN- oder SUB-Audio des Geräts oder aus einer Aufnahme dekodieren</value>

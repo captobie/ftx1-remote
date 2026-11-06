@@ -2541,6 +2541,14 @@ browser (user decision, possible later). Transmit came the same day (see
   it on DATA-U and LSB, the Pi's 0.5 s re-key grace after a quick
   RX → TX). Also a CPU check against live audio (the decoder ran ~30 s of
   audio in ~0.04 s in a Debug `swift test`).
+- **Windows port (2026-11-06; unit-tested and built, the window not yet
+  opened or on the air)**: the **RTTY/PSK** button next to CW —
+  `Services/Digi/` (the DSP translated from `Sources/FTX1Digi/`, which stays
+  the source of truth), `DigiReceiver`, `DigiSender`, `Controls/DigiWindow.cs`,
+  `MainWindow.Digi.cs`. Differences from the Mac: no shared WebSDR tap (the
+  receiver has its own), the sent text is shown above the typeahead box
+  instead of greyed inside it, and Lookup sends only the call. See
+  `Apps/Windows/README.md`'s "RTTY/PSK window".
 
 ## Logbook — MacLoggerDX (started 2026-10-07)
 

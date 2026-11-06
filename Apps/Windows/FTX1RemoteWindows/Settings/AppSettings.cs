@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Services;
+using FTX1RemoteWindows.Services.Digi;
 
 namespace FTX1RemoteWindows.Settings;
 
@@ -115,6 +116,7 @@ public static class AppSettings
         public bool CwMonitor { get; set; }
         public CwDecoderKind CwDecoder { get; set; } = CwDecoderKind.Neural;
         public List<CwMacro>? CwMacros { get; set; }
+        public DigiData Digi { get; set; } = new();
         public WebSdrFavorite? WebSdrPickedStation { get; set; }
         public List<WebSdrFavorite> WebSdrFavorites { get; set; } = [];
         public string? WebSdrDirectoryETag { get; set; }
@@ -176,6 +178,24 @@ public static class AppSettings
     /// One receiver's playback settings. SquelchThreshold is SquelchGate's
     /// raw threshold (RMS at or below which a chunk counts as a quieting
     /// dip), not the inverted value the slider shows.
+    public sealed class DigiData
+    {
+        public DigiMode Mode { get; set; } = DigiMode.Rtty;
+        public CwAudioChannel Channel { get; set; } = CwAudioChannel.Main;
+        /// Defaults: RTTY centred for the usual 2125/2295 Hz tones, PSK at
+        /// 1000 Hz (the rig's default PSK TONE).
+        public double RttyCenterHz { get; set; } = 2210;
+        public double PskCenterHz { get; set; } = 1000;
+        public double RttyShiftHz { get; set; } = 170;
+        public double RttyBaud { get; set; } = 45.45;
+        public bool RttyReverse { get; set; }
+        public bool RttyUnshiftOnSpace { get; set; } = true;
+        public bool Afc { get; set; } = true;
+        public double Squelch { get; set; } = 0.3;
+        public double TxLevelDb { get; set; } = -6;
+        public List<DigiMacro>? Macros { get; set; }
+    }
+
     public sealed class ChannelAudio
     {
         public double Volume { get; set; } = 0.8;
@@ -1042,6 +1062,12 @@ public static class AppSettings
             Save();
         }
     }
+
+    /// The RTTY/PSK window's settings (the Mac's digi.* keys). Mutate the
+    /// returned object, then call <see cref="SaveDigi"/>.
+    public static DigiData Digi => _cache.Digi;
+
+    public static void SaveDigi() => Save();
 
     /// Mutate the returned object, then call <see cref="SaveAudio"/>.
     public static ChannelAudio MainAudio => _cache.MainAudio;
