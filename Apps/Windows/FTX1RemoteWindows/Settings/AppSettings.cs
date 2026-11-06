@@ -72,6 +72,7 @@ public static class AppSettings
         public bool AudioChannelsSwapped { get; set; }
         public ChannelAudio MainAudio { get; set; } = new();
         public ChannelAudio SubAudio { get; set; } = new();
+        public double SquelchHangSeconds { get; set; } = DefaultSquelchHangSeconds;
         public MeterSelection MainMeterSelection { get; set; } = MeterSelection.Po;
         public MeterSelection SubMeterSelection { get; set; } = MeterSelection.Po;
         public bool WpsdEnabled { get; set; }
@@ -1048,6 +1049,28 @@ public static class AppSettings
     public static ChannelAudio SubAudio => _cache.SubAudio;
 
     public static void SaveAudio() => Save();
+
+    /// Seconds the virtual squelch stays open after the last quieting dip
+    /// (SquelchGate.ReleaseDuration) — the tail after a transmission ends.
+    /// One value for Main and Sub; the Mac's
+    /// AudioPlaybackSettings.squelchHangTime, same default and range.
+    // Consts, not a static readonly: _cache = Load() runs first and its
+    // Data initializer would see a not-yet-set field.
+    public const double DefaultSquelchHangSeconds = 1.5;
+    public const double MinSquelchHangSeconds = 0.3;
+    public const double MaxSquelchHangSeconds = 5.0;
+
+    public static double SquelchHangSeconds
+    {
+        get => double.IsFinite(_cache.SquelchHangSeconds)
+            ? Math.Clamp(_cache.SquelchHangSeconds, MinSquelchHangSeconds, MaxSquelchHangSeconds)
+            : DefaultSquelchHangSeconds;
+        set
+        {
+            _cache.SquelchHangSeconds = value;
+            Save();
+        }
+    }
 
     private static Data Load()
     {

@@ -123,6 +123,14 @@
                               ToolTipService.ToolTip="{l:Str Key=settings.theFTX1sUSB2}" />
                     <TextBlock Text="{l:Str Key=settings.whereAnIPadsMicrophone}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Slider x:Name="SquelchHangSlider" Header="{l:Str Key=settings.squelchTail}" Width="300"
+                                Minimum="0.3" Maximum="5" StepFrequency="0.1" SmallChange="0.1" LargeChange="0.5"
+                                IsThumbToolTipEnabled="False" ValueChanged="SquelchHangSlider_ValueChanged" />
+                        <TextBlock x:Name="SquelchHangText" VerticalAlignment="Bottom" Margin="0,0,0,8" />
+                    </StackPanel>
+                    <TextBlock Text="{l:Str Key=settings.squelchTailHelp}"
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- C4FM -->

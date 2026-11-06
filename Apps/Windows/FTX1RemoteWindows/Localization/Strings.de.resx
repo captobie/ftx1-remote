@@ -2046,6 +2046,12 @@
   <data name="settings.showReceivedCallsignVia" xml:space="preserve">
     <value>Empfangenes Rufzeichen anzeigen (über WPSD)</value>
   </data>
+  <data name="settings.squelchTail" xml:space="preserve">
+    <value>Squelch-Nachlauf</value>
+  </data>
+  <data name="settings.squelchTailHelp" xml:space="preserve">
+    <value>Wie lange der Squelch der App nach dem Ende eines Signals offen bleibt. Kürzer schneidet das Rauschen früher ab; zu kurz kann bei lauter Sprache aussetzen. Gilt für MAIN und SUB beim Speichern.</value>
+  </data>
   <data name="settings.startedThisSessionX" xml:space="preserve">
     <value>In dieser Sitzung gestartet: {0}</value>
   </data>

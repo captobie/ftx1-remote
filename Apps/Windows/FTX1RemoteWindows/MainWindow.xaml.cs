@@ -576,6 +576,8 @@ public sealed partial class MainWindow : Window
         await ApplyHubSettingAsync();
         ApplyWavelogSettings();
         ApplyLicenseSettings();
+        _mainPlayer.SquelchHangSeconds = AppSettings.SquelchHangSeconds;
+        _subPlayer.SquelchHangSeconds = AppSettings.SquelchHangSeconds;
         _pollTimer.Interval = TimeSpan.FromMilliseconds(AppSettings.PollIntervalMs);
         // A running memory scan keeps its short tick.
         UpdateScanDisplay();

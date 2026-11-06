@@ -1,3 +1,4 @@
+using FTX1RemoteWindows.Settings;
 namespace FTX1RemoteWindows.Services;
 
 /// C# port of Sources/FTX1Core/Audio/SquelchGate.swift — a client-side
@@ -22,7 +23,11 @@ public sealed class SquelchGate
     /// Larger = more lenient.
     public float Threshold { get; set; }
 
-    public TimeSpan ReleaseDuration { get; set; } = TimeSpan.FromSeconds(4);
+    /// How long the gate stays open after the last quieting dip — also the
+    /// noise tail heard after a transmission ends. Was a fixed 4 s (too
+    /// long a tail); now AppSettings.SquelchHangSeconds, 1.5 s by default
+    /// (Settings → Audio), as on the Mac.
+    public TimeSpan ReleaseDuration { get; set; } = TimeSpan.FromSeconds(AppSettings.DefaultSquelchHangSeconds);
 
     public bool IsOpen { get; private set; }
 

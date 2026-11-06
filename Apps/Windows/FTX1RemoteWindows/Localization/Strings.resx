@@ -2046,6 +2046,12 @@
   <data name="settings.showReceivedCallsignVia" xml:space="preserve">
     <value>Show received callsign (via WPSD)</value>
   </data>
+  <data name="settings.squelchTail" xml:space="preserve">
+    <value>Squelch tail</value>
+  </data>
+  <data name="settings.squelchTailHelp" xml:space="preserve">
+    <value>How long the app's squelch stays open after a signal ends. Shorter cuts the noise burst sooner; too short can drop out during loud speech. Applies to MAIN and SUB on Save.</value>
+  </data>
   <data name="settings.startedThisSessionX" xml:space="preserve">
     <value>Started this session: {0}</value>
   </data>

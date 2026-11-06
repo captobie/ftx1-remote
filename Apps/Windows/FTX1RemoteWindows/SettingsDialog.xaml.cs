@@ -151,6 +151,8 @@ public sealed partial class SettingsDialog : Window
         RefreshAudioInputs();
         RefreshAudioOutputs();
         RefreshTxAudioOutputs();
+        SquelchHangSlider.Value = AppSettings.SquelchHangSeconds;
+        UpdateSquelchHangText();
 
         // C4FM
         WpsdEnabledCheckBox.IsChecked = AppSettings.WpsdEnabled;
@@ -449,6 +451,7 @@ public sealed partial class SettingsDialog : Window
             // Read on each transmission's first frame, so no restart needed.
             AppSettings.SetTxAudioOutputDevice(txOutputId, txOutputId.Length == 0 ? "" : (string)txOutput.Content);
         }
+        AppSettings.SquelchHangSeconds = Math.Round(SquelchHangSlider.Value, 1);
 
         AppSettings.WpsdEnabled = WpsdEnabledCheckBox.IsChecked == true;
         var wpsdHost = NormalizeWpsdHost(WpsdHostBox.Text);
@@ -1754,6 +1757,19 @@ public sealed partial class SettingsDialog : Window
     }
 
     private void AudioOutputComboBox_DropDownOpened(object sender, object e) => RefreshAudioOutputs();
+
+    private void SquelchHangSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e) =>
+        UpdateSquelchHangText();
+
+    // Not localized: a unit-only format, like the Mac's "%.1f s"; invariant,
+    // so it reads "1.5 s" in every language.
+    private void UpdateSquelchHangText()
+    {
+        if (SquelchHangText is not null)
+        {
+            SquelchHangText.Text = SquelchHangSlider.Value.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " s";
+        }
+    }
 
     /// "Windows default" first, then the active output devices. A saved
     /// device that isn't plugged in stays listed, marked, like the input.

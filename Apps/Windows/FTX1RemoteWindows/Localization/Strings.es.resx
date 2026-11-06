@@ -2046,6 +2046,12 @@
   <data name="settings.showReceivedCallsignVia" xml:space="preserve">
     <value>Mostrar el indicativo recibido (vía WPSD)</value>
   </data>
+  <data name="settings.squelchTail" xml:space="preserve">
+    <value>Cola del squelch</value>
+  </data>
+  <data name="settings.squelchTailHelp" xml:space="preserve">
+    <value>Cuánto tiempo sigue abierto el squelch de la app cuando termina una señal. Más corto corta antes el ruido; demasiado corto puede cortar durante voz fuerte. Se aplica a MAIN y SUB al guardar.</value>
+  </data>
   <data name="settings.startedThisSessionX" xml:space="preserve">
     <value>Iniciado en esta sesión: {0}</value>
   </data>

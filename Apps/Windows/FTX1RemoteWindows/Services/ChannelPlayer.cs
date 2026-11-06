@@ -1,3 +1,4 @@
+using FTX1RemoteWindows.Settings;
 using NAudio.Wave;
 
 namespace FTX1RemoteWindows.Services;
@@ -43,7 +44,10 @@ public sealed class ChannelPlayer : ISampleProvider
     public ChannelPlayer(float volume, float squelchThreshold, bool muted)
     {
         Configure(RemoteAudioStreamClient.StreamSampleRate);
-        _gate = new SquelchGate(squelchThreshold);
+        _gate = new SquelchGate(squelchThreshold)
+        {
+            ReleaseDuration = TimeSpan.FromSeconds(AppSettings.SquelchHangSeconds),
+        };
         _volume = volume;
         _muted = muted;
     }
@@ -72,6 +76,13 @@ public sealed class ChannelPlayer : ISampleProvider
     {
         get { lock (_lock) return _volume; }
         set { lock (_lock) _volume = Math.Clamp(value, 0f, 1f); }
+    }
+
+    /// Squelch tail — SquelchGate.ReleaseDuration.
+    public double SquelchHangSeconds
+    {
+        get { lock (_lock) return _gate.ReleaseDuration.TotalSeconds; }
+        set { lock (_lock) _gate.ReleaseDuration = TimeSpan.FromSeconds(value); }
     }
 
     public float SquelchThreshold

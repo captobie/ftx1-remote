@@ -384,7 +384,9 @@ re-architecture.
     (0.3–5 s, `AudioPlaybackSettings.squelchHangTime`, live via
     `HubService.squelchHangTime`, one value for Main and Sub). The iPad/
     iPhone players read the same key at init, so they get the 1.5 s
-    default too, with no UI.
+    default too, with no UI. Windows (2026-11-06, tested by the user over
+    the Pi the same day): the same slider in Settings → Audio,
+    applied on Save (that dialog's rule), `AppSettings.SquelchHangSeconds`.
   - **Device-sharing with Direwolf, two real conflicts hit and fixed**: (1)
     `Device or resource busy` — Direwolf holds the raw capture device open
     continuously; fixed via `Pi/asound-ftx1.conf`'s `dsnoop`+`plug` chain

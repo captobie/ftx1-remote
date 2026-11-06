@@ -680,6 +680,11 @@ downstream (squelch, swap routing, playback, levels) is shared.
   oldest audio, since the Pi's and this PC's sound-card clocks drift), the
   quieting-dip squelch (`Services/SquelchGate.cs`, a straight port of
   `SquelchGate.swift`), volume, and mute, with ~10 ms gain ramps.
+  The squelch tail (how long the gate stays open after the last quieting
+  dip, i.e. the noise burst after a transmission) is **Settings → Audio →
+  Squelch tail**, 0.3–5 s, default 1.5 s (was a fixed 4 s), one value for
+  MAIN and SUB, applied on Save (`SquelchHangSeconds` in settings.json; the
+  Mac's `audio.playback.squelchHangTime`, 2026-11-06).
 - `Services/AudioPlayback.cs`: mixes both channels into one NAudio
   `WasapiOut` (shared mode), resampled to the device's mix rate with
   NAudio's WDL resampler. Both channels play centered, like the Mac. The
