@@ -204,9 +204,9 @@ Sources/FTX1Core/
 Sources/FTX1CW/    CWReceiver, CWSender (on CWKit), the shared receive
                    controls, and the CWKeyerLink conformances for the iPad's
                    two routes
-Sources/FTX1Digi/  RTTY and BPSK31/63 decoding: our own demodulators
-                   (RTTYDemodulator, PSKDemodulator, Baudot, Varicode),
-                   DigiDecoder, DigiReceiver
+Sources/FTX1Digi/  RTTY and BPSK31/63 receive and transmit: our own
+                   demodulators and modulators (Baudot, Varicode),
+                   DigiDecoder, DigiReceiver, DigiSender
 Sources/CFT8Lib/   vendored decode-only ft8_lib + kissfft (C)
 Sources/FT8Kit/    its Swift wrapper
 ```
@@ -222,7 +222,8 @@ C library or the RTTY/PSK decoders.
 `FilterDisplayHost`, `AudioRecorder`, `BandMemory`, the APRS windows and
 map, the FT8 files (`FT8DecodeCoordinator`, `FT8Store`, `FT8ListView`,
 `PSKReporterUploader`), the CW window (`CWWindowView`, `CWSendPane`,
-`CWLogPane`), the RTTY/PSK window (`DigiWindowView`, `DigiTuningStrip`),
+`CWLogPane`), the RTTY/PSK window (`DigiWindowView`, `DigiTuningStrip`,
+`DigiSendPane`),
 the decoders' shared WebSDR source (`WebSDRAudioSource`, `WebSDRAudioTap`),
 the logbook
 (`MacLoggerDX`, `QSOLogger`, `WorkedStationsStore`), the WebSDR window
@@ -398,9 +399,10 @@ category `cw-key`.
   WebSDR in the CW window.
 - The Mac CW window's live decoding on the rig (incl. across a swap) hasn't
   been formally tested (the iPad's, on the same receiver code, works).
-- The Mac's RTTY/PSK window is tested on synthesized signals and files
-  only, not yet on the air; whether the rig's RTTY mode puts the space
-  tone above the mark (what Rig Tones assumes) isn't confirmed.
+- The Mac's RTTY/PSK window (receive and transmit) is tested on
+  synthesized signals and files only, not yet on the air; whether the
+  rig's RTTY mode puts the space tone above the mark (what Rig Tones
+  assumes) isn't confirmed.
 - iPhone: no MENU grid; Pi direct there is receive-only.
 - The hub route has no automatic reconnect-and-resync in
   `RigWebSocketClient`.

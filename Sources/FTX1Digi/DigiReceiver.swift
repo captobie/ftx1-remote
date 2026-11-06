@@ -67,7 +67,8 @@ public final class DigiMeterStore: ObservableObject {
 /// window; the per-row readings are in `meters`.
 @MainActor
 public final class DigiReceiver: ObservableObject {
-    @Published public private(set) var decodedText = ""
+    /// Received and (echoed) transmitted text, in order.
+    @Published public private(set) var runs: [DigiTextRun] = []
     @Published public private(set) var isDecodingFile = false
     @Published public private(set) var isSubAudioAvailable = false
     @Published public private(set) var isPausedForTransmit = false
@@ -122,8 +123,28 @@ public final class DigiReceiver: ObservableObject {
     /// source starts or stops its tap from here.
     public var onSourceChanged: (() -> Void)?
 
+    /// The settings as the operator set them: `reverse` means "this
+    /// station sends upside down", whatever the sideband.
     public var rttySettings: RTTYSettings {
         RTTYSettings(shiftHz: rttyShiftHz, baud: rttyBaud, reverse: rttyReverse, unshiftOnSpace: rttyUnshiftOnSpace)
+    }
+
+    /// What the decoder gets: Reverse flipped when the selected receiver
+    /// is on an upper sideband, where a normal RTTY signal's mark (the
+    /// higher RF tone) comes out as the higher audio tone.
+    var decoderRTTYSettings: RTTYSettings {
+        var settings = rttySettings
+        settings.reverse = rttySettings.effectiveReverse(upperSideband: sourceMode?.isUpperSidebandAudio ?? false)
+        return settings
+    }
+
+    /// The selected receiver's mode (nil for WebSDR or before the first read).
+    private var sourceMode: RigMode? {
+        switch channel {
+        case .main: rigInfo.mainMode == .unknown ? nil : rigInfo.mainMode
+        case .sub: rigInfo.subMode
+        case .webSDR: nil
+        }
     }
 
     /// The decoder lives on `queue` only.
@@ -231,7 +252,7 @@ public final class DigiReceiver: ObservableObject {
     private func rebuildDecoder() {
         generation += 1
         let decoder = DigiDecoder(
-            mode: mode, rttySettings: rttySettings, centerHz: centerHz,
+            mode: mode, rttySettings: decoderRTTYSettings, centerHz: centerHz,
             afc: afcEnabled, squelch: Float(squelch)
         )
         meters.reset(centerHz: centerHz)
@@ -289,22 +310,33 @@ public final class DigiReceiver: ObservableObject {
     // MARK: - Rig
 
     public func rigInfoChanged(_ info: DigiRigInfo) {
+        let oldReverse = decoderRTTYSettings.reverse
         rigInfo = info
-        if info.transmitting != isPausedForTransmit {
-            isPausedForTransmit = info.transmitting
-            // Don't let the first audio after TX finish a half-framed
-            // character from before it.
-            if info.transmitting, isRunning { resetDecoder() }
-        }
+        // A sideband change flips the tones: rebuild the RTTY decoder.
+        if mode == .rtty, isRunning, decoderRTTYSettings.reverse != oldReverse { rebuildDecoder() }
+        updateTransmitPause()
         updateModeHint()
     }
 
+    /// The RTTY/PSK sender is transmitting (covers the lag before the poll
+    /// sees PTT, as with the CW sender).
+    public func setSenderActive(_ active: Bool) {
+        senderActive = active
+        updateTransmitPause()
+    }
+
+    private var senderActive = false
+
+    private func updateTransmitPause() {
+        let paused = senderActive || rigInfo.transmitting
+        guard paused != isPausedForTransmit else { return }
+        isPausedForTransmit = paused
+        // Don't let the first audio after TX finish a half-framed
+        // character from before it.
+        if paused, isRunning { resetDecoder() }
+    }
+
     private func updateModeHint() {
-        let sourceMode: RigMode? = switch channel {
-        case .main: rigInfo.mainMode
-        case .sub: rigInfo.subMode
-        case .webSDR: nil
-        }
         var hint: RigMode?
         if let sourceMode, sourceMode != .unknown, !Self.suitableModes(for: mode).contains(sourceMode) {
             hint = sourceMode
@@ -329,7 +361,7 @@ public final class DigiReceiver: ObservableObject {
         append("— \(url.lastPathComponent) —\n")
         // A fresh decoder of its own, so the live one keeps its state.
         let decoder = DigiDecoder(
-            mode: mode, rttySettings: rttySettings, centerHz: centerHz,
+            mode: mode, rttySettings: decoderRTTYSettings, centerHz: centerHz,
             afc: afcEnabled, squelch: Float(squelch)
         )
         let fileBox = DecoderBox()
@@ -370,21 +402,63 @@ public final class DigiReceiver: ObservableObject {
 
     // MARK: - Text
 
-    public func clearText() {
-        decodedText = ""
+    /// All the text, received and sent (for Copy).
+    public var decodedText: String {
+        runs.map(\.text).joined()
     }
 
-    private func append(_ text: String) {
+    public func clearText() {
+        runs = []
+    }
+
+    /// The sender's echo: transmitted characters, shown in their own colour.
+    public func appendTransmitted(_ text: String) {
+        if runs.last?.isTransmit != true { startNewLine() }
+        append(text, transmit: true)
+    }
+
+    private func append(_ text: String, transmit: Bool = false) {
         guard !text.isEmpty else { return }
-        decodedText += text
-        if decodedText.count > Self.maxTextLength {
-            decodedText = String(decodedText.suffix(Self.maxTextLength))
+        if let last = runs.indices.last, runs[last].isTransmit == transmit {
+            runs[last].text += text
+        } else {
+            runs.append(DigiTextRun(text: text, isTransmit: transmit))
+        }
+        trim()
+    }
+
+    private func trim() {
+        var total = runs.reduce(0) { $0 + $1.text.count }
+        while total > Self.maxTextLength, !runs.isEmpty {
+            let excess = total - Self.maxTextLength
+            if runs[0].text.count <= excess {
+                total -= runs[0].text.count
+                runs.removeFirst()
+            } else {
+                runs[0].text = String(runs[0].text.dropFirst(excess))
+                total -= excess
+            }
         }
     }
 
     private func startNewLine() {
-        if !decodedText.isEmpty, !decodedText.hasSuffix("\n") {
-            append("\n")
+        if let last = runs.last?.text, !last.isEmpty, !last.hasSuffix("\n") {
+            append("\n", transmit: runs.last?.isTransmit ?? false)
         }
+    }
+}
+
+/// A stretch of the window's text: received, or sent by this station.
+public struct DigiTextRun: Equatable, Sendable {
+    public var text: String
+    public var isTransmit: Bool
+}
+
+extension RigMode {
+    /// Audio from this mode has the RF spectrum the right way up (USB,
+    /// DATA-U), as opposed to inverted (LSB, the rig's RTTY mode — assumed
+    /// lower sideband, see CLAUDE.md "Digital modes — RTTY/PSK").
+    public var isUpperSidebandAudio: Bool {
+        self == .usb || self == .dataUSB
     }
 }

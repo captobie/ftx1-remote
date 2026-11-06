@@ -4315,6 +4315,364 @@
         }
       }
     },
+    "digiLink.alreadyTransmitting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät sendet bereits (Frontplatte, CW oder ein anderes Gerät)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rig is already transmitting (front panel, CW, or another device)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El equipo ya está transmitiendo (panel frontal, CW u otro dispositivo)"
+          }
+        }
+      }
+    },
+    "digiLink.modSourceWarning %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MOD SOURCE ist %2$@: Das Gerät sendet dann das, nicht das Audio dieses Fensters. Auf USB stellen (RADIO SETTING → MODE %1$@ → MOD SOURCE)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MOD SOURCE is %2$@: the rig will transmit that, not this window's audio. Set it to USB (RADIO SETTING → MODE %1$@ → MOD SOURCE)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MOD SOURCE es %2$@: el equipo transmitirá eso y no el audio de esta ventana. Ponerlo en USB (RADIO SETTING → MODE %1$@ → MOD SOURCE)."
+          }
+        }
+      }
+    },
+    "digiLink.notConnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät ist nicht verbunden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rig isn't connected"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El equipo no está conectado"
+          }
+        }
+      }
+    },
+    "digiLink.noTransmitAudioOutput" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Ausgabe für Sendeaudio: unter Einstellungen → Audio → Ausgabe für Sendeaudio das USB-Audio des Geräts wählen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No transmit audio output: choose the rig's USB audio under Settings → Audio → Transmit audio output"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin salida de audio de transmisión: elegir el audio USB del equipo en Ajustes → Audio → Salida de audio de transmisión"
+          }
+        }
+      }
+    },
+    "digiSendPane.level" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pegel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Level"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nivel"
+          }
+        }
+      }
+    },
+    "digiSendPane.levelHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spitzenpegel des Sendeaudios. USB MOD GAIN am Gerät so einstellen, dass sich die ALC kaum bewegt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Peak level of the transmit audio. Set the rig's USB MOD GAIN so ALC barely moves."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nivel de pico del audio de transmisión. Ajustar USB MOD GAIN del equipo para que el ALC apenas se mueva."
+          }
+        }
+      }
+    },
+    "digiSendPane.macrosHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Platzhalter: {MYCALL} und {MYGRID} (Einstellungen → Station), {CALL} (Gegenstation). {TX} am Anfang tastet das Gerät; {RX} am Ende schaltet auf Empfang zurück, sobald der Text gesendet ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Placeholders: {MYCALL} and {MYGRID} (Settings → Station), {CALL} (Their call). {TX} at the start keys the rig; {RX} at the end returns to receive once the text has gone out."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marcadores: {MYCALL} y {MYGRID} (Ajustes → Estación), {CALL} (Corresponsal). {TX} al principio activa la transmisión; {RX} al final vuelve a recepción cuando se ha enviado el texto."
+          }
+        }
+      }
+    },
+    "digiSendPane.macrosTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RTTY/PSK-Makros"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RTTY/PSK Macros"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Macros RTTY/PSK"
+          }
+        }
+      }
+    },
+    "digiSendPane.queued %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Senden – %lld Zeichen in der Warteschlange"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Senden – %lld Zeichen in der Warteschlange"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Transmitting — %lld character queued"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Transmitting — %lld characters queued"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Transmitiendo: %lld carácter en cola"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Transmitiendo: %lld caracteres en cola"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "digiSendPane.ready" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Feld tippen, dann TX – oder nach TX lostippen. Ein Makro sendet von selbst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type in the box, then TX — or start typing after TX. A macro sends on its own."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribir en el cuadro y pulsar TX, o empezar a escribir después de TX. Una macro transmite por sí sola."
+          }
+        }
+      }
+    },
+    "digiSendPane.rxHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurück auf Empfang, sobald der Rest im Feld gesendet ist (⌘R)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back to receive once the rest of the box has gone out (⌘R)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a recepción cuando se haya enviado el resto del cuadro (⌘R)"
+          }
+        }
+      }
+    },
+    "digiSendPane.stopHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden sofort beenden; noch nicht gesendeter Text wird verworfen (Esc)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop transmitting now; text not yet sent is dropped (Esc)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dejar de transmitir ahora; se descarta el texto aún no enviado (Esc)"
+          }
+        }
+      }
+    },
+    "digiSendPane.txHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden: das Gerät tasten und den Text im Feld beim Tippen senden (⌘T)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit: key the rig and send what's in the box as you type it (⌘T)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmitir: activar el equipo y enviar lo que hay en el cuadro a medida que se escribe (⌘T)"
+          }
+        }
+      }
+    },
+    "digiSendPane.typeHere" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu sendender Text"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text to send"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Texto para enviar"
+          }
+        }
+      }
+    },
     "digiWindow.afcHelp" : {
       "extractionState" : "manual",
       "localizations" : {

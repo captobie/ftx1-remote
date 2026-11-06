@@ -2425,13 +2425,14 @@ vendored here.
     (sending always keys whatever the rig transmits on), WebSDR source
     while sending.
 
-## Digital modes — RTTY/PSK (Mac, 2026-11-06; unit-tested on synthesized signals, decoded synthesized files in the built app; not yet on the air)
+## Digital modes — RTTY/PSK (Mac, 2026-11-06; receive and transmit unit-tested on synthesized signals, files decoded and the send pane checked in the built app while disconnected; nothing on the air yet)
 
 User request. Tools → **RTTY/PSK** opens `Window(id: "digi")`
 (`DigiWindowView`, Mac-only): decodes one RTTY, BPSK31 or BPSK63 signal
 at a time from MAIN, SUB or the WebSDR window's audio, or from a file.
-Receive only (user decision); one signal at a time with a click-to-tune
-strip, not a multi-signal PSK browser (user decision, possible later).
+One signal at a time with a click-to-tune strip, not a multi-signal PSK
+browser (user decision, possible later). Transmit came the same day (see
+"Transmit" below).
 
 - **Our own demodulators, nothing vendored** (`Sources/FTX1Digi/`, a
   separate product so the iPhone doesn't carry it): fldigi is GPL-3 and
@@ -2443,7 +2444,9 @@ strip, not a multi-signal PSK browser (user decision, possible later).
     decision (each tone clipped to its own envelope, sliced halfway
     between the envelopes), framed from the start bit's mark→space edge
     with each bit integrated over its middle half, dropped unless start =
-    space and stop = mark. Mark is the *lower* audio tone unless Reverse.
+    space and stop = mark. The demodulator takes `reverse` literally (off
+    = mark is the lower tone); callers pass the sideband-aware value (see
+    "Polarity" below).
     Quality = average |m − s|/(m + s) mapped from 0.35…0.7 to 0…1 —
     noise alone measured 0.2–0.4, RTTY at 0 dB SNR ≥ 0.55 (an SNR-style
     envelope/noise-floor ratio read ~0.8 on pure noise and was dropped).
@@ -2486,10 +2489,58 @@ strip, not a multi-signal PSK browser (user decision, possible later).
   windows can both decode the WebSDR without fighting over its mute.
   `CWAudioChannel` moved to FTX1Core as `ReceiveAudioChannel` (typealias
   kept).
-- Not yet done: decoding on the air (MAIN in RTTY mode and DATA-U, SUB,
-  a swap, WebSDR with the CW window open too) and a CPU check against
-  live audio (the decoder itself ran ~30 s of audio in ~0.04 s in a Debug
-  `swift test`).
+- **Polarity** (`RTTYSettings.effectiveReverse(upperSideband:)`/
+  `tones(centerHz:upperSideband:)`): normal RTTY puts mark on the higher
+  RF frequency, which is the lower audio tone on LSB / the rig's RTTY
+  mode and the higher one on USB / DATA-U (`RigMode.isUpperSidebandAudio`).
+  Effective reverse = Reverse XOR upper sideband, for the decoder (the
+  selected receiver's mode; WebSDR = as set) and the transmitter (the
+  transmitting side's mode), so Reverse only means "this station sends
+  upside down". `DigiReceiver` rebuilds the RTTY decoder when a sideband
+  change flips it.
+- **Transmit** (user decisions: RTTY as AFSK audio in DATA-U/USB/LSB, not
+  the rig's FSK keying; live typeahead; 3-minute limit):
+  - `RTTYModulator` (phase-continuous AFSK, 0.5 s mark + LTRS lead, LTRS
+    idle, LTRS + 0.2 s mark tail; FIGS again after every space for USOS
+    receivers) and `PSKModulator` (cosine-shaped reversals, 32-symbol
+    reversal preamble and idle, 32-symbol carrier tail) pull characters
+    at each character boundary; round-trip tested through the
+    demodulators (`ModulatorTests`).
+  - `DigiSender` (FTX1Digi, `lazy var digiSender` on `HubService`) over
+    `DigiTransmitLink` (`HubService+DigiTransmitLink.swift`): TX keys
+    (`send(.setPTT(true))`, so the gate and scan stop apply) and sends
+    the box's text as it's typed, idling when it's empty; RX sends the
+    rest + tail, waits for the audio ahead to play out (lead + 0.3 s),
+    then unkeys; Stop unkeys at once and drops unsent text. Audio is
+    generated 20 ms at a time, 250 ms ahead of real time. It goes out on
+    the receiver's tracked frequency (after AFC) with its mode/shift/baud.
+    Stops on: the gate closing, PTT reading off > 1 s (after a 2 s grace),
+    the 3-minute limit, closing the window (acts as RX). Refused while the
+    rig is keyed by anything else, outside DATA-U/USB/LSB, or in Local
+    mode with no Transmit audio output. `DigiSenderTests` (fake link +
+    clock) cover pacing, the drain, Stop, the limit, the gate and PTT loss.
+  - Audio: `HubService.routeTXAudio` (split out of `handleTXAudio`), the
+    iPad microphone's path — Settings → Audio → Transmit audio output in
+    Local mode, the Pi's `ftx1-txaudio` in Remote mode. It doesn't look at
+    `rigState.ptt` (a stray poll mustn't restart the sink); iPad frames
+    are dropped while this sender transmits.
+  - The window: `DigiSendPane` under the receive part (`VSplitView`):
+    TX (⌘T) / RX (⌘R) / Stop (Esc), elapsed vs 3:00, Level (dBFS peak,
+    `digi.txLevelDb`, default −6), Their call, macros (`DigiMacro`,
+    `digi.macros`; `{MYCALL}`/`{MYGRID}`/`{CALL}`, `{TX}` first keys,
+    `{RX}` last returns to receive), and the typeahead box (`NSTextView`:
+    sent text greyed and locked). Sent characters echo into the decoded
+    text in red (`DigiReceiver.runs`, `DigiTextRun`); callsigns in received
+    text fill Their call (`CWCallsigns`, matched on the uppercased text).
+  - MOD SOURCE check: the status line warns when the transmitting mode's
+    MOD SOURCE (DATA EX010413, SSB EX010113) is MIC or Bluetooth.
+- Not yet done: anything on the air — receive (MAIN in RTTY mode and
+  DATA-U, SUB, a swap, WebSDR with the CW window open) and transmit
+  (dummy load first: MOD SOURCE, USB MOD GAIN/ALC at the default level,
+  Local and Remote, start and tail not clipped, another receiver decoding
+  it on DATA-U and LSB, the Pi's 0.5 s re-key grace after a quick
+  RX → TX). Also a CPU check against live audio (the decoder ran ~30 s of
+  audio in ~0.04 s in a Debug `swift test`).
 
 ## Logbook — MacLoggerDX (started 2026-10-07)
 

@@ -119,6 +119,7 @@ struct FTX1RemoteMacApp: App {
             DigiWindowView()
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.digiReceiver)
+                .environmentObject(appDelegate.hub.digiSender)
                 .environmentObject(appDelegate.hub.webSDRSource)
                 .appTheme()
         }

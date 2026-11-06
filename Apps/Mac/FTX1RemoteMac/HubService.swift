@@ -322,6 +322,14 @@ final class HubService: ObservableObject {
         receiver.onSourceChanged = { [weak self] in self?.webSDRSource.update() }
         return receiver
     }()
+    /// Tools → RTTY/PSK's sender (live typeahead, AFSK/PSK audio through
+    /// `routeTXAudio`). `lazy` so it can be handed `self`.
+    lazy var digiSender: DigiSender = {
+        let sender = DigiSender(link: self, receiver: digiReceiver, logSubsystem: "com.ftx1remote.mac")
+        sender.onEcho = { [weak self] text in self?.digiReceiver.appendTransmitted(text) }
+        sender.onStateChanged = { [weak self] state in self?.digiReceiver.setSenderActive(state != .idle) }
+        return sender
+    }()
     /// Tools → RTTY/PSK's decoder, fed like `cwReceiver` (both taps
     /// unconditionally; it keeps the selected channel and drops everything
     /// while its window is closed). `lazy` to register with `webSDRSource`.
@@ -797,13 +805,25 @@ final class HubService: ObservableObject {
     /// One frame of a remote client's microphone, already checked to come
     /// from the PTT holder. Dropped unless the rig is keyed by the app —
     /// a press the transmit gate refused keys nothing, so there's nothing
-    /// to send audio to.
+    /// to send audio to — and while the RTTY/PSK window is sending (the
+    /// two would mix).
     private func handleTXAudio(_ pcm: Data) {
+        guard !digiSender.isTransmitting else { return }
         guard rigState.ptt else {
             // Unkeyed some other way (front panel, a poll): drop the sink.
             if txAudioRemote != nil || txAudioPlaybackRunning { endTXAudio() }
             return
         }
+        routeTXAudio(pcm)
+    }
+
+    /// Sends 8 kHz transmit audio to the rig: the Transmit audio output
+    /// device in Local mode, the Pi's TX audio service in Remote mode.
+    /// Starts the sink on the first frame; `endTXAudio` (at unkey) stops
+    /// it. Unlike `handleTXAudio`, doesn't look at `rigState.ptt`: the
+    /// RTTY/PSK sender keys first and watches PTT itself, and a single
+    /// stray "not keyed" poll mustn't restart the sink mid-transmission.
+    func routeTXAudio(_ pcm: Data) {
         armTXAudioWatchdog()
         switch RigctldSettings.activeConnectionMode {
         case .local:
@@ -865,6 +885,8 @@ final class HubService: ObservableObject {
     func stop() {
         // First: unkeys and closes the keying port before anything else.
         straightKey.shutdown()
+        // Unkeys while the rigctld link is still up.
+        digiSender.stop()
         wavelogRadio.stop()
         wavelogTuner.stop()
         stopRigctld()

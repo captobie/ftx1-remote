@@ -1,8 +1,12 @@
 import Foundation
 
 /// RTTY settings. The centre is the audio frequency halfway between the
-/// two tones; with Reverse off the mark is the lower audio tone (what LSB
-/// or the rig's RTTY-L mode produces from a normal RTTY signal).
+/// two tones. Normal RTTY puts mark on the higher RF frequency, which on a
+/// lower sideband (LSB, the rig's RTTY mode) is the lower audio tone and
+/// on an upper sideband (USB, DATA-U) the higher one; `reverse` is for a
+/// station sending the other way round. The demodulator itself takes
+/// `reverse` literally (off = mark is the lower tone) — callers pass
+/// `effectiveReverse(upperSideband:)`.
 public struct RTTYSettings: Equatable, Sendable {
     public static let shifts: [Double] = [170, 200, 425, 850]
     public static let bauds: [Double] = [45.45, 50, 75]
@@ -11,6 +15,20 @@ public struct RTTYSettings: Equatable, Sendable {
     public var baud: Double = 45.45
     public var reverse = false
     public var unshiftOnSpace = true
+
+    /// Whether mark is the higher audio tone, for audio from (or to) a
+    /// receiver on an upper sideband or not.
+    public func effectiveReverse(upperSideband: Bool) -> Bool {
+        reverse != upperSideband
+    }
+
+    /// The audio tones for a centre frequency, as sent or expected.
+    public func tones(centerHz: Double, upperSideband: Bool) -> (markHz: Double, spaceHz: Double) {
+        let half = shiftHz / 2
+        return effectiveReverse(upperSideband: upperSideband)
+            ? (centerHz + half, centerHz - half)
+            : (centerHz - half, centerHz + half)
+    }
 
     public init(shiftHz: Double = 170, baud: Double = 45.45, reverse: Bool = false, unshiftOnSpace: Bool = true) {
         self.shiftHz = shiftHz
