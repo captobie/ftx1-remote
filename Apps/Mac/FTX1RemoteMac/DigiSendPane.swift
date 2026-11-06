@@ -12,6 +12,8 @@ import SwiftUI
 struct DigiSendPane: View {
     @EnvironmentObject private var sender: DigiSender
     @State private var isEditingMacros = false
+    /// The last Lookup's outcome, until Their call changes.
+    @State private var lookupNote: DigiLookupNote?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,7 +23,7 @@ struct DigiSendPane: View {
             Divider()
             DigiTypeaheadView(sender: sender)
             Divider()
-            DigiSendStatus()
+            DigiSendStatus(lookupNote: lookupNote)
         }
         .sheet(isPresented: $isEditingMacros) {
             DigiMacroEditor(macros: $sender.macros)
@@ -83,6 +85,7 @@ struct DigiSendPane: View {
 
     private var macroRow: some View {
         HStack(spacing: 8) {
+            DigiLookupButton(note: $lookupNote)
             TextField("common.theirCall", text: $sender.theirCall)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(.body, design: .monospaced))
@@ -90,6 +93,7 @@ struct DigiSendPane: View {
                 .onChange(of: sender.theirCall) { _, new in
                     let uppercased = new.uppercased()
                     if uppercased != new { sender.theirCall = uppercased }
+                    lookupNote = nil
                 }
             ForEach(Array(sender.macros.enumerated()), id: \.element.id) { index, macro in
                 Button(macro.label) {
@@ -130,16 +134,91 @@ private struct DigiTransmitStateLabel: View {
     }
 }
 
-/// Why TX is refused, the last stop's reason, or the MOD SOURCE warning.
-/// Its own view: it observes `hub` for the transmit gate.
+/// What the last Lookup did, shown in the status line.
+struct DigiLookupNote: Equatable {
+    var text: String
+    var isProblem: Bool
+}
+
+/// Asks the logbook to look Their call up, as the CW window's Lookup
+/// does (`QSOLogger.lookUp`: MacLoggerDX, through WSJT-X's Status
+/// message), with the rig's transmitting frequency and this window's mode
+/// (RTTY, PSK31, PSK63) rather than the rig's DATA-U/USB. Its own view: it
+/// observes `hub` for the frequency.
+private struct DigiLookupButton: View {
+    @EnvironmentObject private var hub: HubService
+    @EnvironmentObject private var sender: DigiSender
+    @EnvironmentObject private var receiver: DigiReceiver
+    @Binding var note: DigiLookupNote?
+
+    var body: some View {
+        Button {
+            lookUp()
+        } label: {
+            Label("cwLogPane.lookup", systemImage: "magnifyingglass")
+        }
+        .labelStyle(.titleAndIcon)
+        .help("cwLogPane.lookThisCallUp")
+        .disabled(call.isEmpty)
+    }
+
+    private var call: String {
+        sender.theirCall.trimmingCharacters(in: .whitespaces).uppercased()
+    }
+
+    /// The mode name MacLoggerDX shows (WSJT-X's Status carries free text).
+    private var modeName: String {
+        switch receiver.mode {
+        case .rtty: "RTTY"
+        case .bpsk31: "PSK31"
+        case .bpsk63: "PSK63"
+        }
+    }
+
+    /// Needs the rig: MacLoggerDX ignores a lookup at 0 Hz (see the CW
+    /// window's `CWLogPane.lookUp`).
+    private func lookUp() {
+        let call = call
+        guard !call.isEmpty else { return }
+        guard hub.connectionState == .connected,
+              let frequencyHz = hub.rigState.transmitter.frequencyHz, frequencyHz > 0 else {
+            note = DigiLookupNote(text: String(localized: "cwLogPane.connectToTheRig"), isProblem: true)
+            return
+        }
+        let mode = modeName
+        Task {
+            if let problem = await QSOLogger.lookUp(call: call, dialFrequencyHz: frequencyHz, mode: mode) {
+                note = DigiLookupNote(text: problem, isProblem: true)
+            } else {
+                note = DigiLookupNote(
+                    text: String(localized: "digiSendPane.lookingUp \(call) \(LogbookSettings.logger.displayName)"),
+                    isProblem: false
+                )
+            }
+        }
+    }
+}
+
+/// Why TX is refused, the last stop's reason, the MOD SOURCE warning, or
+/// what Lookup did. Its own view: it observes `hub` for the transmit gate.
 private struct DigiSendStatus: View {
     @EnvironmentObject private var hub: HubService
     @EnvironmentObject private var sender: DigiSender
     @State private var modSourceWarning: String?
+    let lookupNote: DigiLookupNote?
 
     var body: some View {
         HStack(spacing: 8) {
-            if let line {
+            // The Lookup's outcome is the newest thing the operator did:
+            // it shows until Their call changes.
+            if let lookupNote {
+                if lookupNote.isProblem {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                }
+                Text(lookupNote.text)
+                    .lineLimit(2)
+            } else if let line {
                 Image(systemName: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
                 Text(line)

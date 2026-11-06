@@ -4453,6 +4453,29 @@
         }
       }
     },
+    "digiSendPane.lookingUp %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ wird in %2$@ nachgeschlagen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looking up %@ in %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscando %1$@ en %2$@"
+          }
+        }
+      }
+    },
     "digiSendPane.macrosHelp" : {
       "extractionState" : "manual",
       "localizations" : {
