@@ -41,12 +41,16 @@ struct MemoryScanButtons: View {
 
             // Same command again on a paused scan = resume past the busy
             // channel (rig-confirmed on the Mac, 2026-10-06). Upward: the
-            // iPad only starts upward scans.
-            Button("common.skip") {
-                if let side = activeSide { send(.setMemoryScan(.up, side: side)) }
+            // iPad only starts upward scans. Shown only while a scan runs:
+            // the rest of the time it was a permanently dead button in a
+            // crowded row.
+            if let side = activeSide {
+                Button("common.skip") {
+                    send(.setMemoryScan(.up, side: side))
+                }
+                .buttonStyle(.bordered)
+                .disabled(!isConnected || state.memoryScan != .paused)
             }
-            .buttonStyle(.bordered)
-            .disabled(!isConnected || state.memoryScan != .paused)
         }
         // A longer translation ("Überspringen") would otherwise squeeze
         // these to one letter per line; PTT next to them gives way instead.

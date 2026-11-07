@@ -151,7 +151,7 @@ struct CWPaneButton: View {
         } label: {
             Text("CW")
                 .fontWeight(isShowing ? .bold : .regular)
-                .foregroundStyle(isShowing ? Color.white : Color.primary)
+                .foregroundStyle(isShowing ? AnyShapeStyle(Color.white) : AnyShapeStyle(.tint))
         }
         .tint(isShowing ? .accentColor : nil)
         .accessibilityLabel(isShowing ? "common.hideTheCwDecoder" : "common.showTheCwDecoder")

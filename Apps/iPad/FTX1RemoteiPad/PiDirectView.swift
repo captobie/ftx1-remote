@@ -298,39 +298,45 @@ struct PiDirectView: View {
     private var rigButtons: some View {
         let state = viewModel.rigState
         let scanning = state.memoryScan == .scanning || state.memoryScan == .paused
-        return HStack(spacing: 8) {
+        // Three groups: the CW pane, memory (scan, V/M), and routing
+        // (split, swap, audio channels), with a wider gap between them.
+        return HStack(spacing: 16) {
             CWPaneButton(isShowing: $showingCW, aprsListKind: $aprsListKind)
 
-            MemoryScanButtons(state: state, isConnected: true, send: viewModel.send)
+            HStack(spacing: 8) {
+                MemoryScanButtons(state: state, isConnected: true, send: viewModel.send)
 
-            // Against `.vfo`, not `.memory`, as on the Mac: the rig's other
-            // channel modes (PMS, 5 MHz band...) must exit to VFO too.
-            Button {
-                viewModel.send(.setVFOMemoryMode(memory: state.vfoMemoryMode == .vfo))
-            } label: {
-                Text("V/M")
-                    .fontWeight(state.vfoMemoryMode == .vfo ? .regular : .bold)
+                // Against `.vfo`, not `.memory`, as on the Mac: the rig's other
+                // channel modes (PMS, 5 MHz band...) must exit to VFO too.
+                Button {
+                    viewModel.send(.setVFOMemoryMode(memory: state.vfoMemoryMode == .vfo))
+                } label: {
+                    Text("V/M")
+                        .fontWeight(state.vfoMemoryMode == .vfo ? .regular : .bold)
+                }
+                .disabled(scanning || state.vfoMemoryMode == nil)
             }
-            .disabled(scanning || state.vfoMemoryMode == nil)
 
-            SplitButtons(state: state, send: viewModel.send, quickSplit: viewModel.quickSplit)
+            HStack(spacing: 8) {
+                SplitButtons(state: state, send: viewModel.send, quickSplit: viewModel.quickSplit)
 
-            Button {
-                viewModel.send(.swapActiveVFO)
-            } label: {
-                Image(systemName: "arrow.left.arrow.right")
+                Button {
+                    viewModel.send(.swapActiveVFO)
+                } label: {
+                    Image(systemName: "arrow.left.arrow.right")
+                }
+                .disabled(scanning)
+                .accessibilityLabel("common.swapMainAndSub")
+
+                Button {
+                    viewModel.toggleAudioChannelsSwapped()
+                } label: {
+                    Image(systemName: "hifispeaker.2")
+                        .foregroundStyle(viewModel.audioChannelsSwapped ? AnyShapeStyle(Color.white) : AnyShapeStyle(.tint))
+                }
+                .tint(viewModel.audioChannelsSwapped ? .orange : nil)
+                .accessibilityLabel(viewModel.audioChannelsSwapped ? "common.audioChannelsSwappedTap" : "common.swapAudioChannels")
             }
-            .disabled(scanning)
-            .accessibilityLabel("common.swapMainAndSub")
-
-            Button {
-                viewModel.toggleAudioChannelsSwapped()
-            } label: {
-                Image(systemName: "hifispeaker.2")
-                    .foregroundStyle(viewModel.audioChannelsSwapped ? Color.white : Color.primary)
-            }
-            .tint(viewModel.audioChannelsSwapped ? .orange : nil)
-            .accessibilityLabel(viewModel.audioChannelsSwapped ? "common.audioChannelsSwappedTap" : "common.swapAudioChannels")
         }
         .buttonStyle(.bordered)
         // Natural width, one line: with longer translations the row is
