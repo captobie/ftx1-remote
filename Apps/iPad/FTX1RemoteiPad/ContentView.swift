@@ -270,7 +270,7 @@ struct HubControlView: View {
             Button {
                 viewModel.send(.setAudioChannelsSwapped(!audioSwapped))
             } label: {
-                Image(systemName: "speaker.wave.2")
+                Image(systemName: "hifispeaker.2")
                     .foregroundStyle(audioSwapped ? Color.white : Color.primary)
             }
             .tint(audioSwapped ? .orange : nil)

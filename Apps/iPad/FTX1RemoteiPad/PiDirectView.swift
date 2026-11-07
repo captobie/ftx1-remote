@@ -326,7 +326,7 @@ struct PiDirectView: View {
             Button {
                 viewModel.toggleAudioChannelsSwapped()
             } label: {
-                Image(systemName: "speaker.wave.2")
+                Image(systemName: "hifispeaker.2")
                     .foregroundStyle(viewModel.audioChannelsSwapped ? Color.white : Color.primary)
             }
             .tint(viewModel.audioChannelsSwapped ? .orange : nil)
