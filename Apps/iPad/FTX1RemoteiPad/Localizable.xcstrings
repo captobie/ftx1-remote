@@ -2487,6 +2487,29 @@
         }
       }
     },
+    "memoryScanButtons.needsMemoryMode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan braucht den Speichermodus (V/M)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan needs Memory mode (use V/M)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explorar requiere el modo memoria (V/M)"
+          }
+        }
+      }
+    },
     "memoryScanButtons.stop %@" : {
       "extractionState" : "manual",
       "localizations" : {

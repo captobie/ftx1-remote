@@ -32,11 +32,18 @@ struct MemoryScanButtons: View {
                         Button("common.scanX \(side.displayName)") { send(.setMemoryScan(.up, side: side)) }
                             .disabled(!state.canStartMemoryScan(on: side))
                     }
+                    // Scan used to disable itself, a dark-on-dark pill with no
+                    // reason; it stays tappable and says what it needs.
+                    if !FilterSide.allCases.contains(where: { state.canStartMemoryScan(on: $0) }) {
+                        Divider()
+                        Button("memoryScanButtons.needsMemoryMode") {}
+                            .disabled(true)
+                    }
                 } label: {
                     Text("common.scan")
                 }
                 .buttonStyle(.bordered)
-                .disabled(!isConnected || !FilterSide.allCases.contains { state.canStartMemoryScan(on: $0) })
+                .disabled(!isConnected)
             }
 
             // Same command again on a paused scan = resume past the busy
