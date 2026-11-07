@@ -104,29 +104,9 @@ struct HubControlView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    if viewModel.connectionState != .connected {
-                        RecentHostField(placeholder: String(localized: "content.desktopHostnameTailscale"), host: $host, recentHosts: $recentHosts.recentHostList)
-                    }
-                    connectButton
-                    if viewModel.connectionState == .connected {
-                        PTTButton(
-                            isTransmitting: viewModel.isTransmitting || viewModel.rigState.ptt,
-                            blockReason: transmitBlockReason,
-                            onPress: viewModel.startTransmit,
-                            onRelease: viewModel.stopTransmit
-                        )
-                        transmitEnabledIndicator
-                        Spacer()
-                        rigButtons
-                    }
-                }
-                .zIndex(1)
-                .onChange(of: viewModel.connectionState) { _, state in
-                    if state == .connected {
-                        recentHosts = RecentHosts.encode(RecentHosts.remember(host, in: RecentHosts.decode(recentHosts)))
-                    }
-                }
+                // Once connected the row lives in the pinned bar below, so
+                // PTT stays on screen while the grid scrolls.
+                if viewModel.connectionState != .connected { topRow }
 
                 if let problem = viewModel.transmitProblem {
                     Text(problem)
@@ -193,10 +173,46 @@ struct HubControlView: View {
             }
             .padding(32)
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if viewModel.connectionState == .connected {
+                topRow
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 8)
+                    .background(.bar)
+            }
+        }
+        .onChange(of: viewModel.connectionState) { _, state in
+            if state == .connected {
+                recentHosts = RecentHosts.encode(RecentHosts.remember(host, in: RecentHosts.decode(recentHosts)))
+            }
+        }
         // A press can't be released from the background; don't stay keyed.
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { viewModel.stopTransmit() }
         }
+    }
+
+    /// Connection, PTT, lock and the rig buttons. Scrolls with the page
+    /// while disconnected (host field); pinned above it once connected.
+    private var topRow: some View {
+        HStack {
+            if viewModel.connectionState != .connected {
+                RecentHostField(placeholder: String(localized: "content.desktopHostnameTailscale"), host: $host, recentHosts: $recentHosts.recentHostList)
+            }
+            connectButton
+            if viewModel.connectionState == .connected {
+                PTTButton(
+                    isTransmitting: viewModel.isTransmitting || viewModel.rigState.ptt,
+                    blockReason: transmitBlockReason,
+                    onPress: viewModel.startTransmit,
+                    onRelease: viewModel.stopTransmit
+                )
+                transmitEnabledIndicator
+                Spacer()
+                rigButtons
+            }
+        }
+        .zIndex(1)
     }
 
     /// The Mac's Enable Transmit, where the Pi-direct screen has its own
@@ -213,6 +229,7 @@ struct HubControlView: View {
                 .foregroundStyle(enabled ? Color.white : Color.primary)
         }
         .buttonStyle(.bordered)
+        .controlSize(.large)
         .tint(enabled ? .red : nil)
         .accessibilityLabel(enabled ? "content.transmitEnabledOnThe" : "content.transmitDisabledOnThe")
     }
@@ -297,7 +314,7 @@ struct HubControlView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .frame(minHeight: 48)
                 .background(viewModel.connectionState == .connected ? Color.green : Color.red)
                 .foregroundStyle(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 6))

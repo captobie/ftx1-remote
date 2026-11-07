@@ -71,34 +71,9 @@ struct PiDirectView: View {
             VStack(alignment: .leading, spacing: 16) {
                 if isDemo { DemoBanner() }
 
-                HStack {
-                    if viewModel.connectionState != .connected && !isDemo {
-                        RecentHostField(placeholder: String(localized: "common.piHostnameTailscale"), host: $host, recentHosts: $recentHosts.recentHostList)
-                        TextField("piDirect.wpsdHotspotOptionalC4fm", text: $wpsdHost)
-                            .textFieldStyle(.roundedBorder)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                    }
-                    connectButton
-                    if viewModel.connectionState == .connected {
-                        PTTButton(
-                            isTransmitting: viewModel.isTransmitting || viewModel.rigState.ptt,
-                            blockReason: viewModel.transmitBlockReason,
-                            onPress: viewModel.startTransmit,
-                            onRelease: viewModel.stopTransmit
-                        )
-                        transmitEnableButton
-                        Spacer()
-                        rigButtons
-                    }
-                }
-                .zIndex(1)
-                .onChange(of: viewModel.connectionState) { _, state in
-                    // The demo connects to loopback ports, not `host`.
-                    if state == .connected && !isDemo {
-                        recentHosts = RecentHosts.encode(RecentHosts.remember(host, in: RecentHosts.decode(recentHosts)))
-                    }
-                }
+                // Once connected the row lives in the pinned bar below, so
+                // PTT stays on screen while the grid scrolls.
+                if viewModel.connectionState != .connected { topRow }
 
                 if !isDemo, viewModel.connectionState == .disconnected {
                     demoButton
@@ -122,10 +97,51 @@ struct PiDirectView: View {
             }
             .padding(32)
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if viewModel.connectionState == .connected {
+                topRow
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 8)
+                    .background(.bar)
+            }
+        }
+        .onChange(of: viewModel.connectionState) { _, state in
+            // The demo connects to loopback ports, not `host`.
+            if state == .connected && !isDemo {
+                recentHosts = RecentHosts.encode(RecentHosts.remember(host, in: RecentHosts.decode(recentHosts)))
+            }
+        }
         // A press can't be released from the background; don't stay keyed.
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { viewModel.stopTransmit() }
         }
+    }
+
+    /// Connection, PTT, lock and the rig buttons. Scrolls with the page
+    /// while disconnected (host fields); pinned above it once connected.
+    private var topRow: some View {
+        HStack {
+            if viewModel.connectionState != .connected && !isDemo {
+                RecentHostField(placeholder: String(localized: "common.piHostnameTailscale"), host: $host, recentHosts: $recentHosts.recentHostList)
+                TextField("piDirect.wpsdHotspotOptionalC4fm", text: $wpsdHost)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+            connectButton
+            if viewModel.connectionState == .connected {
+                PTTButton(
+                    isTransmitting: viewModel.isTransmitting || viewModel.rigState.ptt,
+                    blockReason: viewModel.transmitBlockReason,
+                    onPress: viewModel.startTransmit,
+                    onRelease: viewModel.stopTransmit
+                )
+                transmitEnableButton
+                Spacer()
+                rigButtons
+            }
+        }
+        .zIndex(1)
     }
 
     /// This route's Enable Transmit: locked (gray) blocks PTT; unlocked
@@ -138,6 +154,7 @@ struct PiDirectView: View {
                 .foregroundStyle(viewModel.transmitEnabled ? Color.white : Color.primary)
         }
         .buttonStyle(.bordered)
+        .controlSize(.large)
         .tint(viewModel.transmitEnabled ? .red : nil)
         .accessibilityLabel(viewModel.transmitEnabled ? "common.transmitEnabledTapTo" : "common.transmitDisabledTapTo")
     }
@@ -358,7 +375,7 @@ struct PiDirectView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .frame(minHeight: 48)
                 .background(Color.yellow)
                 .foregroundStyle(Color.black)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -379,7 +396,7 @@ struct PiDirectView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .frame(minHeight: 48)
                 .background(buttonColor)
                 .foregroundStyle(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 6))

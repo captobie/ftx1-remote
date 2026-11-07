@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// Hold-to-talk PTT for the top row of both iPad screens, right of the
-/// Connected button and the same size: same font, padding and corner
-/// radius, and a hidden "Connected" behind the label so the width matches
-/// too. Keys on touch-down and unkeys on release — the `DragGesture`
+/// Connected button: the same width (a hidden "Connected" behind the
+/// label) but taller, 48 pt, since it's the control that must be easy to
+/// hit and hold. Keys on touch-down and unkeys on release — the `DragGesture`
 /// pattern the hub screen's old full-width PTT used.
 ///
 /// `blockReason` non-nil: dimmed and inert (the route's transmit gate
@@ -19,17 +19,23 @@ struct PTTButton: View {
     var body: some View {
         ZStack {
             Text("common.connected").hidden()
-            Text(isTransmitting ? "TX" : "PTT")
+            HStack(spacing: 6) {
+                // Blocked: a lock says so at a glance instead of only dimming.
+                if blockReason != nil && !isTransmitting {
+                    Image(systemName: "lock.fill").imageScale(.small)
+                }
+                Text(isTransmitting ? "TX" : "PTT")
+            }
         }
         .font(.headline)
         .lineLimit(1)
         .minimumScaleFactor(0.7)
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .frame(minHeight: 48)
         .background(isTransmitting ? Color.red : Color.gray.opacity(0.25))
-        .foregroundStyle(isTransmitting ? Color.white : Color.primary)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-        .opacity(blockReason == nil || isTransmitting ? 1 : 0.4)
+        .foregroundStyle(isTransmitting ? Color.white : (blockReason == nil ? Color.primary : Color.secondary))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .opacity(blockReason == nil || isTransmitting ? 1 : 0.7)
         .contentShape(Rectangle())
         .gesture(
             DragGesture(minimumDistance: 0)
