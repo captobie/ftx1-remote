@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-06T00:00:00Z",
+  "title": "Design System: FTX1Remote",
+  "extensions": {
+    "colorMeta": {
+      "lit-green": {"role": "primary", "displayName": "Lit Green", "canonical": "#34C759", "tonalRamp": ["#0B3A1A","#12592A","#1A7A3B","#23A04D","#34C759","#6FDA8C","#A5E8B8","#D6F5DE"]},
+      "tx-orange": {"role": "primary", "displayName": "TX Orange", "canonical": "#FF9500", "tonalRamp": ["#4D2D00","#7A4800","#A36000","#CC7A00","#FF9500","#FFB340","#FFCE80","#FFE7BF"]},
+      "signal-red": {"role": "primary", "displayName": "Signal Red", "canonical": "#FF3B30", "tonalRamp": ["#4D0B07","#7A130E","#A31C14","#CC261B","#FF3B30","#FF7068","#FFA09B","#FFD0CD"]},
+      "display-black": {"role": "neutral", "displayName": "Display Black", "canonical": "#000000", "tonalRamp": ["#000000","#0B0B0C","#161719","#222428","#2E3035","#41444A","#5A5E66","#8E8E93"]}
+    },
+    "typographyMeta": {
+      "vfo-digits": {"displayName": "VFO Digits", "purpose": "The frequency; fixed size, never scaled."},
+      "callsign": {"displayName": "Callsign", "purpose": "Decoded callsign beside the frequency."},
+      "readout": {"displayName": "Readout", "purpose": "Meter values."}
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "VFO Box",
+      "kind": "custom",
+      "refersTo": "vfo-box",
+      "description": "Dark instrument panel with tags, callsign and lit frequency.",
+      "html": "<div class=\"ds-vfo\"><div class=\"ds-vfo-tags\"><span class=\"ds-tag\">MAIN</span><span class=\"ds-tag ds-tag-tx\">TXRX</span></div><div class=\"ds-vfo-row\"><span class=\"ds-call\">W1AW</span><span class=\"ds-freq\">14.047.500</span></div></div>",
+      "css": ".ds-vfo{background:#000;border:1px solid rgba(52,199,89,.7);border-radius:8px;padding:10px 14px;width:360px;font-family:ui-monospace,Menlo,monospace}.ds-vfo-tags{display:flex;gap:6px;margin-bottom:6px}.ds-tag{font:10px system-ui;color:#8e8e93;border:1px solid rgba(142,142,147,.5);border-radius:3px;padding:1px 4px}.ds-tag-tx{background:#ff9500;color:#fff;border-color:transparent}.ds-vfo-row{display:flex;justify-content:space-between;align-items:baseline}.ds-call{font-size:24px;font-weight:600;color:#6fb4ff}.ds-freq{font-size:36px;font-weight:600;color:#34c759}"
+    },
+    {
+      "name": "Bar S-Meter",
+      "kind": "custom",
+      "refersTo": "meter-panel",
+      "description": "Segmented lit bar with a monospaced readout.",
+      "html": "<div class=\"ds-meter\"><div class=\"ds-bar\"><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i></i><i></i><i class=\"hot\"></i></div><span class=\"ds-read\">S7</span></div>",
+      "css": ".ds-meter{background:#000;border-radius:6px;padding:6px 8px;display:flex;gap:10px;align-items:center;width:240px}.ds-bar{display:flex;gap:2px;flex:1}.ds-bar i{flex:1;height:12px;border-radius:1px;background:rgba(52,199,89,.15)}.ds-bar i.on{background:#34c759}.ds-bar i.hot{background:rgba(255,59,48,.15)}.ds-read{font:600 13px ui-monospace,Menlo,monospace;color:#fff}"
+    },
+    {
+      "name": "Menu Grid Button",
+      "kind": "button",
+      "refersTo": "tag",
+      "description": "Two-line key: function name over its current setting.",
+      "html": "<button class=\"ds-key\"><span>BK-IN</span><b>ON</b></button>",
+      "css": ".ds-key{display:flex;flex-direction:column;gap:2px;padding:6px 12px;border:1px solid rgba(142,142,147,.4);border-radius:6px;background:rgba(142,142,147,.15);color:inherit;font:11px system-ui}.ds-key b{font:600 12px ui-monospace,Menlo,monospace;color:#ff9500}.ds-key:hover{background:rgba(142,142,147,.28)}.ds-key:focus-visible{outline:2px solid #4f8ef0}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Rig Bench",
+    "overview": "A dense operator's console: quiet native chrome around dark, lit instrument readouts. Themes change chrome and VFO box together; iPhone and iPad are dark only.",
+    "keyCharacteristics": ["Native controls, compact spacing", "Monospaced readouts for numbers", "Color carries meaning", "Inactive receivers dim to 45%", "Dense by decision"],
+    "rules": [
+      {"name": "The Lit Means Live Rule", "body": "Saturated color appears only on live readouts, active toggles and state.", "section": "colors"},
+      {"name": "The Dim Not Hide Rule", "body": "A receiver that isn't shown dims to 45% opacity; it never vanishes or reflows the box.", "section": "colors"},
+      {"name": "The Fixed Digits Rule", "body": "Frequency and callsign never scale or flex.", "section": "typography"},
+      {"name": "The English Rig Terms Rule", "body": "Radio labels stay English in every locale.", "section": "typography"},
+      {"name": "The Inset Instrument Rule", "body": "Readouts sit as dark insets in lighter chrome; never raised cards.", "section": "elevation"}
+    ],
+    "dos": ["Do use monospaced type for every number the operator reads.", "Do keep core controls visible together on Mac and iPad.", "Do dim inactive state rather than removing it."],
+    "donts": ["Don't scale or squeeze the frequency or callsign.", "Don't hide primary controls behind tabs on Mac or iPad.", "Don't add drop shadows or raised cards for instruments.", "Don't translate radio terms."]
+  }
+}
