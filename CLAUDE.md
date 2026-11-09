@@ -2717,6 +2717,21 @@ is running and listening.
   responding" toast; Settings shows the last request. Wavelog sends "rtty"
   for most digital spots, FT8 included, so those put the rig in RTTY.
 
+## TUNE button (Mac, 2026-11-09; rig-tested by the user with BK-IN on and off)
+
+User request, for an ATU-100 Plus auto-tuner. A **TUNE** button right of the
+mode picker (`TuneTone`, `lazy var tuneTone` on `HubService`; `TuneButton`
+in `ContentView.swift`): switches MAIN to CW, keys PTT (a plain carrier, no
+audio), and on the next press or after 20 s unkeys and restores the previous
+mode (only if the mode is still CW, so an operator change is kept). Queued
+mode-then-key through `send(_:)`, so the transmit gate and scan stop apply;
+the start check judges the gate as CW. Stops on link loss, Enable Transmit
+off, or PTT unreported >1 s after a 2 s grace. Refused while transmitting or
+with TX:SUB (no split). Power is the rig's RF POWER. An earlier version sent
+a 1 kHz tone through `routeTXAudio` in USB; replaced by this at the user's
+request. Button shows a countdown; it's its own observed view so the
+per-second update doesn't re-render `ContentView`.
+
 ## Split (Mac, 2026-10-31; rig-tested by the user the same day)
 
 User request. A **SPLIT** button between TX:MAIN/SUB and the swap button

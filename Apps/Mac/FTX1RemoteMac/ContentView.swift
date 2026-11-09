@@ -147,6 +147,8 @@ struct ContentView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+
+                TuneButton(tune: hub.tuneTone, blockReason: hub.tuneTone.blockReason)
             }
 
             // Filter block: the rig's MAIN-knob function-menu controls in
@@ -693,4 +695,36 @@ private extension VerticalAlignment {
     }
 
     static let scopeButtonsTop = VerticalAlignment(ScopeButtonsTop.self)
+}
+
+
+/// TUNE: keys a tone for an external auto-tuner (ATU-100 Plus); press again
+/// to stop. Its own view so the per-second countdown re-renders only this
+/// button, not `ContentView`.
+private struct TuneButton: View {
+    @ObservedObject var tune: TuneTone
+    let blockReason: String?
+
+    var body: some View {
+        Button {
+            tune.toggle()
+        } label: {
+            Text(tune.isTuning ? "TUNE \(tune.secondsLeft)" : "TUNE")
+                .font(.caption)
+                .fontWeight(tune.isTuning ? .bold : .regular)
+                .monospacedDigit()
+        }
+        .buttonStyle(ThemedButtonStyle(isOn: tune.isTuning, prominentWhenOn: true))
+        .tint(tune.isTuning ? .red : nil)
+        .fixedSize()
+        .disabled(!tune.isTuning && blockReason != nil)
+        .help(helpText)
+    }
+
+    private var helpText: String {
+        if tune.isTuning { return String(localized: "tune.helpStop") }
+        if let reason = blockReason { return reason }
+        if let message = tune.message { return message }
+        return String(localized: "tune.help \(Int(TuneTone.timeout))")
+    }
 }

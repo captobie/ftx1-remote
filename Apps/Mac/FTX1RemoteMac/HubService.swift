@@ -330,6 +330,8 @@ final class HubService: ObservableObject {
         sender.onStateChanged = { [weak self] state in self?.digiReceiver.setSenderActive(state != .idle) }
         return sender
     }()
+    /// The main window's TUNE button: a keyed tone for an external auto-tuner.
+    lazy var tuneTone = TuneTone(hub: self)
     /// Tools → RTTY/PSK's decoder, fed like `cwReceiver` (both taps
     /// unconditionally; it keeps the selected channel and drops everything
     /// while its window is closed). `lazy` to register with `webSDRSource`.
@@ -808,7 +810,7 @@ final class HubService: ObservableObject {
     /// to send audio to — and while the RTTY/PSK window is sending (the
     /// two would mix).
     private func handleTXAudio(_ pcm: Data) {
-        guard !digiSender.isTransmitting else { return }
+        guard !digiSender.isTransmitting, !tuneTone.isTuning else { return }
         guard rigState.ptt else {
             // Unkeyed some other way (front panel, a poll): drop the sink.
             if txAudioRemote != nil || txAudioPlaybackRunning { endTXAudio() }
@@ -887,6 +889,7 @@ final class HubService: ObservableObject {
         straightKey.shutdown()
         // Unkeys while the rigctld link is still up.
         digiSender.stop()
+        tuneTone.stop()
         wavelogRadio.stop()
         wavelogTuner.stop()
         stopRigctld()
