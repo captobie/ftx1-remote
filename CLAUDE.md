@@ -2256,7 +2256,8 @@ pattern as the APRS windows.
 ## Digital modes — CW (decode v1 + send v2, 2026-10-02)
 
 Tools → **CW** opens `Window(id: "cw")` (Mac-only): live CW decoding of the
-rig's MAIN or SUB audio or of the WebSDR window's audio, plus decoding an
+rig's MAIN or SUB audio, of the WebSDR window's audio or of the MyKiwiSDR
+window's (since 2026-11-10, see "Local SDR" phase 4), plus decoding an
 audio file. The decoders come
 from the user's own CWDecode app (`captobie/cwdecode`, public, MIT) — not
 vendored here.
@@ -2429,7 +2430,8 @@ vendored here.
 
 User request. Tools → **RTTY/PSK** opens `Window(id: "digi")`
 (`DigiWindowView`, Mac-only): decodes one RTTY, BPSK31 or BPSK63 signal
-at a time from MAIN, SUB or the WebSDR window's audio, or from a file.
+at a time from MAIN, SUB, the WebSDR window's or the MyKiwiSDR window's
+audio (see "Local SDR" phase 4), or from a file.
 One signal at a time with a click-to-tune strip, not a multi-signal PSK
 browser (user decision, possible later). Transmit came the same day (see
 "Transmit" below).
@@ -2845,7 +2847,7 @@ modes.
   frequency; the lane then saw no change). Writing `RigState.frequencyHz`
   now sets `band` itself (`didSet`; not in `init` or decoding).
 
-## Local SDR (Mac, phase 1, 2026-11-10; client tested live against the user's KiwiSDR, then the window tested by the user the same day: audio, retune/mode change, wrong-password message, channel freed. Phase 2 waterfall the same day: unit- and live-tested, window driven against the Kiwi, then tested by the user, no issues. Phase 3 rig link the same day: unit-tested, then driven in the built app against the rig over the Pi and the Kiwi, incl. keying into a dummy load, then tested by the user, no issues)
+## Local SDR (Mac, phase 1, 2026-11-10; client tested live against the user's KiwiSDR, then the window tested by the user the same day: audio, retune/mode change, wrong-password message, channel freed. Phase 2 waterfall the same day: unit- and live-tested, window driven against the Kiwi, then tested by the user, no issues. Phase 3 rig link the same day: unit-tested, then driven in the built app against the rig over the Pi and the Kiwi, incl. keying into a dummy load, then tested by the user, no issues. Phase 4 decoder source + recording the same day: unit-tested, driven in the built app against the Kiwi, then tested on the air by the user, working as expected)
 
 Shown to the user as **MyKiwiSDR** since 2026-11-10 (menu item and window
 title, key `app.myKiwiSDR`, the same in every language); the code, the
@@ -3051,9 +3053,72 @@ there). Sources checked against: kiwiclient's `kiwi/client.py`, the Kiwi's
     correct, but pick a phone segment when testing in SSB.
     **Not tried**: a real trackpad/mouse wheel (only synthetic scroll and
     AX-pressed buttons, ~30–100 ms apart).
-- **Later phases, not started**: CW and RTTY/PSK sources, recording,
-  following the rig's filter width, draggable passband edges, AGC/noise
-  controls, Sub following, iPad and Windows.
+- **Phase 4, decoder source + Record/Play (2026-11-10; unit-tested, driven
+  in the built app against the Kiwi, then tested on the air by the user the
+  same day, working as expected)**.
+  - **Source**: `ReceiveAudioChannel.myKiwiSDR` (FTX1Core, title
+    "MyKiwiSDR", raw value `myKiwiSDR`) in the CW and RTTY/PSK windows'
+    pickers. `ReceiveAudioChannel.restored(rawValue:offered:)` is the one
+    saved-choice rule (anything not offered → MAIN); `rigReceivers` =
+    MAIN/SUB, which the iPad passes as `channels:` (its CW pane lists only
+    those), so an iPad never shows or restores MyKiwiSDR.
+    `DigiReceiver(channels:)` takes the same parameter.
+  - **Path**: `LocalSDRAudioSource` (Mac, a `let` on `HubService`,
+    `localSDRSource`): `LocalSDRModel` hands it every Kiwi frame *before*
+    the volume/mute (so a muted Kiwi decodes), as Int16 at the reported
+    rate (~11998.9 Hz), only while a consumer wants it (`isWanted`,
+    checked by the model before converting). Consumers register like
+    `WebSDRAudioSource`'s; each receiver's `onSourceChanged` now updates
+    both sources. No tap, no permission. `status` (`.notConnected`/
+    `.receiving`/`.silent` — below −80 dBFS for 3 s) and `mode` publish
+    only on change; the windows show "MyKiwiSDR isn't connected — connect
+    it in Tools → MyKiwiSDR" / "MyKiwiSDR is silent". Selecting the
+    source never opens or connects the Kiwi.
+  - **Mode**: the receivers get the Kiwi's demodulation as a `RigMode`
+    (`setMyKiwiSDRMode`, from `localSDRSource.$mode`, nil while
+    disconnected): the CW window's "is in USB, not CW" note and the
+    RTTY/PSK "not a data mode" note use it, and RTTY's polarity follows
+    its sideband (USB/LSB) as it does the rig's. The Kiwi's CW passband is
+    centred at 500 Hz, not the rig's KP pitch: use Auto-tune, not Rig
+    Pitch. Pause-while-transmitting and RTTY/PSK transmit (the rig's
+    transmitting side) are unchanged.
+  - **Rates**: both decoders resample any rate (CWKit's `AudioResampler`,
+    `DigiResampler`; `AVAudioConverter`, rebuilt only on a rate change).
+    Checked off the air: `KiwiRateTests` (FTX1DigiTests: BPSK31 clean,
+    RTTY at 6 dB SNR, at 11998.902 Hz in 512-sample frames) and a scratch
+    harness through CWKit's `PipelineRunner` (20 WPM "CQ CQ DE W1AW W1AW
+    K" in noise, neural and classic, exact at 11998.9, 8000 and 48000 Hz).
+  - **Recording**: Record/Stop (timer) and Play (Recordings window) in the
+    connection row. `SDRAudioFileWriter`, 16-bit mono WAV, named
+    `AudioRecorder.newRecordingURL` with "<freq> <mode> MyKiwiSDR"
+    (uniquified). The WAV header holds whole Hz, so 11998.9 is written as
+    11998 (0.008% slow, inaudible). **Split rule** (`KiwiRecordingSplit`,
+    FTX1Core, tested): a new file only when the tuning is ≥ 500 Hz from
+    the one the file started at (its name) or the mode changed, *and* that
+    has held 1 s — so scroll-tuning onto a signal or a spun wheel passing
+    through doesn't split, and the second after a real retune ends up at
+    the end of the old file. Window tunes and Follow both count.
+    Disconnect, a dropped connection (`.closed`) and closing the window
+    all save it (`endAudioSession`).
+  - **Seen in the built app** (Kiwi, rig disconnected, then over the Pi):
+    "isn't connected" before connecting and after closing the window;
+    audio reaching the CW decoder while the Kiwi was muted (meters,
+    auto-tune moving); the CW note following the Kiwi (USB → note, CW →
+    none); RTTY/PSK window decoding from the source (only JS8 and noise
+    on 20 m then, so no real text); files saved on Stop, Disconnect and
+    window close, a 7.030 → 7.035 retune splitting ~1 s later, durations
+    matching; MAIN and SUB still feeding the CW decoder (SUB's "is in FM"
+    note). **Not seen**: real CW/PSK/RTTY text decoded from the Kiwi (no
+    signals then — the main thing left to try), `.silent`, a dropped
+    connection, playing the files in the Recordings window, the WebSDR
+    source after the change — the user's on-air test the same day covered
+    decoding from the Kiwi. Fixed with it: the extra segment wrapped
+    the RTTY/PSK window's "Open Audio File…"; both decoder windows' header
+    buttons are `.fixedSize()` now, with min widths 980 (RTTY/PSK) and
+    920 (CW).
+- **Later phases, not started**: FT8/FT4 from MyKiwiSDR, following the
+  rig's filter width, draggable passband edges, AGC/noise controls, Sub
+  following, iPad and Windows.
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 

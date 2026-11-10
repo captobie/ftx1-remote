@@ -33,8 +33,17 @@ import os
 /// while connected, subscribed on connect and cancelled on disconnect.
 /// Mute on TX silences the playback while `rigState.ptt`; while the Kiwi
 /// is audible the rig's Main playback is muted
-/// (`HubService.setMainAudioOverride(.localSDR, …)`). Not yet: decoder
-/// sources, recording, following the rig's filter width.
+/// (`HubService.setMainAudioOverride(.localSDR, …)`).
+///
+/// Decoders and recording (phase 4): every frame, as decoded and before
+/// the volume/mute, goes to `HubService.localSDRSource` while a CW or
+/// RTTY/PSK window has MyKiwiSDR selected (so a muted Kiwi still
+/// decodes), and to the recording's `SDRAudioFileWriter` while Record is
+/// on — 16-bit mono WAV at the Kiwi's rate, one file per frequency
+/// (`KiwiRecordingSplit`: a retune of 500 Hz or more, or a mode change,
+/// that holds for 1 s starts a new file). Disconnect, a dropped connection
+/// and closing the window save the file. Not yet: following the rig's
+/// filter width.
 final class LocalSDRModel: ObservableObject {
     enum State: Equatable {
         case disconnected
@@ -123,6 +132,12 @@ final class LocalSDRModel: ObservableObject {
     /// The last refusal or "not following" reason, for the rig-link line.
     @Published private(set) var rigLinkNote: String?
 
+    @Published private(set) var isRecording = false
+    /// When the current file started (the Stop button's timer).
+    @Published private(set) var segmentStartedAt: Date?
+    /// "Saved …" after a file is finished, for the status line.
+    @Published private(set) var recordingNote: String?
+
     let meter = LocalSDRMeterStore()
     let waterfall = LocalSDRWaterfallStore()
 
@@ -158,6 +173,11 @@ final class LocalSDRModel: ObservableObject {
     private var lastRigSend = ContinuousClock.now - .seconds(1)
     private var trailingRigSend: Task<Void, Never>?
     private var pendingExpiry: Task<Void, Never>?
+
+    private var recorder: SDRAudioFileWriter?
+    private var recordingSplit: KiwiRecordingSplit?
+    private var splitCheck: Task<Void, Never>?
+    private var audioSampleRate: Double?
 
     static let frequencyRange = 10_000...30_000_000
     private static let rigSendInterval = Duration.milliseconds(100)
@@ -230,6 +250,7 @@ final class LocalSDRModel: ObservableObject {
     }
 
     private func closeSession() {
+        endAudioSession()
         stopRigLink()
         if let client {
             Task { await client.stop() }
@@ -248,13 +269,23 @@ final class LocalSDRModel: ObservableObject {
         case .ready(let sampleRate):
             logger.notice("connected, audio at \(sampleRate, privacy: .public) Hz")
             state = .connected(sampleRate: sampleRate)
+            audioSampleRate = sampleRate
+            hub?.localSDRSource.sessionStarted(sampleRate: sampleRate, mode: mode)
             if passwordInUse != LocalSDRPassword.read() {
                 LocalSDRPassword.write(passwordInUse)
             }
             startPlayback(sampleRate: sampleRate)
             startWaterfall()
         case .audio(let chunk):
-            playback?.push(pcm: Self.littleEndianPCM(chunk.samples))
+            let pcm = Self.littleEndianPCM(chunk.samples)
+            playback?.push(pcm: pcm)
+            // Both before the volume/mute: a muted Kiwi still decodes and records.
+            if let recorder, let audioSampleRate {
+                recorder.append(pcm: pcm, sampleRate: audioSampleRate)
+            }
+            if let source = hub?.localSDRSource, source.isWanted {
+                source.deliver(chunk.samples)
+            }
             let now = ContinuousClock.now
             if now - lastMeterPublish >= .milliseconds(100) {
                 lastMeterPublish = now
@@ -262,6 +293,7 @@ final class LocalSDRModel: ObservableObject {
             }
         case .closed(let error):
             client = nil
+            endAudioSession()
             stopRigLink()
             stopWaterfall()
             playback?.stop()
@@ -353,6 +385,8 @@ final class LocalSDRModel: ObservableObject {
         guard changed else { return }
         retune()
         keepPassbandVisible()
+        hub?.localSDRSource.modeChanged(mode)
+        checkRecordingSplit()
     }
 
     /// Retunes the open socket ("SET mod=… freq=…"), no reconnect.
@@ -383,6 +417,93 @@ final class LocalSDRModel: ObservableObject {
         var audible = false
         if case .connected = state { audible = !isMuted }
         hub.setMainAudioOverride(.localSDR, active: audible)
+    }
+
+    // MARK: - Recording
+
+    /// Record while connected; Stop saves the file.
+    func toggleRecording() {
+        if isRecording {
+            stopRecording()
+        } else {
+            guard case .connected = state else { return }
+            isRecording = true
+            recordingNote = nil
+            beginFile()
+        }
+    }
+
+    private var splitTuning: KiwiRecordingSplit.Tuning {
+        KiwiRecordingSplit.Tuning(frequencyHz: frequencyHz, mode: mode)
+    }
+
+    private func beginFile() {
+        recordingSplit = KiwiRecordingSplit(fileTuning: splitTuning)
+        let label = "\(AudioRecorder.label(frequencyHz: frequencyHz, modeName: mode.label)) MyKiwiSDR"
+        let date = Date()
+        var url = AudioRecorder.newRecordingURL(label: label, date: date)
+        var n = 2
+        while FileManager.default.fileExists(atPath: url.path) {
+            url = AudioRecorder.newRecordingURL(label: "\(label) \(n)", date: date)
+            n += 1
+        }
+        recorder = SDRAudioFileWriter(url: url)
+        segmentStartedAt = date
+        logger.notice("recording to \(url.lastPathComponent, privacy: .public)")
+    }
+
+    /// Closes the current file once everything handed over is written.
+    private func finishFile() {
+        guard let recorder else { return }
+        self.recorder = nil
+        Task { [weak self] in
+            let url = await recorder.finish()
+            guard let self else { return }
+            if let url {
+                logger.notice("saved \(url.lastPathComponent, privacy: .public)")
+                recordingNote = String(localized: "localSDR.recording.saved \(url.deletingPathExtension().lastPathComponent)")
+            }
+        }
+    }
+
+    private func stopRecording() {
+        guard isRecording else { return }
+        finishFile()
+        isRecording = false
+        segmentStartedAt = nil
+        recordingSplit = nil
+        splitCheck?.cancel()
+        splitCheck = nil
+    }
+
+    /// After every tune, and again when a pending split has had time to
+    /// settle: starts a new file once a retune has held.
+    private func checkRecordingSplit() {
+        guard isRecording, var split = recordingSplit else { return }
+        splitCheck?.cancel()
+        splitCheck = nil
+        if let tuning = split.update(tuning: splitTuning, now: Self.now) {
+            logger.notice("recording: retuned to \(tuning.frequencyHz) Hz \(tuning.mode.label, privacy: .public), new file")
+            finishFile()
+            beginFile()
+            return
+        }
+        recordingSplit = split
+        guard let next = split.nextCheck else { return }
+        splitCheck = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(0, next - Self.now) + 0.02))
+            guard !Task.isCancelled, let self else { return }
+            splitCheck = nil
+            checkRecordingSplit()
+        }
+    }
+
+    /// The Kiwi's audio stopped (Disconnect, a dropped connection, the
+    /// window closing): the recording is saved and the decoders told.
+    private func endAudioSession() {
+        stopRecording()
+        audioSampleRate = nil
+        hub?.localSDRSource.sessionEnded()
     }
 
     // MARK: - Rig link

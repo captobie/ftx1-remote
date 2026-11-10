@@ -8,6 +8,7 @@ import SwiftUI
 /// `init`, as the WebSDR window does.
 struct LocalSDRWindowView: View {
     @StateObject private var model: LocalSDRModel
+    @Environment(\.openWindow) private var openWindow
 
     init(hub: HubService) {
         _model = StateObject(wrappedValue: LocalSDRModel(hub: hub))
@@ -33,7 +34,7 @@ struct LocalSDRWindowView: View {
             }
             rigLinkRow
             Divider()
-            Text(statusText)
+            Text(verbatim: model.recordingNote.map { "\(statusText) · \($0)" } ?? statusText)
                 .font(.caption)
                 .themedSecondaryForeground()
                 .lineLimit(2)
@@ -76,7 +77,45 @@ struct LocalSDRWindowView: View {
                     .disabled(!model.canConnect)
             }
             Spacer()
+            recordButton
+            // The same Recordings window as the WebSDR window's and the CW
+            // page's PLAY: MyKiwiSDR recordings sit beside the rig's own.
+            Button("localSDR.play", systemImage: "waveform") { openWindow(id: "recordings") }
+                .labelStyle(.titleAndIcon)
+                .buttonStyle(ThemedButtonStyle())
+                .help("localSDR.playHelp")
         }
+    }
+
+    /// Record while connected; Stop (red, with the current file's elapsed
+    /// time) while recording.
+    @ViewBuilder
+    private var recordButton: some View {
+        if model.isRecording {
+            Button(action: model.toggleRecording) {
+                HStack(spacing: 4) {
+                    Image(systemName: "stop.circle.fill")
+                    Text("common.stop")
+                    if let started = model.segmentStartedAt {
+                        Text(started, style: .timer).monospacedDigit()
+                    }
+                }
+            }
+            .buttonStyle(ThemedButtonStyle())
+            .foregroundStyle(.red)
+            .help("localSDR.stopRecordingHelp")
+        } else {
+            Button("localSDR.record", systemImage: "record.circle", action: model.toggleRecording)
+                .labelStyle(.titleAndIcon)
+                .buttonStyle(ThemedButtonStyle())
+                .disabled(!isAudioReady)
+                .help(isAudioReady ? "localSDR.recordHelp" : "localSDR.recordNeedsConnection")
+        }
+    }
+
+    private var isAudioReady: Bool {
+        if case .connected = model.state { return true }
+        return false
     }
 
     private var tuningRow: some View {

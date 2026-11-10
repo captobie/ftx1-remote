@@ -323,7 +323,20 @@ final class HubService: ObservableObject {
                 receiver.ingest(samples: samples, sampleRate: sampleRate, channel: .webSDR)
             }
         )
-        receiver.onSourceChanged = { [weak self] in self?.webSDRSource.update() }
+        localSDRSource.addConsumer(
+            id: "cw",
+            isWanted: { [unowned receiver] in receiver.isRunning && receiver.channel == .myKiwiSDR },
+            onSamples: { [unowned receiver] samples, sampleRate in
+                receiver.ingest(samples: samples, sampleRate: sampleRate, channel: .myKiwiSDR)
+            }
+        )
+        receiver.onSourceChanged = { [weak self] in
+            self?.webSDRSource.update()
+            self?.localSDRSource.update()
+        }
+        cwKiwiModeCancellable = localSDRSource.$mode
+            .removeDuplicates()
+            .sink { [unowned receiver] mode in receiver.setMyKiwiSDRMode(mode) }
         return receiver
     }()
     /// Tools → RTTY/PSK's sender (live typeahead, AFSK/PSK audio through
@@ -348,12 +361,30 @@ final class HubService: ObservableObject {
                 receiver.ingest(samples: samples, sampleRate: sampleRate, channel: .webSDR)
             }
         )
-        receiver.onSourceChanged = { [weak self] in self?.webSDRSource.update() }
+        localSDRSource.addConsumer(
+            id: "digi",
+            isWanted: { [unowned receiver] in receiver.isRunning && receiver.channel == .myKiwiSDR },
+            onSamples: { [unowned receiver] samples, sampleRate in
+                receiver.ingest(samples: samples, sampleRate: sampleRate, channel: .myKiwiSDR)
+            }
+        )
+        receiver.onSourceChanged = { [weak self] in
+            self?.webSDRSource.update()
+            self?.localSDRSource.update()
+        }
+        digiKiwiModeCancellable = localSDRSource.$mode
+            .removeDuplicates()
+            .sink { [unowned receiver] mode in receiver.setMyKiwiSDRMode(mode) }
         return receiver
     }()
     /// The decoders' WebSDR source (one tap for the CW and RTTY/PSK
     /// windows).
     lazy var webSDRSource = WebSDRAudioSource(routing: webSDRAudioRouting)
+    /// The decoders' MyKiwiSDR source: the MyKiwiSDR window's model hands
+    /// its Kiwi audio here, and the CW and RTTY/PSK receivers read it.
+    let localSDRSource = LocalSDRAudioSource()
+    private var cwKiwiModeCancellable: AnyCancellable?
+    private var digiKiwiModeCancellable: AnyCancellable?
     /// Where the WebSDR window's Mute goes while a decoder captures its
     /// audio — see `WebSDRAudioRouting`.
     let webSDRAudioRouting = WebSDRAudioRouting()

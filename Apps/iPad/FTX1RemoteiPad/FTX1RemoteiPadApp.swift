@@ -7,7 +7,7 @@ struct FTX1RemoteiPadApp: App {
     @StateObject private var viewModel = RigClientViewModel()
     @StateObject private var piViewModel: PiDirectViewModel
     /// The CW pane's decoder, shared by both routes (fed their audio below).
-    @StateObject private var cwReceiver = CWReceiver(logSubsystem: "com.ftx1remote.ipad", channels: [.main, .sub])
+    @StateObject private var cwReceiver = CWReceiver(logSubsystem: "com.ftx1remote.ipad", channels: ReceiveAudioChannel.rigReceivers)
     /// The CW pane's send section, on whichever route is in use:
     /// `ContentView` points it at `viewModel` (Mac hub) or `piViewModel`
     /// (Pi direct) with `CWSender.use(_:)`.

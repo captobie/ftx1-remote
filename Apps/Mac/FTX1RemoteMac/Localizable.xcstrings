@@ -4,6 +4,213 @@
     "" : {
 
     },
+    "common.myKiwiSDRNotConnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR ist nicht verbunden – unter Werkzeuge → MyKiwiSDR verbinden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR isn't connected — connect it in Tools → MyKiwiSDR"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR no está conectado: conectarlo en Herramientas → MyKiwiSDR"
+          }
+        }
+      }
+    },
+    "common.myKiwiSDRSilent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR ist stumm – vom Kiwi kommt kein Audio an"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR is silent — no audio is arriving from the Kiwi"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR está en silencio: no llega audio del Kiwi"
+          }
+        }
+      }
+    },
+    "localSDR.play" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abspielen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducir"
+          }
+        }
+      }
+    },
+    "localSDR.playHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aufnahmen öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Recordings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir Grabaciones"
+          }
+        }
+      }
+    },
+    "localSDR.record" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aufnehmen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grabar"
+          }
+        }
+      }
+    },
+    "localSDR.recordHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio des Kiwi aufnehmen (vor Lautstärke und Stummschaltung), eine Datei pro Frequenz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record the Kiwi's audio (before volume and mute), one file per frequency"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grabar el audio del Kiwi (antes del volumen y el silencio), un archivo por frecuencia"
+          }
+        }
+      }
+    },
+    "localSDR.recordNeedsConnection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zum Aufnehmen verbinden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to record"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar para grabar"
+          }
+        }
+      }
+    },
+    "localSDR.recording.saved %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ gesichert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved “%@”"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardada «%@»"
+          }
+        }
+      }
+    },
+    "localSDR.stopRecordingHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aufnahme stoppen und in Aufnahmen sichern"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop recording and save to Recordings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detener la grabación y guardarla en Grabaciones"
+          }
+        }
+      }
+    },
     "– WPM" : {
       "extractionState" : "manual",
       "shouldTranslate" : false
@@ -4275,19 +4482,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Welches Audio dekodiert wird: MAIN- oder SUB-Empfänger des Geräts oder das, was das WebSDR-Fenster abspielt"
+            "value" : "Welches Audio dekodiert wird: MAIN- oder SUB-Empfänger des Geräts, das, was das WebSDR-Fenster abspielt, oder das Audio des MyKiwiSDR-Fensters"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Which audio to decode: the rig's MAIN or SUB receiver, or what the WebSDR window is playing"
+            "value" : "Which audio to decode: the rig's MAIN or SUB receiver, what the WebSDR window is playing, or the MyKiwiSDR window's audio"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Qué audio decodificar: el receptor MAIN o SUB del equipo, o lo que reproduce la ventana WebSDR"
+            "value" : "Qué audio decodificar: el receptor MAIN o SUB del equipo, lo que reproduce la ventana WebSDR o el audio de la ventana MyKiwiSDR"
           }
         }
       }
@@ -5162,19 +5369,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Welches Audio dekodiert wird: MAIN- oder SUB-Empfänger des Geräts oder das, was das WebSDR-Fenster abspielt"
+            "value" : "Welches Audio dekodiert wird: MAIN- oder SUB-Empfänger des Geräts, das, was das WebSDR-Fenster abspielt, oder das Audio des MyKiwiSDR-Fensters"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Which audio to decode: the rig's MAIN or SUB receiver, or what the WebSDR window is playing"
+            "value" : "Which audio to decode: the rig's MAIN or SUB receiver, what the WebSDR window is playing, or the MyKiwiSDR window's audio"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Qué audio decodificar: el receptor MAIN o SUB del equipo, o lo que reproduce la ventana WebSDR"
+            "value" : "Qué audio decodificar: el receptor MAIN o SUB del equipo, lo que reproduce la ventana WebSDR o el audio de la ventana MyKiwiSDR"
           }
         }
       }

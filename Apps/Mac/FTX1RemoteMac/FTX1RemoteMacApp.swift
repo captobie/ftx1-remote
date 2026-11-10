@@ -109,6 +109,7 @@ struct FTX1RemoteMacApp: App {
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.cwReceiver)
                 .environmentObject(appDelegate.hub.webSDRSource)
+                .environmentObject(appDelegate.hub.localSDRSource)
                 .environmentObject(appDelegate.hub.cwSender)
                 .environmentObject(appDelegate.hub.cwMonitor)
                 .environmentObject(appDelegate.hub.workedStations)
@@ -124,6 +125,7 @@ struct FTX1RemoteMacApp: App {
                 .environmentObject(appDelegate.hub.digiReceiver)
                 .environmentObject(appDelegate.hub.digiSender)
                 .environmentObject(appDelegate.hub.webSDRSource)
+                .environmentObject(appDelegate.hub.localSDRSource)
                 .appTheme()
         }
 
