@@ -15,7 +15,8 @@ public enum KiwiProtocol {
     public enum Frame: Equatable, Sendable {
         case message([KiwiMessageItem])
         case sound(KiwiSoundFrame)
-        /// Another tag (e.g. "W/F" if a waterfall stream were open).
+        case waterfall(KiwiWaterfallFrame)
+        /// Another tag.
         case other(tag: String)
     }
 
@@ -32,6 +33,9 @@ public enum KiwiProtocol {
         case "SND":
             guard let sound = KiwiSoundFrame(bytes: bytes) else { return .other(tag: tag) }
             return .sound(sound)
+        case "W/F":
+            guard let row = KiwiWaterfallFrame(bytes: bytes) else { return .other(tag: tag) }
+            return .waterfall(row)
         default:
             return .other(tag: tag)
         }
@@ -84,6 +88,28 @@ public enum KiwiProtocol {
 
     public static let keepalive = "SET keepalive"
 
+    // MARK: - Waterfall commands
+
+    /// Sent once the waterfall stream's `wf_setup` arrives (the Kiwi page's
+    /// order): full span first, a fixed dB window (the bytes are absolute
+    /// dBm either way; colouring is done here), uncompressed rows, the
+    /// fastest rate (~19–23 rows a second).
+    public static func waterfallSetupCommands(identUser: String) -> [String] {
+        [
+            "SET zoom=0 start=0",
+            "SET maxdb=0 mindb=-100",
+            "SET wf_comp=0",
+            "SET wf_speed=4",
+            "SET ident_user=\(percentEncode(identUser))",
+        ]
+    }
+
+    /// "SET zoom=8 start=3923264": the waterfall's zoom and left edge, in
+    /// bins at the maximum zoom (`KiwiWaterfallGeometry`).
+    public static func waterfallView(zoom: Int, start: Int) -> String {
+        "SET zoom=\(zoom) start=\(start)"
+    }
+
     private static func percentEncode(_ text: String) -> String {
         // Unreserved characters only, like JavaScript's encodeURIComponent.
         var allowed = CharacterSet.alphanumerics
@@ -94,6 +120,17 @@ public enum KiwiProtocol {
     /// The `/<timestamp>/SND` URL for `hostPort` ("host" or "host:port";
     /// port 8073 when absent). nil if it can't form a URL.
     public static func soundURL(hostPort: String, timestamp: Date = Date()) -> URL? {
+        streamURL(hostPort: hostPort, stream: "SND", timestamp: timestamp)
+    }
+
+    /// The `/<timestamp>/W/F` URL. Give it the sound stream's timestamp:
+    /// the Kiwi pairs the two streams of one listener by it (the page and
+    /// kiwiclient share one), so the waterfall takes no channel of its own.
+    public static func waterfallURL(hostPort: String, timestamp: Date) -> URL? {
+        streamURL(hostPort: hostPort, stream: "W/F", timestamp: timestamp)
+    }
+
+    private static func streamURL(hostPort: String, stream: String, timestamp: Date) -> URL? {
         var text = hostPort.trimmingCharacters(in: .whitespacesAndNewlines)
         for scheme in ["http://", "https://", "ws://", "wss://"] where text.lowercased().hasPrefix(scheme) {
             text = String(text.dropFirst(scheme.count))
@@ -113,7 +150,7 @@ public enum KiwiProtocol {
             components.port = 8073
         }
         guard let host = components.host, !host.isEmpty else { return nil }
-        components.path = "/\(Int(timestamp.timeIntervalSince1970))/SND"
+        components.path = "/\(Int(timestamp.timeIntervalSince1970))/\(stream)"
         return components.url
     }
 }
@@ -175,6 +212,115 @@ public struct KiwiSoundFrame: Equatable, Sendable {
             }
             return samples
         }
+    }
+}
+
+/// One "W/F" frame: a byte, x_bin (UInt32 LE), flags << 16 | zoom (UInt32
+/// LE), sequence (UInt32 LE), then one byte per bin (uncompressed,
+/// `SET wf_comp=0`). x_bin and zoom are what the server used for *this*
+/// row — rows still in flight after a pan or zoom carry the old ones, so
+/// place every row by its own header.
+public struct KiwiWaterfallFrame: Equatable, Sendable {
+    /// Left edge, in bins at the maximum zoom (`KiwiWaterfallGeometry`).
+    public let xBin: Int
+    public let zoom: Int
+    public let flags: UInt16
+    public let sequence: UInt32
+    /// One byte per bin, lowest frequency first; `dBm(_:cal:)` converts.
+    public let bins: Data
+
+    /// Set when the row is ADPCM-compressed (`wf.COMPRESSED`); such rows
+    /// aren't decoded here (the client asks for `wf_comp=0`).
+    public static let compressedFlag: UInt16 = 0x0001
+
+    public var isCompressed: Bool { flags & Self.compressedFlag != 0 }
+
+    init?(bytes: [UInt8]) {
+        guard bytes.count >= 16 else { return nil }
+        func u32(_ at: Int) -> UInt32 {
+            UInt32(bytes[at]) | UInt32(bytes[at + 1]) << 8 | UInt32(bytes[at + 2]) << 16 | UInt32(bytes[at + 3]) << 24
+        }
+        xBin = Int(u32(4))
+        let zoomWord = u32(8)
+        zoom = Int(zoomWord & 0xFFFF)
+        flags = UInt16(zoomWord >> 16)
+        sequence = u32(12)
+        bins = Data(bytes[16...])
+    }
+
+    /// The Kiwi's `dB_wire_to_dBm`: byte − 255 + wf_cal. 55 and below
+    /// (≤ −200 dBm before calibration) marks a masked bin.
+    public static func dBm(_ byte: UInt8, cal: Int) -> Int {
+        Int(byte) - 255 + cal
+    }
+}
+
+/// The waterfall's frequency arithmetic, from what the Kiwi reports
+/// (`bandwidth`, `wf_fft_size`, `zoom_max`). Positions ("x_bin", the
+/// `start=` value) count bins at the maximum zoom: Hz = x_bin × bandwidth
+/// / (fftSize × 2^zoomMax). One displayed bin at zoom z is
+/// 2^(zoomMax − z) of those units, and the span is bandwidth / 2^z.
+public struct KiwiWaterfallGeometry: Equatable, Sendable {
+    public let bandwidthHz: Double
+    public let fftSize: Int
+    public let zoomMax: Int
+
+    public init(bandwidthHz: Double = 30_000_000, fftSize: Int = 1024, zoomMax: Int = 14) {
+        self.bandwidthHz = bandwidthHz
+        self.fftSize = fftSize
+        self.zoomMax = zoomMax
+    }
+
+    /// x_bin units across the whole band.
+    public var maxBins: Int { fftSize << zoomMax }
+
+    public func clampZoom(_ zoom: Int) -> Int { min(max(zoom, 0), zoomMax) }
+
+    /// x_bin units in one displayed bin at `zoom`.
+    public func unitsPerBin(zoom: Int) -> Int { 1 << (zoomMax - clampZoom(zoom)) }
+
+    /// x_bin units across the span at `zoom`.
+    public func spanUnits(zoom: Int) -> Int { fftSize * unitsPerBin(zoom: zoom) }
+
+    public func spanHz(zoom: Int) -> Double { bandwidthHz / Double(1 << clampZoom(zoom)) }
+
+    public func binHz(zoom: Int) -> Double { spanHz(zoom: zoom) / Double(fftSize) }
+
+    public func hz(xBin: Double) -> Double { xBin * bandwidthHz / Double(maxBins) }
+
+    public func xBin(hz: Double) -> Double { hz / bandwidthHz * Double(maxBins) }
+
+    /// A left edge kept inside the band (0 … maxBins − span) and on a
+    /// whole displayed bin, so a pan moves the picture by whole bins.
+    public func clampStart(_ start: Int, zoom: Int) -> Int {
+        let unit = unitsPerBin(zoom: zoom)
+        let highest = maxBins - spanUnits(zoom: zoom)
+        let aligned = Int((Double(start) / Double(unit)).rounded()) * unit
+        return min(max(aligned, 0), highest)
+    }
+
+    /// The left edge that puts `hz` in the middle of the span (clamped).
+    public func start(centredOn hz: Double, zoom: Int) -> Int {
+        clampStart(Int(xBin(hz: hz).rounded()) - spanUnits(zoom: zoom) / 2, zoom: zoom)
+    }
+
+    /// How many displayed bins a row at `to` sits right of one at `from`
+    /// (positive = the view moved up in frequency, so old rows move left).
+    /// nil when the zooms differ. Rounded to the nearest bin.
+    public func binsToShift(from: (xBin: Int, zoom: Int), to: (xBin: Int, zoom: Int)) -> Int? {
+        guard from.zoom == to.zoom else { return nil }
+        return Int((Double(to.xBin - from.xBin) / Double(unitsPerBin(zoom: to.zoom))).rounded())
+    }
+
+    /// The frequency at a fractional column (0 = left edge of bin 0,
+    /// fftSize = right edge of the last) of a row at (start, zoom).
+    public func hz(column: Double, start: Int, zoom: Int) -> Double {
+        hz(xBin: Double(start) + column * Double(unitsPerBin(zoom: zoom)))
+    }
+
+    /// The fractional column of `hz` in a row at (start, zoom).
+    public func column(hz: Double, start: Int, zoom: Int) -> Double {
+        (xBin(hz: hz) - Double(start)) / Double(unitsPerBin(zoom: zoom))
     }
 }
 

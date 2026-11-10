@@ -68,6 +68,7 @@ public actor KiwiSDRClient {
     private let password: String
     private let identUser: String
     private let compression: Bool
+    private let timestamp: Date
     private var tuning: KiwiTuning
     private let logger: Logger
 
@@ -84,8 +85,10 @@ public actor KiwiSDRClient {
     private var decoder = KiwiSoundDecoder()
 
     public init(hostPort: String, password: String, identUser: String = "FTX1Remote",
-                compression: Bool = false, tuning: KiwiTuning, logSubsystem: String) {
+                compression: Bool = false, tuning: KiwiTuning, timestamp: Date = Date(),
+                logSubsystem: String) {
         self.hostPort = hostPort
+        self.timestamp = timestamp
         self.password = password
         self.identUser = identUser
         self.compression = compression
@@ -96,7 +99,7 @@ public actor KiwiSDRClient {
 
     public func start() {
         guard socket == nil, !finished else { return }
-        guard let url = KiwiProtocol.soundURL(hostPort: hostPort) else {
+        guard let url = KiwiProtocol.soundURL(hostPort: hostPort, timestamp: timestamp) else {
             finish(.invalidHost)
             return
         }
@@ -172,7 +175,7 @@ public actor KiwiSDRClient {
             continuation.yield(.audio(KiwiAudioChunk(samples: samples, sampleRate: sampleRate,
                                                      smeterDBm: frame.smeterDBm, flags: frame.flags,
                                                      sequence: frame.sequence)))
-        case .other, nil:
+        case .waterfall, .other, nil:
             break
         }
     }

@@ -14,6 +14,9 @@ struct LocalSDRWindowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            LocalSDRWaterfallView(model: model, store: model.waterfall)
+                .frame(minHeight: 240, maxHeight: .infinity)
+            Divider()
             connectionRow
             Divider()
             tuningRow
@@ -30,7 +33,7 @@ struct LocalSDRWindowView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(14)
-        .frame(minWidth: 620)
+        .frame(minWidth: 720, minHeight: 480)
         .navigationTitle("app.localSDR")
         .onAppear { frequencyDraft = Self.kHzText(model.frequencyHz) }
         .onChange(of: model.frequencyHz) { _, hz in

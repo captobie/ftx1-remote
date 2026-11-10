@@ -100,7 +100,8 @@ final class KiwiProtocolTests: XCTestCase {
             .init(name: "audio_init", value: nil),
             .init(name: "name", value: "a b"),
         ])
-        XCTAssertEqual(KiwiProtocol.parseFrame(Data("W/F".utf8) + Data(count: 20)), .other(tag: "W/F"))
+        XCTAssertEqual(KiwiProtocol.parseFrame(Data("W/F".utf8) + Data(count: 10)), .other(tag: "W/F"), "too short")
+        XCTAssertEqual(KiwiProtocol.parseFrame(Data("XYZ".utf8)), .other(tag: "XYZ"))
         XCTAssertNil(KiwiProtocol.parseFrame(Data("MS".utf8)))
     }
 

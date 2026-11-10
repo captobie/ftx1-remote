@@ -2845,7 +2845,7 @@ modes.
   frequency; the lane then saw no change). Writing `RigState.frequencyHz`
   now sets `band` itself (`didSet`; not in `init` or decoding).
 
-## Local SDR (Mac, phase 1, 2026-11-10; client tested live against the user's KiwiSDR, then the window tested by the user the same day: audio, retune/mode change, wrong-password message, channel freed)
+## Local SDR (Mac, phase 1, 2026-11-10; client tested live against the user's KiwiSDR, then the window tested by the user the same day: audio, retune/mode change, wrong-password message, channel freed. Phase 2 waterfall the same day: unit- and live-tested, window driven against the Kiwi; not yet tried by the user)
 
 User request: native audio from the operator's own KiwiSDR (KiwiSDR 2,
 v1.902, on the home LAN, reached over the Tailscale subnet route through
@@ -2910,9 +2910,82 @@ there). Sources checked against: kiwiclient's `kiwi/client.py`, the Kiwi's
   Known gap: playback schedules buffers as they arrive, so the Kiwi's and
   the Mac's clocks drifting apart shows up over long sessions as an
   occasional gap or slowly growing latency (as on the Pi relay).
-- **Later phases, not started**: waterfall (W/F stream), following the rig
-  / Tune rig, Mute on TX and the automatic Main mute, CW and RTTY/PSK
-  sources, recording, iPad and Windows.
+- **Phase 2, waterfall (2026-11-10; unit tests, a live client test and
+  the built window driven against the Kiwi; not yet tried by the user)**.
+  Unlike the Kiwi's page it never clears on a retune: tuning inside the
+  span only moves the passband; a pan shifts the history by whole bins,
+  leaving only the exposed edge blank; a zoom rescales the history.
+  - **Protocol** (`KiwiProtocol`, `KiwiWaterfallTests`): "W/F" frames
+    (`KiwiWaterfallFrame`: x_bin, zoom, flags, sequence, one byte a bin,
+    dBm = byte − 255 + wf_cal), `waterfallURL`, `waterfallSetupCommands`
+    (zoom=0 start=0, maxdb=0 mindb=-100, wf_comp=0, wf_speed=4,
+    ident_user), `waterfallView` ("SET zoom= start="). `KiwiWaterfallGeometry`
+    takes bandwidth/wf_fft_size/zoom_max from the Kiwi's messages: x_bin
+    counts bins at the maximum zoom, a displayed bin at zoom z is
+    2^(zoom_max − z) of them; `clampStart` keeps a start inside the band
+    *and on a whole bin* (the Kiwi accepts unaligned starts — the phase 0
+    probe's 3923300 isn't — which would make pans fractional), so pans
+    shift by whole bins. `KiwiWaterfallPlacement` (`place`: append / shift
+    / rezoom by the row's own header; `columnMap` for a zoom change) and
+    `startKeeping` (pan only when the passband is within 10% of an edge or
+    past it: just far enough when near, centred when far away or too wide)
+    are pure and tested.
+  - **Stream**: `KiwiWaterfallClient`, a second actor beside
+    `KiwiSDRClient` (shares only the socket pattern; the sound client got
+    nothing but an optional `timestamp`). **It must use the sound
+    stream's URL timestamp**: the Kiwi pairs the two by it (page and
+    kiwiclient do the same), and then the waterfall takes no channel —
+    verified: /status users +1, not +2, and /users showing our zoom on our
+    sound channel. Opened only after the sound stream is ready; a waterfall
+    error ends only the waterfall (status under the picture), the sound
+    stream ending, Disconnect and window close end both. Logs under
+    "kiwisdr" with a "waterfall:" prefix.
+  - **Mac**: `LocalSDRModel` keeps the requested `WaterfallView` (start,
+    zoom; zoom remembered as `localSDR.waterfallZoom`, default 8) and sends
+    it at most every 60 ms (a drag sends one per mouse event), the last
+    always going out. `LocalSDRWaterfallStore` places rows
+    (`PannableWaterfallBitmap`: one memmove + a 256-entry byte → pixel
+    table per row, one memmove per history row on a pan, a table-driven
+    rebuild on a zoom — cheap enough that rescaling beats clearing) and
+    publishes `picture` per row and `position` only on a pan/zoom.
+    `LocalSDRWaterfallView` observes the position and draws everything
+    in the *requested* frame, the picture offset to where its rows are,
+    so a drag follows the mouse at once and the edge fills when the rows
+    arrive (~150–200 ms). The image is a layer-backed NSView setting
+    `layer.contents` from the store's publisher (not a SwiftUI `Image`),
+    in the main screen's colour space, opaque (`noneSkipLast`).
+    Mouse: click tunes (snapped to `KiwiSDRMode.waterfallStepHz`: CW 10,
+    SSB 100, AM 1 k, FM 5 k), drag pans, wheel steps one per notch or per
+    10 pt of trackpad, landing on the step grid. Presses outside the view
+    are ignored (computer-use's synthetic drag sends a stray one at x −15
+    afterwards, which once tuned the dial).
+  - **Colours**: `KiwiWaterfallAutoRange` — Kiwi page's autoscale shape
+    (median, 95th percentile, masked ≤ −190 dBm ignored) via a 256-bucket
+    histogram every 5 rows, smoothed; floor = median − 5 dB, ceiling =
+    95th + 25 and ≥ floor + 40. The page's own −10/+30 drew 40 m noise
+    bright blue with weak signals barely showing in this app's palette.
+    No manual controls.
+  - **CPU** (Debug build, Local SDR connected, audio muted but running,
+    `top`/`sample`): window open disconnected ~0.5%; connected first
+    ~27%, then ~18% after (a) the opaque bitmap (no premultiply pass), (b)
+    the screen's colour space (no colour-matching pass), (c) the
+    position/picture split and the NSView layer (SwiftUI had been
+    re-laying-out the whole waterfall view per row). The per-row work
+    itself (`add`, bitmap, auto-range) is ~0.5% of samples.
+  - **Live** (2026-11-10): rows at 117 kHz span with the scale matching
+    (FT8 segment brightest at 7075.1 kHz in the live test; dial line on
+    7.074); click-to-tune inside the span left the waterfall alone;
+    scrolling across the edge and dragging both shifted the history; zoom
+    in (58.6 kHz) and out (234 kHz) rescaled it at the right frequencies;
+    a pan's first row ~200 ms after the request; Disconnect and window
+    close both closed both sockets at once, /status following 4–8 s later.
+    **Not tried**: a waterfall-only failure with audio carrying on (no
+    way to provoke it from here), CW/AM/FM passband drawing, a real mouse
+    wheel or trackpad (only synthetic events), rows per second over a long
+    session (the live test saw 14/s while its consumer was stalled).
+- **Later phases, not started**: following the rig / Tune rig, Mute on
+  TX and the automatic Main mute, CW and RTTY/PSK sources, recording,
+  draggable passband edges, AGC/noise controls, iPad and Windows.
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 

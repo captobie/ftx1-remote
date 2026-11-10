@@ -153,6 +153,7 @@ struct FTX1RemoteMacApp: App {
                 .appTheme()
         }
         .windowResizability(.contentSize)
+        .defaultSize(width: 900, height: 640)
 
         // The Mem List button under Waterfall (ContentView). `hub` to send
         // the MAIN/SUB recalls and highlight the current channels.
