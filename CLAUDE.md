@@ -2845,7 +2845,7 @@ modes.
   frequency; the lane then saw no change). Writing `RigState.frequencyHz`
   now sets `band` itself (`didSet`; not in `init` or decoding).
 
-## Local SDR (Mac, phase 1, 2026-11-10; client tested live against the user's KiwiSDR, then the window tested by the user the same day: audio, retune/mode change, wrong-password message, channel freed. Phase 2 waterfall the same day: unit- and live-tested, window driven against the Kiwi; not yet tried by the user. Phase 3 rig link the same day: unit-tested, then driven in the built app against the rig over the Pi and the Kiwi, incl. keying into a dummy load; not yet tried by the user)
+## Local SDR (Mac, phase 1, 2026-11-10; client tested live against the user's KiwiSDR, then the window tested by the user the same day: audio, retune/mode change, wrong-password message, channel freed. Phase 2 waterfall the same day: unit- and live-tested, window driven against the Kiwi, then tested by the user, no issues. Phase 3 rig link the same day: unit-tested, then driven in the built app against the rig over the Pi and the Kiwi, incl. keying into a dummy load, then tested by the user, no issues)
 
 Shown to the user as **MyKiwiSDR** since 2026-11-10 (menu item and window
 title, key `app.myKiwiSDR`, the same in every language); the code, the
@@ -2914,7 +2914,8 @@ there). Sources checked against: kiwiclient's `kiwi/client.py`, the Kiwi's
   the Mac's clocks drifting apart shows up over long sessions as an
   occasional gap or slowly growing latency (as on the Pi relay).
 - **Phase 2, waterfall (2026-11-10; unit tests, a live client test and
-  the built window driven against the Kiwi; not yet tried by the user)**.
+  the built window driven against the Kiwi; then tested by the user,
+  no issues)**.
   Unlike the Kiwi's page it never clears on a retune: tuning inside the
   span only moves the passband; a pan shifts the history by whole bins,
   leaving only the exposed edge blank; a zoom rescales the history.
@@ -2987,8 +2988,8 @@ there). Sources checked against: kiwiclient's `kiwi/client.py`, the Kiwi's
     wheel or trackpad (only synthetic events), rows per second over a long
     session (the live test saw 14/s while its consumer was stalled).
 - **Phase 3, rig link (2026-11-10; `KiwiRigLinkTests`, then the built
-  app against the rig in Remote mode and the Kiwi; not yet tried by the
-  user)**: the WebSDR window's rig rules on the open socket. The window
+  app against the rig in Remote mode and the Kiwi; then tested by the
+  user, no issues)**: the WebSDR window's rig rules on the open socket. The window
   gets `hub` like the WebSDR one (`LocalSDRWindowView(hub:)`); the model
   is still its own `@StateObject`, nothing new on `HubService`.
   - **Pure part** (`FTX1Core/KiwiSDR/KiwiRigLink.swift`, fake-clock
