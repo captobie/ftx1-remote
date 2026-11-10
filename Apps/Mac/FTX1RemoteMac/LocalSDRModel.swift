@@ -422,6 +422,7 @@ final class LocalSDRModel: ObservableObject {
             .sink { [weak self] ptt in
                 guard let self, isTransmitting != ptt else { return }
                 isTransmitting = ptt
+                logger.debug("rig link: PTT \(ptt ? "on" : "off", privacy: .public), playback \(self.muteOnTransmit && ptt ? "silenced" : "as set", privacy: .public)")
                 applyVolume()
             }
             .store(in: &rigCancellables)

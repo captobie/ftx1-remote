@@ -2845,7 +2845,7 @@ modes.
   frequency; the lane then saw no change). Writing `RigState.frequencyHz`
   now sets `band` itself (`didSet`; not in `init` or decoding).
 
-## Local SDR (Mac, phase 1, 2026-11-10; client tested live against the user's KiwiSDR, then the window tested by the user the same day: audio, retune/mode change, wrong-password message, channel freed. Phase 2 waterfall the same day: unit- and live-tested, window driven against the Kiwi; not yet tried by the user. Phase 3 rig link the same day: unit-tested, then driven in the built app against the rig over the Pi and the Kiwi; not yet tried by the user, nothing keyed)
+## Local SDR (Mac, phase 1, 2026-11-10; client tested live against the user's KiwiSDR, then the window tested by the user the same day: audio, retune/mode change, wrong-password message, channel freed. Phase 2 waterfall the same day: unit- and live-tested, window driven against the Kiwi; not yet tried by the user. Phase 3 rig link the same day: unit-tested, then driven in the built app against the rig over the Pi and the Kiwi, incl. keying into a dummy load; not yet tried by the user)
 
 Shown to the user as **MyKiwiSDR** since 2026-11-10 (menu item and window
 title, key `app.myKiwiSDR`, the same in every language); the code, the
@@ -3041,9 +3041,15 @@ there). Sources checked against: kiwiclient's `kiwi/client.py`, the Kiwi's
     alone; Local SDR audible → Main muted; with the WebSDR window also
     audible, muting either one kept Main muted; Disconnect, window close
     and a relaunch with the flag left set all gave Main back.
-    **Not tried**: keying — the transmitting refusal and Mute on TX (no
-    dummy load arranged); a real trackpad/mouse wheel (only synthetic
-    scroll and AX-pressed buttons, ~30–100 ms apart).
+    Keyed into a dummy load the same day (USB, 5 W, no audio, keyed from
+    a second rigctld client): Mute on TX silenced the playback for the
+    whole transmission and restored it after ("rig link: PTT on/off" debug
+    lines); a window step while keyed was refused ("the rig is
+    transmitting"), the rig staying put. Keying USB on 14.03x was unkeyed
+    by the license guardrail within ~0.2 s (US General, no phone there) —
+    correct, but pick a phone segment when testing in SSB.
+    **Not tried**: a real trackpad/mouse wheel (only synthetic scroll and
+    AX-pressed buttons, ~30–100 ms apart).
 - **Later phases, not started**: CW and RTTY/PSK sources, recording,
   following the rig's filter width, draggable passband edges, AGC/noise
   controls, Sub following, iPad and Windows.
