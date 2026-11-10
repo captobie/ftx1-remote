@@ -2845,6 +2845,75 @@ modes.
   frequency; the lane then saw no change). Writing `RigState.frequencyHz`
   now sets `band` itself (`didSet`; not in `init` or decoding).
 
+## Local SDR (Mac, phase 1, 2026-11-10; client tested live against the user's KiwiSDR, then the window tested by the user the same day: audio, retune/mode change, wrong-password message, channel freed)
+
+User request: native audio from the operator's own KiwiSDR (KiwiSDR 2,
+v1.902, on the home LAN, reached over the Tailscale subnet route through
+raspberrypi), bypassing its web page — unlike the WebSDR window, which
+embeds the page. Tools → **Local SDR** opens `Window(id: "local-sdr")`.
+Phase 0 (protocol probe) left frames in `Tests/KiwiSDRFixtures/` (README
+there). Sources checked against: kiwiclient's `kiwi/client.py`, the Kiwi's
+`web/openwebrx/openwebrx.js`/`audio.js`, and the live Kiwi.
+
+- **`FTX1Core/KiwiSDR/KiwiProtocol.swift`** (`KiwiProtocolTests`, against
+  the fixtures): frame parsing (3-byte tag; "MSG" + 1 byte + URL-encoded
+  `key=value` pairs; "SND" = flags, sequence UInt32 LE, S-meter UInt16 BE
+  with dBm = 0.1 × raw − 127, then samples), uncompressed Int16 BE PCM (512
+  a frame), IMA ADPCM (`KiwiADPCMDecoder`, kiwiclient's, low nibble first,
+  2048 samples a frame), and command builders. `KiwiSoundDecoder` carries
+  the ADPCM state across frames and resets it only when the compression
+  flag changes (as `audio.js` does). ADPCM is implemented and tested but
+  not used (`compression: false`). `KiwiSDRMode`: USB/LSB/CW/AM/FM (`nbfm`)
+  with the page's own default passbands (`passbands_fallback`); in CW the
+  sent freq is the dial minus the passband centre (the page's
+  `freq_dsp_to_car`), so the dial shows the signal.
+- **`KiwiSDRClient`** (actor, `URLSessionWebSocketTask`, one session per
+  instance, events in order through `events`): `SET auth t=kiwi p=<%-enc>`
+  at once; on `audio_rate` "SET AR OK in=… out=44100"; on `sample_rate` the
+  setup (squelch, genattn, gen, agc, compression, `ident_user=FTX1Remote`),
+  the tune, and a keepalive every second; `.ready` after both `badp=0` and
+  `sample_rate`. `tune(_:)` sends "SET mod=… freq=…" on the open socket.
+  Errors (`KiwiSDRError`): badp=1 is "bad password *or* no free channel", so
+  the client reads `/status` (`KiwiStatus`) and reports `.busy` when
+  users ≥ users_max, else `.badPassword`; too_busy → `.busy`; down,
+  redirect (not followed), other badp codes `.refused(code:)`; socket
+  errors `.unreachable(text)`; 10 s without a frame `.noResponse`. `stop()`
+  closes the socket and invalidates the session. The password is never
+  logged (the auth line logs as "p=…"). Logs under "kiwisdr".
+- **Live, 2026-11-10** (`KiwiSDRClientLiveTests`, skipped unless
+  `KIWI_LIVE_HOST` and `KIWI_LIVE_PASSWORD_FILE` are set — write the file
+  with `security find-generic-password -s FTX1Remote-KiwiSDR -a kiwi -w`,
+  0600, and delete it after): sample_rate 11998.902088, real audio, retune
+  USB 14.074 → LSB 7.074 flagged 0x04 three frames (~130 ms) later, then CW
+  7.030, no sequence gap across either; wrong password → `.badPassword`;
+  closed port → `.unreachable`; `/status` counts our channel while
+  connected and drops it after `stop()`. **`/status` lags** both ways
+  (0.1–10 s), so poll it rather than read it once.
+- **Mac** (`LocalSDRModel`, `LocalSDRWindowView`, `LocalSDRPassword`): the
+  model is the window's own `@StateObject`, nothing on `HubService`;
+  S-meter readings (≤10/s) go to `LocalSDRMeterStore`, observed only by the
+  meter view. Host (`localSDR.host`), frequency, mode, volume and mute are
+  `localSDR.*` defaults; the password is the login keychain item (service
+  "FTX1Remote-KiwiSDR", account "kiwi"), **written only after the Kiwi
+  accepts it**, so trying a wrong one leaves the stored password alone.
+  Explicit connect only: opens disconnected, `onDisappear` disconnects.
+  Playback: an `AudioPlaybackEngine(squelchEnabled: false, inputSampleRate:
+  <reported rate>, prebufferSeconds: 0.25)` on Settings → Audio's output
+  device (the engine's new `inputSampleRate`/`prebufferSeconds` init
+  parameters default to the relay's 8 kHz / 0.12 s, so other callers are
+  unchanged). Mute = volume 0. S-meter as HF S units (S9 = −73 dBm) + dBm,
+  ADC overload flag shown.
+- **Tested in the app by the user** (2026-11-10): audio, retune and mode
+  change without a gap or reconnect, the wrong-password status message, and
+  `/status` dropping the channel after Disconnect and after closing the
+  window.
+  Known gap: playback schedules buffers as they arrive, so the Kiwi's and
+  the Mac's clocks drifting apart shows up over long sessions as an
+  occasional gap or slowly growing latency (as on the Pi relay).
+- **Later phases, not started**: waterfall (W/F stream), following the rig
+  / Tune rig, Mute on TX and the automatic Main mute, CW and RTTY/PSK
+  sources, recording, iPad and Windows.
+
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 
 A "Mem List" button under the Waterfall button (Mac `ContentView`) opens

@@ -46,7 +46,7 @@ public final class AudioPlaybackEngine {
     /// arrives.
     private var prebuffer: [AVAudioPCMBuffer] = []
     private var hasPrimed = false
-    private let prebufferTargetSeconds: Double = 0.12
+    private let prebufferTargetSeconds: Double
 
     #if os(macOS)
     /// Resolved to a live `AudioDeviceID` by the caller (`HubService`, via
@@ -80,9 +80,16 @@ public final class AudioPlaybackEngine {
     /// false for a pass-through player (the Mac's transmit audio sink),
     /// which must never gate the operator's voice.
     private let squelchEnabled: Bool
+    /// The rate of the Int16 PCM `push(pcm:)` takes: the relay's 8 kHz
+    /// by default; the Mac's Local SDR window passes the KiwiSDR's own
+    /// reported rate (~11998.9 Hz), so the converter resamples from that.
+    private let inputSampleRate: Double
 
-    public init(squelchEnabled: Bool = true) {
+    public init(squelchEnabled: Bool = true, inputSampleRate: Double = AudioStreamFormat.sampleRate,
+                prebufferSeconds: Double = 0.12) {
         self.squelchEnabled = squelchEnabled
+        self.prebufferTargetSeconds = prebufferSeconds
+        self.inputSampleRate = inputSampleRate
         squelchGate = SquelchGate(threshold: Float(AudioPlaybackSettings.squelchThreshold))
         squelchGate.releaseDuration = AudioPlaybackSettings.squelchHangTime
         player.volume = squelchEnabled ? Float(AudioPlaybackSettings.volume) : 1
@@ -150,7 +157,7 @@ public final class AudioPlaybackEngine {
 
         guard let wireFormat = AVAudioFormat(
             commonFormat: .pcmFormatInt16,
-            sampleRate: AudioStreamFormat.sampleRate,
+            sampleRate: inputSampleRate,
             channels: 1,
             interleaved: true
         ), let newConverter = AVAudioConverter(from: wireFormat, to: format) else {
@@ -227,7 +234,7 @@ public final class AudioPlaybackEngine {
         releaseSessionIfHeld()
     }
 
-    /// One chunk of raw Int16 mono PCM at `AudioStreamFormat.sampleRate`, as
+    /// One chunk of raw Int16 mono PCM at `inputSampleRate`, as
     /// delivered by `RigWebSocketClient.onAudioData` (tag byte already
     /// stripped). Converts to the engine's playback format, updates the
     /// squelch gate from this chunk's RMS level, and schedules it — after a
@@ -291,7 +298,7 @@ public final class AudioPlaybackEngine {
         // Generous headroom over the naive ratio — the converter can emit a
         // few extra frames around a resample boundary; undersizing the
         // output buffer truncates audio rather than erroring.
-        let estimatedOutputFrames = Int(Double(frameCount) * format.sampleRate / AudioStreamFormat.sampleRate) + 16
+        let estimatedOutputFrames = Int(Double(frameCount) * format.sampleRate / inputSampleRate) + 16
         guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(estimatedOutputFrames)) else { return nil }
 
         // One-shot conversion: hand the converter the whole input buffer

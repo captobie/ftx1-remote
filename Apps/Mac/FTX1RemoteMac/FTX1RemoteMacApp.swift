@@ -52,6 +52,9 @@ struct FTX1RemoteMacApp: App {
                 Button("WebSDR") {
                     openWindow(id: "websdr-follow")
                 }
+                Button("app.localSDR") {
+                    openWindow(id: "local-sdr")
+                }
             }
         }
 
@@ -141,6 +144,15 @@ struct FTX1RemoteMacApp: App {
             WebSDRFollowView(hub: appDelegate.hub)
                 .appTheme()
         }
+
+        // Tools → Local SDR: the operator's own KiwiSDR as native audio
+        // (`LocalSDRModel`, no web page). Needs nothing from `hub`; opens
+        // disconnected and disconnects when closed.
+        Window("app.localSDR", id: "local-sdr") {
+            LocalSDRWindowView()
+                .appTheme()
+        }
+        .windowResizability(.contentSize)
 
         // The Mem List button under Waterfall (ContentView). `hub` to send
         // the MAIN/SUB recalls and highlight the current channels.
