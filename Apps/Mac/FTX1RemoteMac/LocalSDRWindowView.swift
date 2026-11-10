@@ -3,9 +3,15 @@ import SwiftUI
 
 /// Tools → Local SDR (`Window(id: "local-sdr")`): the operator's own
 /// KiwiSDR as native audio, through `LocalSDRModel`. Opens disconnected;
-/// closing the window disconnects.
+/// closing the window disconnects. `hub` for the rig link (Follow, Tune
+/// rig, Mute on TX, muting Main), passed in so the model can subscribe in
+/// `init`, as the WebSDR window does.
 struct LocalSDRWindowView: View {
-    @StateObject private var model = LocalSDRModel()
+    @StateObject private var model: LocalSDRModel
+
+    init(hub: HubService) {
+        _model = StateObject(wrappedValue: LocalSDRModel(hub: hub))
+    }
     /// The frequency field's text in kHz, committed on Return.
     @State private var frequencyDraft = ""
     @FocusState private var frequencyFocused: Bool
@@ -25,6 +31,7 @@ struct LocalSDRWindowView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 audioControls
             }
+            rigLinkRow
             Divider()
             Text(statusText)
                 .font(.caption)
@@ -34,7 +41,7 @@ struct LocalSDRWindowView: View {
         }
         .padding(14)
         .frame(minWidth: 720, minHeight: 480)
-        .navigationTitle("app.localSDR")
+        .navigationTitle("app.myKiwiSDR")
         .onAppear { frequencyDraft = Self.kHzText(model.frequencyHz) }
         .onChange(of: model.frequencyHz) { _, hz in
             if !frequencyFocused { frequencyDraft = Self.kHzText(hz) }
@@ -95,7 +102,7 @@ struct LocalSDRWindowView: View {
                         .buttonStyle(ThemedButtonStyle())
                 }
             }
-            Picker("common.mode", selection: $model.mode) {
+            Picker("common.mode", selection: Binding(get: { model.mode }, set: model.selectMode)) {
                 ForEach(KiwiSDRMode.allCases, id: \.self) { mode in
                     Text(verbatim: mode.label).tag(mode)
                 }
@@ -104,6 +111,39 @@ struct LocalSDRWindowView: View {
             .labelsHidden()
             .fixedSize()
         }
+    }
+
+    private var rigLinkRow: some View {
+        HStack(spacing: 14) {
+            Toggle("localSDR.followRig", isOn: $model.followRig)
+                .help("localSDR.followRigHelp")
+            Toggle("localSDR.tuneRig", isOn: $model.tuneRig)
+                .help("localSDR.tuneRigHelp")
+            Toggle("localSDR.muteOnTx", isOn: $model.muteOnTransmit)
+                .help("localSDR.muteOnTxHelp")
+            Text(rigLinkText)
+                .font(.caption)
+                .foregroundStyle(model.rigLinkNote == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange))
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .toggleStyle(.switch)
+    }
+
+    /// Which direction is active, then the last refusal, if any.
+    private var rigLinkText: String {
+        let active: String
+        switch (model.followRig, model.tuneRig) {
+        case (true, true): active = String(localized: "localSDR.rigLink.both")
+        case (true, false): active = String(localized: "localSDR.rigLink.followOnly")
+        case (false, true): active = String(localized: "localSDR.rigLink.tuneOnly")
+        case (false, false): active = String(localized: "localSDR.rigLink.off")
+        }
+        if !model.isConnected, model.followRig || model.tuneRig {
+            return String(localized: "localSDR.rigLink.whenConnected \(active)")
+        }
+        guard let note = model.rigLinkNote else { return active }
+        return String(localized: "localSDR.rigLink.withNote \(active) \(note)")
     }
 
     private var audioControls: some View {

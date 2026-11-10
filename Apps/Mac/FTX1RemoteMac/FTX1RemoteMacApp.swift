@@ -52,7 +52,7 @@ struct FTX1RemoteMacApp: App {
                 Button("WebSDR") {
                     openWindow(id: "websdr-follow")
                 }
-                Button("app.localSDR") {
+                Button("app.myKiwiSDR") {
                     openWindow(id: "local-sdr")
                 }
             }
@@ -146,10 +146,11 @@ struct FTX1RemoteMacApp: App {
         }
 
         // Tools → Local SDR: the operator's own KiwiSDR as native audio
-        // (`LocalSDRModel`, no web page). Needs nothing from `hub`; opens
-        // disconnected and disconnects when closed.
-        Window("app.localSDR", id: "local-sdr") {
-            LocalSDRWindowView()
+        // (`LocalSDRModel`, no web page). `hub` passed in directly, as for
+        // the WebSDR window, for the rig link; opens disconnected and
+        // disconnects when closed.
+        Window("app.myKiwiSDR", id: "local-sdr") {
+            LocalSDRWindowView(hub: appDelegate.hub)
                 .appTheme()
         }
         .windowResizability(.contentSize)

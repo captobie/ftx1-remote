@@ -2845,12 +2845,15 @@ modes.
   frequency; the lane then saw no change). Writing `RigState.frequencyHz`
   now sets `band` itself (`didSet`; not in `init` or decoding).
 
-## Local SDR (Mac, phase 1, 2026-11-10; client tested live against the user's KiwiSDR, then the window tested by the user the same day: audio, retune/mode change, wrong-password message, channel freed. Phase 2 waterfall the same day: unit- and live-tested, window driven against the Kiwi; not yet tried by the user)
+## Local SDR (Mac, phase 1, 2026-11-10; client tested live against the user's KiwiSDR, then the window tested by the user the same day: audio, retune/mode change, wrong-password message, channel freed. Phase 2 waterfall the same day: unit- and live-tested, window driven against the Kiwi; not yet tried by the user. Phase 3 rig link the same day: unit-tested, then driven in the built app against the rig over the Pi and the Kiwi; not yet tried by the user, nothing keyed)
 
-User request: native audio from the operator's own KiwiSDR (KiwiSDR 2,
+Shown to the user as **MyKiwiSDR** since 2026-11-10 (menu item and window
+title, key `app.myKiwiSDR`, the same in every language); the code, the
+window id `local-sdr` and the `localSDR.*` settings keys keep the old name
+so saved settings carry over. User request: native audio from the operator's own KiwiSDR (KiwiSDR 2,
 v1.902, on the home LAN, reached over the Tailscale subnet route through
 raspberrypi), bypassing its web page — unlike the WebSDR window, which
-embeds the page. Tools → **Local SDR** opens `Window(id: "local-sdr")`.
+embeds the page. Tools → **MyKiwiSDR** opens `Window(id: "local-sdr")`.
 Phase 0 (protocol probe) left frames in `Tests/KiwiSDRFixtures/` (README
 there). Sources checked against: kiwiclient's `kiwi/client.py`, the Kiwi's
 `web/openwebrx/openwebrx.js`/`audio.js`, and the live Kiwi.
@@ -2983,9 +2986,67 @@ there). Sources checked against: kiwiclient's `kiwi/client.py`, the Kiwi's
     way to provoke it from here), CW/AM/FM passband drawing, a real mouse
     wheel or trackpad (only synthetic events), rows per second over a long
     session (the live test saw 14/s while its consumer was stalled).
-- **Later phases, not started**: following the rig / Tune rig, Mute on
-  TX and the automatic Main mute, CW and RTTY/PSK sources, recording,
-  draggable passband edges, AGC/noise controls, iPad and Windows.
+- **Phase 3, rig link (2026-11-10; `KiwiRigLinkTests`, then the built
+  app against the rig in Remote mode and the Kiwi; not yet tried by the
+  user)**: the WebSDR window's rig rules on the open socket. The window
+  gets `hub` like the WebSDR one (`LocalSDRWindowView(hub:)`); the model
+  is still its own `@StateObject`, nothing new on `HubService`.
+  - **Pure part** (`FTX1Core/KiwiSDR/KiwiRigLink.swift`, fake-clock
+    tests): `KiwiSDRMode(rigMode:)` — USB/DATA-U → USB, LSB, CW (the rig
+    reports CW-R as CW), AM, FM; RTTY/DATA-FM/C4FM nil = keep the Kiwi's
+    mode. `KiwiSDRURLBuilder.modeToken` now delegates to it, so the two
+    windows share one mapping. `KiwiSDRMode.rigMode(current:)` is
+    `SDRPlatform.rigMode`'s rule (DATA-U stays DATA-U under USB; a rig in
+    RTTY/DATA-FM/C4FM is never changed). `KiwiRigLink.follow` /
+    `windowTuned` / `expirePending` / `refusal(for:)`: Follow tunes the
+    Kiwi unless it's already there (±10 Hz, mode family), the rig is above
+    the Kiwi's bandwidth, or a window tune is pending; Tune rig refuses
+    when the rig isn't connected, has no frequency, transmits or MAIN is in
+    Memory mode (the Kiwi still tunes). After a window tune the rig's
+    values are ignored until they match it or 3 s pass
+    (`pendingRigTune`), and each new window tune moves that target — which
+    is what stops fast scrolling bouncing.
+  - **Model** (`LocalSDRModel`): `localSDR.followRig`/`tuneRig`/
+    `muteOnTransmit`, all default on. Subscribed to `hub.$rigState` only
+    while connected (on connect, cancelled on Disconnect, the Kiwi closing
+    and window close): MAIN frequency/mode, removeDuplicates + 400 ms
+    debounce, as `WebSDRFollowModel`; PTT undebounced. Connecting starts
+    the Kiwi at the rig's tuning, so the first tune is already right.
+    Follow is one `KiwiSDRClient.tune` — no reconnect, and the waterfall's
+    keep-the-passband-visible pan applies. Window tunes (entry, steppers,
+    click, scroll, drag, mode picker via `selectMode`) go to the rig
+    through `HubService.send(_:)` at most every 100 ms with the last always
+    sent (a spun wheel doesn't flood the queue); the refusal is checked
+    again at send time. Mute on TX = playback volume 0 while `rigState.
+    ptt`, the window's Mute untouched. The rig-link line under the tuning
+    row: which direction is on, then the last refusal or "not following:
+    rig on X MHz, above this Kiwi's 30 MHz". Debug logs under "kiwisdr",
+    "rig link: …" (each follow tune, each rig send, each ignored echo).
+  - **Main mute, both windows**: `HubService.setMainAudioOverride(_:
+    active:)` with `MainAudioOverride` `.webSDR`/`.localSDR` replaces
+    `setWebSDRAudioActive`/`mainMutedByWebSDR`: a set of holders, Main
+    unmuted only when the last one leaves and only if the override muted
+    it (`mainMutedByOverride`, same persisted key `webSDR.mutedMainAudio`,
+    still cleared in `init`). An active call mutes Main if it isn't muted,
+    as before. Local SDR holds it while connected and not muted.
+  - **Live** (2026-11-10, rig over the Pi, a second rigctld client moving
+    FA/MD): connect started at the rig's 14.023 CW; rig 14.023 → 14.025
+    followed with no reconnect and no waterfall clear; a waterfall click
+    tuned the rig (14.021410); 20 rapid 100 Hz steps + scroll notches gave
+    22 coalesced rig sends in order, no follow tune back, rig = Kiwi at the
+    end; rig DATA-U → Kiwi USB, then a window +1 kHz kept DATA-U ("MD0C");
+    window LSB → rig "MD01"; V/M into Memory → "not following: 443.125
+    MHz" and a window step refused ("MAIN is in Memory mode"), the Kiwi
+    tuning alone; V/M back → followed. Main mute: user's own mute left
+    alone; Local SDR audible → Main muted; with the WebSDR window also
+    audible, muting either one kept Main muted; Disconnect, window close
+    and a relaunch with the flag left set all gave Main back.
+    **Not tried**: keying — the transmitting refusal and Mute on TX (no
+    dummy load arranged); a real trackpad/mouse wheel (only synthetic
+    scroll and AX-pressed buttons, ~30–100 ms apart).
+- **Later phases, not started**: CW and RTTY/PSK sources, recording,
+  following the rig's filter width, draggable passband edges, AGC/noise
+  controls, Sub following, iPad and Windows.
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 
@@ -3205,8 +3266,9 @@ WebSDR differences are in their own bullet at the end.
   (connected and not muted by the window's Mute button) the rig's Main
   Mac playback is muted, so the two don't play over each other; muting the
   WebSDR, disconnecting or closing the window brings Main back.
-  `HubService.setWebSDRAudioActive` owns this and only undoes a mute it
-  made itself (`mainMutedByWebSDR`): if Main was already muted it's left
+  `HubService.setMainAudioOverride(.webSDR, …)` owns this (shared with
+  the Local SDR window since 2026-11-10, a holder each) and only undoes a
+  mute it made itself (`mainMutedByOverride`): if Main was already muted it's left
   alone, and pressing Main's own Mute hands control back to the user. The
   flag is persisted and cleared in `HubService.init` (the WebSDR window
   always opens disconnected), so a quit mid-session can't leave Main

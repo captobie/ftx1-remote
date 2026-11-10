@@ -243,29 +243,6 @@
         }
       }
     },
-    "app.localSDR" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lokales SDR"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Local SDR"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SDR local"
-          }
-        }
-      }
-    },
     "app.map" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -331,6 +308,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mensajes"
+          }
+        }
+      }
+    },
+    "app.myKiwiSDR" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR"
           }
         }
       }
@@ -7352,6 +7352,52 @@
         }
       }
     },
+    "localSDR.followRig" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerät folgen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow rig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir al equipo"
+          }
+        }
+      }
+    },
+    "localSDR.followRigHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiwi nachstimmen, wenn sich der Main-VFO des Geräts ändert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retune the Kiwi when the rig's Main VFO changes"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resintonizar el Kiwi cuando cambie el VFO Main del equipo"
+          }
+        }
+      }
+    },
     "localSDR.frequencyHelp" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7444,6 +7490,52 @@
         }
       }
     },
+    "localSDR.muteOnTx" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stumm bei TX"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mute on TX"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silenciar en TX"
+          }
+        }
+      }
+    },
+    "localSDR.muteOnTxHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiwi stummschalten, während das Gerät sendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silence the Kiwi while the rig transmits"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silenciar el Kiwi mientras el equipo transmite"
+          }
+        }
+      }
+    },
     "localSDR.muted" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7513,6 +7605,282 @@
         }
       }
     },
+    "localSDR.rigLink.both" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geräteverbindung: folgt dem Gerät und stimmt es ab"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig link: following the rig and tuning it"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enlace con el equipo: sigue al equipo y lo sintoniza"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.followOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geräteverbindung: folgt dem Gerät"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig link: following the rig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enlace con el equipo: sigue al equipo"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geräteverbindung: aus"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig link: off"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enlace con el equipo: desactivado"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.outOfRange %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folgt nicht: das Gerät ist auf %1$@ MHz, über den %2$@ MHz dieses Kiwi"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not following: the rig is on %1$@ MHz, above this Kiwi's %2$@ MHz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin seguir: el equipo está en %1$@ MHz, por encima de los %2$@ MHz de este Kiwi"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.refused %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerät nicht abgestimmt: %1$@ (%2$@)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig not tuned: %1$@ (%2$@)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Equipo no sintonizado: %1$@ (%2$@)"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.refused.disconnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "das Gerät ist nicht verbunden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the rig isn't connected"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el equipo no está conectado"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.refused.memory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MAIN ist im Speichermodus"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MAIN is in Memory mode"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MAIN está en modo memoria"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.refused.noFrequency" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "noch keine Gerätefrequenz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no rig frequency yet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "aún no hay frecuencia del equipo"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.refused.transmitting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "das Gerät sendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the rig is transmitting"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el equipo está transmitiendo"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.tuneOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geräteverbindung: stimmt das Gerät ab"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig link: tuning the rig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enlace con el equipo: sintoniza el equipo"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.whenConnected %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (sobald verbunden)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (once connected)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (una vez conectado)"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.withNote %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ – %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ — %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ — %2$@"
+          }
+        }
+      }
+    },
     "localSDR.status.connected %@ %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7578,6 +7946,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sin conexión."
+          }
+        }
+      }
+    },
+    "localSDR.tuneRig" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerät abstimmen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tune rig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonizar equipo"
+          }
+        }
+      }
+    },
+    "localSDR.tuneRigHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Main-VFO des Geräts abstimmen, wenn hier abgestimmt wird (Frequenz eingeben, Klick in den Wasserfall, Scrollen, Ziehen, Betriebsart)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tune the rig's Main VFO when you tune here (frequency entry, waterfall click, scroll, drag, mode)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonizar el VFO Main del equipo al sintonizar aquí (introducir una frecuencia, clic en la cascada, desplazamiento, arrastre, modo)"
           }
         }
       }

@@ -21,9 +21,20 @@ import os
 /// by the waterfall view. A waterfall failure leaves the audio playing; the
 /// sound stream ending, Disconnect or closing the window closes both.
 /// Tuning inside the visible span never touches the waterfall; tuning near
-/// or past an edge pans it (`KiwiWaterfallGeometry.startKeeping`). Not yet:
-/// rig following, WebSDR-style automatic muting, decoder sources or
-/// recording.
+/// or past an edge pans it (`KiwiWaterfallGeometry.startKeeping`).
+///
+/// Rig link (phase 3), the WebSDR window's rules on the open socket
+/// (`KiwiRigLink` holds the pure part): Follow tunes the Kiwi to the rig's
+/// MAIN frequency/mode from `hub.$rigState` (removeDuplicates + 400 ms
+/// debounce, as `WebSDRFollowModel`) with one "SET mod=… freq=…", no
+/// reconnect; Tune rig sends the window's own tunes to the rig through
+/// `HubService.send(_:)` (at most every 100 ms, the last always going out,
+/// so a spun scroll wheel doesn't flood the command queue). Both only
+/// while connected, subscribed on connect and cancelled on disconnect.
+/// Mute on TX silences the playback while `rigState.ptt`; while the Kiwi
+/// is audible the rig's Main playback is muted
+/// (`HubService.setMainAudioOverride(.localSDR, …)`). Not yet: decoder
+/// sources, recording, following the rig's filter width.
 final class LocalSDRModel: ObservableObject {
     enum State: Equatable {
         case disconnected
@@ -39,6 +50,14 @@ final class LocalSDRModel: ObservableObject {
         static let volume = "localSDR.volume"
         static let muted = "localSDR.muted"
         static let waterfallZoom = "localSDR.waterfallZoom"
+        static let followRig = "localSDR.followRig"
+        static let tuneRig = "localSDR.tuneRig"
+        static let muteOnTransmit = "localSDR.muteOnTransmit"
+    }
+
+    private struct RigTarget: Equatable {
+        let frequencyHz: Int
+        let mode: RigMode
     }
 
     enum WaterfallState: Equatable {
@@ -56,7 +75,9 @@ final class LocalSDRModel: ObservableObject {
         var zoom: Int
     }
 
-    @Published private(set) var state: State = .disconnected
+    @Published private(set) var state: State = .disconnected {
+        didSet { if state != oldValue { updateMainAudio() } }
+    }
     /// "host" or "host:port" (8073 when absent).
     @Published var hostPort: String {
         didSet { UserDefaults.standard.set(hostPort, forKey: Keys.host) }
@@ -65,14 +86,8 @@ final class LocalSDRModel: ObservableObject {
     /// it, so trying a wrong one doesn't overwrite the stored password.
     @Published var password: String
     @Published private(set) var frequencyHz: Int
-    @Published var mode: KiwiSDRMode {
-        didSet {
-            guard mode != oldValue else { return }
-            UserDefaults.standard.set(mode.rawValue, forKey: Keys.mode)
-            retune()
-            keepPassbandVisible()
-        }
-    }
+    /// Set through `selectMode` (the window) or by Follow.
+    @Published private(set) var mode: KiwiSDRMode
     @Published var volume: Double {
         didSet {
             UserDefaults.standard.set(volume, forKey: Keys.volume)
@@ -80,6 +95,33 @@ final class LocalSDRModel: ObservableObject {
         }
     }
     @Published private(set) var isMuted: Bool
+
+    /// Rig → Kiwi.
+    @Published var followRig: Bool {
+        didSet {
+            guard followRig != oldValue else { return }
+            UserDefaults.standard.set(followRig, forKey: Keys.followRig)
+            if followRig, let rigTarget { follow(rigTarget) } else { rigLinkNote = nil }
+        }
+    }
+    /// Kiwi → rig.
+    @Published var tuneRig: Bool {
+        didSet {
+            guard tuneRig != oldValue else { return }
+            UserDefaults.standard.set(tuneRig, forKey: Keys.tuneRig)
+            if !tuneRig { cancelRigSend(); link.reset(); rigLinkNote = nil }
+        }
+    }
+    /// Silences the playback while the rig transmits; the Mute button and
+    /// the rig's own audio are left alone.
+    @Published var muteOnTransmit: Bool {
+        didSet {
+            UserDefaults.standard.set(muteOnTransmit, forKey: Keys.muteOnTransmit)
+            applyVolume()
+        }
+    }
+    /// The last refusal or "not following" reason, for the rig-link line.
+    @Published private(set) var rigLinkNote: String?
 
     let meter = LocalSDRMeterStore()
     let waterfall = LocalSDRWaterfallStore()
@@ -104,9 +146,24 @@ final class LocalSDRModel: ObservableObject {
     private var trailingViewSend: Task<Void, Never>?
     private let logger = Logger(subsystem: "com.ftx1remote.mac", category: "kiwisdr")
 
-    static let frequencyRange = 10_000...30_000_000
+    private weak var hub: HubService?
+    private var link = KiwiRigLink()
+    private var rigCancellables: Set<AnyCancellable> = []
+    /// The rig's last (debounced) MAIN frequency/mode.
+    private var rigTarget: RigTarget?
+    private var isTransmitting = false
+    /// What the throttle will send the rig next (nil = leave that alone).
+    private var queuedRigFrequency: Int?
+    private var queuedRigMode: RigMode?
+    private var lastRigSend = ContinuousClock.now - .seconds(1)
+    private var trailingRigSend: Task<Void, Never>?
+    private var pendingExpiry: Task<Void, Never>?
 
-    init() {
+    static let frequencyRange = 10_000...30_000_000
+    private static let rigSendInterval = Duration.milliseconds(100)
+
+    init(hub: HubService?) {
+        self.hub = hub
         let defaults = UserDefaults.standard
         hostPort = defaults.string(forKey: Keys.host) ?? ""
         let savedFrequency = defaults.integer(forKey: Keys.frequencyHz)
@@ -116,6 +173,9 @@ final class LocalSDRModel: ObservableObject {
         isMuted = defaults.bool(forKey: Keys.muted)
         password = LocalSDRPassword.read()
         preferredZoom = defaults.object(forKey: Keys.waterfallZoom) as? Int ?? 8
+        followRig = defaults.object(forKey: Keys.followRig) as? Bool ?? true
+        tuneRig = defaults.object(forKey: Keys.tuneRig) as? Bool ?? true
+        muteOnTransmit = defaults.object(forKey: Keys.muteOnTransmit) as? Bool ?? true
     }
 
     var isConnected: Bool {
@@ -136,6 +196,17 @@ final class LocalSDRModel: ObservableObject {
             state = .failed(.invalidHost)
             return
         }
+        // Start where the rig is, so the first tune is already right.
+        if followRig, let hub {
+            let rig = RigTarget(frequencyHz: hub.rigState.frequencyHz, mode: hub.rigState.mode)
+            rigTarget = rig
+            if case let .tune(hz, kiwiMode) = link.follow(
+                rigFrequencyHz: rig.frequencyHz, rigMode: rig.mode, kiwiFrequencyHz: frequencyHz, kiwiMode: mode,
+                maxFrequencyHz: maxFrequencyHz, now: Self.now) {
+                applyTuning(frequencyHz: hz, mode: kiwiMode)
+            }
+        }
+        subscribeToRig()
         sessionTimestamp = Date()
         let client = KiwiSDRClient(hostPort: hostPort, password: password, identUser: "FTX1Remote",
                                    compression: false, tuning: currentTuning, timestamp: sessionTimestamp,
@@ -159,6 +230,7 @@ final class LocalSDRModel: ObservableObject {
     }
 
     private func closeSession() {
+        stopRigLink()
         if let client {
             Task { await client.stop() }
         }
@@ -190,6 +262,7 @@ final class LocalSDRModel: ObservableObject {
             }
         case .closed(let error):
             client = nil
+            stopRigLink()
             stopWaterfall()
             playback?.stop()
             playback = nil
@@ -222,14 +295,25 @@ final class LocalSDRModel: ObservableObject {
 
     private var currentTuning: KiwiTuning { KiwiTuning(dialHz: frequencyHz, mode: mode) }
 
-    /// Clamped to the Kiwi's 0–30 MHz (from 10 kHz).
+    /// The Kiwi's reported bandwidth (30 MHz until the waterfall says).
+    var maxFrequencyHz: Int {
+        Int(waterfall.geometry.bandwidthHz)
+    }
+
+    /// A frequency the window tuned to (entry, steppers). Clamped to the
+    /// Kiwi's range (from 10 kHz).
     func setFrequency(_ hz: Int) {
-        let clamped = min(max(hz, Self.frequencyRange.lowerBound), Self.frequencyRange.upperBound)
+        let clamped = min(max(hz, Self.frequencyRange.lowerBound), maxFrequencyHz)
         guard clamped != frequencyHz else { return }
-        frequencyHz = clamped
-        UserDefaults.standard.set(clamped, forKey: Keys.frequencyHz)
-        retune()
-        keepPassbandVisible()
+        applyTuning(frequencyHz: clamped, mode: nil)
+        windowTuned()
+    }
+
+    /// The window's mode picker.
+    func selectMode(_ newMode: KiwiSDRMode) {
+        guard newMode != mode else { return }
+        applyTuning(frequencyHz: nil, mode: newMode)
+        windowTuned()
     }
 
     func step(byHz delta: Int) { setFrequency(frequencyHz + delta) }
@@ -250,6 +334,27 @@ final class LocalSDRModel: ObservableObject {
         setFrequency(base + direction * step)
     }
 
+    /// Changes the Kiwi's tuning (nil = keep) and sends it on the open
+    /// socket, panning the waterfall only if the passband nears an edge.
+    /// Doesn't touch the rig: `windowTuned` does that for the window's own
+    /// tunes, and Follow's must not echo back.
+    private func applyTuning(frequencyHz newFrequency: Int?, mode newMode: KiwiSDRMode?) {
+        var changed = false
+        if let newFrequency, newFrequency != frequencyHz {
+            frequencyHz = newFrequency
+            UserDefaults.standard.set(newFrequency, forKey: Keys.frequencyHz)
+            changed = true
+        }
+        if let newMode, newMode != mode {
+            mode = newMode
+            UserDefaults.standard.set(newMode.rawValue, forKey: Keys.mode)
+            changed = true
+        }
+        guard changed else { return }
+        retune()
+        keepPassbandVisible()
+    }
+
     /// Retunes the open socket ("SET mod=… freq=…"), no reconnect.
     private func retune() {
         guard let client else { return }
@@ -264,9 +369,170 @@ final class LocalSDRModel: ObservableObject {
     }
 
     /// Mute is volume 0, so the player keeps its buffer and unmuting is
-    /// immediate.
+    /// immediate. Mute on TX the same way, without touching `isMuted`.
     private func applyVolume() {
-        playback?.volume = isMuted ? 0 : Float(volume)
+        let silent = isMuted || (muteOnTransmit && isTransmitting)
+        playback?.volume = silent ? 0 : Float(volume)
+        updateMainAudio()
+    }
+
+    /// While the Kiwi is audible (connected, not muted here), the rig's Main
+    /// Mac playback is muted, and given back once it isn't.
+    private func updateMainAudio() {
+        guard let hub else { return }
+        var audible = false
+        if case .connected = state { audible = !isMuted }
+        hub.setMainAudioOverride(.localSDR, active: audible)
+    }
+
+    // MARK: - Rig link
+
+    private static var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
+
+    private func stopRigLink() {
+        rigCancellables.removeAll()
+        rigTarget = nil
+        isTransmitting = false
+        cancelRigSend()
+        pendingExpiry?.cancel()
+        pendingExpiry = nil
+        link.reset()
+        rigLinkNote = nil
+        applyVolume()
+    }
+
+    private func subscribeToRig() {
+        rigCancellables.removeAll()
+        guard let hub else { return }
+        hub.$rigState
+            .map { RigTarget(frequencyHz: $0.frequencyHz, mode: $0.mode) }
+            .removeDuplicates()
+            .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
+            .sink { [weak self] target in
+                guard let self else { return }
+                rigTarget = target
+                follow(target)
+            }
+            .store(in: &rigCancellables)
+        // Not debounced: the playback should go quiet as soon as the rig is
+        // seen transmitting.
+        hub.$rigState
+            .map(\.ptt)
+            .removeDuplicates()
+            .sink { [weak self] ptt in
+                guard let self, isTransmitting != ptt else { return }
+                isTransmitting = ptt
+                applyVolume()
+            }
+            .store(in: &rigCancellables)
+    }
+
+    private func follow(_ target: RigTarget) {
+        guard followRig, isConnected else { return }
+        switch link.follow(rigFrequencyHz: target.frequencyHz, rigMode: target.mode, kiwiFrequencyHz: frequencyHz,
+                           kiwiMode: mode, maxFrequencyHz: maxFrequencyHz, now: Self.now) {
+        case let .tune(hz, kiwiMode):
+            logger.debug("rig link: follow → Kiwi \(hz) Hz \(kiwiMode?.label ?? "-", privacy: .public)")
+            if rigLinkNote != nil { rigLinkNote = nil }
+            applyTuning(frequencyHz: hz, mode: kiwiMode)
+        case .alreadyThere:
+            if rigLinkNote != nil { rigLinkNote = nil }
+        case .outOfRange(let hz):
+            rigLinkNote = String(localized: "localSDR.rigLink.outOfRange \(FrequencyFormat.mhz(hz, fractionDigits: 3)) \(FrequencyFormat.mhz(maxFrequencyHz, fractionDigits: 0))")
+        case .waitingForRig:
+            logger.debug("rig link: ignored rig \(target.frequencyHz) Hz while it catches up")
+        case .noRigFrequency:
+            break
+        }
+    }
+
+    private var rigSnapshot: KiwiRigSnapshot? {
+        guard let hub else { return nil }
+        let rig = hub.rigState
+        return KiwiRigSnapshot(connected: hub.connectionState == .connected, transmitting: rig.ptt,
+                               memoryMode: rig.vfoMemoryMode == .memory, frequencyHz: rig.frequencyHz,
+                               mode: rig.mode)
+    }
+
+    /// A tune made in the window: to the rig too, if Tune rig is on.
+    private func windowTuned() {
+        guard tuneRig, isConnected, let rig = rigSnapshot else { return }
+        switch link.windowTuned(kiwiFrequencyHz: frequencyHz, kiwiMode: mode, rig: rig, now: Self.now) {
+        case let .send(hz, rigMode):
+            if let hz { queuedRigFrequency = hz }
+            if let rigMode { queuedRigMode = rigMode }
+            scheduleRigSend()
+            schedulePendingExpiry()
+        case .refused(let refusal):
+            noteRefusal(refusal)
+        case .nothing:
+            break
+        }
+    }
+
+    private func noteRefusal(_ refusal: KiwiRigLink.Refusal) {
+        let time = Date().formatted(date: .omitted, time: .standard)
+        let reason = switch refusal {
+        case .rigDisconnected: String(localized: "localSDR.rigLink.refused.disconnected")
+        case .noRigFrequency: String(localized: "localSDR.rigLink.refused.noFrequency")
+        case .transmitting: String(localized: "localSDR.rigLink.refused.transmitting")
+        case .memoryMode: String(localized: "localSDR.rigLink.refused.memory")
+        }
+        rigLinkNote = String(localized: "localSDR.rigLink.refused \(reason) \(time)")
+    }
+
+    /// At most one rig tune every 100 ms, the last always going out.
+    private func scheduleRigSend() {
+        let elapsed = ContinuousClock.now - lastRigSend
+        if elapsed >= Self.rigSendInterval {
+            trailingRigSend?.cancel()
+            trailingRigSend = nil
+            sendQueuedRigTune()
+        } else if trailingRigSend == nil {
+            trailingRigSend = Task { [weak self] in
+                try? await Task.sleep(for: Self.rigSendInterval - elapsed)
+                guard !Task.isCancelled, let self else { return }
+                trailingRigSend = nil
+                sendQueuedRigTune()
+            }
+        }
+    }
+
+    private func sendQueuedRigTune() {
+        let hz = queuedRigFrequency, rigMode = queuedRigMode
+        queuedRigFrequency = nil
+        queuedRigMode = nil
+        guard hz != nil || rigMode != nil, let hub, let rig = rigSnapshot else { return }
+        // The rig may have started transmitting (etc.) since the tune.
+        if let refusal = KiwiRigLink.refusal(for: rig) {
+            link.reset()
+            noteRefusal(refusal)
+            return
+        }
+        lastRigSend = .now
+        logger.debug("rig link: Kiwi → rig \(hz ?? 0) Hz \(rigMode?.rawValue ?? "-", privacy: .public)")
+        if rigLinkNote != nil { rigLinkNote = nil }
+        if let hz { hub.send(.setFrequency(hz: hz)) }
+        if let rigMode { hub.send(.setMode(rigMode)) }
+    }
+
+    private func cancelRigSend() {
+        trailingRigSend?.cancel()
+        trailingRigSend = nil
+        queuedRigFrequency = nil
+        queuedRigMode = nil
+    }
+
+    /// If the rig never shows the window's tune (rejected, link lost),
+    /// follow its actual state again once the grace period is over.
+    private func schedulePendingExpiry() {
+        pendingExpiry?.cancel()
+        pendingExpiry = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(KiwiRigLink.rigTuneGrace + 0.1))
+            guard !Task.isCancelled, let self else { return }
+            pendingExpiry = nil
+            if link.expirePending(now: Self.now), let rigTarget { follow(rigTarget) }
+        }
     }
 
     var connectedHostPort: String { connectedHost }

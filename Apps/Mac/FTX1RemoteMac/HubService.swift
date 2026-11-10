@@ -78,16 +78,20 @@ final class HubService: ObservableObject {
     /// mute — see `isSubAudioMuted` below and repo CLAUDE.md, "Dual
     /// Main/Sub audio channels."
     @Published private(set) var isMainAudioMuted = AudioPlaybackSettings.isMuted
-    /// True while Main is muted *because* the WebSDR window's KiwiSDR is
-    /// audible (`setWebSDRAudioActive`), not by the user. Only a mute the
-    /// WebSDR made is ever undone by it, and pressing Main's own Mute
-    /// button hands the choice back to the user. Persisted so a quit
-    /// mid-session can't leave Main stuck muted: the WebSDR window always
-    /// opens disconnected, so `init` lifts a leftover WebSDR mute.
-    private var mainMutedByWebSDR = UserDefaults.standard.bool(forKey: HubService.mainMutedByWebSDRKey) {
-        didSet { UserDefaults.standard.set(mainMutedByWebSDR, forKey: Self.mainMutedByWebSDRKey) }
+    /// The windows whose receiver is audible right now (WebSDR, Local
+    /// SDR) — while any is, the rig's Main Mac playback is muted so the two
+    /// don't play over each other (`setMainAudioOverride`).
+    private var mainAudioOverrides: Set<MainAudioOverride> = []
+    /// True while Main is muted *because* of `mainAudioOverrides`, not by
+    /// the user. Only such a mute is ever undone by them (once the last one
+    /// goes), and pressing Main's own Mute button hands the choice back to
+    /// the user. Persisted so a quit mid-session can't leave Main stuck
+    /// muted: both windows open disconnected, so `init` lifts a leftover
+    /// mute. The key is the WebSDR-only flag's, so an old one is lifted too.
+    private var mainMutedByOverride = UserDefaults.standard.bool(forKey: HubService.mainMutedByOverrideKey) {
+        didSet { UserDefaults.standard.set(mainMutedByOverride, forKey: Self.mainMutedByOverrideKey) }
     }
-    private static let mainMutedByWebSDRKey = "webSDR.mutedMainAudio"
+    private static let mainMutedByOverrideKey = "webSDR.mutedMainAudio"
     /// Sub-channel counterpart to `isMainAudioMuted` — works in both
     /// `.local` and `.remote` now (2026-09-18: `AudioCaptureEngine`'s local
     /// `AVAudioEngine` tap reads a genuine second channel too, when the
@@ -537,11 +541,12 @@ final class HubService: ObservableObject {
         self.startupGracePeriod = startupGracePeriod
         (txAudioInbound, txAudioInboundContinuation) = AsyncStream<Data>.makeStream(bufferingPolicy: .bufferingNewest(50))
 
-        // The app quit (or crashed) while the WebSDR had Main muted.
-        // (`didSet` doesn't run inside `init`, so persist explicitly.)
-        if mainMutedByWebSDR {
-            mainMutedByWebSDR = false
-            UserDefaults.standard.set(false, forKey: Self.mainMutedByWebSDRKey)
+        // The app quit (or crashed) while the WebSDR or Local SDR window
+        // had Main muted. (`didSet` doesn't run inside `init`, so persist
+        // explicitly.)
+        if mainMutedByOverride {
+            mainMutedByOverride = false
+            UserDefaults.standard.set(false, forKey: Self.mainMutedByOverrideKey)
             isMainAudioMuted = false
             AudioPlaybackSettings.isMuted = false
         }
@@ -1954,25 +1959,30 @@ final class HubService: ObservableObject {
     /// engine to spin back up. Renamed from `toggleAudioMuted()`
     /// (2026-09-18) — see `toggleSubAudioMuted()` below.
     func toggleMainAudioMuted() {
-        mainMutedByWebSDR = false  // the user's call from here on
+        mainMutedByOverride = false  // the user's call from here on
         isMainAudioMuted.toggle()
         AudioPlaybackSettings.isMuted = isMainAudioMuted
     }
 
-    /// Called by the WebSDR window whenever its KiwiSDR becomes audible
-    /// (connected and not muted there) or stops being so, so the rig's Main
-    /// audio and the Kiwi's don't play over each other. Mutes Main only if
-    /// it isn't muted already, and unmutes it only if this is what muted
-    /// it (see `mainMutedByWebSDR`). Gates Mac playback only, like the Mute
+    /// Called by the WebSDR and Local SDR windows whenever their receiver
+    /// becomes audible (connected and not muted there) or stops being so,
+    /// so the rig's Main audio and the receiver's don't play over each
+    /// other. Each window is its own holder, so both can hold it at once.
+    /// An `active` call mutes Main if it isn't muted already (as the
+    /// WebSDR-only version did on every call); Main is unmuted only once no
+    /// window holds it, and only if this is what muted it (see
+    /// `mainMutedByOverride`). Gates Mac playback only, like the Mute
     /// button — the iPad relay, APRS, FT8 and recording are unaffected.
-    func setWebSDRAudioActive(_ active: Bool) {
+    func setMainAudioOverride(_ holder: MainAudioOverride, active: Bool) {
         if active {
+            mainAudioOverrides.insert(holder)
             guard !isMainAudioMuted else { return }
             isMainAudioMuted = true
-            mainMutedByWebSDR = true
+            mainMutedByOverride = true
         } else {
-            guard mainMutedByWebSDR else { return }
-            mainMutedByWebSDR = false
+            mainAudioOverrides.remove(holder)
+            guard mainAudioOverrides.isEmpty, mainMutedByOverride else { return }
+            mainMutedByOverride = false
             isMainAudioMuted = false
         }
         AudioPlaybackSettings.isMuted = isMainAudioMuted
@@ -2753,6 +2763,13 @@ private extension Duration {
 
 /// Why the hub refused a client's `CWKeyerRequest` before it reached the
 /// rig (`HubService.remoteCWKeyer`).
+/// A window whose receiver mutes the rig's Main Mac playback while it's
+/// audible (`HubService.setMainAudioOverride`).
+enum MainAudioOverride: Hashable {
+    case webSDR
+    case localSDR
+}
+
 enum RemoteCWKeyerError: LocalizedError {
     case badSlot(Int)
     case badText
