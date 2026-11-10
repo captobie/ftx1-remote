@@ -42,8 +42,12 @@ import os
 /// on — 16-bit mono WAV at the Kiwi's rate, one file per frequency
 /// (`KiwiRecordingSplit`: a retune of 500 Hz or more, or a mode change,
 /// that holds for 1 s starts a new file). Disconnect, a dropped connection
-/// and closing the window save the file. Not yet: following the rig's
-/// filter width.
+/// and closing the window save the file.
+///
+/// Passband (phase 5): `passband` is the current mode's, each mode's last
+/// one remembered (`localSDR.passband.<mode>`); the waterfall drags its
+/// edges (`KiwiPassband`) and it goes out with the tuning on the open
+/// socket, at most every 50 ms with the last always sent.
 final class LocalSDRModel: ObservableObject {
     enum State: Equatable {
         case disconnected
@@ -62,6 +66,7 @@ final class LocalSDRModel: ObservableObject {
         static let followRig = "localSDR.followRig"
         static let tuneRig = "localSDR.tuneRig"
         static let muteOnTransmit = "localSDR.muteOnTransmit"
+        static func passband(_ mode: KiwiSDRMode) -> String { "localSDR.passband.\(mode.rawValue)" }
     }
 
     private struct RigTarget: Equatable {
@@ -97,6 +102,8 @@ final class LocalSDRModel: ObservableObject {
     @Published private(set) var frequencyHz: Int
     /// Set through `selectMode` (the window) or by Follow.
     @Published private(set) var mode: KiwiSDRMode
+    /// The current mode's passband.
+    @Published private(set) var passband: KiwiPassband
     @Published var volume: Double {
         didSet {
             UserDefaults.standard.set(volume, forKey: Keys.volume)
@@ -153,6 +160,8 @@ final class LocalSDRModel: ObservableObject {
     private var connectedHost = ""
     private var passwordInUse = ""
     private var lastMeterPublish = ContinuousClock.now
+    private var lastRetune = ContinuousClock.now - .seconds(1)
+    private var trailingRetune: Task<Void, Never>?
     private var waterfallClient: KiwiWaterfallClient?
     private var waterfallTask: Task<Void, Never>?
     /// The sound stream's URL timestamp, shared with the waterfall's.
@@ -181,6 +190,7 @@ final class LocalSDRModel: ObservableObject {
 
     static let frequencyRange = 10_000...30_000_000
     private static let rigSendInterval = Duration.milliseconds(100)
+    private static let retuneInterval = Duration.milliseconds(50)
 
     init(hub: HubService?) {
         self.hub = hub
@@ -188,7 +198,9 @@ final class LocalSDRModel: ObservableObject {
         hostPort = defaults.string(forKey: Keys.host) ?? ""
         let savedFrequency = defaults.integer(forKey: Keys.frequencyHz)
         frequencyHz = Self.frequencyRange.contains(savedFrequency) ? savedFrequency : 14_074_000
-        mode = defaults.string(forKey: Keys.mode).flatMap(KiwiSDRMode.init(rawValue:)) ?? .usb
+        let savedMode = defaults.string(forKey: Keys.mode).flatMap(KiwiSDRMode.init(rawValue:)) ?? .usb
+        mode = savedMode
+        passband = Self.savedPassband(for: savedMode)
         volume = defaults.object(forKey: Keys.volume) as? Double ?? 0.8
         isMuted = defaults.bool(forKey: Keys.muted)
         password = LocalSDRPassword.read()
@@ -256,6 +268,7 @@ final class LocalSDRModel: ObservableObject {
             Task { await client.stop() }
         }
         client = nil
+        cancelTrailingRetune()
         eventsTask?.cancel()
         eventsTask = nil
         stopWaterfall()
@@ -293,6 +306,7 @@ final class LocalSDRModel: ObservableObject {
             }
         case .closed(let error):
             client = nil
+            cancelTrailingRetune()
             endAudioSession()
             stopRigLink()
             stopWaterfall()
@@ -325,7 +339,9 @@ final class LocalSDRModel: ObservableObject {
 
     // MARK: - Tuning and audio
 
-    private var currentTuning: KiwiTuning { KiwiTuning(dialHz: frequencyHz, mode: mode) }
+    private var currentTuning: KiwiTuning {
+        KiwiTuning(dialHz: frequencyHz, mode: mode, lowCut: passband.low, highCut: passband.high)
+    }
 
     /// The Kiwi's reported bandwidth (30 MHz until the waterfall says).
     var maxFrequencyHz: Int {
@@ -379,6 +395,7 @@ final class LocalSDRModel: ObservableObject {
         }
         if let newMode, newMode != mode {
             mode = newMode
+            passband = Self.savedPassband(for: newMode)
             UserDefaults.standard.set(newMode.rawValue, forKey: Keys.mode)
             changed = true
         }
@@ -389,11 +406,63 @@ final class LocalSDRModel: ObservableObject {
         checkRecordingSplit()
     }
 
-    /// Retunes the open socket ("SET mod=… freq=…"), no reconnect.
+    /// Retunes the open socket ("SET mod=… freq=…"), no reconnect. At most
+    /// every 50 ms (a drag asks for one per mouse event), the last one
+    /// always going out.
     private func retune() {
+        guard client != nil else { return }
+        let elapsed = ContinuousClock.now - lastRetune
+        if elapsed >= Self.retuneInterval {
+            cancelTrailingRetune()
+            sendRetune()
+        } else if trailingRetune == nil {
+            trailingRetune = Task { [weak self] in
+                try? await Task.sleep(for: Self.retuneInterval - elapsed)
+                guard !Task.isCancelled, let self else { return }
+                trailingRetune = nil
+                sendRetune()
+            }
+        }
+    }
+
+    private func sendRetune() {
         guard let client else { return }
+        lastRetune = .now
         let tuning = currentTuning
         Task { await client.tune(tuning) }
+    }
+
+    private func cancelTrailingRetune() {
+        trailingRetune?.cancel()
+        trailingRetune = nil
+    }
+
+    // MARK: - Passband
+
+    var isPassbandDefault: Bool { passband == KiwiPassband(defaultFor: mode) }
+
+    /// A drag of one edge on the waterfall; `hz` is where the mouse is.
+    func dragPassbandEdge(_ edge: KiwiPassband.Edge, toWaterfallHz hz: Double) {
+        setPassband(passband.dragging(edge, toOffsetHz: hz - Double(frequencyHz), mode: mode))
+    }
+
+    func resetPassband() {
+        setPassband(KiwiPassband(defaultFor: mode))
+        keepPassbandVisible()
+    }
+
+    private func setPassband(_ newPassband: KiwiPassband) {
+        guard newPassband != passband else { return }
+        passband = newPassband
+        UserDefaults.standard.set([newPassband.low, newPassband.high], forKey: Keys.passband(mode))
+        retune()
+    }
+
+    private static func savedPassband(for mode: KiwiSDRMode) -> KiwiPassband {
+        guard let saved = UserDefaults.standard.array(forKey: Keys.passband(mode)) as? [Int], saved.count == 2
+        else { return KiwiPassband(defaultFor: mode) }
+        let band = KiwiPassband(low: saved[0], high: saved[1])
+        return band.isValid(for: mode) ? band : KiwiPassband(defaultFor: mode)
     }
 
     func toggleMuted() {

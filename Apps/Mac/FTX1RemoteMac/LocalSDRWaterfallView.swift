@@ -6,7 +6,8 @@ import SwiftUI
 /// The Local SDR window's waterfall: the KiwiSDR's rows
 /// (`LocalSDRWaterfallStore`), a frequency scale, the passband as a
 /// translucent band with the dial line, zoom buttons, and the mouse —
-/// click to tune, drag to pan, scroll wheel to tune in the mode's steps.
+/// click to tune, drag to pan, scroll wheel to tune in the mode's steps;
+/// dragging the passband's edges sets its width, dragging its middle tunes.
 ///
 /// Everything is drawn in the *requested* view's frame while it has the
 /// picture's zoom: the picture is offset to where its rows really are, so a
@@ -33,6 +34,8 @@ struct LocalSDRWaterfallView: View {
 
     /// The requested start when the drag began.
     @State private var dragOrigin: Int?
+    /// The dial when a drag of the passband's middle began.
+    @State private var tuneDragOrigin: Int?
 
     var body: some View {
         VStack(spacing: 4) {
@@ -49,9 +52,13 @@ struct LocalSDRWaterfallView: View {
                             placeholder
                         }
                         LocalSDRWaterfallMouse(
+                            target: { x in dragTarget(atX: x, width: size.width) },
                             onClick: { x in click(atX: x, width: size.width) },
-                            onDrag: { dx in drag(by: dx, width: size.width) },
-                            onDragEnd: { dragOrigin = nil },
+                            onDrag: { target, dx, x in drag(target, dx: dx, x: x, width: size.width) },
+                            onDragEnd: {
+                                dragOrigin = nil
+                                tuneDragOrigin = nil
+                            },
                             onScroll: model.scrollStep)
                     }
                     .frame(width: size.width, height: max(size.height - Self.scaleHeight, 0))
@@ -81,6 +88,15 @@ struct LocalSDRWaterfallView: View {
             let left = min(low, high), right = max(low, high)
             context.fill(Path(CGRect(x: left, y: 0, width: max(right - left, 2), height: size.height)),
                          with: .color(.yellow.opacity(0.18)))
+            // The edges, each with a tab at the top to show it can be held.
+            for edge in [left, right] {
+                var edgeLine = Path()
+                edgeLine.move(to: CGPoint(x: edge, y: 0))
+                edgeLine.addLine(to: CGPoint(x: edge, y: size.height))
+                context.stroke(edgeLine, with: .color(.yellow.opacity(0.55)), lineWidth: 1)
+                context.fill(Path(CGRect(x: edge - 1.5, y: 0, width: 3, height: 12)),
+                             with: .color(.yellow.opacity(0.9)))
+            }
             var line = Path()
             line.move(to: CGPoint(x: dial, y: 0))
             line.addLine(to: CGPoint(x: dial, y: size.height))
@@ -124,6 +140,17 @@ struct LocalSDRWaterfallView: View {
                     .font(.caption.monospacedDigit())
                     .themedSecondaryForeground()
             }
+            Text(verbatim: "\(model.passband.rangeText(mode: model.mode)) · \(model.passband.width) Hz")
+                .font(.caption.monospacedDigit())
+                .themedSecondaryForeground()
+                .padding(.leading, 12)
+                .help("localSDR.passband.readoutHelp")
+            Button("localSDR.passband.reset", systemImage: "arrow.counterclockwise", action: model.resetPassband)
+                .labelStyle(.titleAndIcon)
+                .buttonStyle(ThemedButtonStyle())
+                .disabled(model.isPassbandDefault)
+                .help("localSDR.passband.resetHelp")
+                .fixedSize()
             Spacer()
             if case .failed(let error) = model.waterfallState, position.current != nil {
                 Text(String(localized: "localSDR.waterfall.failed \(LocalSDRWindowView.message(for: error))"))
@@ -156,7 +183,44 @@ struct LocalSDRWaterfallView: View {
         model.tune(toWaterfallHz: geometry.hz(column: column, start: frame.start, zoom: frame.zoom))
     }
 
-    private func drag(by dx: CGFloat, width: CGFloat) {
+    private func hz(atX x: CGFloat, frame: LocalSDRModel.WaterfallView, width: CGFloat) -> Double {
+        let geometry = store.geometry
+        return geometry.hz(column: Double(x / width) * Double(geometry.fftSize), start: frame.start, zoom: frame.zoom)
+    }
+
+    /// What a press at `x` would hold: 5 pt either side of an edge is that
+    /// edge (less on the inside of a narrow band, so its middle stays
+    /// reachable); the rest of the band is its middle.
+    private func dragTarget(atX x: CGFloat, width: CGFloat) -> LocalSDRWaterfallDragTarget {
+        guard position.current != nil, let frame = displayFrame, width > 0 else { return .pan }
+        let band = model.passbandHz
+        let a = self.x(hz: band.low, frame: frame, width: width)
+        let b = self.x(hz: band.high, frame: frame, width: width)
+        let low = min(a, b), high = max(a, b)
+        let outward: CGFloat = 5
+        let inward = min(5, (high - low) / 3)
+        if x >= low + inward, x <= high - inward { return .middle }
+        if x >= low - outward, x < low + inward { return .edge(.low) }
+        if x > high - inward, x <= high + outward { return .edge(.high) }
+        return .pan
+    }
+
+    private func drag(_ target: LocalSDRWaterfallDragTarget, dx: CGFloat, x: CGFloat, width: CGFloat) {
+        guard let frame = displayFrame, width > 0 else { return }
+        switch target {
+        case .pan:
+            pan(by: dx, width: width)
+        case .edge(let edge):
+            model.dragPassbandEdge(edge, toWaterfallHz: hz(atX: x, frame: frame, width: width))
+        case .middle:
+            let origin = tuneDragOrigin ?? model.frequencyHz
+            if tuneDragOrigin == nil { tuneDragOrigin = origin }
+            let span = store.geometry.spanHz(zoom: frame.zoom)
+            model.tune(toWaterfallHz: Double(origin) + Double(dx / width) * span)
+        }
+    }
+
+    private func pan(by dx: CGFloat, width: CGFloat) {
         guard let view = model.waterfallView, width > 0 else { return }
         let origin = dragOrigin ?? view.start
         if dragOrigin == nil { dragOrigin = origin }
@@ -308,14 +372,38 @@ private struct LocalSDRFrequencyScale: View, Equatable {
     }
 }
 
-/// Mouse handling the SwiftUI gestures can't do on macOS (scroll wheel)
-/// or can't tell apart cleanly (a click that may turn into a drag): a
-/// press that moves less than 3 pt is a click, else a drag reporting the
-/// distance from the press. Wheel: one step per notch, or per 10 pt of
-/// trackpad scrolling.
+/// What a press on the waterfall holds.
+private enum LocalSDRWaterfallDragTarget: Equatable {
+    case pan
+    case edge(KiwiPassband.Edge)
+    case middle
+
+    var cursor: NSCursor {
+        switch self {
+        case .pan: .crosshair
+        case .edge: .resizeLeftRight
+        case .middle: .openHand
+        }
+    }
+
+    var dragCursor: NSCursor {
+        switch self {
+        case .pan, .middle: .closedHand
+        case .edge: .resizeLeftRight
+        }
+    }
+}
+
+/// Mouse handling the SwiftUI gestures can't do on macOS (scroll wheel,
+/// a cursor that depends on where the passband is) or can't tell apart
+/// cleanly (a click that may turn into a drag): a press that moves less
+/// than 3 pt is a click, else a drag of whatever was under the press,
+/// reporting the distance from the press and the mouse's position. Wheel:
+/// one step per notch, or per 10 pt of trackpad scrolling.
 private struct LocalSDRWaterfallMouse: NSViewRepresentable {
+    let target: (CGFloat) -> LocalSDRWaterfallDragTarget
     let onClick: (CGFloat) -> Void
-    let onDrag: (CGFloat) -> Void
+    let onDrag: (LocalSDRWaterfallDragTarget, CGFloat, CGFloat) -> Void
     let onDragEnd: () -> Void
     let onScroll: (Int) -> Void
 
@@ -328,6 +416,7 @@ private struct LocalSDRWaterfallMouse: NSViewRepresentable {
     func updateNSView(_ view: MouseView, context: Context) { update(view) }
 
     private func update(_ view: MouseView) {
+        view.target = target
         view.onClick = onClick
         view.onDrag = onDrag
         view.onDragEnd = onDragEnd
@@ -335,21 +424,38 @@ private struct LocalSDRWaterfallMouse: NSViewRepresentable {
     }
 
     final class MouseView: NSView {
+        var target: (CGFloat) -> LocalSDRWaterfallDragTarget = { _ in .pan }
         var onClick: (CGFloat) -> Void = { _ in }
-        var onDrag: (CGFloat) -> Void = { _ in }
+        var onDrag: (LocalSDRWaterfallDragTarget, CGFloat, CGFloat) -> Void = { _, _, _ in }
         var onDragEnd: () -> Void = {}
         var onScroll: (Int) -> Void = { _ in }
 
         private var pressX: CGFloat?
+        private var pressTarget = LocalSDRWaterfallDragTarget.pan
         private var dragging = false
         private var scrollAccumulator: CGFloat = 0
+        private var tracking: NSTrackingArea?
 
         override var isFlipped: Bool { true }
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-        override func resetCursorRects() {
-            addCursorRect(bounds, cursor: .crosshair)
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let tracking { removeTrackingArea(tracking) }
+            let area = NSTrackingArea(rect: .zero,
+                                      options: [.mouseMoved, .cursorUpdate, .activeAlways, .inVisibleRect],
+                                      owner: self, userInfo: nil)
+            addTrackingArea(area)
+            tracking = area
         }
+
+        private func updateCursor(_ event: NSEvent) {
+            guard !dragging else { return }
+            target(localX(event)).cursor.set()
+        }
+
+        override func cursorUpdate(with event: NSEvent) { updateCursor(event) }
+        override func mouseMoved(with event: NSEvent) { updateCursor(event) }
 
         private func localX(_ event: NSEvent) -> CGFloat {
             convert(event.locationInWindow, from: nil).x
@@ -362,26 +468,29 @@ private struct LocalSDRWaterfallMouse: NSViewRepresentable {
                 pressX = nil
                 return
             }
-            pressX = localX(event)
+            let x = localX(event)
+            pressX = x
+            pressTarget = target(x)
             dragging = false
         }
 
         override func mouseDragged(with event: NSEvent) {
             guard let pressX else { return }
-            let dx = localX(event) - pressX
+            let x = localX(event)
+            let dx = x - pressX
             if !dragging, abs(dx) < 3 { return }
-            if !dragging { NSCursor.closedHand.push() }
+            if !dragging { pressTarget.dragCursor.set() }
             dragging = true
-            onDrag(dx)
+            onDrag(pressTarget, dx, x)
         }
 
         override func mouseUp(with event: NSEvent) {
             defer {
                 pressX = nil
                 dragging = false
+                updateCursor(event)
             }
             if dragging {
-                NSCursor.pop()
                 onDragEnd()
             } else if pressX != nil {
                 onClick(localX(event))

@@ -50,6 +50,75 @@
         }
       }
     },
+    "localSDR.passband.readoutHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Durchlassbereich und seine Breite. Zum Ändern die Kanten im Wasserfall ziehen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The passband and its width. Drag its edges on the waterfall to change it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La banda de paso y su ancho. Arrastrar sus bordes en la cascada para cambiarla."
+          }
+        }
+      }
+    },
+    "localSDR.passband.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurücksetzen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restablecer"
+          }
+        }
+      }
+    },
+    "localSDR.passband.resetHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurück zum Standard-Durchlassbereich dieser Betriebsart"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back to this mode's default passband"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a la banda de paso predeterminada de este modo"
+          }
+        }
+      }
+    },
     "localSDR.play" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8255,19 +8324,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Klicken zum Abstimmen, Ziehen zum Verschieben, Scrollen zum Abstimmen in Schritten."
+            "value" : "Klicken zum Abstimmen, Ziehen zum Verschieben, Scrollen zum Abstimmen in Schritten. Kanten des Durchlassbereichs ziehen für die Breite, seine Mitte zum Abstimmen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Click to tune, drag to pan, scroll to tune in steps."
+            "value" : "Click to tune, drag to pan, scroll to tune in steps. Drag the passband's edges to set its width, its middle to tune."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Clic para sintonizar, arrastrar para desplazar, rueda para sintonizar por pasos."
+            "value" : "Clic para sintonizar, arrastrar para desplazar, rueda para sintonizar por pasos. Arrastrar los bordes de la banda de paso para su ancho, su centro para sintonizar."
           }
         }
       }
