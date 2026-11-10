@@ -431,7 +431,8 @@ public enum KiwiSDRMode: String, CaseIterable, Codable, Sendable {
     /// The frequency to send for a dial frequency. In CW the Kiwi's dial
     /// shows the signal, which sits at the passband's centre above the
     /// carrier (`freq_dsp_to_car`); every other mode sends the dial as is.
-    public func carrierHz(forDialHz dial: Int, lowCut: Int, highCut: Int) -> Int {
-        self == .cw ? dial - (lowCut + (highCut - lowCut) / 2) : dial
+    /// `cwShiftHz`: the passband's centre sits that far above the signal.
+    public func carrierHz(forDialHz dial: Int, lowCut: Int, highCut: Int, cwShiftHz: Int = 0) -> Int {
+        self == .cw ? dial - (lowCut + (highCut - lowCut) / 2 - cwShiftHz) : dial
     }
 }

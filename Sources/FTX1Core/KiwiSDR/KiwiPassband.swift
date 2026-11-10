@@ -19,6 +19,10 @@ import Foundation
 public struct KiwiPassband: Equatable, Sendable {
     public var low: Int
     public var high: Int
+    /// CW only, and only from the rig (`init?(rigFilterOf:)`): how far the
+    /// passband's centre sits above the dial, the rig's IF SHIFT. Dragging
+    /// clears it.
+    public var cwShiftHz = 0
 
     public static let snapHz = 10
     public static let minimumWidthHz = 60
@@ -59,6 +63,44 @@ public struct KiwiPassband: Equatable, Sendable {
     public func isValid(for mode: KiwiSDRMode) -> Bool {
         let ranges = Self.edgeRanges(mode)
         return ranges.low.contains(low) && ranges.high.contains(high) && width >= Self.minimumWidthHz
+    }
+
+    /// The Kiwi passband matching MAIN's receive filter (see
+    /// `FilterPassbandModel` for where width and SHIFT come from). nil
+    /// when the filter fields hold SUB's values, the rig's mode has no Kiwi
+    /// equivalent, or the width isn't known (not read yet, or the rig's
+    /// "default" index 0). Not snapped: these are the rig's own values.
+    ///
+    /// SSB/DATA: the audio passband the rig's display model gives, mirrored
+    /// below the carrier for LSB, kept on its sideband. CW: the width around
+    /// the Kiwi's own pitch, moved by SHIFT with the dial still on the
+    /// signal (the rig's KP pitch doesn't apply here). AM/FM: symmetric, as
+    /// wide as the Kiwi can go (the rig's 16 kHz FM doesn't fit in its
+    /// ±6 kHz); SHIFT doesn't apply.
+    public init?(rigFilterOf state: RigState) {
+        guard state.activeFilterSide == .main,
+              let mode = KiwiSDRMode(rigMode: state.filterMode),
+              let width = FilterPassbandModel.widthHz(state: state).effective, width > 0 else { return nil }
+        let shift = FilterPassbandModel.shiftHz(state: state)
+        switch mode {
+        case .am, .fm:
+            let half = min(width / 2, Self.limitHz)
+            self.init(low: -half, high: half)
+        case .cw:
+            let half = min(width / 2, Self.limitHz / 2)
+            let low = max(max(Self.cwPitchHz - half, 0) + shift, 0)
+            self.init(low: low, high: min(low + 2 * half, Self.limitHz))
+            cwShiftHz = shift
+        case .usb, .lsb:
+            let centre = Int(FilterPassbandModel.defaultCenterHz(for: state.filterMode, pitch: 0)) + shift
+            let low = max(centre - width / 2, 0)
+            let high = min(max(centre - width / 2 + width, low + 1), Self.limitHz)
+            if mode == .usb {
+                self.init(low: low, high: high)
+            } else {
+                self.init(low: -high, high: -low)
+            }
+        }
     }
 
     /// The passband after dragging `edge` to `offsetHz` from the dial,

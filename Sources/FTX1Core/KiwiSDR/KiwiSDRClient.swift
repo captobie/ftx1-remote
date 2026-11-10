@@ -8,17 +8,23 @@ public struct KiwiTuning: Equatable, Sendable {
     public var mode: KiwiSDRMode
     public var lowCut: Int
     public var highCut: Int
+    /// See `KiwiPassband.cwShiftHz`.
+    public var cwShiftHz: Int
 
-    public init(dialHz: Int, mode: KiwiSDRMode, lowCut: Int? = nil, highCut: Int? = nil) {
+    public init(dialHz: Int, mode: KiwiSDRMode, lowCut: Int? = nil, highCut: Int? = nil, cwShiftHz: Int = 0) {
         self.dialHz = dialHz
         self.mode = mode
         self.lowCut = lowCut ?? mode.defaultPassband.low
         self.highCut = highCut ?? mode.defaultPassband.high
+        self.cwShiftHz = cwShiftHz
+    }
+
+    public var carrierHz: Int {
+        mode.carrierHz(forDialHz: dialHz, lowCut: lowCut, highCut: highCut, cwShiftHz: cwShiftHz)
     }
 
     var command: String {
-        KiwiProtocol.tune(carrierHz: mode.carrierHz(forDialHz: dialHz, lowCut: lowCut, highCut: highCut),
-                          mode: mode, lowCut: lowCut, highCut: highCut)
+        KiwiProtocol.tune(carrierHz: carrierHz, mode: mode, lowCut: lowCut, highCut: highCut)
     }
 }
 

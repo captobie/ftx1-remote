@@ -156,6 +156,9 @@ struct LocalSDRWindowView: View {
         HStack(spacing: 14) {
             Toggle("localSDR.followRig", isOn: $model.followRig)
                 .help("localSDR.followRigHelp")
+            Toggle("localSDR.followRigWidth", isOn: Binding(get: { model.followRigWidth }, set: model.setFollowRigWidth))
+                .help("localSDR.followRigWidthHelp")
+                .disabled(!model.followRig)
             Toggle("localSDR.tuneRig", isOn: $model.tuneRig)
                 .help("localSDR.tuneRigHelp")
             Toggle("localSDR.muteOnTx", isOn: $model.muteOnTransmit)

@@ -58,14 +58,9 @@ public struct FilterPassbandModel: Equatable, Sendable {
         let mode = state.filterMode
         modeName = state.activeFilterSide == .sub ? "SUB \(mode.displayName)" : mode.displayName
 
-        let shift = Double(state.ifShiftHz.map(IFShift.snapped) ?? 0)
+        let shift = Double(Self.shiftHz(state: state))
         let pitch = Double(state.cwPitchHz ?? 700)
-        let wideWidth = state.filterWidthIndex.flatMap { FilterWidthTable.hz(forIndex: $0, mode: mode) }
-        // NARROW in SSB/CW/RTTY/DATA: the preset wins when known; AM/FM
-        // already reflect NARROW through the "SH" index itself.
-        let narrowPreset = (state.narrowEnabled == true && NarrowWidthPreset.item(for: mode) != nil)
-            ? state.narrowWidthHz : nil
-        let width = narrowPreset ?? wideWidth
+        let (width, narrowPreset) = Self.widthHz(state: state)
 
         var band: ClosedRange<Double>?
         var marks: [Marker] = []
@@ -106,6 +101,23 @@ public struct FilterPassbandModel: Equatable, Sendable {
             ? state.contourHz.map(Double.init) : nil
         apfHz = (state.apfEnabled == true && IFContour.apfSupported(mode: mode))
             ? state.apfHz.map { pitch + Double($0) } : nil
+    }
+
+    /// The addressed receiver's real receive width in Hz, nil if unknown:
+    /// NARROW's preset (`narrowPreset`, set only when it applies) when on
+    /// in SSB/CW/RTTY/DATA, else the "SH" index's width. AM/FM already
+    /// reflect NARROW through the index itself.
+    static func widthHz(state: RigState) -> (effective: Int?, narrowPreset: Int?) {
+        let mode = state.filterMode
+        let wide = state.filterWidthIndex.flatMap { FilterWidthTable.hz(forIndex: $0, mode: mode) }
+        let preset = (state.narrowEnabled == true && NarrowWidthPreset.item(for: mode) != nil)
+            ? state.narrowWidthHz : nil
+        return (preset ?? wide, preset)
+    }
+
+    /// The addressed receiver's IF SHIFT in Hz (0 until read).
+    static func shiftHz(state: RigState) -> Int {
+        state.ifShiftHz.map(IFShift.snapped) ?? 0
     }
 
     /// Where the passband's center sits before SHIFT, per mode (see the

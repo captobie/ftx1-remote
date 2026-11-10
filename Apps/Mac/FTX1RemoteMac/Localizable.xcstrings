@@ -50,6 +50,52 @@
         }
       }
     },
+    "localSDR.followRigWidth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Breite folgen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow width"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir ancho"
+          }
+        }
+      }
+    },
+    "localSDR.followRigWidthHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solange „Gerät folgen“ an ist, die Filterbreite und den IF SHIFT von MAIN als Durchlassbereich verwenden. Ziehen des Durchlassbereichs schaltet dies aus. Es wartet, solange die Filterregler des Geräts auf SUB stehen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "While Follow rig is on, use MAIN's filter width and IF SHIFT as the passband. Dragging the passband turns this off. It waits while the rig's filter controls are on SUB."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mientras «Seguir al equipo» está activo, usar el ancho de filtro y el IF SHIFT de MAIN como banda de paso. Arrastrar la banda de paso lo desactiva. Espera mientras los controles de filtro del equipo están en SUB."
+          }
+        }
+      }
+    },
     "localSDR.passband.readoutHelp" : {
       "extractionState" : "manual",
       "localizations" : {

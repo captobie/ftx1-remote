@@ -47,7 +47,10 @@ import os
 /// Passband (phase 5): `passband` is the current mode's, each mode's last
 /// one remembered (`localSDR.passband.<mode>`); the waterfall drags its
 /// edges (`KiwiPassband`) and it goes out with the tuning on the open
-/// socket, at most every 50 ms with the last always sent.
+/// socket, at most every 50 ms with the last always sent. With Follow on,
+/// Follow width replaces it with MAIN's receive filter
+/// (`KiwiPassband(rigFilterOf:)`), not saved; turning that off goes back
+/// to the mode's saved passband, and a drag or Reset turns it off.
 final class LocalSDRModel: ObservableObject {
     enum State: Equatable {
         case disconnected
@@ -66,12 +69,21 @@ final class LocalSDRModel: ObservableObject {
         static let followRig = "localSDR.followRig"
         static let tuneRig = "localSDR.tuneRig"
         static let muteOnTransmit = "localSDR.muteOnTransmit"
+        static let followRigWidth = "localSDR.followRigWidth"
         static func passband(_ mode: KiwiSDRMode) -> String { "localSDR.passband.\(mode.rawValue)" }
     }
 
     private struct RigTarget: Equatable {
         let frequencyHz: Int
         let mode: RigMode
+        /// MAIN's receive filter as a Kiwi passband, nil if unknown.
+        let filter: KiwiPassband?
+
+        init(_ rig: RigState) {
+            frequencyHz = rig.frequencyHz
+            mode = rig.mode
+            filter = KiwiPassband(rigFilterOf: rig)
+        }
     }
 
     enum WaterfallState: Equatable {
@@ -117,8 +129,18 @@ final class LocalSDRModel: ObservableObject {
         didSet {
             guard followRig != oldValue else { return }
             UserDefaults.standard.set(followRig, forKey: Keys.followRig)
-            if followRig, let rigTarget { follow(rigTarget) } else { rigLinkNote = nil }
+            if followRig, let rigTarget {
+                follow(rigTarget)
+            } else {
+                rigLinkNote = nil
+                if !followRig, followRigWidth { restoreSavedPassband() }
+            }
         }
+    }
+    /// With Follow on, the passband follows MAIN's filter. Changed through
+    /// `setFollowRigWidth` (the toggle) or by a manual drag.
+    @Published private(set) var followRigWidth: Bool {
+        didSet { UserDefaults.standard.set(followRigWidth, forKey: Keys.followRigWidth) }
     }
     /// Kiwi → rig.
     @Published var tuneRig: Bool {
@@ -205,6 +227,7 @@ final class LocalSDRModel: ObservableObject {
         isMuted = defaults.bool(forKey: Keys.muted)
         password = LocalSDRPassword.read()
         preferredZoom = defaults.object(forKey: Keys.waterfallZoom) as? Int ?? 8
+        followRigWidth = defaults.bool(forKey: Keys.followRigWidth)
         followRig = defaults.object(forKey: Keys.followRig) as? Bool ?? true
         tuneRig = defaults.object(forKey: Keys.tuneRig) as? Bool ?? true
         muteOnTransmit = defaults.object(forKey: Keys.muteOnTransmit) as? Bool ?? true
@@ -230,13 +253,14 @@ final class LocalSDRModel: ObservableObject {
         }
         // Start where the rig is, so the first tune is already right.
         if followRig, let hub {
-            let rig = RigTarget(frequencyHz: hub.rigState.frequencyHz, mode: hub.rigState.mode)
+            let rig = RigTarget(hub.rigState)
             rigTarget = rig
             if case let .tune(hz, kiwiMode) = link.follow(
                 rigFrequencyHz: rig.frequencyHz, rigMode: rig.mode, kiwiFrequencyHz: frequencyHz, kiwiMode: mode,
                 maxFrequencyHz: maxFrequencyHz, now: Self.now) {
                 applyTuning(frequencyHz: hz, mode: kiwiMode)
             }
+            applyRigWidth(rig)
         }
         subscribeToRig()
         sessionTimestamp = Date()
@@ -340,7 +364,8 @@ final class LocalSDRModel: ObservableObject {
     // MARK: - Tuning and audio
 
     private var currentTuning: KiwiTuning {
-        KiwiTuning(dialHz: frequencyHz, mode: mode, lowCut: passband.low, highCut: passband.high)
+        KiwiTuning(dialHz: frequencyHz, mode: mode, lowCut: passband.low, highCut: passband.high,
+                   cwShiftHz: passband.cwShiftHz)
     }
 
     /// The Kiwi's reported bandwidth (30 MHz until the waterfall says).
@@ -395,7 +420,7 @@ final class LocalSDRModel: ObservableObject {
         }
         if let newMode, newMode != mode {
             mode = newMode
-            passband = Self.savedPassband(for: newMode)
+            passband = rigBand(for: rigTarget, mode: newMode) ?? Self.savedPassband(for: newMode)
             UserDefaults.standard.set(newMode.rawValue, forKey: Keys.mode)
             changed = true
         }
@@ -443,11 +468,50 @@ final class LocalSDRModel: ObservableObject {
 
     /// A drag of one edge on the waterfall; `hz` is where the mouse is.
     func dragPassbandEdge(_ edge: KiwiPassband.Edge, toWaterfallHz hz: Double) {
+        if followRigWidth { followRigWidth = false }
         setPassband(passband.dragging(edge, toOffsetHz: hz - Double(frequencyHz), mode: mode))
     }
 
     func resetPassband() {
+        if followRigWidth { followRigWidth = false }
         setPassband(KiwiPassband(defaultFor: mode))
+        keepPassbandVisible()
+    }
+
+    /// The Follow width toggle.
+    func setFollowRigWidth(_ on: Bool) {
+        guard on != followRigWidth else { return }
+        followRigWidth = on
+        if on, let rigTarget {
+            applyRigWidth(rigTarget)
+        } else if !on {
+            restoreSavedPassband()
+        }
+    }
+
+    private var isFollowingRigWidth: Bool { followRig && followRigWidth }
+
+    /// MAIN's filter as a passband, if it's being followed and applies to
+    /// `mode`.
+    private func rigBand(for target: RigTarget?, mode: KiwiSDRMode) -> KiwiPassband? {
+        guard isFollowingRigWidth, let target, KiwiSDRMode(rigMode: target.mode) == mode else { return nil }
+        return target.filter
+    }
+
+    private func applyRigWidth(_ target: RigTarget) {
+        guard let band = rigBand(for: target, mode: mode), band != passband else { return }
+        logger.debug("rig link: passband \(band.low)…\(band.high) from the rig")
+        passband = band
+        retune()
+        keepPassbandVisible()
+    }
+
+    /// Following stopped: the mode's own passband again.
+    private func restoreSavedPassband() {
+        let saved = Self.savedPassband(for: mode)
+        guard saved != passband else { return }
+        passband = saved
+        retune()
         keepPassbandVisible()
     }
 
@@ -581,6 +645,7 @@ final class LocalSDRModel: ObservableObject {
 
     private func stopRigLink() {
         rigCancellables.removeAll()
+        if isFollowingRigWidth { restoreSavedPassband() }
         rigTarget = nil
         isTransmitting = false
         cancelRigSend()
@@ -595,7 +660,7 @@ final class LocalSDRModel: ObservableObject {
         rigCancellables.removeAll()
         guard let hub else { return }
         hub.$rigState
-            .map { RigTarget(frequencyHz: $0.frequencyHz, mode: $0.mode) }
+            .map { RigTarget($0) }
             .removeDuplicates()
             .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
             .sink { [weak self] target in
@@ -626,8 +691,10 @@ final class LocalSDRModel: ObservableObject {
             logger.debug("rig link: follow → Kiwi \(hz) Hz \(kiwiMode?.label ?? "-", privacy: .public)")
             if rigLinkNote != nil { rigLinkNote = nil }
             applyTuning(frequencyHz: hz, mode: kiwiMode)
+            applyRigWidth(target)
         case .alreadyThere:
             if rigLinkNote != nil { rigLinkNote = nil }
+            applyRigWidth(target)
         case .outOfRange(let hz):
             rigLinkNote = String(localized: "localSDR.rigLink.outOfRange \(FrequencyFormat.mhz(hz, fractionDigits: 3)) \(FrequencyFormat.mhz(maxFrequencyHz, fractionDigits: 0))")
         case .waitingForRig:
@@ -733,7 +800,7 @@ final class LocalSDRModel: ObservableObject {
     /// The demodulated passband in absolute Hz.
     var passbandHz: (low: Double, high: Double) {
         let tuning = currentTuning
-        let carrier = Double(mode.carrierHz(forDialHz: frequencyHz, lowCut: tuning.lowCut, highCut: tuning.highCut))
+        let carrier = Double(tuning.carrierHz)
         return (carrier + Double(tuning.lowCut), carrier + Double(tuning.highCut))
     }
 
