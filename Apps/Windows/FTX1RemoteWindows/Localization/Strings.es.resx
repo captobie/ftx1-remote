@@ -2857,15 +2857,6 @@
   <data name="localSdr.receiver.threshold" xml:space="preserve">
     <value>Umbral</value>
   </data>
-  <data name="localSdr.rigLink.both" xml:space="preserve">
-    <value>Enlace con el equipo: sigue al equipo y lo sintoniza</value>
-  </data>
-  <data name="localSdr.rigLink.followOnly" xml:space="preserve">
-    <value>Enlace con el equipo: sigue al equipo</value>
-  </data>
-  <data name="localSdr.rigLink.off" xml:space="preserve">
-    <value>Enlace con el equipo: desactivado</value>
-  </data>
   <data name="localSdr.rigLink.outOfRange" xml:space="preserve">
     <value>Sin seguir: el equipo está en {0} MHz, por encima de los {1} MHz de este Kiwi</value>
   </data>
@@ -2883,18 +2874,6 @@
   </data>
   <data name="localSdr.rigLink.refused.transmitting" xml:space="preserve">
     <value>el equipo está transmitiendo</value>
-  </data>
-  <data name="localSdr.rigLink.tuneOnly" xml:space="preserve">
-    <value>Enlace con el equipo: sintoniza el equipo</value>
-  </data>
-  <data name="localSdr.rigLink.whenConnected" xml:space="preserve">
-    <value>{0} (una vez conectado)</value>
-  </data>
-  <data name="localSdr.rigLink.withNote" xml:space="preserve">
-    <value>{0} — {1}</value>
-  </data>
-  <data name="localSdr.settingsHelp" xml:space="preserve">
-    <value>Dirección y contraseña: Ajustes → Dispositivos</value>
   </data>
   <data name="localSdr.status.connected" xml:space="preserve">
     <value>Conectado a {0} · audio a {1} Hz</value>
@@ -2985,5 +2964,8 @@
   </data>
   <data name="localSdr.stopRecordingHelp" xml:space="preserve">
     <value>Detener la grabación y guardarla en Grabaciones</value>
+  </data>
+  <data name="settings.myKiwiSDREnable" xml:space="preserve">
+    <value>Usar MyKiwiSDR (muestra el botón MyKiwiSDR)</value>
   </data>
 </root>

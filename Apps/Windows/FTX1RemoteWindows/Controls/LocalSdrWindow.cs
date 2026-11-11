@@ -147,8 +147,6 @@ public sealed class LocalSdrWindow : Window
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         row.Children.Add(_hostText);
-        var hint = new TextBlock { Text = Loc.S("localSdr.settingsHelp"), Foreground = new SolidColorBrush(Colors.Gray), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-        row.Children.Add(hint);
         _connectButton.Click += (_, _) =>
         {
             if (Model.IsConnected)
@@ -518,21 +516,8 @@ public sealed class LocalSdrWindow : Window
         return $"S{Math.Max(0, (int)Math.Round((dbm + 127) / 6))}";
     }
 
-    private string RigLinkText()
-    {
-        var active = Model.FollowRig switch
-        {
-            true when Model.TuneRig => Loc.S("localSdr.rigLink.both"),
-            true => Loc.S("localSdr.rigLink.followOnly"),
-            false when Model.TuneRig => Loc.S("localSdr.rigLink.tuneOnly"),
-            _ => Loc.S("localSdr.rigLink.off"),
-        };
-        if (!Model.IsConnected && (Model.FollowRig || Model.TuneRig))
-        {
-            return Loc.F("localSdr.rigLink.whenConnected", active);
-        }
-        return Model.RigLinkNote is { } note ? Loc.F("localSdr.rigLink.withNote", active, note) : active;
-    }
+    /// Only a warning (out of range, a refused tune); nothing when all is well.
+    private string RigLinkText() => Model.RigLinkNote ?? "";
 
     private string StatusText() => Model.State switch
     {

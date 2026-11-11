@@ -336,6 +336,7 @@ public sealed partial class MainWindow : Window
         WireAprsDecoder(_aprsSubDecoder, AprsSource.Sub);
 
         ApplyAppearance();
+        ApplyLocalSdrVisibility();
         ShowDisconnected();
         _wpsdMonitor.CallsignUpdated += callsign => DispatcherQueue.TryEnqueue(() =>
         {
@@ -587,6 +588,7 @@ public sealed partial class MainWindow : Window
             ShowDisconnected();
         }
         ApplyAppearance();
+        ApplyLocalSdrVisibility();
         await ApplyHubSettingAsync();
         ApplyWavelogSettings();
         ApplyLicenseSettings();

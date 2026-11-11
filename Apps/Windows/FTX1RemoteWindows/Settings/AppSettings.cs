@@ -150,6 +150,11 @@ public static class AppSettings
     {
         /// "host" or "host:port" (8073 when absent), from Settings → Devices.
         public string Host { get; set; } = "";
+        /// Shows the main window's MyKiwiSDR button. Unset (a setup from before
+        /// this switch) counts as on when an address is saved.
+        public bool? Enabled { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool IsEnabled => Enabled ?? !string.IsNullOrWhiteSpace(Host);
         public int FrequencyHz { get; set; } = 14_074_000;
         public string Mode { get; set; } = "usb";
         public double Volume { get; set; } = 0.8;

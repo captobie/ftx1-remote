@@ -1,6 +1,7 @@
 using FTX1RemoteWindows.Controls;
 using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Services;
+using FTX1RemoteWindows.Settings;
 using Microsoft.UI.Xaml;
 
 namespace FTX1RemoteWindows;
@@ -16,6 +17,18 @@ public sealed partial class MainWindow
     private readonly LocalSdrAudioSource _localSdrSource = new();
     private bool _webSdrHoldsMain;
     private bool _kiwiHoldsMain;
+
+    /// The button shows only when Settings → Devices has MyKiwiSDR on; turning
+    /// it off closes the window (which disconnects).
+    private void ApplyLocalSdrVisibility()
+    {
+        var on = AppSettings.LocalSdr.IsEnabled;
+        LocalSdrButton.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (!on)
+        {
+            _localSdrWindow?.Close();
+        }
+    }
 
     private void LocalSdrButton_Click(object sender, RoutedEventArgs e)
     {

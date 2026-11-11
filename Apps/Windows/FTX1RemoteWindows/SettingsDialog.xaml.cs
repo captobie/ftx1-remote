@@ -158,6 +158,7 @@ public sealed partial class SettingsDialog : Window
         // C4FM
         WpsdEnabledCheckBox.IsChecked = AppSettings.WpsdEnabled;
         WpsdHostBox.Text = AppSettings.WpsdHost;
+        KiwiEnabledCheckBox.IsChecked = AppSettings.LocalSdr.IsEnabled;
         KiwiHostBox.Text = AppSettings.LocalSdr.Host;
         _loadedKiwiPassword = LocalSdrPassword.Read();
         KiwiPasswordBox.Password = _loadedKiwiPassword;
@@ -459,6 +460,7 @@ public sealed partial class SettingsDialog : Window
 
         // MyKiwiSDR: read again at each Connect, so no restart.
         AppSettings.LocalSdr.Host = KiwiHostBox.Text.Trim();
+        AppSettings.LocalSdr.Enabled = KiwiEnabledCheckBox.IsChecked == true;
         AppSettings.SaveLocalSdr();
         if (KiwiPasswordBox.Password != _loadedKiwiPassword)
         {
