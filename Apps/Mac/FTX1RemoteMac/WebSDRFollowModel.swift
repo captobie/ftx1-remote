@@ -154,7 +154,7 @@ final class WebSDRFollowModel: ObservableObject {
     /// The WebSDR window's Mute. While the Kiwi is audible — connected and
     /// not muted here — the rig's Main playback is muted so the two don't
     /// play over each other; muting here (or disconnecting) unmutes Main
-    /// again (`HubService.setWebSDRAudioActive`, which only ever undoes a
+    /// again (`HubService.setMainAudioOverride`, which only ever undoes a
     /// mute it made itself). Applied to the page live via `SDRPageBridge.
     /// setPageMuted` — and on every Kiwi load as the Kiwi's own `mute=1` URL
     /// parameter, so it survives the reload each retune causes; a WebSDR
@@ -212,7 +212,7 @@ final class WebSDRFollowModel: ObservableObject {
     }
 
     private func updateMainAudio() {
-        hub?.setWebSDRAudioActive(isConnected && !isMuted)
+        hub?.setMainAudioOverride(.webSDR, active: isConnected && !isMuted)
     }
 
     // MARK: Recording (the page's own recorder — see SDRPageBridge)

@@ -32,19 +32,8 @@ nonisolated enum KiwiSDRURLBuilder {
     /// The KiwiSDR mode token for a rig mode, or nil to retune frequency
     /// only. Tokens are from the Kiwi's own `kiwi.modes_lc` list.
     static func modeToken(for mode: RigMode) -> String? {
-        switch mode {
-        case .usb: "usb"
-        // DATA-U is plain USB demodulation on the rig, so USB on the Kiwi
-        // makes FT8 etc. audible there too.
-        case .dataUSB: "usb"
-        case .lsb: "lsb"
-        case .cw: "cw"
-        case .am: "am"
-        case .fm: "nbfm"
-        // No sensible Kiwi equivalent (RTTY's mark/space sideband is
-        // ambiguous; DATA-FM/C4FM are digital) — frequency only.
-        case .rtty, .dataFM, .c4fm, .unknown: nil
-        }
+        // The mapping is FTX1Core's, shared with the Local SDR window.
+        KiwiSDRMode(rigMode: mode)?.kiwiToken
     }
 
     /// The Kiwi mode as the token `modeToken(for:)` would send for it —

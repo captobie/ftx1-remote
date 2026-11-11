@@ -4,6 +4,650 @@
     "" : {
 
     },
+    "common.myKiwiSDRNotConnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR ist nicht verbunden – unter Werkzeuge → MyKiwiSDR verbinden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR isn't connected — connect it in Tools → MyKiwiSDR"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR no está conectado: conectarlo en Herramientas → MyKiwiSDR"
+          }
+        }
+      }
+    },
+    "common.myKiwiSDRSilent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR ist stumm – vom Kiwi kommt kein Audio an"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR is silent — no audio is arriving from the Kiwi"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR está en silencio: no llega audio del Kiwi"
+          }
+        }
+      }
+    },
+    "localSDR.followRigWidth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Breite folgen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow width"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir ancho"
+          }
+        }
+      }
+    },
+    "localSDR.followRigWidthHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solange „Gerät folgen“ an ist, die Filterbreite und den IF SHIFT von MAIN als Durchlassbereich verwenden. Ziehen des Durchlassbereichs schaltet dies aus. Es wartet, solange die Filterregler des Geräts auf SUB stehen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "While Follow rig is on, use MAIN's filter width and IF SHIFT as the passband. Dragging the passband turns this off. It waits while the rig's filter controls are on SUB."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mientras «Seguir al equipo» está activo, usar el ancho de filtro y el IF SHIFT de MAIN como banda de paso. Arrastrar la banda de paso lo desactiva. Espera mientras los controles de filtro del equipo están en SUB."
+          }
+        }
+      }
+    },
+    "localSDR.passband.readoutHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Durchlassbereich und seine Breite. Zum Ändern die Kanten im Wasserfall ziehen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The passband and its width. Drag its edges on the waterfall to change it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La banda de paso y su ancho. Arrastrar sus bordes en la cascada para cambiarla."
+          }
+        }
+      }
+    },
+    "localSDR.passband.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurücksetzen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restablecer"
+          }
+        }
+      }
+    },
+    "localSDR.passband.resetHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurück zum Standard-Durchlassbereich dieser Betriebsart"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back to this mode's default passband"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a la banda de paso predeterminada de este modo"
+          }
+        }
+      }
+    },
+    "localSDR.play" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abspielen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducir"
+          }
+        }
+      }
+    },
+    "localSDR.playHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aufnahmen öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Recordings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir Grabaciones"
+          }
+        }
+      }
+    },
+    "localSDR.receiver.agcHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatische Verstärkungsregelung. Schwelle und Abklingzeit gelten, solange sie an ist, die manuelle Verstärkung, solange sie aus ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic gain control. Threshold and Decay apply while it's on, Manual gain while it's off."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Control automático de ganancia. Umbral y Caída se aplican mientras está activo; la ganancia manual, mientras está apagado."
+          }
+        }
+      }
+    },
+    "localSDR.receiver.autonotch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-Notch"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto notch"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notch automático"
+          }
+        }
+      }
+    },
+    "localSDR.receiver.decay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abklingzeit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decay"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Caída"
+          }
+        }
+      }
+    },
+    "localSDR.receiver.denoise" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rauschminderung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denoise"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reducción de ruido"
+          }
+        }
+      }
+    },
+    "localSDR.receiver.gate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gate"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gate"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gate"
+          }
+        }
+      }
+    },
+    "localSDR.receiver.manualGain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manuelle Verstärkung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manual gain"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ganancia manual"
+          }
+        }
+      }
+    },
+    "localSDR.receiver.noiseBlanker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Störaustaster"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noise blanker"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supresor de ruido"
+          }
+        }
+      }
+    },
+    "localSDR.receiver.noiseBlankerHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Störaustaster im Kiwi für kurze Impulse wie Zündfunken oder Netzstörungen. Er wirkt auch auf den Wasserfall."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noise blanker on the Kiwi, for short impulses such as ignition or power-line noise. It applies to the waterfall too."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supresor de ruido en el Kiwi, para impulsos cortos como encendidos o ruido de la red. También se aplica a la cascada."
+          }
+        }
+      }
+    },
+    "localSDR.receiver.noiseFilter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rauschfilter"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noise filter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtro de ruido"
+          }
+        }
+      }
+    },
+    "localSDR.receiver.noiseFilterHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rauschfilter im Kiwi. WDSP und LMS haben eigene Schalter für Rauschminderung und Auto-Notch; Spectral braucht keinen davon."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noise filter on the Kiwi. WDSP and LMS have separate Denoise and Auto notch switches; Spectral needs neither."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtro de ruido en el Kiwi. WDSP y LMS tienen interruptores propios de reducción de ruido y notch automático; Spectral no necesita ninguno."
+          }
+        }
+      }
+    },
+    "localSDR.receiver.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apagado"
+          }
+        }
+      }
+    },
+    "localSDR.receiver.standard" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estándar"
+          }
+        }
+      }
+    },
+    "localSDR.receiver.threshold" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schwelle"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Threshold"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Umbral"
+          }
+        }
+      }
+    },
+    "localSDR.record" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aufnehmen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grabar"
+          }
+        }
+      }
+    },
+    "localSDR.recordHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio des Kiwi aufnehmen (vor Lautstärke und Stummschaltung), eine Datei pro Frequenz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record the Kiwi's audio (before volume and mute), one file per frequency"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grabar el audio del Kiwi (antes del volumen y el silencio), un archivo por frecuencia"
+          }
+        }
+      }
+    },
+    "localSDR.recordNeedsConnection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zum Aufnehmen verbinden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to record"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar para grabar"
+          }
+        }
+      }
+    },
+    "localSDR.recording.saved %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ gesichert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved “%@”"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardada «%@»"
+          }
+        }
+      }
+    },
+    "localSDR.status.readingPassword" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gespeichertes Passwort wird aus dem Schlüsselbund gelesen…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading the saved password from the keychain…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leyendo la contraseña guardada del llavero…"
+          }
+        }
+      }
+    },
+    "localSDR.stopRecordingHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aufnahme stoppen und in Aufnahmen sichern"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop recording and save to Recordings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detener la grabación y guardarla en Grabaciones"
+          }
+        }
+      }
+    },
     "– WPM" : {
       "extractionState" : "manual",
       "shouldTranslate" : false
@@ -308,6 +952,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mensajes"
+          }
+        }
+      }
+    },
+    "app.myKiwiSDR" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR"
           }
         }
       }
@@ -4252,19 +4919,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Welches Audio dekodiert wird: MAIN- oder SUB-Empfänger des Geräts oder das, was das WebSDR-Fenster abspielt"
+            "value" : "Welches Audio dekodiert wird: MAIN- oder SUB-Empfänger des Geräts, das, was das WebSDR-Fenster abspielt, oder das Audio des MyKiwiSDR-Fensters"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Which audio to decode: the rig's MAIN or SUB receiver, or what the WebSDR window is playing"
+            "value" : "Which audio to decode: the rig's MAIN or SUB receiver, what the WebSDR window is playing, or the MyKiwiSDR window's audio"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Qué audio decodificar: el receptor MAIN o SUB del equipo, o lo que reproduce la ventana WebSDR"
+            "value" : "Qué audio decodificar: el receptor MAIN o SUB del equipo, lo que reproduce la ventana WebSDR o el audio de la ventana MyKiwiSDR"
           }
         }
       }
@@ -5139,19 +5806,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Welches Audio dekodiert wird: MAIN- oder SUB-Empfänger des Geräts oder das, was das WebSDR-Fenster abspielt"
+            "value" : "Welches Audio dekodiert wird: MAIN- oder SUB-Empfänger des Geräts, das, was das WebSDR-Fenster abspielt, oder das Audio des MyKiwiSDR-Fensters"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Which audio to decode: the rig's MAIN or SUB receiver, or what the WebSDR window is playing"
+            "value" : "Which audio to decode: the rig's MAIN or SUB receiver, what the WebSDR window is playing, or the MyKiwiSDR window's audio"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Qué audio decodificar: el receptor MAIN o SUB del equipo, o lo que reproduce la ventana WebSDR"
+            "value" : "Qué audio decodificar: el receptor MAIN o SUB del equipo, lo que reproduce la ventana WebSDR o el audio de la ventana MyKiwiSDR"
           }
         }
       }
@@ -7118,6 +7785,1018 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "localSDR.adcOverload" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ADC-Übersteuerung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ADC overload"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saturación del ADC"
+          }
+        }
+      }
+    },
+    "localSDR.error.badPassword" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Falsches Passwort: Der KiwiSDR hat es abgelehnt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wrong password: the KiwiSDR refused it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contraseña incorrecta: el KiwiSDR la ha rechazado."
+          }
+        }
+      }
+    },
+    "localSDR.error.busy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle Kanäle des KiwiSDR sind belegt. Später erneut versuchen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All of the KiwiSDR's channels are in use. Try again later."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todos los canales del KiwiSDR están ocupados. Volver a intentarlo más tarde."
+          }
+        }
+      }
+    },
+    "localSDR.error.down" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der KiwiSDR meldet, dass er nicht verfügbar ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The KiwiSDR says it's down."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El KiwiSDR indica que no está disponible."
+          }
+        }
+      }
+    },
+    "localSDR.error.invalidHost" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host des KiwiSDR eingeben, z. B. kiwisdr.local:8073."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the KiwiSDR's host, e.g. kiwisdr.local:8073."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introducir el host del KiwiSDR, p. ej. kiwisdr.local:8073."
+          }
+        }
+      }
+    },
+    "localSDR.error.noResponse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der KiwiSDR sendet kein Audio mehr."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The KiwiSDR stopped sending audio."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El KiwiSDR ha dejado de enviar audio."
+          }
+        }
+      }
+    },
+    "localSDR.error.redirect %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der KiwiSDR hat auf %@ umgeleitet (nicht gefolgt)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The KiwiSDR redirected to %@ (not followed)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El KiwiSDR ha redirigido a %@ (no se ha seguido)."
+          }
+        }
+      }
+    },
+    "localSDR.error.refused %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der KiwiSDR hat die Verbindung abgelehnt (Code %lld)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The KiwiSDR refused the connection (code %lld)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El KiwiSDR ha rechazado la conexión (código %lld)."
+          }
+        }
+      }
+    },
+    "localSDR.error.unreachable %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KiwiSDR nicht erreichbar: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't reach the KiwiSDR: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede conectar con el KiwiSDR: %@"
+          }
+        }
+      }
+    },
+    "localSDR.followRig" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerät folgen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow rig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir al equipo"
+          }
+        }
+      }
+    },
+    "localSDR.followRigHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiwi nachstimmen, wenn sich der Main-VFO des Geräts ändert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retune the Kiwi when the rig's Main VFO changes"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resintonizar el Kiwi cuando cambie el VFO Main del equipo"
+          }
+        }
+      }
+    },
+    "localSDR.frequencyHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequenz in kHz eingeben und Return drücken."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type a frequency in kHz and press Return."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introducir una frecuencia en kHz y pulsar Intro."
+          }
+        }
+      }
+    },
+    "localSDR.frequencyKHz" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequenz (kHz)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequency (kHz)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frecuencia (kHz)"
+          }
+        }
+      }
+    },
+    "localSDR.hostPlaceholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host:Port des KiwiSDR"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KiwiSDR host:port"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "host:puerto del KiwiSDR"
+          }
+        }
+      }
+    },
+    "localSDR.mute" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stumm"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mute"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silenciar"
+          }
+        }
+      }
+    },
+    "localSDR.muteOnTx" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stumm bei TX"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mute on TX"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silenciar en TX"
+          }
+        }
+      }
+    },
+    "localSDR.muteOnTxHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiwi stummschalten, während das Gerät sendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silence the Kiwi while the rig transmits"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silenciar el Kiwi mientras el equipo transmite"
+          }
+        }
+      }
+    },
+    "localSDR.muted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stumm"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muted"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silenciado"
+          }
+        }
+      }
+    },
+    "localSDR.password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contraseña"
+          }
+        }
+      }
+    },
+    "localSDR.passwordHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benutzerpasswort des KiwiSDR. Wird im Anmeldeschlüsselbund gesichert, sobald der KiwiSDR es annimmt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The KiwiSDR's user password. Saved in the login keychain once the KiwiSDR accepts it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contraseña de usuario del KiwiSDR. Se guarda en el llavero de inicio de sesión cuando el KiwiSDR la acepta."
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.both" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geräteverbindung: folgt dem Gerät und stimmt es ab"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig link: following the rig and tuning it"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enlace con el equipo: sigue al equipo y lo sintoniza"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.followOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geräteverbindung: folgt dem Gerät"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig link: following the rig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enlace con el equipo: sigue al equipo"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geräteverbindung: aus"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig link: off"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enlace con el equipo: desactivado"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.outOfRange %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folgt nicht: das Gerät ist auf %1$@ MHz, über den %2$@ MHz dieses Kiwi"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not following: the rig is on %1$@ MHz, above this Kiwi's %2$@ MHz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin seguir: el equipo está en %1$@ MHz, por encima de los %2$@ MHz de este Kiwi"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.refused %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerät nicht abgestimmt: %1$@ (%2$@)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig not tuned: %1$@ (%2$@)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Equipo no sintonizado: %1$@ (%2$@)"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.refused.disconnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "das Gerät ist nicht verbunden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the rig isn't connected"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el equipo no está conectado"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.refused.memory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MAIN ist im Speichermodus"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MAIN is in Memory mode"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MAIN está en modo memoria"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.refused.noFrequency" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "noch keine Gerätefrequenz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no rig frequency yet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "aún no hay frecuencia del equipo"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.refused.transmitting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "das Gerät sendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the rig is transmitting"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el equipo está transmitiendo"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.tuneOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geräteverbindung: stimmt das Gerät ab"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rig link: tuning the rig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enlace con el equipo: sintoniza el equipo"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.whenConnected %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (sobald verbunden)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (once connected)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (una vez conectado)"
+          }
+        }
+      }
+    },
+    "localSDR.rigLink.withNote %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ – %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ — %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ — %2$@"
+          }
+        }
+      }
+    },
+    "localSDR.status.connected %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbunden mit %1$@ · Audio mit %2$@ Hz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected to %1$@ · audio at %2$@ Hz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectado a %1$@ · audio a %2$@ Hz"
+          }
+        }
+      }
+    },
+    "localSDR.status.connecting %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbindung mit %@ wird hergestellt…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to %@…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectando con %@…"
+          }
+        }
+      }
+    },
+    "localSDR.status.disconnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht verbunden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin conexión."
+          }
+        }
+      }
+    },
+    "localSDR.tuneRig" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerät abstimmen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tune rig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonizar equipo"
+          }
+        }
+      }
+    },
+    "localSDR.tuneRigHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Main-VFO des Geräts abstimmen, wenn hier abgestimmt wird (Frequenz eingeben, Klick in den Wasserfall, Scrollen, Ziehen, Betriebsart)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tune the rig's Main VFO when you tune here (frequency entry, waterfall click, scroll, drag, mode)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonizar el VFO Main del equipo al sintonizar aquí (introducir una frecuencia, clic en la cascada, desplazamiento, arrastre, modo)"
+          }
+        }
+      }
+    },
+    "localSDR.volume" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lautstärke"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volume"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volumen"
+          }
+        }
+      }
+    },
+    "localSDR.waterfall.failed %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wasserfall angehalten: %@ Der Ton läuft weiter."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waterfall stopped: %@ The audio keeps playing."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cascada detenida: %@ El audio sigue sonando."
+          }
+        }
+      }
+    },
+    "localSDR.waterfall.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klicken zum Abstimmen, Ziehen zum Verschieben, Scrollen zum Abstimmen in Schritten. Kanten des Durchlassbereichs ziehen für die Breite, seine Mitte zum Abstimmen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click to tune, drag to pan, scroll to tune in steps. Drag the passband's edges to set its width, its middle to tune."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clic para sintonizar, arrastrar para desplazar, rueda para sintonizar por pasos. Arrastrar los bordes de la banda de paso para su ancho, su centro para sintonizar."
+          }
+        }
+      }
+    },
+    "localSDR.waterfall.idle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Wasserfall startet nach dem Verbinden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The waterfall starts when connected."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cascada empieza al conectar."
+          }
+        }
+      }
+    },
+    "localSDR.waterfall.waiting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warten auf den Wasserfall …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the waterfall…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando la cascada…"
+          }
+        }
+      }
+    },
+    "localSDR.zoomIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vergrößern"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom In"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ampliar"
+          }
+        }
+      }
+    },
+    "localSDR.zoomOut" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verkleinern"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom Out"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reducir"
           }
         }
       }

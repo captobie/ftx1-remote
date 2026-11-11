@@ -52,6 +52,9 @@ struct FTX1RemoteMacApp: App {
                 Button("WebSDR") {
                     openWindow(id: "websdr-follow")
                 }
+                Button("app.myKiwiSDR") {
+                    openWindow(id: "local-sdr")
+                }
             }
         }
 
@@ -106,6 +109,7 @@ struct FTX1RemoteMacApp: App {
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.cwReceiver)
                 .environmentObject(appDelegate.hub.webSDRSource)
+                .environmentObject(appDelegate.hub.localSDRSource)
                 .environmentObject(appDelegate.hub.cwSender)
                 .environmentObject(appDelegate.hub.cwMonitor)
                 .environmentObject(appDelegate.hub.workedStations)
@@ -121,6 +125,7 @@ struct FTX1RemoteMacApp: App {
                 .environmentObject(appDelegate.hub.digiReceiver)
                 .environmentObject(appDelegate.hub.digiSender)
                 .environmentObject(appDelegate.hub.webSDRSource)
+                .environmentObject(appDelegate.hub.localSDRSource)
                 .appTheme()
         }
 
@@ -141,6 +146,17 @@ struct FTX1RemoteMacApp: App {
             WebSDRFollowView(hub: appDelegate.hub)
                 .appTheme()
         }
+
+        // Tools → Local SDR: the operator's own KiwiSDR as native audio
+        // (`LocalSDRModel`, no web page). `hub` passed in directly, as for
+        // the WebSDR window, for the rig link; opens disconnected and
+        // disconnects when closed.
+        Window("app.myKiwiSDR", id: "local-sdr") {
+            LocalSDRWindowView(hub: appDelegate.hub)
+                .appTheme()
+        }
+        .windowResizability(.contentSize)
+        .defaultSize(width: 900, height: 640)
 
         // The Mem List button under Waterfall (ContentView). `hub` to send
         // the MAIN/SUB recalls and highlight the current channels.

@@ -46,7 +46,13 @@ public final class AudioPlaybackEngine {
     /// arrives.
     private var prebuffer: [AVAudioPCMBuffer] = []
     private var hasPrimed = false
-    private let prebufferTargetSeconds: Double = 0.12
+    private let prebufferTargetSeconds: Double
+
+    /// Where the last scheduled buffer ends on the player's timeline, and
+    /// how often a buffer arrived with nothing left queued. Bookkeeping
+    /// only (`playoutStatus`): it doesn't affect what's played.
+    private var scheduledEndFrame: AVAudioFramePosition?
+    private var underrunCount = 0
 
     #if os(macOS)
     /// Resolved to a live `AudioDeviceID` by the caller (`HubService`, via
@@ -80,9 +86,16 @@ public final class AudioPlaybackEngine {
     /// false for a pass-through player (the Mac's transmit audio sink),
     /// which must never gate the operator's voice.
     private let squelchEnabled: Bool
+    /// The rate of the Int16 PCM `push(pcm:)` takes: the relay's 8 kHz
+    /// by default; the Mac's Local SDR window passes the KiwiSDR's own
+    /// reported rate (~11998.9 Hz), so the converter resamples from that.
+    private let inputSampleRate: Double
 
-    public init(squelchEnabled: Bool = true) {
+    public init(squelchEnabled: Bool = true, inputSampleRate: Double = AudioStreamFormat.sampleRate,
+                prebufferSeconds: Double = 0.12) {
         self.squelchEnabled = squelchEnabled
+        self.prebufferTargetSeconds = prebufferSeconds
+        self.inputSampleRate = inputSampleRate
         squelchGate = SquelchGate(threshold: Float(AudioPlaybackSettings.squelchThreshold))
         squelchGate.releaseDuration = AudioPlaybackSettings.squelchHangTime
         player.volume = squelchEnabled ? Float(AudioPlaybackSettings.volume) : 1
@@ -150,7 +163,7 @@ public final class AudioPlaybackEngine {
 
         guard let wireFormat = AVAudioFormat(
             commonFormat: .pcmFormatInt16,
-            sampleRate: AudioStreamFormat.sampleRate,
+            sampleRate: inputSampleRate,
             channels: 1,
             interleaved: true
         ), let newConverter = AVAudioConverter(from: wireFormat, to: format) else {
@@ -161,6 +174,8 @@ public final class AudioPlaybackEngine {
 
         prebuffer.removeAll()
         hasPrimed = false
+        scheduledEndFrame = nil
+        underrunCount = 0
         gateMixer.outputVolume = 0
 
         #if os(macOS)
@@ -227,7 +242,7 @@ public final class AudioPlaybackEngine {
         releaseSessionIfHeld()
     }
 
-    /// One chunk of raw Int16 mono PCM at `AudioStreamFormat.sampleRate`, as
+    /// One chunk of raw Int16 mono PCM at `inputSampleRate`, as
     /// delivered by `RigWebSocketClient.onAudioData` (tag byte already
     /// stripped). Converts to the engine's playback format, updates the
     /// squelch gate from this chunk's RMS level, and schedules it — after a
@@ -265,6 +280,7 @@ public final class AudioPlaybackEngine {
             let bufferedSeconds = prebuffer.reduce(0.0) { $0 + Double($1.frameLength) / playbackFormat.sampleRate }
             guard bufferedSeconds >= prebufferTargetSeconds else { return }
             for buffered in prebuffer {
+                noteScheduled(buffered)
                 player.scheduleBuffer(buffered)
             }
             prebuffer.removeAll()
@@ -272,10 +288,37 @@ public final class AudioPlaybackEngine {
             return
         }
 
+        noteScheduled(buffer)
         player.scheduleBuffer(buffer)
     }
 
     private var pushLogCounter = 0
+
+    /// How much audio is queued ahead of the output right now, and how
+    /// often the queue has run dry. nil until playback has started.
+    public func playoutStatus() -> (bufferedSeconds: Double, underruns: Int)? {
+        guard let end = scheduledEndFrame, let now = currentPlayerFrame(), let rate = playbackFormat?.sampleRate else {
+            return nil
+        }
+        return (Double(max(end - now, 0)) / rate, underrunCount)
+    }
+
+    private func currentPlayerFrame() -> AVAudioFramePosition? {
+        guard let nodeTime = player.lastRenderTime, nodeTime.isSampleTimeValid,
+              let playerTime = player.playerTime(forNodeTime: nodeTime) else { return nil }
+        return playerTime.sampleTime
+    }
+
+    private func noteScheduled(_ buffer: AVAudioPCMBuffer) {
+        guard let now = currentPlayerFrame() else { return }
+        let frames = AVAudioFramePosition(buffer.frameLength)
+        if let end = scheduledEndFrame, end > now {
+            scheduledEndFrame = end + frames
+        } else {
+            if scheduledEndFrame != nil { underrunCount += 1 }
+            scheduledEndFrame = now + frames
+        }
+    }
 
     private func convert(pcm: Data, converter: AVAudioConverter, format: AVAudioFormat) -> AVAudioPCMBuffer? {
         let frameCount = pcm.count / MemoryLayout<Int16>.size
@@ -291,7 +334,7 @@ public final class AudioPlaybackEngine {
         // Generous headroom over the naive ratio — the converter can emit a
         // few extra frames around a resample boundary; undersizing the
         // output buffer truncates audio rather than erroring.
-        let estimatedOutputFrames = Int(Double(frameCount) * format.sampleRate / AudioStreamFormat.sampleRate) + 16
+        let estimatedOutputFrames = Int(Double(frameCount) * format.sampleRate / inputSampleRate) + 16
         guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(estimatedOutputFrames)) else { return nil }
 
         // One-shot conversion: hand the converter the whole input buffer

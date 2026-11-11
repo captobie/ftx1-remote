@@ -138,12 +138,15 @@ public final class DigiReceiver: ObservableObject {
         return settings
     }
 
-    /// The selected receiver's mode (nil for WebSDR or before the first read).
+    /// The selected source's mode: the rig's for MAIN/SUB (nil before the
+    /// first read), the Kiwi's demodulation for MyKiwiSDR (nil while it
+    /// isn't connected), nil for WebSDR.
     private var sourceMode: RigMode? {
         switch channel {
         case .main: rigInfo.mainMode == .unknown ? nil : rigInfo.mainMode
         case .sub: rigInfo.subMode
         case .webSDR: nil
+        case .myKiwiSDR: myKiwiSDRMode
         }
     }
 
@@ -183,7 +186,9 @@ public final class DigiReceiver: ObservableObject {
     public static let defaultRTTYCenterHz = 2210.0
     public static let defaultPSKCenterHz = 1000.0
 
-    public init(logSubsystem: String) {
+    /// - Parameter channels: the sources this app offers; a saved choice
+    ///   outside them falls back to MAIN.
+    public init(logSubsystem: String, channels: [ReceiveAudioChannel] = ReceiveAudioChannel.allCases) {
         logger = Logger(subsystem: logSubsystem, category: "digi-decoder")
         let defaults = SettingsStore.defaults
         defaults.register(defaults: [
@@ -198,7 +203,7 @@ public final class DigiReceiver: ObservableObject {
         ])
         let mode = DigiMode(rawValue: defaults.string(forKey: Key.mode) ?? "") ?? .rtty
         self.mode = mode
-        channel = ReceiveAudioChannel(rawValue: defaults.string(forKey: Key.channel) ?? "") ?? .main
+        channel = ReceiveAudioChannel.restored(rawValue: defaults.string(forKey: Key.channel), offered: channels)
         centerHz = defaults.double(forKey: mode.isPSK ? Key.pskCenter : Key.rttyCenter)
         rttyShiftHz = defaults.double(forKey: Key.rttyShift)
         rttyBaud = defaults.double(forKey: Key.rttyBaud)
@@ -302,7 +307,7 @@ public final class DigiReceiver: ObservableObject {
             guard isSubAudioAvailable else { return }
             if let lastSubSampleAt, now.timeIntervalSince(lastSubSampleAt) < Self.subAudioTimeout { return }
             isSubAudioAvailable = false
-        case .webSDR:
+        case .webSDR, .myKiwiSDR:
             break
         }
     }
@@ -317,6 +322,19 @@ public final class DigiReceiver: ObservableObject {
         updateTransmitPause()
         updateModeHint()
     }
+
+    /// The MyKiwiSDR window's demodulation while it's connected (nil
+    /// otherwise): the sideband RTTY's polarity follows, and the "not a
+    /// data mode" note, when that's the source.
+    public func setMyKiwiSDRMode(_ mode: RigMode?) {
+        guard mode != myKiwiSDRMode else { return }
+        let oldReverse = decoderRTTYSettings.reverse
+        myKiwiSDRMode = mode
+        if self.mode == .rtty, isRunning, decoderRTTYSettings.reverse != oldReverse { rebuildDecoder() }
+        updateModeHint()
+    }
+
+    private var myKiwiSDRMode: RigMode?
 
     /// The RTTY/PSK sender is transmitting (covers the lag before the poll
     /// sees PTT, as with the CW sender).

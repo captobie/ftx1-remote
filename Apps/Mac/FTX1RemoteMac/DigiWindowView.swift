@@ -35,7 +35,9 @@ struct DigiWindowView: View {
                 .frame(minHeight: 200)
         }
         .navigationTitle("RTTY/PSK")
-        .frame(minWidth: 820, minHeight: 600)
+        // Wide enough for the header's four sources and its buttons
+        // without wrapping a label.
+        .frame(minWidth: 980, minHeight: 600)
         .onAppear { receiver.start() }
         .onDisappear {
             // Not left keyed with nobody watching: closing acts as RX
@@ -91,6 +93,7 @@ private struct DigiHeader: View {
             } label: {
                 Label("cwWindow.openAudioFile", systemImage: "waveform")
             }
+            .fixedSize()
             .keyboardShortcut("o")
             .help("digiWindow.decodeARecording")
             .disabled(receiver.isDecodingFile)
@@ -101,6 +104,7 @@ private struct DigiHeader: View {
             } label: {
                 Label("common.copy", systemImage: "doc.on.doc")
             }
+            .fixedSize()
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .help("digiWindow.copyTheText")
             .disabled(receiver.decodedText.isEmpty)
@@ -110,6 +114,7 @@ private struct DigiHeader: View {
             } label: {
                 Label("common.clear", systemImage: "trash")
             }
+            .fixedSize()
             .keyboardShortcut("k")
             .help("digiWindow.clearTheText")
             .disabled(receiver.decodedText.isEmpty)
@@ -120,7 +125,7 @@ private struct DigiHeader: View {
     }
 }
 
-/// MAIN/SUB/WebSDR. Its own view so observing `hub` (for single-receive
+/// MAIN/SUB/WebSDR/MyKiwiSDR. Its own view so observing `hub` (for single-receive
 /// display) re-renders only this picker.
 private struct DigiChannelPicker: View {
     @EnvironmentObject private var hub: HubService
@@ -238,6 +243,7 @@ private struct DigiSettingsRow: View {
 private struct DigiStatusLine: View {
     @EnvironmentObject private var receiver: DigiReceiver
     @EnvironmentObject private var webSDRSource: WebSDRAudioSource
+    @EnvironmentObject private var localSDRSource: LocalSDRAudioSource
     @ObservedObject var meters: DigiMeterStore
 
     var body: some View {
@@ -272,6 +278,13 @@ private struct DigiStatusLine: View {
         }
         if let mode = receiver.unsuitableSourceMode {
             return String(localized: "digiWindow.sourceIsIn \(receiver.channel.title) \(mode.displayName)")
+        }
+        if receiver.channel == .myKiwiSDR {
+            switch localSDRSource.status {
+            case .receiving: return nil
+            case .notConnected: return String(localized: "common.myKiwiSDRNotConnected")
+            case .silent: return String(localized: "common.myKiwiSDRSilent")
+            }
         }
         guard receiver.channel == .webSDR else { return nil }
         switch webSDRSource.status {

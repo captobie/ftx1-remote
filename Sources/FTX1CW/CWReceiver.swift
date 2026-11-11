@@ -77,13 +77,16 @@ public final class CWReceiver: ObservableObject {
     @Published public private(set) var isPausedForTransmit = false
     /// The rig's CW pitch (`KP`), for the tone slider's "Rig Pitch" button.
     @Published public private(set) var rigPitchHz: Int?
-    /// The selected receiver's mode isn't CW (MAIN/SUB sources only).
+    /// The selected source's mode isn't CW (MAIN/SUB: the rig's; MyKiwiSDR:
+    /// the Kiwi's; never for WebSDR, whose mode isn't known).
     @Published public private(set) var sourceModeIfNotCW: RigMode?
 
     /// Whether decoding is on (between `start()` and `stop()`).
     public private(set) var isRunning = false
     /// Called whenever `isRunning` or `channel` changes — the Mac's
-    /// WebSDR source (`WebSDRAudioSource`) starts or stops its tap from here.
+    /// WebSDR source (`WebSDRAudioSource`) starts or stops its tap from
+    /// here, and its MyKiwiSDR source (`LocalSDRAudioSource`) re-checks
+    /// who wants its audio.
     public var onSourceChanged: (() -> Void)?
 
     private var senderActive = false
@@ -123,8 +126,7 @@ public final class CWReceiver: ObservableObject {
             DefaultsKey.squelchDB: fallback.squelchDB,
             DefaultsKey.decoder: DecoderKind.neural.rawValue,
         ])
-        let saved = CWAudioChannel(rawValue: defaults.string(forKey: DefaultsKey.channel) ?? "")
-        channel = saved.flatMap { channels.contains($0) ? $0 : nil } ?? .main
+        channel = CWAudioChannel.restored(rawValue: defaults.string(forKey: DefaultsKey.channel), offered: channels)
         toneFrequency = defaults.double(forKey: DefaultsKey.toneFrequency)
         autoTune = defaults.bool(forKey: DefaultsKey.autoTune)
         squelchDB = defaults.double(forKey: DefaultsKey.squelchDB)
@@ -198,7 +200,7 @@ public final class CWReceiver: ObservableObject {
             guard isSubAudioAvailable else { return }
             if let lastSubSampleAt, now.timeIntervalSince(lastSubSampleAt) < Self.subAudioTimeout { return }
             isSubAudioAvailable = false
-        case .webSDR:
+        case .webSDR, .myKiwiSDR:
             break
         }
     }
@@ -218,6 +220,17 @@ public final class CWReceiver: ObservableObject {
         updateModeHint()
     }
 
+    /// The MyKiwiSDR window's demodulation while it's connected (nil
+    /// otherwise), for the "not CW" note when that's the source — the Kiwi
+    /// tunes on its own, so the rig's mode says nothing about it.
+    public func setMyKiwiSDRMode(_ mode: RigMode?) {
+        guard mode != myKiwiSDRMode else { return }
+        myKiwiSDRMode = mode
+        updateModeHint()
+    }
+
+    private var myKiwiSDRMode: RigMode?
+
     private func updateTransmitPause() {
         let paused = senderActive || rigInfo.transmitting
         guard paused != isPausedForTransmit else { return }
@@ -235,6 +248,7 @@ public final class CWReceiver: ObservableObject {
         case .main: rigInfo.mainMode
         case .sub: rigInfo.subMode
         case .webSDR: nil
+        case .myKiwiSDR: myKiwiSDRMode
         }
         let hint = mode.flatMap { $0 == .cw || $0 == .unknown ? nil : $0 }
         if sourceModeIfNotCW != hint { sourceModeIfNotCW = hint }

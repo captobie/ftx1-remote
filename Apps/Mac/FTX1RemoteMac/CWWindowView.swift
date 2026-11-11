@@ -27,7 +27,9 @@ struct CWWindowView: View {
                 .frame(minHeight: 130, maxHeight: 160)
         }
             .navigationTitle("CW")
-            .frame(minWidth: 720, minHeight: 660)
+            // Wide enough for the header's four sources, decoder picker and
+            // buttons without wrapping a label.
+            .frame(minWidth: 920, minHeight: 660)
             .onAppear {
                 receiver.start()
                 workedStations.start()
@@ -54,6 +56,7 @@ struct CWWindowView: View {
 private struct CWReceivePane: View {
     @EnvironmentObject private var receiver: CWReceiver
     @EnvironmentObject private var webSDRSource: WebSDRAudioSource
+    @EnvironmentObject private var localSDRSource: LocalSDRAudioSource
     @State private var isShowingFileImporter = false
 
     var body: some View {
@@ -81,7 +84,7 @@ private struct CWReceivePane: View {
         .fileDialogDefaultDirectory(AudioRecorder.recordingsDirectory)
     }
 
-    /// Why the WebSDR source isn't decoding, when it isn't.
+    /// Why the selected source isn't decoding (or isn't in CW), when it isn't.
     private var sourceNote: String? {
         guard !receiver.isDecodingFile else { return nil }
         if receiver.isPausedForTransmit {
@@ -89,6 +92,13 @@ private struct CWReceivePane: View {
         }
         if let mode = receiver.sourceModeIfNotCW {
             return String(localized: "common.isInNotCw \(receiver.channel.title) \(mode.displayName)")
+        }
+        if receiver.channel == .myKiwiSDR {
+            switch localSDRSource.status {
+            case .receiving: return nil
+            case .notConnected: return String(localized: "common.myKiwiSDRNotConnected")
+            case .silent: return String(localized: "common.myKiwiSDRSilent")
+            }
         }
         guard receiver.channel == .webSDR else { return nil }
         switch webSDRSource.status {
@@ -113,6 +123,7 @@ private struct CWReceivePane: View {
             } label: {
                 Label("cwWindow.openAudioFile", systemImage: "waveform")
             }
+            .fixedSize()
             .keyboardShortcut("o")
             .help("cwWindow.decodeARecordingThe")
             .disabled(receiver.isDecodingFile)
@@ -123,6 +134,7 @@ private struct CWReceivePane: View {
             } label: {
                 Label("common.copy", systemImage: "doc.on.doc")
             }
+            .fixedSize()
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .help("cwWindow.copyTheDecodedText")
             .disabled(receiver.decodedText.isEmpty)
@@ -132,6 +144,7 @@ private struct CWReceivePane: View {
             } label: {
                 Label("common.clear", systemImage: "trash")
             }
+            .fixedSize()
             .keyboardShortcut("k")
             .help("cwWindow.clearTheDecodedText")
             .disabled(receiver.decodedText.isEmpty)
@@ -142,7 +155,7 @@ private struct CWReceivePane: View {
     }
 }
 
-/// MAIN/SUB. Its own view so that observing `hub` (for single-receive
+/// MAIN/SUB/WebSDR/MyKiwiSDR. Its own view so that observing `hub` (for single-receive
 /// display) re-renders only this picker, not the decoded text.
 private struct CWChannelPicker: View {
     @EnvironmentObject private var hub: HubService

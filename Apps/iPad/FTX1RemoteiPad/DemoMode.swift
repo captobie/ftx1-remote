@@ -97,7 +97,7 @@ final class DemoSession: ObservableObject {
             readsFilters: true,
             decodesAPRS: true
         )
-        let cwReceiver = CWReceiver(logSubsystem: "com.ftx1remote.ipad", channels: [.main, .sub])
+        let cwReceiver = CWReceiver(logSubsystem: "com.ftx1remote.ipad", channels: ReceiveAudioChannel.rigReceivers)
         let cwSender = CWSender(link: viewModel, logSubsystem: "com.ftx1remote.ipad")
         viewModel.onReceiveAudio = { pcm, side in
             cwReceiver.ingest(pcm: pcm, sampleRate: AudioStreamFormat.sampleRate, channel: side == .main ? .main : .sub)

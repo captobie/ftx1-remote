@@ -43,7 +43,7 @@ struct CWPane<SendSection: View>: View {
     private var header: some View {
         HStack(spacing: 12) {
             Picker("common.receiver", selection: $receiver.channel) {
-                ForEach([CWAudioChannel.main, .sub], id: \.self) { channel in
+                ForEach(ReceiveAudioChannel.rigReceivers, id: \.self) { channel in
                     Text(channel.title).tag(channel)
                         .selectionDisabled(channel == .sub && subUnavailableReason != nil)
                 }
