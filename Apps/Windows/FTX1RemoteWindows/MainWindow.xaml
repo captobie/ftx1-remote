@@ -13,7 +13,6 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -349,6 +348,18 @@
                     <ComboBox x:Name="BandComboBox" Width="100" SelectionChanged="BandComboBox_SelectionChanged" />
                 </StackPanel>
 
+                <!-- Audio (Pi :8532): on/off and the link status. Each receiver's
+                     Mute / SQL / VOL sit beside its meter in the VFO section above. -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <ToggleSwitch x:Name="AudioSwitch" Header="{l:Str Key=mainWindow.audio}" OnContent="{l:Str Key=mainWindow.on}" OffContent="{l:Str Key=mainWindow.off}"
+                                  Toggled="AudioSwitch_Toggled"
+                                  ToolTipService.ToolTip="{l:Str Key=mainWindow.thePiStreamsAudio}" />
+                    <StackPanel VerticalAlignment="Bottom" Spacing="2">
+                        <TextBlock x:Name="AudioStateText" Text="{l:Str Key=common.notConnected}" Foreground="{ThemeResource AppSecondaryTextBrush}" />
+                        <TextBlock x:Name="AudioLevelsText" Text="" FontFamily="Consolas" FontSize="12" Foreground="{ThemeResource AppSecondaryTextBrush}" />
+                    </StackPanel>
+                </StackPanel>
+
                 <!-- Safety cutoff, applies at once; see TransmitGate. -->
                 <ToggleSwitch x:Name="TransmitEnabledSwitch" Header="{l:Str Key=mainWindow.enableTransmit}" OnContent="{l:Str Key=mainWindow.on}" OffContent="{l:Str Key=mainWindow.off}"
                               Toggled="TransmitEnabledSwitch_Toggled"
@@ -408,28 +419,10 @@
              CONTOUR-or-APF/N/W/NOTCH, the MAIN/SUB selector and the display. -->
         <Border Grid.Row="3" x:Name="FilterPanelHost" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" />
 
-        <!--
-          Audio (Pi :8532): on/off and the link status. Each receiver's
-          Mute / SQL / VOL sit beside its meter in the VFO section above.
-        -->
-        <Border Grid.Row="4" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12">
-            <StackPanel Spacing="8">
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <ToggleSwitch x:Name="AudioSwitch" Header="{l:Str Key=mainWindow.audio}" OnContent="{l:Str Key=mainWindow.on}" OffContent="{l:Str Key=mainWindow.off}"
-                                  Toggled="AudioSwitch_Toggled"
-                                  ToolTipService.ToolTip="{l:Str Key=mainWindow.thePiStreamsAudio}" />
-                    <StackPanel VerticalAlignment="Center" Spacing="2">
-                        <TextBlock x:Name="AudioStateText" Text="{l:Str Key=common.notConnected}" Foreground="{ThemeResource AppSecondaryTextBrush}" />
-                        <TextBlock x:Name="AudioLevelsText" Text="" FontFamily="Consolas" FontSize="12" Foreground="{ThemeResource AppSecondaryTextBrush}" />
-                    </StackPanel>
-                </StackPanel>
-            </StackPanel>
-        </Border>
-
         <!-- MENU grid (Controls/MenuGrid.cs), added in code. -->
-        <Border Grid.Row="5" x:Name="MenuGridHost" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" />
+        <Border Grid.Row="4" x:Name="MenuGridHost" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" />
 
-        <TextBlock Grid.Row="6" x:Name="StatusText" Text="" Foreground="Firebrick" TextWrapping="Wrap" VerticalAlignment="Bottom" />
+        <TextBlock Grid.Row="5" x:Name="StatusText" Text="" Foreground="Firebrick" TextWrapping="Wrap" VerticalAlignment="Bottom" />
     </Grid>
     </ScrollViewer>
 </Window>
