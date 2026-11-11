@@ -2,6 +2,7 @@ using System.Globalization;
 using FTX1RemoteWindows.Services;
 using FTX1RemoteWindows.Settings;
 using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -43,12 +44,19 @@ public sealed class LocalSdrWindow : Window
     private readonly Slider _volumeSlider = new() { Minimum = 0, Maximum = 1, StepFrequency = 0.01, Width = 140, VerticalAlignment = VerticalAlignment.Center };
     private readonly ToggleButton _muteButton = new();
     private readonly ToggleSwitch _followSwitch = new() { OnContent = Loc.S("localSdr.followRig"), OffContent = Loc.S("localSdr.followRig"), MinWidth = 0 };
+    private readonly ToggleSwitch _followWidthSwitch = new() { OnContent = Loc.S("localSdr.followRigWidth"), OffContent = Loc.S("localSdr.followRigWidth"), MinWidth = 0 };
     private readonly ToggleSwitch _tuneSwitch = new() { OnContent = Loc.S("localSdr.tuneRig"), OffContent = Loc.S("localSdr.tuneRig"), MinWidth = 0 };
     private readonly ToggleSwitch _muteTxSwitch = new() { OnContent = Loc.S("localSdr.muteOnTx"), OffContent = Loc.S("localSdr.muteOnTx"), MinWidth = 0 };
     private readonly TextBlock _rigLinkText = new() { FontSize = 12, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _statusText = new() { FontSize = 12, TextWrapping = TextWrapping.Wrap };
     private readonly Expander _receiverExpander = new() { Header = Loc.S("localSdr.receiver"), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left };
     private readonly StackPanel _receiverPanel = new() { Spacing = 8 };
+
+    private readonly Button _recordButton = new();
+    private readonly DispatcherQueueTimer _elapsedTimer;
+
+    /// The toolbar's Play button; MainWindow owns the Recordings window.
+    public event Action? RecordingsRequested;
 
     private bool _suppress;
     private bool _frequencyFocused;
@@ -77,6 +85,10 @@ public sealed class LocalSdrWindow : Window
         _statusText.Foreground = new SolidColorBrush(Colors.Gray);
         AddRow(7, _statusText);
 
+        _elapsedTimer = DispatcherQueue.CreateTimer();
+        _elapsedTimer.Interval = TimeSpan.FromSeconds(1);
+        _elapsedTimer.Tick += (_, _) => UpdateRecordButton();
+
         Content = _root;
         ApplyTheme();
         Model.Changed += Refresh;
@@ -85,6 +97,7 @@ public sealed class LocalSdrWindow : Window
         {
             Model.Changed -= Refresh;
             Model.MeterChanged -= RefreshMeter;
+            _elapsedTimer.Stop();
             // Ends the session (and lifts the mute of the rig's Main audio).
             Model.Disconnect();
         };
@@ -148,6 +161,15 @@ public sealed class LocalSdrWindow : Window
             }
         };
         row.Children.Add(_connectButton);
+        _recordButton.Click += (_, _) => Model.ToggleRecording();
+        _recordButton.Margin = new Thickness(24, 0, 0, 0);
+        row.Children.Add(_recordButton);
+        // The same Recordings window as the WebSDR window's and the CW page's
+        // PLAY: MyKiwiSDR recordings sit beside the rig's own.
+        var play = new Button { Content = Loc.S("localSdr.play") };
+        ToolTipService.SetToolTip(play, Loc.S("localSdr.playHelp"));
+        play.Click += (_, _) => RecordingsRequested?.Invoke();
+        row.Children.Add(play);
         return row;
     }
 
@@ -234,10 +256,12 @@ public sealed class LocalSdrWindow : Window
     private FrameworkElement BuildRigLinkRow()
     {
         var row = new Grid { ColumnSpacing = 14 };
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < 5; i++)
         {
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = i == 3 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = i == 4 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
         }
+        ToolTipService.SetToolTip(_followWidthSwitch, Loc.S("localSdr.followRigWidthHelp"));
+        _followWidthSwitch.Toggled += (_, _) => { if (!_suppress) { Model.SetFollowRigWidth(_followWidthSwitch.IsOn); } };
         ToolTipService.SetToolTip(_followSwitch, Loc.S("localSdr.followRigHelp"));
         ToolTipService.SetToolTip(_tuneSwitch, Loc.S("localSdr.tuneRigHelp"));
         ToolTipService.SetToolTip(_muteTxSwitch, Loc.S("localSdr.muteOnTxHelp"));
@@ -245,11 +269,13 @@ public sealed class LocalSdrWindow : Window
         _tuneSwitch.Toggled += (_, _) => { if (!_suppress) { Model.TuneRig = _tuneSwitch.IsOn; } };
         _muteTxSwitch.Toggled += (_, _) => { if (!_suppress) { Model.MuteOnTransmit = _muteTxSwitch.IsOn; } };
         row.Children.Add(_followSwitch);
-        Grid.SetColumn(_tuneSwitch, 1);
+        Grid.SetColumn(_followWidthSwitch, 1);
+        row.Children.Add(_followWidthSwitch);
+        Grid.SetColumn(_tuneSwitch, 2);
         row.Children.Add(_tuneSwitch);
-        Grid.SetColumn(_muteTxSwitch, 2);
+        Grid.SetColumn(_muteTxSwitch, 3);
         row.Children.Add(_muteTxSwitch);
-        Grid.SetColumn(_rigLinkText, 3);
+        Grid.SetColumn(_rigLinkText, 4);
         row.Children.Add(_rigLinkText);
         return row;
     }
@@ -416,6 +442,8 @@ public sealed class LocalSdrWindow : Window
             _muteButton.Foreground = Model.IsMuted ? new SolidColorBrush(Colors.IndianRed) : (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
 
             _followSwitch.IsOn = Model.FollowRig;
+            _followWidthSwitch.IsOn = Model.FollowRigWidth;
+            _followWidthSwitch.IsEnabled = Model.FollowRig;
             _tuneSwitch.IsOn = Model.TuneRig;
             _muteTxSwitch.IsOn = Model.MuteOnTransmit;
             _rigLinkText.Text = RigLinkText();
@@ -427,13 +455,41 @@ public sealed class LocalSdrWindow : Window
             {
                 refresh();
             }
-            _statusText.Text = StatusText();
+            _statusText.Text = Model.RecordingNote is { } note ? $"{StatusText()} · {note}" : StatusText();
+            UpdateRecordButton();
         }
         finally
         {
             _suppress = false;
         }
         _waterfall.Refresh();
+    }
+
+    private void UpdateRecordButton()
+    {
+        if (Model.IsRecording)
+        {
+            var elapsed = Model.SegmentStartedAt is { } started
+                ? " " + (DateTime.Now - started).ToString(@"m\:ss")
+                : "";
+            _recordButton.Content = Loc.S("common.stop") + elapsed;
+            _recordButton.Foreground = new SolidColorBrush(Colors.Red);
+            _recordButton.IsEnabled = true;
+            ToolTipService.SetToolTip(_recordButton, Loc.S("localSdr.stopRecordingHelp"));
+            if (!_elapsedTimer.IsRunning)
+            {
+                _elapsedTimer.Start();
+            }
+        }
+        else
+        {
+            var ready = Model.State == LocalSdrModel.ConnectionState.Connected;
+            _recordButton.Content = Loc.S("localSdr.record");
+            _recordButton.ClearValue(Control.ForegroundProperty);
+            _recordButton.IsEnabled = ready;
+            ToolTipService.SetToolTip(_recordButton, Loc.S(ready ? "localSdr.recordHelp" : "localSdr.recordNeedsConnection"));
+            _elapsedTimer.Stop();
+        }
     }
 
     private void RefreshMeter()

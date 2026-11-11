@@ -19,13 +19,17 @@ public sealed class LocalSdrRigLink
     /// The Mac's HubService.setMainAudioOverride(.localSDR, …): mutes the
     /// rig's Main playback while the Kiwi is audible.
     public required Action<bool> SetAudioActive { get; init; }
+    /// MAIN's receive filter as a Kiwi passband, null if unknown (Follow width).
+    public required Func<KiwiPassband?> RigFilter { get; init; }
+    /// The CW and RTTY/PSK windows' MyKiwiSDR source (the Mac's hub.localSDRSource).
+    public required LocalSdrAudioSource Source { get; init; }
 }
 
 /// MyKiwiSDR: native audio and waterfall from the operator's own KiwiSDR over
 /// its WebSockets (KiwiSdrClient / KiwiWaterfallClient), bypassing the Kiwi's
 /// web page (which the WebSDR window embeds). A port of the Mac's
-/// LocalSDRModel, phases 0–3 and 5 (no decoder source, recording, Follow width
-/// or slow playout correction yet — see Apps/Windows/README.md).
+/// LocalSDRModel: decoder source, recording, Follow width and the playout
+/// controller included.
 ///
 /// Explicit connect only: the window opens disconnected, and Disconnect or
 /// closing the window closes the sockets (the Kiwi frees the channel). The
@@ -47,6 +51,10 @@ public sealed class LocalSdrModel
 
     /// The waterfall position asked for (start in x_bin units, zoom).
     public readonly record struct WaterfallView(int Start, int Zoom);
+
+    /// The rig as the link sees it: MAIN's frequency and mode, and its filter
+    /// as a Kiwi passband (null if unknown).
+    private readonly record struct RigTarget(int Frequency, RigMode? Mode, KiwiPassband? Filter);
 
     public static readonly (int Min, int Max) FrequencyRange = (10_000, 30_000_000);
     private static readonly TimeSpan RigSendInterval = TimeSpan.FromMilliseconds(100);
@@ -76,8 +84,13 @@ public sealed class LocalSdrModel
     private DispatcherQueueTimer? _pendingExpiry;
     private int? _queuedRigFrequency;
     private RigMode? _queuedRigMode;
-    private (int Frequency, RigMode? Mode)? _lastPushed;
-    private (int Frequency, RigMode? Mode)? _rigTarget;
+    private RigTarget? _lastPushed;
+    private RigTarget? _rigTarget;
+    private KiwiPlayoutAdjuster? _adjuster;
+    private SdrAudioFileWriter? _recorder;
+    private KiwiRecordingSplit? _recordingSplit;
+    private DispatcherQueueTimer? _splitCheck;
+    private double? _audioSampleRate;
     private bool _isTransmitting;
     private DateTime _lastMeterPublish = DateTime.MinValue;
     private int _session;
@@ -93,6 +106,7 @@ public sealed class LocalSdrModel
         IsMuted = saved.Muted;
         Receiver = saved.Receiver.Clamped();
         _preferredZoom = saved.WaterfallZoom;
+        _followRigWidth = saved.FollowRigWidth;
         FollowRig = saved.FollowRig;
         TuneRig = saved.TuneRig;
         MuteOnTransmit = saved.MuteOnTransmit;
@@ -117,6 +131,12 @@ public sealed class LocalSdrModel
     public bool IsMuted { get; private set; }
     public KiwiReceiverSettings Receiver { get; private set; }
     public string? RigLinkNote { get; private set; }
+
+    public bool IsRecording { get; private set; }
+    /// When the current file started (the Stop button's timer).
+    public DateTime? SegmentStartedAt { get; private set; }
+    /// "Saved ..." after a file is finished, for the status line.
+    public string? RecordingNote { get; private set; }
     public double? MeterDbm { get; private set; }
     public bool MeterOverload { get; private set; }
 
@@ -176,10 +196,21 @@ public sealed class LocalSdrModel
             else
             {
                 RigLinkNote = null;
+                if (!value && FollowRigWidth)
+                {
+                    RestoreSavedPassband();
+                }
             }
             Changed?.Invoke();
         }
     }
+
+    private bool _followRigWidth;
+    /// With Follow on, the passband follows MAIN's filter. Changed through
+    /// <see cref="SetFollowRigWidth"/> (the toggle) or by a manual drag.
+    public bool FollowRigWidth => _followRigWidth;
+
+    private bool IsFollowingRigWidth => FollowRig && FollowRigWidth;
 
     private bool _tuneRig;
     /// Kiwi → rig.
@@ -261,14 +292,14 @@ public sealed class LocalSdrModel
         // Start where the rig is, so the first tune is already right.
         if (FollowRig && _rig.Connected())
         {
-            var snapshot = _rig.Current();
-            var target = ((int)snapshot.FrequencyHz, snapshot.Mode);
+            var target = ReadRigTarget();
             _rigTarget = target;
-            if (_link.Follow(target.Item1, target.Item2, FrequencyHz, Mode, MaxFrequencyHz, Now)
+            if (_link.Follow(target.Frequency, target.Mode, FrequencyHz, Mode, MaxFrequencyHz, Now)
                 is KiwiRigLink.FollowDecision.Tune tune)
             {
                 ApplyTuning(tune.FrequencyHz, tune.Mode);
             }
+            ApplyRigWidth(target);
         }
         _isTransmitting = _rig.Current().Ptt;
         _timestamp = KiwiProtocol.TimestampNow();
@@ -301,6 +332,7 @@ public sealed class LocalSdrModel
     {
         _session++;
         IsLoadingPassword = false;
+        EndAudioSession();
         StopRigLink();
         _client?.Stop();
         _client = null;
@@ -339,7 +371,9 @@ public sealed class LocalSdrModel
             case KiwiSdrEvent.Ready ready:
                 AppLog.Write($"kiwisdr: connected, audio at {ready.SampleRate} Hz");
                 SampleRate = ready.SampleRate;
+                _audioSampleRate = ready.SampleRate;
                 State = ConnectionState.Connected;
+                _rig.Source.SessionStarted(ready.SampleRate, Mode);
                 StartPlayback(ready.SampleRate);
                 StartWaterfall();
                 SubscribeToRig();
@@ -347,7 +381,24 @@ public sealed class LocalSdrModel
                 Changed?.Invoke();
                 break;
             case KiwiSdrEvent.Audio audio:
-                _player?.Push(audio.Chunk.Samples);
+                // Only the player's copy is adjusted: the recording and the
+                // decoders get every sample as it came.
+                var played = _adjuster is { } adjuster
+                    ? adjuster.Process(audio.Chunk.Samples, _player?.BufferedSeconds, Now)
+                    : audio.Chunk.Samples;
+                if (played.Length > 0)
+                {
+                    _player?.Push(played);
+                }
+                // Both before the volume/mute: a muted Kiwi still decodes and records.
+                if (_recorder is { } recorder && _audioSampleRate is { } rate)
+                {
+                    recorder.Append(LittleEndianPcm(audio.Chunk.Samples), (int)rate);
+                }
+                if (_rig.Source.IsWanted)
+                {
+                    _rig.Source.Deliver(audio.Chunk.Samples);
+                }
                 if (DateTime.UtcNow - _lastMeterPublish >= TimeSpan.FromMilliseconds(100))
                 {
                     _lastMeterPublish = DateTime.UtcNow;
@@ -360,6 +411,7 @@ public sealed class LocalSdrModel
                 _client = null;
                 CancelTimer(ref _retuneTimer);
                 CancelTimer(ref _receiverTimer);
+                EndAudioSession();
                 StopRigLink();
                 StopWaterfall();
                 StopPlayback();
@@ -383,11 +435,13 @@ public sealed class LocalSdrModel
             AppLog.Write($"kiwisdr: no audio output: {error}");
         }
         _player = player;
+        _adjuster = new KiwiPlayoutAdjuster(sampleRate, KiwiAudioPlayer.TargetSeconds);
         ApplyVolume();
     }
 
     private void StopPlayback()
     {
+        _adjuster = null;
         _player?.Dispose();
         _player = null;
     }
@@ -464,7 +518,7 @@ public sealed class LocalSdrModel
         if (mode is { } newMode && newMode != Mode)
         {
             Mode = newMode;
-            Passband = SavedPassband(newMode);
+            Passband = RigBand(_rigTarget, newMode) ?? SavedPassband(newMode);
             AppSettings.LocalSdr.Mode = newMode.RawValue();
             changed = true;
         }
@@ -475,6 +529,8 @@ public sealed class LocalSdrModel
         AppSettings.SaveLocalSdr();
         Retune();
         KeepPassbandVisible();
+        _rig.Source.ModeChanged(Mode);
+        CheckRecordingSplit();
         Changed?.Invoke();
     }
 
@@ -544,11 +600,15 @@ public sealed class LocalSdrModel
     public bool IsPassbandDefault => Passband == KiwiPassband.DefaultFor(Mode);
 
     /// A drag of one edge on the waterfall; hz is where the mouse is.
-    public void DragPassbandEdge(KiwiPassband.Edge edge, double waterfallHz) =>
+    public void DragPassbandEdge(KiwiPassband.Edge edge, double waterfallHz)
+    {
+        StopFollowingWidth();
         SetPassband(Passband.Dragging(edge, waterfallHz - FrequencyHz, Mode));
+    }
 
     public void ResetPassband()
     {
+        StopFollowingWidth();
         SetPassband(KiwiPassband.DefaultFor(Mode));
         KeepPassbandVisible();
     }
@@ -615,6 +675,176 @@ public sealed class LocalSdrModel
         _rig.SetAudioActive(audible);
     }
 
+    // MARK: Follow width
+
+    /// The Follow width toggle.
+    public void SetFollowRigWidth(bool on)
+    {
+        if (on == _followRigWidth)
+        {
+            return;
+        }
+        _followRigWidth = on;
+        AppSettings.LocalSdr.FollowRigWidth = on;
+        AppSettings.SaveLocalSdr();
+        if (on && _rigTarget is { } target)
+        {
+            ApplyRigWidth(target);
+        }
+        else if (!on)
+        {
+            RestoreSavedPassband();
+        }
+        Changed?.Invoke();
+    }
+
+    /// A manual drag or Reset takes the passband back from the rig.
+    private void StopFollowingWidth()
+    {
+        if (_followRigWidth)
+        {
+            _followRigWidth = false;
+            AppSettings.LocalSdr.FollowRigWidth = false;
+            AppSettings.SaveLocalSdr();
+        }
+    }
+
+    /// MAIN's filter as a passband, if it's being followed and applies to "mode".
+    private KiwiPassband? RigBand(RigTarget? target, KiwiSdrMode mode) =>
+        IsFollowingRigWidth && target is { } t && KiwiSdrModeExtensions.FromRigMode(t.Mode) == mode ? t.Filter : null;
+
+    private void ApplyRigWidth(RigTarget target)
+    {
+        if (RigBand(target, Mode) is not { } band || band == Passband)
+        {
+            return;
+        }
+        AppLog.Write($"kiwisdr: rig link: passband {band.Low}…{band.High} from the rig");
+        Passband = band;
+        Retune();
+        KeepPassbandVisible();
+        Changed?.Invoke();
+    }
+
+    /// Following stopped: the mode's own passband again.
+    private void RestoreSavedPassband()
+    {
+        var saved = SavedPassband(Mode);
+        if (saved == Passband)
+        {
+            return;
+        }
+        Passband = saved;
+        Retune();
+        KeepPassbandVisible();
+    }
+
+    // MARK: Recording
+
+    /// Record while connected; Stop saves the file.
+    public void ToggleRecording()
+    {
+        if (IsRecording)
+        {
+            StopRecording();
+        }
+        else if (State == ConnectionState.Connected)
+        {
+            IsRecording = true;
+            RecordingNote = null;
+            BeginFile();
+        }
+        Changed?.Invoke();
+    }
+
+    private KiwiRecordingSplit.Tuning SplitTuning => new(FrequencyHz, Mode);
+
+    private void BeginFile()
+    {
+        _recordingSplit = new KiwiRecordingSplit(SplitTuning);
+        var label = $"{Recordings.Label(FrequencyHz, Mode.Label())} MyKiwiSDR";
+        var date = DateTime.Now;
+        var path = Recordings.NewRecordingPath(label, date);
+        for (var n = 2; File.Exists(path); n++)
+        {
+            path = Recordings.NewRecordingPath($"{label} {n}", date);
+        }
+        _recorder = new SdrAudioFileWriter(path, "kiwisdr-recording");
+        SegmentStartedAt = date;
+        AppLog.Write($"kiwisdr: recording to {Path.GetFileName(path)}");
+    }
+
+    /// Closes the current file (everything handed over is already written).
+    private void FinishFile()
+    {
+        if (_recorder is not { } recorder)
+        {
+            return;
+        }
+        _recorder = null;
+        if (recorder.Finish() is { } path)
+        {
+            AppLog.Write($"kiwisdr: saved {Path.GetFileName(path)}");
+            RecordingNote = Loc.F("localSdr.recording.saved", Path.GetFileNameWithoutExtension(path));
+        }
+    }
+
+    private void StopRecording()
+    {
+        if (!IsRecording)
+        {
+            return;
+        }
+        FinishFile();
+        IsRecording = false;
+        SegmentStartedAt = null;
+        _recordingSplit = null;
+        CancelTimer(ref _splitCheck);
+    }
+
+    /// After every tune, and again when a pending split has had time to
+    /// settle: starts a new file once a retune has held.
+    private void CheckRecordingSplit()
+    {
+        if (!IsRecording || _recordingSplit is not { } split)
+        {
+            return;
+        }
+        CancelTimer(ref _splitCheck);
+        if (split.Update(SplitTuning, Now) is { } tuning)
+        {
+            AppLog.Write($"kiwisdr: recording: retuned to {tuning.FrequencyHz} Hz {tuning.Mode.Label()}, new file");
+            FinishFile();
+            BeginFile();
+            return;
+        }
+        if (split.NextCheck is { } next)
+        {
+            _splitCheck = OneShot(TimeSpan.FromSeconds(Math.Max(0, next - Now) + 0.02), () =>
+            {
+                _splitCheck = null;
+                CheckRecordingSplit();
+                Changed?.Invoke();
+            });
+        }
+    }
+
+    /// The Kiwi's audio stopped (Disconnect, a dropped connection, the window
+    /// closing): the recording is saved and the decoders told.
+    private void EndAudioSession()
+    {
+        StopRecording();
+        _audioSampleRate = null;
+        _rig.Source.SessionEnded();
+    }
+
+    private static byte[] LittleEndianPcm(short[] samples)
+    {
+        var bytes = new byte[samples.Length * 2];
+        Buffer.BlockCopy(samples, 0, bytes, 0, bytes.Length);
+        return BitConverter.IsLittleEndian ? bytes : bytes.Chunk(2).SelectMany(p => p.Reverse()).ToArray();
+    }
+
     // MARK: Rig link
 
     /// MainWindow pushes the rig state after every poll (the Mac subscribes to
@@ -631,7 +861,7 @@ public sealed class LocalSdrModel
             _isTransmitting = snapshot.Ptt;
             ApplyVolume();
         }
-        var pushed = ((int)snapshot.FrequencyHz, snapshot.Mode);
+        var pushed = ReadRigTarget();
         if (_lastPushed == pushed)
         {
             return;
@@ -650,13 +880,17 @@ public sealed class LocalSdrModel
     {
         var snapshot = _rig.Current();
         _isTransmitting = snapshot.Ptt;
-        _lastPushed = ((int)snapshot.FrequencyHz, snapshot.Mode);
+        _lastPushed = ReadRigTarget();
         _rigTarget = _lastPushed;
         ApplyVolume();
     }
 
     private void StopRigLink()
     {
+        if (IsFollowingRigWidth)
+        {
+            RestoreSavedPassband();
+        }
         _followTimer?.Stop();
         _followTimer = null;
         _lastPushed = null;
@@ -669,7 +903,13 @@ public sealed class LocalSdrModel
         ApplyVolume();
     }
 
-    private void Follow((int Frequency, RigMode? Mode) target)
+    private RigTarget ReadRigTarget()
+    {
+        var snapshot = _rig.Current();
+        return new RigTarget((int)snapshot.FrequencyHz, snapshot.Mode, _rig.RigFilter());
+    }
+
+    private void Follow(RigTarget target)
     {
         if (!FollowRig || !IsConnected)
         {
@@ -681,6 +921,7 @@ public sealed class LocalSdrModel
                 AppLog.Write($"kiwisdr: rig link: follow → Kiwi {tune.FrequencyHz} Hz {tune.Mode?.Label() ?? "-"}");
                 RigLinkNote = null;
                 ApplyTuning(tune.FrequencyHz, tune.Mode);
+                ApplyRigWidth(target);
                 break;
             case KiwiRigLink.FollowDecision.AlreadyThere:
                 if (RigLinkNote is not null)
@@ -688,6 +929,7 @@ public sealed class LocalSdrModel
                     RigLinkNote = null;
                     Changed?.Invoke();
                 }
+                ApplyRigWidth(target);
                 break;
             case KiwiRigLink.FollowDecision.OutOfRange range:
                 RigLinkNote = Loc.F("localSdr.rigLink.outOfRange",

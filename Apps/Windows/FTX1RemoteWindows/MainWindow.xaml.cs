@@ -330,6 +330,8 @@ public sealed partial class MainWindow : Window
             () => AppSettings.Callsign, () => AppSettings.GridSquare, AppSettings.Digi.TxLevelDb, AppLog.Write);
         _digiSender.StateChanged += state => _digiReceiver.SetSenderActive(state != DigiSender.SenderState.Idle);
         _digiSender.Echo += _digiReceiver.AppendTransmitted;
+        _cwReceiver.AttachLocalSdr(_localSdrSource);
+        _digiReceiver.AttachLocalSdr(_localSdrSource);
         WireAprsDecoder(_aprsMainDecoder, AprsSource.Main);
         WireAprsDecoder(_aprsSubDecoder, AprsSource.Sub);
 

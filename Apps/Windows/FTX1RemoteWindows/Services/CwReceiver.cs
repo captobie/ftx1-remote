@@ -17,6 +17,8 @@ public enum CwAudioChannel
     Main,
     Sub,
     WebSdr,
+    /// The MyKiwiSDR window's audio (LocalSdrAudioSource).
+    MyKiwiSdr,
 }
 
 /// What the receiver needs from the rig, so MainWindow only forwards
@@ -142,6 +144,7 @@ public sealed class CwReceiver : IDisposable
     public void Start()
     {
         _running = true;
+        _localSdr?.Update();
         // The model loads on first use, so a session that never opens the
         // CW window never pays for it (the Mac's makeRunnerIfNeeded).
         if (!_modelLoadQueued)
@@ -161,6 +164,7 @@ public sealed class CwReceiver : IDisposable
             return;
         }
         _running = false;
+        _localSdr?.Update();
         if (!_decodingFile)
         {
             Enqueue(new FlushWork());
@@ -180,7 +184,8 @@ public sealed class CwReceiver : IDisposable
             Interlocked.Exchange(ref _lastSubAudioTicks, Stopwatch.GetTimestamp());
         }
         var channel = _channel;
-        if (!_running || _decodingFile || _pausedForTransmit || sampleRate <= 0 || channel == CwAudioChannel.WebSdr)
+        if (!_running || _decodingFile || _pausedForTransmit || sampleRate <= 0
+            || channel is CwAudioChannel.WebSdr or CwAudioChannel.MyKiwiSdr)
         {
             return;
         }
@@ -191,6 +196,32 @@ public sealed class CwReceiver : IDisposable
     private void IngestWebSdr(float[] samples, int sampleRate)
     {
         if (!_running || _decodingFile || _pausedForTransmit || _channel != CwAudioChannel.WebSdr)
+        {
+            return;
+        }
+        Enqueue(new SamplesWork(samples, sampleRate));
+    }
+
+    // MyKiwiSDR source
+
+    private LocalSdrAudioSource? _localSdr;
+
+    /// The MyKiwiSDR window's audio source (null until MainWindow attaches it).
+    public LocalSdrAudioSource? LocalSdr => _localSdr;
+
+    /// Registers this receiver with the MyKiwiSDR source: it hands over the
+    /// Kiwi's frames only while the window is open with that source selected.
+    public void AttachLocalSdr(LocalSdrAudioSource source)
+    {
+        _localSdr = source;
+        source.AddConsumer("cw", () => _running && _channelSetting == CwAudioChannel.MyKiwiSdr, IngestKiwi);
+        source.Changed += () => Changed?.Invoke();
+    }
+
+    /// From the MyKiwiSDR source (UI thread).
+    private void IngestKiwi(float[] samples, int sampleRate)
+    {
+        if (!_running || _decodingFile || _pausedForTransmit || _channel != CwAudioChannel.MyKiwiSdr)
         {
             return;
         }
@@ -283,6 +314,7 @@ public sealed class CwReceiver : IDisposable
                 StartNewLine();
             }
             UpdateWebSdrTap();
+            _localSdr?.Update();
             Changed?.Invoke();
         }
     }
@@ -390,6 +422,7 @@ public sealed class CwReceiver : IDisposable
             {
                 CwAudioChannel.Main => _rigInfo.MainMode,
                 CwAudioChannel.Sub => _rigInfo.SubMode,
+                CwAudioChannel.MyKiwiSdr => _localSdr?.Mode,
                 _ => null,
             };
             return mode is { } m && m != RigMode.Cw ? m : null;

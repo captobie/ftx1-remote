@@ -157,6 +157,7 @@ public static class AppSettings
         public int WaterfallZoom { get; set; } = 8;
         public bool FollowRig { get; set; } = true;
         public bool TuneRig { get; set; } = true;
+        public bool FollowRigWidth { get; set; }
         public bool MuteOnTransmit { get; set; } = true;
         /// Each mode's last passband, keyed by KiwiSdrMode.RawValue: [low, high].
         public Dictionary<string, int[]> Passbands { get; set; } = [];

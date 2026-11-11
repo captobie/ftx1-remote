@@ -67,6 +67,9 @@
     <Compile Include="..\FTX1RemoteWindows\Services\Kiwi\KiwiRigLink.cs" Link="Linked\KiwiRigLink.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\Kiwi\KiwiWaterfall.cs" Link="Linked\KiwiWaterfall.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\Kiwi\KiwiClients.cs" Link="Linked\KiwiClients.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\Kiwi\KiwiRecordingSplit.cs" Link="Linked\KiwiRecordingSplit.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\Kiwi\KiwiPlayout.cs" Link="Linked\KiwiPlayout.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\Kiwi\LocalSdrAudioSource.cs" Link="Linked\LocalSdrAudioSource.cs" />
     <!-- The strings those files show (English only here; LocalizationTests reads all three .resx). -->
     <Compile Include="..\FTX1RemoteWindows\Localization\Loc.cs" Link="Linked\Loc.cs" />
     <EmbeddedResource Include="..\FTX1RemoteWindows\Localization\Strings.resx" Link="Linked\Strings.resx" LogicalName="FTX1RemoteWindows.Localization.Strings.resources" />

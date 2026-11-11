@@ -139,6 +139,7 @@ public sealed class DigiReceiver : IDigiTxSource, IDisposable
             AppSettings.SaveDigi();
             ResetDecoder();
             UpdateWebSdrTap();
+            _localSdr?.Update();
             Changed?.Invoke();
         }
     }
@@ -220,6 +221,7 @@ public sealed class DigiReceiver : IDigiTxSource, IDisposable
     {
         CwAudioChannel.Main => _rigInfo.MainMode,
         CwAudioChannel.Sub => _rigInfo.SubMode,
+        CwAudioChannel.MyKiwiSdr => _localSdr?.Mode,
         _ => null,
     };
 
@@ -258,6 +260,7 @@ public sealed class DigiReceiver : IDigiTxSource, IDisposable
         _running = true;
         RebuildDecoder();
         UpdateWebSdrTap();
+        _localSdr?.Update();
     }
 
     public void Stop()
@@ -269,6 +272,7 @@ public sealed class DigiReceiver : IDigiTxSource, IDisposable
         _running = false;
         StartNewLine();
         UpdateWebSdrTap();
+        _localSdr?.Update();
         Changed?.Invoke();
     }
 
@@ -296,8 +300,11 @@ public sealed class DigiReceiver : IDigiTxSource, IDisposable
         Changed?.Invoke();
     }
 
+    private bool _lastRttyReverse;
+
     private void RebuildDecoder()
     {
+        _lastRttyReverse = DecoderRtty.Reverse;
         _generation++;
         ResetMeters();
         Enqueue(new RebuildWork(_mode, DecoderRtty, _centerHz, _settings.Afc, (float)_settings.Squelch));
@@ -342,11 +349,45 @@ public sealed class DigiReceiver : IDigiTxSource, IDisposable
             Interlocked.Exchange(ref _lastSubAudioTicks, Stopwatch.GetTimestamp());
         }
         var channel = _channel;
-        if (!_running || _decodingFile || _pausedForTransmit || sampleRate <= 0 || channel == CwAudioChannel.WebSdr)
+        if (!_running || _decodingFile || _pausedForTransmit || sampleRate <= 0
+            || channel is CwAudioChannel.WebSdr or CwAudioChannel.MyKiwiSdr)
         {
             return;
         }
         Enqueue(new SamplesWork(channel == CwAudioChannel.Main ? main : sub, sampleRate, _generation));
+    }
+
+    private LocalSdrAudioSource? _localSdr;
+
+    /// The MyKiwiSDR window's audio source (null until MainWindow attaches it).
+    public LocalSdrAudioSource? LocalSdr => _localSdr;
+
+    /// Registers this receiver with the MyKiwiSDR source (see CwReceiver).
+    public void AttachLocalSdr(LocalSdrAudioSource source)
+    {
+        _localSdr = source;
+        source.AddConsumer("digi", () => _running && _channelSetting == CwAudioChannel.MyKiwiSdr, IngestKiwi);
+        source.Changed += OnLocalSdrChanged;
+    }
+
+    private void OnLocalSdrChanged()
+    {
+        // The Kiwi's sideband decides RTTY polarity (the receiver's mode).
+        if (_channelSetting == CwAudioChannel.MyKiwiSdr && _mode == DigiMode.Rtty && _running
+            && DecoderRtty.Reverse != _lastRttyReverse)
+        {
+            RebuildDecoder();
+        }
+        Changed?.Invoke();
+    }
+
+    private void IngestKiwi(float[] samples, int sampleRate)
+    {
+        if (!_running || _decodingFile || _pausedForTransmit || _channel != CwAudioChannel.MyKiwiSdr)
+        {
+            return;
+        }
+        Enqueue(new SamplesWork(samples, sampleRate, _generation));
     }
 
     private void IngestWebSdr(float[] samples, int sampleRate)

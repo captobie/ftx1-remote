@@ -11,6 +11,9 @@ namespace FTX1RemoteWindows;
 public sealed partial class MainWindow
 {
     private LocalSdrWindow? _localSdrWindow;
+    /// The decoders' MyKiwiSDR source, shared by the CW and RTTY/PSK receivers
+    /// and the MyKiwiSDR window.
+    private readonly LocalSdrAudioSource _localSdrSource = new();
     private bool _webSdrHoldsMain;
     private bool _kiwiHoldsMain;
 
@@ -24,8 +27,11 @@ public sealed partial class MainWindow
                 Connected = () => IsConnected,
                 Tune = (hz, mode) => _ = TuneFromWebSdrAsync(hz, mode),
                 SetAudioActive = SetKiwiAudioActive,
+                Source = _localSdrSource,
+                RigFilter = () => IsConnected ? KiwiPassband.FromRigFilter(_lastState) : null,
             });
             _localSdrWindow.Closed += (_, _) => _localSdrWindow = null;
+            _localSdrWindow.RecordingsRequested += ShowRecordings;
         }
         _localSdrWindow.Activate();
     }

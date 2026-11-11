@@ -8,14 +8,15 @@ namespace FTX1RemoteWindows.Services;
 /// device chosen under "Out" in the main window, or Windows' default — the
 /// Mac's AudioPlaybackEngine as MyKiwiSDR uses it. A small jitter buffer
 /// primed to <see cref="TargetSeconds"/> (a Kiwi frame is ~43 ms and the link
-/// may cross Tailscale); a backlog above <see cref="MaxBufferedSeconds"/> is
-/// dropped back to the target in one step, the Mac's KiwiPlayoutAdjuster
-/// "backlog" rule (its slow ±5 ppm crossfaded corrections, worth ~19 ms an
-/// hour, are not ported). Volume 0 is mute, so unmuting is immediate.
+/// may cross Tailscale); the model keeps the queue near that target with the
+/// Mac's KiwiPlayoutAdjuster (drift splices, backlog discard, dry-queue pad).
+/// Volume 0 is mute, so unmuting is immediate.
 public sealed class KiwiAudioPlayer : ISampleProvider, IDisposable
 {
     public const double TargetSeconds = 0.25;
-    public const double MaxBufferedSeconds = 0.55;
+    /// A safety cap only: KiwiPlayoutAdjuster keeps the queue near the target
+    /// (a backlog 0.3 s over is discarded before it gets here).
+    public const double MaxBufferedSeconds = 2.0;
     /// Volume changes ramp over ~10 ms instead of stepping.
     private const float GainStepPerSample = 1f / 120f;
 

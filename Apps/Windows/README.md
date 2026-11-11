@@ -1305,10 +1305,32 @@ truth for protocol and rules, and `Tests/KiwiSDRFixtures/` for recorded frames.
   address is `AppSettings.LocalSdr.Host`; the password is in Credential Manager
   ("FTX1Remote/MyKiwiSDR", `LocalSdrPassword`), read off the UI thread at each
   Connect. Everything else the window remembers is in `AppSettings.LocalSdr`.
-- **Not ported yet** (the Mac has them): the CW and RTTY/PSK windows' MyKiwiSDR
-  source, Record/Play, Follow width, and the playout controller's slow ±5 ppm
-  crossfaded corrections (the backlog rule is in).
-- **To check on the PC**: the window opening, connecting to the Kiwi (badp,
+- **Decoder source** (`Services/Kiwi/LocalSdrAudioSource.cs`): the CW and
+  RTTY/PSK windows have a **MyKiwiSDR** segment (`CwAudioChannel.MyKiwiSdr`).
+  The model hands every Kiwi frame, before volume/mute (so a muted Kiwi still
+  decodes), to the source while a decoder window wants it; the receivers
+  register through `AttachLocalSdr`. Status (not connected / receiving / silent
+  after 3 s below -80 dBFS) and the Kiwi's mode (for the "not CW" note and
+  RTTY polarity, which rebuilds the decoder when the sideband flips) come from
+  it. Picking the source never connects. The Kiwi's CW passband centres at
+  500 Hz: use Auto-tune, not Rig Pitch.
+- **Recording**: Record / Play beside Connect. `SdrAudioFileWriter` writes 16-bit
+  mono WAV at the Kiwi's rate (the header holds the integer part) into
+  Recordings, named "... MyKiwiSDR"; `KiwiRecordingSplit` starts a new file only
+  after a retune of 500 Hz or more, or a mode change, has held for 1 s.
+  Disconnect, a dropped connection and closing the window save the file. Play
+  opens the shared Recordings window.
+- **Follow width**: with Follow rig on, MAIN's receive filter and IF SHIFT become
+  the passband (`KiwiPassband.FromRigFilter`, using `FilterPassbandModel`'s
+  width/shift/centre rules, now public statics). A drag or Reset turns it off;
+  turning it off restores the mode's saved passband. Waits while the filter
+  controls are on SUB. Unverified by ear whether LSB's SHIFT direction matches
+  the rig (it follows the Filter Function Display, as on the Mac).
+- **Playout controller** (`Services/Kiwi/KiwiPlayout.cs`): the Mac's
+  `KiwiPlayoutController`/`Adjuster` on the player's copy only (drift splices at
+  most twice a second, backlog discard, dry-queue pad); the player's own 2 s cap
+  is a safety net. The debug-only 30 s playout log line isn't ported.
+- **To check on the PC** (first pass tested by the user 2026-11-11; recording, decoder source, Follow width and the playout controller not yet): the window opening, connecting to the Kiwi (badp,
   sample rate, audio audible on the chosen output), the waterfall (zoom, pan,
   click, wheel, passband edges), Follow/Tune rig against the rig, Mute on TX,
   the Receiver section, Settings → Devices saving the address and password.

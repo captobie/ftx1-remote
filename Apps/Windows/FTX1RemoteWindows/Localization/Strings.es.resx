@@ -2950,4 +2950,40 @@
   <data name="settings.myKiwiSDRPassword" xml:space="preserve">
     <value>Contraseña</value>
   </data>
+  <data name="cwWindow.decodeWhatMyKiwiSDR" xml:space="preserve">
+    <value>Decodificar lo que recibe la ventana MyKiwiSDR, incluso silenciada</value>
+  </data>
+  <data name="cwWindow.myKiwiSDRNotConnected" xml:space="preserve">
+    <value>MyKiwiSDR no está conectado: abrir la ventana MyKiwiSDR y conectar</value>
+  </data>
+  <data name="cwWindow.myKiwiSDRSilent" xml:space="preserve">
+    <value>MyKiwiSDR está en silencio: no llega audio del Kiwi</value>
+  </data>
+  <data name="localSdr.followRigWidth" xml:space="preserve">
+    <value>Seguir ancho</value>
+  </data>
+  <data name="localSdr.followRigWidthHelp" xml:space="preserve">
+    <value>Mientras «Seguir al equipo» está activo, usar el ancho de filtro y el IF SHIFT de MAIN como banda de paso. Arrastrar la banda de paso lo desactiva. Espera mientras los controles de filtro del equipo están en SUB.</value>
+  </data>
+  <data name="localSdr.play" xml:space="preserve">
+    <value>Reproducir</value>
+  </data>
+  <data name="localSdr.playHelp" xml:space="preserve">
+    <value>Abrir Grabaciones</value>
+  </data>
+  <data name="localSdr.record" xml:space="preserve">
+    <value>Grabar</value>
+  </data>
+  <data name="localSdr.recordHelp" xml:space="preserve">
+    <value>Grabar el audio del Kiwi (antes del volumen y el silencio), un archivo por frecuencia</value>
+  </data>
+  <data name="localSdr.recordNeedsConnection" xml:space="preserve">
+    <value>Conectar para grabar</value>
+  </data>
+  <data name="localSdr.recording.saved" xml:space="preserve">
+    <value>Guardada «{0}»</value>
+  </data>
+  <data name="localSdr.stopRecordingHelp" xml:space="preserve">
+    <value>Detener la grabación y guardarla en Grabaciones</value>
+  </data>
 </root>

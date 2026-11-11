@@ -2950,4 +2950,40 @@
   <data name="settings.myKiwiSDRPassword" xml:space="preserve">
     <value>Password</value>
   </data>
+  <data name="cwWindow.decodeWhatMyKiwiSDR" xml:space="preserve">
+    <value>Decode what the MyKiwiSDR window is receiving, even while it's muted</value>
+  </data>
+  <data name="cwWindow.myKiwiSDRNotConnected" xml:space="preserve">
+    <value>MyKiwiSDR isn't connected — open the MyKiwiSDR window and connect</value>
+  </data>
+  <data name="cwWindow.myKiwiSDRSilent" xml:space="preserve">
+    <value>MyKiwiSDR is silent — no audio is arriving from the Kiwi</value>
+  </data>
+  <data name="localSdr.followRigWidth" xml:space="preserve">
+    <value>Follow width</value>
+  </data>
+  <data name="localSdr.followRigWidthHelp" xml:space="preserve">
+    <value>While Follow rig is on, use MAIN's filter width and IF SHIFT as the passband. Dragging the passband turns this off. It waits while the rig's filter controls are on SUB.</value>
+  </data>
+  <data name="localSdr.play" xml:space="preserve">
+    <value>Play</value>
+  </data>
+  <data name="localSdr.playHelp" xml:space="preserve">
+    <value>Open Recordings</value>
+  </data>
+  <data name="localSdr.record" xml:space="preserve">
+    <value>Record</value>
+  </data>
+  <data name="localSdr.recordHelp" xml:space="preserve">
+    <value>Record the Kiwi's audio (before volume and mute), one file per frequency</value>
+  </data>
+  <data name="localSdr.recordNeedsConnection" xml:space="preserve">
+    <value>Connect to record</value>
+  </data>
+  <data name="localSdr.recording.saved" xml:space="preserve">
+    <value>Saved “{0}”</value>
+  </data>
+  <data name="localSdr.stopRecordingHelp" xml:space="preserve">
+    <value>Stop recording and save to Recordings</value>
+  </data>
 </root>

@@ -1,9 +1,10 @@
+using FTX1RemoteWindows.Models;
+
 namespace FTX1RemoteWindows.Services;
 
 /// A KiwiSDR passband: low_cut/high_cut in Hz relative to the carrier
 /// (negative below it), as sent in "SET mod=… low_cut=… high_cut=… freq=…".
-/// Port of the Mac's KiwiPassband.swift (without its "Follow width" rig
-/// filter constructor): the rules for moving the edges are pure so they can
+/// Port of the Mac's KiwiPassband.swift: the rules for moving the edges are pure so they can
 /// be unit-tested; the waterfall calls them with where the mouse is.
 ///
 /// USB stays above the carrier and LSB below it, AM and FM keep the carrier
@@ -48,6 +49,45 @@ public readonly record struct KiwiPassband(int Low, int High, int CwShiftHz = 0)
         return Low >= ranges.Low.Min && Low <= ranges.Low.Max
             && High >= ranges.High.Min && High <= ranges.High.Max
             && Width >= MinimumWidthHz;
+    }
+
+    /// The Kiwi passband matching MAIN's receive filter (see
+    /// FilterPassbandModel for where width and SHIFT come from). Null when the
+    /// filter fields hold SUB's values, the rig's mode has no Kiwi equivalent,
+    /// or the width isn't known. Not snapped: these are the rig's own values.
+    ///
+    /// SSB/DATA: the audio passband the rig's display model gives, mirrored
+    /// below the carrier for LSB, kept on its sideband. CW: the width around
+    /// the Kiwi's own pitch, moved by SHIFT with the dial still on the signal
+    /// (the rig's KP pitch doesn't apply here). AM/FM: symmetric, as wide as
+    /// the Kiwi can go; SHIFT doesn't apply.
+    public static KiwiPassband? FromRigFilter(RigState state)
+    {
+        var effective = FilterPassbandModel.WidthHz(state).Effective;
+        if (state.ActiveFilterSide != FilterSide.Main
+            || KiwiSdrModeExtensions.FromRigMode(state.FilterMode) is not { } mode
+            || state.FilterMode is not { } rigMode
+            || effective is not > 0)
+        {
+            return null;
+        }
+        var width = effective.Value;
+        var shift = FilterPassbandModel.ShiftHz(state);
+        switch (mode)
+        {
+            case KiwiSdrMode.Am or KiwiSdrMode.Fm:
+                var halfWidth = Math.Min(width / 2, LimitHz);
+                return new KiwiPassband(-halfWidth, halfWidth);
+            case KiwiSdrMode.Cw:
+                var half = Math.Min(width / 2, LimitHz / 2);
+                var cwLow = Math.Max(Math.Max(CwPitchHz - half, 0) + shift, 0);
+                return new KiwiPassband(cwLow, Math.Min(cwLow + 2 * half, LimitHz), shift);
+            default:
+                var centre = (int)FilterPassbandModel.DefaultCenterHz(rigMode, 0) + shift;
+                var low = Math.Max(centre - width / 2, 0);
+                var high = Math.Min(Math.Max(centre - width / 2 + width, low + 1), LimitHz);
+                return mode == KiwiSdrMode.Usb ? new KiwiPassband(low, high) : new KiwiPassband(-high, -low);
+        }
     }
 
     /// The passband after dragging "edge" to offsetHz from the dial, snapped

@@ -2950,4 +2950,40 @@
   <data name="settings.myKiwiSDRPassword" xml:space="preserve">
     <value>Passwort</value>
   </data>
+  <data name="cwWindow.decodeWhatMyKiwiSDR" xml:space="preserve">
+    <value>Dekodieren, was das MyKiwiSDR-Fenster empfängt, auch wenn es stumm ist</value>
+  </data>
+  <data name="cwWindow.myKiwiSDRNotConnected" xml:space="preserve">
+    <value>MyKiwiSDR ist nicht verbunden – das MyKiwiSDR-Fenster öffnen und verbinden</value>
+  </data>
+  <data name="cwWindow.myKiwiSDRSilent" xml:space="preserve">
+    <value>MyKiwiSDR ist stumm – vom Kiwi kommt kein Audio an</value>
+  </data>
+  <data name="localSdr.followRigWidth" xml:space="preserve">
+    <value>Breite folgen</value>
+  </data>
+  <data name="localSdr.followRigWidthHelp" xml:space="preserve">
+    <value>Solange „Gerät folgen“ an ist, die Filterbreite und den IF SHIFT von MAIN als Durchlassbereich verwenden. Ziehen des Durchlassbereichs schaltet dies aus. Es wartet, solange die Filterregler des Geräts auf SUB stehen.</value>
+  </data>
+  <data name="localSdr.play" xml:space="preserve">
+    <value>Abspielen</value>
+  </data>
+  <data name="localSdr.playHelp" xml:space="preserve">
+    <value>Aufnahmen öffnen</value>
+  </data>
+  <data name="localSdr.record" xml:space="preserve">
+    <value>Aufnehmen</value>
+  </data>
+  <data name="localSdr.recordHelp" xml:space="preserve">
+    <value>Audio des Kiwi aufnehmen (vor Lautstärke und Stummschaltung), eine Datei pro Frequenz</value>
+  </data>
+  <data name="localSdr.recordNeedsConnection" xml:space="preserve">
+    <value>Zum Aufnehmen verbinden</value>
+  </data>
+  <data name="localSdr.recording.saved" xml:space="preserve">
+    <value>„{0}“ gesichert</value>
+  </data>
+  <data name="localSdr.stopRecordingHelp" xml:space="preserve">
+    <value>Aufnahme stoppen und in Aufnahmen sichern</value>
+  </data>
 </root>

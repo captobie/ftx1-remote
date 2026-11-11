@@ -56,6 +56,7 @@ public sealed class DigiWindow : Window
     private readonly SelectorBarItem _mainItem = new() { Text = "MAIN", Tag = CwAudioChannel.Main };
     private readonly SelectorBarItem _subItem = new() { Text = "SUB", Tag = CwAudioChannel.Sub };
     private readonly SelectorBarItem _webSdrItem = new() { Text = "WebSDR", Tag = CwAudioChannel.WebSdr };
+    private readonly SelectorBarItem _kiwiItem = new() { Text = "MyKiwiSDR", Tag = CwAudioChannel.MyKiwiSdr };
     private readonly Button _openButton = new();
     private readonly Button _copyButton = new();
     private readonly Button _clearButton = new();
@@ -264,6 +265,8 @@ public sealed class DigiWindow : Window
         _channelBar.Items.Add(_webSdrItem);
         ToolTipService.SetToolTip(_channelBar, Loc.S("digiWindow.whichAudio"));
         ToolTipService.SetToolTip(_webSdrItem, Loc.S("cwWindow.decodeWhatTheWebSDR"));
+        _channelBar.Items.Add(_kiwiItem);
+        ToolTipService.SetToolTip(_kiwiItem, Loc.S("cwWindow.decodeWhatMyKiwiSDR"));
         ToolTipService.SetToolTip(_mainItem, Loc.S("cwWindow.decodeTheRigsMAIN"));
         _channelBar.SelectionChanged += (bar, _) =>
         {
@@ -545,6 +548,7 @@ public sealed class DigiWindow : Window
             {
                 CwAudioChannel.Main => _mainItem,
                 CwAudioChannel.Sub => _subItem,
+                CwAudioChannel.MyKiwiSdr => _kiwiItem,
                 _ => _webSdrItem,
             };
             if (!selected.IsSelected)
@@ -603,11 +607,15 @@ public sealed class DigiWindow : Window
         }
         else if (_receiver.UnsuitableSourceMode is { } mode)
         {
-            note = Loc.F("digiWindow.sourceIsIn", _receiver.Channel == CwAudioChannel.Main ? "MAIN" : _receiver.Channel == CwAudioChannel.Sub ? "SUB" : "WebSDR", mode.DisplayName());
+            note = Loc.F("digiWindow.sourceIsIn", CwWindow.ChannelLabel(_receiver.Channel), mode.DisplayName());
         }
         else if (_receiver.Channel == CwAudioChannel.WebSdr)
         {
             note = WebSdrNote();
+        }
+        else if (_receiver.Channel == CwAudioChannel.MyKiwiSdr)
+        {
+            note = CwWindow.KiwiNote(_receiver.LocalSdr);
         }
         else
         {
