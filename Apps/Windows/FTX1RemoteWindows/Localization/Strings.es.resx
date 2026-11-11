@@ -2749,4 +2749,223 @@
   <data name="workedStationsStore.theLogCouldntBe" xml:space="preserve">
     <value>No se pudo leer el log</value>
   </data>
+  <data name="app.myKiwiSDR" xml:space="preserve">
+    <value>MyKiwiSDR</value>
+  </data>
+  <data name="localSdr.adcOverload" xml:space="preserve">
+    <value>Saturación del ADC</value>
+  </data>
+  <data name="localSdr.error.badPassword" xml:space="preserve">
+    <value>Contraseña incorrecta: el KiwiSDR la ha rechazado. Revisarla en Ajustes → Dispositivos.</value>
+  </data>
+  <data name="localSdr.error.busy" xml:space="preserve">
+    <value>Todos los canales del KiwiSDR están ocupados. Volver a intentarlo más tarde.</value>
+  </data>
+  <data name="localSdr.error.down" xml:space="preserve">
+    <value>El KiwiSDR indica que no está disponible.</value>
+  </data>
+  <data name="localSdr.error.invalidHost" xml:space="preserve">
+    <value>Configurar la dirección del KiwiSDR en Ajustes → Dispositivos, p. ej. kiwisdr.local:8073.</value>
+  </data>
+  <data name="localSdr.error.noResponse" xml:space="preserve">
+    <value>El KiwiSDR ha dejado de enviar audio.</value>
+  </data>
+  <data name="localSdr.error.redirect" xml:space="preserve">
+    <value>El KiwiSDR ha redirigido a {0} (no se ha seguido).</value>
+  </data>
+  <data name="localSdr.error.refused" xml:space="preserve">
+    <value>El KiwiSDR ha rechazado la conexión (código {0}).</value>
+  </data>
+  <data name="localSdr.error.unreachable" xml:space="preserve">
+    <value>No se puede conectar con el KiwiSDR: {0}</value>
+  </data>
+  <data name="localSdr.followRig" xml:space="preserve">
+    <value>Seguir al equipo</value>
+  </data>
+  <data name="localSdr.followRigHelp" xml:space="preserve">
+    <value>Resintonizar el Kiwi cuando cambie el VFO Main del equipo</value>
+  </data>
+  <data name="localSdr.frequencyHelp" xml:space="preserve">
+    <value>Introducir una frecuencia en kHz y pulsar Intro.</value>
+  </data>
+  <data name="localSdr.mute" xml:space="preserve">
+    <value>Silenciar</value>
+  </data>
+  <data name="localSdr.muteOnTx" xml:space="preserve">
+    <value>Silenciar en TX</value>
+  </data>
+  <data name="localSdr.muteOnTxHelp" xml:space="preserve">
+    <value>Silenciar el Kiwi mientras el equipo transmite</value>
+  </data>
+  <data name="localSdr.muted" xml:space="preserve">
+    <value>Silenciado</value>
+  </data>
+  <data name="localSdr.noHost" xml:space="preserve">
+    <value>Sin dirección: configurarla en Ajustes → Dispositivos.</value>
+  </data>
+  <data name="localSdr.passband.readoutHelp" xml:space="preserve">
+    <value>La banda de paso y su ancho. Arrastrar sus bordes en la cascada para cambiarla.</value>
+  </data>
+  <data name="localSdr.passband.reset" xml:space="preserve">
+    <value>Restablecer</value>
+  </data>
+  <data name="localSdr.passband.resetHelp" xml:space="preserve">
+    <value>Volver a la banda de paso predeterminada de este modo</value>
+  </data>
+  <data name="localSdr.password" xml:space="preserve">
+    <value>Contraseña</value>
+  </data>
+  <data name="localSdr.receiver" xml:space="preserve">
+    <value>Receptor</value>
+  </data>
+  <data name="localSdr.receiver.agcHelp" xml:space="preserve">
+    <value>Control automático de ganancia. Umbral y Caída se aplican mientras está activo; la ganancia manual, mientras está apagado.</value>
+  </data>
+  <data name="localSdr.receiver.autonotch" xml:space="preserve">
+    <value>Notch automático</value>
+  </data>
+  <data name="localSdr.receiver.decay" xml:space="preserve">
+    <value>Caída</value>
+  </data>
+  <data name="localSdr.receiver.denoise" xml:space="preserve">
+    <value>Reducción de ruido</value>
+  </data>
+  <data name="localSdr.receiver.gate" xml:space="preserve">
+    <value>Gate</value>
+  </data>
+  <data name="localSdr.receiver.manualGain" xml:space="preserve">
+    <value>Ganancia manual</value>
+  </data>
+  <data name="localSdr.receiver.noiseBlanker" xml:space="preserve">
+    <value>Supresor de ruido</value>
+  </data>
+  <data name="localSdr.receiver.noiseBlankerHelp" xml:space="preserve">
+    <value>Supresor de ruido en el Kiwi, para impulsos cortos como encendidos o ruido de la red. También se aplica a la cascada.</value>
+  </data>
+  <data name="localSdr.receiver.noiseFilter" xml:space="preserve">
+    <value>Filtro de ruido</value>
+  </data>
+  <data name="localSdr.receiver.noiseFilterHelp" xml:space="preserve">
+    <value>Filtro de ruido en el Kiwi. WDSP y LMS tienen interruptores propios de reducción de ruido y notch automático; Spectral no necesita ninguno.</value>
+  </data>
+  <data name="localSdr.receiver.off" xml:space="preserve">
+    <value>Apagado</value>
+  </data>
+  <data name="localSdr.receiver.standard" xml:space="preserve">
+    <value>Estándar</value>
+  </data>
+  <data name="localSdr.receiver.threshold" xml:space="preserve">
+    <value>Umbral</value>
+  </data>
+  <data name="localSdr.rigLink.outOfRange" xml:space="preserve">
+    <value>Sin seguir: el equipo está en {0} MHz, por encima de los {1} MHz de este Kiwi</value>
+  </data>
+  <data name="localSdr.rigLink.refused" xml:space="preserve">
+    <value>Equipo no sintonizado: {0} ({1})</value>
+  </data>
+  <data name="localSdr.rigLink.refused.disconnected" xml:space="preserve">
+    <value>el equipo no está conectado</value>
+  </data>
+  <data name="localSdr.rigLink.refused.memory" xml:space="preserve">
+    <value>MAIN está en modo memoria</value>
+  </data>
+  <data name="localSdr.rigLink.refused.noFrequency" xml:space="preserve">
+    <value>aún no hay frecuencia del equipo</value>
+  </data>
+  <data name="localSdr.rigLink.refused.transmitting" xml:space="preserve">
+    <value>el equipo está transmitiendo</value>
+  </data>
+  <data name="localSdr.status.connected" xml:space="preserve">
+    <value>Conectado a {0} · audio a {1} Hz</value>
+  </data>
+  <data name="localSdr.status.connecting" xml:space="preserve">
+    <value>Conectando con {0}…</value>
+  </data>
+  <data name="localSdr.status.disconnected" xml:space="preserve">
+    <value>Sin conexión.</value>
+  </data>
+  <data name="localSdr.status.readingPassword" xml:space="preserve">
+    <value>Leyendo la contraseña guardada…</value>
+  </data>
+  <data name="localSdr.tuneRig" xml:space="preserve">
+    <value>Sintonizar equipo</value>
+  </data>
+  <data name="localSdr.tuneRigHelp" xml:space="preserve">
+    <value>Sintonizar el VFO Main del equipo al sintonizar aquí (introducir una frecuencia, clic en la cascada, desplazamiento, arrastre, modo)</value>
+  </data>
+  <data name="localSdr.volume" xml:space="preserve">
+    <value>Volumen</value>
+  </data>
+  <data name="localSdr.waterfall.failed" xml:space="preserve">
+    <value>Cascada detenida: {0} El audio sigue sonando.</value>
+  </data>
+  <data name="localSdr.waterfall.help" xml:space="preserve">
+    <value>Clic para sintonizar, arrastrar para desplazar, rueda para sintonizar por pasos. Arrastrar los bordes de la banda de paso para su ancho, su centro para sintonizar.</value>
+  </data>
+  <data name="localSdr.waterfall.idle" xml:space="preserve">
+    <value>La cascada empieza al conectar.</value>
+  </data>
+  <data name="localSdr.waterfall.waiting" xml:space="preserve">
+    <value>Esperando la cascada…</value>
+  </data>
+  <data name="localSdr.zoomIn" xml:space="preserve">
+    <value>Ampliar</value>
+  </data>
+  <data name="localSdr.zoomOut" xml:space="preserve">
+    <value>Reducir</value>
+  </data>
+  <data name="mainWindow.listenToYourOwn" xml:space="preserve">
+    <value>Escuchar el propio KiwiSDR, con cascada</value>
+  </data>
+  <data name="settings.devices" xml:space="preserve">
+    <value>Dispositivos</value>
+  </data>
+  <data name="settings.myKiwiSDRAddress" xml:space="preserve">
+    <value>Dirección (host o host:puerto)</value>
+  </data>
+  <data name="settings.myKiwiSDRHelp" xml:space="preserve">
+    <value>El propio KiwiSDR en la red doméstica o la tailnet (puerto 8073 si no se indica). La contraseña se guarda en el Administrador de credenciales de Windows; dejarla vacía si el Kiwi no tiene.</value>
+  </data>
+  <data name="settings.myKiwiSDRPassword" xml:space="preserve">
+    <value>Contraseña</value>
+  </data>
+  <data name="cwWindow.decodeWhatMyKiwiSDR" xml:space="preserve">
+    <value>Decodificar lo que recibe la ventana MyKiwiSDR, incluso silenciada</value>
+  </data>
+  <data name="cwWindow.myKiwiSDRNotConnected" xml:space="preserve">
+    <value>MyKiwiSDR no está conectado: abrir la ventana MyKiwiSDR y conectar</value>
+  </data>
+  <data name="cwWindow.myKiwiSDRSilent" xml:space="preserve">
+    <value>MyKiwiSDR está en silencio: no llega audio del Kiwi</value>
+  </data>
+  <data name="localSdr.followRigWidth" xml:space="preserve">
+    <value>Seguir ancho</value>
+  </data>
+  <data name="localSdr.followRigWidthHelp" xml:space="preserve">
+    <value>Mientras «Seguir al equipo» está activo, usar el ancho de filtro y el IF SHIFT de MAIN como banda de paso. Arrastrar la banda de paso lo desactiva. Espera mientras los controles de filtro del equipo están en SUB.</value>
+  </data>
+  <data name="localSdr.play" xml:space="preserve">
+    <value>Reproducir</value>
+  </data>
+  <data name="localSdr.playHelp" xml:space="preserve">
+    <value>Abrir Grabaciones</value>
+  </data>
+  <data name="localSdr.record" xml:space="preserve">
+    <value>Grabar</value>
+  </data>
+  <data name="localSdr.recordHelp" xml:space="preserve">
+    <value>Grabar el audio del Kiwi (antes del volumen y el silencio), un archivo por frecuencia</value>
+  </data>
+  <data name="localSdr.recordNeedsConnection" xml:space="preserve">
+    <value>Conectar para grabar</value>
+  </data>
+  <data name="localSdr.recording.saved" xml:space="preserve">
+    <value>Guardada «{0}»</value>
+  </data>
+  <data name="localSdr.stopRecordingHelp" xml:space="preserve">
+    <value>Detener la grabación y guardarla en Grabaciones</value>
+  </data>
+  <data name="settings.myKiwiSDREnable" xml:space="preserve">
+    <value>Usar MyKiwiSDR (muestra el botón MyKiwiSDR)</value>
+  </data>
 </root>

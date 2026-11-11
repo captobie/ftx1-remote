@@ -353,7 +353,20 @@ public sealed class FilterPassbandModel
         ApfHz = state.ApfEnabled == true && IFContour.ApfSupported(mode) && state.ApfHz is { } apf ? pitch + apf : null;
     }
 
-    private static double DefaultCenterHz(RigMode mode, double pitch) => mode switch
+    /// The addressed receiver's effective width: NARROW's preset when known
+    /// (SSB/CW/RTTY/DATA), else the "SH" index's width.
+    public static (int? Effective, int? NarrowPreset) WidthHz(RigState state)
+    {
+        var mode = state.FilterMode;
+        var wide = state.FilterWidthIndex is { } index ? FilterWidthTable.Hz(index, mode) : null;
+        var preset = state.NarrowEnabled == true && NarrowWidthPreset.Item(mode) is not null ? state.NarrowWidthHz : null;
+        return (preset ?? wide, preset);
+    }
+
+    /// The addressed receiver's IF SHIFT in Hz (0 until read).
+    public static int ShiftHz(RigState state) => state.IfShiftHz is { } s ? IFShift.Snapped(s) : 0;
+
+    public static double DefaultCenterHz(RigMode mode, double pitch) => mode switch
     {
         RigMode.Usb or RigMode.Lsb => 1650,
         RigMode.DataUsb => 1500,

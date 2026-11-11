@@ -2961,8 +2961,12 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   30 s. Not exercised: a real network stall with the fix.
 - **Not tried**: a real waterfall-only failure with audio carrying on,
   `.silent` and a dropped connection on the decoder source.
-- **Later, not started**: FT8/FT4 from MyKiwiSDR, Sub following, iPad and
-  Windows.
+- **Windows port (2026-11-11; unit-tested and built, then tested by the user
+  the same day against their Kiwi and rig, working)**: window, waterfall, rig link, receiver controls and Settings →
+  Devices; then the decoder source (CW, RTTY/PSK), Record/Play, Follow width and
+  the playout controller (unit-tested and built, not yet tested on the rig). See
+  `Apps/Windows/README.md`'s "MyKiwiSDR window".
+- **Later, not started**: FT8/FT4 from MyKiwiSDR, Sub following, iPad.
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 

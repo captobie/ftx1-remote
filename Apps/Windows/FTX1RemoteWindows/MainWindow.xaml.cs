@@ -330,10 +330,13 @@ public sealed partial class MainWindow : Window
             () => AppSettings.Callsign, () => AppSettings.GridSquare, AppSettings.Digi.TxLevelDb, AppLog.Write);
         _digiSender.StateChanged += state => _digiReceiver.SetSenderActive(state != DigiSender.SenderState.Idle);
         _digiSender.Echo += _digiReceiver.AppendTransmitted;
+        _cwReceiver.AttachLocalSdr(_localSdrSource);
+        _digiReceiver.AttachLocalSdr(_localSdrSource);
         WireAprsDecoder(_aprsMainDecoder, AprsSource.Main);
         WireAprsDecoder(_aprsSubDecoder, AprsSource.Sub);
 
         ApplyAppearance();
+        ApplyLocalSdrVisibility();
         ShowDisconnected();
         _wpsdMonitor.CallsignUpdated += callsign => DispatcherQueue.TryEnqueue(() =>
         {
@@ -491,6 +494,7 @@ public sealed partial class MainWindow : Window
             }
             _aprsMapWindow?.Close();
             _webSdrWindow?.Close();
+            _localSdrWindow?.Close();
             _cwWindow?.Close();
             _digiSender.Stop();
             _digiWindow?.Close();
@@ -584,6 +588,7 @@ public sealed partial class MainWindow : Window
             ShowDisconnected();
         }
         ApplyAppearance();
+        ApplyLocalSdrVisibility();
         await ApplyHubSettingAsync();
         ApplyWavelogSettings();
         ApplyLicenseSettings();
@@ -639,6 +644,7 @@ public sealed partial class MainWindow : Window
         }
         _aprsMapWindow?.ApplyTheme();
         _webSdrWindow?.ApplyTheme();
+        _localSdrWindow?.ApplyTheme();
         _cwWindow?.ApplyTheme();
         _digiWindow?.ApplyTheme();
         _recordingsWindow?.ApplyTheme();
@@ -886,6 +892,7 @@ public sealed partial class MainWindow : Window
         Volatile.Write(ref _aprsSubGateHz, 0);
         ClearC4fmState();
         PushRigStateToWebSdr();
+        PushRigStateToLocalSdr();
         PushRigStateToCw();
         PushRigStateToWavelog();
         if (client is not null)
@@ -1186,6 +1193,7 @@ public sealed partial class MainWindow : Window
         UpdateTransmitControls();
 
         PushRigStateToWebSdr();
+        PushRigStateToLocalSdr();
         PushRigStateToWavelog();
     }
 
@@ -2665,6 +2673,14 @@ public sealed partial class MainWindow : Window
     /// (AppSettings.MainMutedByWebSdr). Gates playback only, like the Mute
     /// button — APRS and the scope are unaffected.
     private void SetWebSdrAudioActive(bool active)
+    {
+        _webSdrHoldsMain = active;
+        ApplyMainAudioOverride(_webSdrHoldsMain || _kiwiHoldsMain);
+    }
+
+    /// Mutes Main for whichever of the WebSDR and MyKiwiSDR windows is
+    /// audible (a holder each, like the Mac's setMainAudioOverride).
+    private void ApplyMainAudioOverride(bool active)
     {
         if (active)
         {

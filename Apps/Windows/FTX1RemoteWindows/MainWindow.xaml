@@ -53,6 +53,14 @@
                     <TextBlock Text="WebSDR" />
                 </StackPanel>
             </Button>
+            <!-- The Mac's Tools → MyKiwiSDR: native audio + waterfall from the operator's own KiwiSDR. -->
+            <Button x:Name="LocalSdrButton" Click="LocalSdrButton_Click"
+                    AutomationProperties.Name="MyKiwiSDR" ToolTipService.ToolTip="{l:Str Key=mainWindow.listenToYourOwn}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE774;" FontSize="14" />
+                    <TextBlock Text="MyKiwiSDR" />
+                </StackPanel>
+            </Button>
             <!-- The Mac's Tools → CW: decodes the rig's MAIN or SUB audio. -->
             <Button x:Name="CwButton" Click="CwButton_Click"
                     AutomationProperties.Name="CW" ToolTipService.ToolTip="{l:Str Key=mainWindow.decodeCWFromThe}">

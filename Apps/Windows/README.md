@@ -1275,6 +1275,66 @@ and CLAUDE.md's "v2: CW send pane" have the rig facts this relies on):
   It never plays into the rig's own USB audio (the same check as
   Recordings).
 
+## MyKiwiSDR window (2026-11-11; unit-tested and built, then tested by the user the same day: connect and audio, waterfall zoom/pan/click/passband drag, Follow/Tune rig, Settings → Devices, all working)
+
+Port of the Mac's Tools → MyKiwiSDR (`CLAUDE.md`, "Local SDR"): native audio and
+a waterfall from the operator's own KiwiSDR over its WebSockets, not the
+embedded page the WebSDR window shows. The **MyKiwiSDR** button sits next to
+WebSDR. The Swift files in `Sources/FTX1Core/KiwiSDR/` stay the source of
+truth for protocol and rules, and `Tests/KiwiSDRFixtures/` for recorded frames.
+
+- **Pure code, WinUI-free** (`Services/Kiwi/`, compiled straight into the test
+  project): `KiwiProtocol.cs` (frames, commands, URLs, waterfall geometry,
+  ADPCM, modes), `KiwiReceiverSettings.cs` (AGC/NB/NR commands, `%g` as
+  `G6`), `KiwiPassband.cs`, `KiwiRigLink.cs` (Follow / Tune rig rules with a
+  fake clock), `KiwiWaterfall.cs` (placement, column map, auto-range, the
+  pannable pixel buffer) and `KiwiClients.cs` (`ClientWebSocket` sound and
+  waterfall clients, events through `Channel<T>`). `KiwiTests.cs` parses the
+  Mac's fixtures and runs the sound client against a fake Kiwi on
+  `HttpListener` (handshake, setup commands, audio, bad password).
+- **App side**: `Services/LocalSdrModel.cs` (UI thread; connect, tune, passband,
+  receiver controls, rig link, waterfall view requests, throttles as on the
+  Mac: retune 50 ms, rig send 100 ms, view 60 ms, receiver 100 ms, Follow
+  debounce 400 ms), `Services/Kiwi/KiwiAudioPlayer.cs` (WASAPI via NAudio, 250 ms
+  primed jitter buffer, a backlog over 550 ms dropped back to target, volume 0
+  = mute), `Controls/KiwiWaterfallView.cs` and `Controls/LocalSdrWindow.cs`
+  (built in code like the WebSDR window), `MainWindow.LocalSdr.cs`.
+  The rig's Main playback is muted while the Kiwi is audible; the WebSDR and
+  Kiwi windows are one holder each (`ApplyMainAudioOverride`).
+- **Settings → Devices** (the C4FM tab, renamed): address and password. The
+  address is `AppSettings.LocalSdr.Host`; the password is in Credential Manager
+  ("FTX1Remote/MyKiwiSDR", `LocalSdrPassword`), read off the UI thread at each
+  Connect. Everything else the window remembers is in `AppSettings.LocalSdr`.
+- **Decoder source** (`Services/Kiwi/LocalSdrAudioSource.cs`): the CW and
+  RTTY/PSK windows have a **MyKiwiSDR** segment (`CwAudioChannel.MyKiwiSdr`).
+  The model hands every Kiwi frame, before volume/mute (so a muted Kiwi still
+  decodes), to the source while a decoder window wants it; the receivers
+  register through `AttachLocalSdr`. Status (not connected / receiving / silent
+  after 3 s below -80 dBFS) and the Kiwi's mode (for the "not CW" note and
+  RTTY polarity, which rebuilds the decoder when the sideband flips) come from
+  it. Picking the source never connects. The Kiwi's CW passband centres at
+  500 Hz: use Auto-tune, not Rig Pitch.
+- **Recording**: Record / Play beside Connect. `SdrAudioFileWriter` writes 16-bit
+  mono WAV at the Kiwi's rate (the header holds the integer part) into
+  Recordings, named "... MyKiwiSDR"; `KiwiRecordingSplit` starts a new file only
+  after a retune of 500 Hz or more, or a mode change, has held for 1 s.
+  Disconnect, a dropped connection and closing the window save the file. Play
+  opens the shared Recordings window.
+- **Follow width**: with Follow rig on, MAIN's receive filter and IF SHIFT become
+  the passband (`KiwiPassband.FromRigFilter`, using `FilterPassbandModel`'s
+  width/shift/centre rules, now public statics). A drag or Reset turns it off;
+  turning it off restores the mode's saved passband. Waits while the filter
+  controls are on SUB. Unverified by ear whether LSB's SHIFT direction matches
+  the rig (it follows the Filter Function Display, as on the Mac).
+- **Playout controller** (`Services/Kiwi/KiwiPlayout.cs`): the Mac's
+  `KiwiPlayoutController`/`Adjuster` on the player's copy only (drift splices at
+  most twice a second, backlog discard, dry-queue pad); the player's own 2 s cap
+  is a safety net. The debug-only 30 s playout log line isn't ported.
+- **To check on the PC** (first pass tested by the user 2026-11-11; recording, decoder source, Follow width and the playout controller not yet): the window opening, connecting to the Kiwi (badp,
+  sample rate, audio audible on the chosen output), the waterfall (zoom, pan,
+  click, wheel, passband edges), Follow/Tune rig against the rig, Mute on TX,
+  the Receiver section, Settings → Devices saving the address and password.
+
 ## RTTY/PSK window (2026-11-06; unit-tested and built; receive over WebSDR tested by the user, rig audio and transmit not yet)
 
 The Windows port of the Mac's Tools → RTTY/PSK (see CLAUDE.md, "Digital

@@ -49,6 +49,7 @@ public sealed class CwWindow : Window
     private readonly SelectorBarItem _mainItem = new() { Text = "MAIN", Tag = CwAudioChannel.Main };
     private readonly SelectorBarItem _subItem = new() { Text = "SUB", Tag = CwAudioChannel.Sub };
     private readonly SelectorBarItem _webSdrItem = new() { Text = "WebSDR", Tag = CwAudioChannel.WebSdr };
+    private readonly SelectorBarItem _kiwiItem = new() { Text = "MyKiwiSDR", Tag = CwAudioChannel.MyKiwiSdr };
     private readonly SelectorBar _decoderBar = new();
     private readonly SelectorBarItem _neuralItem = new() { Text = Loc.S("cwWindow.neural"), Tag = CwDecoderKind.Neural };
     private readonly SelectorBarItem _classicItem = new() { Text = Loc.S("cwWindow.classic"), Tag = CwDecoderKind.Classic };
@@ -238,6 +239,8 @@ public sealed class CwWindow : Window
         _channelBar.Items.Add(_subItem);
         _channelBar.Items.Add(_webSdrItem);
         ToolTipService.SetToolTip(_webSdrItem, Loc.S("cwWindow.decodeWhatTheWebSDR"));
+        _channelBar.Items.Add(_kiwiItem);
+        ToolTipService.SetToolTip(_kiwiItem, Loc.S("cwWindow.decodeWhatMyKiwiSDR"));
         _channelBar.SelectionChanged += (bar, _) =>
         {
             if (_updating || bar.SelectedItem?.Tag is not CwAudioChannel channel)
@@ -400,6 +403,7 @@ public sealed class CwWindow : Window
             {
                 CwAudioChannel.Main => _mainItem,
                 CwAudioChannel.Sub => _subItem,
+                CwAudioChannel.MyKiwiSdr => _kiwiItem,
                 _ => _webSdrItem,
             };
             if (!selected.IsSelected)
@@ -565,7 +569,11 @@ public sealed class CwWindow : Window
         }
         else if (_receiver.SourceModeIfNotCw is { } mode)
         {
-            note = Loc.F("cwWindow.xIsInX", (_receiver.Channel == CwAudioChannel.Main ? "MAIN" : "SUB"), mode.DisplayName());
+            note = Loc.F("cwWindow.xIsInX", ChannelLabel(_receiver.Channel), mode.DisplayName());
+        }
+        else if (_receiver.Channel == CwAudioChannel.MyKiwiSdr)
+        {
+            note = KiwiNote(_receiver.LocalSdr);
         }
         else
         {
@@ -574,6 +582,22 @@ public sealed class CwWindow : Window
         _noteText.Text = note ?? "";
         ToolTipService.SetToolTip(_noteText, note);
     }
+
+    internal static string ChannelLabel(CwAudioChannel channel) => channel switch
+    {
+        CwAudioChannel.Main => "MAIN",
+        CwAudioChannel.Sub => "SUB",
+        CwAudioChannel.WebSdr => "WebSDR",
+        _ => "MyKiwiSDR",
+    };
+
+    /// Why the MyKiwiSDR source isn't decoding, when it isn't.
+    internal static string? KiwiNote(LocalSdrAudioSource? source) => source?.Status switch
+    {
+        LocalSdrAudioSource.SourceStatus.Receiving => null,
+        LocalSdrAudioSource.SourceStatus.Silent => Loc.S("cwWindow.myKiwiSDRSilent"),
+        _ => Loc.S("cwWindow.myKiwiSDRNotConnected"),
+    };
 
     /// Why the WebSDR source isn't decoding, when it isn't. Windows can't
     /// capture a muted WebSDR (see WebSdrAudioTap), so a muted window is

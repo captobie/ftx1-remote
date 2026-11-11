@@ -183,6 +183,14 @@ internal static class WaterfallPalette
 
     public static readonly Color[] Lut = Enumerable.Range(0, 256).Select(i => ColorFor(i / 255f)).ToArray();
 
+    /// Table step 0…255 as a packed 0xAARRGGBB, for the MyKiwiSDR waterfall's
+    /// own pixel buffer (KiwiWaterfallBitmap).
+    public static uint Packed(int step)
+    {
+        var c = Lut[Math.Clamp(step, 0, 255)];
+        return 0xFF000000u | (uint)c.R << 16 | (uint)c.G << 8 | c.B;
+    }
+
     /// Clamps (so NaN or out-of-range can't index out of bounds) and rounds
     /// to the nearest of the table's steps.
     public static int Index(float value)
