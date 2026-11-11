@@ -3,9 +3,8 @@ import SwiftUI
 
 /// Tools → Local SDR (`Window(id: "local-sdr")`): the operator's own
 /// KiwiSDR as native audio, through `LocalSDRModel`. Opens disconnected;
-/// closing the window disconnects. `hub` for the rig link (Follow, Tune
-/// rig, Mute on TX, muting Main), passed in so the model can subscribe in
-/// `init`, as the WebSDR window does.
+/// closing the window disconnects. `hub` is the rig link (Follow, Tune
+/// rig, Mute on TX, muting Main) and the decoder source.
 struct LocalSDRWindowView: View {
     @StateObject private var model: LocalSDRModel
     @Environment(\.openWindow) private var openWindow
@@ -237,7 +236,9 @@ struct LocalSDRWindowView: View {
     private var statusText: String {
         switch model.state {
         case .disconnected:
-            String(localized: "localSDR.status.disconnected")
+            model.isLoadingPassword
+                ? String(localized: "localSDR.status.readingPassword")
+                : String(localized: "localSDR.status.disconnected")
         case .connecting:
             String(localized: "localSDR.status.connecting \(model.connectedHostPort)")
         case .connected(let rate):

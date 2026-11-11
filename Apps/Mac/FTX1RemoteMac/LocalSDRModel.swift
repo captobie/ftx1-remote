@@ -56,6 +56,9 @@ import os
 /// (`KiwiReceiverSettings`) are saved one key each and sent again by every
 /// new connection's setup; while connected a change goes out at most every
 /// 100 ms, and only the group that changed.
+///
+/// Playback queue (phase 5): `KiwiPlayoutAdjuster` keeps it near 250 ms on
+/// the player's copy of the audio only.
 final class LocalSDRModel: ObservableObject {
     enum State: Equatable {
         case disconnected
@@ -126,7 +129,10 @@ final class LocalSDRModel: ObservableObject {
     }
     /// The password field. Saved to the keychain only once the Kiwi accepts
     /// it, so trying a wrong one doesn't overwrite the stored password.
-    @Published var password: String
+    /// Empty until the keychain has answered (`isLoadingPassword`).
+    @Published var password = ""
+    /// The keychain read is still running (macOS may be showing its prompt).
+    @Published private(set) var isLoadingPassword = true
     @Published private(set) var frequencyHz: Int
     /// Set through `selectMode` (the window) or by Follow.
     @Published private(set) var mode: KiwiSDRMode
@@ -249,12 +255,18 @@ final class LocalSDRModel: ObservableObject {
         volume = defaults.object(forKey: Keys.volume) as? Double ?? 0.8
         isMuted = defaults.bool(forKey: Keys.muted)
         receiver = Self.savedReceiver()
-        password = LocalSDRPassword.read()
         preferredZoom = defaults.object(forKey: Keys.waterfallZoom) as? Int ?? 8
         followRigWidth = defaults.bool(forKey: Keys.followRigWidth)
         followRig = defaults.object(forKey: Keys.followRig) as? Bool ?? true
         tuneRig = defaults.object(forKey: Keys.tuneRig) as? Bool ?? true
         muteOnTransmit = defaults.object(forKey: Keys.muteOnTransmit) as? Bool ?? true
+        Task { [weak self] in
+            let saved = await Task.detached { LocalSDRPassword.read() }.value
+            guard let self else { return }
+            // Something typed while the prompt was up wins.
+            if password.isEmpty { password = saved }
+            isLoadingPassword = false
+        }
     }
 
     var isConnected: Bool {
@@ -264,11 +276,12 @@ final class LocalSDRModel: ObservableObject {
         }
     }
 
-    var canConnect: Bool { KiwiProtocol.soundURL(hostPort: hostPort) != nil }
+    var canConnect: Bool { !isLoadingPassword && KiwiProtocol.soundURL(hostPort: hostPort) != nil }
 
     // MARK: - Connection
 
     func connect() {
+        guard !isLoadingPassword else { return }
         hostPort = hostPort.trimmingCharacters(in: .whitespacesAndNewlines)
         closeSession()
         guard canConnect else {
@@ -334,8 +347,9 @@ final class LocalSDRModel: ObservableObject {
             state = .connected(sampleRate: sampleRate)
             audioSampleRate = sampleRate
             hub?.localSDRSource.sessionStarted(sampleRate: sampleRate, mode: mode)
-            if passwordInUse != LocalSDRPassword.read() {
-                LocalSDRPassword.write(passwordInUse)
+            let accepted = passwordInUse
+            Task.detached {
+                if accepted != LocalSDRPassword.read() { LocalSDRPassword.write(accepted) }
             }
             startPlayback(sampleRate: sampleRate)
             startWaterfall()
@@ -407,7 +421,7 @@ final class LocalSDRModel: ObservableObject {
         guard let report = playoutMonitor.add(bufferedSeconds: status.bufferedSeconds, underruns: status.underruns,
                                               now: Self.now) else { return }
         let text = String(format: "avg=%.1f min=%.1f max=%.1f", report.averageMs, report.minimumMs, report.maximumMs)
-        logger.notice("playout: buffered ms \(text, privacy: .public) underruns=\(report.underruns) splices=\(self.playoutAdjuster?.splices ?? 0) discarded=\(self.playoutAdjuster?.discardedSeconds ?? 0, privacy: .public) padded=\(self.playoutAdjuster?.paddedSeconds ?? 0, privacy: .public) t=\(Int(report.elapsedSeconds))")
+        logger.debug("playout: buffered ms \(text, privacy: .public) underruns=\(report.underruns) splices=\(self.playoutAdjuster?.splices ?? 0) discarded=\(self.playoutAdjuster?.discardedSeconds ?? 0, privacy: .public) padded=\(self.playoutAdjuster?.paddedSeconds ?? 0, privacy: .public) t=\(Int(report.elapsedSeconds))")
     }
 
     private static func littleEndianPCM(_ samples: [Int16]) -> Data {
@@ -798,7 +812,6 @@ final class LocalSDRModel: ObservableObject {
             .sink { [weak self] ptt in
                 guard let self, isTransmitting != ptt else { return }
                 isTransmitting = ptt
-                logger.debug("rig link: PTT \(ptt ? "on" : "off", privacy: .public), playback \(self.muteOnTransmit && ptt ? "silenced" : "as set", privacy: .public)")
                 applyVolume()
             }
             .store(in: &rigCancellables)

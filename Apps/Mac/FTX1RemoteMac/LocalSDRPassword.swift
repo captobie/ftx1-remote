@@ -2,17 +2,21 @@ import Foundation
 import Security
 import os
 
-private let keychainLogger = Logger(subsystem: "com.ftx1remote.mac", category: "kiwisdr")
+nonisolated private let keychainLogger = Logger(subsystem: "com.ftx1remote.mac", category: "kiwisdr")
 
 /// The Local SDR window's KiwiSDR user password, in the login keychain as
 /// a generic password (service "FTX1Remote-KiwiSDR", account "kiwi") — the
 /// same pattern as `WavelogToken`. One password, whichever host is in the
 /// window. Never logged.
+///
+/// `nonisolated`, and always called off the main actor: reading can block
+/// for as long as macOS's keychain prompt is up (every new Debug build asks
+/// again), and on the main actor that froze the whole app.
 enum LocalSDRPassword {
-    private static let service = "FTX1Remote-KiwiSDR"
-    private static let account = "kiwi"
+    nonisolated private static let service = "FTX1Remote-KiwiSDR"
+    nonisolated private static let account = "kiwi"
 
-    private static var query: [String: Any] {
+    nonisolated private static var query: [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -21,7 +25,7 @@ enum LocalSDRPassword {
     }
 
     /// Empty when none is stored.
-    static func read() -> String {
+    nonisolated static func read() -> String {
         var query = query
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -37,7 +41,7 @@ enum LocalSDRPassword {
     }
 
     /// Stores `password`; an empty one removes the item.
-    static func write(_ password: String) {
+    nonisolated static func write(_ password: String) {
         guard !password.isEmpty else {
             let status = SecItemDelete(query as CFDictionary)
             if status != errSecSuccess && status != errSecItemNotFound {

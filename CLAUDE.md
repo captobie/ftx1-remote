@@ -2847,278 +2847,118 @@ modes.
   frequency; the lane then saw no change). Writing `RigState.frequencyHz`
   now sets `band` itself (`didSet`; not in `init` or decoding).
 
-## Local SDR (Mac, phase 1, 2026-11-10; client tested live against the user's KiwiSDR, then the window tested by the user the same day: audio, retune/mode change, wrong-password message, channel freed. Phase 2 waterfall the same day: unit- and live-tested, window driven against the Kiwi, then tested by the user, no issues. Phase 3 rig link the same day: unit-tested, then driven in the built app against the rig over the Pi and the Kiwi, incl. keying into a dummy load, then tested by the user, no issues. Phase 4 decoder source + recording the same day: unit-tested, driven in the built app against the Kiwi, then tested on the air by the user, working as expected)
+## Local SDR (Mac, phases 0–5, 2026-11-10; tested against the user's KiwiSDR 2, and by the user the same day except phase 5's playback queue and keychain fix, which were measured or checked in the built app)
 
-Shown to the user as **MyKiwiSDR** since 2026-11-10 (menu item and window
-title, key `app.myKiwiSDR`, the same in every language); the code, the
-window id `local-sdr` and the `localSDR.*` settings keys keep the old name
-so saved settings carry over. User request: native audio from the operator's own KiwiSDR (KiwiSDR 2,
-v1.902, on the home LAN, reached over the Tailscale subnet route through
-raspberrypi), bypassing its web page — unlike the WebSDR window, which
-embeds the page. Tools → **MyKiwiSDR** opens `Window(id: "local-sdr")`.
-Phase 0 (protocol probe) left frames in `Tests/KiwiSDRFixtures/` (README
-there). Sources checked against: kiwiclient's `kiwi/client.py`, the Kiwi's
-`web/openwebrx/openwebrx.js`/`audio.js`, and the live Kiwi.
+Shown to the user as **MyKiwiSDR** (menu item and window title, key
+`app.myKiwiSDR`, the same in every language); the code, the window id
+`local-sdr` and the `localSDR.*` keys keep the old name so saved settings
+carry over. Native audio and waterfall from the operator's own KiwiSDR
+(v1.902, on the home LAN, reached over the Tailscale subnet route through
+raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
+**MyKiwiSDR** opens `Window(id: "local-sdr")`. Protocol fixtures are in
+`Tests/KiwiSDRFixtures/`. Sources checked: `jks-prv/KiwiSDR` at v1.902
+(`web/openwebrx/openwebrx.js`, `audio.js`, `web/kiwi/noise_*.js`,
+`rx/rx_sound_cmd.cpp`) and kiwiclient's `kiwi/client.py`. The older
+`Beagle_SDR_GPS` repo stops at v1.711.
 
-- **`FTX1Core/KiwiSDR/KiwiProtocol.swift`** (`KiwiProtocolTests`, against
-  the fixtures): frame parsing (3-byte tag; "MSG" + 1 byte + URL-encoded
-  `key=value` pairs; "SND" = flags, sequence UInt32 LE, S-meter UInt16 BE
-  with dBm = 0.1 × raw − 127, then samples), uncompressed Int16 BE PCM (512
-  a frame), IMA ADPCM (`KiwiADPCMDecoder`, kiwiclient's, low nibble first,
-  2048 samples a frame), and command builders. `KiwiSoundDecoder` carries
-  the ADPCM state across frames and resets it only when the compression
-  flag changes (as `audio.js` does). ADPCM is implemented and tested but
-  not used (`compression: false`). `KiwiSDRMode`: USB/LSB/CW/AM/FM (`nbfm`)
-  with the page's own default passbands (`passbands_fallback`); in CW the
-  sent freq is the dial minus the passband centre (the page's
-  `freq_dsp_to_car`), so the dial shows the signal.
-- **`KiwiSDRClient`** (actor, `URLSessionWebSocketTask`, one session per
-  instance, events in order through `events`): `SET auth t=kiwi p=<%-enc>`
-  at once; on `audio_rate` "SET AR OK in=… out=44100"; on `sample_rate` the
-  setup (squelch, genattn, gen, agc, compression, `ident_user=FTX1Remote`),
-  the tune, and a keepalive every second; `.ready` after both `badp=0` and
-  `sample_rate`. `tune(_:)` sends "SET mod=… freq=…" on the open socket.
-  Errors (`KiwiSDRError`): badp=1 is "bad password *or* no free channel", so
-  the client reads `/status` (`KiwiStatus`) and reports `.busy` when
-  users ≥ users_max, else `.badPassword`; too_busy → `.busy`; down,
-  redirect (not followed), other badp codes `.refused(code:)`; socket
-  errors `.unreachable(text)`; 10 s without a frame `.noResponse`. `stop()`
-  closes the socket and invalidates the session. The password is never
-  logged (the auth line logs as "p=…"). Logs under "kiwisdr".
-- **Live, 2026-11-10** (`KiwiSDRClientLiveTests`, skipped unless
-  `KIWI_LIVE_HOST` and `KIWI_LIVE_PASSWORD_FILE` are set — write the file
-  with `security find-generic-password -s FTX1Remote-KiwiSDR -a kiwi -w`,
-  0600, and delete it after): sample_rate 11998.902088, real audio, retune
-  USB 14.074 → LSB 7.074 flagged 0x04 three frames (~130 ms) later, then CW
-  7.030, no sequence gap across either; wrong password → `.badPassword`;
-  closed port → `.unreachable`; `/status` counts our channel while
-  connected and drops it after `stop()`. **`/status` lags** both ways
-  (0.1–10 s), so poll it rather than read it once.
-- **Mac** (`LocalSDRModel`, `LocalSDRWindowView`, `LocalSDRPassword`): the
-  model is the window's own `@StateObject`, nothing on `HubService`;
-  S-meter readings (≤10/s) go to `LocalSDRMeterStore`, observed only by the
-  meter view. Host (`localSDR.host`), frequency, mode, volume and mute are
-  `localSDR.*` defaults; the password is the login keychain item (service
-  "FTX1Remote-KiwiSDR", account "kiwi"), **written only after the Kiwi
-  accepts it**, so trying a wrong one leaves the stored password alone.
-  Explicit connect only: opens disconnected, `onDisappear` disconnects.
-  Playback: an `AudioPlaybackEngine(squelchEnabled: false, inputSampleRate:
-  <reported rate>, prebufferSeconds: 0.25)` on Settings → Audio's output
-  device (the engine's new `inputSampleRate`/`prebufferSeconds` init
-  parameters default to the relay's 8 kHz / 0.12 s, so other callers are
-  unchanged). Mute = volume 0. S-meter as HF S units (S9 = −73 dBm) + dBm,
-  ADC overload flag shown.
-- **Tested in the app by the user** (2026-11-10): audio, retune and mode
-  change without a gap or reconnect, the wrong-password status message, and
-  `/status` dropping the channel after Disconnect and after closing the
-  window.
-  Known gap: playback schedules buffers as they arrive, so the Kiwi's and
-  the Mac's clocks drifting apart shows up over long sessions as an
-  occasional gap or slowly growing latency (as on the Pi relay).
-- **Phase 2, waterfall (2026-11-10; unit tests, a live client test and
-  the built window driven against the Kiwi; then tested by the user,
-  no issues)**.
-  Unlike the Kiwi's page it never clears on a retune: tuning inside the
-  span only moves the passband; a pan shifts the history by whole bins,
-  leaving only the exposed edge blank; a zoom rescales the history.
-  - **Protocol** (`KiwiProtocol`, `KiwiWaterfallTests`): "W/F" frames
-    (`KiwiWaterfallFrame`: x_bin, zoom, flags, sequence, one byte a bin,
-    dBm = byte − 255 + wf_cal), `waterfallURL`, `waterfallSetupCommands`
-    (zoom=0 start=0, maxdb=0 mindb=-100, wf_comp=0, wf_speed=4,
-    ident_user), `waterfallView` ("SET zoom= start="). `KiwiWaterfallGeometry`
-    takes bandwidth/wf_fft_size/zoom_max from the Kiwi's messages: x_bin
-    counts bins at the maximum zoom, a displayed bin at zoom z is
-    2^(zoom_max − z) of them; `clampStart` keeps a start inside the band
-    *and on a whole bin* (the Kiwi accepts unaligned starts — the phase 0
-    probe's 3923300 isn't — which would make pans fractional), so pans
-    shift by whole bins. `KiwiWaterfallPlacement` (`place`: append / shift
-    / rezoom by the row's own header; `columnMap` for a zoom change) and
-    `startKeeping` (pan only when the passband is within 10% of an edge or
-    past it: just far enough when near, centred when far away or too wide)
-    are pure and tested.
-  - **Stream**: `KiwiWaterfallClient`, a second actor beside
-    `KiwiSDRClient` (shares only the socket pattern; the sound client got
-    nothing but an optional `timestamp`). **It must use the sound
-    stream's URL timestamp**: the Kiwi pairs the two by it (page and
-    kiwiclient do the same), and then the waterfall takes no channel —
-    verified: /status users +1, not +2, and /users showing our zoom on our
-    sound channel. Opened only after the sound stream is ready; a waterfall
-    error ends only the waterfall (status under the picture), the sound
-    stream ending, Disconnect and window close end both. Logs under
-    "kiwisdr" with a "waterfall:" prefix.
-  - **Mac**: `LocalSDRModel` keeps the requested `WaterfallView` (start,
-    zoom; zoom remembered as `localSDR.waterfallZoom`, default 8) and sends
-    it at most every 60 ms (a drag sends one per mouse event), the last
-    always going out. `LocalSDRWaterfallStore` places rows
-    (`PannableWaterfallBitmap`: one memmove + a 256-entry byte → pixel
-    table per row, one memmove per history row on a pan, a table-driven
-    rebuild on a zoom — cheap enough that rescaling beats clearing) and
-    publishes `picture` per row and `position` only on a pan/zoom.
-    `LocalSDRWaterfallView` observes the position and draws everything
-    in the *requested* frame, the picture offset to where its rows are,
-    so a drag follows the mouse at once and the edge fills when the rows
-    arrive (~150–200 ms). The image is a layer-backed NSView setting
-    `layer.contents` from the store's publisher (not a SwiftUI `Image`),
-    in the main screen's colour space, opaque (`noneSkipLast`).
-    Mouse: click tunes (snapped to `KiwiSDRMode.waterfallStepHz`: CW 10,
-    SSB 100, AM 1 k, FM 5 k), drag pans, wheel steps one per notch or per
-    10 pt of trackpad, landing on the step grid. Presses outside the view
-    are ignored (computer-use's synthetic drag sends a stray one at x −15
-    afterwards, which once tuned the dial).
-  - **Colours**: `KiwiWaterfallAutoRange` — Kiwi page's autoscale shape
-    (median, 95th percentile, masked ≤ −190 dBm ignored) via a 256-bucket
-    histogram every 5 rows, smoothed; floor = median − 5 dB, ceiling =
-    95th + 25 and ≥ floor + 40. The page's own −10/+30 drew 40 m noise
-    bright blue with weak signals barely showing in this app's palette.
-    No manual controls.
-  - **CPU** (Debug build, Local SDR connected, audio muted but running,
-    `top`/`sample`): window open disconnected ~0.5%; connected first
-    ~27%, then ~18% after (a) the opaque bitmap (no premultiply pass), (b)
-    the screen's colour space (no colour-matching pass), (c) the
-    position/picture split and the NSView layer (SwiftUI had been
-    re-laying-out the whole waterfall view per row). The per-row work
-    itself (`add`, bitmap, auto-range) is ~0.5% of samples.
-  - **Live** (2026-11-10): rows at 117 kHz span with the scale matching
-    (FT8 segment brightest at 7075.1 kHz in the live test; dial line on
-    7.074); click-to-tune inside the span left the waterfall alone;
-    scrolling across the edge and dragging both shifted the history; zoom
-    in (58.6 kHz) and out (234 kHz) rescaled it at the right frequencies;
-    a pan's first row ~200 ms after the request; Disconnect and window
-    close both closed both sockets at once, /status following 4–8 s later.
-    **Not tried**: a waterfall-only failure with audio carrying on (no
-    way to provoke it from here), CW/AM/FM passband drawing, a real mouse
-    wheel or trackpad (only synthetic events), rows per second over a long
-    session (the live test saw 14/s while its consumer was stalled).
-- **Phase 3, rig link (2026-11-10; `KiwiRigLinkTests`, then the built
-  app against the rig in Remote mode and the Kiwi; then tested by the
-  user, no issues)**: the WebSDR window's rig rules on the open socket. The window
-  gets `hub` like the WebSDR one (`LocalSDRWindowView(hub:)`); the model
-  is still its own `@StateObject`, nothing new on `HubService`.
-  - **Pure part** (`FTX1Core/KiwiSDR/KiwiRigLink.swift`, fake-clock
-    tests): `KiwiSDRMode(rigMode:)` — USB/DATA-U → USB, LSB, CW (the rig
-    reports CW-R as CW), AM, FM; RTTY/DATA-FM/C4FM nil = keep the Kiwi's
-    mode. `KiwiSDRURLBuilder.modeToken` now delegates to it, so the two
-    windows share one mapping. `KiwiSDRMode.rigMode(current:)` is
-    `SDRPlatform.rigMode`'s rule (DATA-U stays DATA-U under USB; a rig in
-    RTTY/DATA-FM/C4FM is never changed). `KiwiRigLink.follow` /
-    `windowTuned` / `expirePending` / `refusal(for:)`: Follow tunes the
-    Kiwi unless it's already there (±10 Hz, mode family), the rig is above
-    the Kiwi's bandwidth, or a window tune is pending; Tune rig refuses
-    when the rig isn't connected, has no frequency, transmits or MAIN is in
-    Memory mode (the Kiwi still tunes). After a window tune the rig's
-    values are ignored until they match it or 3 s pass
-    (`pendingRigTune`), and each new window tune moves that target — which
-    is what stops fast scrolling bouncing.
-  - **Model** (`LocalSDRModel`): `localSDR.followRig`/`tuneRig`/
-    `muteOnTransmit`, all default on. Subscribed to `hub.$rigState` only
-    while connected (on connect, cancelled on Disconnect, the Kiwi closing
-    and window close): MAIN frequency/mode, removeDuplicates + 400 ms
-    debounce, as `WebSDRFollowModel`; PTT undebounced. Connecting starts
-    the Kiwi at the rig's tuning, so the first tune is already right.
-    Follow is one `KiwiSDRClient.tune` — no reconnect, and the waterfall's
-    keep-the-passband-visible pan applies. Window tunes (entry, steppers,
-    click, scroll, drag, mode picker via `selectMode`) go to the rig
-    through `HubService.send(_:)` at most every 100 ms with the last always
-    sent (a spun wheel doesn't flood the queue); the refusal is checked
-    again at send time. Mute on TX = playback volume 0 while `rigState.
-    ptt`, the window's Mute untouched. The rig-link line under the tuning
-    row: which direction is on, then the last refusal or "not following:
-    rig on X MHz, above this Kiwi's 30 MHz". Debug logs under "kiwisdr",
-    "rig link: …" (each follow tune, each rig send, each ignored echo).
-  - **Main mute, both windows**: `HubService.setMainAudioOverride(_:
-    active:)` with `MainAudioOverride` `.webSDR`/`.localSDR` replaces
-    `setWebSDRAudioActive`/`mainMutedByWebSDR`: a set of holders, Main
-    unmuted only when the last one leaves and only if the override muted
-    it (`mainMutedByOverride`, same persisted key `webSDR.mutedMainAudio`,
-    still cleared in `init`). An active call mutes Main if it isn't muted,
-    as before. Local SDR holds it while connected and not muted.
-  - **Live** (2026-11-10, rig over the Pi, a second rigctld client moving
-    FA/MD): connect started at the rig's 14.023 CW; rig 14.023 → 14.025
-    followed with no reconnect and no waterfall clear; a waterfall click
-    tuned the rig (14.021410); 20 rapid 100 Hz steps + scroll notches gave
-    22 coalesced rig sends in order, no follow tune back, rig = Kiwi at the
-    end; rig DATA-U → Kiwi USB, then a window +1 kHz kept DATA-U ("MD0C");
-    window LSB → rig "MD01"; V/M into Memory → "not following: 443.125
-    MHz" and a window step refused ("MAIN is in Memory mode"), the Kiwi
-    tuning alone; V/M back → followed. Main mute: user's own mute left
-    alone; Local SDR audible → Main muted; with the WebSDR window also
-    audible, muting either one kept Main muted; Disconnect, window close
-    and a relaunch with the flag left set all gave Main back.
-    Keyed into a dummy load the same day (USB, 5 W, no audio, keyed from
-    a second rigctld client): Mute on TX silenced the playback for the
-    whole transmission and restored it after ("rig link: PTT on/off" debug
-    lines); a window step while keyed was refused ("the rig is
-    transmitting"), the rig staying put. Keying USB on 14.03x was unkeyed
-    by the license guardrail within ~0.2 s (US General, no phone there) —
-    correct, but pick a phone segment when testing in SSB.
-    **Not tried**: a real trackpad/mouse wheel (only synthetic scroll and
-    AX-pressed buttons, ~30–100 ms apart).
-- **Phase 4, decoder source + Record/Play (2026-11-10; unit-tested, driven
-  in the built app against the Kiwi, then tested on the air by the user the
-  same day, working as expected)**.
-  - **Source**: `ReceiveAudioChannel.myKiwiSDR` (FTX1Core, title
-    "MyKiwiSDR", raw value `myKiwiSDR`) in the CW and RTTY/PSK windows'
-    pickers. `ReceiveAudioChannel.restored(rawValue:offered:)` is the one
-    saved-choice rule (anything not offered → MAIN); `rigReceivers` =
-    MAIN/SUB, which the iPad passes as `channels:` (its CW pane lists only
-    those), so an iPad never shows or restores MyKiwiSDR.
-    `DigiReceiver(channels:)` takes the same parameter.
-  - **Path**: `LocalSDRAudioSource` (Mac, a `let` on `HubService`,
-    `localSDRSource`): `LocalSDRModel` hands it every Kiwi frame *before*
-    the volume/mute (so a muted Kiwi decodes), as Int16 at the reported
-    rate (~11998.9 Hz), only while a consumer wants it (`isWanted`,
-    checked by the model before converting). Consumers register like
-    `WebSDRAudioSource`'s; each receiver's `onSourceChanged` now updates
-    both sources. No tap, no permission. `status` (`.notConnected`/
-    `.receiving`/`.silent` — below −80 dBFS for 3 s) and `mode` publish
-    only on change; the windows show "MyKiwiSDR isn't connected — connect
-    it in Tools → MyKiwiSDR" / "MyKiwiSDR is silent". Selecting the
-    source never opens or connects the Kiwi.
-  - **Mode**: the receivers get the Kiwi's demodulation as a `RigMode`
-    (`setMyKiwiSDRMode`, from `localSDRSource.$mode`, nil while
-    disconnected): the CW window's "is in USB, not CW" note and the
-    RTTY/PSK "not a data mode" note use it, and RTTY's polarity follows
-    its sideband (USB/LSB) as it does the rig's. The Kiwi's CW passband is
-    centred at 500 Hz, not the rig's KP pitch: use Auto-tune, not Rig
-    Pitch. Pause-while-transmitting and RTTY/PSK transmit (the rig's
-    transmitting side) are unchanged.
-  - **Rates**: both decoders resample any rate (CWKit's `AudioResampler`,
-    `DigiResampler`; `AVAudioConverter`, rebuilt only on a rate change).
-    Checked off the air: `KiwiRateTests` (FTX1DigiTests: BPSK31 clean,
-    RTTY at 6 dB SNR, at 11998.902 Hz in 512-sample frames) and a scratch
-    harness through CWKit's `PipelineRunner` (20 WPM "CQ CQ DE W1AW W1AW
-    K" in noise, neural and classic, exact at 11998.9, 8000 and 48000 Hz).
-  - **Recording**: Record/Stop (timer) and Play (Recordings window) in the
-    connection row. `SDRAudioFileWriter`, 16-bit mono WAV, named
-    `AudioRecorder.newRecordingURL` with "<freq> <mode> MyKiwiSDR"
-    (uniquified). The WAV header holds whole Hz, so 11998.9 is written as
-    11998 (0.008% slow, inaudible). **Split rule** (`KiwiRecordingSplit`,
-    FTX1Core, tested): a new file only when the tuning is ≥ 500 Hz from
-    the one the file started at (its name) or the mode changed, *and* that
-    has held 1 s — so scroll-tuning onto a signal or a spun wheel passing
-    through doesn't split, and the second after a real retune ends up at
-    the end of the old file. Window tunes and Follow both count.
-    Disconnect, a dropped connection (`.closed`) and closing the window
-    all save it (`endAudioSession`).
-  - **Seen in the built app** (Kiwi, rig disconnected, then over the Pi):
-    "isn't connected" before connecting and after closing the window;
-    audio reaching the CW decoder while the Kiwi was muted (meters,
-    auto-tune moving); the CW note following the Kiwi (USB → note, CW →
-    none); RTTY/PSK window decoding from the source (only JS8 and noise
-    on 20 m then, so no real text); files saved on Stop, Disconnect and
-    window close, a 7.030 → 7.035 retune splitting ~1 s later, durations
-    matching; MAIN and SUB still feeding the CW decoder (SUB's "is in FM"
-    note). **Not seen**: real CW/PSK/RTTY text decoded from the Kiwi (no
-    signals then — the main thing left to try), `.silent`, a dropped
-    connection, playing the files in the Recordings window, the WebSDR
-    source after the change — the user's on-air test the same day covered
-    decoding from the Kiwi. Fixed with it: the extra segment wrapped
-    the RTTY/PSK window's "Open Audio File…"; both decoder windows' header
-    buttons are `.fixedSize()` now, with min widths 980 (RTTY/PSK) and
-    920 (CW).
-- **Later phases, not started**: FT8/FT4 from MyKiwiSDR, following the
-  rig's filter width, draggable passband edges, AGC/noise controls, Sub
-  following, iPad and Windows.
+- **Protocol** (`FTX1Core/KiwiSDR/KiwiProtocol.swift`): frames open with a
+  3-byte tag: "MSG" (URL-encoded `key=value`), "SND" (flags, sequence, S-meter
+  with dBm = 0.1 × raw − 127, then Int16 BE PCM, 512 samples a frame), "W/F"
+  (x_bin, zoom, flags, sequence, one byte a bin; dBm = byte − 255 + wf_cal).
+  IMA ADPCM is implemented and tested but unused (`compression: false`).
+  `KiwiSDRMode`: USB/LSB/CW/AM/FM (`nbfm`) with the page's default passbands.
+  In CW the sent freq is the dial minus the passband's centre
+  (`freq_dsp_to_car`), so the dial shows the signal.
+- **`KiwiSDRClient`** (actor, one session per instance): auth, "SET AR OK",
+  setup on `sample_rate`, keepalive every second, retune on the open socket.
+  `.ready` needs both `badp=0` and `sample_rate`. badp=1 is "bad password *or*
+  no free channel", so `/status` tells them apart. The password is never
+  logged. **`/status` lags** by 0.1–10 s: poll it, don't read it once. Logs
+  under "kiwisdr".
+- **Live tests** (`KiwiSDRClientLiveTests`, `KiwiWaterfallLiveTests`,
+  `KiwiReceiverLiveTests`, skipped unless `KIWI_LIVE_HOST` and
+  `KIWI_LIVE_PASSWORD_FILE` are set): write the file with `security
+  find-generic-password -s FTX1Remote-KiwiSDR -a kiwi -w`, mode 0600, and
+  delete it after.
+- **Mac** (`LocalSDRModel`, the window's own `@StateObject`; nothing new is
+  `@Published` on `HubService`): explicit connect only, closing the window
+  disconnects, S-meter and waterfall rows go to leaf-observed stores. The
+  password is in the login keychain (`LocalSDRPassword`, service
+  "FTX1Remote-KiwiSDR", account "kiwi"), written only after the Kiwi accepts
+  it. Keychain calls run off the main actor (the enum is `nonisolated`): each
+  new Debug build makes macOS ask again, and reading on the main actor froze
+  the app until the prompt was answered. Connect is disabled until the read
+  finishes. Mute = volume 0.
+- **Waterfall** (phase 2): a second actor, `KiwiWaterfallClient`, opened with
+  the sound stream's URL timestamp, which is how the Kiwi pairs them, so it
+  takes no extra channel. A waterfall failure leaves the audio playing.
+  Never clears on a retune: tuning inside the span only moves the passband, a
+  pan shifts the history by whole bins (`KiwiWaterfallGeometry.clampStart`), a
+  zoom rescales it. The view is drawn in the *requested* frame with the
+  picture offset to where its rows are, so a drag follows the mouse at once.
+  The image is a layer-backed NSView set from the store's publisher, opaque,
+  in the screen's colour space (with a SwiftUI `Image` per row, layout was most
+  of the CPU; ~18% of a core in Debug, the per-row work ~0.5%). Colours:
+  `KiwiWaterfallAutoRange`, floor = median − 5 dB, ceiling = 95th percentile
+  + 25 and ≥ floor + 40. Click tunes (step by mode), wheel steps, drag pans.
+- **Rig link** (phase 3, `KiwiRigLink`, fake-clock tests): the WebSDR window's
+  rules on the open socket. Follow (rig → Kiwi, debounced 400 ms) and Tune rig
+  (window → rig, at most every 100 ms); after a window tune the rig's values
+  are ignored until they match or 3 s pass, which stops fast scrolling
+  bouncing. Mode mapping is shared with the WebSDR window; RTTY/DATA-FM/C4FM
+  leave the Kiwi's mode alone. Refused toward the rig when disconnected,
+  transmitting or in Memory mode. Mute on TX = playback volume 0 while
+  `rigState.ptt`. `HubService.setMainAudioOverride(_:active:)` mutes the rig's
+  Main playback while the Kiwi or the WebSDR is audible (a set of holders; only
+  undoes a mute it made).
+- **Phase 4, decoder source + recording**: `ReceiveAudioChannel.myKiwiSDR`
+  in the CW and RTTY/PSK windows (the iPad's pickers omit it). Every frame goes
+  to `LocalSDRAudioSource` (a `let` on `HubService`) before the volume/mute,
+  so a muted Kiwi decodes, only while a consumer wants it. Selecting the source
+  never connects. The receivers get the Kiwi's demodulation as a `RigMode` for
+  the "not CW" notes and RTTY polarity. The Kiwi's CW passband centres at
+  500 Hz, not the rig's KP pitch: use Auto-tune, not Rig Pitch. Record writes
+  16-bit mono WAV (the header holds 11998 for 11998.9 Hz, 0.008% slow).
+  `KiwiRecordingSplit`: a new file only after a ≥ 500 Hz retune or mode change
+  has held for 1 s.
+- **Passband** (phase 5, `KiwiPassband`, `KiwiPassbandTests`): drag an edge
+  (10 Hz snap, 60 Hz minimum, the Kiwi's narrowest CW preset) or the middle to
+  tune. USB/LSB stay on their sideband, AM/FM keep the carrier inside, CW is
+  symmetric around the dial; a CW passband over 1 kHz raises the audio pitch
+  instead of crossing the carrier. Each mode's last one is in
+  `localSDR.passband.<mode>`. Retunes go out at most every 50 ms.
+- **Follow width** (phase 5, `localSDR.followRigWidth`, off by default;
+  `KiwiPassband(rigFilterOf:)`): MAIN's width and SHIFT through
+  `FilterPassbandModel`'s own rules. CW carries the SHIFT in `cwShiftHz` so the
+  dial stays on the signal. Waits while the rig's filter controls are on SUB. A
+  drag or Reset turns it off; turning it off restores the mode's saved
+  passband. Known: for ~4 s after a rig mode change the width uses the old
+  mode's "SH" index. Unverified by ear whether LSB's SHIFT direction matches the
+  rig (it follows the app's Filter Function Display).
+- **Receiver section** (phase 5, `KiwiReceiverSettings`): AGC, noise blanker
+  (standard, Wild) and noise filter (WDSP, LMS, spectral) on the sound socket,
+  ranges from the page. Setup sends them on every connection, with NB/NR
+  commands only when on, so the defaults match what setup always sent. "SET nb
+  algo"/"SET nr algo" clear the enables, so parameters and enables follow.
+  `KiwiReceiverLiveTests` measures each control's effect on the level. LMS
+  Denoise went silent at manual gain 40 (below one LSB); fine at AGC levels.
+- **Playback queue** (phase 5, `KiwiPlayoutController`/`KiwiPlayoutAdjuster`,
+  fake-clock tests): measured over 36 minutes, the queue grew ~5 ppm (~19 ms
+  an hour, no gaps), and one ~2 s stall left 2.2 s of latency for good. Now
+  on the *player's copy only* (recordings and decoders get every sample): the
+  10 s average 30 ms off target starts ~1 ms crossfaded, waveform-aligned
+  splices at most twice a second until within 10 ms; a backlog (0.5 s floor
+  300 ms over) discards audio not yet queued, in one step with fades; a dry
+  queue resumes behind silence. Target 250 ms. `AudioPlaybackEngine` only
+  gained `playoutStatus()`. Debug builds: launch with
+  `-localSDR.playoutTargetOverride 0.20` to force the splices (they'd
+  otherwise fire about every 2 hours). Debug line every 30 s: "playout:
+  buffered ms …" under "kiwisdr". A forced 2 s freeze was back at 252 ms within
+  30 s. Not exercised: a real network stall with the fix.
+- **Not tried**: a real waterfall-only failure with audio carrying on,
+  `.silent` and a dropped connection on the decoder source.
+- **Later, not started**: FT8/FT4 from MyKiwiSDR, Sub following, iPad and
+  Windows.
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 

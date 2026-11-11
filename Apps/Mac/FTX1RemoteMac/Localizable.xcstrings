@@ -602,6 +602,29 @@
         }
       }
     },
+    "localSDR.status.readingPassword" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gespeichertes Passwort wird aus dem Schlüsselbund gelesen…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading the saved password from the keychain…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leyendo la contraseña guardada del llavero…"
+          }
+        }
+      }
+    },
     "localSDR.stopRecordingHelp" : {
       "extractionState" : "manual",
       "localizations" : {
