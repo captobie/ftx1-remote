@@ -2968,4 +2968,22 @@
   <data name="settings.myKiwiSDREnable" xml:space="preserve">
     <value>Use MyKiwiSDR (shows the MyKiwiSDR button)</value>
   </data>
+  <data name="tune.help" xml:space="preserve">
+    <value>Switch to CW and send a carrier for the antenna tuner; press again to stop and restore the mode (stops by itself after {0} s)</value>
+  </data>
+  <data name="tune.helpStop" xml:space="preserve">
+    <value>Stop tuning and restore the mode</value>
+  </data>
+  <data name="tune.keyingEnded" xml:space="preserve">
+    <value>Tuning stopped: the rig stopped transmitting</value>
+  </data>
+  <data name="tune.timeout" xml:space="preserve">
+    <value>Tuning stopped after {0} s</value>
+  </data>
+  <data name="tune.transmitOff" xml:space="preserve">
+    <value>Tuning stopped: Enable Transmit was turned off</value>
+  </data>
+  <data name="tune.txOnSub" xml:space="preserve">
+    <value>TUNE needs the transmitter on MAIN (TX:MAIN)</value>
+  </data>
 </root>

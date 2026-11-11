@@ -254,6 +254,7 @@ public sealed partial class MainWindow : Window
         Title = "FTX-1 Remote";
         InitVfoEntryFlyouts();
         InitSplitControls();
+        InitTuneControls();
         _mainDigits = new VfoDigits(FrequencyAText, FrequencyAGrid);
         _subDigits = new VfoDigits(FrequencyBText, FrequencyBGrid);
         if (!RestoreWindowBounds())
@@ -2038,6 +2039,8 @@ public sealed partial class MainWindow : Window
         // blocking one below.
         var digiKeyed = _digiSender.IsTransmitting;
         _digiSender.Stop();
+        // Unkeys (and restores the mode) itself.
+        StopTuneBeforeDisconnect();
         EndHubTransmit("disconnecting from the rig");
         if (!(_pttHeld || hubKeyed || digiKeyed) || _client is not { } client)
         {
@@ -2147,6 +2150,7 @@ public sealed partial class MainWindow : Window
         }
         ToolTipService.SetToolTip(PttButton, reason ?? Loc.S("mainWindow.holdToTransmit"));
         UpdateSplitControls();
+        UpdateTuneButton();
         _menuGrid.RefreshLabels();
         EnforcePrivilegesWhileKeyed();
     }

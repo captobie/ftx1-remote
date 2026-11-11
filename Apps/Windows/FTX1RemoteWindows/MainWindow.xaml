@@ -337,7 +337,11 @@
             <StackPanel Orientation="Horizontal" Spacing="24">
                 <StackPanel Spacing="4">
                     <TextBlock Text="{l:Str Key=mainWindow.mode}" FontWeight="SemiBold" />
-                    <ComboBox x:Name="ModeComboBox" Width="120" SelectionChanged="ModeComboBox_SelectionChanged" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ComboBox x:Name="ModeComboBox" Width="120" SelectionChanged="ModeComboBox_SelectionChanged" />
+                        <!-- Carrier for an external auto-tuner; MainWindow.Tune.cs. -->
+                        <Button x:Name="TuneButton" Content="TUNE" MinWidth="70" IsEnabled="False" Click="TuneButton_Click" />
+                    </StackPanel>
                 </StackPanel>
 
                 <StackPanel Spacing="4">

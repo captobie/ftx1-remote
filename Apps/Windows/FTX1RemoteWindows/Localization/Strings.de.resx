@@ -2968,4 +2968,22 @@
   <data name="settings.myKiwiSDREnable" xml:space="preserve">
     <value>MyKiwiSDR verwenden (zeigt die MyKiwiSDR-Schaltfläche)</value>
   </data>
+  <data name="tune.help" xml:space="preserve">
+    <value>Auf CW wechseln und einen Träger für den Antennentuner senden; erneut drücken beendet und stellt die Betriebsart wieder her (endet nach {0} s von selbst)</value>
+  </data>
+  <data name="tune.helpStop" xml:space="preserve">
+    <value>Abstimmung beenden und Betriebsart wiederherstellen</value>
+  </data>
+  <data name="tune.keyingEnded" xml:space="preserve">
+    <value>Abstimmung beendet: Das Gerät hat das Senden beendet</value>
+  </data>
+  <data name="tune.timeout" xml:space="preserve">
+    <value>Abstimmung nach {0} s beendet</value>
+  </data>
+  <data name="tune.transmitOff" xml:space="preserve">
+    <value>Abstimmung beendet: Enable Transmit wurde ausgeschaltet</value>
+  </data>
+  <data name="tune.txOnSub" xml:space="preserve">
+    <value>TUNE braucht den Sender auf MAIN (TX:MAIN)</value>
+  </data>
 </root>

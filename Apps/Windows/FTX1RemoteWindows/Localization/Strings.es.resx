@@ -2968,4 +2968,22 @@
   <data name="settings.myKiwiSDREnable" xml:space="preserve">
     <value>Usar MyKiwiSDR (muestra el botón MyKiwiSDR)</value>
   </data>
+  <data name="tune.help" xml:space="preserve">
+    <value>Cambiar a CW y enviar una portadora para el sintonizador de antena; pulsar de nuevo para detener y restaurar el modo (se detiene solo tras {0} s)</value>
+  </data>
+  <data name="tune.helpStop" xml:space="preserve">
+    <value>Detener la sintonía y restaurar el modo</value>
+  </data>
+  <data name="tune.keyingEnded" xml:space="preserve">
+    <value>Sintonía detenida: el equipo dejó de transmitir</value>
+  </data>
+  <data name="tune.timeout" xml:space="preserve">
+    <value>Sintonía detenida tras {0} s</value>
+  </data>
+  <data name="tune.transmitOff" xml:space="preserve">
+    <value>Sintonía detenida: se desactivó Enable Transmit</value>
+  </data>
+  <data name="tune.txOnSub" xml:space="preserve">
+    <value>TUNE requiere el transmisor en MAIN (TX:MAIN)</value>
+  </data>
 </root>
