@@ -44,8 +44,8 @@ struct SettingsView: View {
                     .tabItem { Text("rigctld") }
                 AudioSettingsTab()
                     .tabItem { Text("settings.audio") }
-                C4FMSettingsTab()
-                    .tabItem { Text("C4FM") }
+                DevicesSettingsTab()
+                    .tabItem { Text("settings.devices") }
                 APRSSettingsTab()
                     .tabItem { Text("APRS") }
                 StationSettingsTab()
@@ -510,22 +510,62 @@ private struct AudioSettingsTab: View {
     }
 }
 
-/// WPSD hotspot callsign lookup — see `WPSDCallsignMonitor`. Applies
-/// instantly via `@AppStorage`, same reasoning as `AudioSettingsTab`: an
-/// invalid/incomplete host just causes harmless failed fetches (no
-/// callsign shown), not a broken process launch like the rigctld tab's
-/// binary path, so there's no accidental-edit risk worth a Cancel/Done
-/// escape hatch here.
-private struct C4FMSettingsTab: View {
+/// Other devices on the network: the WPSD hotspot's callsign lookup (see
+/// `WPSDCallsignMonitor`) and the MyKiwiSDR window's KiwiSDR. Applies
+/// instantly, same reasoning as `AudioSettingsTab`: a wrong host just fails
+/// harmlessly (no callsign shown, or a connect error in the MyKiwiSDR
+/// window), not a broken process launch like the rigctld tab's binary path,
+/// so there's no accidental-edit risk worth a Cancel/Done escape hatch here.
+///
+/// The KiwiSDR password goes to the login keychain (`LocalSDRPassword`),
+/// read and written off the main actor: macOS may show its keychain prompt,
+/// and on the main actor that froze the app. It's written when the field
+/// loses focus, on Return, and when the tab goes away; the MyKiwiSDR window
+/// reads it at each connect.
+private struct DevicesSettingsTab: View {
     @AppStorage(WPSDSettings.enabledKey) private var enabled = false
     @AppStorage(WPSDSettings.hostKey) private var host = ""
+    @AppStorage(LocalSDRModel.hostKey) private var kiwiHost = ""
+    @State private var kiwiPassword = ""
+    /// What the keychain holds, so only a change is written. Nil until read.
+    @State private var storedPassword: String?
+    @FocusState private var passwordFocused: Bool
 
     var body: some View {
         Form {
-            Toggle("settings.c4fmSettings.showReceivedCallsignVia", isOn: $enabled)
-            TextField("settings.c4fmSettings.hotspotAddress", text: $host, prompt: Text("e.g. 192.168.1.50"))
+            Section("settings.devices.c4fmHotspot") {
+                Toggle("settings.c4fmSettings.showReceivedCallsignVia", isOn: $enabled)
+                TextField("settings.c4fmSettings.hotspotAddress", text: $host, prompt: Text("e.g. 192.168.1.50"))
+            }
+            Section {
+                TextField("settings.devices.kiwiAddress", text: $kiwiHost, prompt: Text(verbatim: "kiwisdr.local:8073"))
+                    .fontDesign(.monospaced)
+                SecureField("localSDR.password", text: $kiwiPassword)
+                    .focused($passwordFocused)
+                    .disabled(storedPassword == nil)
+                    .onSubmit(savePassword)
+            } header: {
+                Text(verbatim: "KiwiSDR")
+                    .padding(.top, 12)
+            }
         }
         .padding(.top, 8)
+        .task {
+            let saved = await Task.detached { LocalSDRPassword.read() }.value
+            kiwiPassword = saved
+            storedPassword = saved
+        }
+        .onChange(of: passwordFocused) { _, focused in
+            if !focused { savePassword() }
+        }
+        .onDisappear(perform: savePassword)
+    }
+
+    private func savePassword() {
+        guard let stored = storedPassword, kiwiPassword != stored else { return }
+        let password = kiwiPassword
+        storedPassword = password
+        Task.detached { LocalSDRPassword.write(password) }
     }
 }
 
@@ -533,7 +573,7 @@ private struct C4FMSettingsTab: View {
 /// — the FM/C4FM menu page's HOME button jumps to whichever of these matches
 /// the current frequency's band group, since the rig itself has no CAT way
 /// to read/recall its own HOME channels. Applies instantly via `@AppStorage`,
-/// same reasoning as `AudioSettingsTab`/`C4FMSettingsTab` — any value here is
+/// same reasoning as `AudioSettingsTab`/`DevicesSettingsTab` — any value here is
 /// a valid frequency, no invalid-input failure mode worth a Cancel/Done
 /// escape hatch.
 private struct HomeFrequencySettingsTab: View {

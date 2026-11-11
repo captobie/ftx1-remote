@@ -7818,19 +7818,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Falsches Passwort: Der KiwiSDR hat es abgelehnt."
+            "value" : "Falsches Passwort: Der KiwiSDR hat es abgelehnt. Unter Einstellungen → Geräte prüfen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wrong password: the KiwiSDR refused it."
+            "value" : "Wrong password: the KiwiSDR refused it. Check it in Settings → Devices."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Contraseña incorrecta: el KiwiSDR la ha rechazado."
+            "value" : "Contraseña incorrecta: el KiwiSDR la ha rechazado. Revisarla en Ajustes → Dispositivos."
           }
         }
       }
@@ -7887,19 +7887,19 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Host des KiwiSDR eingeben, z. B. kiwisdr.local:8073."
+            "value" : "Adresse des KiwiSDR unter Einstellungen → Geräte festlegen, z. B. kiwisdr.local:8073."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enter the KiwiSDR's host, e.g. kiwisdr.local:8073."
+            "value" : "Set the KiwiSDR's address in Settings → Devices, e.g. kiwisdr.local:8073."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Introducir el host del KiwiSDR, p. ej. kiwisdr.local:8073."
+            "value" : "Configurar la dirección del KiwiSDR en Ajustes → Dispositivos, p. ej. kiwisdr.local:8073."
           }
         }
       }
@@ -8088,29 +8088,6 @@
         }
       }
     },
-    "localSDR.hostPlaceholder" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Host:Port des KiwiSDR"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "KiwiSDR host:port"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "host:puerto del KiwiSDR"
-          }
-        }
-      }
-    },
     "localSDR.mute" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8222,29 +8199,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Contraseña"
-          }
-        }
-      }
-    },
-    "localSDR.passwordHelp" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Benutzerpasswort des KiwiSDR. Wird im Anmeldeschlüsselbund gesichert, sobald der KiwiSDR es annimmt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The KiwiSDR's user password. Saved in the login keychain once the KiwiSDR accepts it."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Contraseña de usuario del KiwiSDR. Se guarda en el llavero de inicio de sesión cuando el KiwiSDR la acepta."
           }
         }
       }
@@ -17214,6 +17168,144 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ningún libro de guardia seleccionado"
+          }
+        }
+      }
+    },
+    "settings.devices" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geräte"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Devices"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivos"
+          }
+        }
+      }
+    },
+    "settings.devices.c4fmHotspot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "C4FM-Hotspot (WPSD)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "C4FM hotspot (WPSD)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hotspot C4FM (WPSD)"
+          }
+        }
+      }
+    },
+    "settings.devices.kiwiAddress" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse des KiwiSDR"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KiwiSDR address"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dirección del KiwiSDR"
+          }
+        }
+      }
+    },
+    "localSDR.noHost" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Adresse: unter Einstellungen → Geräte festlegen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No address: set it in Settings → Devices."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin dirección: configurarla en Ajustes → Dispositivos."
+          }
+        }
+      }
+    },
+    "localSDR.settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajustes"
+          }
+        }
+      }
+    },
+    "localSDR.settingsHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse und Passwort: Einstellungen → Geräte"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Address and password: Settings → Devices"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dirección y contraseña: Ajustes → Dispositivos"
           }
         }
       }

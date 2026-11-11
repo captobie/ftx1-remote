@@ -67,8 +67,10 @@ final class LocalSDRModel: ObservableObject {
         case failed(KiwiSDRError)
     }
 
+    /// The address, set in Settings → Devices ("host" or "host:port").
+    static let hostKey = "localSDR.host"
+
     private enum Keys {
-        static let host = "localSDR.host"
         static let frequencyHz = "localSDR.frequencyHz"
         static let mode = "localSDR.mode"
         static let volume = "localSDR.volume"
@@ -123,16 +125,13 @@ final class LocalSDRModel: ObservableObject {
     @Published private(set) var state: State = .disconnected {
         didSet { if state != oldValue { updateMainAudio() } }
     }
-    /// "host" or "host:port" (8073 when absent).
-    @Published var hostPort: String {
-        didSet { UserDefaults.standard.set(hostPort, forKey: Keys.host) }
+    /// "host" or "host:port" (8073 when absent), from Settings → Devices.
+    /// Read at each connect, so a change there applies to the next one.
+    static var savedHostPort: String {
+        (UserDefaults.standard.string(forKey: hostKey) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
-    /// The password field. Saved to the keychain only once the Kiwi accepts
-    /// it, so trying a wrong one doesn't overwrite the stored password.
-    /// Empty until the keychain has answered (`isLoadingPassword`).
-    @Published var password = ""
-    /// The keychain read is still running (macOS may be showing its prompt).
-    @Published private(set) var isLoadingPassword = true
+    /// Connect's keychain read is running (macOS may be showing its prompt).
+    @Published private(set) var isLoadingPassword = false
     @Published private(set) var frequencyHz: Int
     /// Set through `selectMode` (the window) or by Follow.
     @Published private(set) var mode: KiwiSDRMode
@@ -205,6 +204,7 @@ final class LocalSDRModel: ObservableObject {
     private var playback: AudioPlaybackEngine?
     private var connectedHost = ""
     private var passwordInUse = ""
+    private var passwordTask: Task<Void, Never>?
     private var lastMeterPublish = ContinuousClock.now
     private var lastRetune = ContinuousClock.now - .seconds(1)
     private var trailingRetune: Task<Void, Never>?
@@ -246,7 +246,6 @@ final class LocalSDRModel: ObservableObject {
     init(hub: HubService?) {
         self.hub = hub
         let defaults = UserDefaults.standard
-        hostPort = defaults.string(forKey: Keys.host) ?? ""
         let savedFrequency = defaults.integer(forKey: Keys.frequencyHz)
         frequencyHz = Self.frequencyRange.contains(savedFrequency) ? savedFrequency : 14_074_000
         let savedMode = defaults.string(forKey: Keys.mode).flatMap(KiwiSDRMode.init(rawValue:)) ?? .usb
@@ -260,13 +259,6 @@ final class LocalSDRModel: ObservableObject {
         followRig = defaults.object(forKey: Keys.followRig) as? Bool ?? true
         tuneRig = defaults.object(forKey: Keys.tuneRig) as? Bool ?? true
         muteOnTransmit = defaults.object(forKey: Keys.muteOnTransmit) as? Bool ?? true
-        Task { [weak self] in
-            let saved = await Task.detached { LocalSDRPassword.read() }.value
-            guard let self else { return }
-            // Something typed while the prompt was up wins.
-            if password.isEmpty { password = saved }
-            isLoadingPassword = false
-        }
     }
 
     var isConnected: Bool {
@@ -276,18 +268,34 @@ final class LocalSDRModel: ObservableObject {
         }
     }
 
-    var canConnect: Bool { !isLoadingPassword && KiwiProtocol.soundURL(hostPort: hostPort) != nil }
+    static func isValidHost(_ hostPort: String) -> Bool {
+        KiwiProtocol.soundURL(hostPort: hostPort.trimmingCharacters(in: .whitespacesAndNewlines)) != nil
+    }
 
     // MARK: - Connection
 
+    /// Reads the password (Settings → Devices) off the main actor, then
+    /// connects to the saved address.
     func connect() {
         guard !isLoadingPassword else { return }
-        hostPort = hostPort.trimmingCharacters(in: .whitespacesAndNewlines)
         closeSession()
-        guard canConnect else {
+        let hostPort = Self.savedHostPort
+        guard Self.isValidHost(hostPort) else {
             state = .failed(.invalidHost)
             return
         }
+        state = .disconnected
+        isLoadingPassword = true
+        passwordTask = Task { [weak self] in
+            let password = await Task.detached { LocalSDRPassword.read() }.value
+            guard let self, !Task.isCancelled else { return }
+            isLoadingPassword = false
+            passwordTask = nil
+            startSession(hostPort: hostPort, password: password)
+        }
+    }
+
+    private func startSession(hostPort: String, password: String) {
         // Start where the rig is, so the first tune is already right.
         if followRig, let hub {
             let rig = RigTarget(hub.rigState)
@@ -324,6 +332,9 @@ final class LocalSDRModel: ObservableObject {
     }
 
     private func closeSession() {
+        passwordTask?.cancel()
+        passwordTask = nil
+        isLoadingPassword = false
         endAudioSession()
         stopRigLink()
         if let client {
@@ -347,10 +358,6 @@ final class LocalSDRModel: ObservableObject {
             state = .connected(sampleRate: sampleRate)
             audioSampleRate = sampleRate
             hub?.localSDRSource.sessionStarted(sampleRate: sampleRate, mode: mode)
-            let accepted = passwordInUse
-            Task.detached {
-                if accepted != LocalSDRPassword.read() { LocalSDRPassword.write(accepted) }
-            }
             startPlayback(sampleRate: sampleRate)
             startWaterfall()
         case .audio(let chunk):

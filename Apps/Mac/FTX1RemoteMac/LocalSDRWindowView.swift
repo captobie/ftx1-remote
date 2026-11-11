@@ -16,6 +16,7 @@ struct LocalSDRWindowView: View {
     @State private var frequencyDraft = ""
     @FocusState private var frequencyFocused: Bool
     @State private var receiverExpanded = false
+    @AppStorage(LocalSDRModel.hostKey) private var hostPort = ""
 
     private static let steps = [100, 1_000, 5_000]
 
@@ -58,18 +59,23 @@ struct LocalSDRWindowView: View {
 
     private var connectionRow: some View {
         HStack(spacing: 10) {
-            TextField("localSDR.hostPlaceholder", text: $model.hostPort)
-                .textFieldStyle(.roundedBorder)
-                .fontDesign(.monospaced)
-                .frame(maxWidth: 260)
-                .disabled(model.isConnected)
-                .onSubmit { if !model.isConnected { model.connect() } }
-            SecureField("localSDR.password", text: $model.password)
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 180)
-                .disabled(model.isConnected)
-                .onSubmit { if !model.isConnected { model.connect() } }
-                .help("localSDR.passwordHelp")
+            // Address and password live in Settings → Devices.
+            if hostPort.trimmingCharacters(in: .whitespaces).isEmpty {
+                Text("localSDR.noHost")
+                    .themedSecondaryForeground()
+            } else {
+                Text(verbatim: hostPort)
+                    .fontDesign(.monospaced)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: 260, alignment: .leading)
+            }
+            SettingsLink {
+                Label("localSDR.settings", systemImage: "gearshape")
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(ThemedButtonStyle())
+            .help("localSDR.settingsHelp")
             if model.isConnected {
                 Button("common.disconnect", systemImage: "stop.circle", action: model.disconnect)
                     .labelStyle(.titleAndIcon)
@@ -78,7 +84,7 @@ struct LocalSDRWindowView: View {
                 Button("common.connect", systemImage: "play.circle", action: model.connect)
                     .labelStyle(.titleAndIcon)
                     .buttonStyle(ThemedButtonStyle())
-                    .disabled(!model.canConnect)
+                    .disabled(model.isLoadingPassword || !LocalSDRModel.isValidHost(hostPort))
             }
             Spacer()
             recordButton

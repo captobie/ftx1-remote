@@ -2883,12 +2883,16 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
 - **Mac** (`LocalSDRModel`, the window's own `@StateObject`; nothing new is
   `@Published` on `HubService`): explicit connect only, closing the window
   disconnects, S-meter and waterfall rows go to leaf-observed stores. The
-  password is in the login keychain (`LocalSDRPassword`, service
-  "FTX1Remote-KiwiSDR", account "kiwi"), written only after the Kiwi accepts
-  it. Keychain calls run off the main actor (the enum is `nonisolated`): each
-  new Debug build makes macOS ask again, and reading on the main actor froze
-  the app until the prompt was answered. Connect is disabled until the read
-  finishes. Mute = volume 0.
+  address and password are set in **Settings → Devices** (the tab was C4FM
+  until 2026-11-11; it also holds the WPSD hotspot), not in the window,
+  which shows the address and a Settings button (user request). The
+  address is `localSDR.host`; the password is in the login keychain
+  (`LocalSDRPassword`, service "FTX1Remote-KiwiSDR", account "kiwi"),
+  written by the Settings tab on Return, focus loss or leaving the tab, and
+  read at each connect. Keychain calls run off the main actor (the enum is
+  `nonisolated`): each new Debug build makes macOS ask again, and reading on
+  the main actor froze the app until the prompt was answered. Connect waits
+  for the read ("Reading the saved password…"). Mute = volume 0.
 - **Waterfall** (phase 2): a second actor, `KiwiWaterfallClient`, opened with
   the sound stream's URL timestamp, which is how the Kiwi pairs them, so it
   takes no extra channel. A waterfall failure leaves the audio playing.
