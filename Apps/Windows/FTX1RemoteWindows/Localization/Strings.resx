@@ -2749,4 +2749,205 @@
   <data name="workedStationsStore.theLogCouldntBe" xml:space="preserve">
     <value>The log couldn't be read</value>
   </data>
+  <data name="app.myKiwiSDR" xml:space="preserve">
+    <value>MyKiwiSDR</value>
+  </data>
+  <data name="localSdr.adcOverload" xml:space="preserve">
+    <value>ADC overload</value>
+  </data>
+  <data name="localSdr.error.badPassword" xml:space="preserve">
+    <value>Wrong password: the KiwiSDR refused it. Check it in Settings → Devices.</value>
+  </data>
+  <data name="localSdr.error.busy" xml:space="preserve">
+    <value>All of the KiwiSDR's channels are in use. Try again later.</value>
+  </data>
+  <data name="localSdr.error.down" xml:space="preserve">
+    <value>The KiwiSDR says it's down.</value>
+  </data>
+  <data name="localSdr.error.invalidHost" xml:space="preserve">
+    <value>Set the KiwiSDR's address in Settings → Devices, e.g. kiwisdr.local:8073.</value>
+  </data>
+  <data name="localSdr.error.noResponse" xml:space="preserve">
+    <value>The KiwiSDR stopped sending audio.</value>
+  </data>
+  <data name="localSdr.error.redirect" xml:space="preserve">
+    <value>The KiwiSDR redirected to {0} (not followed).</value>
+  </data>
+  <data name="localSdr.error.refused" xml:space="preserve">
+    <value>The KiwiSDR refused the connection (code {0}).</value>
+  </data>
+  <data name="localSdr.error.unreachable" xml:space="preserve">
+    <value>Can't reach the KiwiSDR: {0}</value>
+  </data>
+  <data name="localSdr.followRig" xml:space="preserve">
+    <value>Follow rig</value>
+  </data>
+  <data name="localSdr.followRigHelp" xml:space="preserve">
+    <value>Retune the Kiwi when the rig's Main VFO changes</value>
+  </data>
+  <data name="localSdr.frequencyHelp" xml:space="preserve">
+    <value>Type a frequency in kHz and press Return.</value>
+  </data>
+  <data name="localSdr.mute" xml:space="preserve">
+    <value>Mute</value>
+  </data>
+  <data name="localSdr.muteOnTx" xml:space="preserve">
+    <value>Mute on TX</value>
+  </data>
+  <data name="localSdr.muteOnTxHelp" xml:space="preserve">
+    <value>Silence the Kiwi while the rig transmits</value>
+  </data>
+  <data name="localSdr.muted" xml:space="preserve">
+    <value>Muted</value>
+  </data>
+  <data name="localSdr.noHost" xml:space="preserve">
+    <value>No address: set it in Settings → Devices.</value>
+  </data>
+  <data name="localSdr.passband.readoutHelp" xml:space="preserve">
+    <value>The passband and its width. Drag its edges on the waterfall to change it.</value>
+  </data>
+  <data name="localSdr.passband.reset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="localSdr.passband.resetHelp" xml:space="preserve">
+    <value>Back to this mode's default passband</value>
+  </data>
+  <data name="localSdr.password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="localSdr.receiver" xml:space="preserve">
+    <value>Receiver</value>
+  </data>
+  <data name="localSdr.receiver.agcHelp" xml:space="preserve">
+    <value>Automatic gain control. Threshold and Decay apply while it's on, Manual gain while it's off.</value>
+  </data>
+  <data name="localSdr.receiver.autonotch" xml:space="preserve">
+    <value>Auto notch</value>
+  </data>
+  <data name="localSdr.receiver.decay" xml:space="preserve">
+    <value>Decay</value>
+  </data>
+  <data name="localSdr.receiver.denoise" xml:space="preserve">
+    <value>Denoise</value>
+  </data>
+  <data name="localSdr.receiver.gate" xml:space="preserve">
+    <value>Gate</value>
+  </data>
+  <data name="localSdr.receiver.manualGain" xml:space="preserve">
+    <value>Manual gain</value>
+  </data>
+  <data name="localSdr.receiver.noiseBlanker" xml:space="preserve">
+    <value>Noise blanker</value>
+  </data>
+  <data name="localSdr.receiver.noiseBlankerHelp" xml:space="preserve">
+    <value>Noise blanker on the Kiwi, for short impulses such as ignition or power-line noise. It applies to the waterfall too.</value>
+  </data>
+  <data name="localSdr.receiver.noiseFilter" xml:space="preserve">
+    <value>Noise filter</value>
+  </data>
+  <data name="localSdr.receiver.noiseFilterHelp" xml:space="preserve">
+    <value>Noise filter on the Kiwi. WDSP and LMS have separate Denoise and Auto notch switches; Spectral needs neither.</value>
+  </data>
+  <data name="localSdr.receiver.off" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="localSdr.receiver.standard" xml:space="preserve">
+    <value>Standard</value>
+  </data>
+  <data name="localSdr.receiver.threshold" xml:space="preserve">
+    <value>Threshold</value>
+  </data>
+  <data name="localSdr.rigLink.both" xml:space="preserve">
+    <value>Rig link: following the rig and tuning it</value>
+  </data>
+  <data name="localSdr.rigLink.followOnly" xml:space="preserve">
+    <value>Rig link: following the rig</value>
+  </data>
+  <data name="localSdr.rigLink.off" xml:space="preserve">
+    <value>Rig link: off</value>
+  </data>
+  <data name="localSdr.rigLink.outOfRange" xml:space="preserve">
+    <value>Not following: the rig is on {0} MHz, above this Kiwi's {1} MHz</value>
+  </data>
+  <data name="localSdr.rigLink.refused" xml:space="preserve">
+    <value>Rig not tuned: {0} ({1})</value>
+  </data>
+  <data name="localSdr.rigLink.refused.disconnected" xml:space="preserve">
+    <value>the rig isn't connected</value>
+  </data>
+  <data name="localSdr.rigLink.refused.memory" xml:space="preserve">
+    <value>MAIN is in Memory mode</value>
+  </data>
+  <data name="localSdr.rigLink.refused.noFrequency" xml:space="preserve">
+    <value>no rig frequency yet</value>
+  </data>
+  <data name="localSdr.rigLink.refused.transmitting" xml:space="preserve">
+    <value>the rig is transmitting</value>
+  </data>
+  <data name="localSdr.rigLink.tuneOnly" xml:space="preserve">
+    <value>Rig link: tuning the rig</value>
+  </data>
+  <data name="localSdr.rigLink.whenConnected" xml:space="preserve">
+    <value>{0} (once connected)</value>
+  </data>
+  <data name="localSdr.rigLink.withNote" xml:space="preserve">
+    <value>{0} — {1}</value>
+  </data>
+  <data name="localSdr.settingsHelp" xml:space="preserve">
+    <value>Address and password: Settings → Devices</value>
+  </data>
+  <data name="localSdr.status.connected" xml:space="preserve">
+    <value>Connected to {0} · audio at {1} Hz</value>
+  </data>
+  <data name="localSdr.status.connecting" xml:space="preserve">
+    <value>Connecting to {0}…</value>
+  </data>
+  <data name="localSdr.status.disconnected" xml:space="preserve">
+    <value>Not connected.</value>
+  </data>
+  <data name="localSdr.status.readingPassword" xml:space="preserve">
+    <value>Reading the saved password…</value>
+  </data>
+  <data name="localSdr.tuneRig" xml:space="preserve">
+    <value>Tune rig</value>
+  </data>
+  <data name="localSdr.tuneRigHelp" xml:space="preserve">
+    <value>Tune the rig's Main VFO when you tune here (frequency entry, waterfall click, scroll, drag, mode)</value>
+  </data>
+  <data name="localSdr.volume" xml:space="preserve">
+    <value>Volume</value>
+  </data>
+  <data name="localSdr.waterfall.failed" xml:space="preserve">
+    <value>Waterfall stopped: {0} The audio keeps playing.</value>
+  </data>
+  <data name="localSdr.waterfall.help" xml:space="preserve">
+    <value>Click to tune, drag to pan, scroll to tune in steps. Drag the passband's edges to set its width, its middle to tune.</value>
+  </data>
+  <data name="localSdr.waterfall.idle" xml:space="preserve">
+    <value>The waterfall starts when connected.</value>
+  </data>
+  <data name="localSdr.waterfall.waiting" xml:space="preserve">
+    <value>Waiting for the waterfall…</value>
+  </data>
+  <data name="localSdr.zoomIn" xml:space="preserve">
+    <value>Zoom In</value>
+  </data>
+  <data name="localSdr.zoomOut" xml:space="preserve">
+    <value>Zoom Out</value>
+  </data>
+  <data name="mainWindow.listenToYourOwn" xml:space="preserve">
+    <value>Listen to your own KiwiSDR, with a waterfall</value>
+  </data>
+  <data name="settings.devices" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="settings.myKiwiSDRAddress" xml:space="preserve">
+    <value>Address (host or host:port)</value>
+  </data>
+  <data name="settings.myKiwiSDRHelp" xml:space="preserve">
+    <value>Your own KiwiSDR on the home network or tailnet (port 8073 unless given). The password is kept in Windows Credential Manager; leave it empty if the Kiwi has none.</value>
+  </data>
+  <data name="settings.myKiwiSDRPassword" xml:space="preserve">
+    <value>Password</value>
+  </data>
 </root>

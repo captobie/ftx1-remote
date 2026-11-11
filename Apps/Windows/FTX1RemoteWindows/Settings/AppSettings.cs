@@ -141,6 +141,26 @@ public static class AppSettings
         public int WavelogTunePort { get; set; } = DefaultWavelogTunePort;
         public bool HubEnabled { get; set; }
         public WindowBounds? MainWindowBounds { get; set; }
+        public LocalSdrData LocalSdr { get; set; } = new();
+    }
+
+    /// The MyKiwiSDR window's settings (the Mac's localSDR.* keys). The
+    /// password is in Credential Manager (LocalSdrPassword), not here.
+    public sealed class LocalSdrData
+    {
+        /// "host" or "host:port" (8073 when absent), from Settings → Devices.
+        public string Host { get; set; } = "";
+        public int FrequencyHz { get; set; } = 14_074_000;
+        public string Mode { get; set; } = "usb";
+        public double Volume { get; set; } = 0.8;
+        public bool Muted { get; set; }
+        public int WaterfallZoom { get; set; } = 8;
+        public bool FollowRig { get; set; } = true;
+        public bool TuneRig { get; set; } = true;
+        public bool MuteOnTransmit { get; set; } = true;
+        /// Each mode's last passband, keyed by KiwiSdrMode.RawValue: [low, high].
+        public Dictionary<string, int[]> Passbands { get; set; } = [];
+        public KiwiReceiverSettings Receiver { get; set; } = new();
     }
 
     /// The main window's restored (not maximized) position and size in
@@ -1068,6 +1088,12 @@ public static class AppSettings
     public static DigiData Digi => _cache.Digi;
 
     public static void SaveDigi() => Save();
+
+    /// The MyKiwiSDR window's settings. Mutate the returned object, then
+    /// call <see cref="SaveLocalSdr"/>.
+    public static LocalSdrData LocalSdr => _cache.LocalSdr;
+
+    public static void SaveLocalSdr() => Save();
 
     /// Mutate the returned object, then call <see cref="SaveAudio"/>.
     public static ChannelAudio MainAudio => _cache.MainAudio;

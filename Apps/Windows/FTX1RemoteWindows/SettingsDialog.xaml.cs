@@ -44,6 +44,7 @@ public sealed partial class SettingsDialog : Window
     public bool AudioInputChanged { get; private set; }
     public bool AudioOutputChanged { get; private set; }
     public bool WpsdHostChanged { get; private set; }
+    private string _loadedKiwiPassword = "";
     /// Ticked "Clear History" on the APRS tab; applied on Save, like
     /// everything else here.
     public bool AprsClearHistory { get; private set; }
@@ -157,6 +158,9 @@ public sealed partial class SettingsDialog : Window
         // C4FM
         WpsdEnabledCheckBox.IsChecked = AppSettings.WpsdEnabled;
         WpsdHostBox.Text = AppSettings.WpsdHost;
+        KiwiHostBox.Text = AppSettings.LocalSdr.Host;
+        _loadedKiwiPassword = LocalSdrPassword.Read();
+        KiwiPasswordBox.Password = _loadedKiwiPassword;
 
         // APRS
         AprsEnabledCheckBox.IsChecked = AppSettings.AprsEnabled;
@@ -452,6 +456,15 @@ public sealed partial class SettingsDialog : Window
             AppSettings.SetTxAudioOutputDevice(txOutputId, txOutputId.Length == 0 ? "" : (string)txOutput.Content);
         }
         AppSettings.SquelchHangSeconds = Math.Round(SquelchHangSlider.Value, 1);
+
+        // MyKiwiSDR: read again at each Connect, so no restart.
+        AppSettings.LocalSdr.Host = KiwiHostBox.Text.Trim();
+        AppSettings.SaveLocalSdr();
+        if (KiwiPasswordBox.Password != _loadedKiwiPassword)
+        {
+            LocalSdrPassword.Write(KiwiPasswordBox.Password);
+            _loadedKiwiPassword = KiwiPasswordBox.Password;
+        }
 
         AppSettings.WpsdEnabled = WpsdEnabledCheckBox.IsChecked == true;
         var wpsdHost = NormalizeWpsdHost(WpsdHostBox.Text);

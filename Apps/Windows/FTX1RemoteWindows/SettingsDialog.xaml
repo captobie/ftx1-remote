@@ -21,7 +21,7 @@
         <SelectorBar x:Name="TabBar" SelectionChanged="TabBar_SelectionChanged">
             <SelectorBarItem Text="rigctld" Tag="Rigctld" IsSelected="True" />
             <SelectorBarItem Text="{l:Str Key=settings.audio}" Tag="Audio" />
-            <SelectorBarItem Text="C4FM" Tag="C4fm" />
+            <SelectorBarItem Text="{l:Str Key=settings.devices}" Tag="C4fm" />
             <SelectorBarItem Text="APRS" Tag="Aprs" />
             <SelectorBarItem Text="{l:Str Key=settings.station}" Tag="Station" />
             <SelectorBarItem Text="{l:Str Key=settings.logbook}" Tag="Logbook" />
@@ -139,6 +139,13 @@
                     <TextBox x:Name="WpsdHostBox" Header="{l:Str Key=settings.hotspotAddress}" Width="320" HorizontalAlignment="Left"
                              PlaceholderText="e.g. 192.168.1.50" />
                     <TextBlock Text="{l:Str Key=settings.whileAVFOIs}"
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
+                    <!-- MyKiwiSDR (the Mac's Settings → Devices): the operator's own KiwiSDR. -->
+                    <TextBlock Text="MyKiwiSDR" FontWeight="SemiBold" Margin="0,12,0,0" />
+                    <TextBox x:Name="KiwiHostBox" Header="{l:Str Key=settings.myKiwiSDRAddress}" Width="320" HorizontalAlignment="Left"
+                             PlaceholderText="kiwisdr.local:8073" />
+                    <PasswordBox x:Name="KiwiPasswordBox" Header="{l:Str Key=settings.myKiwiSDRPassword}" Width="320" HorizontalAlignment="Left" />
+                    <TextBlock Text="{l:Str Key=settings.myKiwiSDRHelp}"
                                Foreground="Gray" FontSize="12" TextWrapping="Wrap" />
                 </StackPanel>
 
