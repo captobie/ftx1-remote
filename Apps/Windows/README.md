@@ -1654,6 +1654,30 @@ row. The button for the channel a receiver is on uses the accent style.
   once and leaves `_lastVfoState` alone, so V/M still returns MAIN to its
   VFO. Leaving Memory mode isn't offered from the list.
 
+## TUNE button (2026-11-11; built, localization tests pass, then tested on the rig by the user the same day, working)
+
+The Mac's TUNE button (repo root CLAUDE.md, "TUNE button"), ported in
+`MainWindow.Tune.cs`, for an ATU-100 Plus or similar auto-tuner. It sits
+right of the mode picker in the Mode / PTT row.
+
+- Press: MAIN to CW, then PTT on (a plain carrier, no audio; power is the
+  rig's RF POWER, so set it low). Press again, or 20 s, unkeys and restores
+  the previous mode, but only if the mode is still CW (an operator change is
+  kept). The button turns red with a countdown ("TUNE 17").
+- Gate: `TransmitGate.BlockReason` with the transmitter's mode forced to CW,
+  so Enable Transmit, the amateur-band check and Settings → License all
+  apply; the tooltip shows the reason when the button is disabled. Also
+  refused while transmitting (PTT, MOX, the RTTY/PSK sender), not connected,
+  or with TX:SUB outside split. A memory scan is stopped first.
+- Stops by itself on disconnect or window close (`StopTuneBeforeDisconnect`,
+  unkeys and restores the mode), Enable Transmit turning off, or PTT unread
+  for more than 1 s after a 2 s grace. Unkeying is never gated.
+- **Gotcha**: a greyed button usually means the license guardrail, not a
+  bug. With US General selected, 14.150–14.225 MHz is Extra-only, so TUNE
+  (CW) is refused there as well as PTT. The tooltip says which rule.
+- Strings: `tune.*` keys in all three resx files, copied from the Mac's
+  catalog. No Desktop hub command: the iPad has no TUNE button.
+
 ## Split (2026-11-01; unit-tested, checked in the built app against a stand-in rigctld, then on the rig over the Pi, then tested by the user on the rig the same day, working)
 
 The Mac's split (repo root CLAUDE.md, "Split"), ported in

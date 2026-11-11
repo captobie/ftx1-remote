@@ -72,7 +72,7 @@ in C#.
 - **Commands are serialized** through `CommandQueue`, since rigctld handles
   one request/response cycle at a time.
 - **A transmit-safety interlock gates everything that can key the radio**
-  (PTT, MOX, ANT TUNE, CW keyer plays, CW key/paddle keying): an **Enable
+  (PTT, MOX, ANT TUNE, the TUNE button, CW keyer plays, CW key/paddle keying): an **Enable
   Transmit** lock plus an amateur-band check on the transmitting side
   (`TransmitGate`). On the Mac it sits in `HubService.send(...)` and covers
   hub clients too (the iPad's hub screen can toggle it); Pi direct has its

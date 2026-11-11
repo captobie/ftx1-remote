@@ -2734,6 +2734,15 @@ a 1 kHz tone through `routeTXAudio` in USB; replaced by this at the user's
 request. Button shows a countdown; it's its own observed view so the
 per-second update doesn't re-render `ContentView`.
 
+**Windows (2026-11-11; built, localization tests pass, then tested on the
+rig by the user the same day, working)**: the same button right of the mode
+picker (`MainWindow.Tune.cs`, a DispatcherQueueTimer at 100 ms for the
+countdown and the stop rules), same rules and the same `tune.*` strings,
+through `TransmitGate` judged as CW; disconnect/close unkeys and restores
+the mode. A greyed button is usually the License guardrail (US General
+blocks 14.150–14.225 for CW too), not a bug — the tooltip names the rule.
+See `Apps/Windows/README.md`'s "TUNE button".
+
 ## Split (Mac, 2026-10-31; rig-tested by the user the same day)
 
 User request. A **SPLIT** button between TX:MAIN/SUB and the swap button
