@@ -48,6 +48,12 @@ public final class AudioPlaybackEngine {
     private var hasPrimed = false
     private let prebufferTargetSeconds: Double
 
+    /// Where the last scheduled buffer ends on the player's timeline, and
+    /// how often a buffer arrived with nothing left queued. Bookkeeping
+    /// only (`playoutStatus`): it doesn't affect what's played.
+    private var scheduledEndFrame: AVAudioFramePosition?
+    private var underrunCount = 0
+
     #if os(macOS)
     /// Resolved to a live `AudioDeviceID` by the caller (`HubService`, via
     /// `AudioOutputDeviceLister`) and applied in `start()` — Mac-only, since
@@ -168,6 +174,8 @@ public final class AudioPlaybackEngine {
 
         prebuffer.removeAll()
         hasPrimed = false
+        scheduledEndFrame = nil
+        underrunCount = 0
         gateMixer.outputVolume = 0
 
         #if os(macOS)
@@ -272,6 +280,7 @@ public final class AudioPlaybackEngine {
             let bufferedSeconds = prebuffer.reduce(0.0) { $0 + Double($1.frameLength) / playbackFormat.sampleRate }
             guard bufferedSeconds >= prebufferTargetSeconds else { return }
             for buffered in prebuffer {
+                noteScheduled(buffered)
                 player.scheduleBuffer(buffered)
             }
             prebuffer.removeAll()
@@ -279,10 +288,37 @@ public final class AudioPlaybackEngine {
             return
         }
 
+        noteScheduled(buffer)
         player.scheduleBuffer(buffer)
     }
 
     private var pushLogCounter = 0
+
+    /// How much audio is queued ahead of the output right now, and how
+    /// often the queue has run dry. nil until playback has started.
+    public func playoutStatus() -> (bufferedSeconds: Double, underruns: Int)? {
+        guard let end = scheduledEndFrame, let now = currentPlayerFrame(), let rate = playbackFormat?.sampleRate else {
+            return nil
+        }
+        return (Double(max(end - now, 0)) / rate, underrunCount)
+    }
+
+    private func currentPlayerFrame() -> AVAudioFramePosition? {
+        guard let nodeTime = player.lastRenderTime, nodeTime.isSampleTimeValid,
+              let playerTime = player.playerTime(forNodeTime: nodeTime) else { return nil }
+        return playerTime.sampleTime
+    }
+
+    private func noteScheduled(_ buffer: AVAudioPCMBuffer) {
+        guard let now = currentPlayerFrame() else { return }
+        let frames = AVAudioFramePosition(buffer.frameLength)
+        if let end = scheduledEndFrame, end > now {
+            scheduledEndFrame = end + frames
+        } else {
+            if scheduledEndFrame != nil { underrunCount += 1 }
+            scheduledEndFrame = now + frames
+        }
+    }
 
     private func convert(pcm: Data, converter: AVAudioConverter, format: AVAudioFormat) -> AVAudioPCMBuffer? {
         let frameCount = pcm.count / MemoryLayout<Int16>.size

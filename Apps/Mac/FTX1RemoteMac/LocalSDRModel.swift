@@ -224,6 +224,8 @@ final class LocalSDRModel: ObservableObject {
     private var trailingRigSend: Task<Void, Never>?
     private var pendingExpiry: Task<Void, Never>?
 
+    private var playoutMonitor = KiwiPlayoutMonitor()
+    private var playoutAdjuster: KiwiPlayoutAdjuster?
     private var recorder: SDRAudioFileWriter?
     private var recordingSplit: KiwiRecordingSplit?
     private var splitCheck: Task<Void, Never>?
@@ -232,6 +234,8 @@ final class LocalSDRModel: ObservableObject {
     static let frequencyRange = 10_000...30_000_000
     private static let rigSendInterval = Duration.milliseconds(100)
     private static let retuneInterval = Duration.milliseconds(50)
+    /// How far ahead the playback queue is kept (`KiwiPlayoutAdjuster`).
+    private static let playoutTargetSeconds = 0.25
 
     init(hub: HubService?) {
         self.hub = hub
@@ -337,7 +341,17 @@ final class LocalSDRModel: ObservableObject {
             startWaterfall()
         case .audio(let chunk):
             let pcm = Self.littleEndianPCM(chunk.samples)
-            playback?.push(pcm: pcm)
+            // Only the player's copy is adjusted: the recording and the
+            // decoders below get every sample as it came.
+            if var adjuster = playoutAdjuster {
+                let adjusted = adjuster.process(chunk.samples, bufferedSeconds: playback?.playoutStatus()?.bufferedSeconds,
+                                                now: Self.now)
+                playoutAdjuster = adjuster
+                if !adjusted.isEmpty { playback?.push(pcm: Self.littleEndianPCM(adjusted)) }
+            } else {
+                playback?.push(pcm: pcm)
+            }
+            notePlayout()
             // Both before the volume/mute: a muted Kiwi still decodes and records.
             if let recorder, let audioSampleRate {
                 recorder.append(pcm: pcm, sampleRate: audioSampleRate)
@@ -368,11 +382,32 @@ final class LocalSDRModel: ObservableObject {
         playback?.stop()
         // A larger warm-up than the relay's 0.12 s: a Kiwi frame is ~43 ms,
         // and the link may cross Tailscale.
-        let engine = AudioPlaybackEngine(squelchEnabled: false, inputSampleRate: sampleRate, prebufferSeconds: 0.25)
+        let engine = AudioPlaybackEngine(squelchEnabled: false, inputSampleRate: sampleRate,
+                                         prebufferSeconds: Self.playoutTargetSeconds)
         engine.setOutputDevice(AudioOutputDeviceLister.deviceID(forUID: AudioOutputSettings.deviceUID))
         engine.start()
         playback = engine
+        playoutMonitor = KiwiPlayoutMonitor()
+        var target = Self.playoutTargetSeconds
+        #if DEBUG
+        // Pass e.g. "-localSDR.playoutTargetOverride 0.20" at launch to make
+        // the queue be off target, so the slow corrections can be heard.
+        if UserDefaults.standard.object(forKey: "localSDR.playoutTargetOverride") != nil {
+            target = UserDefaults.standard.double(forKey: "localSDR.playoutTargetOverride")
+        }
+        #endif
+        playoutAdjuster = KiwiPlayoutAdjuster(sampleRate: sampleRate, targetSeconds: target)
         applyVolume()
+    }
+
+    /// One line per 30 s while connected: how far ahead the audio is
+    /// queued. Its slow drift is the Kiwi's clock against the Mac's output.
+    private func notePlayout() {
+        guard let status = playback?.playoutStatus() else { return }
+        guard let report = playoutMonitor.add(bufferedSeconds: status.bufferedSeconds, underruns: status.underruns,
+                                              now: Self.now) else { return }
+        let text = String(format: "avg=%.1f min=%.1f max=%.1f", report.averageMs, report.minimumMs, report.maximumMs)
+        logger.notice("playout: buffered ms \(text, privacy: .public) underruns=\(report.underruns) splices=\(self.playoutAdjuster?.splices ?? 0) discarded=\(self.playoutAdjuster?.discardedSeconds ?? 0, privacy: .public) padded=\(self.playoutAdjuster?.paddedSeconds ?? 0, privacy: .public) t=\(Int(report.elapsedSeconds))")
     }
 
     private static func littleEndianPCM(_ samples: [Int16]) -> Data {
