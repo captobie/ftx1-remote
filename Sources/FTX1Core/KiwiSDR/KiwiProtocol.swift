@@ -67,16 +67,21 @@ public enum KiwiProtocol {
     }
 
     /// Sent once `sample_rate` arrives, in this order (kiwiclient's
-    /// sequence; `tune` follows).
-    public static func setupCommands(identUser: String, compression: Bool) -> [String] {
-        [
+    /// sequence; `tune` follows). A new connection starts with the blanker
+    /// and filter off, so their commands go out only when they're on.
+    public static func setupCommands(identUser: String, compression: Bool,
+                                     receiver: KiwiReceiverSettings = KiwiReceiverSettings()) -> [String] {
+        var commands = [
             "SET squelch=0 max=0",
             "SET genattn=0",
             "SET gen=0 mix=-1",
-            "SET agc=1 hang=0 thresh=-100 slope=6 decay=1000 manGain=50",
+            receiver.agcCommand,
             "SET compression=\(compression ? 1 : 0)",
             "SET ident_user=\(percentEncode(identUser))",
         ]
+        if receiver.noiseBlanker != .off { commands += receiver.noiseBlankerCommands }
+        if receiver.noiseFilter != .off { commands += receiver.noiseFilterCommands }
+        return commands
     }
 
     /// "SET mod=usb low_cut=300 high_cut=2700 freq=14074.000". `carrierHz` is

@@ -16,6 +16,7 @@ struct LocalSDRWindowView: View {
     /// The frequency field's text in kHz, committed on Return.
     @State private var frequencyDraft = ""
     @FocusState private var frequencyFocused: Bool
+    @State private var receiverExpanded = false
 
     private static let steps = [100, 1_000, 5_000]
 
@@ -33,6 +34,10 @@ struct LocalSDRWindowView: View {
                 audioControls
             }
             rigLinkRow
+            DisclosureGroup("common.receiver", isExpanded: $receiverExpanded) {
+                LocalSDRReceiverSection(model: model)
+                    .padding(.top, 6)
+            }
             Divider()
             Text(verbatim: model.recordingNote.map { "\(statusText) · \($0)" } ?? statusText)
                 .font(.caption)
@@ -253,6 +258,119 @@ struct LocalSDRWindowView: View {
         case .unreachable(let reason): String(localized: "localSDR.error.unreachable \(reason)")
         case .noResponse: String(localized: "localSDR.error.noResponse")
         }
+    }
+}
+
+/// AGC, noise blanker and noise filter, collapsed by default. Each row is
+/// one group; a control that wouldn't do anything isn't shown.
+private struct LocalSDRReceiverSection: View {
+    @ObservedObject var model: LocalSDRModel
+
+    private typealias Settings = KiwiReceiverSettings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            agcRow
+            blankerRow
+            filterRow
+        }
+    }
+
+    private var agcRow: some View {
+        HStack(spacing: 14) {
+            Toggle(isOn: bind(\.agc)) { Text(verbatim: "AGC").frame(width: 34, alignment: .leading) }
+                .toggleStyle(.switch)
+                .help("localSDR.receiver.agcHelp")
+                .fixedSize()
+            if model.receiver.agc {
+                slider("localSDR.receiver.threshold", value: intBinding(\.threshold), range: range(Settings.thresholdRange),
+                       step: 1, readout: "\(model.receiver.threshold) dB")
+                slider("localSDR.receiver.decay", value: intBinding(\.decay), range: range(Settings.decayRange),
+                       step: Double(Settings.decayStep), readout: "\(model.receiver.decay) ms")
+            } else {
+                slider("localSDR.receiver.manualGain", value: intBinding(\.manualGain), range: range(Settings.manualGainRange),
+                       step: 1, readout: "\(model.receiver.manualGain) dB")
+            }
+        }
+    }
+
+    private var blankerRow: some View {
+        HStack(spacing: 14) {
+            Text(verbatim: "NB").frame(width: 34, alignment: .leading)
+            Picker("localSDR.receiver.noiseBlanker", selection: bind(\.noiseBlanker)) {
+                Text("localSDR.receiver.off").tag(Settings.NoiseBlanker.off)
+                Text("localSDR.receiver.standard").tag(Settings.NoiseBlanker.standard)
+                Text(verbatim: "Wild").tag(Settings.NoiseBlanker.wild)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("localSDR.receiver.noiseBlankerHelp")
+            switch model.receiver.noiseBlanker {
+            case .off:
+                EmptyView()
+            case .standard:
+                slider("localSDR.receiver.gate", value: intBinding(\.gate), range: range(Settings.gateRange),
+                       step: Double(Settings.gateStep), readout: "\(model.receiver.gate)")
+                slider("localSDR.receiver.threshold", value: intBinding(\.blankerThreshold),
+                       range: range(Settings.blankerThresholdRange), step: 1, readout: "\(model.receiver.blankerThreshold)")
+            case .wild:
+                slider("localSDR.receiver.threshold", value: bind(\.wildThreshold), range: Settings.wildThresholdRange,
+                       step: Settings.wildThresholdStep,
+                       readout: String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), model.receiver.wildThreshold))
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var filterRow: some View {
+        HStack(spacing: 14) {
+            Text(verbatim: "NR").frame(width: 34, alignment: .leading)
+            Picker("localSDR.receiver.noiseFilter", selection: Binding(
+                get: { model.receiver.noiseFilter },
+                set: { filter in model.updateReceiver { $0.select(noiseFilter: filter) } })) {
+                Text("localSDR.receiver.off").tag(Settings.NoiseFilter.off)
+                Text(verbatim: "WDSP").tag(Settings.NoiseFilter.wdsp)
+                Text(verbatim: "LMS").tag(Settings.NoiseFilter.lms)
+                Text(verbatim: "Spectral").tag(Settings.NoiseFilter.spectral)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("localSDR.receiver.noiseFilterHelp")
+            if model.receiver.noiseFilter.hasSeparateFilters {
+                Toggle("localSDR.receiver.denoise", isOn: bind(\.denoise))
+                    .toggleStyle(.switch)
+                    .fixedSize()
+                Toggle("localSDR.receiver.autonotch", isOn: bind(\.autonotch))
+                    .toggleStyle(.switch)
+                    .fixedSize()
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func slider(_ title: LocalizedStringKey, value: Binding<Double>, range: ClosedRange<Double>,
+                        step: Double, readout: String) -> some View {
+        HStack(spacing: 6) {
+            Text(title).font(.caption).themedSecondaryForeground().fixedSize()
+            Slider(value: value, in: range, step: step).frame(minWidth: 90, maxWidth: 220)
+            Text(verbatim: readout).font(.caption.monospacedDigit()).frame(minWidth: 52, alignment: .leading)
+        }
+    }
+
+    private func range(_ range: ClosedRange<Int>) -> ClosedRange<Double> {
+        Double(range.lowerBound)...Double(range.upperBound)
+    }
+
+    private func bind<T: Equatable>(_ path: WritableKeyPath<KiwiReceiverSettings, T>) -> Binding<T> {
+        Binding(get: { model.receiver[keyPath: path] },
+                set: { value in model.updateReceiver { $0[keyPath: path] = value } })
+    }
+
+    private func intBinding(_ path: WritableKeyPath<KiwiReceiverSettings, Int>) -> Binding<Double> {
+        Binding(get: { Double(model.receiver[keyPath: path]) },
+                set: { value in model.updateReceiver { $0[keyPath: path] = Int(value.rounded()) } })
     }
 }
 

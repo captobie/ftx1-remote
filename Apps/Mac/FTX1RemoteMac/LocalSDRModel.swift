@@ -51,6 +51,11 @@ import os
 /// Follow width replaces it with MAIN's receive filter
 /// (`KiwiPassband(rigFilterOf:)`), not saved; turning that off goes back
 /// to the mode's saved passband, and a drag or Reset turns it off.
+///
+/// Receiver controls (phase 5): AGC, blanker and filter
+/// (`KiwiReceiverSettings`) are saved one key each and sent again by every
+/// new connection's setup; while connected a change goes out at most every
+/// 100 ms, and only the group that changed.
 final class LocalSDRModel: ObservableObject {
     enum State: Equatable {
         case disconnected
@@ -70,6 +75,17 @@ final class LocalSDRModel: ObservableObject {
         static let tuneRig = "localSDR.tuneRig"
         static let muteOnTransmit = "localSDR.muteOnTransmit"
         static let followRigWidth = "localSDR.followRigWidth"
+        static let agc = "localSDR.agc"
+        static let manualGain = "localSDR.agc.manualGain"
+        static let threshold = "localSDR.agc.threshold"
+        static let decay = "localSDR.agc.decay"
+        static let noiseBlanker = "localSDR.nb.algorithm"
+        static let gate = "localSDR.nb.gate"
+        static let blankerThreshold = "localSDR.nb.threshold"
+        static let wildThreshold = "localSDR.nb.wildThreshold"
+        static let noiseFilter = "localSDR.nr.algorithm"
+        static let denoise = "localSDR.nr.denoise"
+        static let autonotch = "localSDR.nr.autonotch"
         static func passband(_ mode: KiwiSDRMode) -> String { "localSDR.passband.\(mode.rawValue)" }
     }
 
@@ -123,6 +139,8 @@ final class LocalSDRModel: ObservableObject {
         }
     }
     @Published private(set) var isMuted: Bool
+    /// AGC, noise blanker and noise filter.
+    @Published private(set) var receiver: KiwiReceiverSettings
 
     /// Rig → Kiwi.
     @Published var followRig: Bool {
@@ -184,6 +202,7 @@ final class LocalSDRModel: ObservableObject {
     private var lastMeterPublish = ContinuousClock.now
     private var lastRetune = ContinuousClock.now - .seconds(1)
     private var trailingRetune: Task<Void, Never>?
+    private var trailingReceiverSend: Task<Void, Never>?
     private var waterfallClient: KiwiWaterfallClient?
     private var waterfallTask: Task<Void, Never>?
     /// The sound stream's URL timestamp, shared with the waterfall's.
@@ -225,6 +244,7 @@ final class LocalSDRModel: ObservableObject {
         passband = Self.savedPassband(for: savedMode)
         volume = defaults.object(forKey: Keys.volume) as? Double ?? 0.8
         isMuted = defaults.bool(forKey: Keys.muted)
+        receiver = Self.savedReceiver()
         password = LocalSDRPassword.read()
         preferredZoom = defaults.object(forKey: Keys.waterfallZoom) as? Int ?? 8
         followRigWidth = defaults.bool(forKey: Keys.followRigWidth)
@@ -265,7 +285,8 @@ final class LocalSDRModel: ObservableObject {
         subscribeToRig()
         sessionTimestamp = Date()
         let client = KiwiSDRClient(hostPort: hostPort, password: password, identUser: "FTX1Remote",
-                                   compression: false, tuning: currentTuning, timestamp: sessionTimestamp,
+                                   compression: false, tuning: currentTuning, receiver: receiver,
+                                   timestamp: sessionTimestamp,
                                    logSubsystem: "com.ftx1remote.mac")
         self.client = client
         connectedHost = hostPort
@@ -293,6 +314,7 @@ final class LocalSDRModel: ObservableObject {
         }
         client = nil
         cancelTrailingRetune()
+        cancelReceiverSend()
         eventsTask?.cancel()
         eventsTask = nil
         stopWaterfall()
@@ -331,6 +353,7 @@ final class LocalSDRModel: ObservableObject {
         case .closed(let error):
             client = nil
             cancelTrailingRetune()
+            cancelReceiverSend()
             endAudioSession()
             stopRigLink()
             stopWaterfall()
@@ -460,6 +483,69 @@ final class LocalSDRModel: ObservableObject {
     private func cancelTrailingRetune() {
         trailingRetune?.cancel()
         trailingRetune = nil
+    }
+
+    // MARK: - Receiver controls
+
+    /// A change from the Receiver section: saved at once, and sent at most
+    /// every 100 ms so a dragged slider doesn't flood the socket.
+    func updateReceiver(_ change: (inout KiwiReceiverSettings) -> Void) {
+        var new = receiver
+        change(&new)
+        new = new.clamped
+        guard new != receiver else { return }
+        receiver = new
+        Self.saveReceiver(new)
+        guard client != nil, trailingReceiverSend == nil else { return }
+        trailingReceiverSend = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(100))
+            guard !Task.isCancelled, let self else { return }
+            trailingReceiverSend = nil
+            guard let client else { return }
+            let settings = receiver
+            await client.setReceiver(settings)
+        }
+    }
+
+    private func cancelReceiverSend() {
+        trailingReceiverSend?.cancel()
+        trailingReceiverSend = nil
+    }
+
+    private static func savedReceiver() -> KiwiReceiverSettings {
+        let defaults = UserDefaults.standard
+        var settings = KiwiReceiverSettings()
+        if let value = defaults.object(forKey: Keys.agc) as? Bool { settings.agc = value }
+        if let value = defaults.object(forKey: Keys.manualGain) as? Int { settings.manualGain = value }
+        if let value = defaults.object(forKey: Keys.threshold) as? Int { settings.threshold = value }
+        if let value = defaults.object(forKey: Keys.decay) as? Int { settings.decay = value }
+        if let value = (defaults.object(forKey: Keys.noiseBlanker) as? Int).flatMap(KiwiReceiverSettings.NoiseBlanker.init(rawValue:)) {
+            settings.noiseBlanker = value
+        }
+        if let value = defaults.object(forKey: Keys.gate) as? Int { settings.gate = value }
+        if let value = defaults.object(forKey: Keys.blankerThreshold) as? Int { settings.blankerThreshold = value }
+        if let value = defaults.object(forKey: Keys.wildThreshold) as? Double { settings.wildThreshold = value }
+        if let value = (defaults.object(forKey: Keys.noiseFilter) as? Int).flatMap(KiwiReceiverSettings.NoiseFilter.init(rawValue:)) {
+            settings.noiseFilter = value
+        }
+        if let value = defaults.object(forKey: Keys.denoise) as? Bool { settings.denoise = value }
+        if let value = defaults.object(forKey: Keys.autonotch) as? Bool { settings.autonotch = value }
+        return settings.clamped
+    }
+
+    private static func saveReceiver(_ settings: KiwiReceiverSettings) {
+        let defaults = UserDefaults.standard
+        defaults.set(settings.agc, forKey: Keys.agc)
+        defaults.set(settings.manualGain, forKey: Keys.manualGain)
+        defaults.set(settings.threshold, forKey: Keys.threshold)
+        defaults.set(settings.decay, forKey: Keys.decay)
+        defaults.set(settings.noiseBlanker.rawValue, forKey: Keys.noiseBlanker)
+        defaults.set(settings.gate, forKey: Keys.gate)
+        defaults.set(settings.blankerThreshold, forKey: Keys.blankerThreshold)
+        defaults.set(settings.wildThreshold, forKey: Keys.wildThreshold)
+        defaults.set(settings.noiseFilter.rawValue, forKey: Keys.noiseFilter)
+        defaults.set(settings.denoise, forKey: Keys.denoise)
+        defaults.set(settings.autonotch, forKey: Keys.autonotch)
     }
 
     // MARK: - Passband

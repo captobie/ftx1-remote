@@ -76,6 +76,7 @@ public actor KiwiSDRClient {
     private let compression: Bool
     private let timestamp: Date
     private var tuning: KiwiTuning
+    private var receiver: KiwiReceiverSettings
     private let logger: Logger
 
     private var session: URLSession?
@@ -91,7 +92,8 @@ public actor KiwiSDRClient {
     private var decoder = KiwiSoundDecoder()
 
     public init(hostPort: String, password: String, identUser: String = "FTX1Remote",
-                compression: Bool = false, tuning: KiwiTuning, timestamp: Date = Date(),
+                compression: Bool = false, tuning: KiwiTuning,
+                receiver: KiwiReceiverSettings = KiwiReceiverSettings(), timestamp: Date = Date(),
                 logSubsystem: String) {
         self.hostPort = hostPort
         self.timestamp = timestamp
@@ -99,6 +101,7 @@ public actor KiwiSDRClient {
         self.identUser = identUser
         self.compression = compression
         self.tuning = tuning
+        self.receiver = receiver
         self.logger = Logger(subsystem: logSubsystem, category: "kiwisdr")
         (events, continuation) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(256))
     }
@@ -141,6 +144,15 @@ public actor KiwiSDRClient {
 
     public func tune(frequencyHz: Int, mode: KiwiSDRMode, lowCut: Int? = nil, highCut: Int? = nil) {
         tune(KiwiTuning(dialHz: frequencyHz, mode: mode, lowCut: lowCut, highCut: highCut))
+    }
+
+    /// Changes the AGC, blanker or filter on the open socket, sending only
+    /// what differs. Before setup it only changes what setup will send.
+    public func setReceiver(_ settings: KiwiReceiverSettings) {
+        let commands = settings.commands(changedFrom: receiver)
+        receiver = settings
+        guard setUp else { return }
+        for command in commands { send(command) }
     }
 
     // MARK: - Receiving
@@ -222,7 +234,8 @@ public actor KiwiSDRClient {
             sampleRate = rate
             if !setUp {
                 setUp = true
-                for command in KiwiProtocol.setupCommands(identUser: identUser, compression: compression) {
+                for command in KiwiProtocol.setupCommands(identUser: identUser, compression: compression,
+                                                          receiver: receiver) {
                     send(command)
                 }
                 send(tuning.command)
