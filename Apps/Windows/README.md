@@ -2650,7 +2650,41 @@ there's an update. Build-verified only; the first real Windows release
 
 ## Releasing
 
-The release is a zip of the `dotnet publish` folder: unpackaged and
+**Installer (2026-11-12; compiled and tested by script on the dev PC:
+clean per-user install, in-place upgrade with the app and a spawned rigctld
+running, uninstall).** `Tools/FTX1Remote.iss` + `Tools/build-installer.ps1`
+(Inno Setup 6, `winget install JRSoftware.InnoSetup`): run
+`.\Apps\Windows\Tools\build-installer.ps1` from the repo root. It reads
+`<Version>` from the `.csproj`, publishes into an empty `C:\Tools\FTX1Remote-release`
+(`-SkipPublish` reuses it), checks the bundled `rigctld --version` and writes
+`build\installer\FTX1Remote-Windows-<version>-x64-setup.exe` (gitignored;
+~70 MB against the ~108 MB zip). **Keep uploading the zip too**: the update
+checker only recognises `FTX1Remote-Windows-*-x64.zip`. Notes:
+
+- Per-user by default (`%LOCALAPPDATA%\Programs\FTX1 Remote`), "all users"
+  via the wizard's first page or `/ALLUSERS`. The app writes nothing next to
+  its exe; everything is in `%LOCALAPPDATA%\FTX1RemoteWindows`, which an
+  upgrade or uninstall never touches.
+- Fixed AppId GUID (never change it). Upgrades empty the old app folder first
+  (only when `FTX1RemoteWindows.exe` is already there), so no stale files.
+- Setup and uninstaller close the app (CloseMainWindow, 15 s), then kill any
+  process still running *from the install folder* (the app's rigctld),
+  matched by full path. Interactive: Retry/Cancel if the app won't close;
+  silent: force. Restart Manager is off on purpose. A silent upgrade
+  relaunches the app if it was running.
+- `/SILENT`, `/VERYSILENT`, `/DIR=`, `/LOG=` work. WebView2 is detected and
+  the Evergreen bootstrapper downloaded if missing (asked interactively,
+  automatic when silent).
+- Not signed. To sign, pass `-SignTool '<signtool command with $f>'` to the
+  build script and uncomment `SignTool=signtool` in the `.iss`.
+- The setup exe goes on the `v<version>` release beside the zip:
+  `gh release upload v<version> build\installer\FTX1Remote-Windows-<version>-x64-setup.exe --repo captobie/ftx1-remote`.
+- Firewall rules are per exe path, so Windows asks about the hub port again
+  after moving from a zip folder to the install folder.
+- Follow-ups (not done): `UpdateChecker` could link/prefer the setup exe or
+  run it silently; it only knows the zip name.
+
+The zip is a zip of the `dotnet publish` folder: unpackaged and
 self-contained (.NET + Windows App SDK included), so no installer and nothing
 else to install. Users unzip it anywhere and run `FTX1RemoteWindows.exe`.
 It isn't code-signed, so SmartScreen warns on first run ("More info → Run
