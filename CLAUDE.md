@@ -2626,8 +2626,7 @@ APRS frequency; position from lat/lon in Settings.
   S.LIST right-click Message.
 - **Not done / unverified**: TXDELAY in Local mode; Beacon Now and sending with transmit on; the iPad
   (no transmit there).
-- **Windows port (2026-11-11; unit-tested and built, not yet opened in the
-  built app or keyed)**: same behavior and strings (es/de from the Mac's
+- **Windows port (2026-11-11; unit-tested and built, then tested on the air by the user the same day, working)**: same behavior and strings (es/de from the Mac's
   catalogs); `Services/Ax25Encoder.cs`, `AprsOutgoing.cs`, `AprsTransmitter.cs`,
   `AprsMessaging.cs`, `MainWindow.Aprs.cs`, Settings → APRS → Transmit
   (applies on Save, no location button). See `Apps/Windows/README.md`'s

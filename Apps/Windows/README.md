@@ -1654,7 +1654,7 @@ row. The button for the channel a receiver is on uses the accent style.
   once and leaves `_lastVfoState` alone, so V/M still returns MAIN to its
   VFO. Leaving Memory mode isn't offered from the list.
 
-## APRS transmit (2026-11-11; unit-tested and built, nothing keyed or seen on screen yet)
+## APRS transmit (2026-11-11; unit-tested and built, then tested on the air by the user the same day, working)
 
 Port of the Mac's APRS transmit (CLAUDE.md, "APRS transmit (Mac)"): beacons
 (Beacon Now plus an optional interval), messages retried until acked, and
