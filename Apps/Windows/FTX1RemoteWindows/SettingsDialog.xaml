@@ -167,6 +167,33 @@
                         <Button x:Name="AprsClearHistoryButton" Content="{l:Str Key=settings.clearHistory}" Click="AprsClearHistoryButton_Click" />
                         <TextBlock x:Name="AprsClearNote" VerticalAlignment="Center" Foreground="Gray" FontSize="12" />
                     </StackPanel>
+
+                    <!-- Transmit (the Mac's APRSTransmitSettingsSection). -->
+                    <TextBlock Text="{l:Str Key=settings.aprsTransmit.title}" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
+                    <CheckBox x:Name="AprsTxEnabledCheckBox" Content="{l:Str Key=settings.aprsTransmit.enable}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{l:Str Key=settings.aprsTransmit.sentAs}" VerticalAlignment="Center" />
+                        <TextBlock x:Name="AprsTxSentAsText" VerticalAlignment="Center" FontFamily="Consolas" />
+                    </StackPanel>
+                    <ComboBox x:Name="AprsTxSsidComboBox" Header="{l:Str Key=settings.aprsTransmit.ssid}" Width="200"
+                              SelectionChanged="AprsTxSsidComboBox_SelectionChanged" />
+                    <TextBox x:Name="AprsTxLatitudeBox" Header="{l:Str Key=settings.aprsTransmit.latitude}" Width="200" HorizontalAlignment="Left" />
+                    <TextBox x:Name="AprsTxLongitudeBox" Header="{l:Str Key=settings.aprsTransmit.longitude}" Width="200" HorizontalAlignment="Left" />
+                    <ComboBox x:Name="AprsTxAmbiguityComboBox" Header="{l:Str Key=settings.aprsTransmit.ambiguity}" Width="200" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+                        <TextBox x:Name="AprsTxSymbolBox" Header="{l:Str Key=settings.aprsTransmit.symbol}" Width="90" MaxLength="2" FontFamily="Consolas" />
+                        <ComboBox x:Name="AprsTxSymbolPresetComboBox" Header="{l:Str Key=settings.aprsTransmit.symbolPresets}" Width="200"
+                                  SelectionChanged="AprsTxSymbolPresetComboBox_SelectionChanged" />
+                    </StackPanel>
+                    <TextBox x:Name="AprsTxCommentBox" Header="{l:Str Key=settings.aprsTransmit.comment}" Width="360" HorizontalAlignment="Left" MaxLength="43" />
+                    <TextBox x:Name="AprsTxPathBox" Header="{l:Str Key=settings.aprsTransmit.path}" Width="260" HorizontalAlignment="Left"
+                             PlaceholderText="WIDE2-1" FontFamily="Consolas" />
+                    <ComboBox x:Name="AprsTxBeaconComboBox" Header="{l:Str Key=settings.aprsTransmit.beaconEvery}" Width="260" />
+                    <CheckBox x:Name="AprsTxAutoAckCheckBox" Content="{l:Str Key=settings.aprsTransmit.autoAck}" />
+                    <Slider x:Name="AprsTxLevelSlider" Width="300" HorizontalAlignment="Left"
+                            Minimum="-30" Maximum="0" StepFrequency="1" ValueChanged="AprsTxLevelSlider_ValueChanged" />
+                    <NumberBox x:Name="AprsTxDelayBox" Header="{l:Str Key=settings.aprsTransmit.txDelayMs}" Width="260" HorizontalAlignment="Left"
+                               SpinButtonPlacementMode="Inline" Minimum="100" Maximum="1000" SmallChange="50" LargeChange="100" />
                 </StackPanel>
 
                 <!-- Station (the Mac's StationSettings). -->

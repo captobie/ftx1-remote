@@ -70,6 +70,16 @@
     <Compile Include="..\FTX1RemoteWindows\Services\Kiwi\KiwiRecordingSplit.cs" Link="Linked\KiwiRecordingSplit.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\Kiwi\KiwiPlayout.cs" Link="Linked\KiwiPlayout.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\Kiwi\LocalSdrAudioSource.cs" Link="Linked\LocalSdrAudioSource.cs" />
+    <!-- APRS transmit: encoder, info fields, transmitter, messaging, store, and the decoder it round-trips through. -->
+    <Compile Include="..\FTX1RemoteWindows\Services\Ax25.cs" Link="Linked\Ax25.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\Ax25Encoder.cs" Link="Linked\Ax25Encoder.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\AfskDemodulator.cs" Link="Linked\AfskDemodulator.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\AprsPacket.cs" Link="Linked\AprsPacket.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\AprsOutgoing.cs" Link="Linked\AprsOutgoing.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\AprsTransmitSettings.cs" Link="Linked\AprsTransmitSettings.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\AprsTransmitter.cs" Link="Linked\AprsTransmitter.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\AprsMessaging.cs" Link="Linked\AprsMessaging.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\AprsStore.cs" Link="Linked\AprsStore.cs" />
     <!-- The strings those files show (English only here; LocalizationTests reads all three .resx). -->
     <Compile Include="..\FTX1RemoteWindows\Localization\Loc.cs" Link="Linked\Loc.cs" />
     <EmbeddedResource Include="..\FTX1RemoteWindows\Localization\Strings.resx" Link="Linked\Strings.resx" LogicalName="FTX1RemoteWindows.Localization.Strings.resources" />

@@ -142,6 +142,7 @@ public static class AppSettings
         public bool HubEnabled { get; set; }
         public WindowBounds? MainWindowBounds { get; set; }
         public LocalSdrData LocalSdr { get; set; } = new();
+        public AprsTransmitData AprsTx { get; set; } = new();
     }
 
     /// The MyKiwiSDR window's settings (the Mac's localSDR.* keys). The
@@ -1098,6 +1099,30 @@ public static class AppSettings
     /// The MyKiwiSDR window's settings. Mutate the returned object, then
     /// call <see cref="SaveLocalSdr"/>.
     public static LocalSdrData LocalSdr => _cache.LocalSdr;
+
+    /// Settings → APRS → Transmit (the Mac's APRSTransmitSettings, aprs.tx.*
+    /// keys): edit the fields, then <see cref="SaveAprsTx"/>.
+    public sealed class AprsTransmitData
+    {
+        public bool Enabled { get; set; }
+        public int Ssid { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public int Ambiguity { get; set; }
+        public string Symbol { get; set; } = "/-";
+        public string Comment { get; set; } = "";
+        public string Path { get; set; } = "WIDE2-1";
+        public int BeaconMinutes { get; set; }
+        public bool AutoAck { get; set; } = true;
+        public double LevelDb { get; set; } = -6;
+        public int TxDelayMs { get; set; } = 400;
+        /// Last message id used (1…99999), so ids don't repeat soon.
+        public int MessageCounter { get; set; }
+    }
+
+    public static AprsTransmitData AprsTx => _cache.AprsTx;
+
+    public static void SaveAprsTx() => Save();
 
     public static void SaveLocalSdr() => Save();
 

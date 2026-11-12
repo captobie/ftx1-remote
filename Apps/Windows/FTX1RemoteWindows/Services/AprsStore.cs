@@ -1,6 +1,5 @@
 using System.Text.Json;
 using FTX1RemoteWindows.Models;
-using FTX1RemoteWindows.Settings;
 
 namespace FTX1RemoteWindows.Services;
 
@@ -18,10 +17,15 @@ public sealed class AprsStore
         public List<AprsMessage> Messages { get; set; } = [];
     }
 
-    private static readonly string FilePath = Path.Combine(
+    /// %LOCALAPPDATA%\\FTX1RemoteWindows\\aprs-history.json.
+    public static readonly string DefaultFilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "FTX1RemoteWindows",
         "aprs-history.json");
+
+    private readonly string _filePath;
+    private readonly Func<int> _maxStations;
+    private readonly Func<int> _maxMessages;
 
     private readonly List<AprsStation> _stations;
     private readonly List<AprsMessage> _messages;
@@ -32,9 +36,12 @@ public sealed class AprsStore
     public IReadOnlyList<AprsStation> Stations => _stations;
     public IReadOnlyList<AprsMessage> Messages => _messages;
 
-    public AprsStore()
+    public AprsStore(string filePath, Func<int> maxStations, Func<int> maxMessages)
     {
-        var loaded = Load();
+        _filePath = filePath;
+        _maxStations = maxStations;
+        _maxMessages = maxMessages;
+        var loaded = Load(filePath);
         _stations = loaded.Stations;
         _messages = loaded.Messages;
         // Also on load: covers a limit lowered since the file was written.
@@ -64,10 +71,49 @@ public sealed class AprsStore
         Persist();
     }
 
-    public void RecordMessage(string from, string to, string text, string? messageId, DateTimeOffset receivedAt, AprsSource source)
+    /// A message with an id that's already listed (same sender, addressee,
+    /// id and text within <see cref="DuplicateWindow"/>) is a retry of one
+    /// already heard, or its digipeated copy: not listed again. Returns
+    /// whether it was added.
+    public bool RecordMessage(string from, string to, string text, string? messageId, DateTimeOffset receivedAt, AprsSource source)
     {
+        if (messageId is not null && _messages.Any(m =>
+                m.Delivery is null && m.From == from && m.To == to && m.MessageId == messageId && m.Text == text
+                && receivedAt - m.ReceivedAt < DuplicateWindow))
+        {
+            return false;
+        }
         _messages.Add(new AprsMessage { From = from, To = to, Text = text, MessageId = messageId, ReceivedAt = receivedAt, Source = source });
         TrimMessages();
+        Persist();
+        return true;
+    }
+
+    public static readonly TimeSpan DuplicateWindow = TimeSpan.FromMinutes(30);
+
+    /// One of this station's own messages (Delivery set).
+    public void RecordOutgoing(AprsMessage message)
+    {
+        _messages.Add(message);
+        TrimMessages();
+        Persist();
+    }
+
+    /// Changes an own message's delivery state; nothing if it's gone.
+    public void UpdateDelivery(string id, Action<AprsDelivery> change)
+    {
+        var message = _messages.Find(m => m.Id == id);
+        if (message?.Delivery is not { } delivery)
+        {
+            return;
+        }
+        var edited = delivery.Copy();
+        change(edited);
+        if (edited.SameAs(delivery))
+        {
+            return;
+        }
+        message.Delivery = edited;
         Persist();
     }
 
@@ -77,7 +123,7 @@ public sealed class AprsStore
         _messages.Clear();
         try
         {
-            File.Delete(FilePath);
+            File.Delete(_filePath);
         }
         catch
         {
@@ -90,7 +136,7 @@ public sealed class AprsStore
     /// callsign grows the list, so this is the one place it can overflow.
     private void TrimStations()
     {
-        var limit = AppSettings.AprsMaxStations;
+        var limit = _maxStations();
         if (_stations.Count > limit)
         {
             _stations.Sort((a, b) => b.LastHeardAt.CompareTo(a.LastHeardAt));
@@ -100,7 +146,7 @@ public sealed class AprsStore
 
     private void TrimMessages()
     {
-        var limit = AppSettings.AprsMaxMessages;
+        var limit = _maxMessages();
         if (_messages.Count > limit)
         {
             _messages.Sort((a, b) => b.ReceivedAt.CompareTo(a.ReceivedAt));
@@ -124,11 +170,11 @@ public sealed class AprsStore
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
             var json = JsonSerializer.Serialize(new Snapshot { Stations = _stations, Messages = _messages });
-            var temp = FilePath + ".tmp";
+            var temp = _filePath + ".tmp";
             File.WriteAllText(temp, json);
-            File.Move(temp, FilePath, overwrite: true);
+            File.Move(temp, _filePath, overwrite: true);
         }
         catch (Exception ex)
         {
@@ -139,18 +185,18 @@ public sealed class AprsStore
 
     /// A missing or unreadable file starts an empty history rather than
     /// failing startup.
-    private static Snapshot Load()
+    private static Snapshot Load(string filePath)
     {
         try
         {
-            if (File.Exists(FilePath))
+            if (File.Exists(filePath))
             {
-                return JsonSerializer.Deserialize<Snapshot>(File.ReadAllText(FilePath)) ?? new Snapshot();
+                return JsonSerializer.Deserialize<Snapshot>(File.ReadAllText(filePath)) ?? new Snapshot();
             }
         }
         catch (Exception ex)
         {
-            AppLog.Write($"aprs-store: can't read {FilePath}: {ex.Message}");
+            AppLog.Write($"aprs-store: can't read {filePath}: {ex.Message}");
         }
         return new Snapshot();
     }

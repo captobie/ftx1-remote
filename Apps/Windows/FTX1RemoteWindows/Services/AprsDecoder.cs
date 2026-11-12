@@ -28,6 +28,10 @@ public sealed class AprsDecoder : IDisposable
     private Ax25FrameDecoder _frameDecoder = new();
     private readonly List<bool> _lineBits = [];
     private int _samplesSinceHeartbeat;
+    private int _lastBackToBackFlags;
+    /// Stopwatch ticks of the last packet activity heard (back-to-back flags
+    /// or a decoded frame) — the transmitter's carrier detect. 0 = none yet.
+    private long _lastActivityTicks;
 
     /// <param name="name">"main"/"sub", for the log.</param>
     public AprsDecoder(string name)
@@ -49,6 +53,15 @@ public sealed class AprsDecoder : IDisposable
     }
 
     public void Dispose() => _queue.CompleteAdding();
+
+    /// Whether packet audio was heard in the last <paramref name="seconds"/>
+    /// — only meaningful while this decoder is fed (APRS decoding on, the
+    /// receiver on the APRS frequency).
+    public bool HeardActivity(double seconds)
+    {
+        var last = Interlocked.Read(ref _lastActivityTicks);
+        return last != 0 && (System.Diagnostics.Stopwatch.GetTimestamp() - last) / (double)System.Diagnostics.Stopwatch.Frequency < seconds;
+    }
 
     private void Run()
     {
@@ -76,12 +89,19 @@ public sealed class AprsDecoder : IDisposable
             AppLog.Write($"aprs-decoder ({_name}): demodulator (re)initialized at {sampleRate} Hz");
             _demodulator = new AfskDemodulator(sampleRate);
             _frameDecoder = new Ax25FrameDecoder();
+            _lastBackToBackFlags = 0;
             _demodulatorSampleRate = sampleRate;
         }
 
         _lineBits.Clear();
         _demodulator.Process(samples, _lineBits);
-        foreach (var frame in _frameDecoder.Process(_lineBits))
+        var decoded = _frameDecoder.Process(_lineBits);
+        if (decoded.Count > 0 || _frameDecoder.Stats.BackToBackFlags != _lastBackToBackFlags)
+        {
+            _lastBackToBackFlags = _frameDecoder.Stats.BackToBackFlags;
+            Interlocked.Exchange(ref _lastActivityTicks, System.Diagnostics.Stopwatch.GetTimestamp());
+        }
+        foreach (var frame in decoded)
         {
             AppLog.Write($"aprs-decoder ({_name}): frame from {frame.Source.DisplayString}");
             Handle(frame);

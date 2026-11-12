@@ -28,8 +28,33 @@ public sealed class AprsStation
     public AprsSource Source { get; set; }
 }
 
-/// A decoded APRS message. Every one is its own entry, never merged — the
-/// Mac's APRSMessage.
+/// How one of this station's own messages is doing (the Mac's APRSDelivery).
+[JsonConverter(typeof(JsonStringEnumConverter<AprsDeliveryState>))]
+public enum AprsDeliveryState
+{
+    Pending,
+    Acked,
+    Rejected,
+    Failed,
+    Cancelled,
+}
+
+public sealed class AprsDelivery
+{
+    public AprsDeliveryState State { get; set; } = AprsDeliveryState.Pending;
+    /// Transmissions so far.
+    public int Attempts { get; set; }
+    /// Why the last attempt didn't go out, or why it failed.
+    public string? Note { get; set; }
+
+    public AprsDelivery Copy() => new() { State = State, Attempts = Attempts, Note = Note };
+
+    public bool SameAs(AprsDelivery other) => State == other.State && Attempts == other.Attempts && Note == other.Note;
+}
+
+/// A decoded APRS message, or one of this station's own (Delivery set; its
+/// ReceivedAt is when it was written). Every one is its own entry, never
+/// merged — the Mac's APRSMessage.
 public sealed class AprsMessage
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
@@ -39,4 +64,7 @@ public sealed class AprsMessage
     public string? MessageId { get; set; }
     public DateTimeOffset ReceivedAt { get; set; }
     public AprsSource Source { get; set; }
+    /// Set on this station's own messages, null on received ones; absent in
+    /// older history files.
+    public AprsDelivery? Delivery { get; set; }
 }

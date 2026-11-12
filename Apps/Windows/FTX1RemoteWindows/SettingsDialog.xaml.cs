@@ -184,6 +184,8 @@ public sealed partial class SettingsDialog : Window
 
         // License
         InitLicense();
+        InitAprsTx();
+        CallsignBox.TextChanged += (_, _) => UpdateAprsTxSentAs();
 
         // Home Freq
         foreach (var band in HomeBand.All)
@@ -391,6 +393,12 @@ public sealed partial class SettingsDialog : Window
             }
         }
 
+        if (AprsTxProblem() is { } aprsTxProblem)
+        {
+            Fail("Aprs", aprsTxProblem);
+            return false;
+        }
+
         if (LicenseProblem() is { } licenseProblem)
         {
             Fail("License", licenseProblem);
@@ -491,6 +499,7 @@ public sealed partial class SettingsDialog : Window
         SaveWavelog(wavelogUrl);
 
         SaveLicense();
+        SaveAprsTx();
 
         AppSettings.AprsEnabled = AprsEnabledCheckBox.IsChecked == true;
         AppSettings.AprsFrequencyHz = aprsFrequencyHz;

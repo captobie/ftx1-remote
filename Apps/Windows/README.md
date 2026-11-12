@@ -1654,6 +1654,42 @@ row. The button for the channel a receiver is on uses the accent style.
   once and leaves `_lastVfoState` alone, so V/M still returns MAIN to its
   VFO. Leaving Memory mode isn't offered from the list.
 
+## APRS transmit (2026-11-11; unit-tested and built, nothing keyed or seen on screen yet)
+
+Port of the Mac's APRS transmit (CLAUDE.md, "APRS transmit (Mac)"): beacons
+(Beacon Now plus an optional interval), messages retried until acked, and
+auto-acks, as Bell 202 audio through the same TX audio path as RTTY/PSK
+(`OpenHubTxSink`: the Pi's `ftx1-txaudio.py` in Remote mode, Settings → Audio →
+Transmit audio output in Local mode). The Swift files in `Sources/FTX1Core/APRS/`
+stay the source of truth.
+
+- **Code**: `Services/Ax25Encoder.cs`, `AprsOutgoing.cs`, `AprsTransmitSettings.cs`
+  (settings behind `IAprsTransmitConfig`, so tests never touch the user's
+  file; the app's adapter is `Settings/AppAprsTransmitConfig.cs`, data in
+  `AppSettings.AprsTx`), `AprsTransmitter.cs` (planner, link, queue),
+  `AprsMessaging.cs`; `MainWindow.Aprs.cs` is the Mac's `APRSTransmitLink`
+  on this window. `AprsStore` takes its file and limits in the constructor;
+  `AprsMessage.Delivery` is optional, so older history files load.
+- **Receiver**: MAIN or SUB, whichever is on the APRS frequency in FM or
+  DATA-FM (the current TX side first); refused in split, while scanning, and
+  with SUB hidden in single-receive display. The transmit gate (Enable
+  Transmit, amateur bands, License) is judged for that receiver. If it is the
+  other side, the key step is `SetTxSideAsync` then PTT, and the unkey is PTT
+  off then the side back, each batch chained behind the one before
+  (`EnqueueAprsKeying`).
+- **Carrier detect** needs Decode APRS on: `AprsDecoder.HeardActivity` (back-to-back
+  flags or a decoded frame within 1.5 s, at most 10 s of waiting).
+- **UI**: Settings → APRS → Transmit (applies on Save; no Mac-style "use my
+  location" button — type the position), a bottom bar in S.LIST/M.LIST (Beacon
+  Now, Sending, last outcome, next beacon), M.LIST New Message / Status column /
+  right-click Reply, Stop Sending, Send Again, and APRS ▾ → Beacon Now. Enable
+  Transmit off, a disconnect or leaving the License privileges stops the queue
+  and unkeys.
+- **Not done**: anything on the air (dummy load first); the dialogs and windows
+  not opened in the built app; TXDELAY in Local mode; the Desktop hub's
+  `aprs_list` push carries no delivery state; an iPad transmitting through the
+  hub is not stopped while APRS sends (the Mac drops those frames).
+
 ## TUNE button (2026-11-11; built, localization tests pass, then tested on the rig by the user the same day, working)
 
 The Mac's TUNE button (repo root CLAUDE.md, "TUNE button"), ported in

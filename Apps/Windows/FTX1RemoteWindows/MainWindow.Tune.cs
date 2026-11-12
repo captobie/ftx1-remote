@@ -47,7 +47,8 @@ public sealed partial class MainWindow
         {
             return Loc.S("digiLink.notConnected");
         }
-        if (_pttHeld || _lastState.Ptt || _lastState.MoxEnabled == true || _digiSender.IsTransmitting)
+        if (_pttHeld || _lastState.Ptt || _lastState.MoxEnabled == true || _digiSender.IsTransmitting
+            || _aprsTransmitter.IsTransmitting)
         {
             return Loc.S("digiLink.alreadyTransmitting");
         }

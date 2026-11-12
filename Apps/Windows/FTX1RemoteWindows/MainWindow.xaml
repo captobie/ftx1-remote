@@ -41,6 +41,8 @@
                         <MenuFlyoutItem Text="{l:Str Key=mainWindow.stationsSLIST}" Click="AprsStationsMenuItem_Click" />
                         <MenuFlyoutItem Text="{l:Str Key=mainWindow.messagesMLIST}" Click="AprsMessagesMenuItem_Click" />
                         <MenuFlyoutItem Text="{l:Str Key=mainWindow.map}" Click="AprsMapMenuItem_Click" />
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem Text="{l:Str Key=aprsTransmit.beaconNow}" Click="AprsBeaconNowMenuItem_Click" />
                     </MenuFlyout>
                 </DropDownButton.Flyout>
             </DropDownButton>

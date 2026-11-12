@@ -110,6 +110,10 @@ public sealed class Ax25FrameDecoder
         public int CrcFailures { get; internal set; }
         public int AddressParseFailures { get; internal set; }
         public int FramesDecoded { get; internal set; }
+        /// Flags that directly follow another — a preamble or the gap between
+        /// frames, rare in noise (16 fixed bits). What AprsDecoder's carrier
+        /// detect counts.
+        public int BackToBackFlags { get; internal set; }
     }
 
     /// Caps unsynced audio (no flag yet) — well past the longest APRS frame.
@@ -136,6 +140,13 @@ public sealed class Ax25FrameDecoder
             }
         }
         Stats.FlagsFound += _flagStarts.Count;
+        for (var i = 1; i < _flagStarts.Count; i++)
+        {
+            if (_flagStarts[i] - _flagStarts[i - 1] == 8)
+            {
+                Stats.BackToBackFlags++;
+            }
+        }
 
         var frames = new List<Ax25Frame>();
         if (_flagStarts.Count < 2)

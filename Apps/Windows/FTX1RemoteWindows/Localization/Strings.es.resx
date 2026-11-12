@@ -2986,4 +2986,244 @@
   <data name="tune.txOnSub" xml:space="preserve">
     <value>TUNE requiere el transmisor en MAIN (TX:MAIN)</value>
   </data>
+  <data name="aprsCompose.count" xml:space="preserve">
+    <value>{0}/{1}</value>
+  </data>
+  <data name="aprsCompose.messageTo" xml:space="preserve">
+    <value>Mensaje a {0}…</value>
+  </data>
+  <data name="aprsCompose.retryNote" xml:space="preserve">
+    <value>Se envía hasta 5 veces hasta que la otra estación acuse recibo.</value>
+  </data>
+  <data name="aprsCompose.send" xml:space="preserve">
+    <value>Enviar</value>
+  </data>
+  <data name="aprsCompose.title" xml:space="preserve">
+    <value>Mensaje APRS</value>
+  </data>
+  <data name="aprsDelivery.acked" xml:space="preserve">
+    <value>Entregado</value>
+  </data>
+  <data name="aprsDelivery.cancelled" xml:space="preserve">
+    <value>Cancelado</value>
+  </data>
+  <data name="aprsDelivery.failed" xml:space="preserve">
+    <value>Fallido</value>
+  </data>
+  <data name="aprsDelivery.failedReason" xml:space="preserve">
+    <value>Fallido: {0}</value>
+  </data>
+  <data name="aprsDelivery.queued" xml:space="preserve">
+    <value>En cola</value>
+  </data>
+  <data name="aprsDelivery.rejected" xml:space="preserve">
+    <value>Rechazado</value>
+  </data>
+  <data name="aprsDelivery.sent" xml:space="preserve">
+    <value>Enviado {0} de {1}</value>
+  </data>
+  <data name="aprsDelivery.waiting" xml:space="preserve">
+    <value>Esperando: {0}</value>
+  </data>
+  <data name="aprsMessageList.cancelSending" xml:space="preserve">
+    <value>Dejar de enviar</value>
+  </data>
+  <data name="aprsMessageList.newMessage" xml:space="preserve">
+    <value>Nuevo mensaje</value>
+  </data>
+  <data name="aprsMessageList.newMessageHelp" xml:space="preserve">
+    <value>Enviar un mensaje APRS (Ajustes → APRS → Transmisión)</value>
+  </data>
+  <data name="aprsMessageList.reply" xml:space="preserve">
+    <value>Responder a {0}…</value>
+  </data>
+  <data name="aprsMessageList.sendAgain" xml:space="preserve">
+    <value>Enviar de nuevo</value>
+  </data>
+  <data name="aprsMessageList.status" xml:space="preserve">
+    <value>Estado</value>
+  </data>
+  <data name="aprsMessaging.appQuit" xml:space="preserve">
+    <value>No enviado: la app se cerró antes de recibir el acuse.</value>
+  </data>
+  <data name="aprsMessaging.badAddressee" xml:space="preserve">
+    <value>Introducir un indicativo de hasta 9 caracteres.</value>
+  </data>
+  <data name="aprsMessaging.badSymbol" xml:space="preserve">
+    <value>El símbolo debe tener dos caracteres, p. ej. /-.</value>
+  </data>
+  <data name="aprsMessaging.beaconNotSent" xml:space="preserve">
+    <value>Baliza no enviada: {0}</value>
+  </data>
+  <data name="aprsMessaging.beaconQueued" xml:space="preserve">
+    <value>Baliza en cola…</value>
+  </data>
+  <data name="aprsMessaging.beaconSent" xml:space="preserve">
+    <value>Baliza enviada por {0}.</value>
+  </data>
+  <data name="aprsMessaging.emptyMessage" xml:space="preserve">
+    <value>Escribir un mensaje.</value>
+  </data>
+  <data name="aprsMessaging.noAck" xml:space="preserve">
+    <value>Sin acuse de recibo.</value>
+  </data>
+  <data name="aprsMessaging.noPosition" xml:space="preserve">
+    <value>Introducir la latitud y la longitud en Ajustes → APRS.</value>
+  </data>
+  <data name="aprsMessaging.transmitOff" xml:space="preserve">
+    <value>La transmisión APRS está desactivada (Ajustes → APRS).</value>
+  </data>
+  <data name="aprsSymbol.aircraft" xml:space="preserve">
+    <value>Avioneta</value>
+  </data>
+  <data name="aprsSymbol.bicycle" xml:space="preserve">
+    <value>Bicicleta</value>
+  </data>
+  <data name="aprsSymbol.boat" xml:space="preserve">
+    <value>Barco</value>
+  </data>
+  <data name="aprsSymbol.car" xml:space="preserve">
+    <value>Coche</value>
+  </data>
+  <data name="aprsSymbol.house" xml:space="preserve">
+    <value>Casa</value>
+  </data>
+  <data name="aprsSymbol.person" xml:space="preserve">
+    <value>Persona</value>
+  </data>
+  <data name="aprsSymbol.portable" xml:space="preserve">
+    <value>Portátil (tienda)</value>
+  </data>
+  <data name="aprsSymbol.rv" xml:space="preserve">
+    <value>Autocaravana</value>
+  </data>
+  <data name="aprsSymbol.truck" xml:space="preserve">
+    <value>Camión</value>
+  </data>
+  <data name="aprsSymbol.yagi" xml:space="preserve">
+    <value>Yagi en casa</value>
+  </data>
+  <data name="aprsTransmit.badPath" xml:space="preserve">
+    <value>La ruta no es válida: hasta 8 entradas como WIDE1-1, separadas por comas.</value>
+  </data>
+  <data name="aprsTransmit.beaconNow" xml:space="preserve">
+    <value>Baliza ahora</value>
+  </data>
+  <data name="aprsTransmit.beaconNowHelp" xml:space="preserve">
+    <value>Enviar la posición una vez ahora (Ajustes → APRS → Transmisión)</value>
+  </data>
+  <data name="aprsTransmit.memoryScan" xml:space="preserve">
+    <value>Detener primero el escaneo de memorias.</value>
+  </data>
+  <data name="aprsTransmit.nextBeacon" xml:space="preserve">
+    <value>Próxima baliza {0}</value>
+  </data>
+  <data name="aprsTransmit.noCallsign" xml:space="preserve">
+    <value>Introducir el indicativo en Ajustes → Estación (sin SSID ni /).</value>
+  </data>
+  <data name="aprsTransmit.notOnFrequency" xml:space="preserve">
+    <value>Ni MAIN ni SUB están en {0} MHz.</value>
+  </data>
+  <data name="aprsTransmit.offHint" xml:space="preserve">
+    <value>La transmisión APRS está desactivada.</value>
+  </data>
+  <data name="aprsTransmit.openSettings" xml:space="preserve">
+    <value>Ajustes…</value>
+  </data>
+  <data name="aprsTransmit.sending" xml:space="preserve">
+    <value>Enviando</value>
+  </data>
+  <data name="aprsTransmit.split" xml:space="preserve">
+    <value>Desactivar SPLIT para enviar APRS.</value>
+  </data>
+  <data name="aprsTransmit.wrongMode" xml:space="preserve">
+    <value>Poner en FM o DATA-FM el receptor en {0}.</value>
+  </data>
+  <data name="common.message" xml:space="preserve">
+    <value>Mensaje</value>
+  </data>
+  <data name="common.to" xml:space="preserve">
+    <value>Para</value>
+  </data>
+  <data name="settings.aprsTransmit.ambiguity" xml:space="preserve">
+    <value>Ambigüedad de posición</value>
+  </data>
+  <data name="settings.aprsTransmit.ambiguity1" xml:space="preserve">
+    <value>Unos 200 m</value>
+  </data>
+  <data name="settings.aprsTransmit.ambiguity2" xml:space="preserve">
+    <value>Unos 2 km</value>
+  </data>
+  <data name="settings.aprsTransmit.ambiguity3" xml:space="preserve">
+    <value>Unos 20 km</value>
+  </data>
+  <data name="settings.aprsTransmit.ambiguity4" xml:space="preserve">
+    <value>Unos 100 km</value>
+  </data>
+  <data name="settings.aprsTransmit.ambiguityExact" xml:space="preserve">
+    <value>Exacta</value>
+  </data>
+  <data name="settings.aprsTransmit.autoAck" xml:space="preserve">
+    <value>Acusar recibo de los mensajes para mí</value>
+  </data>
+  <data name="settings.aprsTransmit.badCoordinate" xml:space="preserve">
+    <value>Latitud de −90 a 90, longitud de −180 a 180, en grados decimales.</value>
+  </data>
+  <data name="settings.aprsTransmit.beaconEvery" xml:space="preserve">
+    <value>Baliza cada</value>
+  </data>
+  <data name="settings.aprsTransmit.beaconOff" xml:space="preserve">
+    <value>Desactivada (solo Baliza ahora)</value>
+  </data>
+  <data name="settings.aprsTransmit.comment" xml:space="preserve">
+    <value>Comentario de la baliza</value>
+  </data>
+  <data name="settings.aprsTransmit.enable" xml:space="preserve">
+    <value>Transmitir APRS (balizas, mensajes, acuses)</value>
+  </data>
+  <data name="settings.aprsTransmit.latitude" xml:space="preserve">
+    <value>Latitud (°, sur negativo)</value>
+  </data>
+  <data name="settings.aprsTransmit.level" xml:space="preserve">
+    <value>Nivel de audio</value>
+  </data>
+  <data name="settings.aprsTransmit.levelDb" xml:space="preserve">
+    <value>Nivel de audio: {0} dBFS</value>
+  </data>
+  <data name="settings.aprsTransmit.longitude" xml:space="preserve">
+    <value>Longitud (°, oeste negativo)</value>
+  </data>
+  <data name="settings.aprsTransmit.minutes.one" xml:space="preserve">
+    <value>{0} minuto</value>
+  </data>
+  <data name="settings.aprsTransmit.minutes.other" xml:space="preserve">
+    <value>{0} minutos</value>
+  </data>
+  <data name="settings.aprsTransmit.needCallsign" xml:space="preserve">
+    <value>Introducir el indicativo en Ajustes → Estación</value>
+  </data>
+  <data name="settings.aprsTransmit.path" xml:space="preserve">
+    <value>Ruta</value>
+  </data>
+  <data name="settings.aprsTransmit.sentAs" xml:space="preserve">
+    <value>Se envía como</value>
+  </data>
+  <data name="settings.aprsTransmit.ssid" xml:space="preserve">
+    <value>SSID</value>
+  </data>
+  <data name="settings.aprsTransmit.ssidNone" xml:space="preserve">
+    <value>Ninguno</value>
+  </data>
+  <data name="settings.aprsTransmit.symbol" xml:space="preserve">
+    <value>Símbolo</value>
+  </data>
+  <data name="settings.aprsTransmit.symbolPresets" xml:space="preserve">
+    <value>Elegir</value>
+  </data>
+  <data name="settings.aprsTransmit.title" xml:space="preserve">
+    <value>Transmisión</value>
+  </data>
+  <data name="settings.aprsTransmit.txDelayMs" xml:space="preserve">
+    <value>Retardo TX (ms de flags antes del paquete)</value>
+  </data>
 </root>

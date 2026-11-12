@@ -152,7 +152,7 @@ public sealed partial class MainWindow
                 return reason;
             }
             if (!keyedBySender && (window._lastState.Ptt || window._pttHeld || window._lastState.MoxEnabled == true
-                    || window._hubTx?.IsKeyed == true))
+                    || window._hubTx?.IsKeyed == true || window._aprsTransmitter.IsTransmitting))
             {
                 return Loc.S("digiLink.alreadyTransmitting");
             }

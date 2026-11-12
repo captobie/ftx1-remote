@@ -104,7 +104,7 @@ public sealed partial class MainWindow : Window
     /// is on the APRS frequency; both feed the one shared history.
     private readonly AprsDecoder _aprsMainDecoder = new("main");
     private readonly AprsDecoder _aprsSubDecoder = new("sub");
-    private readonly AprsStore _aprsStore = new();
+    private readonly AprsStore _aprsStore = new(AprsStore.DefaultFilePath, () => AppSettings.AprsMaxStations, () => AppSettings.AprsMaxMessages);
     /// The open S.LIST/M.LIST windows, at most one of each.
     private readonly Dictionary<AprsListKind, AprsListWindow> _aprsWindows = [];
     private AprsMapWindow? _aprsMapWindow;
@@ -335,6 +335,7 @@ public sealed partial class MainWindow : Window
         _digiReceiver.AttachLocalSdr(_localSdrSource);
         WireAprsDecoder(_aprsMainDecoder, AprsSource.Main);
         WireAprsDecoder(_aprsSubDecoder, AprsSource.Sub);
+        InitAprsTransmit();
 
         ApplyAppearance();
         ApplyLocalSdrVisibility();
@@ -487,6 +488,7 @@ public sealed partial class MainWindow : Window
             _client?.Disconnect();
             _client = null;
             _rigctldProcess.Stop();
+            StopAprsTransmit();
             _aprsMainDecoder.Dispose();
             _aprsSubDecoder.Dispose();
             foreach (var window in _aprsWindows.Values.ToList())
@@ -611,6 +613,7 @@ public sealed partial class MainWindow : Window
             _aprsStore.ClearHistory();
         }
         _aprsStore.ApplyLimits();
+        _aprsMessaging.SettingsChanged();
 
         // Restarted so new lookup intervals don't wait out an old delay.
         _wpsdMonitor.Stop();
@@ -2037,8 +2040,9 @@ public sealed partial class MainWindow : Window
         var hubKeyed = _hubTx?.IsKeyed == true;
         // The RTTY/PSK sender too; its own async unkey goes out ahead of the
         // blocking one below.
-        var digiKeyed = _digiSender.IsTransmitting;
+        var digiKeyed = _digiSender.IsTransmitting || _aprsTransmitter.IsTransmitting;
         _digiSender.Stop();
+        _aprsTransmitter.StopAll("disconnecting from the rig");
         // Unkeys (and restores the mode) itself.
         StopTuneBeforeDisconnect();
         EndHubTransmit("disconnecting from the rig");
@@ -2084,6 +2088,7 @@ public sealed partial class MainWindow : Window
             // unkey).
             _cwSender.Stop();
             _digiSender.Stop();
+            _aprsTransmitter.StopAll(Loc.S("transmitGate.transmitDisabled"));
             EndHubTransmit("lock: Enable Transmit turned off");
             await ForceUnkeyAsync("transmit disabled");
             await StopHubKeyerIfPlayedAsync("lock: Enable Transmit turned off");
@@ -2206,6 +2211,7 @@ public sealed partial class MainWindow : Window
     {
         _cwSender.Stop();
         _digiSender.Stop();
+        _aprsTransmitter.StopAll(reason);
         EndHubTransmit("left the license privileges");
         if (_client is { } client)
         {
@@ -2436,8 +2442,7 @@ public sealed partial class MainWindow : Window
                 UpdateC4fmDisplay();
             });
         decoder.MessageReceived += (from, to, text, messageId) =>
-            DispatcherQueue.TryEnqueue(() =>
-                _aprsStore.RecordMessage(from, to, text, messageId, DateTimeOffset.Now, source));
+            DispatcherQueue.TryEnqueue(() => ReceivedAprsMessage(from, to, text, messageId, source));
     }
 
     /// Audio thread: passes one receiver's chunk to its decoder while that
@@ -2462,7 +2467,7 @@ public sealed partial class MainWindow : Window
     {
         if (!_aprsWindows.TryGetValue(kind, out var window))
         {
-            window = new AprsListWindow(kind, _aprsStore);
+            window = new AprsListWindow(kind, _aprsStore, _aprsMessaging, _aprsTransmitter);
             window.Closed += (_, _) => _aprsWindows.Remove(kind);
             _aprsWindows[kind] = window;
         }
