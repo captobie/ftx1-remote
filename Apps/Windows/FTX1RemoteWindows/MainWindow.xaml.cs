@@ -552,7 +552,7 @@ public sealed partial class MainWindow : Window
             };
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             {
-                await Windows.System.Launcher.LaunchUriAsync(new Uri(update.PageUrl));
+                await Windows.System.Launcher.LaunchUriAsync(new Uri(update.DownloadUrl(UpdateChecker.InstalledBySetup)));
             }
         }
         catch (Exception ex)

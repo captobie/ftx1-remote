@@ -1900,7 +1900,7 @@ public sealed partial class SettingsDialog : Window
             }
             else
             {
-                _updatePageUrl = update.PageUrl;
+                _updatePageUrl = update.DownloadUrl(UpdateChecker.InstalledBySetup);
                 UpdateStatusText.Text = Loc.F("settings.versionXIsAvailable", UpdateChecker.Display(update.Version));
                 DownloadUpdateButton.Content = Loc.F("settings.downloadX", UpdateChecker.Display(update.Version));
                 DownloadUpdateButton.Visibility = Visibility.Visible;

@@ -2658,8 +2658,8 @@ running, uninstall).** `Tools/FTX1Remote.iss` + `Tools/build-installer.ps1`
 `<Version>` from the `.csproj`, publishes into an empty `C:\Tools\FTX1Remote-release`
 (`-SkipPublish` reuses it), checks the bundled `rigctld --version` and writes
 `build\installer\FTX1Remote-Windows-<version>-x64-setup.exe` (gitignored;
-~70 MB against the ~108 MB zip). **Keep uploading the zip too**: the update
-checker only recognises `FTX1Remote-Windows-*-x64.zip`. Notes:
+~70 MB against the ~108 MB zip). The update checker accepts either asset
+(`FTX1Remote-Windows-*-x64.zip` or `…-x64-setup.exe`) as a Windows release. Notes:
 
 - Per-user by default (`%LOCALAPPDATA%\Programs\FTX1 Remote`), "all users"
   via the wizard's first page or `/ALLUSERS`. The app writes nothing next to
@@ -2681,8 +2681,12 @@ checker only recognises `FTX1Remote-Windows-*-x64.zip`. Notes:
   `gh release upload v<version> build\installer\FTX1Remote-Windows-<version>-x64-setup.exe --repo captobie/ftx1-remote`.
 - Firewall rules are per exe path, so Windows asks about the hub port again
   after moving from a zip folder to the install folder.
-- Follow-ups (not done): `UpdateChecker` could link/prefer the setup exe or
-  run it silently; it only knows the zip name.
+- Update check (2026-11-12; unit-tested in `UpdateCheckerTests`, build-verified, not
+  yet run against a real release with the setup exe): a copy with `unins000.exe`
+  beside the exe (`UpdateChecker.InstalledBySetup`) gets the release's setup exe
+  as the Download button's target (`UpdateInfo.DownloadUrl`); zip copies, or a
+  release with no setup exe, get the release page. Still notify-only. Follow-up
+  (not done): download and run the setup silently.
 
 The zip is a zip of the `dotnet publish` folder: unpackaged and
 self-contained (.NET + Windows App SDK included), so no installer and nothing

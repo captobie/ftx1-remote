@@ -81,6 +81,7 @@
     <Compile Include="..\FTX1RemoteWindows\Services\AprsMessaging.cs" Link="Linked\AprsMessaging.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\AprsStore.cs" Link="Linked\AprsStore.cs" />
     <!-- The strings those files show (English only here; LocalizationTests reads all three .resx). -->
+    <Compile Include="..\FTX1RemoteWindows\Services\UpdateChecker.cs" Link="Linked\UpdateChecker.cs" />
     <Compile Include="..\FTX1RemoteWindows\Localization\Loc.cs" Link="Linked\Loc.cs" />
     <EmbeddedResource Include="..\FTX1RemoteWindows\Localization\Strings.resx" Link="Linked\Strings.resx" LogicalName="FTX1RemoteWindows.Localization.Strings.resources" />
   </ItemGroup>
