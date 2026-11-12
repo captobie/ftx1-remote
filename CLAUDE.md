@@ -247,12 +247,31 @@ re-architecture.
   started). Still flagged for re-validation on real hardware rather than
   assumed unchanged: `RigctldClient.sendRawCommand`'s 1s raw-command
   timeout, and general reconnect-delay tuning over an actual Tailscale hop.
-- **Planned UI distinction** (not yet designed in detail): "Pi/Tailscale
-  unreachable" vs. "rigctld/radio down but the Pi itself is fine" as two
-  different `.failed` states in `.remote` mode, since they point to
-  different fixes. Needs `RigctldError`/the connect catch site to carry
-  enough information to tell TCP-level unreachability apart from a bad or
-  absent reply.
+- **Connection problems by where the fault is (Mac, 2026-11-12; unit-
+  tested, and every case seen in the built app against a fake rigctld on
+  127.0.0.1 and unused hosts — not yet against the real Pi/rig)**: a
+  label next to Connected/Disconnected (`ContentView`'s
+  `ConnectionProblemLabel`, tooltip = what to check) from
+  `HubService.ConnectionState.failed(RigLinkProblem)`
+  (`FTX1Core/Networking/RigLinkProblem.swift`): host not found (red —
+  MagicDNS name doesn't resolve, usually Tailscale off on the Mac), host
+  unreachable (red — connect timed out), rigctld not running (orange —
+  refused), radio not answering (orange), connection lost, other.
+  `RigctldClient.connect` now fails at once on `.waiting` with
+  ECONNREFUSED (`.connectionRefused`) or a DNS error (`.hostNotFound`) —
+  checked: NWConnection reports both immediately but only *waits* on them,
+  so before this everything was a 5 s `.connectTimedOut` — and clears
+  `connection` on failure; a reply timeout whose reconnect fails throws
+  `.connectionLost`. **`.connected` now means the rig answers**, not just
+  TCP: `refreshFastTier` returns false (publishing nothing, skipping the
+  rest of the tier and the slow tier) when "FA" fails, `RigResponseMonitor`
+  reports 3 in a row as `.failed(.rigNotResponding)` (~11 s measured;
+  the frequency lane pauses while not `.connected`), and the first answer
+  sets `.connected` (and re-primes the slow tier). This is the Pi
+  under-voltage case: before, the window kept "Connected" and the last
+  values while every read timed out. A retry keeps showing the last
+  failure rather than flashing "connecting". Not done: the iPad/iPhone
+  Pi-direct route and Windows still show one generic failure.
 - **WSJT-X's "Hamlib NET rigctl" setup has to be pointed at whichever host
   this app is currently using** (localhost in `.local`, the Pi in
   `.remote`). This app does not manage that — repoint it manually whenever
@@ -276,8 +295,7 @@ re-architecture.
   CAT response at all" outage that blocked this validation for most of a day
   turned out to be a stale hamlib 4.6 pulled in as a Direwolf dependency on
   the Pi, shadowing the working 4.7 install — also not an app bug.) Still
-  open: the
-  Pi/Tailscale-unreachable UI distinction above, and the rest of the
+  open: the rest of the
   validation-plan checklist (WSJT-X coexistence, soak testing, timeout
   re-tuning under sustained real-network conditions).
 - **Hamlib-verb reply timeout (2026-09-29, rig-confirmed by the user the same
@@ -412,9 +430,9 @@ re-architecture.
     isolation does NOT match what most of it actually needs.
   - APRS decode confirmed working at the new 44100Hz rate against real
     traffic (2026-09-07) — the sample-rate fix resolved it.
-  - **Still open**: the "Pi/Tailscale unreachable" UI distinction (same
-    open item as rig control's, not yet extended to cover the audio link
-    too).
+  - **Still open**: the audio link (:8532) has no problem label of its
+    own; rig control's (2026-11-12, see "Connection problems by where the
+    fault is") covers rigctld only.
   - **`RemoteAudioStreamClient`'s "received N bytes so far" heartbeat is
     scaled to `sampleRate`** (one line per ~30s of audio, commit `fb2221e`)
     — it was a fixed 32,000-byte threshold left over from 8kHz, which at

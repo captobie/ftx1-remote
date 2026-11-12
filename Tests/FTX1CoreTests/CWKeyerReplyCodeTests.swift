@@ -30,7 +30,7 @@ final class CWKeyerReplyCodeTests: XCTestCase {
     }
 
     func testEveryRigctldErrorRoundTripsThroughItsCode() {
-        let all: [RigctldError] = [.notConnected, .badResponse, .connectTimedOut, .rawCommandTimedOut,
+        let all: [RigctldError] = [.notConnected, .badResponse, .connectTimedOut, .connectionRefused, .hostNotFound, .rawCommandTimedOut,
                                    .replyTimedOut, .connectionLost, .keyerMemoryRejected]
         for error in all {
             let back = RigctldError(keyerErrorCode: error.keyerErrorCode)

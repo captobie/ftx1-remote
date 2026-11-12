@@ -46,6 +46,9 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 connectButton
+                if case .failed(let problem) = hub.connectionState {
+                    ConnectionProblemLabel(problem: problem)
+                }
                 // rigctldProcessState has nothing to report in .remote mode
                 // (see HubService.startRigctld()) — nothing is ever spawned
                 // there, so there's no process-lifecycle label worth showing.
@@ -726,5 +729,78 @@ private struct TuneButton: View {
         if let reason = blockReason { return reason }
         if let message = tune.message { return message }
         return String(localized: "tune.help \(Int(TuneTone.timeout))")
+    }
+}
+
+/// Why the rig isn't connected, next to the Connect button — worded by
+/// where the fault is (`RigLinkProblem`), since "the Pi is off the
+/// tailnet", "rigctld isn't running" and "the radio isn't answering" each
+/// need a different fix. The tooltip says what to check.
+private struct ConnectionProblemLabel: View {
+    let problem: RigLinkProblem
+
+    private var isRemote: Bool { RigctldSettings.activeConnectionMode == .remote }
+    private var host: String { RigctldSettings.activeRemoteHost }
+
+    var body: some View {
+        Label(message, systemImage: symbol)
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .help(advice)
+    }
+
+    private var message: String {
+        switch problem {
+        case .hostNotFound:
+            isRemote ? String(localized: "connectionProblem.hostNotFound \(host)")
+                : String(localized: "connectionProblem.cantReachRigctld")
+        case .hostUnreachable:
+            isRemote ? String(localized: "connectionProblem.hostUnreachable \(host)")
+                : String(localized: "connectionProblem.cantReachRigctld")
+        case .rigctldNotRunning:
+            isRemote ? String(localized: "connectionProblem.rigctldNotRunningOn \(host)")
+                : String(localized: "connectionProblem.rigctldNotRunning")
+        case .rigNotResponding:
+            isRemote ? String(localized: "connectionProblem.rigNotRespondingOn \(host)")
+                : String(localized: "connectionProblem.rigNotResponding")
+        case .connectionLost:
+            String(localized: "connectionProblem.connectionLost")
+        case .other(let description):
+            description
+        }
+    }
+
+    private var advice: String {
+        switch problem {
+        case .hostNotFound:
+            isRemote ? String(localized: "connectionProblem.hostNotFound.advice") : message
+        case .hostUnreachable:
+            isRemote ? String(localized: "connectionProblem.hostUnreachable.advice") : message
+        case .rigctldNotRunning:
+            isRemote ? String(localized: "connectionProblem.rigctldNotRunningOn.advice")
+                : String(localized: "connectionProblem.rigctldNotRunning.advice")
+        case .rigNotResponding:
+            isRemote ? String(localized: "connectionProblem.rigNotRespondingOn.advice")
+                : String(localized: "connectionProblem.rigNotResponding.advice")
+        case .connectionLost, .other:
+            message
+        }
+    }
+
+    private var symbol: String {
+        switch problem {
+        case .hostNotFound, .hostUnreachable: "network.slash"
+        case .rigctldNotRunning: "exclamationmark.triangle"
+        case .rigNotResponding: "antenna.radiowaves.left.and.right.slash"
+        case .connectionLost: "arrow.triangle.2.circlepath"
+        case .other: "exclamationmark.triangle"
+        }
+    }
+
+    /// Red when the computer running rigctld can't be reached at all,
+    /// orange when it can and the fault is behind it.
+    private var color: Color {
+        problem.isHostProblem ? .red : .orange
     }
 }

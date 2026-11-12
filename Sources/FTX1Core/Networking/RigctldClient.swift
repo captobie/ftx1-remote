@@ -88,7 +88,18 @@ public actor RigctldClient {
                             case .ready:
                                 readyGuard.resumeOnce(continuation, with: .success(()))
                             case .failed(let error):
-                                readyGuard.resumeOnce(continuation, with: .failure(error))
+                                readyGuard.resumeOnce(continuation, with: .failure(Self.connectError(for: error) ?? error))
+                            case .waiting(let error):
+                                // A refused port or a name that doesn't
+                                // resolve doesn't fail an NWConnection, it
+                                // waits (checked 2026-11-12: both arrive at
+                                // once). Both are definite answers, so give
+                                // up now rather than at `timeout`. Anything
+                                // else (no route, network down) keeps
+                                // waiting: it may still come up.
+                                if let classified = Self.connectError(for: error) {
+                                    readyGuard.resumeOnce(continuation, with: .failure(classified))
+                                }
                             case .cancelled:
                                 readyGuard.resumeOnce(continuation, with: .failure(RigctldError.notConnected))
                             default:
@@ -117,11 +128,32 @@ public actor RigctldClient {
                     // closure return until every child task finishes).
                     conn.cancel()
                     group.cancelAll()
+                    // Don't leave a dead connection for the next write to
+                    // find: with none, callers get `.notConnected` at once.
+                    if self.connection === conn { self.connection = nil }
                     throw error
                 }
             }
         } onCancel: {
             conn.cancel()
+        }
+    }
+
+    /// The connect failures that say *where* the problem is: the name
+    /// didn't resolve (`.hostNotFound` — with a MagicDNS name, usually
+    /// Tailscale being off on this Mac), or the computer answered but
+    /// nothing listens on the port (`.connectionRefused` — rigctld isn't
+    /// running there). nil for anything else. A host that doesn't answer
+    /// at all never gets here; it runs into `connect`'s timeout
+    /// (`.connectTimedOut`).
+    nonisolated static func connectError(for error: NWError) -> RigctldError? {
+        switch error {
+        case .posix(.ECONNREFUSED):
+            return .connectionRefused
+        case .dns:
+            return .hostNotFound
+        default:
+            return nil
         }
     }
 
@@ -227,7 +259,15 @@ public actor RigctldClient {
                     Self.catLogger.notice("<- \(command, privacy: .public) : (no reply in \(String(describing: timeout), privacy: .public)) — reconnecting")
                 }
                 disconnect()
-                try? await connect()
+                do {
+                    try await connect()
+                } catch {
+                    // The far end is gone, not just this one command:
+                    // say so, so the hub reconnects and reports why
+                    // instead of counting it as the rig not answering.
+                    group.cancelAll()
+                    throw RigctldError.connectionLost
+                }
                 group.cancelAll()
                 throw error
             } catch let error as RigctldError {
@@ -1103,7 +1143,14 @@ private final class ContinuationGuard: @unchecked Sendable {
 public enum RigctldError: Error, Equatable {
     case notConnected
     case badResponse
+    /// No answer from the host at all within the connect timeout — the
+    /// computer is off, or not on this network/tailnet.
     case connectTimedOut
+    /// The host answered, but nothing listens on the port: rigctld isn't
+    /// running there.
+    case connectionRefused
+    /// The host name doesn't resolve.
+    case hostNotFound
     case rawCommandTimedOut
     /// A hamlib verb (`send`/`queryOrError`) got no reply within
     /// `hamlibReplyTimeout`; the client has already reconnected.
@@ -1135,6 +1182,10 @@ extension RigctldError: LocalizedError {
             String(localized: "rigctldError.badResponse", bundle: .module)
         case .connectTimedOut:
             String(localized: "rigctldError.connectTimedOut", bundle: .module)
+        case .connectionRefused:
+            String(localized: "rigctldError.connectionRefused", bundle: .module)
+        case .hostNotFound:
+            String(localized: "rigctldError.hostNotFound", bundle: .module)
         case .rawCommandTimedOut, .replyTimedOut:
             String(localized: "rigctldError.timedOut", bundle: .module)
         case .connectionLost:
@@ -1154,6 +1205,10 @@ extension RigctldError: LocalizedError {
             "rigctld sent a reply the app didn't expect."
         case .connectTimedOut:
             "Couldn't reach rigctld (the connection timed out)."
+        case .connectionRefused:
+            "Nothing is listening on rigctld's port: rigctld isn't running."
+        case .hostNotFound:
+            "rigctld's host name couldn't be found."
         case .rawCommandTimedOut, .replyTimedOut:
             "rigctld didn't answer in time. If this keeps happening, the rig may be off or its USB connection to the computer running rigctld may have dropped."
         case .connectionLost:

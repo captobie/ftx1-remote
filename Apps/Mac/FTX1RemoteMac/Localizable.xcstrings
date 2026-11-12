@@ -1,6 +1,328 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "connectionProblem.cantReachRigctld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld nicht erreichbar."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't reach rigctld."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede contactar con rigctld."
+          }
+        }
+      }
+    },
+    "connectionProblem.connectionLost" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbindung zu rigctld verloren. Neu verbinden…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lost the connection to rigctld. Reconnecting…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se perdió la conexión con rigctld. Reconectando…"
+          }
+        }
+      }
+    },
+    "connectionProblem.hostNotFound %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ nicht gefunden. Ist Tailscale auf diesem Mac verbunden?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't find %@. Is Tailscale connected on this Mac?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se encuentra %@. ¿Está Tailscale conectado en este Mac?"
+          }
+        }
+      }
+    },
+    "connectionProblem.hostNotFound.advice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Name lässt sich nicht auflösen. Prüfen, ob Tailscale auf diesem Mac verbunden ist, und den Hostnamen unter Einstellungen → rigctld."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The host name doesn't resolve. Check that Tailscale is connected on this Mac, and the host name in Settings → rigctld."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El nombre no se resuelve. Comprobar que Tailscale está conectado en este Mac y el nombre en Ajustes → rigctld."
+          }
+        }
+      }
+    },
+    "connectionProblem.hostUnreachable %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ nicht erreichbar. Der Pi ist vielleicht aus oder nicht im Tailnet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't reach %@. The Pi may be off or off the tailnet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede contactar con %@. La Pi puede estar apagada o fuera de la tailnet."
+          }
+        }
+      }
+    },
+    "connectionProblem.hostUnreachable.advice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Rechner antwortet überhaupt nicht. Stromversorgung und Netzwerk prüfen, und ob Tailscale dort und auf diesem Mac verbunden ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No answer from that computer at all. Check its power and network, and that Tailscale is connected on it and on this Mac."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ese ordenador no responde en absoluto. Comprobar su alimentación y su red, y que Tailscale está conectado en él y en este Mac."
+          }
+        }
+      }
+    },
+    "connectionProblem.rigNotResponding" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld läuft, aber das Funkgerät antwortet nicht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld is running, but the radio isn't answering."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld está en marcha, pero el equipo no responde."
+          }
+        }
+      }
+    },
+    "connectionProblem.rigNotResponding.advice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stromversorgung des Geräts und sein USB-Kabel zu diesem Mac prüfen. Nach dem Neueinstecken trennen und neu verbinden, um rigctld neu zu starten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check the radio's power and its USB cable to this Mac. If it was replugged, Disconnect and Connect again to restart rigctld."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprobar la alimentación del equipo y su cable USB a este Mac. Si se volvió a enchufar, desconectar y conectar de nuevo para reiniciar rigctld."
+          }
+        }
+      }
+    },
+    "connectionProblem.rigNotRespondingOn %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld läuft auf %@, aber das Funkgerät antwortet nicht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld on %@ is running, but the radio isn't answering."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld está en marcha en %@, pero el equipo no responde."
+          }
+        }
+      }
+    },
+    "connectionProblem.rigNotRespondingOn.advice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stromversorgung des Geräts und sein USB-Kabel zum Pi prüfen. Unterspannung am Pi kann den USB-Anschluss des Geräts trennen: vcgencmd get_throttled sollte 0x0 zeigen. Gerät neu einstecken oder aus- und einschalten, dann rigctld auf dem Pi neu starten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check the radio's power and its USB cable to the Pi. Pi under-voltage can drop the radio's USB: vcgencmd get_throttled should read 0x0. Replug or power-cycle the radio, then restart rigctld on the Pi."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprobar la alimentación del equipo y su cable USB a la Pi. Una tensión baja en la Pi puede desconectar el USB del equipo: vcgencmd get_throttled debería indicar 0x0. Volver a enchufar o apagar y encender el equipo y reiniciar rigctld en la Pi."
+          }
+        }
+      }
+    },
+    "connectionProblem.rigctldNotRunning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld läuft nicht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld isn't running."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld no está en marcha."
+          }
+        }
+      }
+    },
+    "connectionProblem.rigctldNotRunning.advice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Am rigctld-Port dieses Macs lauscht nichts. Einstellungen → rigctld prüfen, dann trennen und neu verbinden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing listens on rigctld's port on this Mac. Check Settings → rigctld, then Disconnect and Connect again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada escucha en el puerto de rigctld en este Mac. Comprobar Ajustes → rigctld y luego desconectar y volver a conectar."
+          }
+        }
+      }
+    },
+    "connectionProblem.rigctldNotRunningOn %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ist erreichbar, aber rigctld läuft dort nicht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is up, but rigctld isn't running on it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ responde, pero rigctld no está en marcha en ella."
+          }
+        }
+      }
+    },
+    "connectionProblem.rigctldNotRunningOn.advice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Rechner antwortet, aber an Port 4532 lauscht nichts. Auf dem Pi: sudo systemctl restart rigctld, dann journalctl -u rigctld für den Grund."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The computer answers, but nothing listens on port 4532. On the Pi: sudo systemctl restart rigctld, then journalctl -u rigctld to see why it stopped."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El ordenador responde, pero nada escucha en el puerto 4532. En la Pi: sudo systemctl restart rigctld y luego journalctl -u rigctld para ver por qué se detuvo."
+          }
+        }
+      }
+    },
     "" : {
 
     },

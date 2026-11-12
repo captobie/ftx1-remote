@@ -25,11 +25,16 @@ import os
 ///    is what the on/off switch controls.
 @MainActor
 final class HubService: ObservableObject {
+    /// `.connected` means the rig itself is answering, not just that the
+    /// TCP connection to rigctld is up: a rig that stops answering (its USB
+    /// dropped behind a still-running rigctld) is `.failed(.rigNotResponding)`
+    /// while the poll loop keeps trying, and `.connected` again once it
+    /// answers. See `RigLinkProblem` for the other failures.
     enum ConnectionState: Equatable {
         case disconnected
         case connecting
         case connected
-        case failed(String)
+        case failed(RigLinkProblem)
     }
 
     @Published private(set) var rigState = RigState(transmitEnabled: RigctldSettings.transmitEnabled) {
@@ -2235,10 +2240,14 @@ final class HubService: ObservableObject {
         var isFreshStart = isFreshStart
         let startupDeadline = ContinuousClock.now + startupGracePeriod
         while !Task.isCancelled {
-            connectionState = .connecting
+            // A retry keeps showing why the last attempt failed, rather
+            // than flashing "connecting" every few seconds over it.
+            if case .failed = connectionState {} else { connectionState = .connecting }
             do {
                 try await rigctld.connect()
-                connectionState = .connected
+                // rigctld is up; `.connected` waits for the rig to answer
+                // (`pollLoop`). A rig already reported silent stays so.
+                if connectionState != .failed(.rigNotResponding) { connectionState = .connecting }
                 startAudio()
                 beginBackgroundActivity()
                 try await pollLoop()
@@ -2259,8 +2268,9 @@ final class HubService: ObservableObject {
                         subAudioPlayback.stop()
                         endBackgroundActivity()
                         scopeFrames.clear()
-                        Self.connectionLogger.error("rigctld connection loop failed: \(String(describing: error), privacy: .public)")
-                        connectionState = .failed(error.localizedDescription)
+                        let problem = RigLinkProblem(error: error)
+                        Self.connectionLogger.error("rigctld connection loop failed: \(String(describing: error), privacy: .public) (\(String(describing: problem), privacy: .public))")
+                        connectionState = .failed(problem)
                     }
                 }
             }
@@ -2284,6 +2294,7 @@ final class HubService: ObservableObject {
         // app not reading them at all. Also right on a reconnect: anything
         // could have changed while the link was down.
         var primeSlowTier = true
+        var rigResponse = RigResponseMonitor()
         let lane = Task { await frequencyLane() }
         defer { lane.cancel() }
         while !Task.isCancelled {
@@ -2293,7 +2304,27 @@ final class HubService: ObservableObject {
                 continue
             }
             let tickStart = ContinuousClock.now
-            try await timed("fast") { try await refreshFastTier() }
+            let answered = try await timed("fast") { try await refreshFastTier() }
+            switch rigResponse.record(answered: answered) {
+            case .answering:
+                if connectionState == .failed(.rigNotResponding) {
+                    Self.connectionLogger.notice("the rig is answering again")
+                    // Anything could have changed while it was gone.
+                    primeSlowTier = true
+                }
+                connectionState = .connected
+            case .notResponding:
+                Self.connectionLogger.error("rigctld is up, but the rig hasn't answered \(rigResponse.threshold) main-frequency reads in a row")
+                connectionState = .failed(.rigNotResponding)
+            case nil:
+                break
+            }
+            guard answered else {
+                // Every other read would wait out its own timeout too; just
+                // keep asking for the frequency until the rig is back.
+                try await Task.sleep(for: pollInterval)
+                continue
+            }
             if primeSlowTier {
                 primeSlowTier = false
                 slowTierCursor = 0
@@ -2324,7 +2355,7 @@ final class HubService: ObservableObject {
     private func frequencyLane() async {
         while !Task.isCancelled {
             let start = ContinuousClock.now
-            if rigState.vfoMemoryMode != .memory, !isMemoryScanActive {
+            if connectionState == .connected, rigState.vfoMemoryMode != .memory, !isMemoryScanActive {
                 let generation = commandGeneration
                 frequencyReadSerial += 1
                 let read = frequencyReadSerial
@@ -2349,13 +2380,15 @@ final class HubService: ObservableObject {
         }
     }
 
-    private func timed(_ label: String, _ body: () async throws -> Void) async rethrows {
+    @discardableResult
+    private func timed<T>(_ label: String, _ body: () async throws -> T) async rethrows -> T {
         let start = ContinuousClock.now
         let readsBefore = await rigctld.roundTripCount
-        try await body()
+        let result = try await body()
         let ms = (ContinuousClock.now - start).milliseconds
         let reads = await rigctld.roundTripCount - readsBefore
         Self.pollTimingLogger.debug("\(label, privacy: .public) \(ms, privacy: .public) ms, \(reads, privacy: .public) reads")
+        return result
     }
 
     /// Fast, VFO-critical half of the poll cycle — runs every `pollInterval`
@@ -2373,7 +2406,11 @@ final class HubService: ObservableObject {
     /// slow tier specifically so `lastVFOState` tracking below never races a
     /// stale `vfoMemoryMode`), at roughly a dozen round trips instead of
     /// ~30, and broadcasts on its own rather than waiting for the slow tier.
-    private func refreshFastTier() async throws {
+    /// Returns false, publishing nothing, when the rig didn't answer MAIN's
+    /// frequency read ("FA") — `pollLoop` counts those to tell a silent rig
+    /// apart from one dropped reply.
+    @discardableResult
+    private func refreshFastTier() async throws -> Bool {
         // This tier's reads are captured one at a time across its sequential
         // round trips (below), so a command can land via `applyOptimistically`
         // partway through — see the `commandGeneration` guard right before this
@@ -2402,7 +2439,7 @@ final class HubService: ObservableObject {
         // dance.
         let frequencyHz: Int
         frequencyReadSerial += 1
-        var frequencyRead = frequencyReadSerial
+        let frequencyRead = frequencyReadSerial
         do {
             frequencyHz = try await rigctld.getFrequency()
         } catch let error as RigctldError where error == .connectionLost || error == .notConnected {
@@ -2417,8 +2454,12 @@ final class HubService: ObservableObject {
             // reconnects" loop, not just the initial detection.
             throw error
         } catch {
-            frequencyHz = rigState.frequencyHz
-            frequencyRead = 0
+            // No answer, or not a frequency. Until 2026-11-12 this fell
+            // back to the last frequency and read the rest of the tier,
+            // which with the rig's USB gone meant ~12 more reads each
+            // waiting out its timeout, every tick, while the window kept
+            // showing "Connected" and the last values.
+            return false
         }
         // Each box is read by side — MAIN with P1 0, SUB with P1 1 / `f Sub`
         // — not by hamlib's active VFO (`v`). Until 2026-10-06 the mode and
@@ -2513,7 +2554,7 @@ final class HubService: ObservableObject {
         // partially-stale snapshot; the next poll tick starts only after
         // the command has already landed, so it reads the true value
         // without racing.
-        guard commandGeneration == generationAtStart else { return }
+        guard commandGeneration == generationAtStart else { return true }
 
         // Scanning: the rig moved channels while the reads above ran, so
         // the frequency/channel/mode they caught are a random sample that
@@ -2526,7 +2567,7 @@ final class HubService: ObservableObject {
             rigState.ptt = radioInfo.isTransmitting
             if scanSide == .main {
                 await server.broadcast(rigState)
-                return
+                return true
             }
             secondaryFrequencyHz = nil
             secondaryMode = nil
@@ -2620,6 +2661,7 @@ final class HubService: ObservableObject {
         }
         lastFastPublish = now
         await server.broadcast(rigState)
+        return true
     }
 
     /// One slow-tier read: performs its CAT read(s) and returns what

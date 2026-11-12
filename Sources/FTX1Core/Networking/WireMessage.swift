@@ -1022,7 +1022,7 @@ extension RigctldError {
         switch self {
         case .notConnected: .rigctldNotConnected
         case .badResponse: .rigctldBadResponse
-        case .connectTimedOut: .rigctldUnreachable
+        case .connectTimedOut, .connectionRefused, .hostNotFound: .rigctldUnreachable
         case .rawCommandTimedOut, .replyTimedOut: .rigctldTimeout
         case .connectionLost: .rigctldConnectionLost
         case .keyerMemoryRejected: .keyerRejected
