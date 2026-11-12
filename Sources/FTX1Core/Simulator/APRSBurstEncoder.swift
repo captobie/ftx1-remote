@@ -23,66 +23,18 @@ enum APRSBurstEncoder {
 
     /// The frame's bytes, FCS included (no flags).
     static func frame(_ packet: SimulatedAPRSPacket) -> [UInt8] {
-        var bytes = address("APZFTX", ssid: 0, last: false)
-        bytes += address(packet.source, ssid: packet.sourceSSID, last: false)
-        bytes += address("WIDE1", ssid: 1, last: true)
-        bytes += [0x03, 0xF0] // UI frame, no layer 3
-        bytes += Array(packet.info.utf8)
-        let fcs = AX25FCS.compute(bytes)
-        bytes += [UInt8(fcs & 0xFF), UInt8(fcs >> 8)]
-        return bytes
+        AX25Encoder.frame(destination: ("APZFTX", 0), source: (packet.source, packet.sourceSSID),
+                          path: [("WIDE1", 1)], info: Array(packet.info.utf8))
     }
 
     /// Line bits, LSB first: flags, the bit-stuffed frame, flags.
     static func lineBits(_ packet: SimulatedAPRSPacket) -> [Bool] {
-        let flag = bits(of: 0x7E)
-        var bits: [Bool] = []
-        for _ in 0..<leadFlags { bits += flag }
-        var ones = 0
-        for bit in frame(packet).flatMap(Self.bits(of:)) {
-            bits.append(bit)
-            ones = bit ? ones + 1 : 0
-            if ones == 5 {
-                bits.append(false)
-                ones = 0
-            }
-        }
-        for _ in 0..<tailFlags { bits += flag }
-        return bits
+        AX25Encoder.lineBits(frame: frame(packet), leadFlags: leadFlags, tailFlags: tailFlags)
     }
 
     /// The burst's audio at `sampleRate`.
     static func render(_ packet: SimulatedAPRSPacket, sampleRate: Double) -> [Float] {
-        let samplesPerBit = sampleRate / 1200
-        var samples: [Float] = []
-        samples.reserveCapacity(Int(Double(lineBits(packet).count) * samplesPerBit) + 1)
-        // NRZI: a 0 is a change of tone, a 1 none.
-        var mark = true
-        var phase = 0.0
-        var bitEnd = 0.0
-        var index = 0
-        for bit in lineBits(packet) {
-            if !bit { mark.toggle() }
-            let step = 2 * Double.pi * (mark ? 1200 : 2200) / sampleRate
-            bitEnd += samplesPerBit
-            while Double(index) < bitEnd {
-                samples.append(amplitude * Float(sin(phase)))
-                phase += step
-                index += 1
-            }
-            phase = phase.truncatingRemainder(dividingBy: 2 * .pi)
-        }
-        return samples
-    }
-
-    private static func address(_ callsign: String, ssid: Int, last: Bool) -> [UInt8] {
-        var characters = Array(callsign.uppercased().utf8.prefix(6))
-        while characters.count < 6 { characters.append(UInt8(ascii: " ")) }
-        return characters.map { $0 << 1 } + [0x60 | UInt8(ssid & 0x0F) << 1 | (last ? 1 : 0)]
-    }
-
-    private static func bits(of byte: UInt8) -> [Bool] {
-        (0..<8).map { byte >> $0 & 1 == 1 }
+        AX25Encoder.afsk(lineBits: lineBits(packet), sampleRate: sampleRate, amplitude: amplitude)
     }
 }
 

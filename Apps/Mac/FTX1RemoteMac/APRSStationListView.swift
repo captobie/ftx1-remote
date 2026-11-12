@@ -11,8 +11,17 @@ struct APRSStationListView: View {
     @State private var searchText = ""
     @State private var heardWindow: APRSHeardWindow = .any
     @State private var positionOnly = false
+    @State private var compose: APRSComposeTarget?
 
     var body: some View {
+        VStack(spacing: 0) {
+            stationTable
+            APRSTransmitBar()
+        }
+        .sheet(item: $compose) { target in APRSComposeSheet(to: target.to) }
+    }
+
+    private var stationTable: some View {
         Table(filteredStations) {
             TableColumn("common.callsign") { station in
                 Text(station.callsign).fontDesign(.monospaced)
@@ -31,6 +40,11 @@ struct APRSStationListView: View {
             }
             TableColumn("common.lastHeard") { station in
                 Text(station.lastHeardAt, style: .relative)
+            }
+        }
+        .contextMenu(forSelectionType: APRSStation.ID.self) { ids in
+            if let id = ids.first {
+                Button("aprsCompose.messageTo \(id)") { compose = APRSComposeTarget(to: id) }
             }
         }
         .navigationTitle("aprsStationList.aprsStations")

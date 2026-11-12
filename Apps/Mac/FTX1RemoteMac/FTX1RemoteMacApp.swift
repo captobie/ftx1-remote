@@ -31,6 +31,10 @@ struct FTX1RemoteMacApp: App {
                     Button("app.map") {
                         openWindow(id: "aprs-map")
                     }
+                    Divider()
+                    Button("aprsTransmit.beaconNow") {
+                        appDelegate.hub.aprsMessaging.beaconNow()
+                    }
                 }
                 Divider()
                 Button("FT8") {
@@ -64,11 +68,15 @@ struct FTX1RemoteMacApp: App {
         Window("app.aprsStations", id: "aprs-stations") {
             APRSStationListView()
                 .environmentObject(appDelegate.hub.aprsStore)
+                .environmentObject(appDelegate.hub.aprsMessaging)
+                .environmentObject(appDelegate.hub.aprsTransmitter)
                 .appTheme()
         }
         Window("app.aprsMessages", id: "aprs-messages") {
             APRSMessageListView()
                 .environmentObject(appDelegate.hub.aprsStore)
+                .environmentObject(appDelegate.hub.aprsMessaging)
+                .environmentObject(appDelegate.hub.aprsTransmitter)
                 .appTheme()
         }
         // Opened via Tools → APRS → Map above, not from

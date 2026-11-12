@@ -140,6 +140,10 @@ public struct AX25FrameDecoder {
         public internal(set) var crcFailures = 0
         public internal(set) var addressParseFailures = 0
         public internal(set) var framesDecoded = 0
+        /// Flags that directly follow another — a preamble or the gap
+        /// between frames, rare in noise (16 fixed bits). What
+        /// `APRSDecoder`'s carrier detect counts.
+        public internal(set) var backToBackFlags = 0
     }
 
     /// Bounds how much unsynced audio (no flag found yet) accumulates —
@@ -166,6 +170,9 @@ public struct AX25FrameDecoder {
             }
         }
         stats.flagsFound += flagStarts.count
+        for i in flagStarts.indices.dropFirst() where flagStarts[i] - flagStarts[i - 1] == 8 {
+            stats.backToBackFlags += 1
+        }
 
         guard flagStarts.count >= 2 else {
             if bits.count > Self.maxUnsyncedBits {

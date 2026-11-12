@@ -70,9 +70,39 @@ public final class APRSStore: ObservableObject {
         persist()
     }
 
-    public func recordMessage(from: String, to: String, text: String, messageID: String?, receivedAt: Date, source: APRSSource) {
+    /// A message with an id that's already listed (same sender, addressee,
+    /// id and text within `duplicateWindow`) is a retry of one already
+    /// heard, or its digipeated copy: not listed again. Returns whether it
+    /// was added.
+    @discardableResult
+    public func recordMessage(from: String, to: String, text: String, messageID: String?, receivedAt: Date, source: APRSSource) -> Bool {
+        if let messageID, messages.contains(where: {
+            $0.delivery == nil && $0.from == from && $0.to == to && $0.messageID == messageID && $0.text == text
+                && receivedAt.timeIntervalSince($0.receivedAt) < Self.duplicateWindow
+        }) {
+            return false
+        }
         messages.append(APRSMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: receivedAt, source: source))
         trimMessages()
+        persist()
+        return true
+    }
+
+    public static let duplicateWindow: TimeInterval = 30 * 60
+
+    /// One of this station's own messages (`delivery` set).
+    public func recordOutgoing(_ message: APRSMessage) {
+        messages.append(message)
+        trimMessages()
+        persist()
+    }
+
+    /// Changes an own message's delivery state; nothing if it's gone.
+    public func updateDelivery(id: String, _ change: (inout APRSDelivery) -> Void) {
+        guard let index = messages.firstIndex(where: { $0.id == id }), var delivery = messages[index].delivery else { return }
+        change(&delivery)
+        guard delivery != messages[index].delivery else { return }
+        messages[index].delivery = delivery
         persist()
     }
 

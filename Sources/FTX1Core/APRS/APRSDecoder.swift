@@ -21,6 +21,11 @@ public final class APRSDecoder: @unchecked Sendable {
     public var onMessage: ((_ from: String, _ to: String, _ text: String, _ messageID: String?) -> Void)?
 
     private let queue = DispatchQueue(label: "com.ftx1remote.aprs-decoder")
+    /// `ProcessInfo.systemUptime` of the last packet activity heard
+    /// (back-to-back flags or a decoded frame) — the transmitter's carrier
+    /// detect. Written on `queue`, read from the main actor.
+    private let lastActivity = OSAllocatedUnfairLock<TimeInterval?>(initialState: nil)
+    private var lastBackToBackFlags = 0
     private var demodulator: AFSKDemodulator?
     private var demodulatorSampleRate: Double?
     private var frameDecoder = AX25FrameDecoder()
@@ -44,6 +49,14 @@ public final class APRSDecoder: @unchecked Sendable {
     /// "com.ftx1remote.ipad"); the category is always "aprs-decoder".
     public init(logSubsystem: String) {
         logger = Logger(subsystem: logSubsystem, category: "aprs-decoder")
+    }
+
+    /// Whether packet audio was heard in the last `seconds` — only meaningful
+    /// while this decoder is fed (APRS decoding on, the receiver on the
+    /// APRS frequency).
+    public func heardActivity(within seconds: TimeInterval) -> Bool {
+        guard let last = lastActivity.withLock({ $0 }) else { return false }
+        return ProcessInfo.processInfo.systemUptime - last < seconds
     }
 
     public func process(samples: [Float], sampleRate: Double) {
@@ -74,6 +87,7 @@ public final class APRSDecoder: @unchecked Sendable {
             // either way.
             demodulator = AFSKDemodulator(sampleRate: sampleRate)
             frameDecoder = AX25FrameDecoder()
+            lastBackToBackFlags = 0
             demodulatorSampleRate = sampleRate
             heartbeatThreshold = Int(sampleRate * 5)
             let previousDescription = previous.map { String(format: "%.3f", $0) } ?? "none"
@@ -82,6 +96,11 @@ public final class APRSDecoder: @unchecked Sendable {
 
         guard let lineBits = demodulator?.process(samples: samples) else { return }
         let frames = frameDecoder.process(bits: lineBits)
+        if !frames.isEmpty || frameDecoder.stats.backToBackFlags != lastBackToBackFlags {
+            lastBackToBackFlags = frameDecoder.stats.backToBackFlags
+            let now = ProcessInfo.processInfo.systemUptime
+            lastActivity.withLock { $0 = now }
+        }
         for frame in frames {
             logger.info("frame decoded from \(frame.source.displayString, privacy: .public)")
             handle(frame: frame)

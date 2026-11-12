@@ -108,6 +108,54 @@
           }
         }
       }
+    },
+    "NSLocationUsageDescription" : {
+      "comment" : "Location permission prompt",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote trägt auf Anfrage die Position der APRS-Bake ein."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote fills in your APRS beacon position when you ask it to."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote rellena la posición de la baliza APRS cuando se solicita."
+          }
+        }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription" : {
+      "comment" : "Location permission prompt",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote trägt auf Anfrage die Position der APRS-Bake ein."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote fills in your APRS beacon position when you ask it to."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote rellena la posición de la baliza APRS cuando se solicita."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

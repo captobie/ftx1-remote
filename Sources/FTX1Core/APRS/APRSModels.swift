@@ -67,6 +67,31 @@ public struct APRSStation: Codable, Sendable, Identifiable, Equatable {
     }
 }
 
+/// How one of this station's own messages is doing — nil on received
+/// messages. Sent until acked, up to `APRSMessaging.retryDelays.count`
+/// times.
+public struct APRSDelivery: Codable, Sendable, Equatable {
+    public enum State: String, Codable, Sendable {
+        case pending
+        case acked
+        case rejected
+        case failed
+        case cancelled
+    }
+
+    public var state: State
+    /// Transmissions so far.
+    public var attempts: Int
+    /// Why the last attempt didn't go out, or why it failed.
+    public var note: String?
+
+    public init(state: State, attempts: Int = 0, note: String? = nil) {
+        self.state = state
+        self.attempts = attempts
+        self.note = note
+    }
+}
+
 /// A decoded APRS message packet (data type identifier `:`). Not deduped
 /// or updated in place like `APRSStation` — every received message is its
 /// own list entry, so `id` is a fresh UUID rather than a derived key.
@@ -78,6 +103,9 @@ public struct APRSMessage: Codable, Sendable, Identifiable, Equatable {
     public var messageID: String?
     public var receivedAt: Date
     public var source: APRSSource
+    /// Set on this station's own messages (sent from M.LIST), nil on
+    /// received ones. `receivedAt` is then when it was written.
+    public var delivery: APRSDelivery?
 
     public init(
         id: String = UUID().uuidString,
@@ -86,7 +114,8 @@ public struct APRSMessage: Codable, Sendable, Identifiable, Equatable {
         text: String,
         messageID: String? = nil,
         receivedAt: Date,
-        source: APRSSource = .main
+        source: APRSSource = .main,
+        delivery: APRSDelivery? = nil
     ) {
         self.id = id
         self.from = from
@@ -95,6 +124,7 @@ public struct APRSMessage: Codable, Sendable, Identifiable, Equatable {
         self.messageID = messageID
         self.receivedAt = receivedAt
         self.source = source
+        self.delivery = delivery
     }
 
     /// See `APRSStation.init(from:)` — same backward-compatibility reasoning.
@@ -107,5 +137,7 @@ public struct APRSMessage: Codable, Sendable, Identifiable, Equatable {
         messageID = try container.decodeIfPresent(String.self, forKey: .messageID)
         receivedAt = try container.decode(Date.self, forKey: .receivedAt)
         source = try container.decodeIfPresent(APRSSource.self, forKey: .source) ?? .main
+        delivery = try container.decodeIfPresent(APRSDelivery.self, forKey: .delivery)
+        delivery = try container.decodeIfPresent(APRSDelivery.self, forKey: .delivery)
     }
 }

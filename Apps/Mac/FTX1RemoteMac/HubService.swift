@@ -186,6 +186,7 @@ final class HubService: ObservableObject {
             rigState.transmitEnabled = transmitEnabled
             if !transmitEnabled {
                 cwSender.stop()
+                aprsTransmitter.stopAll(reason: TransmitGate.blockReason(transmitEnabled: false, state: rigState) ?? "")
                 if rigState.ptt { send(.setPTT(false)) }
                 if rigState.moxEnabled == true { send(.setMox(false)) }
             }
@@ -349,6 +350,16 @@ final class HubService: ObservableObject {
     }()
     /// The main window's TUNE button: a keyed tone for an external auto-tuner.
     lazy var tuneTone = TuneTone(hub: self)
+    /// APRS packets out: beacons, messages, acks (`HubService+APRSTransmitLink`).
+    lazy var aprsTransmitter: APRSTransmitter = {
+        let transmitter = APRSTransmitter(link: self, logSubsystem: "com.ftx1remote.mac")
+        transmitter.onOutcome = { [weak self] packet, outcome in self?.aprsMessaging.handle(packet, outcome) }
+        return transmitter
+    }()
+    /// Beacon schedule, own messages and their retries, auto-acks. Its own
+    /// object (the M.LIST/S.LIST windows observe it), not `@Published` here.
+    lazy var aprsMessaging = APRSMessaging(store: aprsStore, transmitter: aprsTransmitter,
+                                           logSubsystem: "com.ftx1remote.mac")
     /// Tools → RTTY/PSK's decoder, fed like `cwReceiver` (both taps
     /// unconditionally; it keeps the selected channel and drops everything
     /// while its window is closed). `lazy` to register with `webSDRSource`.
@@ -681,14 +692,14 @@ final class HubService: ObservableObject {
             self?.aprsStore.recordStation(callsign: callsign, latitude: latitude, longitude: longitude, symbolTable: symbolTable, symbolCode: symbolCode, comment: comment, heardAt: Date(), source: .main)
         }
         aprsDecoder.onMessage = { [weak self] from, to, text, messageID in
-            self?.aprsStore.recordMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: Date(), source: .main)
+            self?.receivedAPRSMessage(from: from, to: to, text: text, messageID: messageID, source: .main)
         }
         aprsDecoderSub.onStation = { [weak self] callsign, latitude, longitude, symbolTable, symbolCode, comment in
             self?.aprsLastCallsignHeardSub = (callsign, Date())
             self?.aprsStore.recordStation(callsign: callsign, latitude: latitude, longitude: longitude, symbolTable: symbolTable, symbolCode: symbolCode, comment: comment, heardAt: Date(), source: .sub)
         }
         aprsDecoderSub.onMessage = { [weak self] from, to, text, messageID in
-            self?.aprsStore.recordMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: Date(), source: .sub)
+            self?.receivedAPRSMessage(from: from, to: to, text: text, messageID: messageID, source: .sub)
         }
         for (coordinator, store) in [(ft8Coordinator, ft8Store), (ft4Coordinator, ft4Store)] {
             coordinator.dialFrequencyProvider = { [weak self] in
@@ -763,6 +774,7 @@ final class HubService: ObservableObject {
             }
         }
         straightKey.start()
+        aprsMessaging.start()
         wavelogRadio.start()
         wavelogTuner.applySettings()
         Task { [weak self, commandQueue] in
@@ -840,13 +852,66 @@ final class HubService: ObservableObject {
         }
     }
 
+    /// A decoded message from either receiver: acks/auto-acks via
+    /// `aprsMessaging`, then listed — except our own (digipeated copies of
+    /// what we sent; M.LIST already has them) and acks/rejects addressed to
+    /// us (shown as the sent message's delivery state instead).
+    private func receivedAPRSMessage(from: String, to: String, text: String, messageID: String?, source: APRSSource) {
+        aprsMessaging.handleIncoming(from: from, to: to, text: text, messageID: messageID)
+        if let myCall = APRSTransmitSettings.sourceCall {
+            if from.uppercased() == myCall { return }
+            if to.uppercased() == myCall, messageID == nil, APRSOutgoing.reply(text: text, messageID: nil) != nil { return }
+        }
+        aprsStore.recordMessage(from: from, to: to, text: text, messageID: messageID, receivedAt: Date(), source: source)
+    }
+
+    /// Keys for an APRS packet, the TX side first when it must move. One
+    /// task, so the queue gets them in this order; not through `send(_:)`,
+    /// whose gate would judge the side the rig is still on —
+    /// `APRSTransmitPlanner` already judged the side it's moving to.
+    func keyForAPRS(switchTo side: FilterSide?) {
+        var commands: [RigCommand] = []
+        if let side { commands.append(.setTXSide(side)) }
+        commands.append(.setPTT(true))
+        enqueueAPRSKeying(commands)
+    }
+
+    /// Unkeys, then the TX side back. "Off" needs no gate.
+    func unkeyForAPRS(restoreSide: FilterSide?) {
+        var commands: [RigCommand] = [.setPTT(false)]
+        if let restoreSide { commands.append(.setTXSide(restoreSide)) }
+        enqueueAPRSKeying(commands)
+    }
+
+    /// Every APRS key/unkey batch reaches the queue whole and in call order:
+    /// each waits for the one before. Two independent tasks interleaved
+    /// (seen 2026-11-11: "FT1", "TX0", "FT0", then "TX1" — keyed on MAIN's
+    /// HF frequency until the License guard unkeyed it).
+    private func enqueueAPRSKeying(_ commands: [RigCommand]) {
+        let previous = aprsKeyingChain
+        aprsKeyingChain = Task { [commandQueue] in
+            await previous?.value
+            for command in commands { await commandQueue.enqueue(command) }
+        }
+    }
+
+    /// See `enqueueAPRSKeying`.
+    private var aprsKeyingChain: Task<Void, Never>?
+
+    /// The APRS transmitter's carrier detect: packet audio heard on that
+    /// receiver's decoder (only fed while APRS decoding is on and the
+    /// receiver is on the APRS frequency).
+    func aprsDecoderHeardActivity(side: FilterSide, within seconds: TimeInterval) -> Bool {
+        (side == .main ? aprsDecoder : aprsDecoderSub).heardActivity(within: seconds)
+    }
+
     /// One frame of a remote client's microphone, already checked to come
     /// from the PTT holder. Dropped unless the rig is keyed by the app —
     /// a press the transmit gate refused keys nothing, so there's nothing
     /// to send audio to — and while the RTTY/PSK window is sending (the
     /// two would mix).
     private func handleTXAudio(_ pcm: Data) {
-        guard !digiSender.isTransmitting, !tuneTone.isTuning else { return }
+        guard !digiSender.isTransmitting, !tuneTone.isTuning, !aprsTransmitter.isTransmitting else { return }
         guard rigState.ptt else {
             // Unkeyed some other way (front panel, a poll): drop the sink.
             if txAudioRemote != nil || txAudioPlaybackRunning { endTXAudio() }
@@ -926,6 +991,8 @@ final class HubService: ObservableObject {
         // Unkeys while the rigctld link is still up.
         digiSender.stop()
         tuneTone.stop()
+        aprsMessaging.stop()
+        aprsTransmitter.stopAll(reason: "app quitting")
         wavelogRadio.stop()
         wavelogTuner.stop()
         stopRigctld()

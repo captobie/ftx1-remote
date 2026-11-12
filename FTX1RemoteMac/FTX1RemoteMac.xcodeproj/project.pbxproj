@@ -550,11 +550,14 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
+				ENABLE_RESOURCE_ACCESS_LOCATION = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "FTX1RemoteMac-Info.plist";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "FTX1 Remote needs to accept connections from your iPhone/iPad to control the radio remotely.";
+				INFOPLIST_KEY_NSLocationUsageDescription = "FTX1 Remote fills in your APRS beacon position when you ask it to.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FTX1 Remote fills in your APRS beacon position when you ask it to.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FTX1 Remote uses audio from the selected input device to draw a waterfall display of receive audio.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -587,11 +590,14 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
+				ENABLE_RESOURCE_ACCESS_LOCATION = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "FTX1RemoteMac-Info.plist";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "FTX1 Remote needs to accept connections from your iPhone/iPad to control the radio remotely.";
+				INFOPLIST_KEY_NSLocationUsageDescription = "FTX1 Remote fills in your APRS beacon position when you ask it to.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FTX1 Remote fills in your APRS beacon position when you ask it to.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "FTX1 Remote uses audio from the selected input device to draw a waterfall display of receive audio.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

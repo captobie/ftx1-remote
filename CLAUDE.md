@@ -2552,6 +2552,81 @@ browser (user decision, possible later). Transmit came the same day (see
   instead of greyed inside it, and Lookup sends only the call. See
   `Apps/Windows/README.md`'s "RTTY/PSK window".
 
+## APRS transmit (Mac, 2026-11-11; unit-tested, views checked in the built app, tested on the air by the user the same day)
+
+User request. Beacons, messages and acks from the Mac, as Bell 202 audio
+through the same TX audio path as RTTY/PSK (`routeTXAudio`: Settings →
+Audio's Transmit audio output in Local mode, the Pi's `ftx1-txaudio` in
+Remote mode). User decisions: beacon + messages + auto-ack; Beacon Now plus
+an optional interval (off by default); send on whichever receiver is on the
+APRS frequency; position from lat/lon in Settings.
+
+- **FTX1Core/APRS/**: `AX25Encoder` (addresses/paths as typed, UI frame +
+  FCS, flags + bit stuffing, NRZI, continuous-phase AFSK; Demo Mode's
+  `APRSBurstEncoder` now uses it), `APRSOutgoing` (`=` position with
+  ambiguity, `:ADDRESSEE:text{id`, acks, ack/rej/reply-ack `{MM}AA`
+  parsing, `APRSTransmitSettings` — `aprs.tx.*` keys, destination APZFTX),
+  `APRSTransmitter` (`APRSTransmitPlanner`, the `APRSTransmitLink`
+  protocol, the queue), `APRSMessaging` (beacon schedule, outbox, acks).
+  Tests: `APRSTransmitTests` — incl. a packet rendered at 8 kHz, upsampled
+  to 44.1 kHz and decoded by the app's own demodulator.
+- **Receiver choice** (`APRSTransmitPlanner`): MAIN or SUB on
+  `APRSSettings.frequencyHz` ± tolerance in FM or DATA-FM, the current TX
+  side first; SUB not in single-receive display; refused in split or while
+  scanning; then `TransmitGate` judged *as if* that side transmitted. If
+  the other side is needed, `HubService.keyForAPRS` queues "FT" then PTT in
+  one task (not through `send(_:)`, whose gate would judge the side the rig
+  is still on) and `unkeyForAPRS` PTT off then "FT" back.
+- **Switch bug, fixed the same day (found by the user's first beacon,
+  TX on MAIN at 14.093 USB, SUB on 144.390)**: the in-transmission check
+  judged `rigState`'s TX side, still MAIN until "FT1" landed, so the
+  License guardrail stopped the packet at once; and the key ("FT1", "TX1")
+  and unkey ("TX0", "FT0") went out as two independent tasks that
+  interleaved — the rig keyed on MAIN's HF frequency with no audio until
+  the License guard unkeyed it, and SUB was left as the TX side. Now
+  `aprsTransmitBlock(side:)` judges the planned receiver, and
+  `HubService.enqueueAPRSKeying` chains every batch behind the previous
+  one. Remaining small window: a slow-tier "FT" read started before the
+  switch and published after it makes the License guard unkey (a lost
+  beacon, never wrong keying). Rig-confirmed by the user the same day:
+  beacon out on SUB with TX on MAIN (14.093), TX back on MAIN after.
+- **One packet**: wait for a clear channel (no back-to-back flags or
+  decoded frame on that receiver's `APRSDecoder` for 1.5 s, at most 10 s —
+  only works with Decode APRS on; `AX25FrameDecoder.Stats.backToBackFlags`,
+  `APRSDecoder.heardActivity`), 0.1–0.5 s random delay, key, TXDELAY flags
+  (`aprs.tx.txDelayMs`, 400 ms default, covers the CAT key latency) +
+  frame + 3 flags at `aprs.tx.levelDb` (−6 dBFS), paced 250 ms ahead like
+  `DigiSender`, unkey after play-out. Acks jump the queue. Enable Transmit
+  off or the APRS switch off drops everything and unkeys.
+- **Messages**: ids 1…99999 (`aprs.tx.messageCounter`); stored in
+  `APRSStore` as `APRSMessage` with `delivery` (`APRSDelivery`: pending/
+  acked/rejected/failed/cancelled, attempts, note — optional, so older
+  history and iPads decode it). Sent up to 5 times (waits 30/60/120/240/
+  240 s); a blocked attempt doesn't count and is retried 30 s later; fails
+  after 15 min unsent. Pending ones from a previous run are marked failed
+  at launch. An "ackN"/"rejN" or reply-ack from the addressee settles it.
+- **Received** (`HubService.receivedAPRSMessage`): a message to our exact
+  call (SSID included) with an id is acked (`aprs.tx.autoAck`, default on;
+  same sender+id at most every 20 s). Not listed in M.LIST: our own
+  digipeated messages, and acks/rejects to us. `APRSStore.recordMessage`
+  now skips a repeat (same from/to/id/text within 30 min).
+- **UI**: Settings → APRS → Transmit (the tab scrolls in a plain
+  `ScrollView`: as a `.grouped` form it rebuilt itself on every settings
+  write, dropping the cursor out of the field being typed in — the user
+  couldn't enter a position; avoid `.grouped` for Settings tabs that write
+  as you type). Latitude/longitude are text fields ("." or ",") saved
+  whenever they parse; **Use This Mac's Location** (`MacLocation`, Core
+  Location, one fix, 20 s after permission is settled) fills them — the
+  Mac target now has `ENABLE_RESOURCE_ACCESS_LOCATION` and the
+  `NSLocation(WhenInUse)UsageDescription` strings (checked in the built
+  app: a fix arrived and was saved). A bottom
+  bar in S.LIST/M.LIST (Beacon Now, last outcome, next beacon, Sending);
+  Tools → APRS → Beacon Now; M.LIST New Message (compose sheet, 67
+  characters), Status column, right-click Reply / Stop Sending / Send Again;
+  S.LIST right-click Message.
+- **Not done / unverified**: TXDELAY in Local mode; Beacon Now and sending with transmit on; the iPad/
+  Windows (no transmit there).
+
 ## Logbook — MacLoggerDX (started 2026-10-07)
 
 Goal: log QSOs made with the CW window, and flag stations already worked.

@@ -1030,7 +1030,11 @@ private struct APRSSettingsTab: View {
         )
     }
 
+    /// Scrolls in a plain `ScrollView`: a `.grouped` form (which scrolls by
+    /// itself) rebuilt its rows on every settings write, dropping the
+    /// cursor out of the field being typed in and back to the top.
     var body: some View {
+        ScrollView {
         Form {
             Toggle("common.decodeAprs", isOn: $enabled)
             TextField("common.frequencyMHz", value: megahertz, format: FrequencyFormat.mhzField(fractionLength: 0...6))
@@ -1038,11 +1042,170 @@ private struct APRSSettingsTab: View {
             TextField("settings.aprsSettings.stationsToRetain", value: $maxStations, format: .number.grouping(.never))
             TextField("settings.aprsSettings.messagesToRetain", value: $maxMessages, format: .number.grouping(.never))
             Button("settings.aprsSettings.clearHistory") { showingClearConfirmation = true }
+            APRSTransmitSettingsSection()
         }
-        .padding(.top, 8)
+        .padding()
+        }
         .confirmationDialog("settings.aprsSettings.clearAllDecodedAprs", isPresented: $showingClearConfirmation, titleVisibility: .visible) {
             Button("common.clearHistory", role: .destructive) { hub.aprsStore.clearHistory() }
         }
+    }
+}
+
+/// Settings → APRS → Transmit: what beacons and messages carry and how
+/// they go out (`APRSTransmitSettings`). Applies at once.
+private struct APRSTransmitSettingsSection: View {
+    @AppStorage(APRSTransmitSettings.enabledKey) private var enabled = false
+    @AppStorage(APRSTransmitSettings.ssidKey) private var ssid = 0
+    @AppStorage(APRSTransmitSettings.ambiguityKey) private var ambiguity = 0
+    @AppStorage(APRSTransmitSettings.symbolKey) private var symbol = APRSTransmitSettings.defaultSymbol
+    @AppStorage(APRSTransmitSettings.commentKey) private var comment = ""
+    @AppStorage(APRSTransmitSettings.pathKey) private var path = APRSTransmitSettings.defaultPath
+    @AppStorage(APRSTransmitSettings.beaconMinutesKey) private var beaconMinutes = 0
+    @AppStorage(APRSTransmitSettings.autoAckKey) private var autoAck = true
+    @AppStorage(APRSTransmitSettings.levelDbKey) private var levelDb = APRSTransmitSettings.defaultLevelDb
+    @AppStorage(APRSTransmitSettings.txDelayMsKey) private var txDelayMs = APRSTransmitSettings.defaultTxDelayMs
+    @AppStorage(StationSettings.callsignKey) private var callsign = ""
+    /// Typed text, saved whenever it parses (a "." or "," decimal point).
+    /// Kept as text, set once here: a number field reformats while typing,
+    /// and loading in `onAppear` (re-run as the grouped form's rows scroll
+    /// back into view) wiped what had been typed.
+    @State private var latitudeText = Self.text(APRSTransmitSettings.latitude)
+    @State private var longitudeText = Self.text(APRSTransmitSettings.longitude)
+    @StateObject private var locator = MacLocation()
+
+    /// Common primary-table symbols; anything else can be typed.
+    private static let symbols: [(code: String, name: LocalizedStringKey)] = [
+        ("/-", "aprsSymbol.house"), ("/y", "aprsSymbol.yagi"), ("/>", "aprsSymbol.car"), ("/k", "aprsSymbol.truck"),
+        ("/R", "aprsSymbol.rv"), ("/[", "aprsSymbol.person"), ("/b", "aprsSymbol.bicycle"), ("/s", "aprsSymbol.boat"),
+        ("/'", "aprsSymbol.aircraft"), ("/;", "aprsSymbol.portable"),
+    ]
+
+    var body: some View {
+        Section("settings.aprsTransmit.title") {
+            Toggle("settings.aprsTransmit.enable", isOn: $enabled)
+            LabeledContent("settings.aprsTransmit.sentAs") {
+                if let call = sourceCall {
+                    Text(call).fontDesign(.monospaced)
+                } else {
+                    Text("settings.aprsTransmit.needCallsign").foregroundStyle(.red)
+                }
+            }
+            Picker("settings.aprsTransmit.ssid", selection: $ssid) {
+                ForEach(0...15, id: \.self) { value in
+                    Text(value == 0 ? String(localized: "settings.aprsTransmit.ssidNone") : "-\(value)").tag(value)
+                }
+            }
+            TextField("settings.aprsTransmit.latitude", text: $latitudeText)
+                .onChange(of: latitudeText) { _, new in store(new, APRSTransmitSettings.latitudeKey, limit: 90) }
+            TextField("settings.aprsTransmit.longitude", text: $longitudeText)
+                .onChange(of: longitudeText) { _, new in store(new, APRSTransmitSettings.longitudeKey, limit: 180) }
+            if Self.parse(latitudeText, limit: 90) == nil && !latitudeText.isEmpty
+                || Self.parse(longitudeText, limit: 180) == nil && !longitudeText.isEmpty {
+                Text("settings.aprsTransmit.badCoordinate").font(.caption).foregroundStyle(.red)
+            }
+            LabeledContent {
+                HStack {
+                    if locator.isLocating { ProgressView().controlSize(.small) }
+                    if let problem = locator.problem {
+                        Text(problem).foregroundStyle(.red).lineLimit(2)
+                    }
+                    Button("settings.aprsTransmit.useMacLocation", systemImage: "location") {
+                        Task {
+                            guard let coordinate = await locator.locate() else { return }
+                            latitudeText = Self.text(coordinate.latitude)
+                            longitudeText = Self.text(coordinate.longitude)
+                        }
+                    }
+                    .disabled(locator.isLocating)
+                }
+            } label: {
+                EmptyView()
+            }
+            Picker("settings.aprsTransmit.ambiguity", selection: $ambiguity) {
+                Text("settings.aprsTransmit.ambiguityExact").tag(0)
+                Text("settings.aprsTransmit.ambiguity1").tag(1)
+                Text("settings.aprsTransmit.ambiguity2").tag(2)
+                Text("settings.aprsTransmit.ambiguity3").tag(3)
+                Text("settings.aprsTransmit.ambiguity4").tag(4)
+            }
+            LabeledContent("settings.aprsTransmit.symbol") {
+                HStack {
+                    TextField("settings.aprsTransmit.symbol", text: $symbol)
+                        .labelsHidden()
+                        .fontDesign(.monospaced)
+                        .onChange(of: symbol) { _, new in
+                            let limited = String(new.prefix(2))
+                            if limited != new { symbol = limited }
+                        }
+                    Menu("settings.aprsTransmit.symbolPresets") {
+                        ForEach(Self.symbols, id: \.code) { entry in
+                            Button { symbol = entry.code } label: { Text(entry.name) + Text(verbatim: "  \(entry.code)") }
+                        }
+                    }
+                    .fixedSize()
+                }
+            }
+            TextField("settings.aprsTransmit.comment", text: $comment)
+                .onChange(of: comment) { _, new in
+                    let limited = String(new.prefix(APRSOutgoing.maxCommentLength))
+                    if limited != new { comment = limited }
+                }
+            LabeledContent("settings.aprsTransmit.path") {
+                TextField("settings.aprsTransmit.path", text: $path, prompt: Text(verbatim: APRSTransmitSettings.defaultPath))
+                    .labelsHidden()
+                    .fontDesign(.monospaced)
+            }
+            if AX25Encoder.path(path) == nil {
+                Text("aprsTransmit.badPath").font(.caption).foregroundStyle(.red)
+            }
+            Picker("settings.aprsTransmit.beaconEvery", selection: $beaconMinutes) {
+                ForEach(APRSTransmitSettings.beaconChoices, id: \.self) { minutes in
+                    Text(minutes == 0 ? String(localized: "settings.aprsTransmit.beaconOff")
+                         : String(localized: "settings.aprsTransmit.minutes \(minutes)")).tag(minutes)
+                }
+            }
+            Toggle("settings.aprsTransmit.autoAck", isOn: $autoAck)
+            LabeledContent("settings.aprsTransmit.level") {
+                HStack {
+                    Slider(value: $levelDb, in: APRSTransmitSettings.levelRange, step: 1)
+                    Text(verbatim: "\(Int(levelDb)) dBFS").monospacedDigit().frame(width: 70, alignment: .trailing)
+                }
+            }
+            Stepper(value: $txDelayMs, in: APRSTransmitSettings.txDelayRange, step: 50) {
+                Text("settings.aprsTransmit.txDelay \(txDelayMs)")
+            }
+        }
+    }
+
+    private var sourceCall: String? {
+        _ = (callsign, ssid)
+        return APRSTransmitSettings.sourceCall
+    }
+
+    /// Saves a valid entry; empty clears it; anything else (half typed)
+    /// leaves the saved value alone.
+    private func store(_ text: String, _ key: String, limit: Double) {
+        if text.trimmingCharacters(in: .whitespaces).isEmpty {
+            SettingsStore.defaults.removeObject(forKey: key)
+        } else if let value = Self.parse(text, limit: limit) {
+            SettingsStore.defaults.set(value, forKey: key)
+        }
+    }
+
+    static func parse(_ text: String, limit: Double) -> Double? {
+        let cleaned = text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(cleaned), value.isFinite, abs(value) <= limit else { return nil }
+        return value
+    }
+
+    /// Decimal degrees with a "." whatever the locale, at most 6 places.
+    static func text(_ value: Double?) -> String {
+        guard let value else { return "" }
+        var text = String(format: "%.6f", value)
+        while text.hasSuffix("0") { text.removeLast() }
+        if text.hasSuffix(".") { text.removeLast() }
+        return text
     }
 }
 

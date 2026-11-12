@@ -3341,6 +3341,374 @@
           }
         }
       }
+    },
+    "aprsTransmit.memoryScan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zuerst den Speicher-Suchlauf beenden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop the memory scan first."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detener primero el escaneo de memorias."
+          }
+        }
+      }
+    },
+    "aprsTransmit.split" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SPLIT ausschalten, um APRS zu senden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off SPLIT to send APRS."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivar SPLIT para enviar APRS."
+          }
+        }
+      }
+    },
+    "aprsTransmit.wrongMode %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den Empfänger auf %@ auf FM oder DATA-FM stellen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set the receiver on %@ to FM or DATA-FM."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poner en FM o DATA-FM el receptor en %@."
+          }
+        }
+      }
+    },
+    "aprsTransmit.notOnFrequency %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weder MAIN noch SUB ist auf %@ MHz."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neither MAIN nor SUB is on %@ MHz."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ni MAIN ni SUB están en %@ MHz."
+          }
+        }
+      }
+    },
+    "aprsTransmit.noCallsign" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rufzeichen unter Einstellungen → Station eintragen (ohne SSID oder /)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set your callsign in Settings → Station (no SSID or /)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introducir el indicativo en Ajustes → Estación (sin SSID ni /)."
+          }
+        }
+      }
+    },
+    "aprsTransmit.badPath" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Pfad ist ungültig: bis zu 8 Einträge wie WIDE1-1, durch Kommas getrennt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The path isn't valid: up to 8 entries like WIDE1-1, separated by commas."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La ruta no es válida: hasta 8 entradas como WIDE1-1, separadas por comas."
+          }
+        }
+      }
+    },
+    "aprsMessaging.appQuit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht zugestellt: Die App wurde vor der Bestätigung beendet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not sent: the app quit before it was acknowledged."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No enviado: la app se cerró antes de recibir el acuse."
+          }
+        }
+      }
+    },
+    "aprsMessaging.beaconQueued" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bake in der Warteschlange…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beacon queued…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baliza en cola…"
+          }
+        }
+      }
+    },
+    "aprsMessaging.beaconSent %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bake über %@ gesendet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beacon sent on %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baliza enviada por %@."
+          }
+        }
+      }
+    },
+    "aprsMessaging.beaconNotSent %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bake nicht gesendet: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beacon not sent: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baliza no enviada: %@"
+          }
+        }
+      }
+    },
+    "aprsMessaging.noAck" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Bestätigung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No acknowledgement."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin acuse de recibo."
+          }
+        }
+      }
+    },
+    "aprsMessaging.transmitOff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APRS-Senden ist aus (Einstellungen → APRS)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APRS transmit is off (Settings → APRS)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La transmisión APRS está desactivada (Ajustes → APRS)."
+          }
+        }
+      }
+    },
+    "aprsMessaging.noPosition" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Breite und Länge unter Einstellungen → APRS eintragen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter your latitude and longitude in Settings → APRS."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introducir la latitud y la longitud en Ajustes → APRS."
+          }
+        }
+      }
+    },
+    "aprsMessaging.badSymbol" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Symbol muss zwei Zeichen haben, z. B. /-."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The symbol must be two characters, e.g. /-."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El símbolo debe tener dos caracteres, p. ej. /-."
+          }
+        }
+      }
+    },
+    "aprsMessaging.badAddressee" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Rufzeichen mit bis zu 9 Zeichen eintragen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a callsign of up to 9 characters."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introducir un indicativo de hasta 9 caracteres."
+          }
+        }
+      }
+    },
+    "aprsMessaging.emptyMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Nachricht eingeben."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a message."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribir un mensaje."
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

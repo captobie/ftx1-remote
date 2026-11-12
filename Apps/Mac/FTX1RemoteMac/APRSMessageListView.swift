@@ -14,8 +14,18 @@ struct APRSMessageListView: View {
     @State private var hideBulletins = false
     @State private var hideTelemetry = false
     @AppStorage(StationSettings.callsignKey) private var myCallsign = ""
+    @EnvironmentObject private var messaging: APRSMessaging
+    @State private var compose: APRSComposeTarget?
 
     var body: some View {
+        VStack(spacing: 0) {
+            messageTable
+            APRSTransmitBar()
+        }
+        .sheet(item: $compose) { target in APRSComposeSheet(to: target.to) }
+    }
+
+    private var messageTable: some View {
         Table(filteredMessages) {
             TableColumn("common.from") { message in
                 Text(message.from).fontDesign(.monospaced)
@@ -32,10 +42,37 @@ struct APRSMessageListView: View {
             TableColumn("common.received") { message in
                 Text(message.receivedAt, style: .relative)
             }
+            TableColumn("aprsMessageList.status") { message in
+                if let delivery = message.delivery {
+                    Text(delivery.label)
+                        .foregroundStyle(delivery.color)
+                        .help(delivery.label)
+                }
+            }
+        }
+        .contextMenu(forSelectionType: APRSMessage.ID.self) { ids in
+            if let message = ids.first.flatMap({ id in store.messages.first { $0.id == id } }) {
+                if let delivery = message.delivery {
+                    if delivery.state == .pending {
+                        Button("aprsMessageList.cancelSending") { messaging.cancel(messageID: message.id) }
+                    } else {
+                        Button("aprsMessageList.sendAgain") { messaging.resend(messageID: message.id) }
+                    }
+                    Button("aprsCompose.messageTo \(message.to)") { compose = APRSComposeTarget(to: message.to) }
+                } else {
+                    Button("aprsMessageList.reply \(message.from)") { compose = APRSComposeTarget(to: message.from) }
+                }
+            }
         }
         .navigationTitle("aprsMessageList.aprsMessages")
         .frame(minWidth: 520, minHeight: 300)
         .toolbar {
+            ToolbarItem {
+                Button("aprsMessageList.newMessage", systemImage: "square.and.pencil") {
+                    compose = APRSComposeTarget(to: "")
+                }
+                .help("aprsMessageList.newMessageHelp")
+            }
             ToolbarItem {
                 APRSSourcePicker(selection: $sourceFilter)
             }
