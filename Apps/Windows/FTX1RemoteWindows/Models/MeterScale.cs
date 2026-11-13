@@ -86,6 +86,70 @@ public static class SMeterScale
     }
 }
 
+/// The Digital S-meter style's bar scale. Port of BarMeter and
+/// BarSMeterView's text helpers (Sources/FTX1Core/UI/BarSMeterView.swift):
+/// its own 0…1 scale, S0–S9 filling the first 60% and the over-S9 dB the
+/// rest.
+public static class BarMeterScale
+{
+    public const double S9Fraction = 0.6;
+
+    /// No "+40": at strip width it runs into "+60".
+    public static readonly (string Label, double Fraction)[] STicks =
+    [
+        ("1", ForStrengthDb(-48)), ("3", ForStrengthDb(-36)),
+        ("5", ForStrengthDb(-24)), ("7", ForStrengthDb(-12)),
+        ("9", S9Fraction), ("+20", ForStrengthDb(20)),
+        ("+60", 1.0),
+    ];
+
+    public static double ForStrengthDb(double? db)
+    {
+        if (db is not { } d)
+        {
+            return 0;
+        }
+        return d <= 0
+            ? Math.Max(0, (d + 54) / 54) * S9Fraction
+            : S9Fraction + Math.Min(d, 60) / 60 * (1 - S9Fraction);
+    }
+
+    /// Maps a position on the analog face's sweep (MeterSelection ticks and
+    /// Fraction, whose scales run from ~0.10 to ~0.88) onto the bar.
+    public static double FromFace(double face) => Math.Clamp((face - 0.10) / 0.78, 0, 1);
+
+    /// "S7", "S9+12", or "—" with no reading; 6 dB per S unit below S9.
+    public static string SUnitText(double? db)
+    {
+        if (db is not { } d)
+        {
+            return "—";
+        }
+        if (d > 0.5)
+        {
+            return $"S9+{(int)Math.Round(d, MidpointRounding.AwayFromZero)}";
+        }
+        var s = Math.Clamp((int)Math.Round((d + 54) / 6, MidpointRounding.AwayFromZero), 0, 9);
+        return $"S{s}";
+    }
+
+    /// A TX meter's readout: "10 W", "1.5", "42%", or "—".
+    public static string TxReadout(MeterSelection selection, MeterReadings r) => selection switch
+    {
+        MeterSelection.Po => r.PowerWatts is { } w ? string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0} W", w) : "—",
+        MeterSelection.Swr => r.Swr is { } s ? string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0.0}", s) : "—",
+        MeterSelection.Comp => Percent(r.Tx?.Comp),
+        MeterSelection.Alc => Percent(r.Tx?.Alc),
+        MeterSelection.Vdd => Percent(r.Tx?.Vdd),
+        MeterSelection.Id => Percent(r.Tx?.Idd),
+        _ => "—",
+    };
+
+    /// Raw RM (0-255) as a percentage — the CAT manual gives no units.
+    private static string Percent(int? raw) =>
+        raw is { } v ? $"{Math.Clamp(v, 0, 255) * 100 / 255}%" : "—";
+}
+
 /// Which reading the meter's lower scale shows while transmitting — the
 /// app-side counterpart of the rig's touch-the-meter METER screen. Port of
 /// MeterSelection.swift. A local display choice only: it never sends the

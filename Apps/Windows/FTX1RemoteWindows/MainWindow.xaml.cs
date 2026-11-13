@@ -639,6 +639,8 @@ public sealed partial class MainWindow : Window
         ThemeEngine.Load();
         ThemeEngine.ApplyTo(RootScrollViewer);
         ApplyVfoTheme();
+        _mainMeter.ApplyStyle();
+        _subMeter.ApplyStyle();
         _menuGrid.ValueColor = ThemeEngine.Current.MenuValueColor is { } valueColor
             ? ThemeEngine.ToColor(valueColor)
             : AppSettings.ButtonValueColor.Color();

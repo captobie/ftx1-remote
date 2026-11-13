@@ -63,6 +63,10 @@ public sealed class SMeter : UserControl
     private bool _ptt;
 
     private readonly bool _receiveOnly;
+    private readonly Grid _analog;
+    private readonly Viewbox _viewbox = new() { Stretch = Stretch.Uniform };
+    private readonly DigitalFace _digital;
+    private SMeterStyle _style = SMeterStyle.Lighted;
 
     /// receiveOnly (the MyKiwiSDR window's meter): no TX needle and no
     /// METER picker on click; the lower scale stays at the saved MAIN
@@ -74,6 +78,8 @@ public sealed class SMeter : UserControl
         _selection = isSub ? AppSettings.SubMeterSelection : AppSettings.MainMeterSelection;
         AutomationProperties.SetName(this, label ?? (isSub ? Loc.S("sMeter.subMeter") : Loc.S("sMeter.mainMeter")));
 
+        _digital = new DigitalFace(receiveOnly);
+
         // Design-space content: backlit face, scales, needle, bezel shading.
         var content = new Grid
         {
@@ -82,6 +88,7 @@ public sealed class SMeter : UserControl
             Background = Backlight(),
             Clip = new RectangleGeometry { Rect = new Rect(0, 0, DesignWidth, DesignHeight) },
         };
+        _analog = content;
         content.Children.Add(_face);
         content.Children.Add(BuildNeedle());
         // Recessed-bezel shading, darkening the rim so the lit face reads as
@@ -99,7 +106,7 @@ public sealed class SMeter : UserControl
             CornerRadius = new CornerRadius(8),
             BorderThickness = new Thickness(1.5),
             BorderBrush = new SolidColorBrush(Color.FromArgb(153, 128, 128, 128)),
-            Child = new Viewbox { Stretch = Stretch.Uniform, Child = content },
+            Child = _viewbox,
         };
 
         _needleAnimation = new DoubleAnimation
@@ -128,7 +135,43 @@ public sealed class SMeter : UserControl
         }
 
         DrawFace();
+        ApplyStyle();
         UpdateNeedle(animate: false);
+    }
+
+    /// Picks the face from Settings → Appearance → S-meter: the lighted or
+    /// unlighted analog face, or the Digital two-line bar. Called at
+    /// construction and whenever Settings are saved. A receive-only meter
+    /// with a width set (the MyKiwiSDR window's) takes its height from the
+    /// face: analog 280:120, Digital a single 190:30 line.
+    public void ApplyStyle()
+    {
+        _style = AppSettings.SMeterStyle;
+        if (_style == SMeterStyle.Digital)
+        {
+            _viewbox.Child = _digital;
+        }
+        else
+        {
+            _viewbox.Child = null;
+            _analog.Background = _style == SMeterStyle.Lighted ? Backlight() : Unlit();
+            _viewbox.Child = _analog;
+        }
+        if (_receiveOnly && !double.IsNaN(Width))
+        {
+            Height = Width * (_style == SMeterStyle.Digital ? DigitalFace.ReceiveOnlyHeight / DigitalFace.DesignWidth : DesignHeight / DesignWidth);
+        }
+        UpdateDigital();
+    }
+
+    private bool ShowsTx => _ptt && !_isSub && !_receiveOnly;
+
+    private void UpdateDigital()
+    {
+        if (_style == SMeterStyle.Digital)
+        {
+            _digital.Set(_strengthDb, _readings, ShowsTx, _selection);
+        }
     }
 
     /// Feeds one poll's readings. A null reading rests the needle rather
@@ -139,6 +182,7 @@ public sealed class SMeter : UserControl
         _readings = readings;
         _ptt = ptt;
         UpdateNeedle(animate: true);
+        UpdateDigital();
     }
 
     /// Rests the needle, e.g. on disconnect.
@@ -146,7 +190,7 @@ public sealed class SMeter : UserControl
 
     private void UpdateNeedle(bool animate)
     {
-        var fraction = _ptt && !_isSub && !_receiveOnly
+        var fraction = ShowsTx
             ? _selection.Fraction(_readings)
             : SMeterScale.FractionForStrengthDb(_strengthDb);
         if (fraction == _needleFraction)
@@ -182,6 +226,20 @@ public sealed class SMeter : UserControl
         brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 255, 240, 199), Offset = 0.4 });
         brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 245, 235, 214), Offset = 0.75 });
         brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 224, 217, 201), Offset = 1.0 });
+        return brush;
+    }
+
+    /// The same face with the lamp off: flat, slightly grey paper, a touch
+    /// darker toward the bottom where the bezel shades it.
+    private static Brush Unlit()
+    {
+        var brush = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(0, 1),
+        };
+        brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 219, 217, 209), Offset = 0.0 });
+        brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 199, 196, 189), Offset = 1.0 });
         return brush;
     }
 
@@ -357,5 +415,194 @@ public sealed class SMeter : UserControl
         BuildPicker();
         DrawFace();
         UpdateNeedle(animate: true);
+        UpdateDigital();
+    }
+
+    /// SMeterStyle.Digital (port of DigitalMeterFace in SMeterView.swift): two
+    /// lines of segmented bar, laid out like the analog face — the S-meter on
+    /// top, the picked TX meter (PO/SWR/ALC/…) underneath. The lower line is
+    /// dim until the meter transmits; then both lines are TX readings, the top
+    /// one PO (SWR when PO is the picked meter). A receive-only meter shows
+    /// the S line alone. Drawn in a fixed 190-wide design space, scaled by the
+    /// owner's Viewbox.
+    private sealed class DigitalFace : UserControl
+    {
+        public const double DesignWidth = 190;
+        public const double ReceiveOnlyHeight = 30;
+        private static readonly double FullHeight = DesignWidth * SMeter.DesignHeight / SMeter.DesignWidth;
+
+        private static readonly Color Green = Color.FromArgb(255, 52, 199, 89);
+        private static readonly Color Orange = Color.FromArgb(255, 255, 149, 0);
+        private static readonly Color Hot = Color.FromArgb(255, 255, 59, 48);
+        private static readonly Color Dim = Color.FromArgb(153, 255, 255, 255);
+
+        private readonly BarLine _top = new();
+        private readonly BarLine _bottom = new();
+        private readonly bool _receiveOnly;
+
+        public DigitalFace(bool receiveOnly)
+        {
+            _receiveOnly = receiveOnly;
+            Width = DesignWidth;
+            Height = receiveOnly ? ReceiveOnlyHeight : FullHeight;
+            var lines = new StackPanel
+            {
+                Spacing = 2,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(6, 4, 6, 4),
+            };
+            lines.Children.Add(_top);
+            if (!receiveOnly)
+            {
+                lines.Children.Add(_bottom);
+            }
+            Content = new Border
+            {
+                Background = new SolidColorBrush(Colors.Black),
+                CornerRadius = new CornerRadius(8),
+                Child = lines,
+            };
+        }
+
+        public void Set(double? strengthDb, MeterReadings readings, bool showsTx, MeterSelection selection)
+        {
+            if (showsTx)
+            {
+                SetTx(_top, selection == MeterSelection.Po ? MeterSelection.Swr : MeterSelection.Po, readings, active: true);
+            }
+            else
+            {
+                _top.Set("S", Dim, BarMeterScale.SUnitText(strengthDb), BarMeterScale.ForStrengthDb(strengthDb),
+                    BarMeterScale.STicks, BarMeterScale.S9Fraction, Green);
+            }
+            if (!_receiveOnly)
+            {
+                SetTx(_bottom, selection, readings, showsTx);
+                _bottom.Opacity = showsTx ? 1 : 0.45;
+            }
+        }
+
+        /// A TX meter's line; inactive = no reading (bar unlit, "—").
+        private static void SetTx(BarLine line, MeterSelection meter, MeterReadings readings, bool active) =>
+            line.Set(
+                meter.Title(),
+                active ? Orange : Dim,
+                active ? BarMeterScale.TxReadout(meter, readings) : "—",
+                active ? BarMeterScale.FromFace(meter.Fraction(readings)) : 0,
+                meter.Ticks().Select(t => (t.Label, BarMeterScale.FromFace(t.Fraction))).ToArray(),
+                1.1,
+                Orange);
+
+        private sealed class BarLine : Grid
+        {
+            private const int SegmentCount = 36;
+            private const double BarWidth = 110;
+            private const double BarHeight = 10;
+            private const double Gap = 1.5;
+
+            private readonly TextBlock _title = new()
+            {
+                FontSize = 9,
+                FontWeight = FontWeights.SemiBold,
+                Width = 24,
+                TextTrimming = TextTrimming.Clip,
+                VerticalAlignment = VerticalAlignment.Top,
+            };
+            private readonly TextBlock _readout = new()
+            {
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                FontFamily = new FontFamily("Consolas"),
+                Foreground = new SolidColorBrush(Colors.White),
+                Width = 36,
+                TextAlignment = TextAlignment.Right,
+                TextTrimming = TextTrimming.Clip,
+                VerticalAlignment = VerticalAlignment.Top,
+            };
+            private readonly Canvas _bar = new() { Width = BarWidth, Height = BarHeight + 16 };
+            private readonly Rectangle[] _segments = new Rectangle[SegmentCount];
+            private string _tickKey = "";
+
+            public BarLine()
+            {
+                ColumnSpacing = 4;
+                ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
+                ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(BarWidth) });
+                ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+                var segWidth = (BarWidth - Gap * (SegmentCount - 1)) / SegmentCount;
+                for (var i = 0; i < SegmentCount; i++)
+                {
+                    var rect = new Rectangle
+                    {
+                        Width = segWidth,
+                        Height = BarHeight,
+                        RadiusX = 1,
+                        RadiusY = 1,
+                        Fill = new SolidColorBrush(Colors.Transparent),
+                    };
+                    Canvas.SetLeft(rect, i * (segWidth + Gap));
+                    Canvas.SetTop(rect, 2);
+                    _segments[i] = rect;
+                    _bar.Children.Add(rect);
+                }
+                SetColumn(_bar, 1);
+                SetColumn(_readout, 2);
+                Children.Add(_title);
+                Children.Add(_bar);
+                Children.Add(_readout);
+            }
+
+            public void Set(string title, Color titleColor, string readout, double fraction,
+                (string Label, double Fraction)[] ticks, double hotFrom, Color litColor)
+            {
+                _title.Text = title;
+                _title.Foreground = new SolidColorBrush(titleColor);
+                _readout.Text = readout;
+                for (var i = 0; i < SegmentCount; i++)
+                {
+                    var mid = (i + 0.5) / SegmentCount;
+                    var color = mid >= hotFrom ? Hot : litColor;
+                    if (mid > fraction)
+                    {
+                        color.A = (byte)(color.A * 0.15);
+                    }
+                    ((SolidColorBrush)_segments[i].Fill).Color = color;
+                }
+                var key = string.Join('|', ticks.Select(t => $"{t.Label}@{t.Fraction:0.####}"));
+                if (key != _tickKey)
+                {
+                    _tickKey = key;
+                    RebuildTicks(ticks);
+                }
+            }
+
+            /// Tick labels under the segments; the end ones are anchored to
+            /// the bar's edges so they don't spill past it.
+            private void RebuildTicks((string Label, double Fraction)[] ticks)
+            {
+                for (var i = _bar.Children.Count - 1; i >= SegmentCount; i--)
+                {
+                    _bar.Children.RemoveAt(i);
+                }
+                const double boxWidth = 30;
+                foreach (var (label, f) in ticks)
+                {
+                    var alignment = f < 0.03 ? TextAlignment.Left : f > 0.97 ? TextAlignment.Right : TextAlignment.Center;
+                    var left = f * BarWidth - (alignment == TextAlignment.Left ? 0 : alignment == TextAlignment.Right ? boxWidth : boxWidth / 2);
+                    var block = new TextBlock
+                    {
+                        Text = label,
+                        FontSize = 9,
+                        FontWeight = FontWeights.Medium,
+                        Foreground = new SolidColorBrush(Color.FromArgb(166, 255, 255, 255)),
+                        TextAlignment = alignment,
+                        Width = boxWidth,
+                    };
+                    Canvas.SetLeft(block, left);
+                    Canvas.SetTop(block, BarHeight + 4);
+                    _bar.Children.Add(block);
+                }
+            }
+        }
     }
 }

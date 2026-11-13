@@ -95,6 +95,8 @@ public static class AppSettings
         /// Settings → Appearance → VFO digit color; null = the theme's.
         public ButtonValueColor? VfoDigitColor { get; set; }
         public ButtonValueColor ButtonValueColor { get; set; } = ButtonValueColor.Orange;
+        /// Settings → Appearance → S-meter.
+        public SMeterStyle SMeterStyle { get; set; } = SMeterStyle.Lighted;
         public ScopeDisplayMode ScopeDisplayMode { get; set; } = ScopeDisplayMode.Waterfall;
         public bool AprsEnabled { get; set; }
         public long AprsFrequencyHz { get; set; } = DefaultAprsFrequencyHz;
@@ -582,6 +584,16 @@ public static class AppSettings
         set
         {
             _cache.VfoDigitFont = value;
+            Save();
+        }
+    }
+
+    public static SMeterStyle SMeterStyle
+    {
+        get => _cache.SMeterStyle;
+        set
+        {
+            _cache.SMeterStyle = value;
             Save();
         }
     }

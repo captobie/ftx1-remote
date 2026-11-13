@@ -30,8 +30,25 @@ public enum ButtonValueColor
     White,
 }
 
+/// Port of SMeterStyle (SMeterView.swift): how the S-meters are drawn — the
+/// backlit analog face, the same face unlit, or a two-line segmented bar
+/// with a numeric readout. Stored by number, so new cases go at the end.
+public enum SMeterStyle
+{
+    Lighted,
+    Unlighted,
+    Digital,
+}
+
 public static class AppearanceExtensions
 {
+    public static string DisplayName(this SMeterStyle style) => style switch
+    {
+        SMeterStyle.Unlighted => Loc.S("sMeterStyle.unlighted"),
+        SMeterStyle.Digital => Loc.S("sMeterStyle.digital"),
+        _ => Loc.S("sMeterStyle.lighted"),
+    };
+
     public static string DisplayName(this AppTheme theme) => theme switch
     {
         AppTheme.Light => "Light",

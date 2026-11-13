@@ -1923,6 +1923,16 @@ of truth. Unit-tested (`WavelogTests.cs`), checked in the built app
 against a stand-in server, then tested live by the user the same day
 against their Wavelog with the rig connected, working. See the README's
 "Logbook — Wavelog".
+**S-meter styles** (2026-11-13; unit-tested and built, not yet seen on
+screen): Settings → Appearance → S-meter, the Mac's Lighted / Unlighted /
+Digital (`SMeterStyle`, `AppSettings.SMeterStyle`, applied on Save through
+`SMeter.ApplyStyle()` from `ApplyAppearance` and the MyKiwiSDR window's
+`ApplyTheme`). Unlighted is the analog face on grey paper; Digital is
+`DigitalFace` in `Controls/SMeter.cs`, the Mac's two segmented-bar lines (S on
+top, the picked TX meter below, dim until transmitting; PO/SWR on top while
+keyed), single S line for the MyKiwiSDR meter. Scale/text helpers are
+`BarMeterScale` (`BarMeterScaleTests`). As with the analog needle, only MAIN
+shows TX readings (the Mac's `transmits` for TX:SUB/split isn't ported).
 **Themes** (Settings → Appearance, phase 1 2026-10-26, on the Mac too —
 see "Themes (Mac)";
 unit-tested, then tested by the user the same day incl. a live frequency,

@@ -2190,6 +2190,9 @@
   <data name="settings.showReceivedCallsignVia" xml:space="preserve">
     <value>Mostrar el indicativo recibido (vía WPSD)</value>
   </data>
+  <data name="settings.sMeter" xml:space="preserve">
+    <value>S-meter</value>
+  </data>
   <data name="settings.squelchTail" xml:space="preserve">
     <value>Cola del squelch</value>
   </data>
@@ -2379,6 +2382,15 @@
   </data>
   <data name="sMeter.subMeter" xml:space="preserve">
     <value>Medidor Sub</value>
+  </data>
+  <data name="sMeterStyle.digital" xml:space="preserve">
+    <value>Digital</value>
+  </data>
+  <data name="sMeterStyle.lighted" xml:space="preserve">
+    <value>Iluminado</value>
+  </data>
+  <data name="sMeterStyle.unlighted" xml:space="preserve">
+    <value>Sin iluminar</value>
   </data>
   <data name="themePresets.auto" xml:space="preserve">
     <value>Automático</value>

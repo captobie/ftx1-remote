@@ -44,7 +44,7 @@ public sealed class LocalSdrWindow : Window
     private readonly List<(KiwiSdrMode Mode, ToggleButton Button)> _modeButtons = [];
     /// The main window's meter size (280:120), on the analog face.
     private const double MeterWidth = 190;
-    private readonly SMeter _meter = new(isSub: false, receiveOnly: true, label: "MyKiwiSDR") { Width = MeterWidth, Height = MeterWidth * 120 / 280 };
+    private readonly SMeter _meter = new(isSub: false, receiveOnly: true, label: "MyKiwiSDR") { Width = MeterWidth };
     private readonly TextBlock _sUnitsText = new() { FontFamily = new FontFamily("Consolas"), FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.Bold };
     private readonly TextBlock _dbmText = new() { FontFamily = new FontFamily("Consolas"), FontSize = 14 };
     private readonly TextBlock _overloadText = new() { Foreground = new SolidColorBrush(Colors.OrangeRed), VerticalAlignment = VerticalAlignment.Center };
@@ -122,6 +122,7 @@ public sealed class LocalSdrWindow : Window
     public void ApplyTheme()
     {
         ThemeEngine.ApplyTo(_root);
+        _meter.ApplyStyle();
         _root.Background = ThemeEngine.WindowBackground;
         var (vfo, font) = VfoDigits.Effective();
         _frequencyBorder.Background = ThemeEngine.ToBrush(vfo.Background);

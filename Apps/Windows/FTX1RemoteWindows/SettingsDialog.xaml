@@ -437,6 +437,7 @@
                               ToolTipService.ToolTip="{l:Str Key=settings.theFontOfThe}" />
                     <ComboBox x:Name="VfoDigitColorComboBox" Header="{l:Str Key=settings.vFODigitColor}" Width="200" HorizontalAlignment="Left"
                               ToolTipService.ToolTip="{l:Str Key=settings.theColorOfThe}" />
+                    <ComboBox x:Name="SMeterStyleComboBox" Header="{l:Str Key=settings.sMeter}" Width="200" HorizontalAlignment="Left" />
                     <ComboBox x:Name="ButtonValueColorComboBox" Header="{l:Str Key=settings.buttonValueColor}" Width="200" HorizontalAlignment="Left"
                               ToolTipService.ToolTip="{l:Str Key=settings.theColorOfEach}" />
                 </StackPanel>

@@ -227,6 +227,11 @@ public sealed partial class SettingsDialog : Window
             VfoDigitColorComboBox.Items.Add(new ComboBoxItem { Content = color.DisplayName(), Tag = color });
         }
         VfoDigitColorComboBox.SelectedIndex = AppSettings.VfoDigitColor is { } digitColor ? (int)digitColor + 1 : 0;
+        foreach (var style in Enum.GetValues<SMeterStyle>())
+        {
+            SMeterStyleComboBox.Items.Add(new ComboBoxItem { Content = style.DisplayName(), Tag = style });
+        }
+        SMeterStyleComboBox.SelectedIndex = (int)AppSettings.SMeterStyle;
         foreach (var color in Enum.GetValues<ButtonValueColor>())
         {
             ButtonValueColorComboBox.Items.Add(new ComboBoxItem { Content = color.DisplayName(), Tag = color });
@@ -531,6 +536,10 @@ public sealed partial class SettingsDialog : Window
         if (VfoDigitColorComboBox.SelectedItem is ComboBoxItem digitColorItem)
         {
             AppSettings.VfoDigitColor = digitColorItem.Tag as ButtonValueColor?;
+        }
+        if (SMeterStyleComboBox.SelectedItem is ComboBoxItem { Tag: SMeterStyle meterStyle })
+        {
+            AppSettings.SMeterStyle = meterStyle;
         }
         if (ButtonValueColorComboBox.SelectedItem is ComboBoxItem { Tag: ButtonValueColor color })
         {
