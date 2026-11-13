@@ -128,6 +128,11 @@ public struct SMeterView: View {
     /// scale. The readings themselves are the rig's one transmitter's.
     let transmits: Bool
     let style: SMeterStyle
+    /// A receive-only meter (the MyKiwiSDR window's): no TX meter picker
+    /// on tap, and the digital face shows only its S line.
+    let receiveOnly: Bool
+    /// The digital face's accessibility name; nil = MAIN/SUB.
+    let label: String?
 
     /// Which reading the lower scale shows while transmitting — picked by
     /// tapping the meter, like the rig (see `MeterSelection`). Default PO,
@@ -135,8 +140,10 @@ public struct SMeterView: View {
     @AppStorage private var selectionRaw: String
     @State private var showingPicker = false
 
-    public init(smeterDb: Double?, swr: Double?, ptt: Bool, powerWatts: Double? = nil, txMeters: TXMeterReadings? = nil, isSub: Bool = false, transmits: Bool = true, style: SMeterStyle = .lighted) {
+    public init(smeterDb: Double?, swr: Double?, ptt: Bool, powerWatts: Double? = nil, txMeters: TXMeterReadings? = nil, isSub: Bool = false, transmits: Bool = true, style: SMeterStyle = .lighted, receiveOnly: Bool = false, label: String? = nil) {
         self.isSub = isSub
+        self.receiveOnly = receiveOnly
+        self.label = label
         self.transmits = transmits
         self.style = style
         _selectionRaw = AppStorage(wrappedValue: MeterSelection.po.rawValue, isSub ? MeterSettings.subKey : MeterSettings.key)
@@ -147,17 +154,16 @@ public struct SMeterView: View {
 
     private var selection: MeterSelection { MeterSelection(rawValue: selectionRaw) ?? .po }
 
-    private var showsTX: Bool { ptt && transmits }
+    private var showsTX: Bool { ptt && transmits && !receiveOnly }
 
     private var needleFraction: Double {
         showsTX ? selection.fraction(from: readings) : SMeterScale.fraction(forStrengthDb: smeterDb)
     }
 
     public var body: some View {
-        face
-            .aspectRatio(MeterFace.designSize.width / MeterFace.designSize.height, contentMode: .fit)
+        shapedFace
             .contentShape(Rectangle())
-            .onTapGesture { showingPicker = true }
+            .onTapGesture { if !receiveOnly { showingPicker = true } }
             .popover(isPresented: $showingPicker) {
                 MeterPickerView(selection: selection) {
                     selectionRaw = $0.rawValue
@@ -166,17 +172,29 @@ public struct SMeterView: View {
             }
     }
 
+    /// The face at the analog meter's 280:120 shape — except a
+    /// receive-only digital face, a single line that takes the frame it's
+    /// given.
+    @ViewBuilder private var shapedFace: some View {
+        if receiveOnly && style == .digital {
+            face
+        } else {
+            face.aspectRatio(MeterFace.designSize.width / MeterFace.designSize.height, contentMode: .fit)
+        }
+    }
+
     @ViewBuilder private var face: some View {
         switch style {
         case .lighted: analogFace(lit: true)
         case .unlighted: analogFace(lit: false)
         case .digital:
             DigitalMeterFace(
-                label: isSub ? "SUB" : "MAIN",
+                label: label ?? (isSub ? "SUB" : "MAIN"),
                 smeterDb: smeterDb,
                 readings: readings,
                 showsTX: showsTX,
-                selection: selection
+                selection: selection,
+                showsTXLine: !receiveOnly
             )
         }
     }
@@ -220,6 +238,8 @@ private struct DigitalMeterFace: View {
     /// Transmitting, and this meter's side is the TX side.
     let showsTX: Bool
     let selection: MeterSelection
+    /// False for a receive-only meter: the S line alone.
+    var showsTXLine = true
 
     /// The top line's meter while transmitting.
     private var topTXMeter: MeterSelection { selection == .po ? .swr : .po }
@@ -241,8 +261,10 @@ private struct DigitalMeterFace: View {
                     )
                 )
             }
-            txLine(selection, active: showsTX)
-                .opacity(showsTX ? 1 : 0.45)
+            if showsTXLine {
+                txLine(selection, active: showsTX)
+                    .opacity(showsTX ? 1 : 0.45)
+            }
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)

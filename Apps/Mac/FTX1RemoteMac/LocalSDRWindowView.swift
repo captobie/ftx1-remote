@@ -130,9 +130,21 @@ struct LocalSDRWindowView: View {
 
     private var tuningRow: some View {
         HStack(spacing: 10) {
-            Text(FrequencyFormat.dotted(model.frequencyHz))
-                .font(.system(size: 26, weight: .medium, design: .monospaced))
-                .frame(minWidth: 190, alignment: .trailing)
+            // In a box like the S-meter's under it, same width, in the VFO
+            // boxes' themed digits — a size down where the font (7-segment,
+            // padded with unlit 8s) is too wide for the box.
+            ViewThatFits(in: .horizontal) {
+                ForEach([26, 22, 18] as [CGFloat], id: \.self) { size in
+                    VFODigitsText(text: FrequencyFormat.dotted(model.frequencyHz), size: size)
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(width: 190, height: 40, alignment: .trailing)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.black))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(Color.gray.opacity(0.6), lineWidth: 1.5)
+            )
             TextField("localSDR.frequencyKHz", text: $frequencyDraft)
                 .textFieldStyle(.roundedBorder)
                 .fontDesign(.monospaced)
@@ -381,53 +393,53 @@ private struct LocalSDRReceiverSection: View {
     }
 }
 
-/// The Kiwi's S-meter as S units (S9 = −73 dBm, 6 dB per unit, the HF
-/// convention — the Kiwi covers 0–30 MHz) with the dBm reading.
+/// The Kiwi's S-meter on the main window's meter face (Settings →
+/// Appearance → S-Meter), with the dBm reading and the ADC overload flag
+/// beside it. S9 = −73 dBm, 6 dB per unit (the HF convention — the Kiwi
+/// covers 0–30 MHz), so the face's dB-over-S9 is dBm + 73.
 private struct LocalSDRMeterView: View {
     @ObservedObject var meter: LocalSDRMeterStore
+    @AppStorage(AppearanceSettings.sMeterStyleKey) private var style: SMeterStyle = .lighted
+
+    /// The main window's meter size (`ContentView.meterWidth`, 280:120).
+    private static let width: CGFloat = 190
 
     var body: some View {
-        HStack(spacing: 10) {
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.quaternary)
-                    Capsule()
-                        .fill(fillColor)
-                        .frame(width: geometry.size.width * fraction)
+        HStack(spacing: 12) {
+            SMeterView(
+                smeterDb: meter.dBm.map { $0 + 73 },
+                swr: nil,
+                ptt: false,
+                style: style,
+                receiveOnly: true,
+                label: "MyKiwiSDR"
+            )
+            // Digital is a single S line here (no TX meter), so it's short.
+            .frame(width: Self.width, height: style == .digital ? 30 : Self.width * 120 / 280)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(verbatim: sUnits)
+                    .font(.title3.monospacedDigit().bold())
+                Text(verbatim: dBmText)
+                    .font(.callout.monospacedDigit())
+                    .themedSecondaryForeground()
+                if meter.overload {
+                    Text("localSDR.adcOverload")
+                        .font(.caption.bold())
+                        .foregroundStyle(.red)
                 }
             }
-            .frame(width: 180, height: 10)
-            Text(verbatim: readout)
-                .font(.callout.monospacedDigit())
-                .frame(minWidth: 130, alignment: .leading)
-            if meter.overload {
-                Text("localSDR.adcOverload")
-                    .font(.caption.bold())
-                    .foregroundStyle(.red)
-            }
+            .frame(minWidth: 90, alignment: .leading)
         }
-        .animation(.linear(duration: 0.1), value: meter.dBm)
     }
 
-    /// S0 (−127 dBm) … S9 (−73) fills 60%, S9+40 (−33) the rest.
-    private var fraction: CGFloat {
-        guard let dBm = meter.dBm else { return 0 }
-        if dBm <= -73 { return CGFloat(max(0, (dBm + 127) / 54) * 0.6) }
-        return CGFloat(0.6 + min(1, (dBm + 73) / 40) * 0.4)
+    private var sUnits: String {
+        guard let dBm = meter.dBm else { return "S–" }
+        if dBm > -73 { return "S9+\(Int((dBm + 73).rounded()))" }
+        return "S\(max(0, Int(((dBm + 127) / 6).rounded(.down))))"
     }
 
-    private var fillColor: Color {
-        (meter.dBm ?? -127) > -73 ? .red : .green
-    }
-
-    private var readout: String {
-        guard let dBm = meter.dBm else { return "S– · — dBm" }
-        let sUnits: String
-        if dBm > -73 {
-            sUnits = "S9+\(Int((dBm + 73).rounded()))"
-        } else {
-            sUnits = "S\(max(0, Int(((dBm + 127) / 6).rounded(.down))))"
-        }
-        return "\(sUnits) · \(Int(dBm.rounded())) dBm"
+    private var dBmText: String {
+        guard let dBm = meter.dBm else { return "— dBm" }
+        return "\(Int(dBm.rounded())) dBm"
     }
 }

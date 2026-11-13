@@ -3000,6 +3000,16 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   `nonisolated`): each new Debug build makes macOS ask again, and reading on
   the main actor froze the app until the prompt was answered. Connect waits
   for the read ("Reading the saved password…"). Mute = volume 0.
+- **S-meter (2026-11-13; checked in the built app while disconnected, both
+  faces — not yet with a live Kiwi)**: the window's meter is the main
+  window's `SMeterView` in Settings → Appearance's style, fed the Kiwi's
+  dBm + 73 (S9 = −73 dBm), with the S units, dBm and ADC overload beside
+  it. `SMeterView(receiveOnly: true)` drops the TX meter picker on tap,
+  and its Digital face is the S line alone (30 pt tall, no aspect ratio).
+  The frequency above it sits in a box of the same width and border, in
+  the VFO boxes' themed digits (`VFODigitsText`, pulled out of
+  `VFODisplayBox`), a size down (26/22/18 pt, `ViewThatFits`) when the
+  font — 7-segment, padded with unlit 8s — is too wide.
 - **Waterfall** (phase 2): a second actor, `KiwiWaterfallClient`, opened with
   the sound stream's URL timestamp, which is how the Kiwi pairs them, so it
   takes no extra channel. A waterfall failure leaves the audio playing.

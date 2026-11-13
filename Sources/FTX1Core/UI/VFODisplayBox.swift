@@ -345,44 +345,9 @@ public struct VFODisplayBox: View {
         themeColor(vfo.modeBorder) ?? Color.secondary.opacity(0.5)
     }
 
-    private var digitFont: VFODigitFont {
-        appTheme?.vfoDigitFont ?? vfo.digitFont ?? .systemMono
-    }
-
-    /// The frequency in the theme's font; the 7-segment font draws the lit
-    /// digits over faint unlit "8"s (`SevenSegmentText`), an LCD look.
-    @ViewBuilder
+    /// The frequency in the theme's font and colour (`VFODigitsText`).
     private var frequencyText: some View {
-        let font = VFODigitFonts.font(digitFont, size: 36, bold: vfo.digitsBold ?? false)
-        if digitFont == .sevenSegment, VFODigitFonts.hasSevenSegment {
-            let lit = SevenSegmentText.lit(hasFrequency ? formattedFrequency : "")
-            ZStack(alignment: .trailing) {
-                Text(SevenSegmentText.unlit(lit))
-                    .foregroundStyle(unlitSegmentColor)
-                Text(lit)
-                    .foregroundStyle(digitColor)
-            }
-            .font(font)
-            .lineLimit(1)
-            .fixedSize()
-        } else {
-            Text(formattedFrequency)
-                .font(font)
-                .foregroundStyle(digitColor)
-                .lineLimit(1)
-                .fixedSize()
-        }
-    }
-
-    /// The unlit segments: the theme's, at the theme's faintness but in the
-    /// overridden digit colour if Settings picked one; ~10% of the digit
-    /// colour when the theme has none.
-    private var unlitSegmentColor: Color {
-        let alpha = ThemeColor(hex: vfo.unlitSegments).map { Double($0.a) / 255 } ?? 0.1
-        if appTheme?.vfoDigitColor == nil, let color = themeColor(vfo.unlitSegments) {
-            return color
-        }
-        return baseDigitColor.opacity(alpha)
+        VFODigitsText(text: formattedFrequency, lit: hasFrequency, size: 36, dimmed: !isActive)
     }
 
     /// Fill color for the TXRX/RX box, matching the rig's own display:
@@ -397,14 +362,8 @@ public struct VFODisplayBox: View {
         }
     }
 
-    /// Settings → Appearance's VFO digit colour, else the theme's, else
-    /// the original green.
-    private var baseDigitColor: Color {
-        appTheme?.vfoDigitColor?.color ?? themeColor(vfo.digits) ?? .green
-    }
-
     private var digitColor: Color {
-        isActive ? baseDigitColor : baseDigitColor.opacity(0.45)
+        VFODigitsText.digitColor(theme: appTheme, dimmed: !isActive)
     }
 
     private var hasFrequency: Bool {
@@ -445,4 +404,73 @@ private extension View {
     }
     .padding()
     .frame(width: 420)
+}
+
+/// A frequency in Settings → Appearance's VFO digits — the theme's font
+/// (7-segment drawn over faint unlit "8"s, an LCD look) and digit colour,
+/// or the original green monospaced. `VFODisplayBox`'s digits, shared so
+/// other frequency readouts (the MyKiwiSDR window's) look the same.
+public struct VFODigitsText: View {
+    let text: String
+    /// False when `text` is a placeholder (dashes): no lit segments.
+    let lit: Bool
+    let size: CGFloat
+    /// Dimmed like a VFO box whose receiver isn't shown.
+    let dimmed: Bool
+    @Environment(\.appTheme) private var appTheme
+
+    public init(text: String, lit: Bool = true, size: CGFloat, dimmed: Bool = false) {
+        self.text = text
+        self.lit = lit
+        self.size = size
+        self.dimmed = dimmed
+    }
+
+    private var vfo: VFOTheme { appTheme?.theme.vfo ?? VFOTheme() }
+
+    private var digitFont: VFODigitFont {
+        appTheme?.vfoDigitFont ?? vfo.digitFont ?? .systemMono
+    }
+
+    public var body: some View {
+        let font = VFODigitFonts.font(digitFont, size: size, bold: vfo.digitsBold ?? false)
+        let color = Self.digitColor(theme: appTheme, dimmed: dimmed)
+        if digitFont == .sevenSegment, VFODigitFonts.hasSevenSegment {
+            let litText = SevenSegmentText.lit(lit ? text : "")
+            ZStack(alignment: .trailing) {
+                Text(SevenSegmentText.unlit(litText))
+                    .foregroundStyle(unlitSegmentColor)
+                Text(litText)
+                    .foregroundStyle(color)
+            }
+            .font(font)
+            .lineLimit(1)
+            .fixedSize()
+        } else {
+            Text(text)
+                .font(font)
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .fixedSize()
+        }
+    }
+
+    /// Settings → Appearance's VFO digit colour, else the theme's, else
+    /// the original green; at 45% when dimmed.
+    static func digitColor(theme: AppThemeContext?, dimmed: Bool) -> Color {
+        let vfo = theme?.theme.vfo ?? VFOTheme()
+        let base = theme?.vfoDigitColor?.color ?? themeColor(vfo.digits) ?? .green
+        return dimmed ? base.opacity(0.45) : base
+    }
+
+    /// The unlit segments: the theme's, at the theme's faintness but in the
+    /// overridden digit colour if Settings picked one; ~10% of the digit
+    /// colour when the theme has none.
+    private var unlitSegmentColor: Color {
+        let alpha = ThemeColor(hex: vfo.unlitSegments).map { Double($0.a) / 255 } ?? 0.1
+        if appTheme?.vfoDigitColor == nil, let color = themeColor(vfo.unlitSegments) {
+            return color
+        }
+        return Self.digitColor(theme: appTheme, dimmed: false).opacity(alpha)
+    }
 }
