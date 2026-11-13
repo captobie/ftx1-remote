@@ -59,6 +59,25 @@ public sealed class VfoDigits
         }
     }
 
+    /// The current theme's VFO look with Settings → Appearance's digit
+    /// color and font overrides applied (the unlit 7-segment cells follow a
+    /// new color at the theme's own faintness). Shared by the main window's
+    /// VFO boxes and the MyKiwiSDR window's frequency box.
+    public static (VfoTheme Vfo, VfoDigitFont Font) Effective()
+    {
+        var vfo = ThemeEngine.Current.Vfo;
+        if (AppSettings.VfoDigitColor is { } digitColor)
+        {
+            var hex = digitColor.Hex();
+            vfo = vfo with
+            {
+                Digits = hex,
+                UnlitSegments = vfo.UnlitSegments is { } unlit ? $"#{ThemeColor.Parse(unlit).A:X2}{hex[3..]}" : null,
+            };
+        }
+        return (vfo, AppSettings.VfoDigitFont ?? vfo.DigitFont);
+    }
+
     public void Apply(VfoTheme theme, VfoDigitFont font)
     {
         var digits = new SolidColorBrush(ThemeEngine.ToColor(theme.Digits));

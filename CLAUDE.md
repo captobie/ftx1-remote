@@ -3083,6 +3083,12 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   Devices; then the decoder source (CW, RTTY/PSK), Record/Play, Follow width and
   the playout controller (unit-tested and built, not yet tested on the rig). See
   `Apps/Windows/README.md`'s "MyKiwiSDR window".
+  **S-meter port (2026-11-13; built, not yet run)**: the window's bar is the
+  main window's analog `SMeter(receiveOnly: true)` (no TX needle, no METER
+  picker; Windows has no digital face or style setting) fed dBm + 73, with
+  S units, dBm and ADC overload beside it; the frequency sits in a 190 px
+  box in the themed VFO digits (`VfoDigits`, now with a shared
+  `Effective()` for the colour/font overrides, also used by `MainWindow`).
 - **Later, not started**: FT8/FT4 from MyKiwiSDR, Sub following, iPad.
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)

@@ -1,4 +1,5 @@
 using System.Globalization;
+using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Services;
 using FTX1RemoteWindows.Settings;
 using Microsoft.UI;
@@ -35,11 +36,17 @@ public sealed class LocalSdrWindow : Window
     private readonly Button _resetPassbandButton = new();
     private readonly TextBlock _hostText = new() { FontFamily = new FontFamily("Consolas"), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 300 };
     private readonly Button _connectButton = new();
-    private readonly TextBlock _frequencyText = new() { FontFamily = new FontFamily("Consolas"), FontSize = 26, VerticalAlignment = VerticalAlignment.Center, MinWidth = 190, TextAlignment = TextAlignment.Right };
+    /// The readout's source TextBlock; VfoDigits draws it in the theme's font.
+    private readonly TextBlock _frequencyText = new() { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, TextAlignment = TextAlignment.Right };
+    private readonly Border _frequencyBorder = new() { Width = MeterWidth, Height = 50, CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1.5), Padding = new Thickness(10, 0, 10, 0) };
+    private VfoDigits? _frequencyDigits;
     private readonly TextBox _frequencyBox = new() { Width = 120, FontFamily = new FontFamily("Consolas"), VerticalAlignment = VerticalAlignment.Center, PlaceholderText = "kHz" };
     private readonly List<(KiwiSdrMode Mode, ToggleButton Button)> _modeButtons = [];
-    private readonly ProgressBar _meterBar = new() { Minimum = -130, Maximum = -20, Width = 260, Height = 8, VerticalAlignment = VerticalAlignment.Center };
-    private readonly TextBlock _meterText = new() { FontFamily = new FontFamily("Consolas"), VerticalAlignment = VerticalAlignment.Center, MinWidth = 150 };
+    /// The main window's meter size (280:120), on the analog face.
+    private const double MeterWidth = 190;
+    private readonly SMeter _meter = new(isSub: false, receiveOnly: true, label: "MyKiwiSDR") { Width = MeterWidth, Height = MeterWidth * 120 / 280 };
+    private readonly TextBlock _sUnitsText = new() { FontFamily = new FontFamily("Consolas"), FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.Bold };
+    private readonly TextBlock _dbmText = new() { FontFamily = new FontFamily("Consolas"), FontSize = 14 };
     private readonly TextBlock _overloadText = new() { Foreground = new SolidColorBrush(Colors.OrangeRed), VerticalAlignment = VerticalAlignment.Center };
     private readonly Slider _volumeSlider = new() { Minimum = 0, Maximum = 1, StepFrequency = 0.01, Width = 140, VerticalAlignment = VerticalAlignment.Center };
     private readonly ToggleButton _muteButton = new();
@@ -116,6 +123,10 @@ public sealed class LocalSdrWindow : Window
     {
         ThemeEngine.ApplyTo(_root);
         _root.Background = ThemeEngine.WindowBackground;
+        var (vfo, font) = VfoDigits.Effective();
+        _frequencyBorder.Background = ThemeEngine.ToBrush(vfo.Background);
+        _frequencyBorder.BorderBrush = ThemeEngine.ToBrush(vfo.Border);
+        _frequencyDigits?.Apply(vfo, font);
     }
 
     // MARK: Rows
@@ -174,7 +185,13 @@ public sealed class LocalSdrWindow : Window
     private FrameworkElement BuildTuningRow()
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-        row.Children.Add(_frequencyText);
+        // In a box like the meter's under it, same width, in the VFO boxes'
+        // themed digits.
+        var frequencyGrid = new Grid();
+        frequencyGrid.Children.Add(_frequencyText);
+        _frequencyBorder.Child = frequencyGrid;
+        _frequencyDigits = new VfoDigits(_frequencyText, frequencyGrid);
+        row.Children.Add(_frequencyBorder);
         ToolTipService.SetToolTip(_frequencyBox, Loc.S("localSdr.frequencyHelp"));
         _frequencyBox.GotFocus += (_, _) => _frequencyFocused = true;
         _frequencyBox.LostFocus += (_, _) =>
@@ -227,10 +244,13 @@ public sealed class LocalSdrWindow : Window
         var row = new Grid { ColumnSpacing = 16 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var meter = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-        meter.Children.Add(_meterBar);
-        meter.Children.Add(_meterText);
-        meter.Children.Add(_overloadText);
+        var meter = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        meter.Children.Add(_meter);
+        var readout = new StackPanel { Spacing = 4, MinWidth = 90, VerticalAlignment = VerticalAlignment.Center };
+        readout.Children.Add(_sUnitsText);
+        readout.Children.Add(_dbmText);
+        readout.Children.Add(_overloadText);
+        meter.Children.Add(readout);
         row.Children.Add(meter);
 
         var audio = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -494,13 +514,16 @@ public sealed class LocalSdrWindow : Window
     {
         if (Model.MeterDbm is { } dbm)
         {
-            _meterBar.Value = Math.Clamp(dbm, -130, -20);
-            _meterText.Text = $"{SUnits(dbm)}  {dbm:0} dBm";
+            // The face's dB-over-S9 is dBm + 73.
+            _meter.Update(dbm + 73, new MeterReadings(null, null, null), false);
+            _sUnitsText.Text = SUnits(dbm);
+            _dbmText.Text = $"{dbm:0} dBm";
         }
         else
         {
-            _meterBar.Value = -130;
-            _meterText.Text = "—";
+            _meter.Reset();
+            _sUnitsText.Text = "S–";
+            _dbmText.Text = "— dBm";
         }
         _overloadText.Text = Model.MeterOverload ? Loc.S("localSdr.adcOverload") : "";
     }

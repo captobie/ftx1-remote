@@ -62,11 +62,17 @@ public sealed class SMeter : UserControl
     private MeterReadings _readings = new(null, null, null);
     private bool _ptt;
 
-    public SMeter(bool isSub)
+    private readonly bool _receiveOnly;
+
+    /// receiveOnly (the MyKiwiSDR window's meter): no TX needle and no
+    /// METER picker on click; the lower scale stays at the saved MAIN
+    /// selection. label replaces the MAIN/SUB accessible name.
+    public SMeter(bool isSub, bool receiveOnly = false, string? label = null)
     {
         _isSub = isSub;
+        _receiveOnly = receiveOnly;
         _selection = isSub ? AppSettings.SubMeterSelection : AppSettings.MainMeterSelection;
-        AutomationProperties.SetName(this, isSub ? Loc.S("sMeter.subMeter") : Loc.S("sMeter.mainMeter"));
+        AutomationProperties.SetName(this, label ?? (isSub ? Loc.S("sMeter.subMeter") : Loc.S("sMeter.mainMeter")));
 
         // Design-space content: backlit face, scales, needle, bezel shading.
         var content = new Grid
@@ -115,8 +121,11 @@ public sealed class SMeter : UserControl
                 _pickerGrid,
             },
         };
-        Tapped += (_, _) => _pickerFlyout.ShowAt(this);
-        ToolTipService.SetToolTip(this, Loc.S("sMeter.clickToChooseWhat"));
+        if (!receiveOnly)
+        {
+            Tapped += (_, _) => _pickerFlyout.ShowAt(this);
+            ToolTipService.SetToolTip(this, Loc.S("sMeter.clickToChooseWhat"));
+        }
 
         DrawFace();
         UpdateNeedle(animate: false);
@@ -137,7 +146,7 @@ public sealed class SMeter : UserControl
 
     private void UpdateNeedle(bool animate)
     {
-        var fraction = _ptt && !_isSub
+        var fraction = _ptt && !_isSub && !_receiveOnly
             ? _selection.Fraction(_readings)
             : SMeterScale.FractionForStrengthDb(_strengthDb);
         if (fraction == _needleFraction)

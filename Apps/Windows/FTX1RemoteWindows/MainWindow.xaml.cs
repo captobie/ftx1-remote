@@ -659,19 +659,7 @@ public sealed partial class MainWindow : Window
     /// is applied by hand. The TXRX/RX tags keep their fixed colors.
     private void ApplyVfoTheme()
     {
-        var vfo = ThemeEngine.Current.Vfo;
-        if (AppSettings.VfoDigitColor is { } digitColor)
-        {
-            // The unlit 7-segment cells follow the new color at the theme's
-            // own faintness.
-            var hex = digitColor.Hex();
-            vfo = vfo with
-            {
-                Digits = hex,
-                UnlitSegments = vfo.UnlitSegments is { } unlit ? $"#{ThemeColor.Parse(unlit).A:X2}{hex[3..]}" : null,
-            };
-        }
-        var font = AppSettings.VfoDigitFont ?? vfo.DigitFont;
+        var (vfo, font) = VfoDigits.Effective();
         foreach (var (box, label, modeBorder, mode, memory, reflector, callsign, digits) in new[]
                  {
                      (MainVfoBox, MainLabelText, MainModeBorder, MainModeText, MemoryChannelAText, C4fmReflectorAText, C4fmCallsignAText, _mainDigits),
