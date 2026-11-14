@@ -2269,7 +2269,8 @@ pattern as the APRS windows.
   `decode_ft8 -ft4` decodes all four.
 - **Source: MAIN, SUB or MyKiwiSDR (2026-11-14; picker and notes checked
   in the built app, then FT8 decoding from SUB and from MyKiwiSDR on 20 m
-  tested by the user the same day, working)**: user request, to watch a second band while
+  tested by the user the same day, working; FT4 from both too, DT
+  +0.2–0.3 s on each)**: user request, to watch a second band while
   the rig is busy. A segmented picker under each window's status line
   (`FT8SourceBar` in `FT8ListView.swift`), saved per mode
   (`ft8.channel`/`ft4.channel`, `FT8Store.channel`; no WebSDR). Both taps
@@ -2284,9 +2285,9 @@ pattern as the APRS windows.
   (2 s, `FT8Store.isSubAudioAvailable`) or in single-receive display
   (incl. split); Kiwi not connected/silent, or not in USB. PSK Reporter
   reports every source the same (the Kiwi is at the same QTH), and still
-  drops slots the rig transmitted in. Unchecked: FT4 from either source;
-  FT4's ~0.4 s timing window with the Kiwi's network delay — look at DT first if FT4 decodes
-  nothing from it.
+  drops slots the rig transmitted in. FT4's ~0.4 s timing window
+  left room on 20 m; if FT4 ever decodes nothing from the Kiwi, look
+  at DT first.
 - **Verification status**: `Tests/FT8KitTests/FT8ReferenceVectorTests.swift`
   passes real off-air FT8 captures (vendored from ft8_lib's own
   `test/wav/`) through the real wrapper and checks against what ft8_lib's
