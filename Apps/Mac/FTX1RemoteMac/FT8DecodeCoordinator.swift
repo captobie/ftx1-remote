@@ -1,5 +1,6 @@
 import FT8Kit
 import Foundation
+import FTX1Core
 import os
 
 /// Coordinates FT8 or FT4 decoding of live rig audio (one instance per
@@ -13,8 +14,9 @@ import os
 /// Unlike `APRSDecoder` (always-on, gated by VFO frequency match against a
 /// single configured APRS frequency), FT8 has no one fixed frequency to
 /// gate on — decoding here only runs between `start()` and `stop()`, called
-/// from the Tools/FT8 window's lifecycle. `ingest(samples:sampleRate:)`
-/// drops audio cheaply when not running.
+/// from the Tools/FT8 window's lifecycle. `ingest(samples:sampleRate:channel:)`
+/// drops audio cheaply when not running, and audio from any source but
+/// the window's (MAIN, SUB or MyKiwiSDR, `setChannel(_:)`).
 ///
 /// Owns a private serial queue for all decode work, same shape as
 /// `APRSDecoder` — CPU-bound (LDPC decode), doesn't belong on the real-time
@@ -23,6 +25,8 @@ final class FT8DecodeCoordinator {
     struct Spot {
         let utcTimestamp: Date
         let dialFrequencyHz: Int
+        /// Where the slot's audio came from (MAIN, SUB or MyKiwiSDR).
+        let channel: ReceiveAudioChannel
         let message: FT8Kit.RawMessage
     }
 
@@ -49,13 +53,14 @@ final class FT8DecodeCoordinator {
         logger = Logger(subsystem: "com.ftx1remote.mac", category: "\(tag)-decoder")
     }
 
-    /// Reads `HubService.rigState.frequencyHz`. A settable closure property
+    /// The dial frequency of a source: MAIN's or SUB's frequency, or the
+    /// MyKiwiSDR window's. A settable closure property
     /// (assigned by `HubService.init`, same as `audioCapture.onAudioSamples`)
     /// rather than a required init parameter — sidesteps capturing `[weak
     /// self]` for a `HubService`-owned `let` property before all of
     /// `HubService`'s other stored properties are initialized, and keeps
     /// this independently constructible/testable without a `HubService`.
-    var dialFrequencyProvider: () -> Int = { 0 }
+    var dialFrequencyProvider: (ReceiveAudioChannel) -> Int = { _ in 0 }
 
     private var isRunning = false
     private var decoder: FT8Decoder?
@@ -64,6 +69,8 @@ final class FT8DecodeCoordinator {
     private var lastSlotPhase: Double?
     private var currentSlotStart: Date?
     private var currentSlotDialFrequencyHz: Int?
+    /// Only this source's audio is decoded. Set through `setChannel(_:)`.
+    private var channel = ReceiveAudioChannel.main
 
     func start() {
         queue.async { [weak self] in
@@ -77,12 +84,27 @@ final class FT8DecodeCoordinator {
         }
     }
 
+    /// Switches the decoded source. The slot in progress starts over: its
+    /// audio so far came from the old source (and maybe another rate), and
+    /// its spots would carry the old source's dial frequency.
+    func setChannel(_ channel: ReceiveAudioChannel) {
+        queue.async { [weak self] in
+            guard let self, self.channel != channel else { return }
+            self.channel = channel
+            guard self.isRunning else { return }
+            self.resampler.reset()
+            self.beginSlot(at: Date())
+            self.logger.debug("source now \(channel.rawValue, privacy: .public)")
+        }
+    }
+
     /// Cheap from the caller's side — copies the array reference into the
     /// closure and returns immediately; resample/accumulate/decode all
-    /// happen on `queue`. Dropped entirely (no-op) when not running.
-    func ingest(samples: [Float], sampleRate: Double) {
+    /// happen on `queue`. Dropped entirely (no-op) when not running or
+    /// when `channel` isn't the selected source.
+    func ingest(samples: [Float], sampleRate: Double, channel: ReceiveAudioChannel) {
         queue.async { [weak self] in
-            guard let self, self.isRunning else { return }
+            guard let self, self.isRunning, channel == self.channel else { return }
             self.ingestOnQueue(samples: samples, sampleRate: sampleRate)
         }
     }
@@ -146,7 +168,7 @@ final class FT8DecodeCoordinator {
     private func beginSlot(at date: Date) {
         let phase = date.timeIntervalSince1970.truncatingRemainder(dividingBy: mode.slotTimeSeconds)
         currentSlotStart = date.addingTimeInterval(-phase)
-        currentSlotDialFrequencyHz = dialFrequencyProvider()
+        currentSlotDialFrequencyHz = dialFrequencyProvider(channel)
         decoder = FT8Decoder(sampleRate: FT8Resampler.targetSampleRate, mode: mode)
         pendingSamples = []
         lastSlotPhase = phase
@@ -164,7 +186,8 @@ final class FT8DecodeCoordinator {
         logger.debug("slot \(slotStart.timeIntervalSince1970, privacy: .public): decoded \(messages.count) message(s)")
         guard !messages.isEmpty else { return }
 
-        let spots = messages.map { Spot(utcTimestamp: slotStart, dialFrequencyHz: dialFrequencyHz, message: $0) }
+        let channel = channel
+        let spots = messages.map { Spot(utcTimestamp: slotStart, dialFrequencyHz: dialFrequencyHz, channel: channel, message: $0) }
         let callback = onSpotsDecoded
         DispatchQueue.main.async { callback?(spots) }
     }

@@ -30,6 +30,10 @@ final class LocalSDRAudioSource: ObservableObject {
     @Published private(set) var status = Status.notConnected
     /// The Kiwi's demodulation as a rig mode while connected, nil otherwise.
     @Published private(set) var mode: RigMode?
+    /// The Kiwi's dial frequency while connected — the FT8/FT4 decoders
+    /// read it at each slot start (off the main actor, like their read of
+    /// `rigState`). Not published: it changes on every tuning step.
+    private(set) var frequencyHz: Int?
 
     private struct Consumer {
         let isWanted: @MainActor () -> Bool
@@ -66,11 +70,18 @@ final class LocalSDRAudioSource: ObservableObject {
     // MARK: - Producer (LocalSDRModel)
 
     /// The Kiwi's audio is ready at `sampleRate`.
-    func sessionStarted(sampleRate: Double, mode: KiwiSDRMode) {
+    func sessionStarted(sampleRate: Double, mode: KiwiSDRMode, frequencyHz: Int) {
         self.sampleRate = sampleRate
+        self.frequencyHz = frequencyHz
         quietSince = nil
         setStatus(.receiving)
         modeChanged(mode)
+    }
+
+    /// A retune sent to the Kiwi.
+    func frequencyChanged(_ hz: Int) {
+        guard sampleRate != nil else { return }
+        frequencyHz = hz
     }
 
     func modeChanged(_ kiwiMode: KiwiSDRMode) {
@@ -82,6 +93,7 @@ final class LocalSDRAudioSource: ObservableObject {
     /// Disconnect, a dropped connection, or the window closing.
     func sessionEnded() {
         sampleRate = nil
+        frequencyHz = nil
         quietSince = nil
         setStatus(.notConnected)
         if mode != nil { mode = nil }

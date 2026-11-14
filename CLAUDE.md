@@ -2267,6 +2267,26 @@ pattern as the APRS windows.
   `gen_ft8 … -ft4` (four messages mixed with noise, moved to start at
   0.5 s; recipe in `FT8ReferenceVectorTests`), and upstream's
   `decode_ft8 -ft4` decodes all four.
+- **Source: MAIN, SUB or MyKiwiSDR (2026-11-14; picker and notes checked
+  in the built app, then FT8 decoding from SUB and from MyKiwiSDR on 20 m
+  tested by the user the same day, working)**: user request, to watch a second band while
+  the rig is busy. A segmented picker under each window's status line
+  (`FT8SourceBar` in `FT8ListView.swift`), saved per mode
+  (`ft8.channel`/`ft4.channel`, `FT8Store.channel`; no WebSDR). Both taps
+  call `ingest(samples:sampleRate:channel:)` and the coordinator keeps only
+  the selected source; the Kiwi's frames come through `LocalSDRAudioSource`
+  (consumers `ft8`/`ft4`, wanted while the window decodes with MyKiwiSDR
+  picked). A switch restarts the slot in progress (its audio and dial
+  belong to the old source). The slot's dial is the source's: MAIN's
+  `frequencyHz`, SUB's `secondaryFrequencyHz`, or the Kiwi's
+  (`LocalSDRAudioSource.frequencyHz`, updated on each retune sent).
+  `FT8Spot.channel` shows in a Source column. Notes: SUB with no Sub audio
+  (2 s, `FT8Store.isSubAudioAvailable`) or in single-receive display
+  (incl. split); Kiwi not connected/silent, or not in USB. PSK Reporter
+  reports every source the same (the Kiwi is at the same QTH), and still
+  drops slots the rig transmitted in. Unchecked: FT4 from either source;
+  FT4's ~0.4 s timing window with the Kiwi's network delay — look at DT first if FT4 decodes
+  nothing from it.
 - **Verification status**: `Tests/FT8KitTests/FT8ReferenceVectorTests.swift`
   passes real off-air FT8 captures (vendored from ft8_lib's own
   `test/wav/`) through the real wrapper and checks against what ft8_lib's
@@ -3117,7 +3137,8 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   S units, dBm and ADC overload beside it; the frequency sits in a 190 px
   box in the themed VFO digits (`VfoDigits`, now with a shared
   `Effective()` for the colour/font overrides, also used by `MainWindow`).
-- **Later, not started**: FT8/FT4 from MyKiwiSDR, Sub following, iPad.
+- **Later, not started**: Sub following, iPad. (FT8/FT4 from MyKiwiSDR:
+  see "Digital modes — FT8".)
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 

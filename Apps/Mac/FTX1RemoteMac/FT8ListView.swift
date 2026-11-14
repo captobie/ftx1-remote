@@ -20,12 +20,18 @@ struct FT8ListView: View {
         VStack(alignment: .leading, spacing: 0) {
             statusHeader
             Divider()
+            FT8SourceBar(store: store)
+            Divider()
             pskReporterBar
             Divider()
             Table(store.spots.sorted { $0.utcTimestamp > $1.utcTimestamp }) {
                 TableColumn("ft8List.time") { spot in
                     Text(spot.utcTimestamp, style: .time)
                 }
+                TableColumn("ft8List.source") { spot in
+                    Text(verbatim: spot.channel.title)
+                }
+                .width(min: 50, ideal: 70)
                 TableColumn("ft8List.freqMHz") { spot in
                     Text(FrequencyFormat.mhz(spot.absoluteFrequencyHz, fractionDigits: 4))
                         .fontDesign(.monospaced)
@@ -154,5 +160,70 @@ struct FT8ListView: View {
     private static func secondsUntilNextSlot(from date: Date, slotSeconds: Double) -> Int {
         let phase = date.timeIntervalSince1970.truncatingRemainder(dividingBy: slotSeconds)
         return Int((slotSeconds - phase).rounded(.up))
+    }
+}
+
+/// MAIN / SUB / MyKiwiSDR and what's wrong with the chosen source, if
+/// anything. Its own view so observing `hub` (single-receive display) and
+/// the Kiwi source re-renders only this row, not the spot table.
+private struct FT8SourceBar: View {
+    @EnvironmentObject private var hub: HubService
+    @EnvironmentObject private var localSDRSource: LocalSDRAudioSource
+    @ObservedObject var store: FT8Store
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Picker("ft8List.source", selection: $store.channel) {
+                ForEach(FT8Store.offeredChannels, id: \.self) { channel in
+                    Text(verbatim: channel.title).tag(channel)
+                        .selectionDisabled(channel == .sub && subUnavailableReason != nil && store.channel != .sub)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help(String(localized: "ft8List.whichAudio \(store.mode.name)"))
+            if let note {
+                Text(note)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+    }
+
+    private var subUnavailableReason: String? {
+        if !store.isSubAudioAvailable {
+            String(localized: "cwWindow.noSubAudioThe")
+        } else if hub.rigState.singleReceive == true {
+            String(localized: "common.subIsOffThe")
+        } else {
+            nil
+        }
+    }
+
+    private var note: String? {
+        switch store.channel {
+        case .main, .webSDR:
+            return nil
+        case .sub:
+            return subUnavailableReason
+        case .myKiwiSDR:
+            switch localSDRSource.status {
+            case .notConnected:
+                return String(localized: "common.myKiwiSDRNotConnected")
+            case .silent:
+                return String(localized: "common.myKiwiSDRSilent")
+            case .receiving:
+                if let mode = localSDRSource.mode, mode != .usb {
+                    return String(localized: "ft8List.kiwiNeedsUSB \(mode.displayName) \(store.mode.name)")
+                }
+                return nil
+            }
+        }
     }
 }

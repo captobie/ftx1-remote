@@ -6279,6 +6279,29 @@
         }
       }
     },
+    "ft8List.kiwiNeedsUSB %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR ist in %1$@ – %2$@ braucht USB"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR is in %1$@ — %2$@ needs USB"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MyKiwiSDR está en %1$@: %2$@ necesita USB"
+          }
+        }
+      }
+    },
     "ft8List.nextInS %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6440,6 +6463,29 @@
         }
       }
     },
+    "ft8List.source" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelle"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fuente"
+          }
+        }
+      }
+    },
     "ft8List.time" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6528,6 +6574,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ver en PSK Reporter"
+          }
+        }
+      }
+    },
+    "ft8List.whichAudio %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welches Audio für %@ dekodiert wird: MAIN- oder SUB-Empfänger des Geräts oder das Audio des MyKiwiSDR-Fensters"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which audio to decode %@ from: the rig's MAIN or SUB receiver, or the MyKiwiSDR window's audio"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué audio decodificar para %@: el receptor MAIN o SUB del equipo o el audio de la ventana MyKiwiSDR"
           }
         }
       }

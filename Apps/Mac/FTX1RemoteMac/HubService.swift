@@ -640,8 +640,10 @@ final class HubService: ObservableObject {
             // downstream of `guard isActive else { return }`, which gates
             // on the APRS calling frequency specifically and would
             // otherwise silently starve FT8 of audio on every other band.
-            self.ft8Coordinator.ingest(samples: samples, sampleRate: sampleRate)
-            self.ft4Coordinator.ingest(samples: samples, sampleRate: sampleRate)
+            self.ft8Coordinator.ingest(samples: samples, sampleRate: sampleRate, channel: .main)
+            self.ft4Coordinator.ingest(samples: samples, sampleRate: sampleRate, channel: .main)
+            self.ft8Store.noteAudio(from: .main)
+            self.ft4Store.noteAudio(from: .main)
 
             // Same reasoning as ft8Coordinator above — recording isn't tied
             // to any calling frequency either, and `audioRecorder` itself
@@ -667,7 +669,7 @@ final class HubService: ObservableObject {
         // now (2026-09-18): relay to mobile clients unconditionally
         // (`broadcastSubAudio` is a cheap no-op with no connections, same
         // as `broadcastAudio`), local playback gated by mute. Still no
-        // FT8/recorder on Sub — those stay Main-only. (CW decodes either.)
+        // recorder on Sub. (CW, RTTY/PSK and FT8/FT4 decode either.)
         audioCapture.onSubChannelSamples = { [weak self] samples, sampleRate in
             guard let self else { return }
             if let pcm = self.subAudioStreamEncoder.encode(samples: samples, sampleRate: sampleRate) {
@@ -678,6 +680,10 @@ final class HubService: ObservableObject {
             }
 
             // Before the APRS gate, like the Main tap's.
+            self.ft8Coordinator.ingest(samples: samples, sampleRate: sampleRate, channel: .sub)
+            self.ft4Coordinator.ingest(samples: samples, sampleRate: sampleRate, channel: .sub)
+            self.ft8Store.noteAudio(from: .sub)
+            self.ft4Store.noteAudio(from: .sub)
             self.cwReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .sub)
             self.digiReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .sub)
 
@@ -707,9 +713,27 @@ final class HubService: ObservableObject {
             self?.receivedAPRSMessage(from: from, to: to, text: text, messageID: messageID, source: .sub)
         }
         for (coordinator, store) in [(ft8Coordinator, ft8Store), (ft4Coordinator, ft4Store)] {
-            coordinator.dialFrequencyProvider = { [weak self] in
-                self?.rigState.frequencyHz ?? 0
+            coordinator.dialFrequencyProvider = { [weak self] channel in
+                guard let self else { return 0 }
+                switch channel {
+                case .main, .webSDR: return self.rigState.frequencyHz
+                case .sub: return self.rigState.secondaryFrequencyHz ?? 0
+                case .myKiwiSDR: return self.localSDRSource.frequencyHz ?? 0
+                }
             }
+            coordinator.setChannel(store.channel)
+            store.onChannelChanged = { [weak self, weak coordinator] channel in
+                coordinator?.setChannel(channel)
+                self?.localSDRSource.update()
+            }
+            let tag = store.mode.name.lowercased()
+            localSDRSource.addConsumer(
+                id: tag,
+                isWanted: { [weak store] in store.map { $0.isRunning && $0.channel == .myKiwiSDR } ?? false },
+                onSamples: { [weak coordinator] samples, sampleRate in
+                    coordinator?.ingest(samples: samples, sampleRate: sampleRate, channel: .myKiwiSDR)
+                }
+            )
             coordinator.onSpotsDecoded = { [weak self, weak store] coordinatorSpots in
                 guard let self, let store else { return }
                 let spots = coordinatorSpots.map { FT8Spot(coordinatorSpot: $0, mode: store.mode.name) }
@@ -1068,6 +1092,8 @@ final class HubService: ObservableObject {
     /// doc comment for why FT8 can't reuse APRS's always-on gate).
     func startDigitalDecoding(_ mode: FT8Kit.Mode) {
         coordinator(for: mode).start()
+        digitalStore(for: mode).isRunning = true
+        localSDRSource.update()
         pskReporter.start(mode)
     }
 
@@ -1075,7 +1101,16 @@ final class HubService: ObservableObject {
     /// safety net from `stop()` in case the app quits with it still open.
     func stopDigitalDecoding(_ mode: FT8Kit.Mode) {
         coordinator(for: mode).stop()
+        digitalStore(for: mode).isRunning = false
+        localSDRSource.update()
         pskReporter.stop(mode)
+    }
+
+    private func digitalStore(for mode: FT8Kit.Mode) -> FT8Store {
+        switch mode {
+        case .ft8: return ft8Store
+        case .ft4: return ft4Store
+        }
     }
 
     private func coordinator(for mode: FT8Kit.Mode) -> FT8DecodeCoordinator {

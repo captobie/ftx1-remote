@@ -357,7 +357,7 @@ final class LocalSDRModel: ObservableObject {
             logger.notice("connected, audio at \(sampleRate, privacy: .public) Hz")
             state = .connected(sampleRate: sampleRate)
             audioSampleRate = sampleRate
-            hub?.localSDRSource.sessionStarted(sampleRate: sampleRate, mode: mode)
+            hub?.localSDRSource.sessionStarted(sampleRate: sampleRate, mode: mode, frequencyHz: frequencyHz)
             startPlayback(sampleRate: sampleRate)
             startWaterfall()
         case .audio(let chunk):
@@ -532,6 +532,7 @@ final class LocalSDRModel: ObservableObject {
     private func sendRetune() {
         guard let client else { return }
         lastRetune = .now
+        hub?.localSDRSource.frequencyChanged(frequencyHz)
         let tuning = currentTuning
         Task { await client.tune(tuning) }
     }

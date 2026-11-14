@@ -16,6 +16,8 @@ struct FT8Spot: Identifiable, Equatable {
     /// `RigState.frequencyHz` captured at slot start, not decode-completion
     /// — see `FT8DecodeCoordinator.beginSlot`.
     let dialFrequencyHz: Int
+    /// The source the slot was decoded from.
+    let channel: ReceiveAudioChannel
     /// Sync-candidate score converted the same way ft8_lib's own demo does
     /// (`score * 0.5`) — an approximation of signal quality, not a
     /// calibrated noise-floor SNR. ft8_lib's own source marks this exact
@@ -50,6 +52,7 @@ struct FT8Spot: Identifiable, Equatable {
         messageText = message.text
         audioFrequencyOffsetHz = message.frequencyOffsetHz
         dialFrequencyHz = coordinatorSpot.dialFrequencyHz
+        channel = coordinatorSpot.channel
         snrDb = Int((Double(message.score) * 0.5).rounded())
         dtSeconds = message.dtSeconds
         ldpcErrors = message.ldpcErrors

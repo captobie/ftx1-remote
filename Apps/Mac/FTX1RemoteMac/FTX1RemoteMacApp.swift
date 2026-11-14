@@ -98,12 +98,14 @@ struct FTX1RemoteMacApp: App {
             FT8ListView(store: appDelegate.hub.ft8Store)
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.pskReporter)
+                .environmentObject(appDelegate.hub.localSDRSource)
                 .appTheme()
         }
         Window("FT4", id: "ft4") {
             FT8ListView(store: appDelegate.hub.ft4Store)
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.pskReporter)
+                .environmentObject(appDelegate.hub.localSDRSource)
                 .appTheme()
         }
 
