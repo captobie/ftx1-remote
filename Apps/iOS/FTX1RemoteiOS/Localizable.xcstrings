@@ -21,6 +21,18 @@
             "state" : "translated",
             "value" : "Banda"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bande"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Banda"
+          }
         }
       }
     },
@@ -43,6 +55,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Conectado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecté"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connesso"
           }
         }
       }
@@ -67,6 +91,18 @@
             "state" : "translated",
             "value" : "Conectando…"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexion…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connessione…"
+          }
         }
       }
     },
@@ -89,6 +125,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Conexión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexion"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connessione"
           }
         }
       }
@@ -113,6 +161,18 @@
             "state" : "translated",
             "value" : "Desconectado"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déconnecté"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnesso"
+          }
         }
       }
     },
@@ -135,6 +195,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nombre de host del Pi (Tailscale)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom d'hôte du Pi (Tailscale)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nome host del Pi (Tailscale)"
           }
         }
       }
@@ -159,6 +231,18 @@
             "state" : "translated",
             "value" : "Receptor"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récepteur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricevitore"
+          }
         }
       }
     },
@@ -181,6 +265,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reintentando…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvel essai…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuovo tentativo…"
           }
         }
       }
@@ -205,6 +301,18 @@
             "state" : "translated",
             "value" : "Transmisión desactivada"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission désactivée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione disattivata"
+          }
         }
       }
     },
@@ -227,6 +335,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Transmisión desactivada: fuera de una banda de radioaficionado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission désactivée : hors bande amateur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione disattivata: fuori da una banda radioamatoriale"
           }
         }
       }
@@ -251,6 +371,18 @@
             "state" : "translated",
             "value" : "Transmisión desactivada; tocar para activarla"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission désactivée ; toucher pour l'activer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione disattivata; toccare per attivarla"
+          }
         }
       }
     },
@@ -273,6 +405,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Transmisión activada; tocar para desactivarla"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission activée ; toucher pour la désactiver"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione attivata; toccare per disattivarla"
           }
         }
       }
@@ -297,6 +441,18 @@
             "state" : "translated",
             "value" : "Nombre de host del Mac (Tailscale)"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom d'hôte du Mac (Tailscale)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nome host del Mac (Tailscale)"
+          }
         }
       }
     },
@@ -316,6 +472,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hub del Mac"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hub du Mac"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hub del Mac"
@@ -343,6 +511,18 @@
             "state" : "translated",
             "value" : "Pi directo"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pi direct"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pi diretto"
+          }
         }
       }
     },
@@ -365,6 +545,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Transmisión desactivada en el Mac; tocar para activarla"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission désactivée sur le Mac ; toucher pour l'activer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione disattivata sul Mac; toccare per attivarla"
           }
         }
       }
@@ -389,6 +581,18 @@
             "state" : "translated",
             "value" : "Transmisión desactivada en el Mac"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission désactivée sur le Mac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione disattivata sul Mac"
+          }
         }
       }
     },
@@ -412,6 +616,18 @@
             "state" : "translated",
             "value" : "Transmisión activada en el Mac; tocar para desactivarla"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission activée sur le Mac ; toucher pour la désactiver"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione attivata sul Mac; toccare per disattivarla"
+          }
         }
       }
     },
@@ -431,6 +647,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio %@"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Audio %@"
@@ -458,6 +686,18 @@
             "state" : "translated",
             "value" : "Audio %@ (silenciado)"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio %@ (coupé)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio %@ (silenziato)"
+          }
         }
       }
     },
@@ -480,6 +720,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Audio desactivado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio coupé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio disattivato"
           }
         }
       }
@@ -504,6 +756,18 @@
             "state" : "translated",
             "value" : "Silenciar audio %@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couper l'audio %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silenzia l'audio %@"
+          }
         }
       }
     },
@@ -527,6 +791,18 @@
             "state" : "translated",
             "value" : "Activar audio %@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rétablir l'audio %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riattiva l'audio %@"
+          }
         }
       }
     },
@@ -549,6 +825,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Esperando audio: ¿está el Mac usando el flujo del Pi?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente d'audio : le Mac utilise-t-il le flux du Pi ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa di audio: il Mac sta usando il flusso del Pi?"
           }
         }
       }
@@ -577,6 +865,18 @@
             "state" : "translated",
             "value" : "Mantener pulsado para transmitir"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maintenir pour émettre"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tenere premuto per trasmettere"
+          }
         }
       }
     },
@@ -599,6 +899,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pulsar para hablar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appuyer pour parler"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premi per parlare"
           }
         }
       }
@@ -623,6 +935,18 @@
             "state" : "translated",
             "value" : "Transmitiendo"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In trasmissione"
+          }
         }
       }
     },
@@ -645,6 +969,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bajar la potencia RF 1 W"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baisser la puissance RF de 1 W"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riduci la potenza RF di 1 W"
           }
         }
       }
@@ -669,6 +1005,18 @@
             "state" : "translated",
             "value" : "Subir la potencia RF 1 W"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Augmenter la puissance RF de 1 W"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aumenta la potenza RF di 1 W"
+          }
         }
       }
     },
@@ -688,6 +1036,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Modo"
@@ -714,6 +1074,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Potencia RF"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puissance RF"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Potenza RF"
           }
         }
       }

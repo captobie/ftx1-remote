@@ -4,7 +4,7 @@ using System.Resources;
 namespace FTX1RemoteWindows;
 
 /// The app's user-facing strings (Localization/Strings*.resx: English, plus
-/// Spanish and German — the same languages as the Mac/iPad String Catalogs,
+/// Spanish, German, Italian and French — the same languages as the Mac/iPad String Catalogs,
 /// whose wording they reuse). The language is Windows' display language
 /// (CurrentUICulture); there's no in-app picker. Keys are namespaced like the
 /// Mac's ("mainWindow.connectFailed", "common.cancel"); a missing key shows as
@@ -32,12 +32,13 @@ public static class Loc
         string.Format(CultureInfo.CurrentCulture, S(key), args);
 
     /// A counted string: "<key>.one" when <paramref name="count"/> is 1, else
-    /// "<key>.other" (English, Spanish and German all split there). The count
+    /// "<key>.other" (English, Spanish, German and Italian split there; French
+    /// counts 0 as singular, but "0 messages" reads fine). The count
     /// is {0}; <paramref name="args"/> follow as {1}, {2}…
     public static string P(string key, long count, params object?[] args) =>
         F(key + (count == 1 ? ".one" : ".other"), [count, .. args]);
 
-    /// Debug builds: FTX1REMOTE_UI_LANGUAGE=es (or de, en) shows the app in
+    /// Debug builds: FTX1REMOTE_UI_LANGUAGE=es (or de, it, fr, en) shows the app in
     /// that language whatever Windows' display language is — for checking
     /// translations. WinUI's own control strings still follow Windows.
     [System.Diagnostics.Conditional("DEBUG")]
@@ -49,7 +50,7 @@ public static class Loc
         }
     }
 
-    /// Frequencies never follow the locale (es/de would write "14,074"): keep
+    /// Frequencies never follow the locale (es/de/it/fr would write "14,074"): keep
     /// Windows' regional format for dates and the like, but with "." as the
     /// decimal separator, and a no-break space for grouping where the
     /// culture used "." for that. Also fixes culture-sensitive parsing of

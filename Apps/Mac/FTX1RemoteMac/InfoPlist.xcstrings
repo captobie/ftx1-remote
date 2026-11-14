@@ -22,6 +22,18 @@
             "state" : "translated",
             "value" : "FTX1RemoteMac"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1RemoteMac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1RemoteMac"
+          }
         }
       }
     },
@@ -45,6 +57,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "FTX1Remote capta lo que reproduce la ventana WebSDR para que la ventana CW pueda decodificarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1Remote capte ce que joue la fenêtre WebSDR pour que la fenêtre CW puisse le décoder."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1Remote cattura ciò che la finestra WebSDR riproduce, così la finestra CW può decodificarlo."
           }
         }
       }
@@ -82,6 +106,18 @@
             "state" : "translated",
             "value" : "FTX1 Remote necesita aceptar conexiones del iPhone/iPad para controlar el equipo a distancia."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote doit accepter les connexions de l'iPhone/iPad pour commander le poste à distance."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote deve accettare connessioni da iPhone/iPad per controllare l'apparato a distanza."
+          }
         }
       }
     },
@@ -105,6 +141,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "FTX1 Remote usa el audio del dispositivo de entrada seleccionado para dibujar una cascada del audio recibido."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote utilise l'audio du périphérique d'entrée choisi pour dessiner une cascade de l'audio reçu."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote usa l'audio del dispositivo di ingresso selezionato per disegnare una cascata dell'audio ricevuto."
           }
         }
       }
@@ -130,6 +178,18 @@
             "state" : "translated",
             "value" : "FTX1 Remote rellena la posición de la baliza APRS cuando se solicita."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote remplit la position de la balise APRS sur demande."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote compila la posizione del beacon APRS quando richiesto."
+          }
         }
       }
     },
@@ -153,6 +213,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "FTX1 Remote rellena la posición de la baliza APRS cuando se solicita."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote remplit la position de la balise APRS sur demande."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote compila la posizione del beacon APRS quando richiesto."
           }
         }
       }

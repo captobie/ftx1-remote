@@ -83,3 +83,73 @@ Conventions used throughout:
 Format-only keys (`%lld Hz`, `%@ · %@`, …) are copied unchanged. The Mac's
 `CFBundleName` stays "FTX1RemoteMac". The logbook target line ("To
 MacLoggerDX + Wavelog") gets a translated "To %@" ("An %@" / "A %@").
+
+# Italian/French translation review
+
+Phase 3 of localization (2026-11-14) added `it` and `fr` to every String
+Catalog and to the Windows `Strings.it.resx`/`Strings.fr.resx`. Like es/de,
+they were machine-written and haven't been reviewed by a native speaker yet.
+
+Conventions, the same as es/de:
+
+- **Impersonal infinitive**, no tu/Lei, no tu/vous: "Scegliere l'ingresso
+  audio…" / "Choisir l'entrée audio…". Button labels and tooltips that
+  describe an action use the Italian imperative ("Salva", "Scansiona…"),
+  as Apple's own Italian does; French uses the infinitive throughout
+  ("Enregistrer", "Balayer…").
+- **Radio terms stay English** (the same list as above).
+- **"Settings"** = "Impostazioni" (Apple and Windows) / "Réglages" on the
+  Mac and iPad, "Paramètres" on Windows (each platform's own word; the
+  script swaps them for the Windows file). "Done" = "Fine" / "OK".
+- **French typography**: a no-break space (U+00A0) before ":" and inside
+  « », a narrow no-break space (U+202F) before ";", "?" and "!". Italian
+  uses «» with no spaces.
+- Frequencies always stay in dotted form, whatever the language.
+
+## Terms used throughout — check these first
+
+| English | Italian | French | Why it's a judgment call |
+|---|---|---|---|
+| rig | apparato | poste | it: "apparato" is the usual ham word; "radio" also heard. fr: "poste" (or "transceiver"/"TRX"). |
+| Their call | Corrispondente | Correspondant | Short field label for the QSO partner. |
+| grid square | locatore | locator | fr hams say "locator"; it "locatore" (or "QTH locator"). |
+| Logbook (Settings tab) / log | Log | Journal | it hams say "log"; fr "journal de trafic", shortened to "Journal". |
+| log (verb) | registrare | enregistrer | fr "enregistrer" also means "save" and "record"; "loguer" is the slang alternative. |
+| worked before | già collegato | déjà contacté | |
+| keyer | keyer | keyer | Kept English. Alternatives: it "manipolatore elettronico", fr "manipulateur électronique". |
+| straight key / key | tasto verticale / tasto | manipulateur droit / manipulateur | fr "pioche" is the ham slang for a straight key. |
+| keying | manipolazione | manipulation | |
+| armed / disarm | armato / disarmare | armé / désarmer | |
+| sidetone | tono locale | tonalité locale | Alternatives: it "nota di controllo", fr "tonalité d'écoute". |
+| Monitor (send-pane button) | Monitor | Écoute | |
+| Transmit / Enable Transmit | Trasmissione / Consenti trasmissione | Émission / Autoriser l'émission | |
+| memory scan / Scan | scansione memorie / Scansione | balayage des mémoires / Balayer | |
+| Skip | Salta | Sauter | |
+| Memory mode | modo memoria | mode mémoire | |
+| Waterfall | Cascata | Cascade | Many hams just say "waterfall" in both languages. |
+| meter (S/PO/SWR) | strumento | indicateur | |
+| tune (the rig) | sintonizzare | accorder | fr "accorder" is also the antenna-tuner word; "régler la fréquence" is the alternative. |
+| Antenna tuning / TUNE | accordo d'antenna | accord d'antenne / boîte d'accord | |
+| beacon (APRS) | beacon | balise | |
+| Hub (Mac/desktop hub) | hub del Mac / hub desktop | hub du Mac / hub de bureau | |
+| Pi direct | Pi diretto | Pi direct | |
+| Phone / Data (emissions) | Fonia / Dati | Phonie / Données | |
+| Polling (Settings tab) | Interrogazione | Interrogation | |
+| prosigns | prosegni | procédures | fr "procédures" is unusual; "prosignes" is the alternative. |
+| RF power | potenza RF | puissance RF | fr hams usually say "puissance HF"; kept RF for consistency with the rig's RF POWER label. |
+| Devices (Settings tab) | Dispositivi | Appareils | |
+
+## Individual strings
+
+| Key | English | Choice | Note |
+|---|---|---|---|
+| `cwLogPane.on` | On (time on) | it "Inizio", fr "Début" | |
+| `content.memList` | Mem List | it "Elenco mem.", fr "Liste mém." | A narrow button; check it fits on the Mac. |
+| `common.utility` | Utility | it/fr "Servizi"/"Services" | |
+| `memoryList.shift` | Shift (repeater offset) | it "Shift", fr "Décalage" | it hams say "shift" for the repeater offset. |
+| `themePresets.*` | Dusty Rose, Glossy Black, Icy Mint | it "Rosa antico", "Nero lucido", "Menta ghiacciata"; fr "Vieux rose", "Noir brillant", "Menthe glacée" | Free renderings. |
+| `privilegePresets.us*` | US Extra/General/… | "USA …" / "États-Unis …" | Class names kept English. |
+| `cwWindow.webSDRIsSilentCheck`, `macLocation.denied` | macOS privacy pane paths | it "Impostazioni di Sistema → Privacy e sicurezza → …", fr "Réglages Système → Confidentialité et sécurité → …" | Check against the current macOS wording. |
+| Windows firewall/microphone paths | Windows Security / Settings paths | it "Sicurezza di Windows → Firewall e protezione della rete", fr "Sécurité Windows → Pare-feu et protection du réseau" | Check against current Windows wording. |
+| `pttButton.pushToTalk` | Push to talk | it "Premi per parlare", fr "Appuyer pour parler" | |
+| `settings.audioSettings.squelchHangTime` | Squelch tail | it "Coda dello squelch", fr "Traîne du squelch" | |

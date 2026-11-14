@@ -34,6 +34,18 @@
             "state" : "translated",
             "value" : "FTX1 Remote se conecta al Mac o a la Raspberry Pi para controlar el equipo."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote se connecte au Mac ou au Raspberry Pi pour commander le poste."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote si collega al Mac o al Raspberry Pi per controllare l'apparato."
+          }
         }
       }
     },
@@ -57,6 +69,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "FTX1 Remote envía la voz al equipo mientras se mantiene pulsado PTT."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote envoie la voix au poste tant que PTT est maintenu."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1 Remote invia la voce all'apparato mentre si tiene premuto PTT."
           }
         }
       }

@@ -12,7 +12,7 @@ namespace FTX1RemoteWindows.Tests;
 /// counterpart of the Mac's Scripts/check-localization.py.
 public partial class LocalizationTests
 {
-    private static readonly string[] Languages = ["", ".es", ".de"];
+    private static readonly string[] Languages = ["", ".es", ".de", ".it", ".fr"];
 
     private static string AppDirectory([CallerFilePath] string here = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(here)!, "..", "FTX1RemoteWindows"));

@@ -36,6 +36,18 @@
             "state" : "translated",
             "value" : "PTT pulsado"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PTT enfoncé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PTT premuto"
+          }
         }
       }
     },
@@ -58,6 +70,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ajustes → Estación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réglages → Station"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impostazioni → Stazione"
           }
         }
       }
@@ -82,6 +106,18 @@
             "state" : "translated",
             "value" : "Corresponsal"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Correspondant"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corrispondente"
+          }
         }
       }
     },
@@ -104,6 +140,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudo leer «%1$@»: %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de lire « %1$@ » : %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile leggere «%1$@»: %2$@"
           }
         }
       }
@@ -128,6 +176,18 @@
             "state" : "translated",
             "value" : "Sintonía automática"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accord automatique"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonia automatica"
+          }
         }
       }
     },
@@ -150,6 +210,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Decodificador"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Décodeur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodificatore"
           }
         }
       }
@@ -174,6 +246,18 @@
             "state" : "translated",
             "value" : "Clásico"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classique"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classico"
+          }
         }
       }
     },
@@ -196,6 +280,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Neuronal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuronal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neurale"
           }
         }
       }
@@ -220,6 +316,18 @@
             "state" : "translated",
             "value" : "Decodificando archivo…"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Décodage du fichier…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodifica del file…"
+          }
         }
       }
     },
@@ -242,6 +350,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Elementos del carácter que se está recibiendo (decodificador clásico)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Éléments du caractère en cours de réception (décodeur classique)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elementi del carattere in ricezione (decodificatore classico)"
           }
         }
       }
@@ -266,6 +386,18 @@
             "state" : "translated",
             "value" : "Seguir el tono más fuerte entre %lld y %lld Hz"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suivre la tonalité la plus forte entre %lld et %lld Hz"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segui il tono più forte tra %lld e %lld Hz"
+          }
         }
       }
     },
@@ -288,6 +420,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tecla pulsada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manipulateur enfoncé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tasto premuto"
           }
         }
       }
@@ -312,6 +456,18 @@
             "state" : "translated",
             "value" : "Relación señal/ruido mínima antes de decodificar nada"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rapport signal/bruit minimal avant tout décodage"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rapporto segnale/rumore minimo prima di decodificare qualcosa"
+          }
         }
       }
     },
@@ -334,6 +490,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Neuronal: un modelo entrenado con CW simulado, mejor con señales débiles y ruidosas; el texto va unos 3½ s por detrás. Clásico: umbral de tono y reglas de temporización."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuronal : un modèle entraîné sur de la CW simulée, meilleur sur les signaux faibles et bruités ; le texte suit avec environ 3½ s de retard. Classique : seuil de tonalité et règles de temporisation."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neurale: un modello addestrato su CW simulato, migliore con segnali deboli e rumorosi; il testo segue di circa 3½ s. Classico: soglia del tono e regole di temporizzazione."
           }
         }
       }
@@ -358,6 +526,18 @@
             "state" : "translated",
             "value" : "Tono del equipo"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tonalité du poste"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tono dell'apparato"
+          }
         }
       }
     },
@@ -377,6 +557,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SNR %lld dB"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SNR %lld dB"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "SNR %lld dB"
@@ -404,6 +596,18 @@
             "state" : "translated",
             "value" : "Squelch"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squelch"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squelch"
+          }
         }
       }
     },
@@ -426,6 +630,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "El decodificador neuronal no necesita squelch: se mantiene en silencio con el ruido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le décodeur neuronal n'a pas besoin de squelch : il reste muet sur le bruit"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il decodificatore neurale non ha bisogno di squelch: resta muto sul rumore"
           }
         }
       }
@@ -450,6 +666,18 @@
             "state" : "translated",
             "value" : "Aún no se ha leído el tono CW del equipo"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tonalité CW du poste n'a pas encore été lue"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tono CW dell'apparato non è ancora stato letto"
+          }
         }
       }
     },
@@ -469,6 +697,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tono"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tonalité"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tono"
@@ -496,6 +736,18 @@
             "state" : "translated",
             "value" : "Nivel del tono entre el ruido de fondo y el pico de la señal"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niveau de tonalité entre le bruit de fond et la crête du signal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Livello del tono tra il rumore di fondo e il picco del segnale"
+          }
         }
       }
     },
@@ -518,6 +770,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Desactivar la sintonía automática y usar el tono CW del equipo, %lld Hz, donde suena una señal en batido cero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactiver l'accord automatique et utiliser la tonalité CW du poste, %lld Hz, là où sonne un signal au battement nul"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattiva la sintonia automatica e usa il tono CW dell'apparato, %lld Hz, dove suona un segnale a battimento zero"
           }
         }
       }
@@ -542,6 +806,18 @@
             "state" : "translated",
             "value" : "el break-in está desactivado: el equipo solo transmite su memoria con BK-IN activado"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le break-in est désactivé : le poste n'émet sa mémoire qu'avec BK-IN activé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "il break-in è disattivato: l'apparato trasmette la sua memoria solo con BK-IN attivo"
+          }
         }
       }
     },
@@ -564,6 +840,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Comprobando la memoria %lld del keyer…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vérification de la mémoire %lld du keyer…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verifica della memoria %lld del keyer…"
           }
         }
       }
@@ -588,6 +876,18 @@
             "state" : "translated",
             "value" : "%@ está vacío"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ est vide"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ è vuoto"
+          }
         }
       }
     },
@@ -610,6 +910,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nada en esa línea que el keyer pueda enviar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien dans cette ligne que le keyer puisse envoyer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niente in quella riga che il keyer possa inviare"
           }
         }
       }
@@ -634,6 +946,18 @@
             "state" : "translated",
             "value" : "No enviado: %@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non envoyé : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non inviato: %@"
+          }
         }
       }
     },
@@ -656,6 +980,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enviando a %lld WPM…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envoi à %lld WPM…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invio a %lld WPM…"
           }
         }
       }
@@ -680,6 +1016,18 @@
             "state" : "translated",
             "value" : "el equipo está en %@, no en CW"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le poste est en %@, pas en CW"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "l'apparato è in %@, non in CW"
+          }
         }
       }
     },
@@ -702,6 +1050,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "el equipo no está conectado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le poste n'est pas connecté"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "l'apparato non è connesso"
           }
         }
       }
@@ -726,6 +1086,18 @@
             "state" : "translated",
             "value" : "el equipo está fuera de las bandas de radioaficionado"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le poste est hors des bandes amateur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "l'apparato è fuori dalle bande radioamatoriali"
+          }
         }
       }
     },
@@ -748,6 +1120,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "la transmisión está desactivada (Ajustes → rigctld → Permitir transmisión)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "l'émission est désactivée (Réglages → rigctld → Autoriser l'émission)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la trasmissione è disattivata (Impostazioni → rigctld → Consenti trasmissione)"
           }
         }
       }
@@ -772,6 +1156,18 @@
             "state" : "translated",
             "value" : "En espera: %@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa: %@"
+          }
         }
       }
     },
@@ -794,6 +1190,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "En espera: un dispositivo del hub está transmitiendo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente : un appareil du hub émet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa: un dispositivo sull'hub sta trasmettendo"
           }
         }
       }
@@ -818,6 +1226,18 @@
             "state" : "translated",
             "value" : "En espera: otro dispositivo del hub está transmitiendo"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente : un autre appareil du hub émet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa: un altro dispositivo sull'hub sta trasmettendo"
+          }
         }
       }
     },
@@ -840,6 +1260,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "En espera: %@ está transmitiendo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente : %@ émet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa: %@ sta trasmettendo"
           }
         }
       }
@@ -864,6 +1296,18 @@
             "state" : "translated",
             "value" : "En espera: la ventana CW del Mac está transmitiendo"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente : la fenêtre CW du Mac émet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa: la finestra CW del Mac sta trasmettendo"
+          }
         }
       }
     },
@@ -886,6 +1330,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Escribiendo la memoria %lld del keyer…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écriture de la mémoire %lld du keyer…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scrittura della memoria %lld del keyer…"
           }
         }
       }
@@ -910,6 +1366,18 @@
             "state" : "translated",
             "value" : "Indicativo propio (%@)"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indicatif personnel (%@)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nominativo proprio (%@)"
+          }
         }
       }
     },
@@ -932,6 +1400,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cuadrícula propia (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locator personnel (%@)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locatore proprio (%@)"
           }
         }
       }
@@ -956,6 +1436,18 @@
             "state" : "translated",
             "value" : "La transmisión está bloqueada: desbloquear con el botón del candado junto a PTT"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'émission est verrouillée : la déverrouiller avec le bouton cadenas à côté du PTT"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La trasmissione è bloccata: sbloccarla con il pulsante del lucchetto accanto a PTT"
+          }
         }
       }
     },
@@ -978,6 +1470,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La transmisión está bloqueada en el Mac: desbloquear con el botón del candado junto a PTT"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'émission est verrouillée sur le Mac : la déverrouiller avec le bouton cadenas à côté du PTT"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La trasmissione è bloccata sul Mac: sbloccarla con il pulsante del lucchetto accanto a PTT"
           }
         }
       }

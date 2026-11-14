@@ -21,6 +21,18 @@
             "state" : "translated",
             "value" : "No hay nada escuchando en el puerto de rigctld: rigctld no está en marcha."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien n'écoute sur le port de rigctld : rigctld n'est pas lancé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuno è in ascolto sulla porta di rigctld: rigctld non è in esecuzione."
+          }
         }
       }
     },
@@ -43,6 +55,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se encontró el nombre del equipo donde corre rigctld."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le nom d'hôte de rigctld est introuvable."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile trovare il nome host di rigctld."
           }
         }
       }
@@ -82,6 +106,18 @@
             "state" : "translated",
             "value" : "%1$lld %2$@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld %2$@"
+          }
         }
       }
     },
@@ -117,6 +153,18 @@
             "state" : "translated",
             "value" : "Automático"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatique"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatico"
+          }
         }
       }
     },
@@ -140,6 +188,18 @@
             "state" : "translated",
             "value" : "Oscuro"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sombre"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scuro"
+          }
         }
       }
     },
@@ -162,6 +222,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Claro"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clair"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiaro"
           }
         }
       }
@@ -189,6 +261,18 @@
             "state" : "translated",
             "value" : "Todos"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tous"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tutti"
+          }
         }
       }
     },
@@ -211,6 +295,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cualquier momento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "N'importe quand"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualsiasi momento"
           }
         }
       }
@@ -235,6 +331,18 @@
             "state" : "translated",
             "value" : "Últimos 7 días"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "7 derniers jours"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ultimi 7 giorni"
+          }
         }
       }
     },
@@ -257,6 +365,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Últimas 24 horas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernières 24 heures"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ultime 24 ore"
           }
         }
       }
@@ -281,6 +401,18 @@
             "state" : "translated",
             "value" : "Última hora"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière heure"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ultima ora"
+          }
         }
       }
     },
@@ -303,6 +435,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Medidor %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indicateur %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strumento %@"
           }
         }
       }
@@ -327,6 +471,18 @@
             "state" : "translated",
             "value" : "Azul"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bleu"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blu"
+          }
         }
       }
     },
@@ -350,6 +506,18 @@
             "state" : "translated",
             "value" : "Cian"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cyan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ciano"
+          }
         }
       }
     },
@@ -369,6 +537,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verde"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vert"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verde"
@@ -396,6 +576,18 @@
             "state" : "translated",
             "value" : "Naranja"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Orange"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arancione"
+          }
         }
       }
     },
@@ -415,6 +607,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rosa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rose"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rosa"
@@ -442,6 +646,18 @@
             "state" : "translated",
             "value" : "Rojo"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rouge"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rosso"
+          }
         }
       }
     },
@@ -464,6 +680,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Blanco"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blanc"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bianco"
           }
         }
       }
@@ -488,6 +716,18 @@
             "state" : "translated",
             "value" : "Amarillo"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jaune"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giallo"
+          }
         }
       }
     },
@@ -511,6 +751,18 @@
             "state" : "translated",
             "value" : "Radioaficionado"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amateur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radioamatori"
+          }
         }
       }
     },
@@ -530,6 +782,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Banda"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bande"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Banda"
@@ -557,6 +821,18 @@
             "state" : "translated",
             "value" : "Radiodifusión"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radiodiffusion"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radiodiffusione"
+          }
         }
       }
     },
@@ -579,6 +855,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se encontró el host %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hôte %@ introuvable"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile trovare l'host %@"
           }
         }
       }
@@ -603,6 +891,18 @@
             "state" : "translated",
             "value" : "OK"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fine"
+          }
         }
       }
     },
@@ -625,6 +925,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "El acceso al micrófono está desactivado: permitirlo en Ajustes para transmitir audio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'accès au micro est désactivé : l'autoriser dans Réglages pour émettre de l'audio"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'accesso al microfono è disattivato: consentirlo in Impostazioni per trasmettere audio"
           }
         }
       }
@@ -649,6 +961,18 @@
             "state" : "translated",
             "value" : "El micrófono no arrancó: %@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le micro n'a pas démarré : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il microfono non si è avviato: %@"
+          }
         }
       }
     },
@@ -671,6 +995,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Actualizar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualiser"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiorna"
           }
         }
       }
@@ -695,6 +1031,18 @@
             "state" : "translated",
             "value" : "Fuente"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sorgente"
+          }
         }
       }
     },
@@ -717,6 +1065,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Transmisión desactivada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission désactivée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione disattivata"
           }
         }
       }
@@ -741,6 +1101,18 @@
             "state" : "translated",
             "value" : "Transmisión desactivada: fuera de una banda de radioaficionado"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission désactivée : hors bande amateur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione disattivata: fuori da una banda radioamatoriale"
+          }
         }
       }
     },
@@ -763,6 +1135,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Servicios"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Services"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servizi"
           }
         }
       }
@@ -787,6 +1171,18 @@
             "state" : "translated",
             "value" : "Filtro de pico de audio (APF) sí/no"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtre de crête audio (APF) marche/arrêt"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtro di picco audio (APF) on/off"
+          }
         }
       }
     },
@@ -806,6 +1202,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contour"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contour"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Contour"
@@ -833,6 +1241,18 @@
             "state" : "translated",
             "value" : "Contour sí/no"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contour marche/arrêt"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contour on/off"
+          }
         }
       }
     },
@@ -855,6 +1275,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Falló el puerto de manipulación (%@): liberando la línea"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erreur du port de manipulation (%@) : libération de la ligne"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porta di manipolazione in errore (%@): rilascio della linea"
           }
         }
       }
@@ -945,6 +1377,62 @@
               }
             }
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erreur du port de manipulation (%1$@) : libération de la ligne toujours en cours, %#@tries@"
+          },
+          "substitutions" : {
+            "tries" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg essai"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg essais"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porta di manipolazione in errore (%1$@): rilascio della linea ancora in corso, %#@tries@"
+          },
+          "substitutions" : {
+            "tries" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg tentativo"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg tentativi"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -967,6 +1455,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Falló el puerto de manipulación (%@); la línea se liberó: armar de nuevo para manipular"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erreur du port de manipulation (%@) ; la ligne a été libérée : réarmer pour manipuler à nouveau"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porta di manipolazione in errore (%@); la linea è stata rilasciata: riarmare per manipolare di nuovo"
           }
         }
       }
@@ -991,6 +1491,18 @@
             "state" : "translated",
             "value" : "No hay puerto de manipulación seleccionado"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun port de manipulation choisi"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna porta di manipolazione selezionata"
+          }
         }
       }
     },
@@ -1013,6 +1525,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retorno de RF detectado: la entrada de la llave seguía las propias transmisiones del equipo, así que se detuvo la manipulación y se desarmó la llave. Revisar la ferrita del cable de la llave y volver a armar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retour RF détecté : l'entrée du manipulateur suivait les émissions du poste lui-même, la manipulation a donc été arrêtée et le manipulateur désarmé. Vérifier la ferrite du câble du manipulateur, puis réarmer."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rilevato ritorno di RF: l'ingresso del tasto seguiva le trasmissioni dell'apparato stesso, quindi la manipolazione è stata fermata e il tasto disarmato. Controllare la ferrite sul cavo del tasto, poi riarmare."
           }
         }
       }
@@ -1037,6 +1561,18 @@
             "state" : "translated",
             "value" : "Aún se está liberando la línea de manipulación tras un error del puerto: reintentar en breve"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Libération de la ligne de manipulation toujours en cours après une erreur du port : réessayer sous peu"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rilascio della linea di manipolazione ancora in corso dopo un errore della porta: riprovare tra poco"
+          }
         }
       }
     },
@@ -1059,6 +1595,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Llave pulsada demasiado tiempo: soltar la llave"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manipulateur enfoncé trop longtemps : le relâcher"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tasto premuto troppo a lungo: rilasciare il tasto"
           }
         }
       }
@@ -1083,6 +1631,18 @@
             "state" : "translated",
             "value" : "Puerto de manipulación no abierto"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port de manipulation non ouvert"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porta di manipolazione non aperta"
+          }
         }
       }
     },
@@ -1105,6 +1665,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Interfaz de llave no conectada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interface du manipulateur non connectée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interfaccia del tasto non connessa"
           }
         }
       }
@@ -1129,6 +1701,18 @@
             "state" : "translated",
             "value" : "La interfaz de llave dejó de responder"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'interface du manipulateur ne répond plus"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'interfaccia del tasto ha smesso di rispondere"
+          }
         }
       }
     },
@@ -1151,6 +1735,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No armado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non armé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non armato"
           }
         }
       }
@@ -1175,6 +1771,18 @@
             "state" : "translated",
             "value" : "Conectando con el keyer del Pi…"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexion au keyer du Pi…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connessione al keyer del Pi…"
+          }
         }
       }
     },
@@ -1194,6 +1802,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyer del Pi: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyer du Pi : %@"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Keyer del Pi: %@"
@@ -1220,6 +1840,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "El keyer del Pi cerró la conexión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le keyer du Pi a fermé la connexion"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il keyer del Pi ha chiuso la connessione"
           }
         }
       }
@@ -1248,6 +1880,18 @@
             "state" : "translated",
             "value" : "Los elementos de %@ aún no se han añadido al catálogo de Deep Settings."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les éléments de %@ n'ont pas encore été ajoutés au catalogue Deep Settings."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le voci di %@ non sono ancora state aggiunte al catalogo di Deep Settings."
+          }
         }
       }
     },
@@ -1270,6 +1914,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aún no catalogado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore catalogué"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non ancora catalogato"
           }
         }
       }
@@ -1294,6 +1950,18 @@
             "state" : "translated",
             "value" : "Seleccionar una pestaña"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir un onglet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selezionare una scheda"
+          }
         }
       }
     },
@@ -1316,6 +1984,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pantalla de funciones de filtro: banda de paso (WIDTH/SHIFT), notch, contour/APF"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affichage de la fonction de filtre : bande passante (WIDTH/SHIFT), notch, contour/APF"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visualizzazione della funzione filtro: banda passante (WIDTH/SHIFT), notch, contour/APF"
           }
         }
       }
@@ -1340,6 +2020,18 @@
             "state" : "translated",
             "value" : "Aplicar los controles de filtro al receptor %@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliquer les commandes de filtre au récepteur %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applica i controlli del filtro al ricevitore %@"
+          }
         }
       }
     },
@@ -1362,6 +2054,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "El receptor SUB no se muestra en la pantalla de recepción simple"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le récepteur SUB n'est pas affiché en réception simple"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il ricevitore SUB non è mostrato nella visualizzazione a ricezione singola"
           }
         }
       }
@@ -1386,6 +2090,18 @@
             "state" : "translated",
             "value" : "Ancho"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Largeur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Larghezza"
+          }
         }
       }
     },
@@ -1408,6 +2124,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Predeterminado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par défaut"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Predefinito"
           }
         }
       }
@@ -1432,6 +2160,18 @@
             "state" : "translated",
             "value" : "Ajustar"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Régler"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imposta"
+          }
         }
       }
     },
@@ -1454,6 +2194,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Paso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passo"
           }
         }
       }
@@ -1478,6 +2230,18 @@
             "state" : "translated",
             "value" : "Notch manual sí/no"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notch manuel marche/arrêt"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notch manuale on/off"
+          }
         }
       }
     },
@@ -1497,6 +2261,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notch"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notch"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Notch"
@@ -1524,6 +2300,18 @@
             "state" : "translated",
             "value" : "Centro"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Centre"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Centro"
+          }
         }
       }
     },
@@ -1543,6 +2331,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Shift"
@@ -1574,6 +2374,18 @@
             "state" : "translated",
             "value" : "Canal"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canale"
+          }
         }
       }
     },
@@ -1596,6 +2408,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ajustar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Régler"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imposta"
           }
         }
       }
@@ -1686,6 +2510,62 @@
               }
             }
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@channels@ · lus %2$@"
+          },
+          "substitutions" : {
+            "channels" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg canal"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg canaux"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@channels@ · letti %2$@"
+          },
+          "substitutions" : {
+            "channels" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg canale"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg canali"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1708,6 +2588,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Filtrar canales"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtrer les canaux"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtra canali"
           }
         }
       }
@@ -1732,6 +2624,18 @@
             "state" : "translated",
             "value" : "Aún no hay lista de canales"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore de liste de canaux"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nessun elenco dei canali"
+          }
         }
       }
     },
@@ -1754,6 +2658,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Leyendo el canal %lld…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture du canal %lld…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lettura del canale %lld…"
           }
         }
       }
@@ -1778,6 +2694,18 @@
             "state" : "translated",
             "value" : "Leyendo canales…"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture des canaux…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lettura dei canali…"
+          }
         }
       }
     },
@@ -1800,6 +2728,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Se perdió la conexión con el equipo en el canal %lld."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexion au poste perdue au canal %lld."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connessione con l'apparato persa al canale %lld."
           }
         }
       }
@@ -1824,6 +2764,18 @@
             "state" : "translated",
             "value" : "Detenido en el canal %lld."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêté au canal %lld."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermato al canale %lld."
+          }
         }
       }
     },
@@ -1846,6 +2798,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bajar la potencia RF 1 W"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baisser la puissance RF de 1 W"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riduci la potenza RF di 1 W"
           }
         }
       }
@@ -1870,6 +2834,18 @@
             "state" : "translated",
             "value" : "Subir la potencia RF 1 W"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Augmenter la puissance RF de 1 W"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aumenta la potenza RF di 1 W"
+          }
         }
       }
     },
@@ -1892,6 +2868,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Página del menú"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page du menu"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pagina del menu"
           }
         }
       }
@@ -1920,6 +2908,18 @@
             "state" : "translated",
             "value" : "Corriente de drenador del amplificador final"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Courant de drain de l'amplificateur final"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corrente di drain dell'amplificatore finale"
+          }
         }
       }
     },
@@ -1942,6 +2942,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tensión de drenador del amplificador final"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tension de drain de l'amplificateur final"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tensione di drain dell'amplificatore finale"
           }
         }
       }
@@ -1966,6 +2978,18 @@
             "state" : "translated",
             "value" : "Tensión ALC relativa"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tension ALC relative"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tensione ALC relativa"
+          }
         }
       }
     },
@@ -1988,6 +3012,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Potencia RF de salida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puissance RF de sortie"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Potenza RF in uscita"
           }
         }
       }
@@ -2012,6 +3048,18 @@
             "state" : "translated",
             "value" : "Compresión del procesador de voz"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compression du processeur de parole"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compressione del processore vocale"
+          }
         }
       }
     },
@@ -2034,6 +3082,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Relación de ondas estacionarias"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rapport d'ondes stationnaires"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rapporto di onde stazionarie"
           }
         }
       }
@@ -2062,6 +3122,18 @@
             "state" : "translated",
             "value" : "%@: la línea sigue leyéndose como manipulada tras soltar"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ : la ligne est toujours lue comme manipulée après le relâchement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: la linea risulta ancora manipolata dopo il rilascio del tasto"
+          }
         }
       }
     },
@@ -2089,6 +3161,18 @@
             "state" : "translated",
             "value" : "Filtro estrecho sí/no"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtre étroit marche/arrêt"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtro stretto on/off"
+          }
         }
       }
     },
@@ -2111,6 +3195,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Introducir el nombre de host del Pi"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisir le nom d'hôte du Pi"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserire il nome host del Pi"
           }
         }
       }
@@ -2135,6 +3231,18 @@
             "state" : "translated",
             "value" : "Transmisión desactivada mientras el equipo explora"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission désactivée pendant le balayage du poste"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione disattivata mentre l'apparato scansiona"
+          }
         }
       }
     },
@@ -2157,6 +3265,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se puede configurar %1$@: %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de configurer %1$@ : %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile configurare %1$@: %2$@"
           }
         }
       }
@@ -2181,6 +3301,18 @@
             "state" : "translated",
             "value" : "No se puede abrir %1$@: %2$@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d'ouvrir %1$@ : %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile aprire %1$@: %2$@"
+          }
         }
       }
     },
@@ -2203,6 +3335,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se puede ajustar RTS/DTR en %1$@: %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de régler RTS/DTR sur %1$@ : %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile impostare RTS/DTR su %1$@: %2$@"
           }
         }
       }
@@ -2227,6 +3371,18 @@
             "state" : "translated",
             "value" : "No se puede escribir en %1$@: %2$@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d'écrire sur %1$@ : %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile scrivere su %1$@: %2$@"
+          }
         }
       }
     },
@@ -2249,6 +3405,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ está en uso por otro programa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ est utilisé par un autre programme"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ è in uso da un altro programma"
           }
         }
       }
@@ -2273,6 +3441,18 @@
             "state" : "translated",
             "value" : "Puerto cerrado"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port fermé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porta chiusa"
+          }
         }
       }
     },
@@ -2295,6 +3475,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Atribución de la Región 1 de la UIT"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attribution de la Région 1 de l'UIT"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assegnazione della Regione 1 ITU"
           }
         }
       }
@@ -2319,6 +3511,18 @@
             "state" : "translated",
             "value" : "Atribución de la Región 2 de la UIT"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attribution de la Région 2 de l'UIT"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assegnazione della Regione 2 ITU"
+          }
         }
       }
     },
@@ -2341,6 +3545,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Atribución de la Región 3 de la UIT"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attribution de la Région 3 de l'UIT"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assegnazione della Regione 3 ITU"
           }
         }
       }
@@ -2365,6 +3581,18 @@
             "state" : "translated",
             "value" : "EE. UU. Advanced"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "États-Unis Advanced"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USA Advanced"
+          }
         }
       }
     },
@@ -2387,6 +3615,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "EE. UU. Amateur Extra"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "États-Unis Amateur Extra"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USA Amateur Extra"
           }
         }
       }
@@ -2411,6 +3651,18 @@
             "state" : "translated",
             "value" : "EE. UU. General"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "États-Unis General"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USA General"
+          }
         }
       }
     },
@@ -2433,6 +3685,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "EE. UU. Novice"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "États-Unis Novice"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USA Novice"
           }
         }
       }
@@ -2457,6 +3721,18 @@
             "state" : "translated",
             "value" : "EE. UU. Technician"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "États-Unis Technician"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "USA Technician"
+          }
         }
       }
     },
@@ -2479,6 +3755,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Host no válido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hôte non valide"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host non valido"
           }
         }
       }
@@ -2503,6 +3791,18 @@
             "state" : "translated",
             "value" : "La memoria %lld del keyer no existe (1–5)"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La mémoire %lld du keyer n'existe pas (1–5)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La memoria %lld del keyer non esiste (1–5)"
+          }
         }
       }
     },
@@ -2525,6 +3825,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sin conexión con el Mac"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non connecté au Mac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non connesso al Mac"
           }
         }
       }
@@ -2549,6 +3861,18 @@
             "state" : "translated",
             "value" : "El keyer está en uso por la ventana CW del Mac"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le keyer est utilisé par la fenêtre CW du Mac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il keyer è in uso dalla finestra CW del Mac"
+          }
         }
       }
     },
@@ -2571,6 +3895,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "El keyer está en uso por otro dispositivo del hub"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le keyer est utilisé par un autre appareil du hub"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il keyer è in uso da un altro dispositivo sull'hub"
           }
         }
       }
@@ -2595,6 +3931,18 @@
             "state" : "translated",
             "value" : "El Mac no respondió: actualizar la app del Mac para enviar CW desde aquí"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le Mac n'a pas répondu : mettre à jour l'app du Mac pour envoyer de la CW d'ici"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il Mac non ha risposto: aggiornare l'app del Mac per inviare CW da qui"
+          }
         }
       }
     },
@@ -2617,6 +3965,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "El Mac rechazó el texto: hasta 50 caracteres que el keyer pueda enviar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le Mac a refusé le texte : jusqu'à 50 caractères que le keyer peut envoyer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il Mac ha rifiutato il testo: massimo 50 caratteri che il keyer possa inviare"
           }
         }
       }
@@ -2641,6 +4001,18 @@
             "state" : "translated",
             "value" : "modelo %lld"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "modèle %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "modello %lld"
+          }
         }
       }
     },
@@ -2663,6 +4035,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ (modelo %lld)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (modèle %lld)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (modello %lld)"
           }
         }
       }
@@ -2687,6 +4071,18 @@
             "state" : "translated",
             "value" : "rigctld envió una respuesta inesperada."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld a envoyé une réponse inattendue."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld ha inviato una risposta inattesa."
+          }
         }
       }
     },
@@ -2709,6 +4105,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Se perdió la conexión con rigctld."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La connexion à rigctld a été perdue."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La connessione con rigctld è stata persa."
           }
         }
       }
@@ -2733,6 +4141,18 @@
             "state" : "translated",
             "value" : "No se pudo contactar con rigctld (tiempo de conexión agotado)."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de joindre rigctld (délai de connexion dépassé)."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile raggiungere rigctld (timeout della connessione)."
+          }
         }
       }
     },
@@ -2755,6 +4175,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "El equipo rechazó la escritura en la memoria del keyer."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le poste a refusé l'écriture de la mémoire du keyer."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'apparato ha rifiutato la scrittura della memoria del keyer."
           }
         }
       }
@@ -2779,6 +4211,18 @@
             "state" : "translated",
             "value" : "Sin conexión con rigctld."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non connecté à rigctld."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non connesso a rigctld."
+          }
         }
       }
     },
@@ -2801,6 +4245,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "rigctld no respondió a tiempo. Si sigue ocurriendo, puede que el equipo esté apagado o que se haya caído su conexión USB con el ordenador que ejecuta rigctld."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld n'a pas répondu à temps. Si cela se répète, le poste est peut-être éteint ou sa connexion USB à l'ordinateur qui exécute rigctld a peut-être sauté."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rigctld non ha risposto in tempo. Se continua a succedere, l'apparato potrebbe essere spento o la sua connessione USB al computer che esegue rigctld potrebbe essere caduta."
           }
         }
       }
@@ -2825,6 +4281,18 @@
             "state" : "translated",
             "value" : "Tiempo de conexión agotado"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Délai de connexion dépassé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timeout della connessione"
+          }
         }
       }
     },
@@ -2847,6 +4315,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tiempo agotado al conectar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Délai dépassé pendant la connexion"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timeout durante la connessione"
           }
         }
       }
@@ -2875,6 +4355,18 @@
             "state" : "translated",
             "value" : "Interfaz de llave desconectada"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interface du manipulateur déconnectée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interfaccia del tasto disconnessa"
+          }
         }
       }
     },
@@ -2898,6 +4390,18 @@
             "state" : "translated",
             "value" : "Ninguna interfaz de llave responde en %@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune interface de manipulateur ne répond sur %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna interfaccia del tasto risponde su %@"
+          }
         }
       }
     },
@@ -2917,6 +4421,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digital"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digital"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Digital"
@@ -2944,6 +4460,18 @@
             "state" : "translated",
             "value" : "Iluminado"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Éclairé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Illuminato"
+          }
         }
       }
     },
@@ -2966,6 +4494,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sin iluminar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non éclairé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non illuminato"
           }
         }
       }
@@ -2994,6 +4534,18 @@
             "state" : "translated",
             "value" : "Automático"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatique"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatico"
+          }
         }
       }
     },
@@ -3016,6 +4568,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Oscuro predeterminado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sombre par défaut"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scuro predefinito"
           }
         }
       }
@@ -3040,6 +4604,18 @@
             "state" : "translated",
             "value" : "Claro predeterminado"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clair par défaut"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiaro predefinito"
+          }
         }
       }
     },
@@ -3062,6 +4638,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rosa empolvado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vieux rose"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rosa antico"
           }
         }
       }
@@ -3086,6 +4674,18 @@
             "state" : "translated",
             "value" : "Negro brillante"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noir brillant"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nero lucido"
+          }
         }
       }
     },
@@ -3108,6 +4708,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Menta helada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menthe glacée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menta ghiacciata"
           }
         }
       }
@@ -3132,6 +4744,18 @@
             "state" : "translated",
             "value" : "Transmisión desactivada: %1$@ en %2$@ MHz queda fuera de los privilegios de %3$@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission désactivée : %1$@ sur %2$@ MHz est hors des privilèges %3$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione disattivata: %1$@ su %2$@ MHz è fuori dai privilegi %3$@"
+          }
         }
       }
     },
@@ -3154,6 +4778,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Transmisión desactivada: aún no se conoce el modo del lado que transmite"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission désactivée : le mode du côté émission n'est pas encore connu"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione disattivata: il modo del lato in trasmissione non è ancora noto"
           }
         }
       }
@@ -3178,6 +4814,18 @@
             "state" : "translated",
             "value" : "Datos"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Données"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dati"
+          }
         }
       }
     },
@@ -3200,6 +4848,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fonía"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phonie"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fonia"
           }
         }
       }
@@ -3224,6 +4884,18 @@
             "state" : "translated",
             "value" : "7 segmentos"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "7 segments"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "7 segmenti"
+          }
         }
       }
     },
@@ -3246,6 +4918,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudo contactar con Wavelog: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de joindre Wavelog : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile raggiungere Wavelog: %@"
           }
         }
       }
@@ -3270,6 +4954,18 @@
             "state" : "translated",
             "value" : "La URL de Wavelog no es válida"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'URL de Wavelog n'est pas valide"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'URL di Wavelog non è valido"
+          }
         }
       }
     },
@@ -3292,6 +4988,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Respuesta inesperada de Wavelog (HTTP %lld): ¿es correcta la URL y es Wavelog 3.1 o posterior?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réponse inattendue de Wavelog (HTTP %lld) : l'URL est-elle correcte, et est-ce Wavelog 3.1 ou ultérieur ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Risposta inattesa da Wavelog (HTTP %lld): l'URL è corretto ed è Wavelog 3.1 o successivo?"
           }
         }
       }
@@ -3316,6 +5024,18 @@
             "state" : "translated",
             "value" : "Respuesta inesperada de Wavelog (HTTP %lld): %@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réponse inattendue de Wavelog (HTTP %lld) : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Risposta inattesa da Wavelog (HTTP %lld): %@"
+          }
         }
       }
     },
@@ -3335,6 +5055,18 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog: %@"
+          }
+        },
+        "it" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Wavelog: %@"
@@ -3362,6 +5094,18 @@
             "state" : "translated",
             "value" : "Wavelog no respondió en %lld s"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog n'a pas répondu en %lld s"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog non ha risposto entro %lld s"
+          }
         }
       }
     },
@@ -3384,6 +5128,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Wavelog no importó el QSO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog n'a pas importé le QSO"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wavelog non ha importato il QSO"
           }
         }
       }
@@ -3408,6 +5164,18 @@
             "state" : "translated",
             "value" : "Detener primero el escaneo de memorias."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêter d'abord le balayage des mémoires."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermare prima la scansione memorie."
+          }
         }
       }
     },
@@ -3430,6 +5198,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Desactivar SPLIT para enviar APRS."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactiver SPLIT pour envoyer de l'APRS."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattivare SPLIT per inviare APRS."
           }
         }
       }
@@ -3454,6 +5234,18 @@
             "state" : "translated",
             "value" : "Poner en FM o DATA-FM el receptor en %@."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mettre le récepteur sur %@ en FM ou DATA-FM."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mettere in FM o DATA-FM il ricevitore su %@."
+          }
         }
       }
     },
@@ -3476,6 +5268,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ni MAIN ni SUB están en %@ MHz."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ni MAIN ni SUB ne sont sur %@ MHz."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Né MAIN né SUB sono su %@ MHz."
           }
         }
       }
@@ -3500,6 +5304,18 @@
             "state" : "translated",
             "value" : "Introducir el indicativo en Ajustes → Estación (sin SSID ni /)."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisir l'indicatif dans Réglages → Station (sans SSID ni /)."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impostare il nominativo in Impostazioni → Stazione (senza SSID né /)."
+          }
         }
       }
     },
@@ -3522,6 +5338,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La ruta no es válida: hasta 8 entradas como WIDE1-1, separadas por comas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le chemin n'est pas valide : jusqu'à 8 entrées comme WIDE1-1, séparées par des virgules."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il percorso non è valido: fino a 8 voci come WIDE1-1, separate da virgole."
           }
         }
       }
@@ -3546,6 +5374,18 @@
             "state" : "translated",
             "value" : "No enviado: la app se cerró antes de recibir el acuse."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non envoyé : l'app a été quittée avant l'accusé de réception."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non inviato: l'app è stata chiusa prima della conferma di ricezione."
+          }
         }
       }
     },
@@ -3568,6 +5408,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Baliza en cola…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balise en file d'attente…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beacon in coda…"
           }
         }
       }
@@ -3592,6 +5444,18 @@
             "state" : "translated",
             "value" : "Baliza enviada por %@."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balise envoyée sur %@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beacon inviato su %@."
+          }
         }
       }
     },
@@ -3614,6 +5478,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Baliza no enviada: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balise non envoyée : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beacon non inviato: %@"
           }
         }
       }
@@ -3638,6 +5514,18 @@
             "state" : "translated",
             "value" : "Sin acuse de recibo."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun accusé de réception."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna conferma di ricezione."
+          }
         }
       }
     },
@@ -3660,6 +5548,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La transmisión APRS está desactivada (Ajustes → APRS)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'émission APRS est désactivée (Réglages → APRS)."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La trasmissione APRS è disattivata (Impostazioni → APRS)."
           }
         }
       }
@@ -3684,6 +5584,18 @@
             "state" : "translated",
             "value" : "Introducir la latitud y la longitud en Ajustes → APRS."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisir la latitude et la longitude dans Réglages → APRS."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserire latitudine e longitudine in Impostazioni → APRS."
+          }
         }
       }
     },
@@ -3706,6 +5618,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "El símbolo debe tener dos caracteres, p. ej. /-."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le symbole doit comporter deux caractères, p. ex. /-."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il simbolo deve essere di due caratteri, ad es. /-."
           }
         }
       }
@@ -3730,6 +5654,18 @@
             "state" : "translated",
             "value" : "Introducir un indicativo de hasta 9 caracteres."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisir un indicatif de 9 caractères au maximum."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserire un nominativo di massimo 9 caratteri."
+          }
         }
       }
     },
@@ -3752,6 +5688,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Escribir un mensaje."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisir un message."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scrivere un messaggio."
           }
         }
       }

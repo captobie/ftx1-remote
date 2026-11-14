@@ -2518,21 +2518,23 @@ the command path.
   ranges. Public addresses are refused.
 - **No shared CW keying in v1** — see phase 6.
 
-## Localization (Spanish and German, 2026-10-27)
+## Localization (Spanish and German, 2026-10-27; Italian and French, 2026-11-14)
 
 The Mac/iPad's es/de port (see CLAUDE.md's "Localization"). The app follows
 Windows' display language (`CurrentUICulture`); no in-app picker. Key
 checks run by script; not yet built or run in Spanish/German on the PC.
 
 - **Strings**: `Localization/Strings.resx` (English), `Strings.es.resx`,
-  `Strings.de.resx` — the same keys in each, sorted case-insensitively.
+  `Strings.de.resx`, `Strings.it.resx`, `Strings.fr.resx` (it/fr added
+  2026-11-14, generated from the Mac catalogs' wording; not yet built or run
+  on the PC) — the same keys in each, sorted case-insensitively.
   Keys are namespaced like the Mac's (`mainWindow.connectFailedX`,
   `common.cancel`), wording reused from the Mac/iPad catalogs. Code uses
   `Loc.S(key)`, `Loc.F(key, args…)` (arguments as `{0}`, `{1}`… so a
   translation can move them — never concatenate a sentence) and
   `Loc.P(key, count)` (`<key>.one`/`<key>.other`); XAML uses
   `{l:Str Key=…}` (`xmlns:l="using:FTX1RemoteWindows.Localization"`). A
-  missing key shows as the key. **A new string needs all three files.**
+  missing key shows as the key. **A new string needs all five files.**
   Keep the key a literal in the call (`Loc.S("x.y")`, not built with `+`),
   or `LocalizationTests` can't check it.
 - **Stays English**: radio terms and rig labels (modes, MAIN/SUB, PTT,
@@ -2543,12 +2545,12 @@ checks run by script; not yet built or run in Spanish/German on the PC.
 - **Numbers**: `Loc.ApplyNumberFormat()` (App startup) keeps the regional
   format but with "." as the decimal separator, so es/de don't show
   "14,074"; `Loc.OsCulture` is Windows' own, for parsing what the user typed.
-- **Satellite assemblies**: the build puts `es\` and `de\`
+- **Satellite assemblies**: the build puts `es\`, `de\`, `it\` and `fr\`
   (`FTX1RemoteWindows.resources.dll`) next to the exe — the release zip
   must keep those folders.
-- **Checking**: `LocalizationTests` (same keys/placeholders in the three
+- **Checking**: `LocalizationTests` (same keys/placeholders in the five
   files, every `Loc.*`/`l:Str` key exists, every formatted string
-  formats). Debug builds: set `FTX1REMOTE_UI_LANGUAGE=es` (or `de`, `en`)
+  formats). Debug builds: set `FTX1REMOTE_UI_LANGUAGE=es` (or `de`, `it`, `fr`, `en`)
   before launching to see a language whatever Windows uses (WinUI's own
   control strings still follow Windows).
 

@@ -22,6 +22,18 @@
             "state" : "translated",
             "value" : "No se pudo leer «%1$@»: %2$@"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de lire « %1$@ » : %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile leggere «%1$@»: %2$@"
+          }
         }
       }
     },
@@ -44,6 +56,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ está vacío"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ est vide"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ è vuoto"
           }
         }
       }
@@ -68,6 +92,18 @@
             "state" : "translated",
             "value" : "Detenido: el equipo ya no está transmitiendo"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêté : le poste n'émet plus"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermato: l'apparato non sta più trasmettendo"
+          }
         }
       }
     },
@@ -90,6 +126,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Se alcanzó el límite de transmisión (3 minutos): transmisión terminada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite d'émission atteinte (3 minutes) : émission coupée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite di trasmissione raggiunto (3 minuti): trasmissione terminata"
           }
         }
       }
@@ -114,6 +162,18 @@
             "state" : "translated",
             "value" : "Ajustes → Estación"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réglages → Station"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impostazioni → Stazione"
+          }
         }
       }
     },
@@ -136,6 +196,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Corresponsal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Correspondant"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corrispondente"
           }
         }
       }
@@ -160,6 +232,18 @@
             "state" : "translated",
             "value" : "El lado que transmite está en %@: RTTY/PSK sale como audio, así que usar DATA-U (o USB/LSB)"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le côté émission est en %@ : le RTTY/PSK sort en audio, donc utiliser DATA-U (ou USB/LSB)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il lato in trasmissione è in %@: RTTY/PSK esce come audio, quindi usare DATA-U (o USB/LSB)"
+          }
         }
       }
     },
@@ -183,6 +267,18 @@
             "state" : "translated",
             "value" : "Indicativo propio (%@)"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indicatif personnel (%@)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nominativo proprio (%@)"
+          }
         }
       }
     },
@@ -205,6 +301,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cuadrícula propia (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locator personnel (%@)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locatore proprio (%@)"
           }
         }
       }

@@ -3580,7 +3580,7 @@ WebSDR differences are in their own bullet at the end.
 
 ## Localization (phase 1, 2026-10-27: English catalogs only; built, Simulator-checked on iPad/iPhone with the double-length pseudolanguage, Mac checked by build and code only)
 
-Groundwork for Spanish and German on the Mac, iPhone and iPad (Windows
+Groundwork for Spanish and German (Italian and French since phase 3) on the Mac, iPhone and iPad (Windows
 followed the same day, see the last bullet). The app follows the OS
 language; there's no in-app picker (user decision).
 
@@ -3592,6 +3592,15 @@ a native speaker — `docs/localization-review.md` lists the judgment
 calls and the shared term choices (rig = Gerät/equipo, Their call =
 Gegenstation/Corresponsal, …). **A new key needs es and de too**, using
 those terms.
+
+**Phase 3 (2026-11-14): it + fr** in every catalog and the Windows resx
+(same conventions; "Settings" = Impostazioni / Réglages on Apple,
+Paramètres on Windows; French no-break spaces before `:` and inside « »,
+narrow ones before `; ? !`); `fr`/`it` in `knownRegions`, `.it`/`.fr` in
+`LocalizationTests`. Built and checker-clean on the Mac, not yet run in
+either language; Windows not built here (no .NET SDK). Not reviewed by a
+native speaker — `docs/localization-review.md` has the it/fr term table.
+**A new key now needs es, de, it and fr.**
 
 - **Every user-facing string is a namespaced key** (`settings.rigctld.
   restartNow`, `common.cancel`, `cwSender.waitingTheMacCw`), never an
