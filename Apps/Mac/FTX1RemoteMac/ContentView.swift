@@ -298,7 +298,7 @@ struct ContentView: View {
         Button {
             hub.toggleAudioChannelsSwapped()
         } label: {
-            Image(systemName: "speaker.wave.2")
+            Image(systemName: "hifispeaker.2")
                 .foregroundStyle(audioSwapIconColor)
                 .padding(.horizontal, 2)
         }
