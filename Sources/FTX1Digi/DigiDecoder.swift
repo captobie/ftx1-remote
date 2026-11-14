@@ -42,6 +42,9 @@ public struct DigiDecoderOutput: Sendable {
     /// The decoder's audio frequency after AFC.
     public var centerHz: Double
     public var quality: Float
+    /// The PSK browser's channels, about four times a second (nil
+    /// otherwise, and always when the browser is off).
+    public var browser: [PSKBrowserChannel]? = nil
 }
 
 /// Resample → demodulate → spectrum, for one mode and settings at a time.
@@ -61,13 +64,16 @@ public final class DigiDecoder: @unchecked Sendable {
     private let resampler = DigiResampler(targetRate: DigiDecoder.sampleRate)
     private var rtty: RTTYDemodulator?
     private var psk: PSKDemodulator?
+    private var browser: PSKBrowser?
 
     private let fft = SpectrumFFT(size: DigiDecoder.fftSize)
     private var autoGain = SpectrumAutoGain()
     private var history = [Float](repeating: 0, count: DigiDecoder.fftSize)
     private var samplesSinceRow = 0
 
-    public init(mode: DigiMode, rttySettings: RTTYSettings, centerHz: Double, afc: Bool, squelch: Float) {
+    /// - Parameter browser: in a PSK mode, also decode every other PSK
+    ///   signal in the passband (`PSKBrowser`).
+    public init(mode: DigiMode, rttySettings: RTTYSettings, centerHz: Double, afc: Bool, squelch: Float, browser: Bool = false) {
         self.mode = mode
         self.rttySettings = rttySettings
         switch mode {
@@ -80,6 +86,7 @@ public final class DigiDecoder: @unchecked Sendable {
             demodulator.afcEnabled = afc
             demodulator.squelch = squelch
             psk = demodulator
+            if browser { self.browser = PSKBrowser(baud: mode.pskBaud, squelch: squelch) }
         }
         rttySquelch = squelch
     }
@@ -104,12 +111,25 @@ public final class DigiDecoder: @unchecked Sendable {
     public func setSquelch(_ value: Float) {
         rttySquelch = value
         psk?.squelch = value
+        browser?.squelch = value
+    }
+
+    /// Turns the PSK browser on or off (PSK modes only; off drops its
+    /// channels).
+    public func setBrowserEnabled(_ on: Bool) {
+        guard mode.isPSK else { return }
+        if on, browser == nil {
+            browser = PSKBrowser(baud: mode.pskBaud, squelch: psk?.squelch ?? rttySquelch)
+        } else if !on {
+            browser = nil
+        }
     }
 
     /// Drops filter and framing state (after a pause or a source switch).
     public func reset() {
         rtty?.reset()
         psk?.reset()
+        browser?.reset()
         resampler.reset()
     }
 
@@ -127,7 +147,9 @@ public final class DigiDecoder: @unchecked Sendable {
         } else if let psk {
             text = psk.process(audio)
         }
-        return DigiDecoderOutput(text: text, spectrumRow: spectrum(audio), centerHz: centerHz, quality: quality)
+        let row = spectrum(audio)
+        let channels = browser?.process(audio)
+        return DigiDecoderOutput(text: text, spectrumRow: row, centerHz: centerHz, quality: quality, browser: channels)
     }
 
     private func spectrum(_ audio: [Float]) -> [Float]? {
@@ -145,6 +167,7 @@ public final class DigiDecoder: @unchecked Sendable {
         let binHz = fft.binHz(sampleRate: Self.sampleRate)
         let bins = min(db.count, Int(Self.stripSpanHz / binHz))
         let shown = Array(db.prefix(bins))
+        browser?.spectrumRow(db: shown, binHz: binHz)
         let window = autoGain.update(db: shown)
         return FilterSpectrum.normalized(db: shown, floorDb: window.floorDb, ceilingDb: window.ceilingDb, binHz: binHz)
     }

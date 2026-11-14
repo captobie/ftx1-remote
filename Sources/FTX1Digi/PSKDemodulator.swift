@@ -38,6 +38,13 @@ final class PSKDemodulator {
 
     private var rotationAverage = Complex.zero
     private var varicode = Varicode.Decoder()
+    /// The symbol amplitude over the last few symbols, and the level it
+    /// had while the signal was there (follows it up at once, decays
+    /// slowly). A fall well below that level means the signal ended.
+    private var fastAmplitude: Float = 0
+    private var levelHold: Float = 0
+    /// fast/hold below this clears the quality: ~9 dB down.
+    static let dropRatio: Float = 0.35
 
     /// 0…1: how cleanly the phase steps land on 0°/180°.
     private(set) var quality: Float = 0
@@ -75,6 +82,8 @@ final class PSKDemodulator {
         varicode.reset()
         rotationAverage = .zero
         quality = 0
+        fastAmplitude = 0
+        levelHold = 0
     }
 
     func process(_ samples: [Float]) -> String {
@@ -124,6 +133,7 @@ final class PSKDemodulator {
 
     private func symbol(_ z: Complex) -> Unicode.Scalar? {
         defer { previousSymbol = z }
+        trackLevel(z.magnitude)
         let d = z.timesConjugate(of: previousSymbol)
         let power = d.magnitudeSquared
         guard power > 0 else { return nil }
@@ -147,6 +157,24 @@ final class PSKDemodulator {
 
         guard let ascii = varicode.push(bit: bit), quality >= squelch else { return nil }
         return Self.printable(ascii)
+    }
+
+    /// The quality average takes ~20 symbols to fall after a signal ends,
+    /// long enough to print most of a second of noise as text. When the
+    /// amplitude drops well below where it was, the average starts over
+    /// instead (noise alone then rarely gets back above the squelch).
+    private func trackLevel(_ amplitude: Float) {
+        fastAmplitude += 0.25 * (amplitude - fastAmplitude)
+        if fastAmplitude > levelHold {
+            levelHold = fastAmplitude
+        } else {
+            levelHold += 0.01 * (fastAmplitude - levelHold)
+        }
+        if fastAmplitude < Self.dropRatio * levelHold {
+            rotationAverage = .zero
+            quality = 0
+            levelHold = fastAmplitude
+        }
     }
 
     private static func printable(_ ascii: UInt8) -> Unicode.Scalar? {

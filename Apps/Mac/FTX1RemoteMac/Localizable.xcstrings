@@ -5708,6 +5708,98 @@
         }
       }
     },
+    "digiWindow.browser" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Browser"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Browser"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Navegador"
+          }
+        }
+      }
+    },
+    "digiWindow.browserHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle PSK-Signale im Durchlassbereich gleichzeitig dekodieren, je eine Zeile"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decode every PSK signal in the passband at once, one line each"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodificar todas las señales PSK de la banda pasante a la vez, una línea cada una"
+          }
+        }
+      }
+    },
+    "digiWindow.browserPlaceholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PSK-Signale im Durchlassbereich erscheinen hier, je eine Zeile."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PSK signals in the passband appear here, one line each."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las señales PSK de la banda pasante aparecen aquí, una línea cada una."
+          }
+        }
+      }
+    },
+    "digiWindow.browserRowHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klicken, um dieses Signal unten zu dekodieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click to decode this signal below"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hacer clic para decodificar esta señal abajo"
+          }
+        }
+      }
+    },
     "digiWindow.clearTheText" : {
       "extractionState" : "manual",
       "localizations" : {

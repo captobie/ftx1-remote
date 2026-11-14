@@ -6,7 +6,8 @@ import UniformTypeIdentifiers
 /// Tools → RTTY/PSK (`Window(id: "digi")` in `FTX1RemoteMacApp`): decodes
 /// one RTTY, BPSK31 or BPSK63 signal at a time from MAIN, SUB or the
 /// WebSDR window's audio. A click on the tuning strip picks the signal;
-/// AFC follows it from there.
+/// AFC follows it from there. In the PSK modes the browser
+/// (`DigiBrowserList`) also decodes every other PSK signal at once.
 ///
 /// Decoding runs only while this window is open, like FT8 and CW. The
 /// strip and the status line observe `DigiReceiver.meters` (about ten
@@ -29,7 +30,16 @@ struct DigiWindowView: View {
                 Divider()
                 DigiStatusLine(meters: receiver.meters)
                 Divider()
-                DigiDecodedTextView()
+                if receiver.mode.isPSK, receiver.browserEnabled {
+                    VSplitView {
+                        DigiBrowserList(store: receiver.browser, meters: receiver.meters)
+                            .frame(minHeight: 80, idealHeight: 170)
+                        DigiDecodedTextView()
+                            .frame(minHeight: 100)
+                    }
+                } else {
+                    DigiDecodedTextView()
+                }
             }
             .frame(minHeight: 340)
             DigiSendPane()
@@ -202,6 +212,10 @@ private struct DigiSettingsRow: View {
                     Text(verbatim: "USOS")
                 }
                 .help("digiWindow.unshiftOnSpaceHelp")
+            }
+            if receiver.mode.isPSK {
+                Toggle("digiWindow.browser", isOn: $receiver.browserEnabled)
+                    .help("digiWindow.browserHelp")
             }
             Toggle(isOn: $receiver.afcEnabled) {
                 Text(verbatim: "AFC")

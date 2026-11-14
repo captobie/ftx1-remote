@@ -2481,9 +2481,9 @@ User request. Tools → **RTTY/PSK** opens `Window(id: "digi")`
 (`DigiWindowView`, Mac-only): decodes one RTTY, BPSK31 or BPSK63 signal
 at a time from MAIN, SUB, the WebSDR window's or the MyKiwiSDR window's
 audio (see "Local SDR" phase 4), or from a file.
-One signal at a time with a click-to-tune strip, not a multi-signal PSK
-browser (user decision, possible later). Transmit came the same day (see
-"Transmit" below).
+One signal at a time with a click-to-tune strip; the PSK browser (see
+below) came on 2026-11-14. Transmit came the same day (see "Transmit"
+below).
 
 - **Our own demodulators, nothing vendored** (`Sources/FTX1Digi/`, a
   separate product so the iPhone doesn't carry it): fldigi is GPL-3 and
@@ -2585,6 +2585,32 @@ browser (user decision, possible later). Transmit came the same day (see
     text fill Their call (`CWCallsigns`, matched on the uppercased text).
   - MOD SOURCE check: the status line warns when the transmitting mode's
     MOD SOURCE (DATA EX010413, SSB EX010113) is MIC or Bluetooth.
+- **PSK browser (2026-11-14; unit-tested on synthesized multi-signal
+  audio, then a synthesized five-signal PSK31 file decoded on all five
+  lines in the built app, user-confirmed; not yet on the air)**: user
+  request, like fldigi's signal browser. In BPSK31/BPSK63 a **Browser**
+  checkbox (`digi.psk.browser`, on by default) shows a list above the
+  decoded text: one line per PSK signal in 0.15–2.85 kHz, lowest first
+  (frequency, quality bar, newest ~160 characters), the main decoder's
+  line highlighted; a click moves the main decoder there. Green ticks on
+  the tuning strip mark the channels. `PSKBrowser` (FTX1Digi, inside
+  `DigiDecoder`, so it runs on the decoder's queue and for files too):
+  the strip's FFT rows averaged (rises 0.3, falls 0.6 a row), power summed
+  over ±1 baud, local maxima ≥ 5 dB over the median every 0.5 s each get
+  their own `PSKDemodulator` (AFC ±15 Hz, up to 24); text prints only
+  while that carrier stands above the noise in a recent row (0.5 s hold);
+  channels AFC pulls within half a baud are merged; dropped after 60 s
+  gone (10 s if it printed under 3 characters). Snapshots ~4/s into
+  `PSKBrowserStore` (`DigiReceiver.browser`), observed only by the list
+  and the ticks. Time is counted in samples. Fixed with it, in
+  `PSKDemodulator` (both decoders): the quality average took ~20 symbols
+  to fall when a signal ended, printing most of a second of noise; an
+  amplitude drop to 0.35 of the held level now clears it (a strong
+  carrier's end now prints at most a character). `PSKBrowserTests`: 3
+  signals at −3 dB SNR, 90 Hz apart, BPSK63, noise alone printing
+  nothing, a bare carrier dropped, and 39 s of an 8-signal band in
+  ~0.8 s (Debug `swift test`). Not done: live CPU with many signals,
+  real QRM/QSB, the iPad/Windows.
 - **Log QSO pane (2026-11-14; built and unit-tested, not yet opened in
   the app or logged a QSO from)**: user request. The CW window's pane,
   now `QSOLogPane` (`QSOLogPane.swift`, was `CWLogPane`), at the bottom

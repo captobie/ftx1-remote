@@ -57,6 +57,24 @@ public final class DigiMeterStore: ObservableObject {
     }
 }
 
+/// The PSK browser's channels, apart from the decoded text and the meters
+/// so its ~4 updates a second re-render only the browser list (and the
+/// strip's channel marks).
+@MainActor
+public final class PSKBrowserStore: ObservableObject {
+    @Published public private(set) var channels: [PSKBrowserChannel] = []
+
+    nonisolated init() {}
+
+    func update(_ channels: [PSKBrowserChannel]) {
+        if channels != self.channels { self.channels = channels }
+    }
+
+    func clear() {
+        if !channels.isEmpty { channels = [] }
+    }
+}
+
 /// Tools → RTTY/PSK's receiver: RTTY, BPSK31 or BPSK63 from the rig's MAIN
 /// or SUB audio, the WebSDR window's audio, or an audio file.
 ///
@@ -117,7 +135,20 @@ public final class DigiReceiver: ObservableObject {
         }
     }
 
+    /// In BPSK31/BPSK63, also decode every other PSK signal in the
+    /// passband (`PSKBrowser`), shown in `browser`. Saved; on by default.
+    @Published public var browserEnabled: Bool {
+        didSet {
+            guard browserEnabled != oldValue else { return }
+            defaults.set(browserEnabled, forKey: Key.browser)
+            if !browserEnabled { browser.clear() }
+            let on = browserEnabled
+            queue.async { [box] in box.decoder?.setBrowserEnabled(on) }
+        }
+    }
+
     public let meters = DigiMeterStore()
+    public let browser = PSKBrowserStore()
     public private(set) var isRunning = false
     /// Called whenever `isRunning` or `channel` changes — the Mac's WebSDR
     /// source starts or stops its tap from here.
@@ -179,6 +210,7 @@ public final class DigiReceiver: ObservableObject {
         static let rttyUnshiftOnSpace = "digi.rtty.unshiftOnSpace"
         static let afc = "digi.afc"
         static let squelch = "digi.squelch"
+        static let browser = "digi.psk.browser"
     }
 
     /// Defaults: RTTY centred for the usual 2125/2295 Hz tones, PSK at
@@ -200,6 +232,7 @@ public final class DigiReceiver: ObservableObject {
             Key.rttyUnshiftOnSpace: true,
             Key.afc: true,
             Key.squelch: 0.3,
+            Key.browser: true,
         ])
         let mode = DigiMode(rawValue: defaults.string(forKey: Key.mode) ?? "") ?? .rtty
         self.mode = mode
@@ -211,6 +244,7 @@ public final class DigiReceiver: ObservableObject {
         rttyUnshiftOnSpace = defaults.bool(forKey: Key.rttyUnshiftOnSpace)
         afcEnabled = defaults.bool(forKey: Key.afc)
         squelch = defaults.double(forKey: Key.squelch)
+        browserEnabled = defaults.bool(forKey: Key.browser)
         meters.reset(centerHz: centerHz)
     }
 
@@ -258,15 +292,17 @@ public final class DigiReceiver: ObservableObject {
         generation += 1
         let decoder = DigiDecoder(
             mode: mode, rttySettings: decoderRTTYSettings, centerHz: centerHz,
-            afc: afcEnabled, squelch: Float(squelch)
+            afc: afcEnabled, squelch: Float(squelch), browser: browserEnabled
         )
         meters.reset(centerHz: centerHz)
+        browser.clear()
         queue.async { [box] in box.decoder = decoder }
     }
 
     private func resetDecoder() {
         generation += 1
         meters.reset(centerHz: centerHz)
+        browser.clear()
         queue.async { [box] in box.decoder?.reset() }
         startNewLine()
     }
@@ -294,6 +330,7 @@ public final class DigiReceiver: ObservableObject {
     private func handle(_ output: DigiDecoderOutput, generation: Int) {
         guard generation == self.generation else { return }
         meters.update(output)
+        if let channels = output.browser, browserEnabled, mode.isPSK { browser.update(channels) }
         append(output.text)
     }
 
@@ -380,8 +417,9 @@ public final class DigiReceiver: ObservableObject {
         // A fresh decoder of its own, so the live one keeps its state.
         let decoder = DigiDecoder(
             mode: mode, rttySettings: decoderRTTYSettings, centerHz: centerHz,
-            afc: afcEnabled, squelch: Float(squelch)
+            afc: afcEnabled, squelch: Float(squelch), browser: browserEnabled
         )
+        if browserEnabled { browser.clear() }
         let fileBox = DecoderBox()
         fileBox.decoder = decoder
         let queue = queue
@@ -393,15 +431,26 @@ public final class DigiReceiver: ObservableObject {
                 let format = file.processingFormat
                 let frames: AVAudioFrameCount = 8192
                 guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames) else { return }
+                // The file decodes far faster than real time: the browser
+                // gets its newest snapshot at most ten times a second.
+                var pendingChannels: [PSKBrowserChannel]?
+                var lastShown = Date.distantPast
                 while file.framePosition < file.length {
                     try file.read(into: buffer, frameCount: frames)
                     guard buffer.frameLength > 0, let data = buffer.floatChannelData else { break }
                     let samples = Array(UnsafeBufferPointer(start: data[0], count: Int(buffer.frameLength)))
-                    let text = queue.sync { fileBox.decoder?.process(samples: samples, sampleRate: format.sampleRate).text ?? "" }
-                    if !text.isEmpty {
+                    let output = queue.sync { fileBox.decoder?.process(samples: samples, sampleRate: format.sampleRate) }
+                    if let text = output?.text, !text.isEmpty {
                         await self?.append(text)
                     }
+                    if let channels = output?.browser { pendingChannels = channels }
+                    if let channels = pendingChannels, Date().timeIntervalSince(lastShown) > 0.1 {
+                        await self?.browser.update(channels)
+                        pendingChannels = nil
+                        lastShown = Date()
+                    }
                 }
+                if let channels = pendingChannels { await self?.browser.update(channels) }
             } catch {
                 await self?.reportFileError(error, url: url)
             }

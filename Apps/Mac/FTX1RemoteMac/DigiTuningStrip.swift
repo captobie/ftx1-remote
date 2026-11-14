@@ -30,6 +30,9 @@ struct DigiTuningStrip: View {
                             .interpolation(.none)
                     }
                     markers(width: width, height: waterfallHeight)
+                    if receiver.mode.isPSK, receiver.browserEnabled {
+                        DigiBrowserMarks(store: receiver.browser, width: width)
+                    }
                 }
                 .frame(width: width, height: waterfallHeight)
                 .clipped()
