@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 
 /// Tools → CW (`Window(id: "cw")` in `FTX1RemoteMacApp`): the receive pane
 /// on top, the send pane (`CWSendPane`, v2) below it and the Log QSO pane
-/// (`CWLogPane`) at the bottom, in a `VSplitView`. Each
+/// (`QSOLogPane`) at the bottom, in a `VSplitView`. Each
 /// pane keeps its own controls in its own header rather than sharing the
 /// window toolbar.
 ///
@@ -23,7 +23,7 @@ struct CWWindowView: View {
                 .frame(minHeight: 240)
             CWSendPane()
                 .frame(minHeight: 230)
-            CWLogPane()
+            CWLogPaneHost()
                 .frame(minHeight: 130, maxHeight: 160)
         }
             .navigationTitle("CW")
@@ -246,15 +246,18 @@ private struct CWDecodedTextView: View {
                   let url = CWCallsigns.url(for: text[range]) else { continue }
             attributed[attributedRange].link = url
             attributed[attributedRange].underlineStyle = .single
-            if let color = Self.color(for: workedStations.worked.status(of: String(text[range]), band: workedStations.band)) {
+            if let color = workedStations.worked.status(of: String(text[range]), band: workedStations.band).color {
                 attributed[attributedRange].foregroundColor = color
             }
         }
         return attributed
     }
+}
 
-    static func color(for status: WorkedStations.Status) -> Color? {
-        switch status {
+extension WorkedStations.Status {
+    /// A decoded callsign's worked-before color; nil = the plain link color.
+    var color: Color? {
+        switch self {
         case .thisBand: .green
         case .otherBand: .orange
         case .never: nil
@@ -262,8 +265,8 @@ private struct CWDecodedTextView: View {
     }
 }
 
-/// Key to the decoded callsigns' colors.
-private struct WorkedLegend: View {
+/// Key to the decoded callsigns' colors (CW and RTTY/PSK windows).
+struct WorkedLegend: View {
     let band: String?
 
     var body: some View {
@@ -283,5 +286,16 @@ private struct WorkedLegend: View {
             Circle().fill(color).frame(width: 8, height: 8)
             Text(title)
         }
+    }
+}
+
+/// The Log QSO pane on `CWSender.theirCall` (what `{CALL}` macros read and
+/// a click on a decoded callsign fills). Its own view so observing the
+/// sender doesn't re-render the whole window.
+private struct CWLogPaneHost: View {
+    @EnvironmentObject private var sender: CWSender
+
+    var body: some View {
+        QSOLogPane(call: $sender.theirCall)
     }
 }

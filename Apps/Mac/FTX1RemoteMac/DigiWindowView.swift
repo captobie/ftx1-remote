@@ -14,6 +14,7 @@ import UniformTypeIdentifiers
 struct DigiWindowView: View {
     @EnvironmentObject private var receiver: DigiReceiver
     @EnvironmentObject private var sender: DigiSender
+    @EnvironmentObject private var workedStations: WorkedStationsStore
     @State private var isShowingFileImporter = false
 
     var body: some View {
@@ -33,17 +34,23 @@ struct DigiWindowView: View {
             .frame(minHeight: 340)
             DigiSendPane()
                 .frame(minHeight: 200)
+            DigiLogPaneHost(receiver: receiver)
+                .frame(minHeight: 130, maxHeight: 160)
         }
         .navigationTitle("RTTY/PSK")
         // Wide enough for the header's four sources and its buttons
         // without wrapping a label.
-        .frame(minWidth: 980, minHeight: 600)
-        .onAppear { receiver.start() }
+        .frame(minWidth: 980, minHeight: 740)
+        .onAppear {
+            receiver.start()
+            workedStations.start()
+        }
         .onDisappear {
             // Not left keyed with nobody watching: closing acts as RX
             // (what's typed goes out, then the tail and unkey).
             sender.finish()
             receiver.stop()
+            workedStations.stop()
         }
         .fileImporter(
             isPresented: $isShowingFileImporter,
@@ -66,6 +73,18 @@ struct DigiWindowView: View {
         } message: {
             Text(receiver.errorMessage ?? "")
         }
+    }
+}
+
+/// The Log QSO pane on `DigiSender.theirCall`, logging in this window's
+/// mode at the signal's frequency (see `QSOLogPane`). Its own view so
+/// observing the sender doesn't re-render the whole window.
+private struct DigiLogPaneHost: View {
+    @EnvironmentObject private var sender: DigiSender
+    let receiver: DigiReceiver
+
+    var body: some View {
+        QSOLogPane(call: $sender.theirCall, digi: receiver)
     }
 }
 
@@ -303,13 +322,36 @@ private struct DigiStatusLine: View {
 // MARK: - Decoded text
 
 /// Received text, with this station's own transmissions in red (as in
-/// fldigi). Callsigns in received text are links that fill the send
-/// pane's Their call (`CWCallsigns`, the CW window's rule).
+/// fldigi). Callsigns in received text are links that fill the Log QSO
+/// pane's Their call (`CWCallsigns`, the CW window's rule), colored by
+/// worked-before as in the CW window.
 private struct DigiDecodedTextView: View {
     @EnvironmentObject private var receiver: DigiReceiver
     @EnvironmentObject private var sender: DigiSender
+    @EnvironmentObject private var workedStations: WorkedStationsStore
 
     var body: some View {
+        // The legend in a row of its own, as in the CW window.
+        VStack(spacing: 0) {
+            decodedText
+            if workedStations.problem == nil {
+                HStack {
+                    Spacer()
+                    WorkedLegend(band: workedStations.band)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+            }
+        }
+        .background(Color(nsColor: .textBackgroundColor))
+        .environment(\.openURL, OpenURLAction { url in
+            guard let call = CWCallsigns.call(from: url) else { return .systemAction }
+            sender.theirCall = call
+            return .handled
+        })
+    }
+
+    private var decodedText: some View {
         ScrollView {
             Group {
                 if receiver.runs.isEmpty {
@@ -325,12 +367,6 @@ private struct DigiDecodedTextView: View {
             .padding()
         }
         .defaultScrollAnchor(.bottom, for: .sizeChanges)
-        .background(Color(nsColor: .textBackgroundColor))
-        .environment(\.openURL, OpenURLAction { url in
-            guard let call = CWCallsigns.call(from: url) else { return .systemAction }
-            sender.theirCall = call
-            return .handled
-        })
     }
 
     private var attributed: AttributedString {
@@ -340,7 +376,7 @@ private struct DigiDecodedTextView: View {
             if run.isTransmit {
                 part.foregroundColor = .red
             } else {
-                Self.linkCallsigns(in: run.text, attributed: &part)
+                linkCallsigns(in: run.text, attributed: &part)
             }
             result += part
         }
@@ -349,7 +385,7 @@ private struct DigiDecodedTextView: View {
 
     /// PSK is often typed in lowercase, so calls are found in the
     /// uppercased text (same offsets for ASCII; skipped otherwise).
-    private static func linkCallsigns(in text: String, attributed: inout AttributedString) {
+    private func linkCallsigns(in text: String, attributed: inout AttributedString) {
         let upper = text.uppercased()
         guard upper.utf8.count == text.utf8.count else { return }
         for range in CWCallsigns.ranges(in: upper, excluding: StationSettings.callsign) {
@@ -360,6 +396,9 @@ private struct DigiDecodedTextView: View {
             guard let url = CWCallsigns.url(for: upper[range]) else { continue }
             attributed[lower..<upperBound].link = url
             attributed[lower..<upperBound].underlineStyle = .single
+            if let color = workedStations.worked.status(of: String(upper[range]), band: workedStations.band).color {
+                attributed[lower..<upperBound].foregroundColor = color
+            }
         }
     }
 }

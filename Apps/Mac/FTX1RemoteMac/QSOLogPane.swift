@@ -1,12 +1,17 @@
 import FTX1CW
 import FTX1Core
+import FTX1Digi
 import SwiftUI
 
-/// The CW window's Log QSO pane, under the send pane: logs the contact to
-/// the logbook chosen in Settings → Logbook through `QSOLogger`. The call
-/// is `CWSender.theirCall` — the same field `{CALL}` macros read and a
-/// click on a decoded callsign fills. Frequency, mode and power come from
-/// the rig's transmitting side when Log QSO is clicked.
+/// The Log QSO pane at the bottom of the CW and RTTY/PSK windows: logs the
+/// contact to the logbook chosen in Settings → Logbook through
+/// `QSOLogger`. The call is the window's sender's Their call — the same
+/// field `{CALL}` macros read and a click on a decoded callsign fills.
+/// Frequency, mode and power come from the rig's transmitting side when
+/// Log QSO is clicked — except in the RTTY/PSK window (`digi` set), where
+/// the mode is the one the window decodes (RTTY, PSK31, PSK63; the rig's
+/// DATA-U/USB can't say) and the frequency is the signal's: the dial plus
+/// or minus the tracked audio frequency (`QSOLogPane.digiFrequencyHz`).
 ///
 /// Time on is set when the call goes from empty to filled (or by the reset
 /// button); time off is the moment Log QSO is clicked. After every logbook
@@ -16,10 +21,14 @@ import SwiftUI
 /// Wavelog didn't, "Retry Wavelog" resends that same QSO to Wavelog alone
 /// (user decision), so MacLoggerDX never gets a second copy; it stays
 /// offered until it works or is dismissed, even once a new call is typed.
-struct CWLogPane: View {
+struct QSOLogPane: View {
     @EnvironmentObject private var hub: HubService
-    @EnvironmentObject private var sender: CWSender
     @EnvironmentObject private var workedStations: WorkedStationsStore
+    @Binding var call: String
+    /// The RTTY/PSK window's receiver, for its mode and tracked tone; nil
+    /// in the CW window. Read when Log QSO or Lookup is clicked, so it
+    /// isn't observed here (its decoded text would re-render the fields).
+    var digi: DigiReceiver?
 
     @AppStorage(LogbookSettings.loggerKey) private var loggerRawValue = LogbookSettings.Logger.none.rawValue
     @AppStorage(LogbookSettings.wavelogEnabledKey) private var wavelogEnabled = false
@@ -55,7 +64,7 @@ struct CWLogPane: View {
                 }
                 .help("cwLogPane.lookThisCallUp")
                 .disabled(normalizedCall.isEmpty)
-                TextField("common.theirCall", text: $sender.theirCall, selection: $callSelection)
+                TextField("common.theirCall", text: $call, selection: $callSelection)
                     .frame(width: 120)
                     .help("cwLogPane.theStationYoureWorking")
                 timeOnView
@@ -68,7 +77,7 @@ struct CWLogPane: View {
                 TextField("common.comment", text: $comment)
             }
             HStack(spacing: 10) {
-                CWLogRigReadout()
+                QSOLogRigReadout(digi: digi)
                 resultView
                 Spacer()
                 if let wavelogRetry {
@@ -88,7 +97,7 @@ struct CWLogPane: View {
         .labelStyle(.titleAndIcon)
         .padding(.horizontal)
         .padding(.vertical, 8)
-        .onChange(of: sender.theirCall) { old, new in
+        .onChange(of: call) { old, new in
             let wasEmpty = old.trimmingCharacters(in: .whitespaces).isEmpty
             let isEmpty = new.trimmingCharacters(in: .whitespaces).isEmpty
             if isEmpty {
@@ -176,22 +185,46 @@ struct CWLogPane: View {
     }
 
     private var normalizedCall: String {
-        sender.theirCall.trimmingCharacters(in: .whitespaces).uppercased()
+        call.trimmingCharacters(in: .whitespaces).uppercased()
     }
 
     /// Sends the call to the logbook for its own lookup, with the
     /// transmitting side's frequency and mode. Needs the rig: MacLoggerDX
     /// ignores a Status with a 0 Hz dial frequency (tested 2026-10-07), and
     /// a made-up one would land in its entry panel.
+    /// The transmitting side's frequency, or in the RTTY/PSK window the
+    /// signal's (`digiFrequencyHz`).
+    private var logFrequencyHz: Int? {
+        let tx = hub.rigState.transmitter
+        guard let dial = tx.frequencyHz else { return nil }
+        guard let digi else { return dial }
+        return Self.digiFrequencyHz(dialHz: dial, mode: tx.mode, audioHz: digi.meters.trackedHz)
+    }
+
+    /// The RF frequency of a signal heard at `audioHz` in the audio: above
+    /// the dial in USB/DATA-U, below it in LSB (fldigi's convention). In
+    /// any other mode (the rig's own RTTY mode included, whose display
+    /// doesn't map to an audio tone the same way) the dial as it is.
+    static func digiFrequencyHz(dialHz: Int, mode: RigMode?, audioHz: Double) -> Int {
+        guard audioHz > 0 else { return dialHz }
+        switch mode {
+        case .usb, .dataUSB: return dialHz + Int(audioHz.rounded())
+        case .lsb: return dialHz - Int(audioHz.rounded())
+        default: return dialHz
+        }
+    }
+
     private func lookUp() {
         let call = normalizedCall
         guard !call.isEmpty else { return }
         let tx = hub.rigState.transmitter
-        guard hub.connectionState == .connected, let frequencyHz = tx.frequencyHz, frequencyHz > 0 else {
+        guard hub.connectionState == .connected, let frequencyHz = logFrequencyHz, frequencyHz > 0 else {
             result = .failure(String(localized: "cwLogPane.connectToTheRig"))
             return
         }
-        let mode = tx.mode.flatMap(ADIFMode.init)?.mode ?? tx.mode?.displayName ?? ""
+        // WSJT-X's Status carries free text: the name MacLoggerDX shows.
+        let mode = digi.map { $0.mode.logName }
+            ?? tx.mode.flatMap(ADIFMode.init)?.mode ?? tx.mode?.displayName ?? ""
         Task {
             if let problem = await QSOLogger.lookUp(call: call, dialFrequencyHz: frequencyHz, mode: mode) {
                 result = .failure(problem)
@@ -214,11 +247,11 @@ struct CWLogPane: View {
             return
         }
         let tx = rig.transmitter
-        guard let frequencyHz = tx.frequencyHz, frequencyHz > 0 else {
+        guard let frequencyHz = logFrequencyHz, frequencyHz > 0 else {
             result = .failure(String(localized: "cwLogPane.theTransmittingSidesFrequency"))
             return
         }
-        guard let mode = tx.mode.flatMap(ADIFMode.init) else {
+        guard let mode = digi.map({ $0.mode.adifMode }) ?? tx.mode.flatMap(ADIFMode.init) else {
             result = .failure(String(localized: "cwLogPane.cantLogIn \(tx.mode?.displayName ?? "an unknown mode")"))
             return
         }
@@ -322,16 +355,16 @@ struct CWLogPane: View {
     /// see `UppercaseEdit`.
     private func uppercaseCall(from old: String, typed: String, to uppercased: String) {
         let caret = UppercaseEdit.caretOffset(old: old, typed: typed)
-        sender.theirCall = uppercased
+        call = uppercased
         // After the field has taken the new text, or it moves the cursor
         // to the end again.
         DispatchQueue.main.async {
-            callSelection = UppercaseEdit.selection(in: sender.theirCall, at: caret)
+            callSelection = UppercaseEdit.selection(in: call, at: caret)
         }
     }
 
     private func clear() {
-        sender.theirCall = ""
+        call = ""
         rstSent = Self.defaultRST
         rstReceived = Self.defaultRST
         name = ""
@@ -386,22 +419,75 @@ private struct CWWorkedSummary: View {
 }
 
 /// What will be logged from the rig: the transmitting side's frequency,
-/// mode and RF power setting. Its own struct so the rig's polling only
-/// re-renders this line, not the text fields.
-private struct CWLogRigReadout: View {
-    @EnvironmentObject private var hub: HubService
+/// mode and RF power setting — in the RTTY/PSK window the signal's
+/// frequency and the window's mode. Its own struct so the rig's polling
+/// (and the tracked tone) only re-renders this line, not the text fields.
+private struct QSOLogRigReadout: View {
+    let digi: DigiReceiver?
 
     var body: some View {
-        let rig = hub.rigState
-        let tx = rig.transmitter
-        HStack(spacing: 8) {
-            Text(tx.frequencyHz.flatMap { $0 > 0 ? "\(FrequencyFormat.mhz($0, fractionDigits: 4)) MHz" : nil } ?? "— MHz")
-            Text(tx.mode?.displayName ?? "—")
-            Text(rig.powerLevel.map { "\(Int(($0 * 100).rounded())) W" } ?? "— W")
+        if let digi {
+            DigiReadout(receiver: digi, meters: digi.meters)
+        } else {
+            Line(frequencyHz: nil, modeName: nil, help: "cwLogPane.loggedFromTheTransmitting")
         }
-        .font(.system(.body, design: .monospaced))
-        .foregroundStyle(hub.connectionState == .connected ? .primary : .tertiary)
-        .help("cwLogPane.loggedFromTheTransmitting")
+    }
+
+    private struct DigiReadout: View {
+        @ObservedObject var receiver: DigiReceiver
+        @ObservedObject var meters: DigiMeterStore
+        @EnvironmentObject private var hub: HubService
+
+        var body: some View {
+            let tx = hub.rigState.transmitter
+            Line(
+                frequencyHz: tx.frequencyHz.map {
+                    QSOLogPane.digiFrequencyHz(dialHz: $0, mode: tx.mode, audioHz: meters.trackedHz)
+                },
+                modeName: receiver.mode.logName,
+                help: "qsoLogPane.digiLoggedFrom"
+            )
+        }
+    }
+
+    /// `frequencyHz`/`modeName` nil = the transmitting side's.
+    private struct Line: View {
+        @EnvironmentObject private var hub: HubService
+        let frequencyHz: Int?
+        let modeName: String?
+        let help: LocalizedStringKey
+
+        var body: some View {
+            let rig = hub.rigState
+            let tx = rig.transmitter
+            let frequency = frequencyHz ?? tx.frequencyHz
+            HStack(spacing: 8) {
+                // Hz shown in the RTTY/PSK window: the tone moves it.
+                Text(frequency.flatMap { $0 > 0 ? "\(FrequencyFormat.mhz($0, fractionDigits: modeName == nil ? 4 : 6)) MHz" : nil } ?? "— MHz")
+                Text(modeName ?? tx.mode?.displayName ?? "—")
+                Text(rig.powerLevel.map { "\(Int(($0 * 100).rounded())) W" } ?? "— W")
+            }
+            .font(.system(.body, design: .monospaced))
+            .foregroundStyle(hub.connectionState == .connected ? .primary : .tertiary)
+            .help(help)
+        }
+    }
+}
+
+extension DigiMode {
+    /// ADIF mode/submode for a QSO in this mode.
+    var adifMode: ADIFMode {
+        switch self {
+        case .rtty: ADIFMode(mode: "RTTY")
+        case .bpsk31: ADIFMode(mode: "PSK", submode: "PSK31")
+        case .bpsk63: ADIFMode(mode: "PSK", submode: "PSK63")
+        }
+    }
+
+    /// The name a logger shows (RTTY, PSK31, PSK63): radio terms.
+    var logName: String {
+        let adif = adifMode
+        return adif.submode.isEmpty ? adif.mode : adif.submode
     }
 }
 

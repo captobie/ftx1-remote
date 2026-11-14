@@ -83,7 +83,7 @@ public enum WSJTXMessage {
         writer.utf8(qso.call)
         writer.utf8(qso.grid)
         writer.uint64(UInt64(max(qso.frequencyHz, 0)))
-        writer.utf8(qso.mode)
+        writer.utf8(qsoLoggedMode(qso))
         writer.utf8(qso.rstSent)
         writer.utf8(qso.rstReceived)
         writer.utf8(qso.txPower)
@@ -97,6 +97,14 @@ public enum WSJTXMessage {
         writer.utf8("")           // exchange received
         writer.utf8("")           // ADIF propagation mode
         return writer.data
+    }
+
+    /// The mode for "QSO Logged", which has no submode field: WSJT-X puts
+    /// the specific mode there ("FT4", ADIF's MFSK/FT4), so for the ADIF
+    /// families whose submode *is* the mode name (PSK31, PSK63) so do we.
+    /// SSB keeps "SSB" (its submode is only the sideband).
+    static func qsoLoggedMode(_ qso: LoggedQSO) -> String {
+        ["PSK", "MFSK"].contains(qso.mode) && !qso.submode.isEmpty ? qso.submode : qso.mode
     }
 
     public static func loggedADIF(_ qso: LoggedQSO, id: String = defaultID) -> Data {

@@ -141,6 +141,24 @@ final class WSJTXMessageTests: XCTestCase {
         XCTAssertNil(ADIFMode(.unknown))
     }
 
+    /// "QSO Logged" has no submode: PSK31/PSK63 go as the mode name, as
+    /// WSJT-X does for FT4; SSB keeps "SSB"; the ADIF record keeps both.
+    func testQSOLoggedModeUsesPSKSubmode() throws {
+        var psk = qso
+        psk.mode = "PSK"
+        psk.submode = "PSK31"
+        XCTAssertEqual(WSJTXMessage.qsoLoggedMode(psk), "PSK31")
+        let record = ADIFRecord.record(for: psk)
+        XCTAssertTrue(record.contains("<mode:3>PSK"))
+        XCTAssertTrue(record.contains("<submode:5>PSK31"))
+
+        var ssb = qso
+        ssb.mode = "SSB"
+        ssb.submode = "USB"
+        XCTAssertEqual(WSJTXMessage.qsoLoggedMode(ssb), "SSB")
+        XCTAssertEqual(WSJTXMessage.qsoLoggedMode(qso), "CW")
+    }
+
     private struct Reader {
         struct Truncated: Error {}
         let bytes: [UInt8]

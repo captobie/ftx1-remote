@@ -125,13 +125,15 @@ struct FTX1RemoteMacApp: App {
         }
 
         // Tools → RTTY/PSK. `hub` for the SUB picker's single-receive check
-        // and Rig Tones, `webSDRSource` for the WebSDR status; decoding runs
-        // while the window is open.
+        // and Rig Tones, `webSDRSource` for the WebSDR status,
+        // `workedStations` for the Log QSO pane; decoding runs while the
+        // window is open.
         Window("RTTY/PSK", id: "digi") {
             DigiWindowView()
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.digiReceiver)
                 .environmentObject(appDelegate.hub.digiSender)
+                .environmentObject(appDelegate.hub.workedStations)
                 .environmentObject(appDelegate.hub.webSDRSource)
                 .environmentObject(appDelegate.hub.localSDRSource)
                 .appTheme()

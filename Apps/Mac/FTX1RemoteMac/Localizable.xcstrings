@@ -5442,29 +5442,6 @@
         }
       }
     },
-    "digiSendPane.lookingUp %@ %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ wird in %2$@ nachgeschlagen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Looking up %@ in %@"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Buscando %1$@ en %2$@"
-          }
-        }
-      }
-    },
     "digiSendPane.macrosHelp" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9779,6 +9756,29 @@
     "PTT" : {
       "extractionState" : "manual",
       "shouldTranslate" : false
+    },
+    "qsoLogPane.digiLoggedFrom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geloggt wird die Betriebsart dieses Fensters auf der Frequenz des Signals: Skala der Sendeseite plus Tonfrequenz in USB/DATA-U, minus in LSB; dazu die eingestellte RF-Leistung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logged in this window's mode at the signal's frequency: the transmitting side's dial plus the tone in USB/DATA-U, minus it in LSB; and the RF power setting"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se registra el modo de esta ventana en la frecuencia de la señal: el dial del lado que transmite más el tono en USB/DATA-U, menos en LSB; y la potencia RF configurada"
+          }
+        }
+      }
     },
     "qsoLogger.couldntSendTo %@ %lld %@" : {
       "extractionState" : "manual",

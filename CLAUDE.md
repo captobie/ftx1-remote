@@ -2564,6 +2564,24 @@ browser (user decision, possible later). Transmit came the same day (see
     text fill Their call (`CWCallsigns`, matched on the uppercased text).
   - MOD SOURCE check: the status line warns when the transmitting mode's
     MOD SOURCE (DATA EX010413, SSB EX010113) is MIC or Bluetooth.
+- **Log QSO pane (2026-11-14; built and unit-tested, not yet opened in
+  the app or logged a QSO from)**: user request. The CW window's pane,
+  now `QSOLogPane` (`QSOLogPane.swift`, was `CWLogPane`), at the bottom
+  of this window too, on `DigiSender.theirCall` — Their call and Lookup
+  moved there from the send pane's macro row, as in the CW window. Same
+  logbooks, Retry Wavelog and worked-before (the decoded callsigns are
+  colored too, with the CW window's legend; `WorkedStationsStore` runs
+  while either window is open). With `digi:` set the mode is the
+  window's (ADIF RTTY, PSK/PSK31, PSK/PSK63; `DigiMode.adifMode`), not
+  the rig's DATA-U/USB, and the frequency is the signal's:
+  `QSOLogPane.digiFrequencyHz` = the transmitting side's dial + the
+  tracked tone in USB/DATA-U, − it in LSB, the dial as is otherwise (the
+  rig's RTTY mode included — its display isn't known to map to a tone).
+  WSJT-X's "QSO Logged" (MacLoggerDX) has no submode field, so it now
+  carries PSK31/PSK63 as the mode (`WSJTXMessage.qsoLoggedMode`, as
+  WSJT-X does for FT4); the ADIF record keeps PSK + submode, and SSB
+  stays "SSB". Not checked: how MacLoggerDX files "PSK31" from that
+  message.
 - Not yet done: anything on the air — receive (MAIN in RTTY mode and
   DATA-U, SUB, a swap, WebSDR with the CW window open) and transmit
   (dummy load first: MOD SOURCE, USB MOD GAIN/ALC at the default level,
