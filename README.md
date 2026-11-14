@@ -434,6 +434,10 @@ Its `fft/` subdirectory is [kissfft](https://github.com/mborgerding/kissfft)
 `Tests/FT8KitTests/Resources/` vendors a few of ft8_lib's own reference WAV
 captures + truth-decode files for the reference-vector test.
 
+The Windows app builds the same source into `ft8lib.dll` (MSVC, x64, static CRT;
+`Apps/Windows/Tools/ft8native/build-ft8lib.ps1`) and ships it, with both licences, in
+`ft8\` beside the executable.
+
 The Mac and iPad CW decoder is CWKit from
 [captobie/cwdecode](https://github.com/captobie/cwdecode) (MIT), a Swift
 package dependency (of the Mac target and of `FTX1CW`) — not vendored.

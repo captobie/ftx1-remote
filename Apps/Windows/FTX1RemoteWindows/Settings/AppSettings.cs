@@ -119,6 +119,7 @@ public static class AppSettings
         public CwDecoderKind CwDecoder { get; set; } = CwDecoderKind.Neural;
         public List<CwMacro>? CwMacros { get; set; }
         public DigiData Digi { get; set; } = new();
+        public Ft8Data Ft8 { get; set; } = new();
         public WebSdrFavorite? WebSdrPickedStation { get; set; }
         public List<WebSdrFavorite> WebSdrFavorites { get; set; } = [];
         public string? WebSdrDirectoryETag { get; set; }
@@ -207,6 +208,15 @@ public static class AppSettings
     /// One receiver's playback settings. SquelchThreshold is SquelchGate's
     /// raw threshold (RMS at or below which a chunk counts as a quieting
     /// dip), not the inverted value the slider shows.
+    public sealed class Ft8Data
+    {
+        /// The decoded source per window (the Mac's ft8.channel/ft4.channel).
+        public CwAudioChannel Ft8Channel { get; set; } = CwAudioChannel.Main;
+        public CwAudioChannel Ft4Channel { get; set; } = CwAudioChannel.Main;
+        /// "Upload to PSK Reporter" (ft8.pskReporterEnabled), off by default.
+        public bool PskReporterEnabled { get; set; }
+    }
+
     public sealed class DigiData
     {
         public DigiMode Mode { get; set; } = DigiMode.Rtty;
@@ -1107,6 +1117,12 @@ public static class AppSettings
     public static DigiData Digi => _cache.Digi;
 
     public static void SaveDigi() => Save();
+
+    /// The FT8/FT4 windows' settings. Mutate the returned object, then call
+    /// <see cref="SaveFt8"/>.
+    public static Ft8Data Ft8 => _cache.Ft8;
+
+    public static void SaveFt8() => Save();
 
     /// The MyKiwiSDR window's settings. Mutate the returned object, then
     /// call <see cref="SaveLocalSdr"/>.

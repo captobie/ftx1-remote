@@ -373,7 +373,7 @@ public sealed class LocalSdrModel
                 SampleRate = ready.SampleRate;
                 _audioSampleRate = ready.SampleRate;
                 State = ConnectionState.Connected;
-                _rig.Source.SessionStarted(ready.SampleRate, Mode);
+                _rig.Source.SessionStarted(ready.SampleRate, Mode, FrequencyHz);
                 StartPlayback(ready.SampleRate);
                 StartWaterfall();
                 SubscribeToRig();
@@ -513,6 +513,7 @@ public sealed class LocalSdrModel
         {
             FrequencyHz = hz;
             AppSettings.LocalSdr.FrequencyHz = hz;
+            _rig.Source.FrequencyChanged(hz);
             changed = true;
         }
         if (mode is { } newMode && newMode != Mode)

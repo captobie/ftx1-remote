@@ -80,6 +80,14 @@
     <Compile Include="..\FTX1RemoteWindows\Services\AprsTransmitter.cs" Link="Linked\AprsTransmitter.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\AprsMessaging.cs" Link="Linked\AprsMessaging.cs" />
     <Compile Include="..\FTX1RemoteWindows\Services\AprsStore.cs" Link="Linked\AprsStore.cs" />
+    <!-- Tools → FT8/FT4: the native decoder wrapper and its reference vectors (the Mac's FT8KitTests fixtures). -->
+    <Compile Include="..\FTX1RemoteWindows\Services\Ft8\Ft8Mode.cs" Link="Linked\Ft8Mode.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\Ft8\Ft8Decoder.cs" Link="Linked\Ft8Decoder.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\Ft8\PskReporterPacket.cs" Link="Linked\PskReporterPacket.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\CwAudioChannel.cs" Link="Linked\CwAudioChannel.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\Ft8\Ft8DecodeCoordinator.cs" Link="Linked\Ft8DecodeCoordinator.cs" />
+    <Content Include="..\FTX1RemoteWindows\Vendor\ft8\ft8lib.dll" Link="ft8\ft8lib.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\Tests\FT8KitTests\Resources\*.wav" Link="Ft8Fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- The strings those files show (English only here; LocalizationTests reads all three .resx). -->
     <Compile Include="..\FTX1RemoteWindows\Services\UpdateChecker.cs" Link="Linked\UpdateChecker.cs" />
     <Compile Include="..\FTX1RemoteWindows\Localization\Loc.cs" Link="Linked\Loc.cs" />

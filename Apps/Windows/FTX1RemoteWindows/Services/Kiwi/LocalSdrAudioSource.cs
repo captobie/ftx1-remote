@@ -42,6 +42,10 @@ public sealed class LocalSdrAudioSource
     /// The Kiwi's demodulation as a rig mode while connected, null otherwise.
     public RigMode? Mode { get; private set; }
 
+    /// The dial frequency (Hz) the Kiwi is tuned to while connected: what
+    /// FT8/FT4 spots from this source are reported on.
+    public int? FrequencyHz { get; private set; }
+
     /// Status or mode changed.
     public event Action? Changed;
 
@@ -69,12 +73,22 @@ public sealed class LocalSdrAudioSource
     // Producer (LocalSdrModel)
 
     /// The Kiwi's audio is ready at sampleRate.
-    public void SessionStarted(double sampleRate, KiwiSdrMode mode)
+    public void SessionStarted(double sampleRate, KiwiSdrMode mode, int? frequencyHz = null)
     {
         _sampleRate = sampleRate;
+        FrequencyHz = frequencyHz;
         _quietSince = null;
         SetStatus(SourceStatus.Receiving);
         ModeChanged(mode);
+    }
+
+    /// A retune sent to the Kiwi.
+    public void FrequencyChanged(int hz)
+    {
+        if (_sampleRate is not null)
+        {
+            FrequencyHz = hz;
+        }
     }
 
     public void ModeChanged(KiwiSdrMode kiwiMode)
@@ -95,6 +109,7 @@ public sealed class LocalSdrAudioSource
     public void SessionEnded()
     {
         _sampleRate = null;
+        FrequencyHz = null;
         _quietSince = null;
         var changed = Mode is not null;
         Mode = null;

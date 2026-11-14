@@ -64,6 +64,12 @@
       has no ARM64 build; it runs under emulation there).
     -->
     <Content Include="Vendor\hamlib\*" Link="hamlib\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!--
+      ft8lib.dll (the vendored ft8_lib, MIT, + kissfft, BSD-3, built with MSVC by
+      Tools/ft8native/build-ft8lib.ps1) and its licences, for Tools → FT8/FT4 —
+      Services/Ft8/Ft8Decoder.cs. Lands in <output>\ft8\. x64 only.
+    -->
+    <Content Include="Vendor\ft8\*" Link="ft8\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

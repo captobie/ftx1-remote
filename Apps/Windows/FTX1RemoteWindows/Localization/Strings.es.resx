@@ -2978,7 +2978,7 @@
     <value>Detener la grabación y guardarla en Grabaciones</value>
   </data>
   <data name="settings.myKiwiSDREnable" xml:space="preserve">
-    <value>Usar MyKiwiSDR (muestra el botón MyKiwiSDR)</value>
+    <value>Usar KiwiSDR (muestra el botón MyKiwiSDR)</value>
   </data>
   <data name="tune.help" xml:space="preserve">
     <value>Cambiar a CW y enviar una portadora para el sintonizador de antena; pulsar de nuevo para detener y restaurar el modo (se detiene solo tras {0} s)</value>
@@ -3237,5 +3237,71 @@
   </data>
   <data name="settings.aprsTransmit.txDelayMs" xml:space="preserve">
     <value>Retardo TX (ms de flags antes del paquete)</value>
+  </data>
+  <data name="ft8List.decodedMessagesWill" xml:space="preserve">
+    <value>Los mensajes {0} decodificados aparecerán aquí al sintonizar una subbanda {1} activa.</value>
+  </data>
+  <data name="ft8List.decoding" xml:space="preserve">
+    <value>Decodificando…</value>
+  </data>
+  <data name="ft8List.freqMHz" xml:space="preserve">
+    <value>Frec. (MHz)</value>
+  </data>
+  <data name="ft8List.grid" xml:space="preserve">
+    <value>Cuadrícula</value>
+  </data>
+  <data name="ft8List.idle" xml:space="preserve">
+    <value>Inactivo</value>
+  </data>
+  <data name="ft8List.kiwiNeedsUSB" xml:space="preserve">
+    <value>MyKiwiSDR está en {0}: {1} necesita USB</value>
+  </data>
+  <data name="ft8List.lastCycle" xml:space="preserve">
+    <value>Último ciclo {0}</value>
+  </data>
+  <data name="ft8List.nextInS" xml:space="preserve">
+    <value>Siguiente en {0} s</value>
+  </data>
+  <data name="ft8List.noDecodesYet" xml:space="preserve">
+    <value>Aún no hay decodificaciones</value>
+  </data>
+  <data name="ft8List.pskQueuedSent" xml:space="preserve">
+    <value>{0} en cola · {1} enviados</value>
+  </data>
+  <data name="ft8List.pskWithLastUpload" xml:space="preserve">
+    <value>{0} · última subida {1}</value>
+  </data>
+  <data name="ft8List.pskWithNextUpload" xml:space="preserve">
+    <value>{0} · siguiente {1}</value>
+  </data>
+  <data name="ft8List.receiving" xml:space="preserve">
+    <value>Recibiendo…</value>
+  </data>
+  <data name="ft8List.setYourCallsignAnd" xml:space="preserve">
+    <value>Introducir indicativo y cuadrícula en Ajustes → Estación</value>
+  </data>
+  <data name="ft8List.source" xml:space="preserve">
+    <value>Fuente</value>
+  </data>
+  <data name="ft8List.time" xml:space="preserve">
+    <value>Hora</value>
+  </data>
+  <data name="ft8List.uploadFailed" xml:space="preserve">
+    <value>Error en la subida: {0}</value>
+  </data>
+  <data name="ft8List.uploadToPskReporter" xml:space="preserve">
+    <value>Subir a PSK Reporter</value>
+  </data>
+  <data name="ft8List.viewOnPskReporter" xml:space="preserve">
+    <value>Ver en PSK Reporter</value>
+  </data>
+  <data name="ft8List.whichAudio" xml:space="preserve">
+    <value>Qué audio decodificar para {0}: el receptor MAIN o SUB del equipo o el audio de la ventana MyKiwiSDR</value>
+  </data>
+  <data name="mainWindow.decodeFT8" xml:space="preserve">
+    <value>Decodificar FT8 del audio MAIN o SUB del equipo, o de MyKiwiSDR</value>
+  </data>
+  <data name="mainWindow.decodeFT4" xml:space="preserve">
+    <value>Decodificar FT4 del audio MAIN o SUB del equipo, o de MyKiwiSDR</value>
   </data>
 </root>

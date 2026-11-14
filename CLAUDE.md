@@ -2288,6 +2288,17 @@ pattern as the APRS windows.
   drops slots the rig transmitted in. FT4's ~0.4 s timing window
   left room on 20 m; if FT4 ever decodes nothing from the Kiwi, look
   at DT first.
+- **Windows port (2026-11-14; unit-tested and built, the app starts; the
+  windows not yet opened on screen or used on the air)**: FT8 and FT4 buttons
+  next to RTTY/PSK, source MAIN/SUB/WebSDR/MyKiwiSDR (the Kiwi only while
+  enabled in Settings), PSK Reporter. Same decoder, not a
+  rewrite: `Apps/Windows/Tools/ft8native/build-ft8lib.ps1` builds
+  `Sources/CFT8Lib` with MSVC into `Vendor/ft8/ft8lib.dll` (committed; a flat
+  API in `ft8win.c` carries the decode loop; two VLAs patched to `_alloca` in
+  temp copies, vendored files untouched), P/Invoked by `Services/Ft8/
+  Ft8Decoder.cs`. Reference vectors, PSK Reporter doc datagrams and a 44.1 kHz
+  live-path coordinator test run in the Windows test project. Swift stays the
+  source of truth; see `Apps/Windows/README.md`'s "FT8 / FT4 windows".
 - **Verification status**: `Tests/FT8KitTests/FT8ReferenceVectorTests.swift`
   passes real off-air FT8 captures (vendored from ft8_lib's own
   `test/wav/`) through the real wrapper and checks against what ft8_lib's

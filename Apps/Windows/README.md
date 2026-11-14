@@ -1402,6 +1402,56 @@ or an audio file, and sends them with live typeahead.
   not clipped, another receiver decoding it); a look at the window itself
   (layout, strip, theme) — it was only built.
 
+## FT8 / FT4 windows (2026-11-14; unit-tested and built, the app starts; windows not yet opened on screen or used on the air)
+
+The Mac's Tools → FT8 / FT4 (the same day's "FT8/FT4 from SUB or MyKiwiSDR"
+work): the **FT8** and **FT4** buttons next to RTTY/PSK each open their own
+window (`Controls/Ft8Window.cs`) — a table of decoded messages (time, source,
+frequency, SNR, DT, message, callsign, grid; newest first), a source picker
+(MAIN, SUB or the MyKiwiSDR window's audio; saved per mode in `Ft8` settings)
+and "Upload to PSK Reporter". Both windows can decode at once; decoding runs only
+while a window is open (`MainWindow.Ft8.cs` starts/stops it) and the spots outlive
+the window.
+
+- **Decoder: the same vendored ft8_lib as the Mac**, not a C# rewrite. MSVC
+  builds `Sources/CFT8Lib` plus `Tools/ft8native/ft8win.c` (a flat API: create,
+  process a block, decode — the decode loop of `FT8Decoder.swift`, so no
+  ft8_lib struct crosses P/Invoke) into `Vendor/ft8/ft8lib.dll`, committed like
+  `Vendor/hamlib` and copied to `<output>\ft8\`. `build-ft8lib.ps1` patches
+  two variable-length arrays (`monitor.c`, `decode.c`; MSVC has none) into
+  `_alloca` in temp copies, adds POSIX `stpcpy`, silences ft8_lib's logging with
+  a force-included header — the vendored sources are untouched. Rerun it only
+  when `Sources/CFT8Lib` or `ft8win.c` changes; it needs Visual Studio's C++
+  tools. x64 only. `Services/Ft8/Ft8Decoder.cs` is the P/Invoke wrapper
+  (resolver looks in `ft8\`), with the Mac's field classification fixes ("RR73"
+  is a token, "R FN42" splits).
+- **Slots**: `Ft8DecodeCoordinator` (the Mac's `FT8DecodeCoordinator`) resamples
+  to 12 kHz with the RTTY/PSK window's WDL `DigiResampler`, fills exact
+  blocks and decodes at each UTC 15 s (FT8) / 7.5 s (FT4) boundary from a 500 ms
+  timer, on its own worker thread. It assumes the PC's clock is NTP-synced, as
+  WSJT-X does. Each slot's dial frequency is the source's at slot start (MAIN's,
+  SUB's, or the Kiwi's, which `LocalSdrAudioSource` now tracks as
+  `FrequencyHz`). FT4 has the Mac's timing limit: ft8_lib's search covers only
+  about −0.5…+0.9 s around the slot start, so audio arriving > ~0.4 s late (a
+  slow Pi/Tailscale hop) loses decodes — look at DT first.
+- **PSK Reporter** (`PskReporterPacket`, `PskReporterUploader`, ports of the
+  Mac's): one checkbox for both windows, off by default, needs Settings →
+  Station's call and grid; no SNR is sent (ours is the sync score × 0.5); a call
+  once an hour per band and mode unless it newly carries a grid; slots the rig
+  transmitted in are skipped (`NotePtt` from `MainWindow`'s state updates);
+  datagram every 5 min + 0–30 s jitter or sooner when full; flushed when the
+  last window closes. Debug builds: `FTX1REMOTE_PSKREPORTER_HOST` sends to
+  another host (port 4739).
+- **Tests** (`Ft8Tests`, `PskReporterTests`): ft8_lib's own off-air FT8
+  captures and the synthetic FT4 one (the Mac's `Tests/FT8KitTests/Resources`,
+  linked, not copied) decode to the same messages the Mac's tests expect; the
+  PSK Reporter doc's example datagrams match byte for byte; and one test runs the
+  live path — a 44.1 kHz feed into the coordinator, waiting for a real FT4 slot
+  boundary (~15 s).
+- **Not done / unverified**: the windows opened on screen and decoding real rig
+  audio (MAIN, SUB, a swap, MyKiwiSDR), PSK Reporter from this PC, the DLL in a
+  release zip on a PC without Visual Studio (it links the static CRT, so it
+  should need nothing), and ARM64 (x64 DLL, runs under emulation like Hamlib).
 ## Logbook — HRD Logbook (CW window Log QSO pane, 2026-10-09)
 
 The Mac's MacLoggerDX logbook (CLAUDE.md's "Logbook — MacLoggerDX"), with

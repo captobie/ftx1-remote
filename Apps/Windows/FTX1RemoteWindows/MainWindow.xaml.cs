@@ -333,6 +333,7 @@ public sealed partial class MainWindow : Window
         _digiSender.Echo += _digiReceiver.AppendTransmitted;
         _cwReceiver.AttachLocalSdr(_localSdrSource);
         _digiReceiver.AttachLocalSdr(_localSdrSource);
+        InitFt8();
         WireAprsDecoder(_aprsMainDecoder, AprsSource.Main);
         WireAprsDecoder(_aprsSubDecoder, AprsSource.Sub);
         InitAprsTransmit();
@@ -502,6 +503,7 @@ public sealed partial class MainWindow : Window
             _digiSender.Stop();
             _digiWindow?.Close();
             _digiReceiver.Dispose();
+            ShutDownFt8();
             _cwMonitor.Stop();
             _recordingsWindow?.Close();
             _memoryListStore.Cancel();
@@ -653,6 +655,7 @@ public sealed partial class MainWindow : Window
         _localSdrWindow?.ApplyTheme();
         _cwWindow?.ApplyTheme();
         _digiWindow?.ApplyTheme();
+        ApplyThemeToFt8Windows();
         _recordingsWindow?.ApplyTheme();
         _memoryListWindow?.ApplyTheme();
     }
@@ -2630,6 +2633,8 @@ public sealed partial class MainWindow : Window
             : default);
         // The RTTY/PSK window reads the same state.
         PushRigStateToDigi();
+        // PSK Reporter skips slots the rig transmitted in.
+        _pskReporter.NotePtt(IsConnected && (_lastState.Ptt || _pttHeld));
     }
 
     /// Main's frequency is 0 while disconnected (the last session's would
@@ -2753,6 +2758,8 @@ public sealed partial class MainWindow : Window
             _cwReceiver.Ingest(main, sub, _audioSampleRate);
             // And RTTY/PSK, likewise.
             _digiReceiver.Ingest(main, sub, _audioSampleRate);
+            // And FT8/FT4, while their windows are open.
+            IngestFt8(main, sub, _audioSampleRate);
             // And RECORD, Main only as on the Mac.
             _audioRecorder.Ingest(main, _audioSampleRate);
         }
