@@ -168,12 +168,12 @@
                     <!-- What the scope below shows (the Mac's scope mode buttons),
                          and under them the memory list (the Mac's Mem List) and the
                          rig's memory scan (MainWindow.MemoryScan.cs). -->
-                    <!-- The last column takes up any slack, so Off/Skip end where the
-                         speaker button above does whichever row is wider. -->
+                    <!-- Three equal-width columns; the grid stretches to the row above,
+                         so Off/Skip still end where the speaker button does. -->
                     <Grid ColumnSpacing="4" RowSpacing="4">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
