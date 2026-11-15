@@ -2767,6 +2767,72 @@
   <data name="localSdr.adcOverload" xml:space="preserve">
     <value>ADC-Übersteuerung</value>
   </data>
+  <data name="localSdr.bandBar.aero" xml:space="preserve">
+    <value>Flugfunk</value>
+  </data>
+  <data name="localSdr.bandBar.aeronautical" xml:space="preserve">
+    <value>{0} Flugfunk</value>
+  </data>
+  <data name="localSdr.bandBar.allModes" xml:space="preserve">
+    <value>Alle Betriebsarten</value>
+  </data>
+  <data name="localSdr.bandBar.amateur" xml:space="preserve">
+    <value>{0} Amateurfunk</value>
+  </data>
+  <data name="localSdr.bandBar.arrl.amCalling" xml:space="preserve">
+    <value>AM-Anruf</value>
+  </data>
+  <data name="localSdr.bandBar.arrl.beacons" xml:space="preserve">
+    <value>Baken</value>
+  </data>
+  <data name="localSdr.bandBar.arrl.dxWindow" xml:space="preserve">
+    <value>DX-Fenster</value>
+  </data>
+  <data name="localSdr.bandBar.arrl.experimental" xml:space="preserve">
+    <value>Experimentell</value>
+  </data>
+  <data name="localSdr.bandBar.arrl.fmSimplex" xml:space="preserve">
+    <value>FM-Simplex</value>
+  </data>
+  <data name="localSdr.bandBar.arrl.packet" xml:space="preserve">
+    <value>Packet</value>
+  </data>
+  <data name="localSdr.bandBar.arrl.repeaterIn" xml:space="preserve">
+    <value>Relais-Eingabe</value>
+  </data>
+  <data name="localSdr.bandBar.arrl.repeaterOut" xml:space="preserve">
+    <value>Relais-Ausgabe</value>
+  </data>
+  <data name="localSdr.bandBar.arrl.satellite" xml:space="preserve">
+    <value>Satellit</value>
+  </data>
+  <data name="localSdr.bandBar.broadcast" xml:space="preserve">
+    <value>{0} Rundfunk</value>
+  </data>
+  <data name="localSdr.bandBar.channel" xml:space="preserve">
+    <value>Kanal</value>
+  </data>
+  <data name="localSdr.bandBar.cwData" xml:space="preserve">
+    <value>CW/Daten</value>
+  </data>
+  <data name="localSdr.bandBar.gmdss.voice" xml:space="preserve">
+    <value>Sprechfunk</value>
+  </data>
+  <data name="localSdr.bandBar.help" xml:space="preserve">
+    <value>Sichtbare Bänder. Ist ein Amateurfunkband herangezoomt, zeigt die zweite Zeile seinen US-Bandplan: blau CW/Daten, orange Sprechfunk, violett alle Betriebsarten, türkis die 60-m-Kanäle, jeweils mit der niedrigsten dort zugelassenen Lizenzklasse; schraffierte Teile nur für Extra. Die dritte Zeile zeigt den freiwilligen ARRL-Bandplan: Daten- und Packet-Bereiche, DX-Fenster und Anruffrequenzen, Baken. Rosa Striche sind die üblichen Einstellfrequenzen für FT8, FT4, JS8, WSPR und PSK31. In einem Seefunkband sind rote Striche die GMDSS-Notfrequenzen (DSC, Sprechfunk, NBDP) und gelbe NAVTEX und Sicherheitsmeldungen für die Schifffahrt.</value>
+  </data>
+  <data name="localSdr.bandBar.marine" xml:space="preserve">
+    <value>Seefunk</value>
+  </data>
+  <data name="localSdr.bandBar.maritime" xml:space="preserve">
+    <value>{0} Seefunk</value>
+  </data>
+  <data name="localSdr.bandBar.phone" xml:space="preserve">
+    <value>Sprechfunk</value>
+  </data>
+  <data name="localSdr.bandBar.segment" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
   <data name="localSdr.error.badPassword" xml:space="preserve">
     <value>Falsches Passwort: Der KiwiSDR hat es abgelehnt. Unter Einstellungen → Geräte prüfen.</value>
   </data>

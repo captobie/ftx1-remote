@@ -37,6 +37,7 @@ public sealed class KiwiWaterfallView : UserControl
     private readonly TranslateTransform _imageShift = new();
     private readonly Canvas _passbandLayer = new() { IsHitTestVisible = false };
     private readonly Canvas _scale = new();
+    private readonly KiwiBandBar _bandBar = new();
     private readonly TextBlock _placeholder = new()
     {
         TextWrapping = TextWrapping.Wrap,
@@ -72,10 +73,13 @@ public sealed class KiwiWaterfallView : UserControl
         picture.Children.Add(_surface);
 
         var root = new Grid();
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(KiwiBandBar.BarHeight) });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(ScaleHeight) });
+        root.Children.Add(_bandBar);
+        Grid.SetRow(picture, 1);
         root.Children.Add(picture);
-        Grid.SetRow(_scale, 1);
+        Grid.SetRow(_scale, 2);
         ClipTo(_scale);
         root.Children.Add(_scale);
         Content = root;
@@ -176,9 +180,12 @@ public sealed class KiwiWaterfallView : UserControl
         {
             _passbandLayer.Children.Clear();
             _scale.Children.Clear();
+            _bandBar.Clear();
             _drawn = null;
             return;
         }
+        // Own change check (view, width, license choice).
+        _bandBar.Update(_model.Geometry, frame.Start, frame.Zoom, width, KiwiBandBar.ShowsTechnician);
         var band = _model.PassbandHz;
         var key = (frame.Start, frame.Zoom, width, _model.FrequencyHz, _model.Passband.Low, _model.Passband.High);
         var shown = _drawn;

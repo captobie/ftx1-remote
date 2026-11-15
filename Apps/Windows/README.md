@@ -1335,6 +1335,14 @@ truth for protocol and rules, and `Tests/KiwiSDRFixtures/` for recorded frames.
   click, wheel, passband edges), Follow/Tune rig against the rig, Mute on TX,
   the Receiver section, Settings → Devices saving the address and password.
 
+- **Band bar (2026-11-15; unit-tested and built, then tested live by the user the same day, working)**: the Mac's
+  three-line strip over the waterfall (`Controls/KiwiBandBar.cs`): bands in view
+  by name; once an amateur band fills a third of the view its US plan
+  (CW/data, phone, all modes, 60 m channels, lowest license class, Extra-only
+  hatched), then the ARRL plan with the FT8/FT4/JS8/WSPR/PSK31 dials; maritime
+  bands show GMDSS frequencies. Data in `Models/BandHints.cs`; `BandHintsTests`
+  mirror the Swift tests. Hover for the legend.
+
 ## RTTY/PSK window (2026-11-06; unit-tested and built; receive over WebSDR tested by the user, rig audio and transmit not yet)
 
 The Windows port of the Mac's Tools → RTTY/PSK (see CLAUDE.md, "Digital

@@ -39,6 +39,7 @@
     <Compile Include="..\FTX1RemoteWindows\Models\RigState.cs" Link="Linked\RigState.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigMode.cs" Link="Linked\RigMode.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\BandPlan.cs" Link="Linked\BandPlan.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\BandHints.cs" Link="Linked\BandHints.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\MemoryScan.cs" Link="Linked\MemoryScan.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\FilterModels.cs" Link="Linked\FilterModels.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\MeterScale.cs" Link="Linked\MeterScale.cs" />

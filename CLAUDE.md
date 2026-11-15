@@ -3216,6 +3216,15 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   Devices; then the decoder source (CW, RTTY/PSK), Record/Play, Follow width and
   the playout controller (unit-tested and built, not yet tested on the rig). See
   `Apps/Windows/README.md`'s "MyKiwiSDR window".
+  **Band bar port (2026-11-15; unit-tested and built, then tested live by the user the same day, working)**: the Mac's
+  three-line bar over the waterfall (`Controls/KiwiBandBar.cs`, redrawn only when
+  start/zoom/width/license choice changes; Technician labels only for Settings →
+  License US Technician/Novice). Tables in `Models/BandHints.cs` (`BandHints`,
+  `AmateurBandPlan` derived from `PrivilegePresets`, `ArrlBandPlan`,
+  `GmdssFrequencies`; Swift stays the source of truth), `BandHintsTests` = the
+  Swift tests case for case; `localSdr.bandBar.*` strings in all five resx.
+  Shapes/`TextBlock`s on a `Canvas`, not Win2D, so band rects are clamped to just
+  outside the bar.
   **S-meter port (2026-11-13; built, not yet run)**: the window's bar is the
   main window's analog `SMeter(receiveOnly: true)` (no TX needle, no METER
   picker; Windows has no digital face or style setting) fed dBm + 73, with
