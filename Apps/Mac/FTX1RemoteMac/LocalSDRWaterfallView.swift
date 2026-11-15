@@ -34,6 +34,17 @@ struct LocalSDRWaterfallView: View {
 
     /// The requested start when the drag began.
     @State private var dragOrigin: Int?
+    /// Settings → License: Technician-class labels only for a Technician
+    /// (or Novice, the same HF privileges); everyone else sees General.
+    @AppStorage(LicensePrivilegeSettings.choiceKey) private var licenseChoice = "off"
+
+    private var showsTechnicianPrivileges: Bool {
+        switch PrivilegeChoice(rawValue: licenseChoice) {
+        case .preset(.usTechnician), .preset(.usNovice): true
+        default: false
+        }
+    }
+
     /// The dial when a drag of the passband's middle began.
     @State private var tuneDragOrigin: Int?
 
@@ -43,6 +54,14 @@ struct LocalSDRWaterfallView: View {
                 let size = proxy.size
                 let frame = displayFrame
                 VStack(spacing: 0) {
+                    if let frame {
+                        LocalSDRBandBar(geometry: store.geometry, start: frame.start, zoom: frame.zoom,
+                                        width: size.width, showsTechnician: showsTechnicianPrivileges)
+                            .frame(height: LocalSDRBandBar.height)
+                            .help("localSDR.bandBar.help")
+                    } else {
+                        Color.clear.frame(height: LocalSDRBandBar.height)
+                    }
                     ZStack(alignment: .topLeading) {
                         Color.black
                         if position.current != nil, let frame {
@@ -61,7 +80,8 @@ struct LocalSDRWaterfallView: View {
                             },
                             onScroll: model.scrollStep)
                     }
-                    .frame(width: size.width, height: max(size.height - Self.scaleHeight, 0))
+                    .frame(width: size.width,
+                           height: max(size.height - Self.scaleHeight - LocalSDRBandBar.height, 0))
                     .clipped()
                     if let frame {
                         LocalSDRFrequencyScale(geometry: store.geometry, start: frame.start, zoom: frame.zoom,
@@ -369,6 +389,270 @@ private struct LocalSDRFrequencyScale: View, Equatable {
             return factor * power
         }
         return 10 * power
+    }
+}
+
+/// The band bar over the waterfall, like the KiwiSDR page's: the bands in
+/// view by name ("40m Amateur", "MW Broadcast") on the top line, and, once
+/// an amateur band fills at least a third of the view
+/// (`BandHints.showsPlan`), its US band plan on the second: CW/data,
+/// phone, all-mode and CW-only sub-bands in their own colours, each
+/// labelled with the lowest class allowed there (Technician only when
+/// that's the license picked in Settings, else General), Extra-only parts
+/// hatched; and on the third, the ARRL's voluntary plan inside them
+/// (`ARRLBandPlan`: RTTY/data, packet, DX windows, QRP/SSTV/AM calling,
+/// beacons) and the usual FT8/FT4/JS8/WSPR/PSK31 dial frequencies (pink).
+/// A maritime band, zoomed in the same way, gets its GMDSS frequencies on
+/// that line instead (`GMDSSFrequencies`: DSC, voice and NBDP distress in
+/// red, NAVTEX and MSI in yellow). Labels sit in the visible part of their band, shortened or
+/// left out when they don't fit.
+private struct LocalSDRBandBar: View, Equatable {
+    let geometry: KiwiWaterfallGeometry
+    let start: Int
+    let zoom: Int
+    let width: CGFloat
+    let showsTechnician: Bool
+
+    static let rowHeight: CGFloat = 15
+    static let height: CGFloat = rowHeight * 3 + 2
+
+    var body: some View {
+        let span = geometry.spanHz(zoom: zoom)
+        let lowHz = geometry.hz(column: 0, start: start, zoom: zoom)
+        let highHz = lowHz + span
+        let hints = BandHints.hints(lowHz: lowHz, highHz: highHz)
+        Canvas { context, size in
+            func x(_ hz: Int) -> CGFloat { CGFloat((Double(hz) - lowHz) / span) * size.width }
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.black))
+            let planRow = CGRect(x: 0, y: Self.rowHeight + 1, width: size.width, height: Self.rowHeight)
+            let markerRow = CGRect(x: 0, y: planRow.maxY + 1, width: size.width, height: Self.rowHeight)
+            for hint in hints {
+                let rect = CGRect(x: x(hint.lowerHz), y: 0, width: x(hint.upperHz) - x(hint.lowerHz),
+                                  height: Self.rowHeight)
+                Self.drawBand(hint, in: rect, width: size.width, context: &context)
+                guard BandHints.showsPlan(for: hint, lowHz: lowHz, highHz: highHz) else { continue }
+                guard let band = hint.band else {
+                    // A maritime band: its GMDSS frequencies on the marker line.
+                    Self.drawMarkers(GMDSSFrequencies.markers(in: hint), row: markerRow, x: x, context: &context)
+                    continue
+                }
+                for segment in AmateurBandPlan.segments(for: band, showsTechnician: showsTechnician) {
+                    let segmentRect = CGRect(x: x(segment.lowerHz), y: planRow.minY,
+                                             width: x(segment.upperHz) - x(segment.lowerHz),
+                                             height: planRow.height)
+                    Self.drawSegment(segment, in: segmentRect, width: size.width, context: &context)
+                }
+                Self.drawMarkers(ARRLBandPlan.markers(for: band), row: markerRow, x: x, context: &context)
+            }
+        }
+        .frame(width: width)
+    }
+
+    private static func color(for kind: BandHint.Kind) -> Color {
+        switch kind {
+        case .amateur: Color(red: 0.25, green: 0.65, blue: 0.35)
+        case .broadcast: Color(red: 0.35, green: 0.5, blue: 0.75)
+        case .aeronautical: Color(red: 0.75, green: 0.55, blue: 0.3)
+        case .maritime: Color(red: 0.2, green: 0.6, blue: 0.6)
+        case .utility: Color(white: 0.5)
+        }
+    }
+
+    private static func color(for usage: AmateurBandPlanSegment.Usage) -> Color {
+        switch usage {
+        case .cwData, .cwOnly: Color(red: 0.3, green: 0.55, blue: 0.95)
+        case .phone: Color(red: 0.95, green: 0.6, blue: 0.2)
+        case .allModes: Color(red: 0.7, green: 0.45, blue: 0.9)
+        case .channel: Color(red: 0.25, green: 0.75, blue: 0.75)
+        }
+    }
+
+    private static func drawBand(_ hint: BandHint, in rect: CGRect, width: CGFloat,
+                                 context: inout GraphicsContext) {
+        let color = color(for: hint.kind)
+        let shown = rect.insetBy(dx: 0.5, dy: 1)
+        context.fill(Path(shown), with: .color(color.opacity(0.35)))
+        context.stroke(Path(shown), with: .color(color.opacity(0.9)), lineWidth: 1)
+        let candidates = switch hint.kind {
+        case .amateur: [String(localized: "localSDR.bandBar.amateur \(hint.label)"), hint.label]
+        case .broadcast: [String(localized: "localSDR.bandBar.broadcast \(hint.label)"), hint.label]
+        case .aeronautical: [String(localized: "localSDR.bandBar.aeronautical \(hint.label)"),
+                             String(localized: "localSDR.bandBar.aero"), hint.label]
+        case .maritime: [String(localized: "localSDR.bandBar.maritime \(hint.label)"),
+                         String(localized: "localSDR.bandBar.marine"), hint.label]
+        case .utility: [hint.label]
+        }
+        drawLabel(candidates, in: rect, width: width, context: &context)
+    }
+
+    private static func drawSegment(_ segment: AmateurBandPlanSegment, in rect: CGRect, width: CGFloat,
+                                    context: inout GraphicsContext) {
+        let color = color(for: segment.usage)
+        let shown = rect.insetBy(dx: 0.5, dy: 0.5)
+        context.fill(Path(shown), with: .color(color.opacity(0.4)))
+        if segment.lowestClass == .extra {
+            // Extra only: hatched.
+            var hatch = Path()
+            var lineX = (shown.minX / 6).rounded(.down) * 6 - shown.height
+            while lineX < shown.maxX {
+                hatch.move(to: CGPoint(x: lineX, y: shown.maxY))
+                hatch.addLine(to: CGPoint(x: lineX + shown.height, y: shown.minY))
+                lineX += 6
+            }
+            context.drawLayer { layer in
+                layer.clip(to: Path(shown))
+                layer.stroke(hatch, with: .color(color.opacity(0.8)), lineWidth: 1)
+            }
+        }
+        context.stroke(Path(shown), with: .color(color), lineWidth: 1)
+        let usage = switch segment.usage {
+        case .cwData: String(localized: "localSDR.bandBar.cwData")
+        case .phone: String(localized: "localSDR.bandBar.phone")
+        case .allModes: String(localized: "localSDR.bandBar.allModes")
+        case .cwOnly: "CW"
+        case .channel: String(localized: "localSDR.bandBar.channel")
+        }
+        // US class names, English in every language (as in Settings → License).
+        let licence = switch segment.lowestClass {
+        case .technician: "Technician"
+        case .general: "General"
+        case .advanced: "Advanced"
+        case .extra: "Extra"
+        }
+        let both = String(localized: "localSDR.bandBar.segment \(usage) \(licence)")
+        let short = segment.lowestClass == .extra ? [both, licence, usage] : [both, usage]
+        drawLabel(short, in: rect, width: width, context: &context)
+    }
+
+    private static func color(for kind: BandPlanMarker.Kind) -> Color {
+        switch kind {
+        case .data, .dataDX, .packet: Color(red: 0.45, green: 0.75, blue: 1)
+        case .dxWindow, .qrpCW: Color(red: 0.4, green: 0.9, blue: 0.85)
+        case .qrpSSB, .sstv, .amCalling, .am: Color(red: 1, green: 0.75, blue: 0.4)
+        case .beacons, .ncdxfBeacons, .experimental: Color(red: 0.95, green: 0.9, blue: 0.4)
+        case .satellite, .repeaterInputs, .repeaterOutputs, .fmSimplex: Color(red: 0.55, green: 0.9, blue: 0.5)
+        case .ft8, .ft4, .js8, .wspr, .psk31: Color(red: 1, green: 0.5, blue: 0.85)
+        case .dscDistress, .voiceDistress, .nbdpDistress: Color(red: 1, green: 0.35, blue: 0.3)
+        case .navtex, .msi: Color(red: 0.95, green: 0.9, blue: 0.4)
+        }
+    }
+
+    private static func label(for kind: BandPlanMarker.Kind) -> String {
+        switch kind {
+        case .data: "RTTY/Data"
+        case .dataDX: "RTTY/Data DX"
+        case .packet: String(localized: "localSDR.bandBar.arrl.packet")
+        case .dxWindow: String(localized: "localSDR.bandBar.arrl.dxWindow")
+        case .qrpCW: "QRP CW"
+        case .qrpSSB: "QRP SSB"
+        case .sstv: "SSTV"
+        case .amCalling: String(localized: "localSDR.bandBar.arrl.amCalling")
+        case .am: "AM"
+        case .beacons: String(localized: "localSDR.bandBar.arrl.beacons")
+        case .ncdxfBeacons: "NCDXF"
+        case .experimental: String(localized: "localSDR.bandBar.arrl.experimental")
+        case .satellite: String(localized: "localSDR.bandBar.arrl.satellite")
+        case .repeaterInputs: String(localized: "localSDR.bandBar.arrl.repeaterIn")
+        case .repeaterOutputs: String(localized: "localSDR.bandBar.arrl.repeaterOut")
+        case .fmSimplex: String(localized: "localSDR.bandBar.arrl.fmSimplex")
+        case .ft8: "FT8"
+        case .ft4: "FT4"
+        case .js8: "JS8"
+        case .wspr: "WSPR"
+        case .psk31: "PSK31"
+        case .dscDistress: "DSC"
+        case .voiceDistress: String(localized: "localSDR.bandBar.gmdss.voice")
+        case .nbdpDistress: "NBDP"
+        case .navtex: "NAVTEX"
+        case .msi: "MSI"
+        }
+    }
+
+    /// The ARRL line: ranges as outlined boxes labelled inside, single
+    /// frequencies as a tick with its label in a dark tab beside it.
+    /// Labels never overlap: each goes where it fits among those already
+    /// placed (ranges first, then spots by `labelPriority` — FT8 before
+    /// FT4 before the ARRL's spots before JS8/WSPR/PSK31), else the mark is
+    /// drawn unlabelled.
+    private static func drawMarkers(_ markers: [BandPlanMarker], row: CGRect, x: (Int) -> CGFloat,
+                                    context: inout GraphicsContext) {
+        var placed: [CGRect] = []
+        /// Ticks of spots already labelled: no other label may cover them,
+        /// or a label would sit beside the wrong tick.
+        var labelledTicks: [CGFloat] = []
+        @discardableResult
+        func place(_ text: String, color: Color, candidates: [(CGFloat) -> CGRect?],
+                   context: inout GraphicsContext, background: Bool) -> Bool {
+            let resolved = context.resolve(Text(verbatim: text)
+                .font(.system(size: 9.5, weight: .medium))
+                .foregroundStyle(background ? color : .white))
+            let width = resolved.measure(in: CGSize(width: .infinity, height: row.height)).width + 6
+            for candidate in candidates {
+                guard let rect = candidate(width), rect.minX >= 0, rect.maxX <= row.maxX,
+                      !placed.contains(where: { $0.intersects(rect) }),
+                      !labelledTicks.contains(where: { $0 >= rect.minX - 1 && $0 <= rect.maxX + 1 })
+                else { continue }
+                if background {
+                    context.fill(Path(roundedRect: rect, cornerRadius: 2), with: .color(.black.opacity(0.85)))
+                }
+                context.draw(resolved, at: CGPoint(x: rect.midX, y: rect.midY), anchor: .center)
+                placed.append(rect)
+                return true
+            }
+            return false
+        }
+        for marker in markers where !marker.isSpot {
+            let color = color(for: marker.kind)
+            let rect = CGRect(x: x(marker.lowerHz), y: row.minY, width: x(marker.upperHz) - x(marker.lowerHz),
+                              height: row.height).insetBy(dx: 0.5, dy: 0.5)
+            context.fill(Path(rect), with: .color(color.opacity(0.25)))
+            context.stroke(Path(rect), with: .color(color.opacity(0.9)), lineWidth: 1)
+            let visible = rect.intersection(row)
+            guard !visible.isNull else { continue }
+            place(label(for: marker.kind), color: color, candidates: [{ width in
+                width <= visible.width
+                    ? CGRect(x: visible.midX - width / 2, y: row.minY, width: width, height: row.height) : nil
+            }], context: &context, background: false)
+        }
+        // Every tick first, so a label's dark tab covers its neighbours'
+        // ticks instead of being crossed by them (FT8/FT4/JS8 sit 2–5 kHz
+        // apart).
+        let spots = markers.filter { $0.isSpot && (row.minX...row.maxX).contains(x($0.lowerHz)) }
+        for marker in spots {
+            let tick = x(marker.lowerHz)
+            var line = Path()
+            line.move(to: CGPoint(x: tick, y: row.minY))
+            line.addLine(to: CGPoint(x: tick, y: row.maxY))
+            context.stroke(line, with: .color(color(for: marker.kind)), lineWidth: 1.5)
+        }
+        for marker in spots {
+            let color = color(for: marker.kind)
+            let tick = x(marker.lowerHz)
+            let top = row.minY + 1, height = row.height - 2
+            if place(label(for: marker.kind), color: color, candidates: [
+                { CGRect(x: tick + 2, y: top, width: $0, height: height) },
+                { CGRect(x: tick - 2 - $0, y: top, width: $0, height: height) },
+            ], context: &context, background: true) {
+                labelledTicks.append(tick)
+            }
+        }
+    }
+
+    /// The first of `candidates` that fits the visible part of `rect`,
+    /// centred there; nothing if none does.
+    private static func drawLabel(_ candidates: [String], in rect: CGRect, width: CGFloat,
+                                  context: inout GraphicsContext) {
+        let visible = rect.intersection(CGRect(x: 0, y: rect.minY, width: width, height: rect.height))
+        guard !visible.isNull, visible.width > 12 else { return }
+        for candidate in candidates {
+            let text = context.resolve(Text(verbatim: candidate)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.white))
+            if text.measure(in: CGSize(width: .infinity, height: rect.height)).width + 6 <= visible.width {
+                context.draw(text, at: CGPoint(x: visible.midX, y: visible.midY), anchor: .center)
+                return
+            }
+        }
     }
 }
 

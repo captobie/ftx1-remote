@@ -3128,6 +3128,53 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   16-bit mono WAV (the header holds 11998 for 11998.9 Hz, 0.008% slow).
   `KiwiRecordingSplit`: a new file only after a ≥ 500 Hz retune or mode change
   has held for 1 s.
+- **Band bar (2026-11-15; unit-tested, checked in the built app against
+  the user's Kiwi at 30 MHz, 7.5 MHz, 0.94 MHz and 117 kHz spans — not
+  yet by the user)**: user request, like the Kiwi page's. A 31 pt strip
+  over the waterfall (`LocalSDRBandBar` in `LocalSDRWaterfallView.swift`).
+  Top line: the bands in view by name (`BandHints`, `FTX1Core/RigState/
+  BandHints.swift`): `BandPlan` + 2200 m/630 m as "40m Amateur", LW/MW/
+  SW meter bands as "31m Broadcast", the HF aeronautical mobile bands
+  ((R) and (OR) joined, "8.8 MHz Aeronautical", RR Appendix 27) and
+  maritime mobile bands ("12 MHz Maritime", Appendix 17, plus 2045–2194
+  kHz around 2182) — added 2026-11-15 at the user's request, unit-tested
+  and built but not yet seen on screen (the new build's keychain prompt
+  was waiting) —, Aircraft/Marine VHF as "VHF Aeronautical/Maritime",
+  CB as is; amateur bands win where they overlap (SW 41m shows from
+  7.3 MHz, SW 75m and aero 3.9 MHz not at all). Second line: the band's US plan once
+  the band covers ≥ 1/3 of the view (`BandHints.showsPlan` — the user
+  suggested "more than the whole band visible = name only"; a third was
+  picked so a whole band's plan can be seen at once: 20 m from ~0.94 MHz,
+  40 m from ~0.47 MHz). `AmateurBandPlan` derives it from
+  `PrivilegePresets`' US tables, so it can't disagree with the License
+  guardrail: usage from the Extra table (CW/data blue, phone orange, all
+  modes purple, CW only, 60 m channels teal), labelled with the lowest
+  class with any privilege there — Technician only when Settings →
+  License is US Technician or Novice (user request), else those parts
+  read General and merge (`segments(for:showsTechnician:)`); Extra-only
+  parts hatched. Third line (2026-11-15, user request; checked in the
+  built app on 80 m only — Follow/Tune rig were on, so no retune to other
+  bands): the ARRL's voluntary plan (`ARRLBandPlan`, arrl.org/band-plan
+  read the same day, 160–10 m; the ARRL lines that repeat the legal
+  CW/phone sub-bands left out; QRP and NCDXF spots from its notes) —
+  ranges as outlined boxes (RTTY/data, packet, DX windows, beacons, 10 m
+  FM/satellite), single frequencies as ticks with a tab label (QRP CW/SSB,
+  SSTV, AM calling, RTTY/Data DX, NCDXF); labels never overlap, a mark
+  whose label doesn't fit is drawn unlabelled. The same line has the
+  usual FT8/FT4/JS8/WSPR/PSK31 dial frequencies as pink ticks (user
+  request; not ARRL, in `ARRLBandPlan.digital`). Ticks are drawn first and
+  labels placed after, by `labelPriority` (FT8, FT4, ARRL spots, then
+  JS8/WSPR/PSK31), never over another label or an already-labelled tick
+  — so at ~0.94 MHz on 80 m only FT8 is labelled (checked in the built
+  app). In a maritime band, zoomed in the same way (`showsPlan` covers
+  maritime hints too), the marker line shows its GMDSS frequencies
+  instead (`GMDSSFrequencies`, RR Appendix 15, assigned frequencies: DSC,
+  voice and NBDP distress in red, NAVTEX 490/518/4209.5 kHz and HF MSI in
+  yellow; plus VHF ch 16/70); an "MF" maritime hint (415–526.5 kHz, cut
+  by 630 m) carries NAVTEX. User request, as groundwork for a possible
+  DSC/NAVTEX decoder; unit-tested and built 2026-11-15, not yet seen on
+  screen. `ARRLBandPlanMarker` is now `BandPlanMarker`. US plan whatever
+  Settings → License says. Labels shorten or vanish when they don't fit.
 - **Passband** (phase 5, `KiwiPassband`, `KiwiPassbandTests`): drag an edge
   (10 Hz snap, 60 Hz minimum, the Kiwi's narrowest CW preset) or the middle to
   tune. USB/LSB stay on their sideband, AM/FM keep the carrier inside, CW is
