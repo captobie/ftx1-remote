@@ -1,4 +1,4 @@
-# FTX1Remote
+# FTX-1 Remote
 
 ![Mac app screenshot](Design/Screenshots/mac-app.jpg)
 
