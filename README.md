@@ -243,6 +243,8 @@ view (frequency, SWR, PTT, mode grid) on either route — no MENU grid.
 **Windows app** (`Apps/Windows/FTX1RemoteWindows/`, C# + WinUI 3): see
 `Apps/Windows/README.md`.
 
+![Windows app main window](Design/Screenshots/windows-app.jpg)
+
 **`Pi/`** holds the deployable Pi-side pieces, each a Python script with its
 systemd unit: `ftx1-audiostream.py` (receive audio, 8532),
 `ftx1-txaudio.py` (transmit audio, 8533) and `ftx1-cwkey.py` (CW key/paddle
@@ -262,6 +264,10 @@ rigctld (Local/Remote mode, which rigctld), Audio (input/output devices,
 transmit audio output), C4FM (WPSD hotspot), APRS, Station, Logbook, Home
 Freq, Polling, Appearance and Updates. The Mac is a full control surface,
 not just a server.
+
+| APRS stations | CW | RTTY/PSK |
+| --- | --- | --- |
+| ![APRS station list](Design/Screenshots/mac-aprs.jpg) | ![CW decoder and sender](Design/Screenshots/mac-cw.jpg) | ![RTTY/PSK window with the PSK browser](Design/Screenshots/mac-rtty-psk.jpg) |
 
 ## iPad app at a glance
 
