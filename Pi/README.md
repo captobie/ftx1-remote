@@ -128,8 +128,11 @@ Check the radio's sound card number on the Pi:
 arecord -l
 ```
 
-`asound-ftx1.conf` expects **card 1** (`hw:1,0`). If the radio's "USB Audio
-Device" has a different card number, change both `hw:1,0` lines in
+`asound-ftx1.conf` opens the radio's codec by its ALSA id, `Device`
+(`hw:CARD=Device,DEV=0`), not by card number, since the number can change
+(a vc4-hdmi card took card 1 on 2026-11-21). Check the id with `cat
+/proc/asound/cards` (the name in brackets on the "USB Audio Device" line);
+if it isn't `Device`, change both `hw:CARD=Device,DEV=0` lines in
 `~/asound-ftx1.conf` to match.
 
 Then, on the Pi:
