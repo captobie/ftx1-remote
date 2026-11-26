@@ -1443,13 +1443,14 @@ free Mac app and a radio".
   runs (`lsof -nP -iTCP -sTCP:LISTEN | grep FTX1Remot`, lowest port) —
   a second client can read the simulated rig's state directly.
 
-## iPad TestFlight prep (2026-10-15; 0.9 build 6 uploaded the same day, build 7 on 2026-10-16 with the PTT key-before-mic fix, build 8 the same day with the shared audio session, build 9 on 2026-10-26 with the CW Monitor sidetone and the 5 W RF POWER floor, build 10 on 2026-11-02 with split, Spanish and German)
+## iPad TestFlight prep (2026-10-15; 0.9 build 6 uploaded the same day, build 7 on 2026-10-16 with the PTT key-before-mic fix, build 8 the same day with the shared audio session, build 9 on 2026-10-26 with the CW Monitor sidetone and the 5 W RF POWER floor, build 10 on 2026-11-02 with split, Spanish and German, build 11 on 2026-11-26 with the SDR pane)
 
 App Store/TestFlight requirements on the iPad target: `PrivacyInfo.xcprivacy`
 in `Apps/iPad/FTX1RemoteiPad/` (picked up by the synchronized group as a
 resource) declares the required-reason APIs the app uses — UserDefaults
 (CA92.1) and `ProcessInfo.systemUptime` in the Demo Mode simulator
-(SystemBootTime, 35F9.1); add a category there if a new required-reason API
+(SystemBootTime, 35F9.1), and since build 11 the KiwiSDR list cache's modification
+date (FileTimestamp, C617.1); add a category there if a new required-reason API
 (file timestamps, disk space, …) lands in code the iPad links.
 `ITSAppUsesNonExemptEncryption = false` is in `FTX1RemoteiPad-Info.plist`
 (a custom key, so in the plist, not an `INFOPLIST_KEY_*` setting — see the
