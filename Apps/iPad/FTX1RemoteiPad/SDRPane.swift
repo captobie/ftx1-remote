@@ -18,6 +18,8 @@ import SwiftUI
 struct SDRPane: View {
     @ObservedObject var model: LocalSDRModel
     @Binding var isShowing: Bool
+    /// The split screen (`SDRSplitLayout`) instead of the overlay.
+    @Binding var isSplit: Bool
 
     @AppStorage(LocalSDRModel.hostKey) private var hostPort = ""
     @State private var password = ""
@@ -87,6 +89,12 @@ struct SDRPane: View {
             }
             .labelStyle(.iconOnly)
             .accessibilityLabel("sdrPane.receiverSettings")
+            Button {
+                isSplit.toggle()
+            } label: {
+                Image(systemName: isSplit ? "rectangle.inset.filled" : "rectangle.split.2x1")
+            }
+            .accessibilityLabel(isSplit ? "sdrPane.leaveSplit" : "sdrPane.split")
             Button {
                 isShowing = false
             } label: {
@@ -188,7 +196,15 @@ struct SDRPane: View {
     }
 
     private var meterAndAudioRow: some View {
-        HStack(spacing: 16) {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 16) { meterAndAudio }
+            VStack(alignment: .leading, spacing: 10) { meterAndAudio }
+        }
+    }
+
+    @ViewBuilder
+    private var meterAndAudio: some View {
+        Group {
             SDRPaneMeter(meter: model.meter)
                 .frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 8) {
@@ -209,16 +225,16 @@ struct SDRPane: View {
 
     private var rigLinkRow: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 18) {
-                Toggle("localSDR.followRig", isOn: $model.followRig)
-                    .fixedSize()
-                Toggle("localSDR.followRigWidth", isOn: Binding(get: { model.followRigWidth }, set: model.setFollowRigWidth))
-                    .fixedSize()
-                    .disabled(!model.followRig)
-                Toggle("localSDR.tuneRig", isOn: $model.tuneRig)
-                    .fixedSize()
-                Toggle("localSDR.muteOnTx", isOn: $model.muteOnTransmit)
-                    .fixedSize()
+            // One row, or two in a narrower pane (the split screen).
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 18) {
+                    followToggles
+                    rigToggles
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 18) { followToggles }
+                    HStack(spacing: 18) { rigToggles }
+                }
             }
             .toggleStyle(.switch)
             .font(.callout)
@@ -227,6 +243,23 @@ struct SDRPane: View {
                 .foregroundStyle(model.rigLinkNote == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange))
                 .lineLimit(2)
         }
+    }
+
+    @ViewBuilder
+    private var followToggles: some View {
+        Toggle("localSDR.followRig", isOn: $model.followRig)
+            .fixedSize()
+        Toggle("localSDR.followRigWidth", isOn: Binding(get: { model.followRigWidth }, set: model.setFollowRigWidth))
+            .fixedSize()
+            .disabled(!model.followRig)
+    }
+
+    @ViewBuilder
+    private var rigToggles: some View {
+        Toggle("localSDR.tuneRig", isOn: $model.tuneRig)
+            .fixedSize()
+        Toggle("localSDR.muteOnTx", isOn: $model.muteOnTransmit)
+            .fixedSize()
     }
 
     private var receiverSheet: some View {
@@ -357,9 +390,9 @@ extension View {
     /// Shows `SDRPane` over this view (the filter block + MENU grid, under
     /// the CW pane and APRS lists) while `isShowing`, hiding — not removing
     /// — the view underneath, as `cwPane` does; the area grows to fit the
-    /// waterfall. Closing the pane, or the screen going away, disconnects.
-    func sdrPane(isShowing: Binding<Bool>, model: LocalSDRModel) -> some View {
-        modifier(SDRPaneModifier(isShowing: isShowing, model: model))
+    /// waterfall. The connection's lifetime is `sdrSession`'s.
+    func sdrPane(isShowing: Binding<Bool>, isSplit: Binding<Bool>, model: LocalSDRModel) -> some View {
+        modifier(SDRPaneModifier(isShowing: isShowing, isSplit: isSplit, model: model))
     }
 }
 
@@ -369,6 +402,7 @@ private let sdrMinHeight: CGFloat = 700
 
 private struct SDRPaneModifier: ViewModifier {
     @Binding var isShowing: Bool
+    @Binding var isSplit: Bool
     let model: LocalSDRModel
 
     func body(content: Content) -> some View {
@@ -379,12 +413,8 @@ private struct SDRPaneModifier: ViewModifier {
             .accessibilityHidden(isShowing)
             .overlay {
                 if isShowing {
-                    SDRPane(model: model, isShowing: $isShowing)
+                    SDRPane(model: model, isShowing: $isShowing, isSplit: $isSplit)
                 }
             }
-            .onChange(of: isShowing) { _, showing in
-                if !showing { model.disconnect() }
-            }
-            .onDisappear { model.disconnect() }
     }
 }

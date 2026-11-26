@@ -23,8 +23,22 @@ import Foundation
 public final class FilterSpectrumStore: ObservableObject {
     @Published public private(set) var spectrum: [Float] = []
 
-    public var isEnabled = false {
+    /// On while any panel showing the display wants it (`setActive`).
+    public private(set) var isEnabled = false {
         didSet { if !isEnabled { reset() } }
+    }
+
+    /// The panels that want the spectrum. Kept per panel because two can
+    /// overlap for a moment — on rotation, or the iPad's SDR split screen
+    /// replacing the layout — and the old one's "off" must not cancel the
+    /// new one's "on".
+    private var activeHolders: Set<UUID> = []
+
+    /// `holder` (one per panel) does or doesn't want the spectrum.
+    public func setActive(_ active: Bool, holder: UUID) {
+        if active { activeHolders.insert(holder) } else { activeHolders.remove(holder) }
+        let enabled = !activeHolders.isEmpty
+        if isEnabled != enabled { isEnabled = enabled }
     }
 
     /// The receiver whose audio is analyzed — `RigState.activeFilterSide`.

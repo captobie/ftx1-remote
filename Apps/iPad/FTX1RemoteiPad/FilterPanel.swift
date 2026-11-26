@@ -22,6 +22,8 @@ import SwiftUI
 struct FilterPanel<Controller: RigController>: View {
     let spectrumStore: FilterSpectrumStore
     let isActive: Bool
+    /// This panel's claim on the shared spectrum (`setActive`).
+    @State private var holder = UUID()
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -44,6 +46,19 @@ struct FilterPanel<Controller: RigController>: View {
                 sideAndDisplay
                 controls
             }
+            // A narrow column (the SDR split screen in landscape): one
+            // control per line.
+            VStack(alignment: .leading, spacing: 10) {
+                sideAndDisplay
+                FilterWidthControl<Controller>()
+                    .fixedSize()
+                IFShiftControl<Controller>()
+                ContourAPFControl<Controller>()
+                HStack(spacing: 16) {
+                    NarrowControl<Controller>()
+                    IFNotchControl<Controller>()
+                }
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -52,9 +67,9 @@ struct FilterPanel<Controller: RigController>: View {
         // old one disappears.
         // Inactive too while hidden under the APRS pane, which keeps this
         // on screen (opacity 0) rather than removing it.
-        .onAppear { spectrumStore.isEnabled = isActive }
-        .onChange(of: isActive) { _, active in spectrumStore.isEnabled = active }
-        .onDisappear { spectrumStore.isEnabled = false }
+        .onAppear { spectrumStore.setActive(isActive, holder: holder) }
+        .onChange(of: isActive) { _, active in spectrumStore.setActive(active, holder: holder) }
+        .onDisappear { spectrumStore.setActive(false, holder: holder) }
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1)

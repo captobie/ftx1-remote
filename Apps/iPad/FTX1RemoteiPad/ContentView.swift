@@ -103,104 +103,144 @@ struct HubControlView: View {
     /// MyKiwiSDR shown in place of the MENU grid (`SDRPane`).
     @State private var showingSDR = false
     @EnvironmentObject private var sdrModels: SDRModels
+    /// The SDR pane's split screen (`SDRSplitLayout`), shared with the
+    /// Pi-direct screen.
+    @AppStorage("ipad.sdrSplit") private var sdrSplit = false
+
+    private var isSplit: Bool {
+        showingSDR && sdrSplit && viewModel.connectionState == .connected
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    if viewModel.connectionState != .connected {
-                        RecentHostField(placeholder: String(localized: "content.desktopHostnameTailscale"), host: $host, recentHosts: $recentHosts.recentHostList)
-                    }
-                    connectButton
-                    if viewModel.connectionState == .connected {
-                        PTTButton(
-                            isTransmitting: viewModel.isTransmitting || viewModel.rigState.ptt,
-                            blockReason: transmitBlockReason,
-                            onPress: viewModel.startTransmit,
-                            onRelease: viewModel.stopTransmit
-                        )
-                        transmitEnabledIndicator
-                        Spacer(minLength: 0)
-                        rigButtonsFitting
-                    }
-                }
-                .zIndex(1)
-                .onChange(of: viewModel.connectionState) { _, state in
-                    if state == .connected {
-                        recentHosts = RecentHosts.encode(RecentHosts.remember(host, in: RecentHosts.decode(recentHosts)))
-                    }
-                }
-
-                if let problem = viewModel.transmitProblem {
-                    Text(problem)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack(spacing: 12) {
-                    // In split the left box is the rig's split TX VFO, as on the Mac.
-                    if viewModel.rigState.splitEnabled == true {
-                        SplitVFOBox(state: viewModel.rigState, onSetFrequency: { viewModel.send(.setSecondaryFrequency(hz: $0)) })
-                    } else {
-                    VFODisplayBox(label: "SUB", frequencyHz: viewModel.rigState.secondaryFrequencyHz, isActive: viewModel.rigState.singleReceive != true, mode: viewModel.rigState.secondaryMode?.displayName ?? "—", txRxLabel: viewModel.rigState.subTxRxLabel, callsign: viewModel.rigState.secondaryMode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsSubActive ? viewModel.rigState.aprsSubLastCallsign : nil), reflector: viewModel.rigState.secondaryMode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsSubActive, onSetFrequency: { viewModel.send(.setSecondaryFrequency(hz: $0)) }, vfoMemoryMode: viewModel.rigState.subVfoMemoryMode, memoryChannel: viewModel.rigState.subMemoryChannel, memoryChannelTag: viewModel.rigState.subMemoryChannelTag, onSetMemoryChannel: { viewModel.send(.setSubMemoryChannel($0)) }, onStepMemoryChannel: { viewModel.send(.stepSubMemoryChannel(up: $0)) }, memoryScan: viewModel.rigState.memoryScan(on: .sub), currentMode: viewModel.rigState.secondaryMode, onSetMode: { viewModel.send(.setSecondaryMode($0)) }, memoryList: viewModel.memoryList, onRefreshMemoryList: { viewModel.send(.refreshMemoryList) })
-                    }
-                    VFODisplayBox(label: "MAIN", frequencyHz: viewModel.rigState.frequencyHz, isActive: true, mode: viewModel.rigState.mode.displayName, txRxLabel: viewModel.rigState.mainTxRxLabel, callsign: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsActive ? viewModel.rigState.aprsLastCallsign : nil), reflector: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsActive, onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }, vfoMemoryMode: viewModel.rigState.vfoMemoryMode, memoryChannel: viewModel.rigState.memoryChannel, memoryChannelTag: viewModel.rigState.memoryChannelTag, onSetMemoryChannel: { viewModel.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { viewModel.send(.stepMemoryChannel(up: $0)) }, memoryScan: viewModel.rigState.memoryScan(on: .main), currentMode: viewModel.rigState.mode, onSetMode: { viewModel.send(.setMode($0)) }, memoryList: viewModel.memoryList, onRefreshMemoryList: { viewModel.send(.refreshMemoryList) }, currentBand: viewModel.rigState.band, onSetBand: { viewModel.send(.setBand($0)) })
-                }
-
-                // Same SUB | MAIN columns as the VFO boxes above, so each
-                // strip sits under its own receiver.
-                HStack(spacing: 12) {
-                    ChannelStrip(
-                        label: "SUB",
-                        smeterDb: viewModel.rigState.subSmeterDb,
-                        txReadings: nil,
-                        ptt: viewModel.rigState.ptt,
-                        volume: $subAudioVolume,
-                        squelchThreshold: $subAudioSquelchThreshold,
-                        isMuted: viewModel.isSubAudioMuted,
-                        engine: viewModel.subAudioEngine,
-                        onToggleMute: viewModel.toggleSubAudioMuted
-                    )
-                    ChannelStrip(
-                        label: "MAIN",
-                        smeterDb: viewModel.rigState.smeterDb,
-                        txReadings: MeterReadings(powerWatts: viewModel.rigState.powerWatts, swr: viewModel.rigState.swr, tx: viewModel.rigState.txMeters),
-                        ptt: viewModel.rigState.ptt,
-                        volume: $mainAudioVolume,
-                        squelchThreshold: $mainAudioSquelchThreshold,
-                        isMuted: viewModel.isMainAudioMuted,
-                        engine: viewModel.audioEngine,
-                        onToggleMute: viewModel.toggleMainAudioMuted
-                    )
-                }
-
-                // The APRS pane covers the filter block and the grid both.
+        Group {
+            if isSplit {
                 VStack(alignment: .leading, spacing: 16) {
-                    FilterPanel<RigClientViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && aprsListKind == nil && !showingCW && !showingSDR)
-                    MenuPageView<RigClientViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
+                    topSection
+                    SDRSplitLayout(sdr: SDRPane(model: sdrModels.hub, isShowing: $showingSDR, isSplit: $sdrSplit)) { narrow in
+                        vfoBoxes(stacked: narrow)
+                        channelStrips(stacked: narrow)
+                        FilterPanel<RigClientViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: true)
+                    }
                 }
-                .aprsListPane(
-                    kind: $aprsListKind,
-                    stations: viewModel.aprsList?.stations ?? [],
-                    messages: viewModel.aprsList?.messages ?? [],
-                    onClearHistory: nil
-                )
-                .cwPane(
-                    isShowing: $showingCW,
-                    isConnected: viewModel.connectionState == .connected,
-                    rigInfo: CWRigInfo(state: viewModel.rigState, connected: viewModel.connectionState == .connected, transmitting: viewModel.isTransmitting),
-                    singleReceive: viewModel.rigState.singleReceive == true
-                ) {
-                    CWSendSection<RigClientViewModel>()
+                .padding(32)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        topSection
+                        vfoBoxes(stacked: false)
+                        channelStrips(stacked: false)
+                        filterAndGrid
+                    }
+                    .padding(32)
                 }
-                .sdrPane(isShowing: $showingSDR, model: sdrModels.hub)
             }
-            .padding(32)
         }
+        .sdrSession(isShowing: $showingSDR, routeConnected: viewModel.connectionState == .connected,
+                    model: sdrModels.hub)
         // A press can't be released from the background; don't stay keyed.
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { viewModel.stopTransmit() }
         }
+    }
+
+    /// The top row and the transmit problem line under it.
+    @ViewBuilder
+    private var topSection: some View {
+        HStack {
+            if viewModel.connectionState != .connected {
+                RecentHostField(placeholder: String(localized: "content.desktopHostnameTailscale"), host: $host, recentHosts: $recentHosts.recentHostList)
+            }
+            connectButton
+            if viewModel.connectionState == .connected {
+                PTTButton(
+                    isTransmitting: viewModel.isTransmitting || viewModel.rigState.ptt,
+                    blockReason: transmitBlockReason,
+                    onPress: viewModel.startTransmit,
+                    onRelease: viewModel.stopTransmit
+                )
+                transmitEnabledIndicator
+                Spacer(minLength: 0)
+                rigButtonsFitting
+            }
+        }
+        .zIndex(1)
+        .onChange(of: viewModel.connectionState) { _, state in
+            if state == .connected {
+                recentHosts = RecentHosts.encode(RecentHosts.remember(host, in: RecentHosts.decode(recentHosts)))
+            }
+        }
+
+        if let problem = viewModel.transmitProblem {
+            Text(problem)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// SUB | MAIN, or stacked in the split screen's landscape column.
+    private func vfoBoxes(stacked: Bool) -> some View {
+        RigRow(stacked: stacked) {
+            // In split the left box is the rig's split TX VFO, as on the Mac.
+            if viewModel.rigState.splitEnabled == true {
+                SplitVFOBox(state: viewModel.rigState, onSetFrequency: { viewModel.send(.setSecondaryFrequency(hz: $0)) })
+            } else {
+            VFODisplayBox(label: "SUB", frequencyHz: viewModel.rigState.secondaryFrequencyHz, isActive: viewModel.rigState.singleReceive != true, mode: viewModel.rigState.secondaryMode?.displayName ?? "—", txRxLabel: viewModel.rigState.subTxRxLabel, callsign: viewModel.rigState.secondaryMode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsSubActive ? viewModel.rigState.aprsSubLastCallsign : nil), reflector: viewModel.rigState.secondaryMode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsSubActive, onSetFrequency: { viewModel.send(.setSecondaryFrequency(hz: $0)) }, vfoMemoryMode: viewModel.rigState.subVfoMemoryMode, memoryChannel: viewModel.rigState.subMemoryChannel, memoryChannelTag: viewModel.rigState.subMemoryChannelTag, onSetMemoryChannel: { viewModel.send(.setSubMemoryChannel($0)) }, onStepMemoryChannel: { viewModel.send(.stepSubMemoryChannel(up: $0)) }, memoryScan: viewModel.rigState.memoryScan(on: .sub), currentMode: viewModel.rigState.secondaryMode, onSetMode: { viewModel.send(.setSecondaryMode($0)) }, memoryList: viewModel.memoryList, onRefreshMemoryList: { viewModel.send(.refreshMemoryList) })
+            }
+            VFODisplayBox(label: "MAIN", frequencyHz: viewModel.rigState.frequencyHz, isActive: true, mode: viewModel.rigState.mode.displayName, txRxLabel: viewModel.rigState.mainTxRxLabel, callsign: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmCallsign : (viewModel.rigState.aprsActive ? viewModel.rigState.aprsLastCallsign : nil), reflector: viewModel.rigState.mode == .c4fm ? viewModel.rigState.c4fmReflector : nil, aprsActive: viewModel.rigState.aprsActive, onSetFrequency: { viewModel.send(.setFrequency(hz: $0)) }, vfoMemoryMode: viewModel.rigState.vfoMemoryMode, memoryChannel: viewModel.rigState.memoryChannel, memoryChannelTag: viewModel.rigState.memoryChannelTag, onSetMemoryChannel: { viewModel.send(.setMemoryChannel($0)) }, onStepMemoryChannel: { viewModel.send(.stepMemoryChannel(up: $0)) }, memoryScan: viewModel.rigState.memoryScan(on: .main), currentMode: viewModel.rigState.mode, onSetMode: { viewModel.send(.setMode($0)) }, memoryList: viewModel.memoryList, onRefreshMemoryList: { viewModel.send(.refreshMemoryList) }, currentBand: viewModel.rigState.band, onSetBand: { viewModel.send(.setBand($0)) })
+        }
+    }
+
+    /// Same SUB | MAIN columns as the VFO boxes above, so each strip sits
+    /// under its own receiver.
+    private func channelStrips(stacked: Bool) -> some View {
+        RigRow(stacked: stacked) {
+            ChannelStrip(
+                label: "SUB",
+                smeterDb: viewModel.rigState.subSmeterDb,
+                txReadings: nil,
+                ptt: viewModel.rigState.ptt,
+                volume: $subAudioVolume,
+                squelchThreshold: $subAudioSquelchThreshold,
+                isMuted: viewModel.isSubAudioMuted,
+                engine: viewModel.subAudioEngine,
+                onToggleMute: viewModel.toggleSubAudioMuted
+            )
+            ChannelStrip(
+                label: "MAIN",
+                smeterDb: viewModel.rigState.smeterDb,
+                txReadings: MeterReadings(powerWatts: viewModel.rigState.powerWatts, swr: viewModel.rigState.swr, tx: viewModel.rigState.txMeters),
+                ptt: viewModel.rigState.ptt,
+                volume: $mainAudioVolume,
+                squelchThreshold: $mainAudioSquelchThreshold,
+                isMuted: viewModel.isMainAudioMuted,
+                engine: viewModel.audioEngine,
+                onToggleMute: viewModel.toggleMainAudioMuted
+            )
+        }
+    }
+
+    /// The filter block and MENU grid, under the APRS, CW and SDR panes.
+    private var filterAndGrid: some View {
+        // The APRS pane covers the filter block and the grid both.
+        VStack(alignment: .leading, spacing: 16) {
+            FilterPanel<RigClientViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && aprsListKind == nil && !showingCW && !showingSDR)
+            MenuPageView<RigClientViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
+        }
+        .aprsListPane(
+            kind: $aprsListKind,
+            stations: viewModel.aprsList?.stations ?? [],
+            messages: viewModel.aprsList?.messages ?? [],
+            onClearHistory: nil
+        )
+        .cwPane(
+            isShowing: $showingCW,
+            isConnected: viewModel.connectionState == .connected,
+            rigInfo: CWRigInfo(state: viewModel.rigState, connected: viewModel.connectionState == .connected, transmitting: viewModel.isTransmitting),
+            singleReceive: viewModel.rigState.singleReceive == true
+        ) {
+            CWSendSection<RigClientViewModel>()
+        }
+        .sdrPane(isShowing: $showingSDR, isSplit: $sdrSplit, model: sdrModels.hub)
     }
 
     /// The Mac's Enable Transmit, where the Pi-direct screen has its own

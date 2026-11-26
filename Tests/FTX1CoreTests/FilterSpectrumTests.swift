@@ -63,7 +63,8 @@ final class FilterSpectrumTests: XCTestCase {
         store.ingest(pcm: chunk, side: .main)
         XCTAssertTrue(store.spectrum.isEmpty, "nothing while disabled")
 
-        store.isEnabled = true
+        let panel = UUID()
+        store.setActive(true, holder: panel)
         store.ingest(pcm: chunk, side: .main)
         XCTAssertTrue(store.spectrum.isEmpty, "waits for a full 512-sample block")
         store.ingest(pcm: chunk, side: .main)
@@ -79,8 +80,22 @@ final class FilterSpectrumTests: XCTestCase {
         store.ingest(pcm: chunk, side: .sub)
         XCTAssertFalse(store.spectrum.isEmpty)
 
-        store.isEnabled = false
+        store.setActive(false, holder: panel)
         XCTAssertTrue(store.spectrum.isEmpty)
+    }
+
+    /// The new panel's "on" can come before the old one's "off" (rotation,
+    /// the SDR split screen): the store stays on until both are off.
+    @MainActor
+    func testOverlappingPanelsKeepTheSpectrumOn() {
+        let store = FilterSpectrumStore()
+        let old = UUID(), new = UUID()
+        store.setActive(true, holder: old)
+        store.setActive(true, holder: new)
+        store.setActive(false, holder: old)
+        XCTAssertTrue(store.isEnabled)
+        store.setActive(false, holder: new)
+        XCTAssertFalse(store.isEnabled)
     }
 }
 

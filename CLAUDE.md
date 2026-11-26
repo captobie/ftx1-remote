@@ -3263,6 +3263,23 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   (`LocalSDRReceiverControls`, `FTX1Core/UI/`). No recording or decoder
   feed on the iPad. Top row: Connected and PTT keep their width; the rig
   buttons drop to `.small`/`.mini` when the row is full.
+- **iPad SDR split screen (phase 3, 2026-11-26; Pi direct tested in the
+  iPad Simulator, portrait and landscape, against the user's Kiwi; hub
+  route build-checked only)**: a split button in the SDR pane's header
+  (`ipad.sdrSplit`, shared by both routes, remembered) swaps the overlay
+  for `SDRSplitLayout` (`Apps/iPad/SDRSplitLayout.swift`): the top row
+  stays full width; wider than tall = rig column left (40%, ≥360 pt,
+  scrolls: VFO boxes and strips stacked via `RigRow`, filter block),
+  SDR right; taller than wide = SDR on top (56% of the height, ≥560 pt),
+  VFO boxes/strips side by side and the filter block below; no MENU grid.
+  Both screens were split into `topSection`/`vfoBoxes(stacked:)`/
+  `channelStrips(stacked:)`/`filterAndGrid`. The Kiwi connection now
+  lives at the screen root (`sdrSession`: hiding the pane, the route
+  dropping or the screen going away disconnects), so changing layout
+  keeps it. `FilterPanel` gained a one-control-per-line layout for the
+  narrow column, and `FilterSpectrumStore` is turned on per panel
+  (`setActive(_:holder:)`) — the old panel's "off" arriving after the new
+  one's "on" left the split's display without a spectrum.
 - **Later, not started**: Sub following. (FT8/FT4 from MyKiwiSDR:
   see "Digital modes — FT8".)
 

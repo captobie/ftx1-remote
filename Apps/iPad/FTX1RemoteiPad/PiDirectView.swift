@@ -69,66 +69,95 @@ struct PiDirectView: View {
     /// Mode (there's no simulated Kiwi).
     @State private var showingSDR = false
     @EnvironmentObject private var sdrModels: SDRModels
+    /// The SDR pane's split screen (`SDRSplitLayout`), shared with the hub
+    /// screen.
+    @AppStorage("ipad.sdrSplit") private var sdrSplit = false
+
+    private var isSplit: Bool {
+        showingSDR && sdrSplit && viewModel.connectionState == .connected
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                if isDemo { DemoBanner() }
-
-                HStack {
-                    if viewModel.connectionState != .connected && !isDemo {
-                        RecentHostField(placeholder: String(localized: "common.piHostnameTailscale"), host: $host, recentHosts: $recentHosts.recentHostList)
-                        TextField("piDirect.wpsdHotspotOptionalC4fm", text: $wpsdHost)
-                            .textFieldStyle(.roundedBorder)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                    }
-                    connectButton
-                    if viewModel.connectionState == .connected {
-                        PTTButton(
-                            isTransmitting: viewModel.isTransmitting || viewModel.rigState.ptt,
-                            blockReason: viewModel.transmitBlockReason,
-                            onPress: viewModel.startTransmit,
-                            onRelease: viewModel.stopTransmit
-                        )
-                        transmitEnableButton
-                        Spacer(minLength: 0)
-                        rigButtonsFitting
+        Group {
+            if isSplit {
+                VStack(alignment: .leading, spacing: 16) {
+                    topSection
+                    SDRSplitLayout(sdr: SDRPane(model: sdrModels.piDirect, isShowing: $showingSDR, isSplit: $sdrSplit)) { narrow in
+                        vfoBoxes(stacked: narrow)
+                        channelStrips(stacked: narrow)
+                        audioWaitingLine
+                        FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: true)
                     }
                 }
-                .zIndex(1)
-                .onChange(of: viewModel.connectionState) { _, state in
-                    // The demo connects to loopback ports, not `host`.
-                    if state == .connected && !isDemo {
-                        recentHosts = RecentHosts.encode(RecentHosts.remember(host, in: RecentHosts.decode(recentHosts)))
+                .padding(32)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        topSection
+                        if viewModel.connectionState == .connected {
+                            connectedContent
+                        }
                     }
-                }
-
-                if !isDemo, viewModel.connectionState == .disconnected {
-                    demoButton
-                }
-
-                if viewModel.connectionState == .connected, let problem = viewModel.transmitProblem {
-                    Text(problem)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
-                if case .failed(let message) = viewModel.connectionState {
-                    Text(message)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
-                if viewModel.connectionState == .connected {
-                    connectedContent
+                    .padding(32)
                 }
             }
-            .padding(32)
         }
+        .sdrSession(isShowing: $showingSDR, routeConnected: viewModel.connectionState == .connected,
+                    model: sdrModels.piDirect)
         // A press can't be released from the background; don't stay keyed.
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { viewModel.stopTransmit() }
+        }
+    }
+
+    /// The demo banner, the top row and the lines under it.
+    @ViewBuilder
+    private var topSection: some View {
+        if isDemo { DemoBanner() }
+
+        HStack {
+            if viewModel.connectionState != .connected && !isDemo {
+                RecentHostField(placeholder: String(localized: "common.piHostnameTailscale"), host: $host, recentHosts: $recentHosts.recentHostList)
+                TextField("piDirect.wpsdHotspotOptionalC4fm", text: $wpsdHost)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+            connectButton
+            if viewModel.connectionState == .connected {
+                PTTButton(
+                    isTransmitting: viewModel.isTransmitting || viewModel.rigState.ptt,
+                    blockReason: viewModel.transmitBlockReason,
+                    onPress: viewModel.startTransmit,
+                    onRelease: viewModel.stopTransmit
+                )
+                transmitEnableButton
+                Spacer(minLength: 0)
+                rigButtonsFitting
+            }
+        }
+        .zIndex(1)
+        .onChange(of: viewModel.connectionState) { _, state in
+            // The demo connects to loopback ports, not `host`.
+            if state == .connected && !isDemo {
+                recentHosts = RecentHosts.encode(RecentHosts.remember(host, in: RecentHosts.decode(recentHosts)))
+            }
+        }
+
+        if !isDemo, viewModel.connectionState == .disconnected {
+            demoButton
+        }
+
+        if viewModel.connectionState == .connected, let problem = viewModel.transmitProblem {
+            Text(problem)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+
+        if case .failed(let message) = viewModel.connectionState {
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -148,10 +177,18 @@ struct PiDirectView: View {
 
     @ViewBuilder
     private var connectedContent: some View {
+        vfoBoxes(stacked: false)
+        channelStrips(stacked: false)
+        audioWaitingLine
+        filterAndGrid
+    }
+
+    /// SUB | MAIN, or stacked in the split screen's landscape column.
+    private func vfoBoxes(stacked: Bool) -> some View {
         let state = viewModel.rigState
         // No editing while the rig scans — see `PiDirectViewModel.send`.
         let editable = state.memoryScan != .scanning && state.memoryScan != .paused
-        HStack(spacing: 12) {
+        return RigRow(stacked: stacked) {
             // Same arguments as the hub screen's boxes; the APRS
             // indicator comes from this iPad's own decode.
             // In split the left box is the rig's split TX VFO, as on the Mac.
@@ -205,9 +242,13 @@ struct PiDirectView: View {
             )
         }
 
-        // Same SUB | MAIN columns as the VFO boxes above. MAIN's bar shows
-        // the TX meter while the rig transmits, as on the hub screen.
-        HStack(spacing: 12) {
+    }
+
+    /// Same SUB | MAIN columns as the VFO boxes above. MAIN's bar shows
+    /// the TX meter while the rig transmits, as on the hub screen.
+    private func channelStrips(stacked: Bool) -> some View {
+        let state = viewModel.rigState
+        return RigRow(stacked: stacked) {
             ChannelStrip(
                 label: "SUB",
                 smeterDb: state.subSmeterDb,
@@ -232,14 +273,22 @@ struct PiDirectView: View {
             )
         }
 
-        // Only the problem case gets a line; playing/off need no text.
+    }
+
+    /// Only the problem case gets a line; playing/off need no text.
+    @ViewBuilder
+    private var audioWaitingLine: some View {
         if viewModel.audioState == .waiting {
             Text("common.waitingForAudioIs")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
+    }
 
+    /// The filter block and MENU grid, under the APRS, CW and SDR panes.
+    @ViewBuilder
+    private var filterAndGrid: some View {
         Group {
             if let store = viewModel.aprsStore {
                 ObservingAPRSStore(store: store) { store in
@@ -271,7 +320,7 @@ struct PiDirectView: View {
         ) {
             CWSendSection<PiDirectViewModel>()
         }
-        .sdrPane(isShowing: $showingSDR, model: sdrModels.piDirect)
+        .sdrPane(isShowing: $showingSDR, isSplit: $sdrSplit, model: sdrModels.piDirect)
 
         Text(isDemo
              ? "piDirect.demoModeASimulated"
