@@ -3231,7 +3231,22 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   S units, dBm and ADC overload beside it; the frequency sits in a 190 px
   box in the themed VFO digits (`VfoDigits`, now with a shared
   `Effective()` for the colour/font overrides, also used by `MainWindow`).
-- **Later, not started**: Sub following, iPad. (FT8/FT4 from MyKiwiSDR:
+- **Shared for the iPad (phase 1 of the iPad SDR, 2026-11-26; Mac, iPad
+  and iPhone build, `swift test` green, Mac window not yet re-checked in
+  the app)**: `LocalSDRModel`, `LocalSDRWaterfallStore`,
+  `LocalSDRPassword` (`FTX1Core/KiwiSDR/`), `LocalSDRWaterfallView`
+  (`FTX1Core/UI/`, Mac mouse/NSView and an iOS UIView + tap/drag/pinch
+  layer) and `WaterfallPalette` (`FTX1Core/Audio/`) moved into the
+  package. The model talks to a `LocalSDRRigHost` (`HubService` on the
+  Mac), an optional `LocalSDRAudioTap` (decoders) and an optional
+  recording-writer factory; `LocalSDRModel.mac(hub:)`
+  (`LocalSDRModel+Mac.swift`) wires the Mac's. Settings go through
+  `SettingsStore.defaults`; the moved strings are in FTX1Core's catalog.
+  Plan for the rest (user decisions): an SDR pane on both iPad routes in
+  the CW/APRS area (MyKiwiSDR, then the WebSDR page), with a split-screen
+  option — landscape: SDR right, VFO boxes/strips/filters left; portrait:
+  SDR on top, those below; the MENU grid hidden in split.
+- **Later, not started**: Sub following. (FT8/FT4 from MyKiwiSDR:
   see "Digital modes — FT8".)
 
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)

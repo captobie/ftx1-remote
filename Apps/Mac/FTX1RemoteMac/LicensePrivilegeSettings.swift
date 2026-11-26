@@ -6,7 +6,7 @@ import Foundation
 /// `LogbookSettings`. Off unless chosen — the gate then checks only the
 /// amateur bands, as before.
 enum LicensePrivilegeSettings {
-    static let choiceKey = "license.privileges"
+    static let choiceKey = PrivilegeChoice.settingsKey
     static let customProfileKey = "license.customProfile"
 
     static var choice: PrivilegeChoice {

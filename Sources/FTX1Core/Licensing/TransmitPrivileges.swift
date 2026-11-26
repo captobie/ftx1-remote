@@ -119,6 +119,10 @@ public struct PrivilegeProfile: Codable, Sendable, Hashable {
 /// Which privileges the transmit gate applies: off (just the amateur bands,
 /// `BandPlan`), a built-in preset, or the operator's custom table.
 public enum PrivilegeChoice: Hashable, Sendable {
+    /// Where the Mac's Settings → License stores the choice (its
+    /// `rawValue`); read by the MyKiwiSDR band bar on every target.
+    public static let settingsKey = "license.privileges"
+
     case off
     case preset(PrivilegePreset)
     case custom

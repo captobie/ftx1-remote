@@ -1,13 +1,17 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import Combine
-import FTX1Core
 import SwiftUI
 
-/// The Local SDR window's waterfall: the KiwiSDR's rows
-/// (`LocalSDRWaterfallStore`), a frequency scale, the passband as a
-/// translucent band with the dial line, zoom buttons, and the mouse —
-/// click to tune, drag to pan, scroll wheel to tune in the mode's steps;
-/// dragging the passband's edges sets its width, dragging its middle tunes.
+/// The MyKiwiSDR waterfall (the Mac's window, the iPad's pane): the
+/// KiwiSDR's rows (`LocalSDRWaterfallStore`), a frequency scale, the
+/// passband as a translucent band with the dial line, zoom buttons, and the
+/// pointer — click (tap) to tune, drag to pan, scroll wheel to tune in the
+/// mode's steps (Mac), pinch to zoom (iPad); dragging the passband's edges
+/// sets its width, dragging its middle tunes.
 ///
 /// Everything is drawn in the *requested* view's frame while it has the
 /// picture's zoom: the picture is offset to where its rows really are, so a
@@ -19,12 +23,12 @@ import SwiftUI
 /// observes the position, which changes only on a pan or zoom, so a row
 /// redraws one image and not the scale, passband and controls (measured:
 /// re-evaluating all of it per row was most of the window's CPU).
-struct LocalSDRWaterfallView: View {
+public struct LocalSDRWaterfallView: View {
     @ObservedObject var model: LocalSDRModel
     let store: LocalSDRWaterfallStore
     @ObservedObject private var position: LocalSDRWaterfallPosition
 
-    init(model: LocalSDRModel, store: LocalSDRWaterfallStore) {
+    public init(model: LocalSDRModel, store: LocalSDRWaterfallStore) {
         self.model = model
         self.store = store
         position = store.position
@@ -36,7 +40,7 @@ struct LocalSDRWaterfallView: View {
     @State private var dragOrigin: Int?
     /// Settings → License: Technician-class labels only for a Technician
     /// (or Novice, the same HF privileges); everyone else sees General.
-    @AppStorage(LicensePrivilegeSettings.choiceKey) private var licenseChoice = "off"
+    @AppStorage(PrivilegeChoice.settingsKey) private var licenseChoice = "off"
 
     private var showsTechnicianPrivileges: Bool {
         switch PrivilegeChoice(rawValue: licenseChoice) {
@@ -48,7 +52,7 @@ struct LocalSDRWaterfallView: View {
     /// The dial when a drag of the passband's middle began.
     @State private var tuneDragOrigin: Int?
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 4) {
             GeometryReader { proxy in
                 let size = proxy.size
@@ -58,7 +62,7 @@ struct LocalSDRWaterfallView: View {
                         LocalSDRBandBar(geometry: store.geometry, start: frame.start, zoom: frame.zoom,
                                         width: size.width, showsTechnician: showsTechnicianPrivileges)
                             .frame(height: LocalSDRBandBar.height)
-                            .help("localSDR.bandBar.help")
+                            .help(Text("localSDR.bandBar.help", bundle: .module))
                     } else {
                         Color.clear.frame(height: LocalSDRBandBar.height)
                     }
@@ -70,6 +74,7 @@ struct LocalSDRWaterfallView: View {
                         } else {
                             placeholder
                         }
+                        #if os(macOS)
                         LocalSDRWaterfallMouse(
                             target: { x in dragTarget(atX: x, width: size.width) },
                             onClick: { x in click(atX: x, width: size.width) },
@@ -79,6 +84,17 @@ struct LocalSDRWaterfallView: View {
                                 tuneDragOrigin = nil
                             },
                             onScroll: model.scrollStep)
+                        #else
+                        LocalSDRWaterfallTouch(
+                            target: { x in dragTarget(atX: x, width: size.width) },
+                            onTap: { x in click(atX: x, width: size.width) },
+                            onDrag: { target, dx, x in drag(target, dx: dx, x: x, width: size.width) },
+                            onDragEnd: {
+                                dragOrigin = nil
+                                tuneDragOrigin = nil
+                            },
+                            onZoom: model.zoom(by:))
+                        #endif
                     }
                     .frame(width: size.width,
                            height: max(size.height - Self.scaleHeight - LocalSDRBandBar.height, 0))
@@ -92,7 +108,7 @@ struct LocalSDRWaterfallView: View {
                     }
                 }
             }
-            .help("localSDR.waterfall.help")
+            .help(Text("localSDR.waterfall.help", bundle: .module))
             zoomRow
         }
     }
@@ -137,11 +153,11 @@ struct LocalSDRWaterfallView: View {
     private var placeholderText: String {
         switch model.waterfallState {
         case .off:
-            String(localized: "localSDR.waterfall.idle")
+            String(localized: "localSDR.waterfall.idle", bundle: .module)
         case .connecting, .running:
-            String(localized: "localSDR.waterfall.waiting")
+            String(localized: "localSDR.waterfall.waiting", bundle: .module)
         case .failed(let error):
-            String(localized: "localSDR.waterfall.failed \(LocalSDRWindowView.message(for: error))")
+            String(localized: "localSDR.waterfall.failed \(error.localizedMessage)", bundle: .module)
         }
     }
 
@@ -150,11 +166,11 @@ struct LocalSDRWaterfallView: View {
             Button { model.zoom(by: -1) } label: { Image(systemName: "minus.magnifyingglass") }
                 .buttonStyle(ThemedButtonStyle())
                 .disabled(!model.canZoomOut)
-                .help("localSDR.zoomOut")
+                .help(Text("localSDR.zoomOut", bundle: .module))
             Button { model.zoom(by: 1) } label: { Image(systemName: "plus.magnifyingglass") }
                 .buttonStyle(ThemedButtonStyle())
                 .disabled(!model.canZoomIn)
-                .help("localSDR.zoomIn")
+                .help(Text("localSDR.zoomIn", bundle: .module))
             if let view = model.waterfallView {
                 Text(verbatim: Self.spanText(store.geometry.spanHz(zoom: view.zoom)))
                     .font(.caption.monospacedDigit())
@@ -164,16 +180,17 @@ struct LocalSDRWaterfallView: View {
                 .font(.caption.monospacedDigit())
                 .themedSecondaryForeground()
                 .padding(.leading, 12)
-                .help("localSDR.passband.readoutHelp")
-            Button("localSDR.passband.reset", systemImage: "arrow.counterclockwise", action: model.resetPassband)
+                .help(Text("localSDR.passband.readoutHelp", bundle: .module))
+            Button(String(localized: "localSDR.passband.reset", bundle: .module), systemImage: "arrow.counterclockwise",
+                   action: model.resetPassband)
                 .labelStyle(.titleAndIcon)
                 .buttonStyle(ThemedButtonStyle())
                 .disabled(model.isPassbandDefault)
-                .help("localSDR.passband.resetHelp")
+                .help(Text("localSDR.passband.resetHelp", bundle: .module))
                 .fixedSize()
             Spacer()
             if case .failed(let error) = model.waterfallState, position.current != nil {
-                Text(String(localized: "localSDR.waterfall.failed \(LocalSDRWindowView.message(for: error))"))
+                Text(String(localized: "localSDR.waterfall.failed \(error.localizedMessage)", bundle: .module))
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .lineLimit(1)
@@ -208,17 +225,22 @@ struct LocalSDRWaterfallView: View {
         return geometry.hz(column: Double(x / width) * Double(geometry.fftSize), start: frame.start, zoom: frame.zoom)
     }
 
-    /// What a press at `x` would hold: 5 pt either side of an edge is that
-    /// edge (less on the inside of a narrow band, so its middle stays
-    /// reachable); the rest of the band is its middle.
+    /// What a press at `x` would hold: 5 pt (a finger: 14 pt) either side
+    /// of an edge is that edge (less on the inside of a narrow band, so its
+    /// middle stays reachable); the rest of the band is its middle.
     private func dragTarget(atX x: CGFloat, width: CGFloat) -> LocalSDRWaterfallDragTarget {
         guard position.current != nil, let frame = displayFrame, width > 0 else { return .pan }
         let band = model.passbandHz
         let a = self.x(hz: band.low, frame: frame, width: width)
         let b = self.x(hz: band.high, frame: frame, width: width)
         let low = min(a, b), high = max(a, b)
-        let outward: CGFloat = 5
-        let inward = min(5, (high - low) / 3)
+        #if os(macOS)
+        let reach: CGFloat = 5
+        #else
+        let reach: CGFloat = 14
+        #endif
+        let outward = reach
+        let inward = min(reach, (high - low) / 3)
         if x >= low + inward, x <= high - inward { return .middle }
         if x >= low - outward, x < low + inward { return .edge(.low) }
         if x > high - inward, x <= high + outward { return .edge(.high) }
@@ -249,13 +271,14 @@ struct LocalSDRWaterfallView: View {
         model.pan(toStart: origin - Int(units.rounded()))
     }
 
-    static func spanText(_ hz: Double) -> String {
+    public static func spanText(_ hz: Double) -> String {
         hz >= 1_000_000
             ? "\(FrequencyFormat.mhz(hz, fractionDigits: hz >= 10_000_000 ? 0 : 1)) MHz"
             : "\(String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), hz / 1000)) kHz"
     }
 }
 
+#if os(macOS)
 /// The waterfall image itself — the one thing that changes per row. A
 /// layer-backed NSView that sets `layer.contents` straight from the
 /// store's publisher, so a row is a Core Animation transaction and nothing
@@ -349,6 +372,93 @@ private struct LocalSDRWaterfallPicture: NSViewRepresentable {
         }
     }
 }
+
+#else
+/// The iPad's waterfall image: the Mac's picture (see above) on a UIView's
+/// layer, set straight from the store's publisher, so a row is a Core
+/// Animation transaction and nothing in SwiftUI re-evaluates. Touches pass
+/// through to `LocalSDRWaterfallTouch`.
+private struct LocalSDRWaterfallPicture: UIViewRepresentable {
+    let store: LocalSDRWaterfallStore
+    let frame: LocalSDRModel.WaterfallView
+
+    func makeUIView(context: Context) -> PictureView {
+        let view = PictureView()
+        view.subscribe(to: store)
+        view.frameInView = frame
+        return view
+    }
+
+    func updateUIView(_ view: PictureView, context: Context) {
+        view.frameInView = frame
+    }
+
+    final class PictureView: UIView {
+        var frameInView: LocalSDRModel.WaterfallView? {
+            didSet { if frameInView != oldValue { place() } }
+        }
+        private weak var store: LocalSDRWaterfallStore?
+        private var subscription: AnyCancellable?
+        private var picture: LocalSDRWaterfallStore.Picture?
+        private let imageLayer = CALayer()
+
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            isUserInteractionEnabled = false
+            backgroundColor = .black
+            layer.masksToBounds = true
+            imageLayer.contentsGravity = .resize
+            imageLayer.minificationFilter = .linear
+            imageLayer.magnificationFilter = .linear
+            imageLayer.actions = ["contents": NSNull(), "position": NSNull(), "bounds": NSNull()]
+            layer.addSublayer(imageLayer)
+        }
+
+        required init?(coder: NSCoder) { fatalError("not used") }
+
+        func subscribe(to store: LocalSDRWaterfallStore) {
+            self.store = store
+            subscription = store.$picture.sink { [weak self] picture in
+                self?.show(picture)
+            }
+        }
+
+        private func show(_ picture: LocalSDRWaterfallStore.Picture?) {
+            self.picture = picture
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            imageLayer.contents = picture?.image
+            placeLayer()
+            CATransaction.commit()
+        }
+
+        private func place() {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            placeLayer()
+            CATransaction.commit()
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            place()
+        }
+
+        private func placeLayer() {
+            guard let store, let picture, let frameInView else {
+                imageLayer.frame = bounds
+                return
+            }
+            let geometry = store.geometry
+            let offsetColumns = picture.zoom == frameInView.zoom
+                ? Double(picture.start - frameInView.start) / Double(geometry.unitsPerBin(zoom: frameInView.zoom))
+                : 0
+            imageLayer.frame = bounds.offsetBy(dx: CGFloat(offsetColumns / Double(geometry.fftSize)) * bounds.width,
+                                               dy: 0)
+        }
+    }
+}
+#endif
 
 /// Tick marks and MHz labels across the span: a 1/2/5 × 10ⁿ Hz spacing
 /// giving labels at least ~80 pt apart, decimals to match it.
@@ -474,12 +584,12 @@ private struct LocalSDRBandBar: View, Equatable {
         context.fill(Path(shown), with: .color(color.opacity(0.35)))
         context.stroke(Path(shown), with: .color(color.opacity(0.9)), lineWidth: 1)
         let candidates = switch hint.kind {
-        case .amateur: [String(localized: "localSDR.bandBar.amateur \(hint.label)"), hint.label]
-        case .broadcast: [String(localized: "localSDR.bandBar.broadcast \(hint.label)"), hint.label]
-        case .aeronautical: [String(localized: "localSDR.bandBar.aeronautical \(hint.label)"),
-                             String(localized: "localSDR.bandBar.aero"), hint.label]
-        case .maritime: [String(localized: "localSDR.bandBar.maritime \(hint.label)"),
-                         String(localized: "localSDR.bandBar.marine"), hint.label]
+        case .amateur: [String(localized: "localSDR.bandBar.amateur \(hint.label)", bundle: .module), hint.label]
+        case .broadcast: [String(localized: "localSDR.bandBar.broadcast \(hint.label)", bundle: .module), hint.label]
+        case .aeronautical: [String(localized: "localSDR.bandBar.aeronautical \(hint.label)", bundle: .module),
+                             String(localized: "localSDR.bandBar.aero", bundle: .module), hint.label]
+        case .maritime: [String(localized: "localSDR.bandBar.maritime \(hint.label)", bundle: .module),
+                         String(localized: "localSDR.bandBar.marine", bundle: .module), hint.label]
         case .utility: [hint.label]
         }
         drawLabel(candidates, in: rect, width: width, context: &context)
@@ -506,11 +616,11 @@ private struct LocalSDRBandBar: View, Equatable {
         }
         context.stroke(Path(shown), with: .color(color), lineWidth: 1)
         let usage = switch segment.usage {
-        case .cwData: String(localized: "localSDR.bandBar.cwData")
-        case .phone: String(localized: "localSDR.bandBar.phone")
-        case .allModes: String(localized: "localSDR.bandBar.allModes")
+        case .cwData: String(localized: "localSDR.bandBar.cwData", bundle: .module)
+        case .phone: String(localized: "localSDR.bandBar.phone", bundle: .module)
+        case .allModes: String(localized: "localSDR.bandBar.allModes", bundle: .module)
         case .cwOnly: "CW"
-        case .channel: String(localized: "localSDR.bandBar.channel")
+        case .channel: String(localized: "localSDR.bandBar.channel", bundle: .module)
         }
         // US class names, English in every language (as in Settings → License).
         let licence = switch segment.lowestClass {
@@ -519,7 +629,7 @@ private struct LocalSDRBandBar: View, Equatable {
         case .advanced: "Advanced"
         case .extra: "Extra"
         }
-        let both = String(localized: "localSDR.bandBar.segment \(usage) \(licence)")
+        let both = String(localized: "localSDR.bandBar.segment \(usage) \(licence)", bundle: .module)
         let short = segment.lowestClass == .extra ? [both, licence, usage] : [both, usage]
         drawLabel(short, in: rect, width: width, context: &context)
     }
@@ -541,27 +651,27 @@ private struct LocalSDRBandBar: View, Equatable {
         switch kind {
         case .data: "RTTY/Data"
         case .dataDX: "RTTY/Data DX"
-        case .packet: String(localized: "localSDR.bandBar.arrl.packet")
-        case .dxWindow: String(localized: "localSDR.bandBar.arrl.dxWindow")
+        case .packet: String(localized: "localSDR.bandBar.arrl.packet", bundle: .module)
+        case .dxWindow: String(localized: "localSDR.bandBar.arrl.dxWindow", bundle: .module)
         case .qrpCW: "QRP CW"
         case .qrpSSB: "QRP SSB"
         case .sstv: "SSTV"
-        case .amCalling: String(localized: "localSDR.bandBar.arrl.amCalling")
+        case .amCalling: String(localized: "localSDR.bandBar.arrl.amCalling", bundle: .module)
         case .am: "AM"
-        case .beacons: String(localized: "localSDR.bandBar.arrl.beacons")
+        case .beacons: String(localized: "localSDR.bandBar.arrl.beacons", bundle: .module)
         case .ncdxfBeacons: "NCDXF"
-        case .experimental: String(localized: "localSDR.bandBar.arrl.experimental")
-        case .satellite: String(localized: "localSDR.bandBar.arrl.satellite")
-        case .repeaterInputs: String(localized: "localSDR.bandBar.arrl.repeaterIn")
-        case .repeaterOutputs: String(localized: "localSDR.bandBar.arrl.repeaterOut")
-        case .fmSimplex: String(localized: "localSDR.bandBar.arrl.fmSimplex")
+        case .experimental: String(localized: "localSDR.bandBar.arrl.experimental", bundle: .module)
+        case .satellite: String(localized: "localSDR.bandBar.arrl.satellite", bundle: .module)
+        case .repeaterInputs: String(localized: "localSDR.bandBar.arrl.repeaterIn", bundle: .module)
+        case .repeaterOutputs: String(localized: "localSDR.bandBar.arrl.repeaterOut", bundle: .module)
+        case .fmSimplex: String(localized: "localSDR.bandBar.arrl.fmSimplex", bundle: .module)
         case .ft8: "FT8"
         case .ft4: "FT4"
         case .js8: "JS8"
         case .wspr: "WSPR"
         case .psk31: "PSK31"
         case .dscDistress: "DSC"
-        case .voiceDistress: String(localized: "localSDR.bandBar.gmdss.voice")
+        case .voiceDistress: String(localized: "localSDR.bandBar.gmdss.voice", bundle: .module)
         case .nbdpDistress: "NBDP"
         case .navtex: "NAVTEX"
         case .msi: "MSI"
@@ -662,6 +772,7 @@ private enum LocalSDRWaterfallDragTarget: Equatable {
     case edge(KiwiPassband.Edge)
     case middle
 
+    #if os(macOS)
     var cursor: NSCursor {
         switch self {
         case .pan: .crosshair
@@ -676,8 +787,10 @@ private enum LocalSDRWaterfallDragTarget: Equatable {
         case .edge: .resizeLeftRight
         }
     }
+    #endif
 }
 
+#if os(macOS)
 /// Mouse handling the SwiftUI gestures can't do on macOS (scroll wheel,
 /// a cursor that depends on where the passband is) or can't tell apart
 /// cleanly (a click that may turn into a drag): a press that moves less
@@ -797,3 +910,69 @@ private struct LocalSDRWaterfallMouse: NSViewRepresentable {
         }
     }
 }
+#else
+/// The iPad's touches: a tap tunes; a drag (past 6 pt) holds whatever was
+/// under the finger — the passband's edge, its middle, or else the
+/// waterfall itself (pan) — and reports the distance from the touch-down
+/// and the finger's position, as the Mac's mouse does; a pinch zooms one
+/// step per doubling (or halving).
+private struct LocalSDRWaterfallTouch: View {
+    let target: (CGFloat) -> LocalSDRWaterfallDragTarget
+    let onTap: (CGFloat) -> Void
+    let onDrag: (LocalSDRWaterfallDragTarget, CGFloat, CGFloat) -> Void
+    let onDragEnd: () -> Void
+    let onZoom: (Int) -> Void
+
+    @State private var pressTarget: LocalSDRWaterfallDragTarget?
+    @State private var dragging = false
+    @State private var pinching = false
+    @State private var pinchSteps = 0
+
+    var body: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        guard !pinching else { return }
+                        let held = pressTarget ?? target(value.startLocation.x)
+                        if pressTarget == nil { pressTarget = held }
+                        let dx = value.translation.width
+                        if !dragging, abs(dx) < 6 { return }
+                        dragging = true
+                        onDrag(held, dx, value.location.x)
+                    }
+                    .onEnded { value in
+                        if dragging {
+                            onDragEnd()
+                        } else if !pinching {
+                            onTap(value.location.x)
+                        }
+                        pressTarget = nil
+                        dragging = false
+                    }
+            )
+            .simultaneousGesture(
+                MagnifyGesture()
+                    .onChanged { value in
+                        if !pinching {
+                            pinching = true
+                            // A pinch isn't a pan: undo nothing, just stop
+                            // the drag that started with the first finger.
+                            if dragging { onDragEnd() }
+                            dragging = false
+                        }
+                        let steps = Int(log2(max(value.magnification, 0.01)).rounded())
+                        if steps != pinchSteps {
+                            onZoom(steps - pinchSteps)
+                            pinchSteps = steps
+                        }
+                    }
+                    .onEnded { _ in
+                        pinching = false
+                        pinchSteps = 0
+                    }
+            )
+    }
+}
+#endif

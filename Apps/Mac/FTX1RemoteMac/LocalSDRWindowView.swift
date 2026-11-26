@@ -10,7 +10,7 @@ struct LocalSDRWindowView: View {
     @Environment(\.openWindow) private var openWindow
 
     init(hub: HubService) {
-        _model = StateObject(wrappedValue: LocalSDRModel(hub: hub))
+        _model = StateObject(wrappedValue: LocalSDRModel.mac(hub: hub))
     }
     /// The frequency field's text in kHz, committed on Return.
     @State private var frequencyDraft = ""
@@ -266,18 +266,7 @@ struct LocalSDRWindowView: View {
         }
     }
 
-    static func message(for error: KiwiSDRError) -> String {
-        switch error {
-        case .invalidHost: String(localized: "localSDR.error.invalidHost")
-        case .badPassword: String(localized: "localSDR.error.badPassword")
-        case .busy: String(localized: "localSDR.error.busy")
-        case .down: String(localized: "localSDR.error.down")
-        case .redirect(let target): String(localized: "localSDR.error.redirect \(target)")
-        case .refused(let code): String(localized: "localSDR.error.refused \(code)")
-        case .unreachable(let reason): String(localized: "localSDR.error.unreachable \(reason)")
-        case .noResponse: String(localized: "localSDR.error.noResponse")
-        }
-    }
+    static func message(for error: KiwiSDRError) -> String { error.localizedMessage }
 }
 
 /// AGC, noise blanker and noise filter, collapsed by default. Each row is

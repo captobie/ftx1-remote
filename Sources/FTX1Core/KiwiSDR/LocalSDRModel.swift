@@ -1,18 +1,25 @@
 import Combine
 import Foundation
-import FTX1Core
 import os
 
-/// Tools → Local SDR: native audio from the operator's own KiwiSDR over its
-/// sound WebSocket (`KiwiSDRClient`), bypassing the Kiwi's web page (which
-/// the WebSDR window embeds). Its own `ObservableObject`, never state on
-/// `HubService`, so nothing here re-renders the main window; the S-meter
-/// goes to `meter`, observed only by the meter view.
+/// MyKiwiSDR (the Mac's Tools → MyKiwiSDR window, the iPad's SDR pane):
+/// native audio from the operator's own KiwiSDR over its sound WebSocket
+/// (`KiwiSDRClient`), bypassing the Kiwi's web page (which the WebSDR
+/// window embeds). Its own `ObservableObject`, never state on `HubService`
+/// or the iPad's view models, so nothing here re-renders the main screen;
+/// the S-meter goes to `meter`, observed only by the meter view.
+///
+/// Shared since 2026-11-26: the rig side is a `LocalSDRRigHost` (the Mac's
+/// `HubService`, the iPad's `RigClientViewModel`/`PiDirectViewModel`), the
+/// decoders a `LocalSDRAudioTap` and recording a `LocalSDRRecordingWriter`
+/// factory — both of the latter Mac-only today (nil = not offered).
+/// Settings go through `SettingsStore.defaults` (`.standard` outside the
+/// iPad's Demo Mode), under the same `localSDR.*` keys as before.
 ///
 /// Explicit connect only: the window opens disconnected, and Disconnect or
 /// closing the window closes the socket (the Kiwi frees the channel).
-/// Playback goes through an `AudioPlaybackEngine` on Settings → Audio's
-/// output device, resampled from the rate the Kiwi reports (~11998.9 Hz,
+/// Playback goes through an `AudioPlaybackEngine` (on the Mac, Settings →
+/// Audio's output device, set by `configurePlayback`), resampled from the rate the Kiwi reports (~11998.9 Hz,
 /// not 12000), squelch off.
 ///
 /// The waterfall (phase 2) is a second stream, `KiwiWaterfallClient`,
@@ -25,21 +32,23 @@ import os
 ///
 /// Rig link (phase 3), the WebSDR window's rules on the open socket
 /// (`KiwiRigLink` holds the pure part): Follow tunes the Kiwi to the rig's
-/// MAIN frequency/mode from `hub.$rigState` (removeDuplicates + 400 ms
+/// MAIN frequency/mode from the host's rig state publisher (removeDuplicates + 400 ms
 /// debounce, as `WebSDRFollowModel`) with one "SET mod=… freq=…", no
 /// reconnect; Tune rig sends the window's own tunes to the rig through
-/// `HubService.send(_:)` (at most every 100 ms, the last always going out,
+/// the host's `localSDRSend(_:)` (at most every 100 ms, the last always going out,
 /// so a spun scroll wheel doesn't flood the command queue). Both only
 /// while connected, subscribed on connect and cancelled on disconnect.
 /// Mute on TX silences the playback while `rigState.ptt`; while the Kiwi
 /// is audible the rig's Main playback is muted
-/// (`HubService.setMainAudioOverride(.localSDR, …)`).
+/// (`setLocalSDRAudible(_:)`; the Mac's
+/// `HubService.setMainAudioOverride(.localSDR, …)`).
 ///
 /// Decoders and recording (phase 4): every frame, as decoded and before
-/// the volume/mute, goes to `HubService.localSDRSource` while a CW or
+/// the volume/mute, goes to `audioTap` (the Mac's `HubService.
+/// localSDRSource`) while a CW or
 /// RTTY/PSK window has MyKiwiSDR selected (so a muted Kiwi still
 /// decodes), and to the recording's `SDRAudioFileWriter` while Record is
-/// on — 16-bit mono WAV at the Kiwi's rate, one file per frequency
+/// on (the Mac's writer: 16-bit mono WAV at the Kiwi's rate), one file per frequency
 /// (`KiwiRecordingSplit`: a retune of 500 Hz or more, or a mode change,
 /// that holds for 1 s starts a new file). Disconnect, a dropped connection
 /// and closing the window save the file.
@@ -59,8 +68,9 @@ import os
 ///
 /// Playback queue (phase 5): `KiwiPlayoutAdjuster` keeps it near 250 ms on
 /// the player's copy of the audio only.
-final class LocalSDRModel: ObservableObject {
-    enum State: Equatable {
+@MainActor
+public final class LocalSDRModel: ObservableObject {
+    public enum State: Equatable {
         case disconnected
         case connecting
         case connected(sampleRate: Double)
@@ -68,7 +78,7 @@ final class LocalSDRModel: ObservableObject {
     }
 
     /// The address, set in Settings → Devices ("host" or "host:port").
-    static let hostKey = "localSDR.host"
+    public static let hostKey = "localSDR.host"
 
     private enum Keys {
         static let frequencyHz = "localSDR.frequencyHz"
@@ -107,7 +117,7 @@ final class LocalSDRModel: ObservableObject {
         }
     }
 
-    enum WaterfallState: Equatable {
+    public enum WaterfallState: Equatable {
         case off
         case connecting
         case running
@@ -117,41 +127,46 @@ final class LocalSDRModel: ObservableObject {
     /// The waterfall position asked for (start in x_bin units, zoom).
     /// Rows arrive at it ~150 ms later; until then the view draws the
     /// picture offset to it, so a drag follows the mouse at once.
-    struct WaterfallView: Equatable {
-        var start: Int
-        var zoom: Int
+    public struct WaterfallView: Equatable {
+        public var start: Int
+        public var zoom: Int
+
+        public init(start: Int, zoom: Int) {
+            self.start = start
+            self.zoom = zoom
+        }
     }
 
-    @Published private(set) var state: State = .disconnected {
+    @Published public private(set) var state: State = .disconnected {
         didSet { if state != oldValue { updateMainAudio() } }
     }
     /// "host" or "host:port" (8073 when absent), from Settings → Devices.
     /// Read at each connect, so a change there applies to the next one.
-    static var savedHostPort: String {
-        (UserDefaults.standard.string(forKey: hostKey) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    public static var savedHostPort: String {
+        (SettingsStore.defaults.string(forKey: hostKey) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
     /// Connect's keychain read is running (macOS may be showing its prompt).
-    @Published private(set) var isLoadingPassword = false
-    @Published private(set) var frequencyHz: Int
+    @Published public private(set) var isLoadingPassword = false
+    @Published public private(set) var frequencyHz: Int
     /// Set through `selectMode` (the window) or by Follow.
-    @Published private(set) var mode: KiwiSDRMode
+    @Published public private(set) var mode: KiwiSDRMode
     /// The current mode's passband.
-    @Published private(set) var passband: KiwiPassband
-    @Published var volume: Double {
+    @Published public private(set) var passband: KiwiPassband
+    @Published public var volume: Double {
         didSet {
-            UserDefaults.standard.set(volume, forKey: Keys.volume)
+            SettingsStore.defaults.set(volume, forKey: Keys.volume)
             applyVolume()
         }
     }
-    @Published private(set) var isMuted: Bool
+    @Published public private(set) var isMuted: Bool
     /// AGC, noise blanker and noise filter.
-    @Published private(set) var receiver: KiwiReceiverSettings
+    @Published public private(set) var receiver: KiwiReceiverSettings
 
     /// Rig → Kiwi.
-    @Published var followRig: Bool {
+    @Published public var followRig: Bool {
         didSet {
             guard followRig != oldValue else { return }
-            UserDefaults.standard.set(followRig, forKey: Keys.followRig)
+            SettingsStore.defaults.set(followRig, forKey: Keys.followRig)
             if followRig, let rigTarget {
                 follow(rigTarget)
             } else {
@@ -162,40 +177,40 @@ final class LocalSDRModel: ObservableObject {
     }
     /// With Follow on, the passband follows MAIN's filter. Changed through
     /// `setFollowRigWidth` (the toggle) or by a manual drag.
-    @Published private(set) var followRigWidth: Bool {
-        didSet { UserDefaults.standard.set(followRigWidth, forKey: Keys.followRigWidth) }
+    @Published public private(set) var followRigWidth: Bool {
+        didSet { SettingsStore.defaults.set(followRigWidth, forKey: Keys.followRigWidth) }
     }
     /// Kiwi → rig.
-    @Published var tuneRig: Bool {
+    @Published public var tuneRig: Bool {
         didSet {
             guard tuneRig != oldValue else { return }
-            UserDefaults.standard.set(tuneRig, forKey: Keys.tuneRig)
+            SettingsStore.defaults.set(tuneRig, forKey: Keys.tuneRig)
             if !tuneRig { cancelRigSend(); link.reset(); rigLinkNote = nil }
         }
     }
     /// Silences the playback while the rig transmits; the Mute button and
     /// the rig's own audio are left alone.
-    @Published var muteOnTransmit: Bool {
+    @Published public var muteOnTransmit: Bool {
         didSet {
-            UserDefaults.standard.set(muteOnTransmit, forKey: Keys.muteOnTransmit)
+            SettingsStore.defaults.set(muteOnTransmit, forKey: Keys.muteOnTransmit)
             applyVolume()
         }
     }
     /// The last refusal or "not following" reason, for the rig-link line.
-    @Published private(set) var rigLinkNote: String?
+    @Published public private(set) var rigLinkNote: String?
 
-    @Published private(set) var isRecording = false
+    @Published public private(set) var isRecording = false
     /// When the current file started (the Stop button's timer).
-    @Published private(set) var segmentStartedAt: Date?
+    @Published public private(set) var segmentStartedAt: Date?
     /// "Saved …" after a file is finished, for the status line.
-    @Published private(set) var recordingNote: String?
+    @Published public private(set) var recordingNote: String?
 
-    let meter = LocalSDRMeterStore()
-    let waterfall = LocalSDRWaterfallStore()
+    public let meter = LocalSDRMeterStore()
+    public let waterfall = LocalSDRWaterfallStore()
 
-    @Published private(set) var waterfallState: WaterfallState = .off
+    @Published public private(set) var waterfallState: WaterfallState = .off
     /// nil until the waterfall stream is set up.
-    @Published private(set) var waterfallView: WaterfallView?
+    @Published public private(set) var waterfallView: WaterfallView?
     /// Remembered across sessions (default 8 = ~117 kHz).
     private var preferredZoom: Int
 
@@ -215,9 +230,13 @@ final class LocalSDRModel: ObservableObject {
     private var sessionTimestamp = Date()
     private var lastViewSend = ContinuousClock.now - .seconds(1)
     private var trailingViewSend: Task<Void, Never>?
-    private let logger = Logger(subsystem: "com.ftx1remote.mac", category: "kiwisdr")
+    private let logger: Logger
+    private let logSubsystem: String
+    private let configurePlayback: ((AudioPlaybackEngine) -> Void)?
+    private let makeRecordingWriter: LocalSDRRecordingWriterFactory?
 
-    private weak var hub: HubService?
+    private weak var rigHost: LocalSDRRigHost?
+    private weak var audioTap: LocalSDRAudioTap?
     private var link = KiwiRigLink()
     private var rigCancellables: Set<AnyCancellable> = []
     /// The rig's last (debounced) MAIN frequency/mode.
@@ -232,20 +251,30 @@ final class LocalSDRModel: ObservableObject {
 
     private var playoutMonitor = KiwiPlayoutMonitor()
     private var playoutAdjuster: KiwiPlayoutAdjuster?
-    private var recorder: SDRAudioFileWriter?
+    private var recorder: LocalSDRRecordingWriter?
     private var recordingSplit: KiwiRecordingSplit?
     private var splitCheck: Task<Void, Never>?
     private var audioSampleRate: Double?
 
-    static let frequencyRange = 10_000...30_000_000
+    public static let frequencyRange = 10_000...30_000_000
     private static let rigSendInterval = Duration.milliseconds(100)
     private static let retuneInterval = Duration.milliseconds(50)
     /// How far ahead the playback queue is kept (`KiwiPlayoutAdjuster`).
     private static let playoutTargetSeconds = 0.25
 
-    init(hub: HubService?) {
-        self.hub = hub
-        let defaults = UserDefaults.standard
+    /// `logSubsystem` is the app's ("com.ftx1remote.mac", "…ipad"); the
+    /// category is "kiwisdr". `configurePlayback` runs on each new player
+    /// before it starts (the Mac picks its output device there).
+    public init(rigHost: LocalSDRRigHost?, audioTap: LocalSDRAudioTap? = nil, logSubsystem: String,
+                configurePlayback: ((AudioPlaybackEngine) -> Void)? = nil,
+                makeRecordingWriter: LocalSDRRecordingWriterFactory? = nil) {
+        self.rigHost = rigHost
+        self.audioTap = audioTap
+        self.logSubsystem = logSubsystem
+        logger = Logger(subsystem: logSubsystem, category: "kiwisdr")
+        self.configurePlayback = configurePlayback
+        self.makeRecordingWriter = makeRecordingWriter
+        let defaults = SettingsStore.defaults
         let savedFrequency = defaults.integer(forKey: Keys.frequencyHz)
         frequencyHz = Self.frequencyRange.contains(savedFrequency) ? savedFrequency : 14_074_000
         let savedMode = defaults.string(forKey: Keys.mode).flatMap(KiwiSDRMode.init(rawValue:)) ?? .usb
@@ -261,14 +290,14 @@ final class LocalSDRModel: ObservableObject {
         muteOnTransmit = defaults.object(forKey: Keys.muteOnTransmit) as? Bool ?? true
     }
 
-    var isConnected: Bool {
+    public var isConnected: Bool {
         switch state {
         case .connecting, .connected: true
         case .disconnected, .failed: false
         }
     }
 
-    static func isValidHost(_ hostPort: String) -> Bool {
+    public static func isValidHost(_ hostPort: String) -> Bool {
         KiwiProtocol.soundURL(hostPort: hostPort.trimmingCharacters(in: .whitespacesAndNewlines)) != nil
     }
 
@@ -276,7 +305,7 @@ final class LocalSDRModel: ObservableObject {
 
     /// Reads the password (Settings → Devices) off the main actor, then
     /// connects to the saved address.
-    func connect() {
+    public func connect() {
         guard !isLoadingPassword else { return }
         closeSession()
         let hostPort = Self.savedHostPort
@@ -286,8 +315,9 @@ final class LocalSDRModel: ObservableObject {
         }
         state = .disconnected
         isLoadingPassword = true
+        let subsystem = logSubsystem
         passwordTask = Task { [weak self] in
-            let password = await Task.detached { LocalSDRPassword.read() }.value
+            let password = await Task.detached { LocalSDRPassword.read(logSubsystem: subsystem) }.value
             guard let self, !Task.isCancelled else { return }
             isLoadingPassword = false
             passwordTask = nil
@@ -297,8 +327,8 @@ final class LocalSDRModel: ObservableObject {
 
     private func startSession(hostPort: String, password: String) {
         // Start where the rig is, so the first tune is already right.
-        if followRig, let hub {
-            let rig = RigTarget(hub.rigState)
+        if followRig, let rigHost {
+            let rig = RigTarget(rigHost.localSDRRigState)
             rigTarget = rig
             if case let .tune(hz, kiwiMode) = link.follow(
                 rigFrequencyHz: rig.frequencyHz, rigMode: rig.mode, kiwiFrequencyHz: frequencyHz, kiwiMode: mode,
@@ -312,7 +342,7 @@ final class LocalSDRModel: ObservableObject {
         let client = KiwiSDRClient(hostPort: hostPort, password: password, identUser: "FTX1Remote",
                                    compression: false, tuning: currentTuning, receiver: receiver,
                                    timestamp: sessionTimestamp,
-                                   logSubsystem: "com.ftx1remote.mac")
+                                   logSubsystem: logSubsystem)
         self.client = client
         connectedHost = hostPort
         passwordInUse = password
@@ -326,7 +356,7 @@ final class LocalSDRModel: ObservableObject {
         }
     }
 
-    func disconnect() {
+    public func disconnect() {
         closeSession()
         state = .disconnected
     }
@@ -357,7 +387,7 @@ final class LocalSDRModel: ObservableObject {
             logger.notice("connected, audio at \(sampleRate, privacy: .public) Hz")
             state = .connected(sampleRate: sampleRate)
             audioSampleRate = sampleRate
-            hub?.localSDRSource.sessionStarted(sampleRate: sampleRate, mode: mode, frequencyHz: frequencyHz)
+            audioTap?.sessionStarted(sampleRate: sampleRate, mode: mode, frequencyHz: frequencyHz)
             startPlayback(sampleRate: sampleRate)
             startWaterfall()
         case .audio(let chunk):
@@ -377,7 +407,7 @@ final class LocalSDRModel: ObservableObject {
             if let recorder, let audioSampleRate {
                 recorder.append(pcm: pcm, sampleRate: audioSampleRate)
             }
-            if let source = hub?.localSDRSource, source.isWanted {
+            if let source = audioTap, source.isWanted {
                 source.deliver(chunk.samples)
             }
             let now = ContinuousClock.now
@@ -405,7 +435,7 @@ final class LocalSDRModel: ObservableObject {
         // and the link may cross Tailscale.
         let engine = AudioPlaybackEngine(squelchEnabled: false, inputSampleRate: sampleRate,
                                          prebufferSeconds: Self.playoutTargetSeconds)
-        engine.setOutputDevice(AudioOutputDeviceLister.deviceID(forUID: AudioOutputSettings.deviceUID))
+        configurePlayback?(engine)
         engine.start()
         playback = engine
         playoutMonitor = KiwiPlayoutMonitor()
@@ -413,8 +443,8 @@ final class LocalSDRModel: ObservableObject {
         #if DEBUG
         // Pass e.g. "-localSDR.playoutTargetOverride 0.20" at launch to make
         // the queue be off target, so the slow corrections can be heard.
-        if UserDefaults.standard.object(forKey: "localSDR.playoutTargetOverride") != nil {
-            target = UserDefaults.standard.double(forKey: "localSDR.playoutTargetOverride")
+        if SettingsStore.defaults.object(forKey: "localSDR.playoutTargetOverride") != nil {
+            target = SettingsStore.defaults.double(forKey: "localSDR.playoutTargetOverride")
         }
         #endif
         playoutAdjuster = KiwiPlayoutAdjuster(sampleRate: sampleRate, targetSeconds: target)
@@ -448,13 +478,13 @@ final class LocalSDRModel: ObservableObject {
     }
 
     /// The Kiwi's reported bandwidth (30 MHz until the waterfall says).
-    var maxFrequencyHz: Int {
+    public var maxFrequencyHz: Int {
         Int(waterfall.geometry.bandwidthHz)
     }
 
     /// A frequency the window tuned to (entry, steppers). Clamped to the
     /// Kiwi's range (from 10 kHz).
-    func setFrequency(_ hz: Int) {
+    public func setFrequency(_ hz: Int) {
         let clamped = min(max(hz, Self.frequencyRange.lowerBound), maxFrequencyHz)
         guard clamped != frequencyHz else { return }
         applyTuning(frequencyHz: clamped, mode: nil)
@@ -462,24 +492,24 @@ final class LocalSDRModel: ObservableObject {
     }
 
     /// The window's mode picker.
-    func selectMode(_ newMode: KiwiSDRMode) {
+    public func selectMode(_ newMode: KiwiSDRMode) {
         guard newMode != mode else { return }
         applyTuning(frequencyHz: nil, mode: newMode)
         windowTuned()
     }
 
-    func step(byHz delta: Int) { setFrequency(frequencyHz + delta) }
+    public func step(byHz delta: Int) { setFrequency(frequencyHz + delta) }
 
     /// A click on the waterfall: the dial goes there, snapped to the
     /// mode's step (the dial is the carrier, or the signal in CW).
-    func tune(toWaterfallHz hz: Double) {
+    public func tune(toWaterfallHz hz: Double) {
         let step = Double(mode.waterfallStepHz)
         setFrequency(Int((hz / step).rounded() * step))
     }
 
     /// One scroll-wheel step up (+1) or down (−1), landing on the step
     /// grid: from an off-grid frequency the first step snaps to it.
-    func scrollStep(_ direction: Int) {
+    public func scrollStep(_ direction: Int) {
         guard direction != 0 else { return }
         let step = mode.waterfallStepHz
         let base = Int((Double(frequencyHz) / Double(step)).rounded(direction > 0 ? .down : .up)) * step
@@ -494,19 +524,19 @@ final class LocalSDRModel: ObservableObject {
         var changed = false
         if let newFrequency, newFrequency != frequencyHz {
             frequencyHz = newFrequency
-            UserDefaults.standard.set(newFrequency, forKey: Keys.frequencyHz)
+            SettingsStore.defaults.set(newFrequency, forKey: Keys.frequencyHz)
             changed = true
         }
         if let newMode, newMode != mode {
             mode = newMode
             passband = rigBand(for: rigTarget, mode: newMode) ?? Self.savedPassband(for: newMode)
-            UserDefaults.standard.set(newMode.rawValue, forKey: Keys.mode)
+            SettingsStore.defaults.set(newMode.rawValue, forKey: Keys.mode)
             changed = true
         }
         guard changed else { return }
         retune()
         keepPassbandVisible()
-        hub?.localSDRSource.modeChanged(mode)
+        audioTap?.modeChanged(mode)
         checkRecordingSplit()
     }
 
@@ -532,7 +562,7 @@ final class LocalSDRModel: ObservableObject {
     private func sendRetune() {
         guard let client else { return }
         lastRetune = .now
-        hub?.localSDRSource.frequencyChanged(frequencyHz)
+        audioTap?.frequencyChanged(frequencyHz)
         let tuning = currentTuning
         Task { await client.tune(tuning) }
     }
@@ -546,7 +576,7 @@ final class LocalSDRModel: ObservableObject {
 
     /// A change from the Receiver section: saved at once, and sent at most
     /// every 100 ms so a dragged slider doesn't flood the socket.
-    func updateReceiver(_ change: (inout KiwiReceiverSettings) -> Void) {
+    public func updateReceiver(_ change: (inout KiwiReceiverSettings) -> Void) {
         var new = receiver
         change(&new)
         new = new.clamped
@@ -570,7 +600,7 @@ final class LocalSDRModel: ObservableObject {
     }
 
     private static func savedReceiver() -> KiwiReceiverSettings {
-        let defaults = UserDefaults.standard
+        let defaults = SettingsStore.defaults
         var settings = KiwiReceiverSettings()
         if let value = defaults.object(forKey: Keys.agc) as? Bool { settings.agc = value }
         if let value = defaults.object(forKey: Keys.manualGain) as? Int { settings.manualGain = value }
@@ -591,7 +621,7 @@ final class LocalSDRModel: ObservableObject {
     }
 
     private static func saveReceiver(_ settings: KiwiReceiverSettings) {
-        let defaults = UserDefaults.standard
+        let defaults = SettingsStore.defaults
         defaults.set(settings.agc, forKey: Keys.agc)
         defaults.set(settings.manualGain, forKey: Keys.manualGain)
         defaults.set(settings.threshold, forKey: Keys.threshold)
@@ -607,22 +637,22 @@ final class LocalSDRModel: ObservableObject {
 
     // MARK: - Passband
 
-    var isPassbandDefault: Bool { passband == KiwiPassband(defaultFor: mode) }
+    public var isPassbandDefault: Bool { passband == KiwiPassband(defaultFor: mode) }
 
     /// A drag of one edge on the waterfall; `hz` is where the mouse is.
-    func dragPassbandEdge(_ edge: KiwiPassband.Edge, toWaterfallHz hz: Double) {
+    public func dragPassbandEdge(_ edge: KiwiPassband.Edge, toWaterfallHz hz: Double) {
         if followRigWidth { followRigWidth = false }
         setPassband(passband.dragging(edge, toOffsetHz: hz - Double(frequencyHz), mode: mode))
     }
 
-    func resetPassband() {
+    public func resetPassband() {
         if followRigWidth { followRigWidth = false }
         setPassband(KiwiPassband(defaultFor: mode))
         keepPassbandVisible()
     }
 
     /// The Follow width toggle.
-    func setFollowRigWidth(_ on: Bool) {
+    public func setFollowRigWidth(_ on: Bool) {
         guard on != followRigWidth else { return }
         followRigWidth = on
         if on, let rigTarget {
@@ -661,20 +691,20 @@ final class LocalSDRModel: ObservableObject {
     private func setPassband(_ newPassband: KiwiPassband) {
         guard newPassband != passband else { return }
         passband = newPassband
-        UserDefaults.standard.set([newPassband.low, newPassband.high], forKey: Keys.passband(mode))
+        SettingsStore.defaults.set([newPassband.low, newPassband.high], forKey: Keys.passband(mode))
         retune()
     }
 
     private static func savedPassband(for mode: KiwiSDRMode) -> KiwiPassband {
-        guard let saved = UserDefaults.standard.array(forKey: Keys.passband(mode)) as? [Int], saved.count == 2
+        guard let saved = SettingsStore.defaults.array(forKey: Keys.passband(mode)) as? [Int], saved.count == 2
         else { return KiwiPassband(defaultFor: mode) }
         let band = KiwiPassband(low: saved[0], high: saved[1])
         return band.isValid(for: mode) ? band : KiwiPassband(defaultFor: mode)
     }
 
-    func toggleMuted() {
+    public func toggleMuted() {
         isMuted.toggle()
-        UserDefaults.standard.set(isMuted, forKey: Keys.muted)
+        SettingsStore.defaults.set(isMuted, forKey: Keys.muted)
         applyVolume()
     }
 
@@ -689,20 +719,23 @@ final class LocalSDRModel: ObservableObject {
     /// While the Kiwi is audible (connected, not muted here), the rig's Main
     /// Mac playback is muted, and given back once it isn't.
     private func updateMainAudio() {
-        guard let hub else { return }
+        guard let rigHost else { return }
         var audible = false
         if case .connected = state { audible = !isMuted }
-        hub.setMainAudioOverride(.localSDR, active: audible)
+        rigHost.setLocalSDRAudible(audible)
     }
 
     // MARK: - Recording
 
+    /// Whether this app records (a writer factory was given).
+    public var canRecord: Bool { makeRecordingWriter != nil }
+
     /// Record while connected; Stop saves the file.
-    func toggleRecording() {
+    public func toggleRecording() {
         if isRecording {
             stopRecording()
         } else {
-            guard case .connected = state else { return }
+            guard canRecord, case .connected = state else { return }
             isRecording = true
             recordingNote = nil
             beginFile()
@@ -715,17 +748,9 @@ final class LocalSDRModel: ObservableObject {
 
     private func beginFile() {
         recordingSplit = KiwiRecordingSplit(fileTuning: splitTuning)
-        let label = "\(AudioRecorder.label(frequencyHz: frequencyHz, modeName: mode.label)) MyKiwiSDR"
         let date = Date()
-        var url = AudioRecorder.newRecordingURL(label: label, date: date)
-        var n = 2
-        while FileManager.default.fileExists(atPath: url.path) {
-            url = AudioRecorder.newRecordingURL(label: "\(label) \(n)", date: date)
-            n += 1
-        }
-        recorder = SDRAudioFileWriter(url: url)
+        recorder = makeRecordingWriter?(frequencyHz, mode, date)
         segmentStartedAt = date
-        logger.notice("recording to \(url.lastPathComponent, privacy: .public)")
     }
 
     /// Closes the current file once everything handed over is written.
@@ -737,7 +762,7 @@ final class LocalSDRModel: ObservableObject {
             guard let self else { return }
             if let url {
                 logger.notice("saved \(url.lastPathComponent, privacy: .public)")
-                recordingNote = String(localized: "localSDR.recording.saved \(url.deletingPathExtension().lastPathComponent)")
+                recordingNote = String(localized: "localSDR.recording.saved \(url.deletingPathExtension().lastPathComponent)", bundle: .module)
             }
         }
     }
@@ -779,7 +804,7 @@ final class LocalSDRModel: ObservableObject {
     private func endAudioSession() {
         stopRecording()
         audioSampleRate = nil
-        hub?.localSDRSource.sessionEnded()
+        audioTap?.sessionEnded()
     }
 
     // MARK: - Rig link
@@ -801,8 +826,9 @@ final class LocalSDRModel: ObservableObject {
 
     private func subscribeToRig() {
         rigCancellables.removeAll()
-        guard let hub else { return }
-        hub.$rigState
+        guard let rigHost else { return }
+        let rigState = rigHost.localSDRRigStatePublisher
+        rigState
             .map { RigTarget($0) }
             .removeDuplicates()
             .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
@@ -814,7 +840,7 @@ final class LocalSDRModel: ObservableObject {
             .store(in: &rigCancellables)
         // Not debounced: the playback should go quiet as soon as the rig is
         // seen transmitting.
-        hub.$rigState
+        rigState
             .map(\.ptt)
             .removeDuplicates()
             .sink { [weak self] ptt in
@@ -838,7 +864,7 @@ final class LocalSDRModel: ObservableObject {
             if rigLinkNote != nil { rigLinkNote = nil }
             applyRigWidth(target)
         case .outOfRange(let hz):
-            rigLinkNote = String(localized: "localSDR.rigLink.outOfRange \(FrequencyFormat.mhz(hz, fractionDigits: 3)) \(FrequencyFormat.mhz(maxFrequencyHz, fractionDigits: 0))")
+            rigLinkNote = String(localized: "localSDR.rigLink.outOfRange \(FrequencyFormat.mhz(hz, fractionDigits: 3)) \(FrequencyFormat.mhz(maxFrequencyHz, fractionDigits: 0))", bundle: .module)
         case .waitingForRig:
             logger.debug("rig link: ignored rig \(target.frequencyHz) Hz while it catches up")
         case .noRigFrequency:
@@ -847,9 +873,9 @@ final class LocalSDRModel: ObservableObject {
     }
 
     private var rigSnapshot: KiwiRigSnapshot? {
-        guard let hub else { return nil }
-        let rig = hub.rigState
-        return KiwiRigSnapshot(connected: hub.connectionState == .connected, transmitting: rig.ptt,
+        guard let rigHost else { return nil }
+        let rig = rigHost.localSDRRigState
+        return KiwiRigSnapshot(connected: rigHost.localSDRRigConnected, transmitting: rig.ptt,
                                memoryMode: rig.vfoMemoryMode == .memory, frequencyHz: rig.frequencyHz,
                                mode: rig.mode)
     }
@@ -873,12 +899,12 @@ final class LocalSDRModel: ObservableObject {
     private func noteRefusal(_ refusal: KiwiRigLink.Refusal) {
         let time = Date().formatted(date: .omitted, time: .standard)
         let reason = switch refusal {
-        case .rigDisconnected: String(localized: "localSDR.rigLink.refused.disconnected")
-        case .noRigFrequency: String(localized: "localSDR.rigLink.refused.noFrequency")
-        case .transmitting: String(localized: "localSDR.rigLink.refused.transmitting")
-        case .memoryMode: String(localized: "localSDR.rigLink.refused.memory")
+        case .rigDisconnected: String(localized: "localSDR.rigLink.refused.disconnected", bundle: .module)
+        case .noRigFrequency: String(localized: "localSDR.rigLink.refused.noFrequency", bundle: .module)
+        case .transmitting: String(localized: "localSDR.rigLink.refused.transmitting", bundle: .module)
+        case .memoryMode: String(localized: "localSDR.rigLink.refused.memory", bundle: .module)
         }
-        rigLinkNote = String(localized: "localSDR.rigLink.refused \(reason) \(time)")
+        rigLinkNote = String(localized: "localSDR.rigLink.refused \(reason) \(time)", bundle: .module)
     }
 
     /// At most one rig tune every 100 ms, the last always going out.
@@ -902,7 +928,7 @@ final class LocalSDRModel: ObservableObject {
         let hz = queuedRigFrequency, rigMode = queuedRigMode
         queuedRigFrequency = nil
         queuedRigMode = nil
-        guard hz != nil || rigMode != nil, let hub, let rig = rigSnapshot else { return }
+        guard hz != nil || rigMode != nil, let rigHost, let rig = rigSnapshot else { return }
         // The rig may have started transmitting (etc.) since the tune.
         if let refusal = KiwiRigLink.refusal(for: rig) {
             link.reset()
@@ -912,8 +938,8 @@ final class LocalSDRModel: ObservableObject {
         lastRigSend = .now
         logger.debug("rig link: Kiwi → rig \(hz ?? 0) Hz \(rigMode?.rawValue ?? "-", privacy: .public)")
         if rigLinkNote != nil { rigLinkNote = nil }
-        if let hz { hub.send(.setFrequency(hz: hz)) }
-        if let rigMode { hub.send(.setMode(rigMode)) }
+        if let hz { rigHost.localSDRSend(.setFrequency(hz: hz)) }
+        if let rigMode { rigHost.localSDRSend(.setMode(rigMode)) }
     }
 
     private func cancelRigSend() {
@@ -935,12 +961,12 @@ final class LocalSDRModel: ObservableObject {
         }
     }
 
-    var connectedHostPort: String { connectedHost }
+    public var connectedHostPort: String { connectedHost }
 
     // MARK: - Waterfall
 
     /// The demodulated passband in absolute Hz.
-    var passbandHz: (low: Double, high: Double) {
+    public var passbandHz: (low: Double, high: Double) {
         let tuning = currentTuning
         let carrier = Double(tuning.carrierHz)
         return (carrier + Double(tuning.lowCut), carrier + Double(tuning.highCut))
@@ -951,13 +977,13 @@ final class LocalSDRModel: ObservableObject {
         return (band.low + band.high) / 2
     }
 
-    var canZoomIn: Bool { (waterfallView?.zoom ?? Int.max) < waterfall.geometry.zoomMax }
-    var canZoomOut: Bool { (waterfallView?.zoom ?? 0) > 0 }
+    public var canZoomIn: Bool { (waterfallView?.zoom ?? Int.max) < waterfall.geometry.zoomMax }
+    public var canZoomOut: Bool { (waterfallView?.zoom ?? 0) > 0 }
 
     private func startWaterfall() {
         stopWaterfall()
         let client = KiwiWaterfallClient(hostPort: connectedHost, password: passwordInUse, identUser: "FTX1Remote",
-                                         timestamp: sessionTimestamp, logSubsystem: "com.ftx1remote.mac")
+                                         timestamp: sessionTimestamp, logSubsystem: logSubsystem)
         waterfallClient = client
         waterfallState = .connecting
         waterfall.reset()
@@ -1016,7 +1042,7 @@ final class LocalSDRModel: ObservableObject {
 
     /// Zooms one step, centred on the passband (the Kiwi page's rule),
     /// or on the middle of the span when the passband is out of view.
-    func zoom(by delta: Int) {
+    public func zoom(by delta: Int) {
         guard let view = waterfallView else { return }
         let geometry = waterfall.geometry
         let zoom = geometry.clampZoom(view.zoom + delta)
@@ -1028,12 +1054,12 @@ final class LocalSDRModel: ObservableObject {
             ? passbandCentreHz
             : geometry.hz(column: Double(geometry.fftSize) / 2, start: view.start, zoom: view.zoom)
         preferredZoom = zoom
-        UserDefaults.standard.set(zoom, forKey: Keys.waterfallZoom)
+        SettingsStore.defaults.set(zoom, forKey: Keys.waterfallZoom)
         requestView(WaterfallView(start: geometry.start(centredOn: centre, zoom: zoom), zoom: zoom))
     }
 
     /// A drag: the new left edge (clamped to the band and a whole bin).
-    func pan(toStart start: Int) {
+    public func pan(toStart start: Int) {
         guard let view = waterfallView else { return }
         let clamped = waterfall.geometry.clampStart(start, zoom: view.zoom)
         guard clamped != view.start else { return }
@@ -1070,7 +1096,7 @@ final class LocalSDRModel: ObservableObject {
 
 extension KiwiSDRMode {
     /// The waterfall's click snap and scroll step.
-    var waterfallStepHz: Int {
+    public var waterfallStepHz: Int {
         switch self {
         case .cw: 10
         case .usb, .lsb: 100
@@ -1081,18 +1107,79 @@ extension KiwiSDRMode {
 }
 
 /// The S-meter, ~10 updates a second while connected — observed only by
-/// `LocalSDRMeterView`.
-final class LocalSDRMeterStore: ObservableObject {
-    @Published private(set) var dBm: Double?
-    @Published private(set) var overload = false
+/// the meter view.
+@MainActor
+public final class LocalSDRMeterStore: ObservableObject {
+    @Published public private(set) var dBm: Double?
+    @Published public private(set) var overload = false
 
-    func update(dBm: Double, overload: Bool) {
+    public init() {}
+
+    public func update(dBm: Double, overload: Bool) {
         self.dBm = dBm
         if self.overload != overload { self.overload = overload }
     }
 
-    func reset() {
+    public func reset() {
         dBm = nil
         overload = false
+    }
+}
+
+
+// MARK: - What the model talks to
+
+/// The rig side of MyKiwiSDR: Follow, Tune rig, Mute on TX and the rig's
+/// own Main audio while the Kiwi is audible.
+@MainActor
+public protocol LocalSDRRigHost: AnyObject {
+    var localSDRRigState: RigState { get }
+    /// Every rig state change (the model removes duplicates and debounces).
+    var localSDRRigStatePublisher: AnyPublisher<RigState, Never> { get }
+    /// The rig answers (Tune rig is refused otherwise).
+    var localSDRRigConnected: Bool { get }
+    func localSDRSend(_ command: RigCommand)
+    /// The Kiwi is (or no longer is) audible: mute (or give back) the rig's
+    /// Main playback.
+    func setLocalSDRAudible(_ audible: Bool)
+}
+
+/// Where decoders take the Kiwi's audio from (the Mac's
+/// `LocalSDRAudioSource`). Every frame goes here before the volume/mute.
+@MainActor
+public protocol LocalSDRAudioTap: AnyObject {
+    /// Whether anything listens; frames are delivered only then.
+    var isWanted: Bool { get }
+    func sessionStarted(sampleRate: Double, mode: KiwiSDRMode, frequencyHz: Int)
+    func frequencyChanged(_ hz: Int)
+    func modeChanged(_ kiwiMode: KiwiSDRMode)
+    func sessionEnded()
+    func deliver(_ pcm: [Int16])
+}
+
+/// One recording file (the Mac's `SDRAudioFileWriter`).
+public protocol LocalSDRRecordingWriter: AnyObject, Sendable {
+    func append(pcm: Data, sampleRate: Double)
+    /// Closes the file once everything handed over is written.
+    func finish() async -> URL?
+}
+
+/// Makes the next file for a recording at this tuning, started at `date`.
+public typealias LocalSDRRecordingWriterFactory =
+    @MainActor (_ frequencyHz: Int, _ mode: KiwiSDRMode, _ date: Date) -> LocalSDRRecordingWriter?
+
+extension KiwiSDRError {
+    /// For the status line and the waterfall's placeholder.
+    public var localizedMessage: String {
+        switch self {
+        case .invalidHost: String(localized: "localSDR.error.invalidHost", bundle: .module)
+        case .badPassword: String(localized: "localSDR.error.badPassword", bundle: .module)
+        case .busy: String(localized: "localSDR.error.busy", bundle: .module)
+        case .down: String(localized: "localSDR.error.down", bundle: .module)
+        case .redirect(let target): String(localized: "localSDR.error.redirect \(target)", bundle: .module)
+        case .refused(let code): String(localized: "localSDR.error.refused \(code)", bundle: .module)
+        case .unreachable(let reason): String(localized: "localSDR.error.unreachable \(reason)", bundle: .module)
+        case .noResponse: String(localized: "localSDR.error.noResponse", bundle: .module)
+        }
     }
 }
