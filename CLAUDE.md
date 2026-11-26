@@ -3237,7 +3237,7 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   `LocalSDRPassword` (`FTX1Core/KiwiSDR/`), `LocalSDRWaterfallView`
   (`FTX1Core/UI/`, Mac mouse/NSView and an iOS UIView + tap/drag/pinch
   layer) and `WaterfallPalette` (`FTX1Core/Audio/`) moved into the
-  package. The model talks to a `LocalSDRRigHost` (`HubService` on the
+  package. The model talks to a `SDRRigHost` (`HubService` on the
   Mac), an optional `LocalSDRAudioTap` (decoders) and an optional
   recording-writer factory; `LocalSDRModel.mac(hub:)`
   (`LocalSDRModel+Mac.swift`) wires the Mac's. Settings go through
@@ -3257,8 +3257,8 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   password in the pane's header while disconnected (`localSDR.host`, the
   same keychain item name as the Mac's). The app owns one model per route
   (`SDRModels`); `RigClientViewModel`/`PiDirectViewModel` are
-  `LocalSDRRigHost`s (`LocalSDRRigHosts.swift`) and mute MAIN while the
-  Kiwi is audible (`setLocalSDRAudible`, unsaved, undone unless the
+  `SDRRigHost`s (`SDRRigHosts.swift`) and mute MAIN while the
+  Kiwi is audible (`setSDRAudible`, unsaved, undone unless the
   operator pressed Mute meanwhile). The Receiver controls are shared
   (`LocalSDRReceiverControls`, `FTX1Core/UI/`). No recording or decoder
   feed on the iPad. Top row: Connected and PTT keep their width; the rig
@@ -3280,6 +3280,28 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   narrow column, and `FilterSpectrumStore` is turned on per panel
   (`setActive(_:holder:)`) — the old panel's "off" arriving after the new
   one's "on" left the split's display without a spectrum.
+- **iPad WebSDR page (phase 4, 2026-11-26; Pi direct tested in the iPad
+  Simulator: the user's own Kiwi's web page loaded and followed the rig
+  with MAIN muted, the Stations list, the keyboard in portrait split, and
+  closing the pane freeing the Kiwi's slot; the Mac window build-checked
+  only, websdr.org tab and OpenWebRX not tried on the iPad)**: the SDR
+  pane's header picks MyKiwiSDR or WebSDR (`ipad.sdrSource`; switching
+  disconnects the one left). `WebSDRPaneContent` (`Apps/iPad/
+  WebSDRPane.swift`) is the Mac window on the same model: host field,
+  Stations sheet, favorites, Follow / Tune rig / Mute on TX, Mute, the
+  page. No Record/Play and no decoding on the iPad. The WebSDR window's
+  code moved to `FTX1Core/WebSDR/` (model, page bridge, URL builders,
+  directory, favorites, station sheets, `KiwiWebView` and
+  `WebSDROrgBrowserView` — NSView/UIViewRepresentable by platform,
+  `openExternally` for links). The model takes an `SDRRigHost` (renamed
+  from `LocalSDRRigHost`; `setSDRAudible(_:source:)`, a holder per SDR
+  on every host), an optional `WebSDRAudioRouting` (the Mac's decoder
+  capture; moved to FTX1Core) and a `recordingsDirectory` (nil = no
+  Record); file names are `RecordingNames` (`AudioRecorder` forwards).
+  The Kiwi directory is a `List` on iOS (a sheet is horizontally compact,
+  where `Table` shows one column), and the Mac-only `minWidth` frames are
+  `#if os(macOS)`. The split screen now ignores the keyboard — it was
+  turning portrait into landscape under the focused field.
 - **Later, not started**: Sub following. (FT8/FT4 from MyKiwiSDR:
   see "Digital modes — FT8".)
 

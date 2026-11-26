@@ -18,21 +18,24 @@ import os
 /// polled in the background. Conditional GET (`If-None-Match`), and a
 /// User-Agent naming the app. The raw file is cached in Application
 /// Support, so the list shows instantly and survives the mirror being down.
-final class KiwiSDRDirectory: ObservableObject {
-    enum LoadState: Equatable {
+@MainActor
+public final class KiwiSDRDirectory: ObservableObject {
+    public init() {}
+
+    public enum LoadState: Equatable {
         case idle
         case loading
         case failed(String)
     }
 
-    static let sourceURL = URL(string: "http://rx.linkfanel.net/kiwisdr_com.js")!
-    static let staleAfter: TimeInterval = 30 * 60
+    public static let sourceURL = URL(string: "http://rx.linkfanel.net/kiwisdr_com.js")!
+    public static let staleAfter: TimeInterval = 30 * 60
 
-    @Published private(set) var stations: [KiwiSDRStation] = []
-    @Published private(set) var state: LoadState = .idle
+    @Published public private(set) var stations: [KiwiSDRStation] = []
+    @Published public private(set) var state: LoadState = .idle
     /// When the list on screen was last fetched from the mirror (or the
     /// cache file's date, when shown from cache).
-    @Published private(set) var fetchedAt: Date?
+    @Published public private(set) var fetchedAt: Date?
 
     private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "kiwisdr-directory")
 
@@ -47,7 +50,7 @@ final class KiwiSDRDirectory: ObservableObject {
 
     /// Called when the sheet opens: shows the cached list immediately, then
     /// fetches only if it's stale (or there's no cache).
-    func loadIfNeeded() {
+    public func loadIfNeeded() {
         if stations.isEmpty, let cacheDate = cacheModificationDate() {
             // Cache parse is async, so decide freshness from the file date
             // now; a fresh cache that fails to parse falls back to a fetch.
@@ -60,7 +63,7 @@ final class KiwiSDRDirectory: ObservableObject {
         refresh()
     }
 
-    func refresh() {
+    public func refresh() {
         guard state != .loading else { return }
         state = .loading
         Task { await fetch() }
@@ -119,8 +122,8 @@ final class KiwiSDRDirectory: ObservableObject {
         } catch {
             Self.logger.error("fetch failed: \(error.localizedDescription, privacy: .public)")
             state = .failed(stations.isEmpty
-                ? String(localized: "kiwiSDRDirectory.couldntLoadTheStation \(error.localizedDescription)")
-                : String(localized: "kiwiSDRDirectory.couldntRefreshShowingThe \(error.localizedDescription)"))
+                ? String(localized: "kiwiSDRDirectory.couldntLoadTheStation \(error.localizedDescription)", bundle: .module)
+                : String(localized: "kiwiSDRDirectory.couldntRefreshShowingThe \(error.localizedDescription)", bundle: .module))
         }
     }
 
@@ -135,7 +138,7 @@ final class KiwiSDRDirectory: ObservableObject {
 
     /// `var kiwisdr_com = [ {…}, {…}, ];` → stations. Strips everything
     /// outside the outer array and the trailing comma JSON doesn't allow.
-    nonisolated static func parse(_ data: Data) -> [KiwiSDRStation]? {
+    public nonisolated static func parse(_ data: Data) -> [KiwiSDRStation]? {
         guard let text = String(data: data, encoding: .utf8),
               let start = text.firstIndex(of: "["),
               let end = text.lastIndex(of: "]"), start < end

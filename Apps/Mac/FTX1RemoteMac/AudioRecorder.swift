@@ -119,24 +119,16 @@ final class AudioRecorder {
     /// recordings saved by the WebSDR window, whose label ends in "KiwiSDR"
     /// or "WebSDR").
     static func newRecordingURL(label: String, date: Date) -> URL {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
-        let sanitizedLabel = label.replacingOccurrences(of: "/", with: "-")
-        let base = sanitizedLabel.isEmpty
-            ? "Recording \(formatter.string(from: date))"
-            : "Recording \(formatter.string(from: date)) \(sanitizedLabel)"
-        return recordingsDirectory.appendingPathComponent(base).appendingPathExtension("wav")
+        RecordingNames.url(label: label, date: date, in: recordingsDirectory)
     }
 
-    /// "147.380.000 FM" — dot-grouped like `VFODisplayBox.formattedFrequency`,
-    /// so a file name reads the way the rig's own display does.
+    /// "147.380.000 FM" (`RecordingNames.label`).
     static func label(frequencyHz: Int, mode: RigMode) -> String {
-        label(frequencyHz: frequencyHz, modeName: mode.displayName)
+        RecordingNames.label(frequencyHz: frequencyHz, mode: mode)
     }
 
     static func label(frequencyHz: Int, modeName: String) -> String {
-        let frequency = FrequencyFormat.dotted(frequencyHz)
-        return modeName.isEmpty ? frequency : "\(frequency) \(modeName)"
+        RecordingNames.label(frequencyHz: frequencyHz, modeName: modeName)
     }
 
     /// Reads `recordingsDirectory` fresh each call — recordings are only

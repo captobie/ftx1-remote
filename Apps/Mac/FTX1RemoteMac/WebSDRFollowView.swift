@@ -1,3 +1,4 @@
+import FTX1Core
 import SwiftUI
 
 /// The Tools menu's "WebSDR" item opens this in its own window
@@ -17,7 +18,8 @@ struct WebSDRFollowView: View {
     @Environment(\.openWindow) private var openWindow
 
     init(hub: HubService) {
-        let model = WebSDRFollowModel(hub: hub)
+        let model = WebSDRFollowModel(rigHost: hub, audioRouting: hub.webSDRAudioRouting,
+                                      recordingsDirectory: AudioRecorder.recordingsDirectory)
         _model = StateObject(wrappedValue: model)
         _hostDraft = State(initialValue: model.hostPort)
     }

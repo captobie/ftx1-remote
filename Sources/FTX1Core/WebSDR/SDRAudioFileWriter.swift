@@ -12,8 +12,8 @@ import os
 /// serial queue, so the WebKit message callback on the main actor only
 /// decodes and hands off. The file is created on the first chunk, since
 /// only the page knows its rate.
-nonisolated final class SDRAudioFileWriter: @unchecked Sendable {
-    let url: URL
+public nonisolated final class SDRAudioFileWriter: @unchecked Sendable {
+    public let url: URL
     private let queue = DispatchQueue(label: "com.ftx1remote.sdr-audio-writer")
     // Only touched on `queue`.
     private var file: AVAudioFile?
@@ -22,12 +22,12 @@ nonisolated final class SDRAudioFileWriter: @unchecked Sendable {
 
     private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "websdr-recording")
 
-    init(url: URL) {
+    public init(url: URL) {
         self.url = url
     }
 
     /// `pcm`: little-endian Int16 samples, as the page tap packs them.
-    func append(pcm: Data, sampleRate: Double) {
+    public func append(pcm: Data, sampleRate: Double) {
         queue.async { [self] in
             guard !failed, sampleRate > 0 else { return }
             let count = pcm.count / MemoryLayout<Int16>.size
@@ -70,7 +70,7 @@ nonisolated final class SDRAudioFileWriter: @unchecked Sendable {
 
     /// Closes the file once every chunk already handed over is written.
     /// Returns its URL, or nil (and no file) if nothing was recorded.
-    func finish() async -> URL? {
+    public func finish() async -> URL? {
         await withCheckedContinuation { continuation in
             queue.async { [self] in
                 file = nil  // AVAudioFile finalizes the WAV header on release.

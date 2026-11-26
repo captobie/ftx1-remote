@@ -8,7 +8,8 @@ import os
 /// `WebSDRFollowModel` sets it for each load, and `detectPlatform()`
 /// corrects it once the page is up.
 /// - its audio recorder, for Record (files the WAVs it saves into the app's
-///   Recordings folder, `AudioRecorder.recordingsDirectory`);
+///   Recordings folder, `recordingsDirectory` — the Mac's
+///   `AudioRecorder.recordingsDirectory`);
 /// - its mute, for the window's Mute button;
 /// - its tuning globals, read-only, for click-to-tune (`readTuning`);
 /// - WebSDR only: its `setfreqtune()` to retune in place, and its
@@ -40,17 +41,18 @@ import os
 /// finishes — so `stop()` waits for it (with a timeout) before the caller
 /// reloads, retunes or unloads the page, which would otherwise drop the
 /// recording.
-final class SDRPageBridge {
-    weak var webView: WKWebView?
+@MainActor
+public final class SDRPageBridge {
+    public weak var webView: WKWebView?
     /// Which page's functions to call. Set per load by `WebSDRFollowModel`;
     /// `detectPlatform()` overwrites it with what the page actually is.
-    var platform: SDRPlatform = .kiwiSDR
+    public var platform: SDRPlatform = .kiwiSDR
 
     /// Called when the page saves a recording the app didn't ask to stop —
     /// in practice the Kiwi's own `owrx_close_cb`, which stops (and saves)
     /// any recording when its audio connection closes (e.g. a time limit
     /// or the station kicking the listener). A WebSDR never saves by itself.
-    var onUnexpectedSave: ((URL?) -> Void)?
+    public var onUnexpectedSave: ((URL?) -> Void)?
 
     private static let logger = Logger(subsystem: "com.ftx1remote.mac", category: "websdr-recording")
 
@@ -66,7 +68,7 @@ final class SDRPageBridge {
     /// `setfreqtune()` and `bandinfo`, a Kiwi page the `kiwi` object. Sets
     /// `platform` when recognized; nil (and `platform` untouched) otherwise.
     @discardableResult
-    func detectPlatform() async -> SDRPlatform? {
+    public func detectPlatform() async -> SDRPlatform? {
         let js = """
         (function() {
           if (typeof setfreqtune === 'function' && typeof bandinfo !== 'undefined') return 'webSDR';
@@ -85,7 +87,7 @@ final class SDRPageBridge {
     /// A WebSDR's receive ranges, in Hz, from its own `bandinfo` (each band
     /// is `centerfreq ± samplerate/2`, in kHz); an OpenWebRX's from its
     /// profiles (`readOpenWebRXProfiles`). nil on a Kiwi or on failure.
-    func readBands() async -> [ClosedRange<Int>]? {
+    public func readBands() async -> [ClosedRange<Int>]? {
         if platform == .openWebRX {
             await readOpenWebRXProfiles()
             return openWebRXProfiles.isEmpty ? nil : openWebRXProfiles.map(\.range)
@@ -112,7 +114,7 @@ final class SDRPageBridge {
     /// title in literal quotes ("\"WebSDR 2.1 Low at …\""), so those go too.
     /// An OpenWebRX's title is the same on every server, so its receiver
     /// name (from `readBands`) is used instead.
-    func pageTitle() async -> String? {
+    public func pageTitle() async -> String? {
         if platform == .openWebRX { return openWebRXReceiverName }
         let title = try? await webView?.evaluateJavaScript("document.title") as? String
         return title?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'")))
@@ -123,7 +125,7 @@ final class SDRPageBridge {
     /// `retuneOpenWebRX`. Returns false if the page isn't one of those, or
     /// didn't take the tuning.
     @discardableResult
-    func retuneInPlace(frequencyHz: Int, modeToken: String?) async -> Bool {
+    public func retuneInPlace(frequencyHz: Int, modeToken: String?) async -> Bool {
         switch platform {
         case .kiwiSDR: return false
         case .webSDR: return await retuneWebSDR(WebSDRURLBuilder.tuneValue(frequencyHz: frequencyHz, modeToken: modeToken))
@@ -148,14 +150,14 @@ final class SDRPageBridge {
 
     /// An OpenWebRX profile the page can switch to: its list box value
     /// ("sdr_id|profile_id") and the range it covers.
-    struct OpenWebRXProfile: Equatable {
+    public struct OpenWebRXProfile: Equatable {
         let id: String
         let range: ClosedRange<Int>
     }
 
     /// The loaded OpenWebRX's profiles, in its own order; read on each page
     /// load by `readBands`. Empty on other platforms.
-    private(set) var openWebRXProfiles: [OpenWebRXProfile] = []
+    public private(set) var openWebRXProfiles: [OpenWebRXProfile] = []
     private var openWebRXReceiverName: String?
 
     /// Joins the page's profile list box (id + "<SDR name> <profile name>",
@@ -275,7 +277,7 @@ final class SDRPageBridge {
     /// after tuning in the page itself. `fallbackLabel` (the rig frequency
     /// the page was tuned for) is used only if those aren't readable.
     @discardableResult
-    func start(fallbackLabel: String) async -> Bool {
+    public func start(fallbackLabel: String) async -> Bool {
         let js: String
         switch platform {
         case .kiwiSDR:
@@ -310,7 +312,7 @@ final class SDRPageBridge {
                 segmentStart = Date()
                 let label = Self.label(kHz: result[0], mode: result[1]) ?? fallbackLabel
                 segmentLabel = label.isEmpty ? platform.displayName : label + " " + platform.displayName
-                if platform == .openWebRX { tapWriter = SDRAudioFileWriter(url: uniqueRecordingURL()) }
+                if platform == .openWebRX, let url = uniqueRecordingURL() { tapWriter = SDRAudioFileWriter(url: url) }
                 Self.logger.info("recording started: \(self.segmentLabel, privacy: .public)")
                 return true
             }
@@ -323,14 +325,14 @@ final class SDRPageBridge {
     /// "14047.55" + "cw" → "14.047.550 CW", the rig recordings' format.
     private static func label(kHz: String, mode: String) -> String? {
         guard let khz = Double(kHz), khz > 0 else { return nil }
-        return AudioRecorder.label(frequencyHz: Int((khz * 1000).rounded()), modeName: mode.uppercased())
+        return RecordingNames.label(frequencyHz: Int((khz * 1000).rounded()), modeName: mode.uppercased())
     }
 
     /// Stops the page's recording and waits (up to 5 s) for its WAV to land
     /// in Recordings. Returns the saved file, or nil if nothing was being
     /// recorded, the page is gone, or the save didn't arrive in time.
     @discardableResult
-    func stop() async -> URL? {
+    public func stop() async -> URL? {
         guard let webView else { return nil }
         let js: String
         switch platform {
@@ -375,7 +377,7 @@ final class SDRPageBridge {
     // MARK: OpenWebRX recording (app-side tap)
 
     /// The message handler `KiwiWebView` registers for the tap's audio.
-    static let tapMessageHandlerName = "ftx1SDRAudio"
+    public static let tapMessageHandlerName = "ftx1SDRAudio"
 
     /// The file the current OpenWebRX recording goes to; nil while not
     /// recording one (late chunks after a stop are dropped).
@@ -427,7 +429,7 @@ final class SDRPageBridge {
     """
 
     /// A tap block from the page (`KiwiWebView`'s message handler).
-    func receiveTapAudio(_ body: Any) {
+    public func receiveTapAudio(_ body: Any) {
         guard platform == .openWebRX, let tapWriter,
               let message = body as? [String: Any],
               let rate = (message["rate"] as? NSNumber)?.doubleValue,
@@ -473,7 +475,7 @@ final class SDRPageBridge {
     /// - OpenWebRX: its `toggleMute()` (its speaker button; the button's
     ///   `muted` class is its state). No URL parameter either; it waits for
     ///   the button and the audio engine to exist.
-    func setPageMuted(_ muted: Bool) async {
+    public func setPageMuted(_ muted: Bool) async {
         let flag = muted ? 1 : 0
         let js: String
         switch platform {
@@ -531,7 +533,7 @@ final class SDRPageBridge {
     ///   frequency, and its modulation (a digimode reports the one under
     ///   it). nil while there's no demodulator or a profile switch is still
     ///   restarting it.
-    func readTuning() async -> (frequencyHz: Int, mode: String)? {
+    public func readTuning() async -> (frequencyHz: Int, mode: String)? {
         let js: String
         switch platform {
         case .kiwiSDR:
@@ -572,17 +574,23 @@ final class SDRPageBridge {
 
     /// Where the page's saved WAV goes: Recordings, named like the app's
     /// own recordings, uniquified if the name is taken.
-    func destinationURL() -> URL {
-        let url = uniqueRecordingURL()
+    /// nil (the download is cancelled) without a Recordings folder.
+    public func destinationURL() -> URL? {
+        guard let url = uniqueRecordingURL() else { return nil }
         pendingDestination = url
         return url
     }
 
-    private func uniqueRecordingURL() -> URL {
-        var url = AudioRecorder.newRecordingURL(label: segmentLabel, date: segmentStart)
+    /// Where saved recordings go; nil = this app doesn't record from the
+    /// page (the iPad).
+    public var recordingsDirectory: URL?
+
+    private func uniqueRecordingURL() -> URL? {
+        guard let recordingsDirectory else { return nil }
+        var url = RecordingNames.url(label: segmentLabel, date: segmentStart, in: recordingsDirectory)
         var n = 2
         while FileManager.default.fileExists(atPath: url.path) {
-            url = AudioRecorder.newRecordingURL(label: "\(segmentLabel) \(n)", date: segmentStart)
+            url = RecordingNames.url(label: "\(segmentLabel) \(n)", date: segmentStart, in: recordingsDirectory)
             n += 1
         }
         return url
@@ -590,7 +598,7 @@ final class SDRPageBridge {
 
     private var pendingDestination: URL?
 
-    func downloadFinished(success: Bool) {
+    public func downloadFinished(success: Bool) {
         var saved = success ? pendingDestination : nil
         pendingDestination = nil
         // A stop with no audio captured still saves a bare 44-byte WAV

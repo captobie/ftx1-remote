@@ -82,7 +82,8 @@ struct PiDirectView: View {
             if isSplit {
                 VStack(alignment: .leading, spacing: 16) {
                     topSection
-                    SDRSplitLayout(sdr: SDRPane(model: sdrModels.piDirect, isShowing: $showingSDR, isSplit: $sdrSplit)) { narrow in
+                    SDRSplitLayout(sdr: SDRPane(model: sdrModels.piDirect, webModel: sdrModels.piDirectWeb, directory: sdrModels.directory,
+                                                  isShowing: $showingSDR, isSplit: $sdrSplit)) { narrow in
                         vfoBoxes(stacked: narrow)
                         channelStrips(stacked: narrow)
                         audioWaitingLine
@@ -90,6 +91,9 @@ struct PiDirectView: View {
                     }
                 }
                 .padding(32)
+                // The keyboard (a host field) mustn't turn portrait into
+                // landscape: that rebuilt the layout under the field.
+                .ignoresSafeArea(.keyboard)
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -103,7 +107,7 @@ struct PiDirectView: View {
             }
         }
         .sdrSession(isShowing: $showingSDR, routeConnected: viewModel.connectionState == .connected,
-                    model: sdrModels.piDirect)
+                    model: sdrModels.piDirect, webModel: sdrModels.piDirectWeb)
         // A press can't be released from the background; don't stay keyed.
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { viewModel.stopTransmit() }
@@ -320,7 +324,8 @@ struct PiDirectView: View {
         ) {
             CWSendSection<PiDirectViewModel>()
         }
-        .sdrPane(isShowing: $showingSDR, isSplit: $sdrSplit, model: sdrModels.piDirect)
+        .sdrPane(isShowing: $showingSDR, isSplit: $sdrSplit, model: sdrModels.piDirect, webModel: sdrModels.piDirectWeb,
+                 directory: sdrModels.directory)
 
         Text(isDemo
              ? "piDirect.demoModeASimulated"

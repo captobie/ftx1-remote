@@ -1,4 +1,3 @@
-import FTX1Core
 import Foundation
 
 /// URL and mode logic for classic WebSDRs (PA3FWM's software), the
@@ -12,9 +11,9 @@ import Foundation
 /// The mode suffix goes through the page's `set_mode()`, case-insensitive
 /// (USB, LSB, CW, AM, FM, plus narrow/sync variants); a frequency outside
 /// every band the server has is silently ignored by the page.
-nonisolated enum WebSDRURLBuilder {
+public nonisolated enum WebSDRURLBuilder {
     /// The page's `set_mode()` names, lowercased. nil = frequency only.
-    static func modeToken(for mode: RigMode) -> String? {
+    public static func modeToken(for mode: RigMode) -> String? {
         switch mode {
         case .usb, .dataUSB: "usb"
         case .lsb: "lsb"
@@ -27,7 +26,7 @@ nonisolated enum WebSDRURLBuilder {
 
     /// The page's `mode` global ("USB", "LSB", "CW", "AM", "AMSYNC", "FM")
     /// folded to a `modeToken(for:)` value.
-    static func modeFamily(ofWebSDRMode webSDRMode: String) -> String? {
+    public static func modeFamily(ofWebSDRMode webSDRMode: String) -> String? {
         switch webSDRMode.lowercased() {
         case "usb", "usbn": "usb"
         case "lsb", "lsbn": "lsb"
@@ -39,13 +38,13 @@ nonisolated enum WebSDRURLBuilder {
     }
 
     /// What `?tune=` and `setfreqtune()` take: "7074.00usb", or "7074.00".
-    static func tuneValue(frequencyHz: Int, modeToken token: String?) -> String {
+    public static func tuneValue(frequencyHz: Int, modeToken token: String?) -> String {
         KiwiSDRURLBuilder.kHzString(frequencyHz) + (token ?? "")
     }
 
     /// `bands` nil (not known until the page has loaded once) skips the
     /// range check — the page just ignores a frequency it doesn't cover.
-    static func retune(hostPort: String, frequencyHz: Int, mode: RigMode,
+    public static func retune(hostPort: String, frequencyHz: Int, mode: RigMode,
                        bands: [ClosedRange<Int>]?) -> KiwiSDRURLBuilder.Result {
         if hostPort.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return .noHost }
         guard let base = KiwiSDRURLBuilder.baseURL(from: hostPort) else { return .invalidHost }

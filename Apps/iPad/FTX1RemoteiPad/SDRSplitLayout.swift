@@ -48,15 +48,22 @@ extension View {
     /// between the overlay and the split screen rebuilds the views): hiding
     /// the pane, the route dropping (the pane needs it) or the screen going
     /// away disconnects.
-    func sdrSession(isShowing: Binding<Bool>, routeConnected: Bool, model: LocalSDRModel) -> some View {
+    func sdrSession(isShowing: Binding<Bool>, routeConnected: Bool, model: LocalSDRModel,
+                    webModel: WebSDRFollowModel) -> some View {
         self
             .onChange(of: isShowing.wrappedValue) { _, showing in
-                if !showing { model.disconnect() }
+                if !showing {
+                    model.disconnect()
+                    webModel.disconnect()
+                }
             }
             .onChange(of: routeConnected) { _, connected in
                 if !connected { isShowing.wrappedValue = false }
             }
-            .onDisappear { model.disconnect() }
+            .onDisappear {
+                model.disconnect()
+                webModel.disconnect()
+            }
     }
 }
 

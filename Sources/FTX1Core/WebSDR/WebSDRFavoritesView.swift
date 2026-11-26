@@ -3,11 +3,15 @@ import SwiftUI
 /// "Manage Favorites…" from the WebSDR window's Favorites menu: rename,
 /// reorder (drag), and remove saved stations. Adding happens elsewhere —
 /// the star next to the host field, or the Stations sheet's star column.
-struct WebSDRFavoritesView: View {
-    @ObservedObject var model: WebSDRFollowModel
+public struct WebSDRFavoritesView: View {
+    @ObservedObject public var model: WebSDRFollowModel
+
+    public init(model: WebSDRFollowModel) {
+        self.model = model
+    }
     @Environment(\.dismiss) private var dismiss
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // No row selection: in a selectable List a click selects the
             // row instead of starting to edit its name field. Removing is a
@@ -22,24 +26,26 @@ struct WebSDRFavoritesView: View {
             }
             .overlay {
                 if model.favorites.isEmpty {
-                    ContentUnavailableView("webSDRFavorites.noFavorites", systemImage: "star",
-                                           description: Text("webSDRFavorites.starAStationTo"))
+                    ContentUnavailableView(String(localized: "webSDRFavorites.noFavorites", bundle: .module), systemImage: "star",
+                                           description: Text(String(localized: "webSDRFavorites.starAStationTo", bundle: .module)))
                 }
             }
             Divider()
             HStack {
-                Text("webSDRFavorites.clickANameTo")
+                Text(String(localized: "webSDRFavorites.clickANameTo", bundle: .module))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
                 // Escape, not Return: Return belongs to the name fields
                 // (it commits a rename) and mustn't also close the sheet.
-                Button("common.done") { dismiss() }
+                Button(String(localized: "common.done", bundle: .module)) { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
             .padding(10)
         }
+        #if os(macOS)
         .frame(minWidth: 520, minHeight: 320)
+        #endif
     }
 
     /// Name is editable in place (committed on Return or when the sheet closes); host,
@@ -62,7 +68,7 @@ struct WebSDRFavoritesView: View {
         private var details: String {
             var parts = [favorite.platform?.displayName, favorite.hostPort].compactMap { $0 }
             if !favorite.location.isEmpty { parts.append(favorite.location) }
-            let unknownRange = favorite.platform == .webSDR ? String(localized: "webSDRFavorites.rangeReadOnNext") : String(localized: "webSDRFavorites.030MHzRange")
+            let unknownRange = favorite.platform == .webSDR ? String(localized: "webSDRFavorites.rangeReadOnNext", bundle: .module) : String(localized: "webSDRFavorites.030MHzRange", bundle: .module)
             parts.append(favorite.bandRanges.map { $0.map(KiwiSDRStation.describe).joined(separator: ", ") }
                          ?? unknownRange)
             return parts.joined(separator: " · ")
@@ -75,13 +81,13 @@ struct WebSDRFavoritesView: View {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.borderless)
-                .help("common.removeFromFavorites")
+                .help(String(localized: "common.removeFromFavorites", bundle: .module))
             }
         }
 
         private var fields: some View {
             VStack(alignment: .leading, spacing: 2) {
-                TextField("common.name", text: $name)
+                TextField(String(localized: "common.name", bundle: .module), text: $name)
                     .textFieldStyle(.plain)
                     .focused($nameFocused)
                     // The field spans the row but inside a List only takes

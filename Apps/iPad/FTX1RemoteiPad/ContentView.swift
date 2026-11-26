@@ -116,13 +116,17 @@ struct HubControlView: View {
             if isSplit {
                 VStack(alignment: .leading, spacing: 16) {
                     topSection
-                    SDRSplitLayout(sdr: SDRPane(model: sdrModels.hub, isShowing: $showingSDR, isSplit: $sdrSplit)) { narrow in
+                    SDRSplitLayout(sdr: SDRPane(model: sdrModels.hub, webModel: sdrModels.hubWeb, directory: sdrModels.directory,
+                                                  isShowing: $showingSDR, isSplit: $sdrSplit)) { narrow in
                         vfoBoxes(stacked: narrow)
                         channelStrips(stacked: narrow)
                         FilterPanel<RigClientViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: true)
                     }
                 }
                 .padding(32)
+                // The keyboard (a host field) mustn't turn portrait into
+                // landscape: that rebuilt the layout under the field.
+                .ignoresSafeArea(.keyboard)
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -136,7 +140,7 @@ struct HubControlView: View {
             }
         }
         .sdrSession(isShowing: $showingSDR, routeConnected: viewModel.connectionState == .connected,
-                    model: sdrModels.hub)
+                    model: sdrModels.hub, webModel: sdrModels.hubWeb)
         // A press can't be released from the background; don't stay keyed.
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { viewModel.stopTransmit() }
@@ -240,7 +244,8 @@ struct HubControlView: View {
         ) {
             CWSendSection<RigClientViewModel>()
         }
-        .sdrPane(isShowing: $showingSDR, isSplit: $sdrSplit, model: sdrModels.hub)
+        .sdrPane(isShowing: $showingSDR, isSplit: $sdrSplit, model: sdrModels.hub, webModel: sdrModels.hubWeb,
+                 directory: sdrModels.directory)
     }
 
     /// The Mac's Enable Transmit, where the Pi-direct screen has its own

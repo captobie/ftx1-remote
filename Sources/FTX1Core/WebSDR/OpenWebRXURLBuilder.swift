@@ -1,4 +1,3 @@
-import FTX1Core
 import Foundation
 
 /// URL and mode logic for OpenWebRX receivers, the counterpart of

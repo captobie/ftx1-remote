@@ -9,7 +9,7 @@ import os
 /// or the iPad's view models, so nothing here re-renders the main screen;
 /// the S-meter goes to `meter`, observed only by the meter view.
 ///
-/// Shared since 2026-11-26: the rig side is a `LocalSDRRigHost` (the Mac's
+/// Shared since 2026-11-26: the rig side is a `SDRRigHost` (the Mac's
 /// `HubService`, the iPad's `RigClientViewModel`/`PiDirectViewModel`), the
 /// decoders a `LocalSDRAudioTap` and recording a `LocalSDRRecordingWriter`
 /// factory — both of the latter Mac-only today (nil = not offered).
@@ -35,12 +35,12 @@ import os
 /// MAIN frequency/mode from the host's rig state publisher (removeDuplicates + 400 ms
 /// debounce, as `WebSDRFollowModel`) with one "SET mod=… freq=…", no
 /// reconnect; Tune rig sends the window's own tunes to the rig through
-/// the host's `localSDRSend(_:)` (at most every 100 ms, the last always going out,
+/// the host's `sdrSend(_:)` (at most every 100 ms, the last always going out,
 /// so a spun scroll wheel doesn't flood the command queue). Both only
 /// while connected, subscribed on connect and cancelled on disconnect.
 /// Mute on TX silences the playback while `rigState.ptt`; while the Kiwi
 /// is audible the rig's Main playback is muted
-/// (`setLocalSDRAudible(_:)`; the Mac's
+/// (`setSDRAudible(_:source:)`; the Mac's
 /// `HubService.setMainAudioOverride(.localSDR, …)`).
 ///
 /// Decoders and recording (phase 4): every frame, as decoded and before
@@ -235,7 +235,7 @@ public final class LocalSDRModel: ObservableObject {
     private let configurePlayback: ((AudioPlaybackEngine) -> Void)?
     private let makeRecordingWriter: LocalSDRRecordingWriterFactory?
 
-    private weak var rigHost: LocalSDRRigHost?
+    private weak var rigHost: SDRRigHost?
     private weak var audioTap: LocalSDRAudioTap?
     private var link = KiwiRigLink()
     private var rigCancellables: Set<AnyCancellable> = []
@@ -265,7 +265,7 @@ public final class LocalSDRModel: ObservableObject {
     /// `logSubsystem` is the app's ("com.ftx1remote.mac", "…ipad"); the
     /// category is "kiwisdr". `configurePlayback` runs on each new player
     /// before it starts (the Mac picks its output device there).
-    public init(rigHost: LocalSDRRigHost?, audioTap: LocalSDRAudioTap? = nil, logSubsystem: String,
+    public init(rigHost: SDRRigHost?, audioTap: LocalSDRAudioTap? = nil, logSubsystem: String,
                 configurePlayback: ((AudioPlaybackEngine) -> Void)? = nil,
                 makeRecordingWriter: LocalSDRRecordingWriterFactory? = nil) {
         self.rigHost = rigHost
@@ -328,7 +328,7 @@ public final class LocalSDRModel: ObservableObject {
     private func startSession(hostPort: String, password: String) {
         // Start where the rig is, so the first tune is already right.
         if followRig, let rigHost {
-            let rig = RigTarget(rigHost.localSDRRigState)
+            let rig = RigTarget(rigHost.sdrRigState)
             rigTarget = rig
             if case let .tune(hz, kiwiMode) = link.follow(
                 rigFrequencyHz: rig.frequencyHz, rigMode: rig.mode, kiwiFrequencyHz: frequencyHz, kiwiMode: mode,
@@ -722,7 +722,7 @@ public final class LocalSDRModel: ObservableObject {
         guard let rigHost else { return }
         var audible = false
         if case .connected = state { audible = !isMuted }
-        rigHost.setLocalSDRAudible(audible)
+        rigHost.setSDRAudible(audible, source: .localSDR)
     }
 
     // MARK: - Recording
@@ -827,7 +827,7 @@ public final class LocalSDRModel: ObservableObject {
     private func subscribeToRig() {
         rigCancellables.removeAll()
         guard let rigHost else { return }
-        let rigState = rigHost.localSDRRigStatePublisher
+        let rigState = rigHost.sdrRigStatePublisher
         rigState
             .map { RigTarget($0) }
             .removeDuplicates()
@@ -874,8 +874,8 @@ public final class LocalSDRModel: ObservableObject {
 
     private var rigSnapshot: KiwiRigSnapshot? {
         guard let rigHost else { return nil }
-        let rig = rigHost.localSDRRigState
-        return KiwiRigSnapshot(connected: rigHost.localSDRRigConnected, transmitting: rig.ptt,
+        let rig = rigHost.sdrRigState
+        return KiwiRigSnapshot(connected: rigHost.sdrRigConnected, transmitting: rig.ptt,
                                memoryMode: rig.vfoMemoryMode == .memory, frequencyHz: rig.frequencyHz,
                                mode: rig.mode)
     }
@@ -938,8 +938,8 @@ public final class LocalSDRModel: ObservableObject {
         lastRigSend = .now
         logger.debug("rig link: Kiwi → rig \(hz ?? 0) Hz \(rigMode?.rawValue ?? "-", privacy: .public)")
         if rigLinkNote != nil { rigLinkNote = nil }
-        if let hz { rigHost.localSDRSend(.setFrequency(hz: hz)) }
-        if let rigMode { rigHost.localSDRSend(.setMode(rigMode)) }
+        if let hz { rigHost.sdrSend(.setFrequency(hz: hz)) }
+        if let rigMode { rigHost.sdrSend(.setMode(rigMode)) }
     }
 
     private func cancelRigSend() {
@@ -1129,19 +1129,26 @@ public final class LocalSDRMeterStore: ObservableObject {
 
 // MARK: - What the model talks to
 
-/// The rig side of MyKiwiSDR: Follow, Tune rig, Mute on TX and the rig's
-/// own Main audio while the Kiwi is audible.
+/// Which SDR is audible (`SDRRigHost.setSDRAudible`): each is its own
+/// holder of MAIN's mute, as on the Mac (`HubService.MainAudioOverride`).
+public enum SDRAudioSource: Hashable, Sendable {
+    case localSDR
+    case webSDR
+}
+
+/// The rig side of MyKiwiSDR and the WebSDR page: Follow, Tune rig, Mute on
+/// TX and the rig's own Main audio while the SDR is audible.
 @MainActor
-public protocol LocalSDRRigHost: AnyObject {
-    var localSDRRigState: RigState { get }
+public protocol SDRRigHost: AnyObject {
+    var sdrRigState: RigState { get }
     /// Every rig state change (the model removes duplicates and debounces).
-    var localSDRRigStatePublisher: AnyPublisher<RigState, Never> { get }
+    var sdrRigStatePublisher: AnyPublisher<RigState, Never> { get }
     /// The rig answers (Tune rig is refused otherwise).
-    var localSDRRigConnected: Bool { get }
-    func localSDRSend(_ command: RigCommand)
-    /// The Kiwi is (or no longer is) audible: mute (or give back) the rig's
-    /// Main playback.
-    func setLocalSDRAudible(_ audible: Bool)
+    var sdrRigConnected: Bool { get }
+    func sdrSend(_ command: RigCommand)
+    /// `source` is (or no longer is) audible: mute (or give back) the rig's
+    /// Main playback while any source is.
+    func setSDRAudible(_ audible: Bool, source: SDRAudioSource)
 }
 
 /// Where decoders take the Kiwi's audio from (the Mac's

@@ -1,28 +1,27 @@
 import Combine
-import FTX1Core
 import Foundation
 import SwiftUI  // IndexSet-based move for the Manage Favorites list
 
 /// Persisted settings for the WebSDR window, `UserDefaults`-backed like
 /// `APRSSettings`/`WPSDSettings`. One current host (picked from the
 /// directory or Favorites, or typed), plus the Favorites list itself.
-enum WebSDRSettings {
-    static let hostPortKey = "webSDR.hostPort"
-    static let followRigKey = "webSDR.followRig"
-    static let tuneRigKey = "webSDR.tuneRig"
-    static let mutedKey = "webSDR.muted"
-    static let muteOnTransmitKey = "webSDR.muteOnTransmit"
+public enum WebSDRSettings {
+    public static let hostPortKey = "webSDR.hostPort"
+    public static let followRigKey = "webSDR.followRig"
+    public static let tuneRigKey = "webSDR.tuneRig"
+    public static let mutedKey = "webSDR.muted"
+    public static let muteOnTransmitKey = "webSDR.muteOnTransmit"
     /// The receive ranges of the station last picked from the directory,
     /// as "lo-hi,lo-hi" (the listing's own format), plus the host they
     /// belong to — only applied while `hostPort` still equals that host.
-    static let stationBandsKey = "webSDR.stationBands"
-    static let stationBandsHostKey = "webSDR.stationBandsHost"
+    public static let stationBandsKey = "webSDR.stationBands"
+    public static let stationBandsHostKey = "webSDR.stationBandsHost"
     /// The station last picked from the directory or Favorites, as a JSON
     /// `WebSDRFavorite` (host, name, location, ranges). Replaces the two
     /// keys above, which are only read once to migrate.
-    static let pickedStationKey = "webSDR.pickedStation"
+    public static let pickedStationKey = "webSDR.pickedStation"
     /// JSON `[WebSDRFavorite]`, in the user's order.
-    static let favoritesKey = "webSDR.favorites"
+    public static let favoritesKey = "webSDR.favorites"
 }
 
 /// Drives the WebSDR window: follows the rig's Main VFO frequency/mode and
@@ -51,7 +50,8 @@ enum WebSDRSettings {
 /// the old frequency after the set went out.
 ///
 /// v1.1 seam, deliberately not built: following Sub (`secondaryFrequencyHz`/`secondaryMode`).
-final class WebSDRFollowModel: ObservableObject {
+@MainActor
+public final class WebSDRFollowModel: ObservableObject {
     private struct FollowTarget: Equatable {
         let frequencyHz: Int
         let mode: RigMode
@@ -60,9 +60,9 @@ final class WebSDRFollowModel: ObservableObject {
     /// Committed host (the text field commits on Return, not per keystroke,
     /// so a half-typed host never triggers a load). Setting it doesn't load
     /// anything by itself — `connect()` does.
-    @Published var hostPort: String {
+    @Published public var hostPort: String {
         didSet {
-            UserDefaults.standard.set(hostPort, forKey: WebSDRSettings.hostPortKey)
+            SettingsStore.defaults.set(hostPort, forKey: WebSDRSettings.hostPortKey)
         }
     }
 
@@ -73,7 +73,7 @@ final class WebSDRFollowModel: ObservableObject {
     private var pickedStation: WebSDRFavorite? {
         didSet {
             let data = pickedStation.flatMap { try? JSONEncoder().encode($0) }
-            UserDefaults.standard.set(data, forKey: WebSDRSettings.pickedStationKey)
+            SettingsStore.defaults.set(data, forKey: WebSDRSettings.pickedStationKey)
         }
     }
 
@@ -86,24 +86,24 @@ final class WebSDRFollowModel: ObservableObject {
     /// The current host's platform. A host with no known platform (typed by
     /// hand, not yet loaded) is treated as a Kiwi; `pageDidLoad` records
     /// what the page turns out to be.
-    var currentPlatform: SDRPlatform {
+    public var currentPlatform: SDRPlatform {
         currentStation?.platform ?? .kiwiSDR
     }
 
     /// The range check for retunes: the station's own ranges when known,
     /// else KiwiSDR's 0–30 MHz for a Kiwi and no check for a WebSDR (its
     /// ranges are read from its page on the first connect).
-    var activeBands: [ClosedRange<Int>]? {
+    public var activeBands: [ClosedRange<Int>]? {
         if let bands = currentStation?.bandRanges { return bands }
         return currentPlatform == .kiwiSDR ? KiwiSDRURLBuilder.defaultBands : nil
     }
 
     /// Saved stations, in the user's order. Small (a handful of hosts), so
     /// `UserDefaults` rather than a file like the directory cache.
-    @Published private(set) var favorites: [WebSDRFavorite] {
+    @Published public private(set) var favorites: [WebSDRFavorite] {
         didSet {
             if let data = try? JSONEncoder().encode(favorites) {
-                UserDefaults.standard.set(data, forKey: WebSDRSettings.favoritesKey)
+                SettingsStore.defaults.set(data, forKey: WebSDRSettings.favoritesKey)
             }
         }
     }
@@ -111,17 +111,17 @@ final class WebSDRFollowModel: ObservableObject {
     /// The rig frequency the window is following (after the debounce), for
     /// the directory's "covers rig frequency" filter. nil before the first
     /// rig value, or 0 while the rig isn't connected.
-    @Published private(set) var rigFrequencyHz: Int?
+    @Published public private(set) var rigFrequencyHz: Int?
 
     /// Whether the window should hold a live receiver session. Starts false on
     /// every open (public Kiwis have few listener slots, so a session is
     /// only opened on an explicit Connect / Return), and `disconnect()` is
     /// also called when the window closes (`WebSDRFollowView.onDisappear`).
-    @Published private(set) var isConnected = false
+    @Published public private(set) var isConnected = false
 
-    @Published var followRig: Bool {
+    @Published public var followRig: Bool {
         didSet {
-            UserDefaults.standard.set(followRig, forKey: WebSDRSettings.followRigKey)
+            SettingsStore.defaults.set(followRig, forKey: WebSDRSettings.followRigKey)
             evaluate()
         }
     }
@@ -129,14 +129,14 @@ final class WebSDRFollowModel: ObservableObject {
     /// Click-to-tune: tuning in the page tunes the rig's Main VFO (and its
     /// mode, where the two map — see `SDRPlatform.rigMode`).
     /// Independent of `followRig`.
-    @Published var tuneRig: Bool {
-        didSet { UserDefaults.standard.set(tuneRig, forKey: WebSDRSettings.tuneRigKey) }
+    @Published public var tuneRig: Bool {
+        didSet { SettingsStore.defaults.set(tuneRig, forKey: WebSDRSettings.tuneRigKey) }
     }
 
     /// One page load for `KiwiWebView`. `id` distinguishes a deliberate
     /// reload of the same URL (Return in the host field, e.g. to retry after
     /// an error) from a repeat that should be ignored.
-    struct PageRequest: Equatable {
+    public struct PageRequest: Equatable {
         let url: URL
         /// What the page is expected to be (corrected on load if wrong).
         let platform: SDRPlatform
@@ -146,8 +146,8 @@ final class WebSDRFollowModel: ObservableObject {
     /// What `KiwiWebView` should be showing. Only changes when a genuinely
     /// different page is wanted — every change is a full page reload (Kiwi
     /// reconnect), so rig-driven repeats are filtered out here.
-    @Published private(set) var pageRequest: PageRequest?
-    @Published private(set) var status = ""
+    @Published public private(set) var pageRequest: PageRequest?
+    @Published public private(set) var status = ""
 
     // MARK: Mute
 
@@ -159,10 +159,13 @@ final class WebSDRFollowModel: ObservableObject {
     /// setPageMuted` — and on every Kiwi load as the Kiwi's own `mute=1` URL
     /// parameter, so it survives the reload each retune causes; a WebSDR
     /// has no such parameter, so `pageDidLoad` asserts it instead.
-    @Published private(set) var isMuted: Bool {
-        didSet { UserDefaults.standard.set(isMuted, forKey: WebSDRSettings.mutedKey) }
+    @Published public private(set) var isMuted: Bool {
+        didSet { SettingsStore.defaults.set(isMuted, forKey: WebSDRSettings.mutedKey) }
     }
-    private weak var hub: HubService?
+    private weak var rigHost: SDRRigHost?
+    /// Where the Mac's decoders capture this page's audio
+    /// (`WebSDRAudioSource`); the iPad has its own, never captured.
+    private let audioRouting: WebSDRAudioRouting
     private var muteTask: Task<Void, Never>?
 
     /// Mutes the page while the rig transmits (`rigState.ptt`), so the
@@ -171,9 +174,9 @@ final class WebSDRFollowModel: ObservableObject {
     /// rig's Main audio are left as they are, and the page comes back on
     /// its own after TX. Recordings are unaffected (taken before the page's
     /// mute, same as Mute).
-    @Published var muteOnTransmit: Bool {
+    @Published public var muteOnTransmit: Bool {
         didSet {
-            UserDefaults.standard.set(muteOnTransmit, forKey: WebSDRSettings.muteOnTransmitKey)
+            SettingsStore.defaults.set(muteOnTransmit, forKey: WebSDRSettings.muteOnTransmitKey)
             applyPageMute()
         }
     }
@@ -192,18 +195,18 @@ final class WebSDRFollowModel: ObservableObject {
     /// so the page stays unmuted and the CW window's capture does the
     /// muting instead (`WebSDRAudioRouting`).
     private var pageMuteApplied: Bool {
-        pageShouldBeMuted && !(hub?.webSDRAudioRouting.captureActive ?? false)
+        pageShouldBeMuted && !(audioRouting.captureActive)
     }
 
-    func toggleMuted() {
+    public func toggleMuted() {
         isMuted.toggle()
         updateMainAudio()
         applyPageMute()
     }
 
     private func applyPageMute() {
-        if hub?.webSDRAudioRouting.muteRequested != pageShouldBeMuted {
-            hub?.webSDRAudioRouting.muteRequested = pageShouldBeMuted
+        if audioRouting.muteRequested != pageShouldBeMuted {
+            audioRouting.muteRequested = pageShouldBeMuted
         }
         guard pageRequest != nil else { return }
         muteTask?.cancel()
@@ -212,24 +215,24 @@ final class WebSDRFollowModel: ObservableObject {
     }
 
     private func updateMainAudio() {
-        hub?.setMainAudioOverride(.webSDR, active: isConnected && !isMuted)
+        rigHost?.setSDRAudible(isConnected && !isMuted, source: .webSDR)
     }
 
     // MARK: Recording (the page's own recorder — see SDRPageBridge)
 
-    let pageBridge = SDRPageBridge()
+    public let pageBridge = SDRPageBridge()
 
     /// The user's Record/Stop intent. Stays true across retunes: each
     /// retune saves the current file and starts a new one for the new
     /// frequency once the reloaded (Kiwi) or retuned (WebSDR) page's audio
     /// is running (user decision: one file per frequency, not paused
     /// following).
-    @Published private(set) var isRecording = false
+    @Published public private(set) var isRecording = false
     /// When the current file's recording actually began; nil while between
     /// files (saving, reloading, waiting for the Kiwi's audio).
-    @Published private(set) var segmentStartedAt: Date?
+    @Published public private(set) var segmentStartedAt: Date?
     /// Last save/failure note, shown at the right of the status line.
-    @Published private(set) var recordingNote: String?
+    @Published public private(set) var recordingNote: String?
 
     /// What the page on screen is tuned to — the saved file's label.
     /// nil for the bare host page (no `?f=`).
@@ -246,14 +249,20 @@ final class WebSDRFollowModel: ObservableObject {
     private var lastTunedAt = Date()
     private var cancellable: AnyCancellable?
 
-    init(hub: HubService) {
-        let defaults = UserDefaults.standard
+    /// `rigHost`: Follow, Tune rig, Mute on TX and MAIN's mute (the Mac's
+    /// `HubService`, the iPad's route). `recordingsDirectory` nil = no
+    /// Record (the iPad).
+    public init(rigHost: SDRRigHost, audioRouting: WebSDRAudioRouting? = nil,
+                recordingsDirectory: URL? = nil) {
+        let defaults = SettingsStore.defaults
         hostPort = defaults.string(forKey: WebSDRSettings.hostPortKey) ?? ""
         followRig = defaults.object(forKey: WebSDRSettings.followRigKey) as? Bool ?? true
         tuneRig = defaults.object(forKey: WebSDRSettings.tuneRigKey) as? Bool ?? true
         isMuted = defaults.bool(forKey: WebSDRSettings.mutedKey)
         muteOnTransmit = defaults.object(forKey: WebSDRSettings.muteOnTransmitKey) as? Bool ?? true
-        self.hub = hub
+        self.rigHost = rigHost
+        self.audioRouting = audioRouting ?? WebSDRAudioRouting()
+        pageBridge.recordingsDirectory = recordingsDirectory
         favorites = defaults.data(forKey: WebSDRSettings.favoritesKey)
             .flatMap { try? JSONDecoder().decode([WebSDRFavorite].self, from: $0) } ?? []
         if let data = defaults.data(forKey: WebSDRSettings.pickedStationKey) {
@@ -267,7 +276,7 @@ final class WebSDRFollowModel: ObservableObject {
                                            bands: KiwiSDRStation.parseBands(raw))
         }
 
-        cancellable = hub.$rigState
+        cancellable = rigHost.sdrRigStatePublisher
             .map { FollowTarget(frequencyHz: $0.frequencyHz, mode: $0.mode) }
             .removeDuplicates()
             .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
@@ -285,7 +294,7 @@ final class WebSDRFollowModel: ObservableObject {
             }
         // Not debounced like the follow subscription above: the page should
         // go quiet as soon as the rig is seen transmitting.
-        pttCancellable = hub.$rigState
+        pttCancellable = rigHost.sdrRigStatePublisher
             .map(\.ptt)
             .removeDuplicates()
             .sink { [weak self] ptt in
@@ -296,8 +305,8 @@ final class WebSDRFollowModel: ObservableObject {
             }
         // The CW window starting or stopping its capture of this window's
         // audio moves the mute between the page and that capture.
-        hub.webSDRAudioRouting.muteRequested = pageShouldBeMuted
-        captureCancellable = hub.webSDRAudioRouting.$captureActive
+        self.audioRouting.muteRequested = pageShouldBeMuted
+        captureCancellable = self.audioRouting.$captureActive
             .removeDuplicates()
             .dropFirst()
             .sink { [weak self] _ in
@@ -313,7 +322,7 @@ final class WebSDRFollowModel: ObservableObject {
     /// Opens (or, if already connected, reloads) the receiver session. Before
     /// the first rig value has arrived (<400 ms after open), the load is
     /// left to the subscription above so it goes straight to the tuned URL.
-    func connect() {
+    public func connect() {
         isConnected = true
         updateMainAudio()
         lastIssuedURL = nil
@@ -325,13 +334,13 @@ final class WebSDRFollowModel: ObservableObject {
     /// a separate, explicit Connect. If a different Kiwi is currently
     /// connected, that session is ended (never switched to the new one
     /// automatically).
-    func select(_ station: KiwiSDRStation) {
+    public func select(_ station: KiwiSDRStation) {
         select(WebSDRFavorite(station: station))
     }
 
     /// Picks a favorite — same rules as a directory pick. A favorite with no
     /// saved ranges (added from a typed host) uses 0–30 MHz.
-    func select(_ favorite: WebSDRFavorite) {
+    public func select(_ favorite: WebSDRFavorite) {
         if isConnected, favorite.id != WebSDRFavorite.key(hostPort) { disconnect() }
         pickedStation = favorite
         hostPort = favorite.hostPort
@@ -342,7 +351,7 @@ final class WebSDRFollowModel: ObservableObject {
     /// what's already known about that host (a favorite, or the current
     /// pick — its ranges and title are learned on the first connect) rather
     /// than starting over from the bare host.
-    func selectWebSDR(hostPort: String) {
+    public func selectWebSDR(hostPort: String) {
         let key = WebSDRFavorite.key(hostPort)
         var station = favorites.first { $0.id == key }
             ?? (pickedStation?.id == key ? pickedStation : nil)
@@ -376,7 +385,7 @@ final class WebSDRFollowModel: ObservableObject {
 
     // MARK: Favorites
 
-    func isFavorite(hostPort: String) -> Bool {
+    public func isFavorite(hostPort: String) -> Bool {
         let key = WebSDRFavorite.key(hostPort)
         return favorites.contains { $0.id == key }
     }
@@ -387,7 +396,7 @@ final class WebSDRFollowModel: ObservableObject {
     /// (`directoryStations` is empty until the Stations sheet has loaded
     /// once; `fillInFavorites` catches up then) — or removes it if it's
     /// already a favorite.
-    func toggleFavoriteForCurrentHost(directoryStations: [KiwiSDRStation]) {
+    public func toggleFavoriteForCurrentHost(directoryStations: [KiwiSDRStation]) {
         let host = hostPort.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !host.isEmpty else { return }
         if isFavorite(hostPort: host) {
@@ -404,7 +413,7 @@ final class WebSDRFollowModel: ObservableObject {
     /// Gives favorites saved from a typed host (named after the host, no
     /// location/ranges) the directory's details once it's loaded. A name the
     /// user has changed is kept.
-    func fillInFavorites(from stations: [KiwiSDRStation]) {
+    public func fillInFavorites(from stations: [KiwiSDRStation]) {
         let byKey = Dictionary(stations.map { (WebSDRFavorite.key($0.hostPort), $0) },
                                uniquingKeysWith: { first, _ in first })
         var updated = favorites
@@ -421,7 +430,7 @@ final class WebSDRFollowModel: ObservableObject {
     }
 
     /// The Stations sheet's star column.
-    func toggleFavorite(_ station: KiwiSDRStation) {
+    public func toggleFavorite(_ station: KiwiSDRStation) {
         if isFavorite(hostPort: station.hostPort) {
             removeFavorite(hostPort: station.hostPort)
         } else {
@@ -429,17 +438,17 @@ final class WebSDRFollowModel: ObservableObject {
         }
     }
 
-    func removeFavorite(hostPort: String) {
+    public func removeFavorite(hostPort: String) {
         let key = WebSDRFavorite.key(hostPort)
         favorites.removeAll { $0.id == key }
     }
 
-    func moveFavorites(fromOffsets source: IndexSet, toOffset destination: Int) {
+    public func moveFavorites(fromOffsets source: IndexSet, toOffset destination: Int) {
         favorites.move(fromOffsets: source, toOffset: destination)
     }
 
     /// Blank names fall back to the host rather than leaving an empty menu item.
-    func renameFavorite(id: WebSDRFavorite.ID, to name: String) {
+    public func renameFavorite(id: WebSDRFavorite.ID, to name: String) {
         guard let index = favorites.firstIndex(where: { $0.id == id }) else { return }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         favorites[index].name = trimmed.isEmpty ? favorites[index].hostPort : trimmed
@@ -453,7 +462,7 @@ final class WebSDRFollowModel: ObservableObject {
     /// A recording in progress is saved first — unloading the page would
     /// throw it away — so the unload waits for that (≤5 s). The UI shows
     /// disconnected immediately.
-    func disconnect() {
+    public func disconnect() {
         isConnected = false
         updateMainAudio()
         muteTask?.cancel()
@@ -483,7 +492,7 @@ final class WebSDRFollowModel: ObservableObject {
         tunedTarget = nil
     }
 
-    func toggleRecording() {
+    public func toggleRecording() {
         if isRecording {
             endRecording()
             Task { [weak self] in
@@ -513,7 +522,7 @@ final class WebSDRFollowModel: ObservableObject {
     /// retuned in place to the rig, since the `?f=` it was loaded with means
     /// nothing to it — and an OpenWebRX always is, since it's loaded without
     /// a frequency (see `issue`) and may need a profile switch.
-    func pageDidLoad() {
+    public func pageDidLoad() {
         loadTask?.cancel()
         loadTask = Task { [weak self] in
             guard let self else { return }
@@ -612,33 +621,33 @@ final class WebSDRFollowModel: ObservableObject {
     }
 
     private func tuneRigFromPage(_ reading: PageTuning) {
-        guard tuneRig, let hub else { return }
-        let rig = hub.rigState
+        guard tuneRig, let rigHost else { return }
+        let rig = rigHost.sdrRigState
         let frequencyChanged = abs(reading.frequencyHz - rig.frequencyHz) > Self.sameFrequencyToleranceHz
         let newMode = pageBridge.platform.rigMode(forPageMode: reading.mode, current: rig.mode)
         guard frequencyChanged || newMode != nil else { return }
 
         let description = KiwiSDRURLBuilder.kHzString(reading.frequencyHz) + " kHz " + reading.mode.uppercased()
         guard rig.frequencyHz > 0 else {
-            status = String(localized: "webSDRFollowModel.rigNotTunedTo \(description)")
+            status = String(localized: "webSDRFollowModel.rigNotTunedTo \(description)", bundle: .module)
             return
         }
         guard !rig.ptt else {
-            status = String(localized: "webSDRFollowModel.rigNotTunedToIts \(description)")
+            status = String(localized: "webSDRFollowModel.rigNotTunedToIts \(description)", bundle: .module)
             return
         }
         // The rig rejects a VFO frequency set while in Memory mode.
         guard rig.vfoMemoryMode != .memory else {
-            status = String(localized: "webSDRFollowModel.rigNotTunedToX \(description)")
+            status = String(localized: "webSDRFollowModel.rigNotTunedToX \(description)", bundle: .module)
             return
         }
 
         pendingRigTune = (reading.frequencyHz, newMode, Date().addingTimeInterval(Self.rigTuneGrace))
-        if frequencyChanged { hub.send(.setFrequency(hz: reading.frequencyHz)) }
-        if let newMode { hub.send(.setMode(newMode)) }
+        if frequencyChanged { rigHost.sdrSend(.setFrequency(hz: reading.frequencyHz)) }
+        if let newMode { rigHost.sdrSend(.setMode(newMode)) }
         lastTunedDescription = description
         let time = Date().formatted(date: .omitted, time: .standard)
-        status = String(localized: "webSDRFollowModel.tunedRigFrom \(description) \(pageBridge.platform.displayName) \(time)")
+        status = String(localized: "webSDRFollowModel.tunedRigFrom \(description) \(pageBridge.platform.displayName) \(time)", bundle: .module)
         // If the rig never shows the new tuning (rejected, disconnected),
         // follow its actual state again once the grace period is over.
         Task { [weak self] in
@@ -666,7 +675,7 @@ final class WebSDRFollowModel: ObservableObject {
     private func startSegment() {
         startTask?.cancel()
         segmentStartedAt = nil
-        let label = tunedTarget.map { AudioRecorder.label(frequencyHz: $0.frequencyHz, mode: $0.mode) } ?? ""
+        let label = tunedTarget.map { RecordingNames.label(frequencyHz: $0.frequencyHz, mode: $0.mode) } ?? ""
         startTask = Task { [weak self] in
             guard let self else { return }
             let started = await pageBridge.start(fallbackLabel: label)
@@ -675,7 +684,7 @@ final class WebSDRFollowModel: ObservableObject {
                 segmentStartedAt = Date()
             } else {
                 endRecording()
-                recordingNote = String(localized: "webSDRFollowModel.recordingDidntStartThe \(pageBridge.platform.displayName)")
+                recordingNote = String(localized: "webSDRFollowModel.recordingDidntStartThe \(pageBridge.platform.displayName)", bundle: .module)
             }
         }
     }
@@ -688,7 +697,7 @@ final class WebSDRFollowModel: ObservableObject {
     }
 
     private func noteSaved(_ url: URL?) {
-        recordingNote = url.map { String(localized: "webSDRFollowModel.saved \($0.deletingPathExtension().lastPathComponent)") }
+        recordingNote = url.map { String(localized: "webSDRFollowModel.saved \($0.deletingPathExtension().lastPathComponent)", bundle: .module) }
             ?? recordingNote
     }
 
@@ -697,14 +706,14 @@ final class WebSDRFollowModel: ObservableObject {
     private func kiwiEndedRecording(savedTo url: URL?) {
         guard isRecording, reloadTask == nil else { noteSaved(url); return }
         endRecording()
-        recordingNote = url.map { String(localized: "webSDRFollowModel.recordingStoppedByKiwiSaved \($0.deletingPathExtension().lastPathComponent)") }
-            ?? String(localized: "webSDRFollowModel.recordingStoppedByKiwi")
+        recordingNote = url.map { String(localized: "webSDRFollowModel.recordingStoppedByKiwiSaved \($0.deletingPathExtension().lastPathComponent)", bundle: .module) }
+            ?? String(localized: "webSDRFollowModel.recordingStoppedByKiwi", bundle: .module)
     }
 
     /// Called by `KiwiWebView` when a load fails outright (bad host, Kiwi
     /// down) so the status line says so instead of a stale "Tuned to".
-    func reportLoadFailure(_ message: String) {
-        status = String(localized: "webSDRFollowModel.couldntLoad \(hostPort) \(message)")
+    public func reportLoadFailure(_ message: String) {
+        status = String(localized: "webSDRFollowModel.couldntLoad \(hostPort) \(message)", bundle: .module)
     }
 
     /// `forceHostPage`: on window open / host change, show the Kiwi even
@@ -713,27 +722,27 @@ final class WebSDRFollowModel: ObservableObject {
     private func evaluate(forceHostPage: Bool = false) {
         guard let base = KiwiSDRURLBuilder.baseURL(from: hostPort) else {
             status = hostPort.isEmpty
-                ? String(localized: "webSDRFollowModel.enterAKiwiSDRWebSDR")
-                : String(localized: "webSDRFollowModel.isntAValidHost \(hostPort)")
+                ? String(localized: "webSDRFollowModel.enterAKiwiSDRWebSDR", bundle: .module)
+                : String(localized: "webSDRFollowModel.isntAValidHost \(hostPort)", bundle: .module)
             return
         }
 
         guard isConnected else {
-            status = lastTunedDescription.map { String(localized: "webSDRFollowModel.disconnectedLastTuned \($0)") }
-                ?? String(localized: "common.disconnected")
+            status = lastTunedDescription.map { String(localized: "webSDRFollowModel.disconnectedLastTuned \($0)", bundle: .module) }
+                ?? String(localized: "common.disconnected", bundle: .module)
             return
         }
 
         guard followRig else {
             if forceHostPage { issue(base) }
-            status = lastTunedDescription.map { String(localized: "webSDRFollowModel.followOffLastTuned \($0)") }
-                ?? String(localized: "webSDRFollowModel.followOff")
+            status = lastTunedDescription.map { String(localized: "webSDRFollowModel.followOffLastTuned \($0)", bundle: .module) }
+                ?? String(localized: "webSDRFollowModel.followOff", bundle: .module)
             return
         }
 
         guard let latest else {
             if forceHostPage { issue(base) }
-            status = String(localized: "webSDRFollowModel.waitingForRigState")
+            status = String(localized: "webSDRFollowModel.waitingForRigState", bundle: .module)
             return
         }
 
@@ -763,15 +772,15 @@ final class WebSDRFollowModel: ObservableObject {
             }
             let time = lastTunedAt.formatted(date: .omitted, time: .standard)
             status = token == nil
-                ? String(localized: "webSDRFollowModel.tunedToAtModeUnchanged \(lastTunedDescription!) \(time) \(latest.mode.displayName) \(currentPlatform.displayName)")
-                : String(localized: "webSDRFollowModel.tunedToAt \(lastTunedDescription!) \(time)")
+                ? String(localized: "webSDRFollowModel.tunedToAtModeUnchanged \(lastTunedDescription!) \(time) \(latest.mode.displayName) \(currentPlatform.displayName)", bundle: .module)
+                : String(localized: "webSDRFollowModel.tunedToAt \(lastTunedDescription!) \(time)", bundle: .module)
         case let .outOfRange(hz, bands):
             if forceHostPage { issue(base) }
             let range = bands.map(KiwiSDRStation.describe).joined(separator: ", ")
-            status = String(localized: "webSDRFollowModel.notRetunedOutOfRange \(FrequencyFormat.mhz(hz, fractionDigits: 3)) \(currentPlatform.displayName) \(range)")
+            status = String(localized: "webSDRFollowModel.notRetunedOutOfRange \(FrequencyFormat.mhz(hz, fractionDigits: 3)) \(currentPlatform.displayName) \(range)", bundle: .module)
         case .noFrequency:
             if forceHostPage { issue(base) }
-            status = String(localized: "webSDRFollowModel.notRetunedNoRig")
+            status = String(localized: "webSDRFollowModel.notRetunedNoRig", bundle: .module)
         case .noHost, .invalidHost:
             break  // handled by the baseURL guard above
         }
@@ -890,8 +899,8 @@ final class WebSDRFollowModel: ObservableObject {
                     let platform = pageBridge.platform.displayName
                     let kHz = KiwiSDRURLBuilder.kHzString(next.tuning.frequencyHz)
                     status = pageBridge.platform == .openWebRX
-                        ? String(localized: "webSDRFollowModel.couldntRetuneProfile \(platform) \(kHz)")
-                        : String(localized: "webSDRFollowModel.couldntRetune \(platform) \(kHz)")
+                        ? String(localized: "webSDRFollowModel.couldntRetuneProfile \(platform) \(kHz)", bundle: .module)
+                        : String(localized: "webSDRFollowModel.couldntRetune \(platform) \(kHz)", bundle: .module)
                 }
                 tunedTarget = next.tuned
                 pageTuning = nil

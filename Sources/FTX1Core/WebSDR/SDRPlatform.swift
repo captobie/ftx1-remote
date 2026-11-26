@@ -1,4 +1,3 @@
-import FTX1Core
 import Foundation
 
 /// Which receiver software a WebSDR-window host runs: a KiwiSDR, a classic
@@ -12,12 +11,12 @@ import Foundation
 /// no platform until its page has loaded once — it's loaded as a Kiwi
 /// (`?f=`, which a WebSDR ignores), and `SDRPageBridge.detectPlatform()`
 /// then records what it actually is.
-nonisolated enum SDRPlatform: String, Codable, Sendable, CaseIterable {
+public nonisolated enum SDRPlatform: String, Codable, Sendable, CaseIterable {
     case kiwiSDR
     case webSDR
     case openWebRX
 
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .kiwiSDR: "KiwiSDR"
         case .webSDR: "WebSDR"
@@ -27,10 +26,10 @@ nonisolated enum SDRPlatform: String, Codable, Sendable, CaseIterable {
 
     /// Loaded once per connection and then retuned through the page's own
     /// functions (`SDRPageBridge.retuneInPlace`); a Kiwi reloads instead.
-    var retunesInPlace: Bool { self != .kiwiSDR }
+    public var retunesInPlace: Bool { self != .kiwiSDR }
 
     /// The page's mode token for a rig mode, or nil to tune frequency only.
-    func modeToken(for mode: RigMode) -> String? {
+    public func modeToken(for mode: RigMode) -> String? {
         switch self {
         case .kiwiSDR: KiwiSDRURLBuilder.modeToken(for: mode)
         case .webSDR: WebSDRURLBuilder.modeToken(for: mode)
@@ -40,7 +39,7 @@ nonisolated enum SDRPlatform: String, Codable, Sendable, CaseIterable {
 
     /// A mode as the page reports it, folded to the token `modeToken(for:)`
     /// would send for it; nil when the rig has no equivalent.
-    func modeFamily(ofPageMode pageMode: String) -> String? {
+    public func modeFamily(ofPageMode pageMode: String) -> String? {
         switch self {
         case .kiwiSDR: KiwiSDRURLBuilder.modeFamily(ofKiwiMode: pageMode)
         case .webSDR: WebSDRURLBuilder.modeFamily(ofWebSDRMode: pageMode)
@@ -54,7 +53,7 @@ nonisolated enum SDRPlatform: String, Codable, Sendable, CaseIterable {
     /// page in USB), and when the rig's mode has no page equivalent (RTTY,
     /// DATA-FM, C4FM — following never set the page's mode from those, so
     /// its mode isn't a statement about what the rig should be in).
-    func rigMode(forPageMode pageMode: String, current: RigMode) -> RigMode? {
+    public func rigMode(forPageMode pageMode: String, current: RigMode) -> RigMode? {
         guard let family = modeFamily(ofPageMode: pageMode),
               let currentToken = modeToken(for: current),
               family != currentToken
@@ -64,7 +63,7 @@ nonisolated enum SDRPlatform: String, Codable, Sendable, CaseIterable {
 
     /// `bands`: the station's receive ranges, or nil when unknown (a WebSDR
     /// or OpenWebRX not loaded yet), which skips the range check.
-    func retune(hostPort: String, frequencyHz: Int, mode: RigMode,
+    public func retune(hostPort: String, frequencyHz: Int, mode: RigMode,
                 bands: [ClosedRange<Int>]?) -> KiwiSDRURLBuilder.Result {
         switch self {
         case .kiwiSDR:

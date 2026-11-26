@@ -2,24 +2,21 @@ import Combine
 import FTX1Core
 import SwiftUI
 
-/// The iPad's MyKiwiSDR: the Mac's Tools → MyKiwiSDR on the shared
+/// The SDR pane's MyKiwiSDR side: the Mac's Tools → MyKiwiSDR on the shared
 /// `LocalSDRModel`, in the area the CW pane and the APRS lists use (the
 /// filter block + MENU grid), opened by the top row's SDR button on both
 /// routes. The Kiwi is reached straight from the iPad (over Tailscale, as
 /// the Pi or the hub is); the rig side — Follow, Tune rig, Mute on TX and
 /// MAIN muted while the Kiwi is audible — goes through the route's view
-/// model (`LocalSDRRigHost`).
+/// model (`SDRRigHost`).
 ///
 /// The address and password are in the pane's own header while
 /// disconnected (the iPad has no Settings screen): `localSDR.host` and the
 /// keychain item the Mac uses, in this device's own store. Explicit connect
 /// only; closing the pane or leaving the route disconnects. No recording
 /// and no decoder feed here (both Mac-only).
-struct SDRPane: View {
+struct KiwiSDRPaneContent: View {
     @ObservedObject var model: LocalSDRModel
-    @Binding var isShowing: Bool
-    /// The split screen (`SDRSplitLayout`) instead of the overlay.
-    @Binding var isSplit: Bool
 
     @AppStorage(LocalSDRModel.hostKey) private var hostPort = ""
     @State private var password = ""
@@ -49,9 +46,6 @@ struct SDRPane: View {
             }
             .padding(12)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
         .sheet(isPresented: $showingReceiver) { receiverSheet }
         .task { await loadPassword() }
     }
@@ -60,8 +54,6 @@ struct SDRPane: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Text(verbatim: "MyKiwiSDR")
-                .font(.headline)
             if model.isConnected {
                 Text(verbatim: model.connectedHostPort)
                     .font(.callout.monospaced())
@@ -89,22 +81,11 @@ struct SDRPane: View {
             }
             .labelStyle(.iconOnly)
             .accessibilityLabel("sdrPane.receiverSettings")
-            Button {
-                isSplit.toggle()
-            } label: {
-                Image(systemName: isSplit ? "rectangle.inset.filled" : "rectangle.split.2x1")
-            }
-            .accessibilityLabel(isSplit ? "sdrPane.leaveSplit" : "sdrPane.split")
-            Button {
-                isShowing = false
-            } label: {
-                Label("common.close", systemImage: "xmark")
-            }
-            .labelStyle(.iconOnly)
         }
         .buttonStyle(.bordered)
         .lineLimit(1)
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 10)
     }
 
     @ViewBuilder
@@ -323,6 +304,67 @@ struct SDRPane: View {
     }
 }
 
+/// Which SDR the pane shows (`ipad.sdrSource`).
+enum SDRPaneSource: String, CaseIterable {
+    case myKiwiSDR
+    case webSDR
+}
+
+/// The iPad's SDR pane, in the area the CW pane and the APRS lists use (or
+/// the split screen): MyKiwiSDR (`KiwiSDRPaneContent`) or a WebSDR page
+/// (`WebSDRPaneContent`), picked at the top, one at a time — switching
+/// disconnects the one left. Split and Close beside the picker.
+struct SDRPane: View {
+    @ObservedObject var model: LocalSDRModel
+    @ObservedObject var webModel: WebSDRFollowModel
+    let directory: KiwiSDRDirectory
+    @Binding var isShowing: Bool
+    /// The split screen (`SDRSplitLayout`) instead of the overlay.
+    @Binding var isSplit: Bool
+    @AppStorage("ipad.sdrSource") private var source: SDRPaneSource = .myKiwiSDR
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                Picker("sdrPane.source", selection: $source) {
+                    Text(verbatim: "MyKiwiSDR").tag(SDRPaneSource.myKiwiSDR)
+                    Text(verbatim: "WebSDR").tag(SDRPaneSource.webSDR)
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+                Spacer(minLength: 0)
+                Button {
+                    isSplit.toggle()
+                } label: {
+                    Image(systemName: isSplit ? "rectangle.inset.filled" : "rectangle.split.2x1")
+                }
+                .accessibilityLabel(isSplit ? "sdrPane.leaveSplit" : "sdrPane.split")
+                Button {
+                    isShowing = false
+                } label: {
+                    Label("common.close", systemImage: "xmark")
+                }
+                .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.bordered)
+            .padding(12)
+            switch source {
+            case .myKiwiSDR: KiwiSDRPaneContent(model: model)
+            case .webSDR: WebSDRPaneContent(model: webModel, directory: directory)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .onChange(of: source) { _, source in
+            switch source {
+            case .myKiwiSDR: webModel.disconnect()
+            case .webSDR: model.disconnect()
+            }
+        }
+    }
+}
+
 /// The Kiwi's S-meter as the iPad strips' bar (S9 = −73 dBm, 6 dB per
 /// unit, so dB over S9 is dBm + 73), with the dBm reading and the ADC
 /// overload flag. Its own view, so ~10 meter updates a second redraw only
@@ -379,10 +421,17 @@ struct SDRPaneButton: View {
 final class SDRModels: ObservableObject {
     let hub: LocalSDRModel
     let piDirect: LocalSDRModel
+    /// The WebSDR page on each route (`WebSDRPaneContent`).
+    let hubWeb: WebSDRFollowModel
+    let piDirectWeb: WebSDRFollowModel
+    /// The public KiwiSDR list, shared (its disk cache is anyway).
+    let directory = KiwiSDRDirectory()
 
     init(hub: RigClientViewModel, piDirect: PiDirectViewModel) {
         self.hub = LocalSDRModel(rigHost: hub, logSubsystem: "com.ftx1remote.ipad")
         self.piDirect = LocalSDRModel(rigHost: piDirect, logSubsystem: "com.ftx1remote.ipad")
+        hubWeb = WebSDRFollowModel(rigHost: hub)
+        piDirectWeb = WebSDRFollowModel(rigHost: piDirect)
     }
 }
 
@@ -391,8 +440,10 @@ extension View {
     /// the CW pane and APRS lists) while `isShowing`, hiding — not removing
     /// — the view underneath, as `cwPane` does; the area grows to fit the
     /// waterfall. The connection's lifetime is `sdrSession`'s.
-    func sdrPane(isShowing: Binding<Bool>, isSplit: Binding<Bool>, model: LocalSDRModel) -> some View {
-        modifier(SDRPaneModifier(isShowing: isShowing, isSplit: isSplit, model: model))
+    func sdrPane(isShowing: Binding<Bool>, isSplit: Binding<Bool>, model: LocalSDRModel,
+                 webModel: WebSDRFollowModel, directory: KiwiSDRDirectory) -> some View {
+        modifier(SDRPaneModifier(isShowing: isShowing, isSplit: isSplit, model: model, webModel: webModel,
+                                 directory: directory))
     }
 }
 
@@ -404,6 +455,8 @@ private struct SDRPaneModifier: ViewModifier {
     @Binding var isShowing: Bool
     @Binding var isSplit: Bool
     let model: LocalSDRModel
+    let webModel: WebSDRFollowModel
+    let directory: KiwiSDRDirectory
 
     func body(content: Content) -> some View {
         content
@@ -413,7 +466,8 @@ private struct SDRPaneModifier: ViewModifier {
             .accessibilityHidden(isShowing)
             .overlay {
                 if isShowing {
-                    SDRPane(model: model, isShowing: $isShowing, isSplit: $isSplit)
+                    SDRPane(model: model, webModel: webModel, directory: directory, isShowing: $isShowing,
+                            isSplit: $isSplit)
                 }
             }
     }

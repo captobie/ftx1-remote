@@ -30,12 +30,17 @@ extension LocalSDRModel {
     }
 }
 
-extension HubService: LocalSDRRigHost {
-    var localSDRRigState: RigState { rigState }
-    var localSDRRigStatePublisher: AnyPublisher<RigState, Never> { $rigState.eraseToAnyPublisher() }
-    var localSDRRigConnected: Bool { connectionState == .connected }
-    func localSDRSend(_ command: RigCommand) { send(command) }
-    func setLocalSDRAudible(_ audible: Bool) { setMainAudioOverride(.localSDR, active: audible) }
+extension HubService: SDRRigHost {
+    var sdrRigState: RigState { rigState }
+    var sdrRigStatePublisher: AnyPublisher<RigState, Never> { $rigState.eraseToAnyPublisher() }
+    var sdrRigConnected: Bool { connectionState == .connected }
+    func sdrSend(_ command: RigCommand) { send(command) }
+    func setSDRAudible(_ audible: Bool, source: SDRAudioSource) {
+        switch source {
+        case .localSDR: setMainAudioOverride(.localSDR, active: audible)
+        case .webSDR: setMainAudioOverride(.webSDR, active: audible)
+        }
+    }
 }
 
 extension LocalSDRAudioSource: LocalSDRAudioTap {}

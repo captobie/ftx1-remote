@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 import WebKit
 
@@ -17,37 +21,44 @@ import WebKit
 /// `target="_top"`). Any such navigation off the directory pages is
 /// cancelled and handed to `onPick` instead — it only fills the host field
 /// (`WebSDRFollowModel.selectWebSDR`), never connects. Links meant for a
-/// new window, and mailto:, go to the default browser.
-struct WebSDROrgBrowserView: NSViewRepresentable {
-    static let homeURL = URL(string: "http://websdr.org/")!
+/// new window, and mailto:, go to the default browser (`openExternally`).
+@MainActor
+public struct WebSDROrgBrowserView {
+    public init(reloadID: Int, onPick: @escaping (URL) -> Void, onLoadFailure: @escaping (String?) -> Void = { _ in }) {
+        self.reloadID = reloadID
+        self.onPick = onPick
+        self.onLoadFailure = onLoadFailure
+    }
+
+    public static let homeURL = URL(string: "http://websdr.org/")!
 
     /// Bumped to reload the site (the sheet's Reload button).
-    let reloadID: Int
-    let onPick: (URL) -> Void
-    var onLoadFailure: (String?) -> Void = { _ in }
+    public let reloadID: Int
+    public let onPick: (URL) -> Void
+    public var onLoadFailure: (String?) -> Void = { _ in }
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    public func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeNSView(context: Context) -> WKWebView {
+    func makeWebView(coordinator: Coordinator) -> WKWebView {
         let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
-        webView.navigationDelegate = context.coordinator
-        webView.uiDelegate = context.coordinator
-        context.coordinator.onPick = onPick
-        context.coordinator.onLoadFailure = onLoadFailure
-        context.coordinator.loadedReloadID = reloadID
+        webView.navigationDelegate = coordinator
+        webView.uiDelegate = coordinator
+        coordinator.onPick = onPick
+        coordinator.onLoadFailure = onLoadFailure
+        coordinator.loadedReloadID = reloadID
         webView.load(URLRequest(url: Self.homeURL))
         return webView
     }
 
-    func updateNSView(_ webView: WKWebView, context: Context) {
-        context.coordinator.onPick = onPick
-        context.coordinator.onLoadFailure = onLoadFailure
-        guard reloadID != context.coordinator.loadedReloadID else { return }
-        context.coordinator.loadedReloadID = reloadID
+    func updateWebView(_ webView: WKWebView, coordinator: Coordinator) {
+        coordinator.onPick = onPick
+        coordinator.onLoadFailure = onLoadFailure
+        guard reloadID != coordinator.loadedReloadID else { return }
+        coordinator.loadedReloadID = reloadID
         webView.load(URLRequest(url: Self.homeURL))
     }
 
-    static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+    static func dismantleWebView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.navigationDelegate = nil
         webView.uiDelegate = nil
         webView.stopLoading()
@@ -55,23 +66,23 @@ struct WebSDROrgBrowserView: NSViewRepresentable {
 
     /// websdr.org is a frameset around websdr.ewi.utwente.nl/org/ (port 80;
     /// the Twente receiver itself is on :8901, which is a station pick).
-    static func isDirectoryPage(_ url: URL) -> Bool {
+    public static func isDirectoryPage(_ url: URL) -> Bool {
         guard let host = url.host?.lowercased() else { return true }
         if host == "websdr.org" || host == "www.websdr.org" { return true }
         return host == "websdr.ewi.utwente.nl" && (url.port == nil || url.port == 80)
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+    public final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         var onPick: (URL) -> Void = { _ in }
         var onLoadFailure: (String?) -> Void = { _ in }
         var loadedReloadID = 0
 
-        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+        public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
             guard let url = navigationAction.request.url else { return decisionHandler(.allow) }
             let scheme = url.scheme?.lowercased() ?? ""
             if scheme == "mailto" {
-                NSWorkspace.shared.open(url)
+                openExternally(url)
                 return decisionHandler(.cancel)
             }
             // Frames (the site's own inner page, map tiles' iframes if any)
@@ -81,7 +92,7 @@ struct WebSDROrgBrowserView: NSViewRepresentable {
                   !WebSDROrgBrowserView.isDirectoryPage(url)
             else { return decisionHandler(.allow) }
             if navigationAction.targetFrame == nil {
-                NSWorkspace.shared.open(url)
+                openExternally(url)
             } else {
                 onPick(url)
             }
@@ -89,21 +100,21 @@ struct WebSDROrgBrowserView: NSViewRepresentable {
         }
 
         /// `target="_blank"` links: open in the default browser, not here.
-        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+        public func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                      for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-            if let url = navigationAction.request.url { NSWorkspace.shared.open(url) }
+            if let url = navigationAction.request.url { openExternally(url) }
             return nil
         }
 
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             onLoadFailure(nil)
         }
 
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
             report(error)
         }
 
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
             report(error)
         }
 
@@ -114,4 +125,36 @@ struct WebSDROrgBrowserView: NSViewRepresentable {
             onLoadFailure(error.localizedDescription)
         }
     }
+}
+
+#if os(macOS)
+extension WebSDROrgBrowserView: NSViewRepresentable {
+    public func makeNSView(context: Context) -> WKWebView { makeWebView(coordinator: context.coordinator) }
+    public func updateNSView(_ webView: WKWebView, context: Context) {
+        updateWebView(webView, coordinator: context.coordinator)
+    }
+    public static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+        dismantleWebView(webView, coordinator: coordinator)
+    }
+}
+#else
+extension WebSDROrgBrowserView: UIViewRepresentable {
+    public func makeUIView(context: Context) -> WKWebView { makeWebView(coordinator: context.coordinator) }
+    public func updateUIView(_ webView: WKWebView, context: Context) {
+        updateWebView(webView, coordinator: context.coordinator)
+    }
+    public static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        dismantleWebView(webView, coordinator: coordinator)
+    }
+}
+#endif
+
+/// A link meant for the default browser (Safari on the iPad).
+@MainActor
+func openExternally(_ url: URL) {
+    #if os(macOS)
+    NSWorkspace.shared.open(url)
+    #else
+    UIApplication.shared.open(url)
+    #endif
 }

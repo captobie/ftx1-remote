@@ -460,15 +460,18 @@ public final class PiDirectViewModel: ObservableObject {
         mainMutedForLocalSDR = false
     }
 
-    /// MAIN was muted because MyKiwiSDR became audible
-    /// (`setLocalSDRAudible`), the Mac's `mainMutedByOverride`.
+    /// MAIN was muted because an SDR became audible (`setSDRAudible`), the
+    /// Mac's `mainMutedByOverride`.
     private var mainMutedForLocalSDR = false
+    /// The SDRs audible now (MyKiwiSDR, the WebSDR page).
+    private var audibleSDRs: Set<SDRAudioSource> = []
 
-    /// While MyKiwiSDR is audible MAIN's playback is muted (shown on its
-    /// strip's mute button, not saved); given back when it isn't, unless
+    /// While an SDR is audible MAIN's playback is muted (shown on its
+    /// strip's mute button, not saved); given back when none is, unless
     /// MAIN was already muted or the operator pressed Mute meanwhile.
-    public func setLocalSDRAudible(_ audible: Bool) {
-        if audible {
+    public func setSDRAudible(_ audible: Bool, source: SDRAudioSource) {
+        if audible { audibleSDRs.insert(source) } else { audibleSDRs.remove(source) }
+        if !audibleSDRs.isEmpty {
             guard !isMainAudioMuted else { return }
             isMainAudioMuted = true
             mainMutedForLocalSDR = true

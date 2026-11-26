@@ -7,19 +7,28 @@ import WebKit
 /// the page is already there (see `WebSDRFollowModel`'s click-to-tune). A
 /// classic WebSDR is only loaded once per connection and then retuned in
 /// place (`SDRPageBridge.retuneInPlace`), so `request` doesn't change.
-struct KiwiWebView: NSViewRepresentable {
-    let request: WebSDRFollowModel.PageRequest?
+@MainActor
+public struct KiwiWebView {
+    public init(request: WebSDRFollowModel.PageRequest?, pageBridge: SDRPageBridge,
+                onLoadFailure: @escaping (String) -> Void = { _ in }, onPageLoaded: @escaping () -> Void = {}) {
+        self.request = request
+        self.pageBridge = pageBridge
+        self.onLoadFailure = onLoadFailure
+        self.onPageLoaded = onPageLoaded
+    }
+
+    public let request: WebSDRFollowModel.PageRequest?
     /// Receives the page's own recorder's WAV saves (see
     /// `SDRPageBridge`) and gets this web view to run its commands.
-    let pageBridge: SDRPageBridge
-    var onLoadFailure: (String) -> Void = { _ in }
+    public let pageBridge: SDRPageBridge
+    public var onLoadFailure: (String) -> Void = { _ in }
     /// A receiver page (not about:blank) finished loading — where a recording
     /// that spans a retune picks up again.
-    var onPageLoaded: () -> Void = {}
+    public var onPageLoaded: () -> Void = {}
 
-    func makeCoordinator() -> Coordinator { Coordinator(pageBridge: pageBridge) }
+    public func makeCoordinator() -> Coordinator { Coordinator(pageBridge: pageBridge) }
 
-    func makeNSView(context: Context) -> WKWebView {
+    func makeWebView(coordinator: Coordinator) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         // Kiwis gate audio behind a "click to start" overlay for browser
         // autoplay policy; lifting WebKit's user-gesture requirement is what
@@ -33,16 +42,16 @@ struct KiwiWebView: NSViewRepresentable {
         configuration.userContentController.add(TapAudioRelay(pageBridge: pageBridge),
                                                 name: SDRPageBridge.tapMessageHandlerName)
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.navigationDelegate = context.coordinator
+        webView.navigationDelegate = coordinator
         pageBridge.webView = webView
         return webView
     }
 
-    func updateNSView(_ webView: WKWebView, context: Context) {
-        context.coordinator.onLoadFailure = onLoadFailure
-        context.coordinator.onPageLoaded = onPageLoaded
-        guard request != context.coordinator.loaded else { return }
-        context.coordinator.loaded = request
+    func updateWebView(_ webView: WKWebView, coordinator: Coordinator) {
+        coordinator.onLoadFailure = onLoadFailure
+        coordinator.onPageLoaded = onPageLoaded
+        guard request != coordinator.loaded else { return }
+        coordinator.loaded = request
         if let request {
             webView.load(URLRequest(url: request.url))
         } else {
@@ -53,7 +62,7 @@ struct KiwiWebView: NSViewRepresentable {
     /// Backstop for window close: even if SwiftUI (or WebKit's own process
     /// model) kept this web view alive a moment longer, the Kiwi page is
     /// unloaded now and can't keep a session or audio running.
-    static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+    static func dismantleWebView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.navigationDelegate = nil
         webView.configuration.userContentController
             .removeScriptMessageHandler(forName: SDRPageBridge.tapMessageHandlerName)
@@ -76,13 +85,13 @@ struct KiwiWebView: NSViewRepresentable {
             self.pageBridge = pageBridge
         }
 
-        func userContentController(_ userContentController: WKUserContentController,
+        public func userContentController(_ userContentController: WKUserContentController,
                                    didReceive message: WKScriptMessage) {
             pageBridge?.receiveTapAudio(message.body)
         }
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKDownloadDelegate {
+    public final class Coordinator: NSObject, WKNavigationDelegate, WKDownloadDelegate {
         var loaded: WebSDRFollowModel.PageRequest?
         var onLoadFailure: (String) -> Void = { _ in }
         var onPageLoaded: () -> Void = {}
@@ -92,7 +101,7 @@ struct KiwiWebView: NSViewRepresentable {
             self.pageBridge = pageBridge
         }
 
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             guard webView.url?.scheme != "about" else { return }
             onPageLoaded()
         }
@@ -104,7 +113,7 @@ struct KiwiWebView: NSViewRepresentable {
         /// link is clicked by `SDRPageBridge.stop`) — WebKit flags that as a
         /// download, which is the only download these pages are expected to
         /// make.
-        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+        public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
             if Self.isOpenWebRXHashUpdate(navigationAction, in: webView, platform: pageBridge.platform) {
                 decisionHandler(.cancel)
@@ -137,32 +146,32 @@ struct KiwiWebView: NSViewRepresentable {
             return withoutFragment(target) == withoutFragment(current)
         }
 
-        func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+        public func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
             download.delegate = self
         }
 
-        func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        public func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
             download.delegate = self
         }
 
-        func download(_ download: WKDownload, decideDestinationUsing response: URLResponse,
+        public func download(_ download: WKDownload, decideDestinationUsing response: URLResponse,
                       suggestedFilename: String) async -> URL? {
             pageBridge.destinationURL()
         }
 
-        func downloadDidFinish(_ download: WKDownload) {
+        public func downloadDidFinish(_ download: WKDownload) {
             pageBridge.downloadFinished(success: true)
         }
 
-        func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+        public func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
             pageBridge.downloadFinished(success: false)
         }
 
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
             report(error)
         }
 
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
             report(error)
         }
 
@@ -174,3 +183,25 @@ struct KiwiWebView: NSViewRepresentable {
         }
     }
 }
+
+#if os(macOS)
+extension KiwiWebView: NSViewRepresentable {
+    public func makeNSView(context: Context) -> WKWebView { makeWebView(coordinator: context.coordinator) }
+    public func updateNSView(_ webView: WKWebView, context: Context) {
+        updateWebView(webView, coordinator: context.coordinator)
+    }
+    public static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+        dismantleWebView(webView, coordinator: coordinator)
+    }
+}
+#else
+extension KiwiWebView: UIViewRepresentable {
+    public func makeUIView(context: Context) -> WKWebView { makeWebView(coordinator: context.coordinator) }
+    public func updateUIView(_ webView: WKWebView, context: Context) {
+        updateWebView(webView, coordinator: context.coordinator)
+    }
+    public static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        dismantleWebView(webView, coordinator: coordinator)
+    }
+}
+#endif

@@ -1,19 +1,28 @@
-import FTX1Core
 import SwiftUI
 
 /// The WebSDR window's "Stations…" sheet: a searchable, sortable table of
 /// public KiwiSDRs (`KiwiSDRDirectory`). Choosing a station only fills the
 /// host field (`WebSDRFollowModel.select`) — connecting stays a separate,
 /// explicit Connect in the window itself.
-struct KiwiSDRDirectoryView: View {
-    @ObservedObject var directory: KiwiSDRDirectory
+public struct KiwiSDRDirectoryView: View {
+    @ObservedObject public var directory: KiwiSDRDirectory
     /// The rig frequency being followed, for the "Covers rig frequency"
     /// filter; nil/0 disables it.
-    let rigFrequencyHz: Int?
+    public let rigFrequencyHz: Int?
     /// `WebSDRFavorite.id`s, for the star column and "Favorites only".
-    let favoriteIDs: Set<String>
-    let onToggleFavorite: (KiwiSDRStation) -> Void
-    let onChoose: (KiwiSDRStation) -> Void
+    public let favoriteIDs: Set<String>
+    public let onToggleFavorite: (KiwiSDRStation) -> Void
+    public let onChoose: (KiwiSDRStation) -> Void
+
+    public init(directory: KiwiSDRDirectory, rigFrequencyHz: Int?, favoriteIDs: Set<String>,
+                onToggleFavorite: @escaping (KiwiSDRStation) -> Void,
+                onChoose: @escaping (KiwiSDRStation) -> Void) {
+        self.directory = directory
+        self.rigFrequencyHz = rigFrequencyHz
+        self.favoriteIDs = favoriteIDs
+        self.onToggleFavorite = onToggleFavorite
+        self.onChoose = onChoose
+    }
 
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
@@ -80,12 +89,26 @@ struct KiwiSDRDirectoryView: View {
         favoriteIDs.contains(WebSDRFavorite.key(station.hostPort))
     }
 
-    var body: some View {
+    public var body: some View {
         let rows = rows
         VStack(alignment: .leading, spacing: 0) {
             filterBar
                 .padding(10)
             Divider()
+            stationList(rows)
+                .overlay { emptyState(rowCount: rows.count) }
+            Divider()
+            footer(rowCount: rows.count)
+                .padding(10)
+        }
+        #if os(macOS)
+        .frame(minWidth: 900, minHeight: 520)
+        #endif
+        .onAppear { directory.loadIfNeeded() }
+    }
+
+    #if os(macOS)
+    private func stationList(_ rows: [Row]) -> some View {
             Table(rows, selection: $selection, sortOrder: $sortOrder) {
                 // Not sortable ("Favorites only" covers that); starring
                 // doesn't choose the station or close the sheet.
@@ -96,23 +119,23 @@ struct KiwiSDRDirectoryView: View {
                             .foregroundStyle(starred ? .yellow : .secondary)
                     }
                     .buttonStyle(.borderless)
-                    .help(starred ? "common.removeFromFavorites" : "kiwiSDRDirectory.addToFavorites")
+                    .help(starred ? String(localized: "common.removeFromFavorites", bundle: .module) : String(localized: "kiwiSDRDirectory.addToFavorites", bundle: .module))
                 }
                 .width(22)
-                TableColumn("common.name", value: \.name) { row in
+                TableColumn(String(localized: "common.name", bundle: .module), value: \.name) { row in
                     Text(row.name).help(row.name)
                 }
                 .width(min: 200, ideal: 280)
-                TableColumn("kiwiSDRDirectory.location", value: \.location) { row in
+                TableColumn(String(localized: "kiwiSDRDirectory.location", bundle: .module), value: \.location) { row in
                     Text(row.location).help(row.location)
                 }
                 .width(min: 120, ideal: 180)
-                TableColumn("kiwiSDRDirectory.distance", value: \.distanceSortKey) { row in
+                TableColumn(String(localized: "kiwiSDRDirectory.distance", bundle: .module), value: \.distanceSortKey) { row in
                     Text(row.distanceKm.map { "\(Int($0.rounded())) km" } ?? "—")
                         .monospacedDigit()
                 }
                 .width(min: 70, ideal: 80)
-                TableColumn("kiwiSDRDirectory.users", value: \.users) { row in
+                TableColumn(String(localized: "kiwiSDRDirectory.users", bundle: .module), value: \.users) { row in
                     Text("\(row.station.users)/\(row.station.usersMax)")
                         .monospacedDigit()
                         .foregroundStyle(row.station.isFull ? .red : .primary)
@@ -122,11 +145,11 @@ struct KiwiSDRDirectoryView: View {
                     Text(row.station.snr.map { "\($0) dB" } ?? "—").monospacedDigit()
                 }
                 .width(min: 45, ideal: 55)
-                TableColumn("kiwiSDRDirectory.range", value: \.bandsSortKey) { row in
+                TableColumn(String(localized: "kiwiSDRDirectory.range", bundle: .module), value: \.bandsSortKey) { row in
                     Text(row.station.bandsDescription)
                 }
                 .width(min: 80, ideal: 100)
-                TableColumn("kiwiSDRDirectory.antenna", value: \.antenna) { row in
+                TableColumn(String(localized: "kiwiSDRDirectory.antenna", bundle: .module), value: \.antenna) { row in
                     Text(row.antenna).help(row.antenna)
                 }
                 .width(min: 120, ideal: 200)
@@ -135,30 +158,92 @@ struct KiwiSDRDirectoryView: View {
             .contextMenu(forSelectionType: KiwiSDRStation.ID.self) { _ in } primaryAction: { ids in
                 if let id = ids.first { choose(id) }
             }
-            .overlay { emptyState(rowCount: rows.count) }
-            Divider()
-            footer(rowCount: rows.count)
-                .padding(10)
-        }
-        .frame(minWidth: 900, minHeight: 520)
-        .onAppear { directory.loadIfNeeded() }
     }
+    #else
+    /// The iPad's list: a sheet there is horizontally compact, where a
+    /// `Table` shows only its first column. A tap chooses the station (it
+    /// still only fills the host field); the star stars it.
+    private func stationList(_ rows: [Row]) -> some View {
+        List(rows) { row in
+            HStack(spacing: 12) {
+                let starred = isFavorite(row.station)
+                Button { onToggleFavorite(row.station) } label: {
+                    Image(systemName: starred ? "star.fill" : "star")
+                        .foregroundStyle(starred ? .yellow : .secondary)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(starred ? String(localized: "common.removeFromFavorites", bundle: .module)
+                                    : String(localized: "kiwiSDRDirectory.addToFavorites", bundle: .module))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(row.name)
+                        .lineLimit(1)
+                    Text(verbatim: [row.location,
+                                    row.distanceKm.map { "\(Int($0.rounded())) km" },
+                                    "\(row.station.users)/\(row.station.usersMax)",
+                                    row.station.snr.map { "SNR \($0) dB" },
+                                    row.station.bandsDescription]
+                        .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
+                        .font(.caption)
+                        .foregroundStyle(row.station.isFull ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { choose(row.id) }
+        }
+        .listStyle(.plain)
+    }
+    #endif
 
     private var filterBar: some View {
+        #if os(macOS)
+        filterControls
+        #else
+        // The iPad's sheet is narrower: search on its own line.
+        VStack(alignment: .leading, spacing: 10) {
+            TextField(String(localized: "kiwiSDRDirectory.searchNameLocationGrid", bundle: .module), text: $search)
+                .textFieldStyle(.roundedBorder)
+                .autocorrectionDisabled()
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 14) { filterToggles }
+                VStack(alignment: .leading, spacing: 8) { filterToggles }
+            }
+            if home == nil {
+                Text(String(localized: "kiwiSDRDirectory.setYourGridSquare", bundle: .module))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private var filterToggles: some View {
+        Toggle(coversFrequencyLabel, isOn: $coversRigFrequency)
+            .disabled(rigFrequencyUsable == nil)
+            .fixedSize()
+        Toggle(String(localized: "kiwiSDRDirectory.hideFull", bundle: .module), isOn: $hideFull)
+            .fixedSize()
+        Toggle(String(localized: "kiwiSDRDirectory.favoritesOnly", bundle: .module), isOn: $favoritesOnly)
+            .fixedSize()
+    }
+
+    private var filterControls: some View {
         HStack(spacing: 14) {
-            TextField("kiwiSDRDirectory.searchNameLocationGrid", text: $search)
+            TextField(String(localized: "kiwiSDRDirectory.searchNameLocationGrid", bundle: .module), text: $search)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 320)
             Toggle(coversFrequencyLabel, isOn: $coversRigFrequency)
                 .disabled(rigFrequencyUsable == nil)
                 .help(rigFrequencyUsable == nil
-                      ? "kiwiSDRDirectory.availableOnceTheRigs"
-                      : "kiwiSDRDirectory.onlyStationsWhoseReceive")
-            Toggle("kiwiSDRDirectory.hideFull", isOn: $hideFull)
-            Toggle("kiwiSDRDirectory.favoritesOnly", isOn: $favoritesOnly)
+                      ? String(localized: "kiwiSDRDirectory.availableOnceTheRigs", bundle: .module)
+                      : String(localized: "kiwiSDRDirectory.onlyStationsWhoseReceive", bundle: .module))
+            Toggle(String(localized: "kiwiSDRDirectory.hideFull", bundle: .module), isOn: $hideFull)
+            Toggle(String(localized: "kiwiSDRDirectory.favoritesOnly", bundle: .module), isOn: $favoritesOnly)
             Spacer()
             if home == nil {
-                Text("kiwiSDRDirectory.setYourGridSquare")
+                Text(String(localized: "kiwiSDRDirectory.setYourGridSquare", bundle: .module))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -166,8 +251,8 @@ struct KiwiSDRDirectoryView: View {
     }
 
     private var coversFrequencyLabel: String {
-        guard let hz = rigFrequencyUsable else { return String(localized: "kiwiSDRDirectory.coversRigFrequency") }
-        return String(localized: "kiwiSDRDirectory.coversMHz \(FrequencyFormat.mhz(hz, fractionDigits: 3))")
+        guard let hz = rigFrequencyUsable else { return String(localized: "kiwiSDRDirectory.coversRigFrequency", bundle: .module) }
+        return String(localized: "kiwiSDRDirectory.coversMHz \(FrequencyFormat.mhz(hz, fractionDigits: 3))", bundle: .module)
     }
 
     @ViewBuilder
@@ -175,9 +260,9 @@ struct KiwiSDRDirectoryView: View {
         if directory.stations.isEmpty {
             switch directory.state {
             case .loading, .idle:
-                ProgressView("kiwiSDRDirectory.loadingKiwiSDRList")
+                ProgressView(String(localized: "kiwiSDRDirectory.loadingKiwiSDRList", bundle: .module))
             case let .failed(message):
-                ContentUnavailableView("kiwiSDRDirectory.stationListUnavailable",
+                ContentUnavailableView(String(localized: "kiwiSDRDirectory.stationListUnavailable", bundle: .module),
                                        systemImage: "antenna.radiowaves.left.and.right.slash",
                                        description: Text(message))
             }
@@ -196,29 +281,31 @@ struct KiwiSDRDirectoryView: View {
             }
             .font(.caption)
             .foregroundStyle(.secondary)
-            Button("common.refresh", systemImage: "arrow.clockwise", action: directory.refresh)
+            Button(String(localized: "common.refresh", bundle: .module), systemImage: "arrow.clockwise", action: directory.refresh)
                 .labelStyle(.titleAndIcon)
                 .disabled(directory.state == .loading)
             if directory.state == .loading, !directory.stations.isEmpty {
                 ProgressView().controlSize(.small)
             }
             Spacer()
-            Button("common.cancel") { dismiss() }
+            Button(String(localized: "common.cancel", bundle: .module)) { dismiss() }
                 .keyboardShortcut(.cancelAction)
-            Button("kiwiSDRDirectory.useStation") {
+            #if os(macOS)
+            Button(String(localized: "kiwiSDRDirectory.useStation", bundle: .module)) {
                 if let selection { choose(selection) }
             }
             .keyboardShortcut(.defaultAction)
             .disabled(selection == nil)
+            #endif
         }
     }
 
     private func summary(rowCount: Int) -> String {
         let total = directory.stations.count
         guard let fetchedAt = directory.fetchedAt else {
-            return String(localized: "kiwiSDRDirectory.summary \(rowCount) \(total)")
+            return String(localized: "kiwiSDRDirectory.summary \(rowCount) \(total)", bundle: .module)
         }
-        return String(localized: "kiwiSDRDirectory.summaryUpdated \(rowCount) \(total) \(fetchedAt.formatted(.relative(presentation: .named)))")
+        return String(localized: "kiwiSDRDirectory.summaryUpdated \(rowCount) \(total) \(fetchedAt.formatted(.relative(presentation: .named)))", bundle: .module)
     }
 
     private func choose(_ id: KiwiSDRStation.ID) {
