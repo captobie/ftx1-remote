@@ -153,3 +153,23 @@ Conventions, the same as es/de:
 | Windows firewall/microphone paths | Windows Security / Settings paths | it "Sicurezza di Windows → Firewall e protezione della rete", fr "Sécurité Windows → Pare-feu et protection du réseau" | Check against current Windows wording. |
 | `pttButton.pushToTalk` | Push to talk | it "Premi per parlare", fr "Appuyer pour parler" | |
 | `settings.audioSettings.squelchHangTime` | Squelch tail | it "Coda dello squelch", fr "Traîne du squelch" | |
+
+# iPad SDR pane (2026-11-26)
+
+New strings for the iPad's SDR pane, in all four languages, machine-written
+like the rest. Everything else the pane shows reuses the Mac's MyKiwiSDR and
+WebSDR window strings, already listed above. "SDR", "MyKiwiSDR" and "WebSDR"
+stay English.
+
+| Key | English | German | Spanish | Italian | French |
+|---|---|---|---|---|---|
+| `sdrPane.split` | Split screen: SDR beside the rig controls | Geteilter Bildschirm: SDR neben der Gerätesteuerung | Pantalla dividida: SDR junto a los controles del equipo | Schermo diviso: SDR accanto ai comandi dell'apparato | Écran partagé : SDR à côté des commandes du poste |
+| `sdrPane.leaveSplit` | Leave split screen | Geteilten Bildschirm beenden | Salir de la pantalla dividida | Esci dallo schermo diviso | Quitter l'écran partagé |
+| `sdrPane.address` | KiwiSDR address (host:port) | KiwiSDR-Adresse (Host:Port) | Dirección del KiwiSDR (host:puerto) | Indirizzo del KiwiSDR (host:porta) | Adresse du KiwiSDR (hôte:port) |
+| `sdrPane.receiverSettings` | Receiver settings | Empfängereinstellungen | Ajustes del receptor | Impostazioni del ricevitore | Réglages du récepteur |
+| `kiwiSDRDirectory.setYourGridSquareIPad` | Set your grid square under CW → Macros → Station to sort by distance. | Eigenen Locator unter CW → Makros → Station eintragen, … | Introducir la cuadrícula propia en CW → Macros → Estación … | Impostare il locatore proprio in CW → Macro → Stazione … | Saisir son locator dans CW → Macros → Station … |
+
+Judgment calls: "split screen" follows Apple's own Split View wording in
+each language rather than a ham term; "rig controls" uses the shared "rig"
+term (Gerät / equipo / apparato / poste). The grid path names the iPad's CW
+Macros sheet sections as they appear there.

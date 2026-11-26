@@ -384,11 +384,17 @@ struct PiDirectView: View {
 
     /// The rig buttons at their natural size, or smaller when the row is
     /// full (portrait, longer translations): Connected and PTT keep theirs.
+    /// Last, a sideways scroll, so a row that still doesn't fit (German
+    /// "Überspringen") can't widen the whole screen past its edges.
     private var rigButtonsFitting: some View {
         ViewThatFits(in: .horizontal) {
             rigButtons
             rigButtons.controlSize(.small)
             rigButtons.controlSize(.mini)
+            // Leading: SDR and CW, the pane buttons, stay in view.
+            ScrollView(.horizontal, showsIndicators: false) {
+                rigButtons.controlSize(.mini)
+            }
         }
     }
 

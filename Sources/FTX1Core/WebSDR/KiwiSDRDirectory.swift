@@ -151,8 +151,39 @@ public final class KiwiSDRDirectory: ObservableObject {
             return nil
         }
         return entries.compactMap { entry in
-            KiwiSDRStation(entry: entry.compactMapValues { $0 as? String })
+            KiwiSDRStation(entry: entry.compactMapValues { ($0 as? String).map(unescapingLeftovers) })
         }
+    }
+
+    /// The mirror escapes some fields twice, so after JSON decoding a name
+    /// still reads `\u26f0\ufe0f 0\u201330 MHz …` or `\"NEW A…`. Decodes the
+    /// leftover `\uXXXX` (surrogate pairs included), `\"`, `\\` and `\/`;
+    /// anything else is left as it is.
+    public nonisolated static func unescapingLeftovers(_ text: String) -> String {
+        guard text.contains("\\") else { return text }
+        var units: [UInt16] = []
+        let source = Array(text.utf16)
+        var i = 0
+        while i < source.count {
+            let unit = source[i]
+            if unit == 0x5C, i + 1 < source.count {   // backslash
+                let next = source[i + 1]
+                if next == 0x75, i + 5 < source.count,   // \u + 4 hex digits
+                   let value = UInt16(String(decoding: source[(i + 2)...(i + 5)], as: UTF16.self), radix: 16) {
+                    units.append(value)
+                    i += 6
+                    continue
+                }
+                if next == 0x22 || next == 0x5C || next == 0x2F {   // \" \\ \/
+                    units.append(next)
+                    i += 2
+                    continue
+                }
+            }
+            units.append(unit)
+            i += 1
+        }
+        return String(decoding: units, as: UTF16.self)
     }
 }
 

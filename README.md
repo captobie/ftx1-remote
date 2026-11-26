@@ -278,7 +278,11 @@ list), a meter + mute/SQL/VOL strip per receiver, swap, V/M, memory scan,
 hold-to-talk PTT with its transmit lock, the filter block and the MENU grid
 with Deep Settings. The FM page's S.LIST/M.LIST and the **CW** button open
 the APRS lists and the CW decoder/sender in place of the filter block and
-grid. Demo Mode is on the Pi direct tab.
+grid. The **SDR** button opens MyKiwiSDR (native audio and waterfall from
+your own KiwiSDR) or a WebSDR page (KiwiSDR, classic WebSDR or OpenWebRX)
+in the same place, following the rig and optionally tuning it; its split
+button puts the SDR beside the VFO boxes, strips and filters (above them
+in portrait) without the MENU grid. Demo Mode is on the Pi direct tab.
 
 ## CW key and paddle (Mac; Local or Remote mode)
 

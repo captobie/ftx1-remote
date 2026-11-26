@@ -210,7 +210,8 @@ public struct KiwiSDRDirectoryView: View {
                 VStack(alignment: .leading, spacing: 8) { filterToggles }
             }
             if home == nil {
-                Text(String(localized: "kiwiSDRDirectory.setYourGridSquare", bundle: .module))
+                // The iPad sets its grid in the CW pane's Macros sheet.
+                Text(String(localized: "kiwiSDRDirectory.setYourGridSquareIPad", bundle: .module))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

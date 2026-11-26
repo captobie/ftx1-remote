@@ -3302,6 +3302,14 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   where `Table` shows one column), and the Mac-only `minWidth` frames are
   `#if os(macOS)`. The split screen now ignores the keyboard — it was
   turning portrait into landscape under the focused field.
+- **iPad SDR, phase 5 (checks, 2026-11-26)**: every SDR string is in
+  es/de/it/fr (new ones listed in `docs/localization-review.md`); the
+  pane checked in German in the Simulator. Station names from the Kiwi
+  mirror are escaped twice — `KiwiSDRDirectory.unescapingLeftovers`
+  decodes the leftover `\uXXXX`/`\"` (tested); on iOS the grid hint
+  points at CW → Macros → Station. Both iPad top rows end in a sideways
+  scroll when even `.mini` doesn't fit (German "Überspringen" widened
+  the whole screen past its edges); SDR and CW stay in view.
 - **Later, not started**: Sub following. (FT8/FT4 from MyKiwiSDR:
   see "Digital modes — FT8".)
 

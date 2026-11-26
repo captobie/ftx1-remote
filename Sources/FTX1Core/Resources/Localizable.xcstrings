@@ -10088,6 +10088,41 @@
           }
         }
       }
+    },
+    "kiwiSDRDirectory.setYourGridSquareIPad" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set your grid square under CW → Macros → Station to sort by distance."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introducir la cuadrícula propia en CW → Macros → Estación para ordenar por distancia."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigenen Locator unter CW → Makros → Station eintragen, um nach Entfernung zu sortieren."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impostare il locatore proprio in CW → Macro → Stazione per ordinare per distanza."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisir son locator dans CW → Macros → Station pour trier par distance."
+          }
+        }
+      }
     }
   },
   "version" : "1.1"
