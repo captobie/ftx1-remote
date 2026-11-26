@@ -4,7 +4,7 @@ import SwiftUI
 
 @main
 struct FTX1RemoteiPadApp: App {
-    @StateObject private var viewModel = RigClientViewModel()
+    @StateObject private var viewModel: RigClientViewModel
     @StateObject private var piViewModel: PiDirectViewModel
     /// The CW pane's decoder, shared by both routes (fed their audio below).
     @StateObject private var cwReceiver = CWReceiver(logSubsystem: "com.ftx1remote.ipad", channels: ReceiveAudioChannel.rigReceivers)
@@ -16,6 +16,8 @@ struct FTX1RemoteiPadApp: App {
     @StateObject private var cwMonitor = CWMonitor(logSubsystem: "com.ftx1remote.ipad")
     /// Demo Mode on the Pi-direct tab (`DemoSession`).
     @StateObject private var demoSession = DemoSession()
+    /// Each route's MyKiwiSDR (`SDRPane`).
+    @StateObject private var sdrModels: SDRModels
 
     init() {
         let piViewModel = PiDirectViewModel(
@@ -27,7 +29,10 @@ struct FTX1RemoteiPadApp: App {
             readsFilters: true,
             decodesAPRS: true
         )
+        let viewModel = RigClientViewModel()
+        _viewModel = StateObject(wrappedValue: viewModel)
         _piViewModel = StateObject(wrappedValue: piViewModel)
+        _sdrModels = StateObject(wrappedValue: SDRModels(hub: viewModel, piDirect: piViewModel))
         _cwSender = StateObject(wrappedValue: CWSender(link: piViewModel, logSubsystem: "com.ftx1remote.ipad"))
     }
 
@@ -40,6 +45,7 @@ struct FTX1RemoteiPadApp: App {
                 .environmentObject(cwSender)
                 .environmentObject(cwMonitor)
                 .environmentObject(demoSession)
+                .environmentObject(sdrModels)
                 // Both routes' 8 kHz receive audio to the CW decoder, which
                 // keeps only the selected receiver and only while its pane
                 // is open.

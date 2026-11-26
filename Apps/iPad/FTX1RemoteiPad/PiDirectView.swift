@@ -65,6 +65,10 @@ struct PiDirectView: View {
     @State private var aprsListKind: APRSListKind?
     /// The CW decoder shown in place of the MENU grid (`CWPane`).
     @State private var showingCW = false
+    /// MyKiwiSDR shown in place of the MENU grid (`SDRPane`); not in Demo
+    /// Mode (there's no simulated Kiwi).
+    @State private var showingSDR = false
+    @EnvironmentObject private var sdrModels: SDRModels
 
     var body: some View {
         ScrollView {
@@ -88,8 +92,8 @@ struct PiDirectView: View {
                             onRelease: viewModel.stopTransmit
                         )
                         transmitEnableButton
-                        Spacer()
-                        rigButtons
+                        Spacer(minLength: 0)
+                        rigButtonsFitting
                     }
                 }
                 .zIndex(1)
@@ -241,7 +245,7 @@ struct PiDirectView: View {
                 ObservingAPRSStore(store: store) { store in
                     // The APRS pane covers the filter block and the grid both.
                     VStack(alignment: .leading, spacing: 16) {
-                        FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && aprsListKind == nil && !showingCW)
+                        FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && aprsListKind == nil && !showingCW && !showingSDR)
                         MenuPageView<PiDirectViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
                     }
                     .aprsListPane(
@@ -253,7 +257,7 @@ struct PiDirectView: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 16) {
-                    FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && !showingCW)
+                    FilterPanel<PiDirectViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && !showingCW && !showingSDR)
                     MenuPageView<PiDirectViewModel>(showsPagePicker: false)
                 }
             }
@@ -267,6 +271,7 @@ struct PiDirectView: View {
         ) {
             CWSendSection<PiDirectViewModel>()
         }
+        .sdrPane(isShowing: $showingSDR, model: sdrModels.piDirect)
 
         Text(isDemo
              ? "piDirect.demoModeASimulated"
@@ -282,7 +287,10 @@ struct PiDirectView: View {
         let state = viewModel.rigState
         let scanning = state.memoryScan == .scanning || state.memoryScan == .paused
         return HStack(spacing: 8) {
-            CWPaneButton(isShowing: $showingCW, aprsListKind: $aprsListKind)
+            if !isDemo {
+                SDRPaneButton(isShowing: $showingSDR, showingCW: $showingCW, aprsListKind: $aprsListKind)
+            }
+            CWPaneButton(isShowing: $showingCW, aprsListKind: $aprsListKind, showingSDR: $showingSDR)
 
             MemoryScanButtons(state: state, isConnected: true, send: viewModel.send)
 
@@ -316,10 +324,18 @@ struct PiDirectView: View {
             .accessibilityLabel(viewModel.audioChannelsSwapped ? "common.audioChannelsSwappedTap" : "common.swapAudioChannels")
         }
         .buttonStyle(.bordered)
-        // Natural width, one line: with longer translations the row is
-        // full in portrait, and PTT is the one that gives way.
         .lineLimit(1)
         .fixedSize()
+    }
+
+    /// The rig buttons at their natural size, or smaller when the row is
+    /// full (portrait, longer translations): Connected and PTT keep theirs.
+    private var rigButtonsFitting: some View {
+        ViewThatFits(in: .horizontal) {
+            rigButtons
+            rigButtons.controlSize(.small)
+            rigButtons.controlSize(.mini)
+        }
     }
 
     /// Under the host fields while disconnected: the same screen against a
@@ -359,6 +375,7 @@ struct PiDirectView: View {
                 .minimumScaleFactor(0.7)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
+                .fixedSize()
                 .background(Color.yellow)
                 .foregroundStyle(Color.black)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -380,6 +397,7 @@ struct PiDirectView: View {
                 .minimumScaleFactor(0.7)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
+                .fixedSize()
                 .background(buttonColor)
                 .foregroundStyle(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 6))

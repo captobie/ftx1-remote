@@ -456,6 +456,26 @@ public final class PiDirectViewModel: ObservableObject {
     public func toggleMainAudioMuted() {
         isMainAudioMuted.toggle()
         AudioPlaybackSettings.isMuted = isMainAudioMuted
+        // The operator's own choice now, whatever MyKiwiSDR did.
+        mainMutedForLocalSDR = false
+    }
+
+    /// MAIN was muted because MyKiwiSDR became audible
+    /// (`setLocalSDRAudible`), the Mac's `mainMutedByOverride`.
+    private var mainMutedForLocalSDR = false
+
+    /// While MyKiwiSDR is audible MAIN's playback is muted (shown on its
+    /// strip's mute button, not saved); given back when it isn't, unless
+    /// MAIN was already muted or the operator pressed Mute meanwhile.
+    public func setLocalSDRAudible(_ audible: Bool) {
+        if audible {
+            guard !isMainAudioMuted else { return }
+            isMainAudioMuted = true
+            mainMutedForLocalSDR = true
+        } else if mainMutedForLocalSDR {
+            isMainAudioMuted = false
+            mainMutedForLocalSDR = false
+        }
     }
 
     public func toggleSubAudioMuted() {

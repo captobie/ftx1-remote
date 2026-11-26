@@ -100,6 +100,9 @@ struct HubControlView: View {
     @State private var aprsListKind: APRSListKind?
     /// The CW decoder shown in place of the MENU grid (`CWPane`).
     @State private var showingCW = false
+    /// MyKiwiSDR shown in place of the MENU grid (`SDRPane`).
+    @State private var showingSDR = false
+    @EnvironmentObject private var sdrModels: SDRModels
 
     var body: some View {
         ScrollView {
@@ -117,8 +120,8 @@ struct HubControlView: View {
                             onRelease: viewModel.stopTransmit
                         )
                         transmitEnabledIndicator
-                        Spacer()
-                        rigButtons
+                        Spacer(minLength: 0)
+                        rigButtonsFitting
                     }
                 }
                 .zIndex(1)
@@ -173,7 +176,7 @@ struct HubControlView: View {
 
                 // The APRS pane covers the filter block and the grid both.
                 VStack(alignment: .leading, spacing: 16) {
-                    FilterPanel<RigClientViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && aprsListKind == nil && !showingCW)
+                    FilterPanel<RigClientViewModel>(spectrumStore: viewModel.filterSpectrum, isActive: viewModel.connectionState == .connected && aprsListKind == nil && !showingCW && !showingSDR)
                     MenuPageView<RigClientViewModel>(showsPagePicker: false, onShowAPRSList: { aprsListKind = $0 })
                 }
                 .aprsListPane(
@@ -190,6 +193,7 @@ struct HubControlView: View {
                 ) {
                     CWSendSection<RigClientViewModel>()
                 }
+                .sdrPane(isShowing: $showingSDR, model: sdrModels.hub)
             }
             .padding(32)
         }
@@ -227,7 +231,8 @@ struct HubControlView: View {
         let state = viewModel.rigState
         let audioSwapped = state.audioChannelsSwapped == true
         return HStack(spacing: 8) {
-            CWPaneButton(isShowing: $showingCW, aprsListKind: $aprsListKind)
+            SDRPaneButton(isShowing: $showingSDR, showingCW: $showingCW, aprsListKind: $aprsListKind)
+            CWPaneButton(isShowing: $showingCW, aprsListKind: $aprsListKind, showingSDR: $showingSDR)
 
             MemoryScanButtons(state: state, isConnected: true, send: viewModel.send)
 
@@ -262,10 +267,18 @@ struct HubControlView: View {
             .accessibilityLabel(audioSwapped ? "common.audioChannelsSwappedTap" : "common.swapAudioChannels")
         }
         .buttonStyle(.bordered)
-        // Natural width, one line: with longer translations the row is
-        // full in portrait, and PTT is the one that gives way.
         .lineLimit(1)
         .fixedSize()
+    }
+
+    /// The rig buttons at their natural size, or smaller when the row is
+    /// full (portrait, longer translations): Connected and PTT keep theirs.
+    private var rigButtonsFitting: some View {
+        ViewThatFits(in: .horizontal) {
+            rigButtons
+            rigButtons.controlSize(.small)
+            rigButtons.controlSize(.mini)
+        }
     }
 
     /// Mirrors `HubService.send(_:)`'s TX gate (transmit-enabled toggle AND
@@ -298,6 +311,7 @@ struct HubControlView: View {
                 .minimumScaleFactor(0.7)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
+                .fixedSize()
                 .background(viewModel.connectionState == .connected ? Color.green : Color.red)
                 .foregroundStyle(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -313,4 +327,5 @@ struct HubControlView: View {
         .environmentObject(RigClientViewModel())
         .environmentObject(PiDirectViewModel(logSubsystem: "com.ftx1remote.ipad"))
         .environmentObject(DemoSession())
+        .environmentObject(SDRModels(hub: RigClientViewModel(), piDirect: PiDirectViewModel(logSubsystem: "com.ftx1remote.ipad")))
 }

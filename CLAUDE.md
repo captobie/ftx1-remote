@@ -3246,6 +3246,23 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
   the CW/APRS area (MyKiwiSDR, then the WebSDR page), with a split-screen
   option — landscape: SDR right, VFO boxes/strips/filters left; portrait:
   SDR on top, those below; the MENU grid hidden in split.
+- **iPad SDR pane, MyKiwiSDR (phase 2, 2026-11-26; Pi direct tested in
+  the iPad Simulator against the user's Kiwi — connect with no password,
+  Follow onto the rig, waterfall/band bar/S-meter, tap to tune, pinch
+  zoom, Receiver sheet, close = disconnect and MAIN given back; the hub
+  route build-checked only, not on a real iPad)**: `SDRPane`
+  (`Apps/iPad/SDRPane.swift`), opened by an SDR button left of CW in both
+  top rows (not in Demo Mode), over the filter block + MENU grid like the
+  CW pane (SDR, CW and the APRS lists close each other). Address and
+  password in the pane's header while disconnected (`localSDR.host`, the
+  same keychain item name as the Mac's). The app owns one model per route
+  (`SDRModels`); `RigClientViewModel`/`PiDirectViewModel` are
+  `LocalSDRRigHost`s (`LocalSDRRigHosts.swift`) and mute MAIN while the
+  Kiwi is audible (`setLocalSDRAudible`, unsaved, undone unless the
+  operator pressed Mute meanwhile). The Receiver controls are shared
+  (`LocalSDRReceiverControls`, `FTX1Core/UI/`). No recording or decoder
+  feed on the iPad. Top row: Connected and PTT keep their width; the rig
+  buttons drop to `.small`/`.mini` when the row is full.
 - **Later, not started**: Sub following. (FT8/FT4 from MyKiwiSDR:
   see "Digital modes — FT8".)
 

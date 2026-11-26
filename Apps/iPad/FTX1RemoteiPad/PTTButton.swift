@@ -26,6 +26,8 @@ struct PTTButton: View {
         .minimumScaleFactor(0.7)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+        // Its natural width, like Connected's: the rig buttons give way.
+        .fixedSize()
         .background(isTransmitting ? Color.red : Color.gray.opacity(0.25))
         .foregroundStyle(isTransmitting ? Color.white : Color.primary)
         .clipShape(RoundedRectangle(cornerRadius: 6))

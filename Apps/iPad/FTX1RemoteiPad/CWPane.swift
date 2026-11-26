@@ -139,15 +139,20 @@ private struct CWDecodedText: View {
 }
 
 /// The top row's CW button: shows or hides `CWPane`. Turning it on closes
-/// the APRS lists, which use the same area.
+/// the APRS lists and the SDR pane, which use the same area.
 struct CWPaneButton: View {
     @Binding var isShowing: Bool
     @Binding var aprsListKind: APRSListKind?
+    /// The SDR pane, which uses the same area too.
+    @Binding var showingSDR: Bool
 
     var body: some View {
         Button {
             isShowing.toggle()
-            if isShowing { aprsListKind = nil }
+            if isShowing {
+                aprsListKind = nil
+                showingSDR = false
+            }
         } label: {
             Text("CW")
                 .fontWeight(isShowing ? .bold : .regular)
