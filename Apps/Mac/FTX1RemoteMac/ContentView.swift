@@ -28,6 +28,9 @@ struct ContentView: View {
     @EnvironmentObject private var hub: HubService
     @Environment(\.openWindow) private var openWindow
     @State private var isPTTPressed = false
+    /// View → Show/Hide Tool Buttons (`FTX1RemoteMacApp`), on by default.
+    static let showToolButtonsKey = "ui.showToolButtons"
+    @AppStorage(ContentView.showToolButtonsKey) private var showToolButtons = true
     @AppStorage(ScopeDisplayMode.storageKey) private var scopeDisplayMode: ScopeDisplayMode = .waterfall
     /// Settings → Appearance → S-Meter: lighted (default), unlighted or digital.
     @AppStorage(AppearanceSettings.sMeterStyleKey) private var sMeterStyle: SMeterStyle = .lighted
@@ -46,6 +49,13 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 connectButton
+                // The Tools menu's windows as buttons too, like the Windows
+                // app's top row (the menu stays). Right after Connect so they
+                // don't move when the connection labels below change width.
+                if showToolButtons {
+                    ToolWindowButtons(hub: hub)
+                        .padding(.leading, 8)
+                }
                 if case .failed(let problem) = hub.connectionState {
                     ConnectionProblemLabel(problem: problem)
                 }
@@ -700,6 +710,55 @@ private extension VerticalAlignment {
     static let scopeButtonsTop = VerticalAlignment(ScopeButtonsTop.self)
 }
 
+
+/// The Tools menu's windows (`FTX1RemoteMacApp`'s `CommandMenu`) as a row of
+/// buttons beside Connect, in the menu's order — the Windows app's top row.
+/// All open while disconnected, like the menu items. Keep the two lists in
+/// step when a tool window is added.
+private struct ToolWindowButtons: View {
+    let hub: HubService
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Menu {
+                Button("app.list") { openWindow(id: "aprs-stations") }
+                Button("app.messages") { openWindow(id: "aprs-messages") }
+                Button("app.map") { openWindow(id: "aprs-map") }
+                Divider()
+                Button("aprsTransmit.beaconNow") { hub.aprsMessaging.beaconNow() }
+            } label: {
+                Label { Text(verbatim: "APRS") } icon: { Image(systemName: "mappin.and.ellipse") }
+            }
+            .menuStyle(.button)
+            .fixedSize()
+            .help("content.tools.aprsHelp")
+
+            tool("FT8", icon: "waveform", window: "ft8", help: "content.tools.ft8Help")
+            tool("FT4", icon: "waveform", window: "ft4", help: "content.tools.ft4Help")
+            tool("CW", icon: "ellipsis", window: "cw", help: "content.tools.cwHelp")
+            tool("RTTY/PSK", icon: "text.alignleft", window: "digi", help: "content.tools.digiHelp")
+            tool("FreeDV", icon: "mic", window: "freedv", help: "content.tools.freeDVHelp")
+            tool("CW Key", icon: "pianokeys", window: "straight-key", help: "content.tools.cwKeyHelp")
+            tool("WebSDR", icon: "globe", window: "websdr-follow", help: "content.tools.webSDRHelp")
+            tool(String(localized: "app.myKiwiSDR"), icon: "antenna.radiowaves.left.and.right",
+                 window: "local-sdr", help: "content.tools.myKiwiSDRHelp")
+        }
+        .labelStyle(.titleAndIcon)
+    }
+
+    /// `title` is a radio/product name, shown as is (not a catalog key).
+    private func tool(_ title: String, icon: String, window: String, help: LocalizedStringKey) -> some View {
+        Button {
+            openWindow(id: window)
+        } label: {
+            Label { Text(verbatim: title) } icon: { Image(systemName: icon) }
+        }
+        .buttonStyle(ThemedButtonStyle())
+        .fixedSize()
+        .help(help)
+    }
+}
 
 /// TUNE: keys a tone for an external auto-tuner (ATU-100 Plus); press again
 /// to stop. Its own view so the per-second countdown re-renders only this

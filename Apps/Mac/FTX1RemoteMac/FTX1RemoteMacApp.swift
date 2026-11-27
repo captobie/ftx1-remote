@@ -17,6 +17,11 @@ struct FTX1RemoteMacApp: App {
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(updater: appDelegate.updaterController.updater)
             }
+            // In the View menu, above the toolbar items, worded like macOS's
+            // own Show/Hide Toolbar.
+            CommandGroup(before: .toolbar) {
+                ToolButtonsMenuItem()
+            }
             // A top-level menu (CommandMenu), not nested under an existing
             // one — holds APRS, the digital modes (FT8, FT4) and
             // other tools like WebSDR, each its own sibling Button/Window here.
@@ -215,5 +220,18 @@ struct FTX1RemoteMacApp: App {
                 .appTheme()
         }
         .windowResizability(.contentMinSize)
+    }
+}
+
+/// View → Show/Hide Tool Buttons: the row of tool buttons beside Connect.
+/// Its own view so the title follows the setting — an `@AppStorage` on the
+/// `App` itself doesn't re-evaluate the menu.
+private struct ToolButtonsMenuItem: View {
+    @AppStorage(ContentView.showToolButtonsKey) private var showToolButtons = true
+
+    var body: some View {
+        Button(showToolButtons ? "app.hideToolButtons" : "app.showToolButtons") {
+            showToolButtons.toggle()
+        }
     }
 }

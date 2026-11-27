@@ -28182,6 +28182,391 @@
           }
         }
       }
+    },
+    "content.tools.aprsHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dekodierte APRS-Stationen, -Nachrichten und Karte"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decoded APRS stations, messages and map"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estaciones, mensajes y mapa APRS decodificados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stations, messages et carte APRS décodés"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stazioni, messaggi e mappa APRS decodificati"
+          }
+        }
+      }
+    },
+    "content.tools.webSDRHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Über ein KiwiSDR oder WebSDR hören, das dem Gerät folgt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listen on a KiwiSDR or WebSDR that follows the rig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escuchar en un KiwiSDR o WebSDR que sigue al equipo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écouter sur un KiwiSDR ou WebSDR qui suit le poste"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ascolta su un KiwiSDR o WebSDR che segue l'apparato"
+          }
+        }
+      }
+    },
+    "content.tools.myKiwiSDRHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den eigenen KiwiSDR mit Wasserfall hören"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listen to your own KiwiSDR, with a waterfall"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escuchar el propio KiwiSDR, con cascada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écouter son propre KiwiSDR, avec cascade"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ascolta il proprio KiwiSDR, con cascata"
+          }
+        }
+      }
+    },
+    "content.tools.cwHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CW aus dem MAIN- oder SUB-Audio des Geräts oder aus einer Aufnahme dekodieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decode CW from the rig's MAIN or SUB audio, or a recording"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodificar CW del audio MAIN o SUB del equipo, o de una grabación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Décoder la CW de l'audio MAIN ou SUB du poste, ou d'un enregistrement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodifica CW dall'audio MAIN o SUB dell'apparato, o da una registrazione"
+          }
+        }
+      }
+    },
+    "content.tools.digiHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RTTY, BPSK31 und BPSK63 dekodieren und senden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decode and send RTTY, BPSK31 and BPSK63"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodificar y enviar RTTY, BPSK31 y BPSK63"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Décoder et envoyer RTTY, BPSK31 et BPSK63"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodifica e invia RTTY, BPSK31 e BPSK63"
+          }
+        }
+      }
+    },
+    "content.tools.ft8Help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FT8 aus dem MAIN- oder SUB-Audio des Geräts oder von MyKiwiSDR dekodieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decode FT8 from the rig's MAIN or SUB audio, or MyKiwiSDR's"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodificar FT8 del audio MAIN o SUB del equipo, o de MyKiwiSDR"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Décoder le FT8 de l'audio MAIN ou SUB du poste, ou de celui de MyKiwiSDR"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodifica FT8 dall'audio MAIN o SUB dell'apparato, o da quello di MyKiwiSDR"
+          }
+        }
+      }
+    },
+    "content.tools.ft4Help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FT4 aus dem MAIN- oder SUB-Audio des Geräts oder von MyKiwiSDR dekodieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decode FT4 from the rig's MAIN or SUB audio, or MyKiwiSDR's"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodificar FT4 del audio MAIN o SUB del equipo, o de MyKiwiSDR"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Décoder le FT4 de l'audio MAIN ou SUB du poste, ou de celui de MyKiwiSDR"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodifica FT4 dall'audio MAIN o SUB dell'apparato, o da quello di MyKiwiSDR"
+          }
+        }
+      }
+    },
+    "content.tools.freeDVHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FreeDV-Digitalsprache (RADE V1): empfangen und senden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FreeDV digital voice (RADE V1): receive and transmit"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voz digital FreeDV (RADE V1): recibir y transmitir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voix numérique FreeDV (RADE V1) : réception et émission"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voce digitale FreeDV (RADE V1): ricezione e trasmissione"
+          }
+        }
+      }
+    },
+    "content.tools.cwKeyHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät über eine Handtasten- oder Paddle-Schnittstelle tasten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key the rig from a straight key or paddle interface"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manipular el equipo con una interfaz de manipulador vertical o paleta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manipuler le poste avec une interface de pioche ou de manipulateur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manipola l'apparato con un'interfaccia per tasto verticale o paddle"
+          }
+        }
+      }
+    },
+    "app.showToolButtons" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Werkzeugtasten einblenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Tool Buttons"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar botones de herramientas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les boutons d’outils"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra pulsanti strumenti"
+          }
+        }
+      }
+    },
+    "app.hideToolButtons" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Werkzeugtasten ausblenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Tool Buttons"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocultar botones de herramientas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer les boutons d’outils"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nascondi pulsanti strumenti"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"
