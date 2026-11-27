@@ -441,6 +441,7 @@ private struct AudioSettingsTab: View {
     @AppStorage(AudioInputSettings.deviceUIDKey) private var inputDeviceUID = ""
     @AppStorage(AudioOutputSettings.deviceUIDKey) private var outputDeviceUID = ""
     @AppStorage(TXAudioOutputSettings.deviceUIDKey) private var txOutputDeviceUID = ""
+    @AppStorage(FreeDVMicrophoneSettings.deviceUIDKey) private var freeDVMicrophoneUID = ""
     @State private var availableInputDevices: [AudioInputDevice] = []
     @State private var availableOutputDevices: [AudioOutputDevice] = []
 
@@ -470,6 +471,15 @@ private struct AudioSettingsTab: View {
             Text("settings.audioSettings.localModeWhereAn")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            Picker("settings.audioSettings.freeDVMicrophone", selection: $freeDVMicrophoneUID) {
+                Text("common.systemDefault").tag("")
+                ForEach(availableInputDevices) { device in
+                    Text(device.name).tag(device.uid)
+                }
+            }
+            Text("settings.audioSettings.freeDVMicrophoneHelp")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             LabeledContent("settings.audioSettings.squelchHangTime") {
                 HStack {
                     Slider(value: $hub.squelchHangTime, in: AudioPlaybackSettings.squelchHangTimeRange, step: 0.1)
@@ -494,8 +504,8 @@ private struct AudioSettingsTab: View {
     /// setting — same reasoning as `SettingsView.refreshAvailableDevices`.
     private func refreshAvailableInputDevices() {
         var devices = AudioInputDeviceLister.availableInputDevices()
-        if !inputDeviceUID.isEmpty, !devices.contains(where: { $0.uid == inputDeviceUID }) {
-            devices.append(AudioInputDevice(id: 0, uid: inputDeviceUID, name: String(localized: "settings.audioSettings.notConnected \(inputDeviceUID)")))
+        for uid in [inputDeviceUID, freeDVMicrophoneUID] where !uid.isEmpty && !devices.contains(where: { $0.uid == uid }) {
+            devices.append(AudioInputDevice(id: 0, uid: uid, name: String(localized: "settings.audioSettings.notConnected \(uid)")))
         }
         availableInputDevices = devices
     }

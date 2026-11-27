@@ -1,5 +1,6 @@
 import Combine
 import FTX1Core
+import FreeDVKit
 import FTX1Digi
 import Foundation
 import os
@@ -38,7 +39,7 @@ final class TuneTone: ObservableObject {
         guard let hub else { return nil }
         if isTuning { return nil }
         guard hub.connectionState == .connected else { return String(localized: "digiLink.notConnected") }
-        if hub.rigState.ptt || hub.rigState.moxEnabled == true || hub.digiSender.isTransmitting {
+        if hub.rigState.ptt || hub.rigState.moxEnabled == true || hub.digiSender.isTransmitting || hub.freeDVSender.isActive {
             return String(localized: "digiLink.alreadyTransmitting")
         }
         if hub.rigState.splitEnabled != true, hub.rigState.txSide == .sub {

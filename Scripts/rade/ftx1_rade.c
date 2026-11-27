@@ -14,8 +14,9 @@
 #include "fargan.h"
 #include "lpcnet.h"
 #include "rade_text.h"
+#include "cpu_support.h"
 
-#define FTX1_RADE_WRAPPER_VERSION 1
+#define FTX1_RADE_WRAPPER_VERSION 2
 
 struct ftx1_rade_rx {
     struct rade *rade;
@@ -123,6 +124,110 @@ int ftx1_rade_rx_process(ftx1_rade_rx *rx, const float *modem, float *speech,
         memcpy(status->callsign, rx->callsign, sizeof(status->callsign));
     }
     return written;
+}
+
+/* ---------------------------------------------------------------- transmit */
+//
+// Follows freedv-backend's RADETransmitStep: 10 ms speech frames through
+// lpcnet_compute_single_frame_features, rade_tx once twelve frames are in,
+// and at the end rade_text_generate_tx_string + rade_tx_set_eoo_bits +
+// rade_tx_eoo. Only the real part goes out (an SSB transmitter).
+
+struct ftx1_rade_tx {
+    struct rade *rade;
+    LPCNetEncState *encoder;
+    rade_text_t text;
+    int arch;
+    float *features;        // one modem frame's worth
+    int n_features;
+    int feature_count;      // filled so far
+    RADE_COMP *iq;          // sized for the larger of a modem frame and the EOO
+    int n_tx_out;
+    int n_eoo_out;
+    float *eoo_bits;
+    int n_eoo_bits;
+};
+
+ftx1_rade_tx *ftx1_rade_tx_open(void) {
+    struct ftx1_rade_tx *tx = calloc(1, sizeof(*tx));
+    if (!tx) return NULL;
+    rade_initialize();
+    tx->rade = rade_open("", RADE_VERBOSE_0);
+    tx->encoder = lpcnet_encoder_create();
+    tx->text = rade_text_create();
+    if (!tx->rade || !tx->encoder || !tx->text) {
+        ftx1_rade_tx_close(tx);
+        return NULL;
+    }
+    tx->arch = opus_select_arch();
+    tx->n_features = rade_n_features_in_out(tx->rade);
+    tx->n_tx_out = rade_n_tx_out(tx->rade);
+    tx->n_eoo_out = rade_n_tx_eoo_out(tx->rade);
+    tx->n_eoo_bits = rade_n_eoo_bits(tx->rade);
+    int n_iq = tx->n_tx_out > tx->n_eoo_out ? tx->n_tx_out : tx->n_eoo_out;
+    tx->features = calloc((size_t)tx->n_features, sizeof(float));
+    tx->iq = malloc(sizeof(RADE_COMP) * (size_t)n_iq);
+    tx->eoo_bits = calloc((size_t)tx->n_eoo_bits, sizeof(float));
+    if (!tx->features || !tx->iq || !tx->eoo_bits) {
+        ftx1_rade_tx_close(tx);
+        return NULL;
+    }
+    return tx;
+}
+
+void ftx1_rade_tx_close(ftx1_rade_tx *tx) {
+    if (!tx) return;
+    if (tx->text) rade_text_destroy(tx->text);
+    if (tx->encoder) lpcnet_encoder_destroy(tx->encoder);
+    if (tx->rade) rade_close(tx->rade);
+    free(tx->features);
+    free(tx->iq);
+    free(tx->eoo_bits);
+    free(tx);
+}
+
+int ftx1_rade_tx_modem_max(ftx1_rade_tx *tx) { return tx->n_tx_out; }
+int ftx1_rade_tx_finish_max(ftx1_rade_tx *tx) { return tx->n_tx_out + tx->n_eoo_out; }
+
+static int modulate_frame(ftx1_rade_tx *tx, float *modem) {
+    int n = rade_tx(tx->rade, tx->iq, tx->features);
+    for (int i = 0; i < n; i++) modem[i] = tx->iq[i].real;
+    tx->feature_count = 0;
+    return n;
+}
+
+int ftx1_rade_tx_process(ftx1_rade_tx *tx, const float *speech, float *modem) {
+    opus_int16 pcm[FTX1_RADE_TX_SPEECH_FRAME];
+    for (int i = 0; i < FTX1_RADE_TX_SPEECH_FRAME; i++) {
+        float v = speech[i] * 32768.0f;
+        if (v > 32767.0f) v = 32767.0f;
+        if (v < -32767.0f) v = -32767.0f;
+        pcm[i] = (opus_int16)(v < 0 ? v - 0.5f : v + 0.5f);
+    }
+    lpcnet_compute_single_frame_features(tx->encoder, pcm,
+        &tx->features[tx->feature_count], tx->arch);
+    tx->feature_count += NB_TOTAL_FEATURES;
+    if (tx->feature_count < tx->n_features) return 0;
+    return modulate_frame(tx, modem);
+}
+
+int ftx1_rade_tx_finish(ftx1_rade_tx *tx, const char *callsign, float *modem) {
+    int written = 0;
+    if (tx->feature_count > 0) {
+        memset(&tx->features[tx->feature_count], 0,
+               sizeof(float) * (size_t)(tx->n_features - tx->feature_count));
+        written += modulate_frame(tx, modem);
+    }
+    memset(tx->eoo_bits, 0, sizeof(float) * (size_t)tx->n_eoo_bits);
+    if (callsign && callsign[0]) {
+        int length = (int)strlen(callsign);
+        if (length > FTX1_RADE_CALLSIGN_MAX) length = FTX1_RADE_CALLSIGN_MAX;
+        rade_text_generate_tx_string(tx->text, callsign, length, tx->eoo_bits, tx->n_eoo_bits);
+        rade_tx_set_eoo_bits(tx->rade, tx->eoo_bits);
+    }
+    int n = rade_tx_eoo(tx->rade, tx->iq);
+    for (int i = 0; i < n; i++) modem[written + i] = tx->iq[i].real;
+    return written + n;
 }
 
 int ftx1_rade_rade_version(void) { return rade_version(); }

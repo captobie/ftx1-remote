@@ -19,8 +19,8 @@
 		D7C3A1F0B2E4459C8A6E0101 /* FTX1CW in Frameworks */ = {isa = PBXBuildFile; productRef = D7C3A1F0B2E4459C8A6E0102 /* FTX1CW */; };
 		D7C3A1F0B2E4459C8A6E0103 /* FTX1CW in Frameworks */ = {isa = PBXBuildFile; productRef = D7C3A1F0B2E4459C8A6E0104 /* FTX1CW */; };
 		E2D7A9F14C3B4A5D8E6F0201 /* FTX1Digi in Frameworks */ = {isa = PBXBuildFile; productRef = E2D7A9F14C3B4A5D8E6F0202 /* FTX1Digi */; };
-		F7A3C2D10B9E4F6A8D1E0301 /* FreeDVKit in Frameworks */ = {isa = PBXBuildFile; productRef = F7A3C2D10B9E4F6A8D1E0302 /* FreeDVKit */; };
 		EFD383E8E3E34549ADEF876D /* FT8Kit in Frameworks */ = {isa = PBXBuildFile; productRef = C28A82548BE9440A9A9565E9 /* FT8Kit */; };
+		F7A3C2D10B9E4F6A8D1E0301 /* FreeDVKit in Frameworks */ = {isa = PBXBuildFile; productRef = F7A3C2D10B9E4F6A8D1E0302 /* FreeDVKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */

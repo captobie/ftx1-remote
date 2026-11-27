@@ -1,6 +1,6 @@
 #!/bin/bash
-# Builds Vendor/rade/FTX1Rade.xcframework: FreeDV's RADE V1 receiver for the
-# Mac app's Tools → FreeDV window, as one universal (arm64 + x86_64) static
+# Builds Vendor/rade/FTX1Rade.xcframework: FreeDV's RADE V1 receiver and
+# transmitter for the Mac app's Tools → FreeDV window, as one universal (arm64 + x86_64) static
 # library behind a single header (Scripts/rade/ftx1_rade.h).
 #
 # What goes in, all pinned by commit and checked by sha256:
@@ -174,6 +174,10 @@ int main(void) {
            ftx1_rade_rade_version(), ftx1_rade_wrapper_version(),
            ftx1_rade_rx_nin_max(rx), ftx1_rade_rx_speech_max(rx));
     ftx1_rade_rx_close(rx);
+    ftx1_rade_tx *tx = ftx1_rade_tx_open();
+    if (!tx) return 1;
+    printf("    tx modem_max %d, finish_max %d\n", ftx1_rade_tx_modem_max(tx), ftx1_rade_tx_finish_max(tx));
+    ftx1_rade_tx_close(tx);
     return 0;
 }
 EOF

@@ -6,20 +6,24 @@ import UniformTypeIdentifiers
 /// Tools → FreeDV (`Window(id: "freedv")` in `FTX1RemoteMacApp`): FreeDV
 /// RADE V1 from MAIN, SUB, the WebSDR window or the MyKiwiSDR window,
 /// decoded to speech on the Mac's audio output, with the callsigns heard
-/// at each end-of-over. Receive only for now (see CLAUDE.md "Digital modes
-/// — FreeDV").
+/// at each end-of-over, and transmit from the Mac's microphone (TX/RX, or
+/// hold the space bar) — see CLAUDE.md "Digital modes — FreeDV".
 ///
 /// Decoding runs only while this window is open, like the other decoders.
 /// The status line observes `FreeDVReceiver.status` (about twenty updates
 /// a second); the rest of the window observes the receiver.
 struct FreeDVWindowView: View {
     @EnvironmentObject private var receiver: FreeDVReceiver
+    @EnvironmentObject private var sender: FreeDVSender
     @Environment(\.openWindow) private var openWindow
     @State private var isShowingFileImporter = false
+    @FocusState private var windowFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             FreeDVHeader(isShowingFileImporter: $isShowingFileImporter)
+            Divider()
+            FreeDVTransmitRow()
             Divider()
             FreeDVStatusLine(status: receiver.status)
             Divider()
@@ -32,8 +36,27 @@ struct FreeDVWindowView: View {
         }
         .navigationTitle("FreeDV")
         .frame(minWidth: 720, minHeight: 380)
-        .onAppear { receiver.start() }
-        .onDisappear { receiver.stop() }
+        // Hold the space bar to talk (while this window has the keyboard).
+        .focusable()
+        .focusEffectDisabled()
+        .focused($windowFocused)
+        .onKeyPress(.space, phases: [.down, .up]) { press in
+            if press.phase == .down {
+                if sender.state == .idle { sender.start(.momentary) }
+            } else {
+                sender.releaseMomentary()
+            }
+            return .handled
+        }
+        .onAppear {
+            receiver.start()
+            windowFocused = true
+        }
+        .onDisappear {
+            // Not left keyed with nobody watching: closing ends the over.
+            sender.finish()
+            receiver.stop()
+        }
         .fileImporter(
             isPresented: $isShowingFileImporter,
             allowedContentTypes: [.audio],
@@ -154,6 +177,94 @@ private struct FreeDVChannelPicker: View {
         } else {
             nil
         }
+    }
+}
+
+// MARK: - Transmit
+
+/// TX/RX, elapsed time, microphone meter, output level, and what the
+/// end-of-over will carry. Observes the sender only (its state changes
+/// rarely; the meter has its own store).
+private struct FreeDVTransmitRow: View {
+    @EnvironmentObject private var sender: FreeDVSender
+    @AppStorage(StationSettings.callsignKey) private var callsign = ""
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Button {
+                if sender.state == .idle { sender.start(.toggle) } else { sender.finish() }
+            } label: {
+                Label(sender.state == .idle ? "freeDVWindow.transmit" : "freeDVWindow.receive",
+                      systemImage: sender.state == .idle ? "mic.fill" : "ear")
+                    .frame(minWidth: 90)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(sender.state == .idle ? .accentColor : .red)
+            .keyboardShortcut("t")
+            .disabled(sender.state == .finishing)
+            .help("freeDVWindow.transmitHelp")
+
+            if let startedAt = sender.startedAt {
+                TimelineView(.periodic(from: startedAt, by: 1)) { context in
+                    Text(verbatim: Self.elapsed(context.date.timeIntervalSince(startedAt)))
+                        .monospacedDigit()
+                        .foregroundStyle(.red)
+                }
+                FreeDVMicMeter(level: sender.micLevel)
+            } else {
+                Text("freeDVWindow.holdSpace")
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 6) {
+                Text("freeDVWindow.level")
+                Slider(value: $sender.levelDB, in: FreeDVSender.levelRange, step: 1)
+                    .frame(width: 100)
+                Text(verbatim: "\(Int(sender.levelDB)) dB")
+                    .monospacedDigit()
+                    .frame(width: 44, alignment: .trailing)
+            }
+            .help("freeDVWindow.levelHelp")
+
+            Spacer()
+            if let message = sender.statusMessage {
+                Text(message)
+                    .foregroundStyle(.orange)
+                    .lineLimit(2)
+            } else if callsign.trimmingCharacters(in: .whitespaces).isEmpty {
+                Text("freeDVWindow.noCallsign")
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("freeDVWindow.sendsCallsign \(callsign.uppercased())")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.callout)
+        .padding(.horizontal)
+        .padding(.vertical, 6)
+    }
+
+    private static func elapsed(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds))
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+/// The microphone's peak, −60…0 dBFS: green, yellow above −12, red above
+/// −3. The only view observing `FreeDVMicLevelStore`.
+private struct FreeDVMicMeter: View {
+    @ObservedObject var level: FreeDVMicLevelStore
+
+    var body: some View {
+        let fraction = CGFloat((level.peakDB + 60) / 60)
+        ZStack(alignment: .leading) {
+            Capsule().fill(Color.secondary.opacity(0.2))
+            Capsule()
+                .fill(level.peakDB > -3 ? Color.red : (level.peakDB > -12 ? Color.yellow : Color.green))
+                .frame(width: max(0, min(1, fraction)) * 90)
+        }
+        .frame(width: 90, height: 8)
+        .help("freeDVWindow.micLevelHelp")
     }
 }
 

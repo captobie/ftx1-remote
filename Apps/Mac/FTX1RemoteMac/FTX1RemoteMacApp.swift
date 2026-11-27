@@ -151,6 +151,7 @@ struct FTX1RemoteMacApp: App {
             FreeDVWindowView()
                 .environmentObject(appDelegate.hub)
                 .environmentObject(appDelegate.hub.freeDVReceiver)
+                .environmentObject(appDelegate.hub.freeDVSender)
                 .environmentObject(appDelegate.hub.webSDRSource)
                 .environmentObject(appDelegate.hub.localSDRSource)
                 .appTheme()

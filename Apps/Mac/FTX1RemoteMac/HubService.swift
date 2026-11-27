@@ -449,6 +449,17 @@ final class HubService: ObservableObject {
             }
         return receiver
     }()
+    /// Tools → FreeDV's transmitter (`HubService+FreeDVTransmitLink`): the
+    /// microphone through RADE, out through `routeTXAudio`.
+    lazy var freeDVSender: FreeDVSender = {
+        let sender = FreeDVSender(link: self, microphone: freeDVMicrophone, logSubsystem: "com.ftx1remote.mac")
+        sender.onStateChanged = { [weak self] state in self?.freeDVReceiver.setSenderActive(state != .idle) }
+        freeDVMicrophone.onSamples = { [unowned sender] samples, rate in
+            sender.ingestMicrophone(samples: samples, sampleRate: rate)
+        }
+        return sender
+    }()
+    let freeDVMicrophone = FreeDVMicrophone()
     private var freeDVKiwiModeCancellable: AnyCancellable?
     private var freeDVRigCancellable: AnyCancellable?
     private var freeDVVoiceCancellable: AnyCancellable?
@@ -1008,7 +1019,8 @@ final class HubService: ObservableObject {
     /// to send audio to — and while the RTTY/PSK window is sending (the
     /// two would mix).
     private func handleTXAudio(_ pcm: Data) {
-        guard !digiSender.isTransmitting, !tuneTone.isTuning, !aprsTransmitter.isTransmitting else { return }
+        guard !digiSender.isTransmitting, !tuneTone.isTuning, !aprsTransmitter.isTransmitting,
+              !freeDVSender.isActive else { return }
         guard rigState.ptt else {
             // Unkeyed some other way (front panel, a poll): drop the sink.
             if txAudioRemote != nil || txAudioPlaybackRunning { endTXAudio() }
@@ -1087,6 +1099,7 @@ final class HubService: ObservableObject {
         straightKey.shutdown()
         // Unkeys while the rigctld link is still up.
         digiSender.stop()
+        freeDVSender.stop()
         tuneTone.stop()
         aprsMessaging.stop()
         aprsTransmitter.stopAll(reason: "app quitting")

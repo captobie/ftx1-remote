@@ -564,6 +564,216 @@
         }
       }
     },
+    "freeDVLink.micIsRigInput" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das FreeDV-Mikrofon ist der Audioeingang des Geräts: unter Einstellungen → Audio ein anderes wählen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The FreeDV microphone is the rig's audio input: pick another one in Settings → Audio"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El micrófono FreeDV es la entrada de audio del equipo: elija otro en Ajustes → Audio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le micro FreeDV est l'entrée audio de l'équipement : en choisir un autre dans Réglages → Audio"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il microfono FreeDV è l'ingresso audio dell'apparato: sceglierne un altro in Impostazioni → Audio"
+          }
+        }
+      }
+    },
+    "freeDVLink.wrongMode %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Sendeseite ist in %1$@: FreeDV braucht hier %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The transmitting side is in %1$@: FreeDV here needs %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El lado que transmite está en %1$@: aquí FreeDV necesita %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le côté émetteur est en %1$@ : ici FreeDV demande %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il lato che trasmette è in %1$@: qui FreeDV richiede %2$@"
+          }
+        }
+      }
+    },
+    "freeDVMic.accessDenied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mikrofonzugriff ist aus: FTX1Remote unter Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon erlauben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Microphone access is off: allow FTX1Remote under System Settings → Privacy & Security → Microphone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El acceso al micrófono está desactivado: permita FTX1Remote en Ajustes del Sistema → Privacidad y seguridad → Micrófono"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'accès au micro est désactivé : autoriser FTX1Remote dans Réglages Système → Confidentialité et sécurité → Micro"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'accesso al microfono è disattivato: consentire FTX1Remote in Impostazioni di Sistema → Privacy e sicurezza → Microfono"
+          }
+        }
+      }
+    },
+    "freeDVMic.askedForAccess" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FTX1Remote den Mikrofonzugriff erlauben, dann erneut TX drücken"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow FTX1Remote to use the microphone, then press TX again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permita que FTX1Remote use el micrófono y vuelva a pulsar TX"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autoriser FTX1Remote à utiliser le micro, puis appuyer de nouveau sur TX"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consentire a FTX1Remote di usare il microfono, poi premere di nuovo TX"
+          }
+        }
+      }
+    },
+    "freeDVMic.couldntStart %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Mikrofon konnte nicht starten: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The microphone couldn't start: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo iniciar el micrófono: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de démarrer le micro : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile avviare il microfono: %@"
+          }
+        }
+      }
+    },
+    "freeDVMic.notConnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das FreeDV-Mikrofon ist nicht angeschlossen (Einstellungen → Audio)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The FreeDV microphone isn't connected (Settings → Audio)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El micrófono FreeDV no está conectado (Ajustes → Audio)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le micro FreeDV n'est pas branché (Réglages → Audio)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il microfono FreeDV non è collegato (Impostazioni → Audio)"
+          }
+        }
+      }
+    },
     "freeDVWindow.callsign" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -774,6 +984,146 @@
         }
       }
     },
+    "freeDVWindow.holdSpace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "oder zum Sprechen die Leertaste halten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "or hold Space to talk"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "o mantener pulsada la barra espaciadora para hablar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ou maintenir la barre d'espace pour parler"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "oppure tenere premuta la barra spaziatrice per parlare"
+          }
+        }
+      }
+    },
+    "freeDVWindow.level" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pegel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Level"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nivel"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niveau"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Livello"
+          }
+        }
+      }
+    },
+    "freeDVWindow.levelHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sendepegel relativ zur FreeDV-App (0 dB). Verringern, wenn sich die ALC des Geräts bewegt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit level relative to the FreeDV app's (0 dB). Lower it if the rig's ALC moves"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nivel de transmisión respecto al de la aplicación FreeDV (0 dB). Bajarlo si el ALC del equipo se mueve"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niveau d'émission par rapport à l'application FreeDV (0 dB). Le baisser si l'ALC de l'équipement bouge"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Livello di trasmissione rispetto all'app FreeDV (0 dB). Abbassarlo se l'ALC dell'apparato si muove"
+          }
+        }
+      }
+    },
+    "freeDVWindow.micLevelHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mikrofonpegel: bei lauten Silben gelb, nie rot"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Microphone level: aim for yellow on loud syllables, never red"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nivel del micrófono: amarillo en las sílabas fuertes, nunca rojo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niveau du micro : jaune sur les syllabes fortes, jamais rouge"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Livello del microfono: giallo sulle sillabe forti, mai rosso"
+          }
+        }
+      }
+    },
     "freeDVWindow.muteHelp" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -805,6 +1155,41 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Silenziare la voce decodificata (la decodifica continua)"
+          }
+        }
+      }
+    },
+    "freeDVWindow.noCallsign" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es wird kein Rufzeichen gesendet: unter Einstellungen → Station eintragen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No callsign is sent: set yours in Settings → Station"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se envía indicativo: configúrelo en Ajustes → Estación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun indicatif n'est envoyé : le saisir dans Réglages → Station"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun nominativo inviato: impostarlo in Impostazioni → Stazione"
           }
         }
       }
@@ -949,6 +1334,41 @@
         }
       }
     },
+    "freeDVWindow.receive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RX"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RX"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RX"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RX"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RX"
+          }
+        }
+      }
+    },
     "freeDVWindow.receiving" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1089,6 +1509,41 @@
         }
       }
     },
+    "freeDVWindow.sendsCallsign %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sendet %@ am Ende jedes Durchgangs"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sends %@ at the end of each over"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envía %@ al final de cada cambio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envoie %@ à la fin de chaque passage"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invia %@ alla fine di ogni passaggio"
+          }
+        }
+      }
+    },
     "freeDVWindow.showRecordings" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1225,6 +1680,76 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ora (UTC)"
+          }
+        }
+      }
+    },
+    "freeDVWindow.transmit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TX"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TX"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TX"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TX"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TX"
+          }
+        }
+      }
+    },
+    "freeDVWindow.transmitHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FreeDV vom Mikrofon senden (⌘T); RX sendet das Rufzeichen und hört auf"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit FreeDV from the microphone (⌘T); RX sends your callsign and stops"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmitir FreeDV desde el micrófono (⌘T); RX envía su indicativo y se detiene"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émettre en FreeDV depuis le micro (⌘T) ; RX envoie l'indicatif et s'arrête"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmettere FreeDV dal microfono (⌘T); RX invia il nominativo e si ferma"
           }
         }
       }
@@ -1750,6 +2275,76 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ferma la registrazione e salvala in Registrazioni"
+          }
+        }
+      }
+    },
+    "settings.audioSettings.freeDVMicrophone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FreeDV-Mikrofon"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FreeDV microphone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Micrófono FreeDV"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Micro FreeDV"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Microfono FreeDV"
+          }
+        }
+      }
+    },
+    "settings.audioSettings.freeDVMicrophoneHelp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Woraus Werkzeuge → FreeDV sendet. Im lokalen Modus darf es nicht der Audioeingang des Geräts oben sein"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What Tools → FreeDV transmits from. In Local mode it must not be the rig's audio input above"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desde dónde transmite Herramientas → FreeDV. En modo local no debe ser la entrada de audio del equipo indicada arriba"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source d'émission d'Outils → FreeDV. En mode local, ce ne doit pas être l'entrée audio de l'équipement ci-dessus"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da dove trasmette Strumenti → FreeDV. In modalità locale non deve essere l'ingresso audio dell'apparato sopra"
           }
         }
       }

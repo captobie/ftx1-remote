@@ -70,6 +70,111 @@
           }
         }
       }
+    },
+    "freeDVSender.encoderFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der FreeDV-Encoder konnte nicht gestartet werden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The FreeDV encoder couldn't be started"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo iniciar el codificador FreeDV"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de démarrer l'encodeur FreeDV"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile avviare il codificatore FreeDV"
+          }
+        }
+      }
+    },
+    "freeDVSender.timeLimit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden nach der 5-Minuten-Grenze beendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmit stopped at the 5-minute limit"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmisión detenida al llegar al límite de 5 minutos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Émission arrêtée à la limite de 5 minutes"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasmissione interrotta al limite di 5 minuti"
+          }
+        }
+      }
+    },
+    "freeDVSender.unkeyedElsewhere" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät sendet nicht mehr (anderswo ausgetastet)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rig stopped transmitting (unkeyed elsewhere)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El equipo dejó de transmitir (se desactivó en otro lugar)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'équipement a cessé d'émettre (désactivé ailleurs)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'apparato ha smesso di trasmettere (sganciato altrove)"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

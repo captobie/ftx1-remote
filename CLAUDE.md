@@ -2657,13 +2657,16 @@ below).
   instead of greyed inside it, and Lookup sends only the call. See
   `Apps/Windows/README.md`'s "RTTY/PSK window".
 
-## Digital modes — FreeDV (Mac, 2026-11-27; unit-tested on rade_c's off-air sample, file decode checked in the built app, then live from the WebSDR window tested by the user the same day — voice and callsign; MAIN/SUB/MyKiwiSDR and the rig-audio mute not yet tried)
+## Digital modes — FreeDV (Mac, 2026-11-27; receive unit-tested on rade_c's off-air sample, file decode checked in the built app, then live from the WebSDR window tested by the user the same day — voice and callsign; MAIN/SUB/MyKiwiSDR and the rig-audio mute not yet tried. Transmit unit-tested (loopback through the receiver, callsign included) and its refusal seen in the built app; nothing keyed or on the air yet)
 
 User request. User decisions: **RADE V1 only** (no codec2 700D/700E/1600 —
 LGPL and no longer maintained upstream; RADE V2 is pre-release, its README
 says not for on-air use), **receive first** (transmit = phase 2, through
 `routeTXAudio` like RTTY/PSK), **its own Tools → FreeDV window** (sources
-MAIN/SUB/MyKiwiSDR/WebSDR), **FreeDV Reporter later**.
+MAIN/SUB/MyKiwiSDR/WebSDR), **FreeDV Reporter later**. Transmit
+(phase 2, user decisions): a TX/RX toggle plus hold-Space PTT, the
+microphone picked in Settings → Audio, a mic level meter (no decoded
+self-monitor), voice keyer later.
 
 - **Library** (`Vendor/rade/FTX1Rade.xcframework`, binary target
   `CFTX1Rade`, ~30 MB universal static, macOS only — only the Mac may link
@@ -2743,8 +2746,45 @@ MAIN/SUB/MyKiwiSDR/WebSDR), **FreeDV Reporter later**.
   speech. Live via the WebSDR source tested by the user (2026-11-27):
   voice played and the callsign listed. **Not yet tried**: MAIN/SUB from
   the rig (and so the rig-audio mute), MyKiwiSDR.
-- **Next**: MAIN/SUB on the rig (USB on 20 m, e.g. 14.236 MHz; LSB below
-  10 MHz), then phase 2 (transmit) and FreeDV Reporter.
+- **Transmit** (wrapper v2: `ftx1_rade_tx_*`; `RADEEncoder`,
+  `FreeDVSender` in FreeDVKit; `FreeDVMicrophone` +
+  `HubService+FreeDVTransmitLink` on the Mac): freedv-backend's
+  RADETransmitStep — 16 kHz speech in 10 ms frames through
+  `lpcnet_compute_single_frame_features`, `rade_tx` every 12 frames
+  (120 ms → 960 modem samples), the real part sent; the over ends with the
+  zero-padded last frame, the end-of-over (`rade_text_generate_tx_string`
+  + `rade_tx_set_eoo_bits` + `rade_tx_eoo`, callsign from Settings →
+  Station, ≤8 chars, none if unset) and 200 ms of silence. Output at the
+  FreeDV app's scale (nominal 1.0 → 16383/32767) × the window's Level
+  (−20…0 dB, `freedv.txLevelDb`), as 8 kHz Int16 through `routeTXAudio`
+  (Settings → Audio → Transmit audio output in Local mode, the Pi's
+  `ftx1-txaudio` in Remote mode). Keying is `send(.setPTT)` (gate,
+  License guardrail, scan stop). Refused: not connected, the gate, the
+  transmitting side not on the band's sideband (`FreeDVSideband` on
+  `transmitFrequencyHz`/`transmitMode`), something else keyed (incl. the
+  RTTY/PSK sender, TUNE, APRS — which in turn wait for FreeDV), Local mode
+  with no Transmit audio output or with the FreeDV mic = the rig's input.
+  While keyed (checked every 100 ms): the gate closing stops at once (no
+  end-of-over), PTT reading off >1 s after a 2 s grace stops, 5 minutes
+  ends the over normally. RX: mic off, end-of-over sent, unkey once the
+  audio sent has had time to play out (+0.3 s). The receiver pauses while
+  the sender is active; iPad transmit audio is dropped meanwhile. The mic
+  (`audio.freeDVMicrophoneUID`, empty = system default) runs only while
+  transmitting — a fresh `AVAudioEngine` per over, the tap built in a
+  `nonisolated` helper (the target's MainActor default would trap on Core
+  Audio's thread), samples to the main queue in order. First use asks for
+  microphone access and refuses that over. Space-bar PTT is
+  `.onKeyPress(.space)` on the focusable window; releasing it ends only an
+  over Space started. Closing the window ends the over (end-of-over sent).
+  Tests: `RADEEncoderTests` (encoder → decoder, "te5t" read back as TE5T),
+  `FreeDVSenderTests` (fake link/mic, 20× clock: refused start, mic
+  failure, a whole over decoding with its callsign, Space vs TX, PTT lost,
+  gate closing). **Not yet done**: anything keyed — dummy load first: MOD
+  SOURCE (as for RTTY/PSK, must be USB/AUTO for the transmitting mode),
+  ALC at Level 0 dB, Local and Remote, another receiver (FreeDV app or a
+  KiwiSDR) decoding it with the callsign.
+- **Next**: MAIN/SUB receive on the rig, transmit into a dummy load, then
+  the voice keyer and FreeDV Reporter.
 
 ## APRS transmit (Mac, 2026-11-11; unit-tested, views checked in the built app, tested on the air by the user the same day)
 

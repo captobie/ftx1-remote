@@ -363,12 +363,24 @@ public final class FreeDVReceiver: ObservableObject {
 
     public func rigInfoChanged(_ info: FreeDVRigInfo) {
         rigInfo = info
-        let paused = info.transmitting
-        if paused != isPausedForTransmit {
-            isPausedForTransmit = paused
-            if paused { resetDecoder() }
-        }
+        updateTransmitPause()
         updateModeHint()
+    }
+
+    /// The FreeDV sender is transmitting (covers the lag before the poll
+    /// sees PTT, as with the CW and RTTY/PSK senders).
+    public func setSenderActive(_ active: Bool) {
+        senderActive = active
+        updateTransmitPause()
+    }
+
+    private var senderActive = false
+
+    private func updateTransmitPause() {
+        let paused = senderActive || rigInfo.transmitting
+        guard paused != isPausedForTransmit else { return }
+        isPausedForTransmit = paused
+        if paused { resetDecoder() }
     }
 
     /// The MyKiwiSDR window's demodulation while it's connected (nil otherwise).

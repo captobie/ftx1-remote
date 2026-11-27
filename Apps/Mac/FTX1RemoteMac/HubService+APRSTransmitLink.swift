@@ -1,4 +1,5 @@
 import FTX1Core
+import FreeDVKit
 import FTX1Digi
 import Foundation
 
@@ -10,7 +11,8 @@ import Foundation
 extension HubService: APRSTransmitLink {
     func aprsPlanTransmit() -> APRSTransmitDecision {
         guard connectionState == .connected else { return .blocked(String(localized: "digiLink.notConnected")) }
-        if rigState.ptt || rigState.moxEnabled == true || digiSender.isTransmitting || tuneTone.isTuning {
+        if rigState.ptt || rigState.moxEnabled == true || digiSender.isTransmitting || tuneTone.isTuning
+            || freeDVSender.isActive {
             return .blocked(String(localized: "digiLink.alreadyTransmitting"))
         }
         if RigctldSettings.activeConnectionMode == .local,

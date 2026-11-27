@@ -28,8 +28,9 @@ public struct RADEEndOfOver: Equatable, Sendable {
 ///
 /// Wraps `Vendor/rade/FTX1Rade.xcframework` (rade_c + Opus's FARGAN +
 /// freedv-backend's callsign decoder, built by `Scripts/build-rade.sh`).
-/// Not thread-safe: use one instance from one serial queue.
-public final class RADEDecoder {
+/// Not thread-safe: use one instance from one serial queue (`@unchecked
+/// Sendable` only so it can be handed to that queue).
+public final class RADEDecoder: @unchecked Sendable {
     public static let modemSampleRate: Double = Double(FTX1_RADE_MODEM_RATE)
     public static let speechSampleRate: Double = Double(FTX1_RADE_SPEECH_RATE)
 

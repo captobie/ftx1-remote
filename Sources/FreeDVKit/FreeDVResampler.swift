@@ -1,16 +1,20 @@
 import AVFoundation
 
 /// Whatever rate the taps deliver (44.1 kHz from the rig, 48 kHz from the
-/// WebSDR tap, ~12 kHz from the Kiwi) down to RADE's 8 kHz, with one
+/// WebSDR tap, ~12 kHz from the Kiwi) down to RADE's 8 kHz — or a
+/// microphone to the transmitter's 16 kHz — with one
 /// long-lived `AVAudioConverter` per input rate so its filter state carries
 /// across chunks (the same approach as FT8's resampler, checked in
 /// `RADEDecoderTests.testStreamingResampleFrom44100StillDecodes`).
 final class FreeDVResampler {
     private var converter: AVAudioConverter?
     private var inputFormat: AVAudioFormat?
-    private let outputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
-                                             sampleRate: RADEDecoder.modemSampleRate,
-                                             channels: 1, interleaved: false)!
+    private let outputFormat: AVAudioFormat
+
+    init(outputRate: Double = RADEDecoder.modemSampleRate) {
+        outputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: outputRate,
+                                     channels: 1, interleaved: false)!
+    }
 
     func reset() {
         converter = nil
@@ -19,7 +23,7 @@ final class FreeDVResampler {
 
     func resample(_ samples: [Float], sampleRate: Double) -> [Float] {
         guard !samples.isEmpty, sampleRate > 0 else { return [] }
-        if sampleRate == RADEDecoder.modemSampleRate { return samples }
+        if sampleRate == outputFormat.sampleRate { return samples }
         if inputFormat?.sampleRate != sampleRate {
             inputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate,
                                         channels: 1, interleaved: false)
