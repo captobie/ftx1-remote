@@ -2657,7 +2657,7 @@ below).
   instead of greyed inside it, and Lookup sends only the call. See
   `Apps/Windows/README.md`'s "RTTY/PSK window".
 
-## Digital modes — FreeDV (Mac, started 2026-11-27; library, receiver and window unit-tested on rade_c's off-air sample and the window's file decode checked in the built app; live decoding not yet seen — no FreeDV signal tried, nothing on air)
+## Digital modes — FreeDV (Mac, 2026-11-27; unit-tested on rade_c's off-air sample, file decode checked in the built app, then live from the WebSDR window tested by the user the same day — voice and callsign; MAIN/SUB/MyKiwiSDR and the rig-audio mute not yet tried)
 
 User request. User decisions: **RADE V1 only** (no codec2 700D/700E/1600 —
 LGPL and no longer maintained upstream; RADE V2 is pre-release, its README
@@ -2734,10 +2734,11 @@ MAIN/SUB/MyKiwiSDR/WebSDR), **FreeDV Reporter later**.
   (UTC time, call, SNR, frequency, source); saved-file line with Show in
   Recordings. Seen in the built app: the window, and the off-air clip from
   Open Audio File listing VK3TPM 36 dB / VK5KVA 19 dB and saving the
-  speech. **Not yet seen**: live decoding from any source, the rig-audio
-  mute, sync/offset readings moving.
-- **Next**: try it on air (USB, a FreeDV RADE activity frequency, e.g.
-  14.236 MHz), then phase 2 (transmit) and FreeDV Reporter.
+  speech. Live via the WebSDR source tested by the user (2026-11-27):
+  voice played and the callsign listed. **Not yet tried**: MAIN/SUB from
+  the rig (and so the rig-audio mute), MyKiwiSDR.
+- **Next**: MAIN/SUB on the rig (USB, a FreeDV RADE activity frequency,
+  e.g. 14.236 MHz), then phase 2 (transmit) and FreeDV Reporter.
 
 ## APRS transmit (Mac, 2026-11-11; unit-tested, views checked in the built app, tested on the air by the user the same day)
 
