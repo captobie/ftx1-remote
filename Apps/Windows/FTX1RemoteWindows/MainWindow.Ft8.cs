@@ -23,8 +23,8 @@ public sealed partial class MainWindow
     private Ft8Window? _ft4Window;
 
     // WebSDR source: one capture of the WebSDR window's audio shared by both
-    // windows (the RTTY/PSK and CW receivers each own theirs), running while
-    // either decodes with WebSDR picked.
+    // windows and FreeDV (the RTTY/PSK and CW receivers each own theirs),
+    // running while any of them decodes with WebSDR picked.
     private WebSdrAudioTap? _ft8WebSdrTap;
     private DispatcherQueueTimer? _ft8WebSdrTimer;
     private WebSdrTapPhase _ft8WebSdrPhase = WebSdrTapPhase.Stopped;
@@ -42,7 +42,8 @@ public sealed partial class MainWindow
 
     private bool Ft8WantsWebSdr =>
         (_ft8Store.IsRunning && _ft8Store.Channel == CwAudioChannel.WebSdr)
-        || (_ft4Store.IsRunning && _ft4Store.Channel == CwAudioChannel.WebSdr);
+        || (_ft4Store.IsRunning && _ft4Store.Channel == CwAudioChannel.WebSdr)
+        || (_freeDvReceiver.IsRunning && _freeDvReceiver.Channel == CwAudioChannel.WebSdr);
 
     /// Starts or stops the WebSDR capture to match what the windows want.
     private void UpdateFt8WebSdrTap()
@@ -55,6 +56,7 @@ public sealed partial class MainWindow
                     // Capture thread; each coordinator drops it unless its window picked WebSDR.
                     _ft8Coordinator.Ingest(samples, rate, CwAudioChannel.WebSdr);
                     _ft4Coordinator.Ingest(samples, rate, CwAudioChannel.WebSdr);
+                    _freeDvReceiver.Ingest(samples, rate, CwAudioChannel.WebSdr);
                 },
                 (phase, detail) => DispatcherQueue.TryEnqueue(() =>
                 {

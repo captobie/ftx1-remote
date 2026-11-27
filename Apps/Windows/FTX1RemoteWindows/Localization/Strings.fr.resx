@@ -852,6 +852,204 @@
   <data name="filterPanel.xFailedY" xml:space="preserve">
     <value>Échec de {0} : {1}</value>
   </data>
+  <data name="freeDvLink.micIsRigInput" xml:space="preserve">
+    <value>Le micro FreeDV est l'entrée audio de l'équipement : en choisir un autre dans Paramètres → Audio</value>
+  </data>
+  <data name="freeDvLink.wrongMode" xml:space="preserve">
+    <value>Le côté émetteur est en {0} : ici FreeDV demande {1}</value>
+  </data>
+  <data name="freeDvMic.couldntStart" xml:space="preserve">
+    <value>Impossible de démarrer le micro : {0}</value>
+  </data>
+  <data name="freeDvMic.notConnected" xml:space="preserve">
+    <value>Le micro FreeDV n'est pas branché (Paramètres → Audio)</value>
+  </data>
+  <data name="freeDvReceiver.couldntRead" xml:space="preserve">
+    <value>Impossible de lire « {0} » : {1}</value>
+  </data>
+  <data name="freeDvReceiver.decoderFailed" xml:space="preserve">
+    <value>Impossible de démarrer le décodeur FreeDV : {0}</value>
+  </data>
+  <data name="freeDvReceiver.noFreeDVIn" xml:space="preserve">
+    <value>Aucun signal FreeDV (RADE) trouvé dans « {0} ».</value>
+  </data>
+  <data name="freeDvReporter.closedByServer" xml:space="preserve">
+    <value>Le serveur a fermé la connexion</value>
+  </data>
+  <data name="freeDvReporter.noAnswer" xml:space="preserve">
+    <value>Le serveur ne répond plus</value>
+  </data>
+  <data name="freeDvSender.encoderFailed" xml:space="preserve">
+    <value>Impossible de démarrer l'encodeur FreeDV</value>
+  </data>
+  <data name="freeDvSender.timeLimit" xml:space="preserve">
+    <value>Émission arrêtée à la limite de 5 minutes</value>
+  </data>
+  <data name="freeDvSender.unkeyedElsewhere" xml:space="preserve">
+    <value>L'équipement a cessé d'émettre (désactivé ailleurs)</value>
+  </data>
+  <data name="freeDvWindow.callsign" xml:space="preserve">
+    <value>Indicatif</value>
+  </data>
+  <data name="freeDvWindow.clearTheList" xml:space="preserve">
+    <value>Vider la liste des stations entendues</value>
+  </data>
+  <data name="freeDvWindow.decodeARecording" xml:space="preserve">
+    <value>Décoder un enregistrement : les indicatifs vont dans la liste, la voix décodée est enregistrée dans le dossier des enregistrements</value>
+  </data>
+  <data name="freeDvWindow.decodingFile" xml:space="preserve">
+    <value>Décodage du fichier…</value>
+  </data>
+  <data name="freeDvWindow.frequency" xml:space="preserve">
+    <value>Fréquence</value>
+  </data>
+  <data name="freeDvWindow.fromFile" xml:space="preserve">
+    <value>Fichier</value>
+  </data>
+  <data name="freeDvWindow.grid" xml:space="preserve">
+    <value>Locator</value>
+  </data>
+  <data name="freeDvWindow.heardTab" xml:space="preserve">
+    <value>Entendues ({0})</value>
+  </data>
+  <data name="freeDvWindow.holdSpace" xml:space="preserve">
+    <value>ou maintenir la barre d'espace pour parler</value>
+  </data>
+  <data name="freeDvWindow.kiwiStillPlays" xml:space="preserve">
+    <value>L'audio de la fenêtre du SDR est toujours lu : le couper là-bas pour n'entendre que la voix décodée</value>
+  </data>
+  <data name="freeDvWindow.lastHeard" xml:space="preserve">
+    <value>Dernière entendue</value>
+  </data>
+  <data name="freeDvWindow.level" xml:space="preserve">
+    <value>Niveau</value>
+  </data>
+  <data name="freeDvWindow.levelHelp" xml:space="preserve">
+    <value>Niveau d'émission par rapport à l'application FreeDV (0 dB). Le baisser si l'ALC de l'équipement bouge</value>
+  </data>
+  <data name="freeDvWindow.message" xml:space="preserve">
+    <value>Message d'état</value>
+  </data>
+  <data name="freeDvWindow.messageHelp" xml:space="preserve">
+    <value>Affiché à côté de l'indicatif sur FreeDV Reporter. Envoyé avec Retour ou en quittant le champ</value>
+  </data>
+  <data name="freeDvWindow.micLevelHelp" xml:space="preserve">
+    <value>Niveau du micro : jaune sur les syllabes fortes, jamais rouge</value>
+  </data>
+  <data name="freeDvWindow.mode" xml:space="preserve">
+    <value>Mode</value>
+  </data>
+  <data name="freeDvWindow.muteHelp" xml:space="preserve">
+    <value>Couper la voix décodée (le décodage continue)</value>
+  </data>
+  <data name="freeDvWindow.noCallsign" xml:space="preserve">
+    <value>Aucun indicatif n'est envoyé : le saisir dans Paramètres → Station</value>
+  </data>
+  <data name="freeDvWindow.noSignal" xml:space="preserve">
+    <value>Aucun signal FreeDV</value>
+  </data>
+  <data name="freeDvWindow.noSpeechOutput" xml:space="preserve">
+    <value>La voix décodée n’est pas lue : {0}</value>
+  </data>
+  <data name="freeDvWindow.offset" xml:space="preserve">
+    <value>Décalage {0} Hz</value>
+  </data>
+  <data name="freeDvWindow.offsetHelp" xml:space="preserve">
+    <value>Écart du signal reçu par rapport à sa position attendue, tel que le mesure le décodeur</value>
+  </data>
+  <data name="freeDvWindow.placeholder" xml:space="preserve">
+    <value>Les indicatifs apparaissent ici quand une station FreeDV termine un passage et que son application FreeDV en envoie un</value>
+  </data>
+  <data name="freeDvWindow.receive" xml:space="preserve">
+    <value>RX</value>
+  </data>
+  <data name="freeDvWindow.receiving" xml:space="preserve">
+    <value>Réception FreeDV</value>
+  </data>
+  <data name="freeDvWindow.reporterConnected" xml:space="preserve">
+    <value>Connecté · stations : {0}</value>
+  </data>
+  <data name="freeDvWindow.reporterConnecting" xml:space="preserve">
+    <value>Connexion…</value>
+  </data>
+  <data name="freeDvWindow.reporterEmpty" xml:space="preserve">
+    <value>Aucune station sur FreeDV Reporter pour le moment</value>
+  </data>
+  <data name="freeDvWindow.reporterNeedsStation" xml:space="preserve">
+    <value>Saisir l'indicatif et le locator dans Paramètres → Station</value>
+  </data>
+  <data name="freeDvWindow.reporterNotConnected" xml:space="preserve">
+    <value>Non connecté à FreeDV Reporter</value>
+  </data>
+  <data name="freeDvWindow.reporterRetrying" xml:space="preserve">
+    <value>Non connecté ({0}), nouvelle tentative</value>
+  </data>
+  <data name="freeDvWindow.reporterTab" xml:space="preserve">
+    <value>FreeDV Reporter ({0})</value>
+  </data>
+  <data name="freeDvWindow.reportHelp" xml:space="preserve">
+    <value>Afficher cette station sur qso.freedv.org (fréquence, TX, indicatifs entendus) et lister les stations présentes. Nécessite un indicatif et un locator dans Paramètres → Station</value>
+  </data>
+  <data name="freeDvWindow.reportToFreeDVReporter" xml:space="preserve">
+    <value>Signaler à FreeDV Reporter</value>
+  </data>
+  <data name="freeDvWindow.rigAudioMuted" xml:space="preserve">
+    <value>L'audio de {0} est coupé pendant la réception de voix FreeDV</value>
+  </data>
+  <data name="freeDvWindow.savedDecodedSpeech" xml:space="preserve">
+    <value>Voix décodée enregistrée sous « {0} »</value>
+  </data>
+  <data name="freeDvWindow.sendsCallsign" xml:space="preserve">
+    <value>Envoie {0} à la fin de chaque passage</value>
+  </data>
+  <data name="freeDvWindow.showRecordings" xml:space="preserve">
+    <value>Afficher dans Enregistrements</value>
+  </data>
+  <data name="freeDvWindow.snr" xml:space="preserve">
+    <value>SNR {0} dB</value>
+  </data>
+  <data name="freeDvWindow.source" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="freeDvWindow.statusMessage" xml:space="preserve">
+    <value>Message</value>
+  </data>
+  <data name="freeDvWindow.timeUTC" xml:space="preserve">
+    <value>Heure (UTC)</value>
+  </data>
+  <data name="freeDvWindow.transmit" xml:space="preserve">
+    <value>TX</value>
+  </data>
+  <data name="freeDvWindow.transmitHelp" xml:space="preserve">
+    <value>Émettre en FreeDV depuis le micro (Ctrl+T) ; RX envoie l'indicatif et s'arrête</value>
+  </data>
+  <data name="freeDvWindow.tuneMain" xml:space="preserve">
+    <value>Accorder MAIN sur {0}</value>
+  </data>
+  <data name="freeDvWindow.unmuteHelp" xml:space="preserve">
+    <value>Lire la voix décodée</value>
+  </data>
+  <data name="freeDvWindow.updated" xml:space="preserve">
+    <value>UTC</value>
+  </data>
+  <data name="freeDvWindow.useLSB" xml:space="preserve">
+    <value>{0} est en {1} : sous 10 MHz, FreeDV utilise la LSB</value>
+  </data>
+  <data name="freeDvWindow.useSSB" xml:space="preserve">
+    <value>{0} est en {1} : FreeDV utilise la LSB sous 10 MHz et l'USB à partir de 10 MHz</value>
+  </data>
+  <data name="freeDvWindow.useUSB" xml:space="preserve">
+    <value>{0} est en {1} : à partir de 10 MHz, FreeDV utilise l'USB (ou DATA-U)</value>
+  </data>
+  <data name="freeDvWindow.volume" xml:space="preserve">
+    <value>Volume de la voix décodée</value>
+  </data>
+  <data name="freeDvWindow.webSDRStillPlays" xml:space="preserve">
+    <value>Le son de la fenêtre WebSDR continue avec la voix décodée (le couper là-bas arrêterait le décodage)</value>
+  </data>
+  <data name="freeDvWindow.whichAudio" xml:space="preserve">
+    <value>Audio à partir duquel décoder FreeDV</value>
+  </data>
   <data name="hrdLogbook.hRDLogbookIsntRunning" xml:space="preserve">
     <value>HRD Logbook n'est pas lancé</value>
   </data>
@@ -1010,6 +1208,9 @@
   </data>
   <data name="mainWindow.enableTransmit" xml:space="preserve">
     <value>Autoriser l'émission</value>
+  </data>
+  <data name="mainWindow.freeDVHelp" xml:space="preserve">
+    <value>Voix numérique FreeDV (RADE V1) : réception et émission</value>
   </data>
   <data name="mainWindow.fTX1RemoteXIsAvailable" xml:space="preserve">
     <value>FTX1Remote {0} est disponible (version installée : {1}).</value>
@@ -1796,6 +1997,12 @@
   </data>
   <data name="settings.export" xml:space="preserve">
     <value>Exporter…</value>
+  </data>
+  <data name="settings.freeDVMicrophone" xml:space="preserve">
+    <value>Micro FreeDV</value>
+  </data>
+  <data name="settings.freeDVMicrophoneHelp" xml:space="preserve">
+    <value>Source d'émission d'Outils → FreeDV. En mode local, ce ne doit pas être l'entrée audio de l'équipement ci-dessus</value>
   </data>
   <data name="settings.frequencyMHz" xml:space="preserve">
     <value>Fréquence (MHz)</value>

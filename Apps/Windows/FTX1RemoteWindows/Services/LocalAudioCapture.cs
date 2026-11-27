@@ -297,7 +297,7 @@ public sealed class LocalAudioCapture : IAudioSource
 
     /// Reads one sample at a byte offset as a float in -1…1, for the
     /// formats WASAPI shared mode hands out (almost always 32-bit float).
-    private static Func<byte[], int, float>? SampleReader(WaveFormat format)
+    internal static Func<byte[], int, float>? SampleReader(WaveFormat format)
     {
         var isFloat = format.Encoding == WaveFormatEncoding.IeeeFloat
             || (format is WaveFormatExtensible ext && ext.SubFormat == IeeeFloatSubFormat);
@@ -311,7 +311,7 @@ public sealed class LocalAudioCapture : IAudioSource
         };
     }
 
-    private static string Describe(Exception ex) =>
+    internal static string Describe(Exception ex) =>
         ex is UnauthorizedAccessException || (ex is COMException com && com.HResult == unchecked((int)0x80070005))
             ? Loc.S("localAudioCapture.windowsDeniedMicrophoneAccess")
             : ex.Message;

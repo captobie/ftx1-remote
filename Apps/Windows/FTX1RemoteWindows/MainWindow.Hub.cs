@@ -356,7 +356,9 @@ public sealed partial class MainWindow : IHubRigHost
 
     void IHubRigHost.TxAudioFromHub(int clientId, byte[] pcm)
     {
-        if (_hubTx is not { } tx)
+        // Not mixed into a FreeDV over from this PC (the Mac's
+        // handleTXAudio).
+        if (_hubTx is not { } tx || _freeDvSender.IsActive)
         {
             return;
         }

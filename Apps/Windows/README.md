@@ -1460,6 +1460,76 @@ the window.
   audio (MAIN, SUB, a swap, MyKiwiSDR), PSK Reporter from this PC, the DLL in a
   release zip on a PC without Visual Studio (it links the static CRT, so it
   should need nothing), and ARM64 (x64 DLL, runs under emulation like Hamlib).
+
+## FreeDV window (2026-11-27; unit-tested and built; file decode and FreeDV Reporter (against a stand-in server) checked in the app — not yet live audio, the microphone, the real Reporter or on the air)
+
+The Mac's Tools → FreeDV (repo root CLAUDE.md, "Digital modes — FreeDV"; the
+Swift files in `Sources/FreeDVKit/` stay the source of truth), receive and
+transmit and FreeDV Reporter: a **FreeDV** button next to FT4 opens
+`Controls/FreeDvWindow.cs`. RADE V1 only, as on the Mac.
+
+- **Library**: `Vendor/rade/ftx1rade.dll` (x64, static CRT, only KERNEL32),
+  built with MSVC by `Tools/radenative/build-rade.ps1` from the same pinned,
+  sha256-checked sources and the same wrapper (`Scripts/rade/`) as the Mac's
+  xcframework: rade_c (V1, V2 stubbed), Opus at rade_c's commit (CMake, DRED +
+  OSCE), freedv-backend's callsign code. Committed with its licences like
+  `Vendor/ft8`, copied to `<output>\rade\`. The script makes two edits in
+  temporary copies (rade_c's `nnet.c` scratch-size patch, and `rade_api.h`'s
+  export decoration, which MSVC rejects). It needs Visual Studio's C++ tools
+  with CMake/Ninja and downloads ~280 MB to `releases/rade-sources/`. Keep
+  its pins equal to `Scripts/build-rade.sh`'s, and rerun both when the wrapper
+  changes. All BSD: no source to attach to releases.
+- **Code**: `Services/FreeDv/` — `RadeModem.cs` (P/Invoke, `RadeDecoder`/
+  `RadeEncoder`), `FreeDvReceiver`, `FreeDvSender`, `FreeDvModels` (sideband,
+  mode hint, settings), `FreeDvSpeechPlayer`, `FreeDvMicrophone`; wiring and
+  the transmit link in `MainWindow.FreeDv.cs`. The two P/Invoke libraries now
+  share one DllImport resolver (`Services/NativeDlls.cs`).
+- **Behaves as on the Mac**: sources MAIN/SUB/WebSDR/MyKiwiSDR, heard list,
+  Open Audio File (speech saved in Recordings), the LSB-below-10-MHz note,
+  MAIN or SUB playback muted while its voice is decoded, TX/RX (Ctrl+T) or
+  hold Space, 5-minute limit, closing the window ends the over, Settings →
+  Audio → **FreeDV microphone**.
+- **Differences**: the WebSDR source shares the FT8/FT4 windows' capture, and
+  its window can't be muted without stopping the decoding (the note says so).
+  Space is taken only while the FreeDV window has the keyboard, and losing it
+  ends a Space-started over. The decoded voice isn't played to the radio's own
+  USB audio in Local mode (the main playback's guard). The microphone check
+  resolves "Windows default" too, since Windows often makes the radio's input
+  the default. A microphone that stops mid-over unkeys. The Desktop hub drops
+  an iPad's transmit audio during a FreeDV over.
+- **200 ms of silence ahead of the first modem frame**: frames come every
+  120 ms at real-time pace, so without it the Pi's `ftx1-txaudio` (or the
+  local output) can run dry whenever one is late. Reasoned from the code, not
+  measured on the air. The Mac's sender doesn't do this.
+- **FreeDV Reporter** (`FreeDvReporterProtocol.cs`, `FreeDvReporter.cs`, the
+  Mac's): the opt-in "Report to FreeDV Reporter" checkbox (off by default),
+  connected only while the window is open and Settings → Station has a
+  callsign and a 4-character grid; frequency from the window's source (the
+  transmitting side for WebSDR), TX from the sender, a spot per live heard
+  callsign except from WebSDR, a status message; the station list with
+  double-click (or right-click) to tune MAIN on the band's sideband. Differs
+  from the Mac in using `ClientWebSocket`, reporting `os` "Windows", and
+  reconnecting when Settings is saved with a new callsign or grid. Space typed
+  in the message field doesn't key. Debug builds:
+  `FTX1REMOTE_FREEDV_REPORTER_URL=ws://…` points it at a stand-in server
+  (logged at start), so testing doesn't list the station on the real site.
+- **Tests** (`FreeDvReporterTests`): the Mac's protocol and station-list
+  cases, plus the client against a loopback server (state sent in order,
+  reconnect after a drop or a new callsign, disconnect on close); with
+  `FREEDV_REPORTER_LIVE=1` a read-only "view" connection to qso.freedv.org —
+  run 2026-11-27: 60 stations parsed.
+- **Tests** (`FreeDvTests`): the Mac's FreeDVKit cases on its off-air fixture
+  (linked, not copied) — VK5KVA/VK3TPM, 44.1 kHz resampling, noise, encoder
+  loopback with the callsign, file decode, and the sender with a fake link and
+  microphone. Decoding 50 s took 1.8 s (3.6% of a core) in a Debug test run.
+- **Not done / unverified**: live decoding from MAIN, SUB, a swap, WebSDR or
+  MyKiwiSDR; hearing the decoded voice; the microphone; anything keyed (dummy
+  load first: MOD SOURCE USB or AUTO for the transmitting mode, ALC at Level
+  0 dB, Remote and Local, another receiver decoding it); FreeDV Reporter
+  against the real site (this station listed, TX shown, a spot) and tuning
+  the rig from its list; the DLL in a release zip on another PC; ARM64 (x64
+  DLL, under emulation).
+
 ## Logbook — HRD Logbook (CW window Log QSO pane, 2026-10-09)
 
 The Mac's MacLoggerDX logbook (CLAUDE.md's "Logbook — MacLoggerDX"), with
@@ -2599,6 +2669,7 @@ checks run by script; not yet built or run in Spanish/German on the PC.
 ```
 Apps/Windows/Tools/
   cwnet_to_onnx.py             CWKit's CWNet.mlmodelc → Assets/CWNet.onnx, checked against its golden file
+  ftx1rade.def, build-rade.ps1  (radenative/) FreeDV's RADE DLL → Vendor/rade
 Apps/Windows/FTX1RemoteWindows.Tests/
   HubWireTests.cs              hub wire fixtures + address filter (xUnit; links the app's wire files)
 Apps/Windows/FTX1RemoteWindows/

@@ -2825,6 +2825,19 @@ self-monitor), voice keyer later.
   **Not yet checked**: spots (`rx_report`) from a live decode, the
   station list's click-to-tune on the rig; QSY requests (`qsy_request`)
   are ignored.
+- **Windows port (2026-11-27; unit-tested and built; file decode, and the
+  Reporter against a local stand-in server, checked in the built app; no live
+  audio, microphone, transmit or real-site reporting yet)**: the **FreeDV**
+  button next to FT4 — receive, transmit and FreeDV Reporter.
+  `ftx1rade.dll` is built from the same pins and `Scripts/rade/` wrapper by
+  `Apps/Windows/Tools/radenative/build-rade.ps1` (MSVC; keep its pins equal
+  to `build-rade.sh`'s, and rebuild both when the wrapper changes).
+  `Services/FreeDv/` + `MainWindow.FreeDv.cs`; the Swift files stay the
+  source of truth. Its sender puts 200 ms of silence ahead of the first modem
+  frame so 120 ms frames can't starve the sink; the Mac's doesn't — check for
+  gaps when the Mac first transmits through the Pi (`ftx1-txaudio` drops
+  audio on an underrun; reasoned from the code, not measured). See
+  `Apps/Windows/README.md`'s "FreeDV window".
 - **Next**: MAIN/SUB receive on the rig, transmit into a dummy load, then
   the voice keyer.
 

@@ -852,6 +852,204 @@
   <data name="filterPanel.xFailedY" xml:space="preserve">
     <value>{0} failed: {1}</value>
   </data>
+  <data name="freeDvLink.micIsRigInput" xml:space="preserve">
+    <value>The FreeDV microphone is the rig's audio input: pick another one in Settings → Audio</value>
+  </data>
+  <data name="freeDvLink.wrongMode" xml:space="preserve">
+    <value>The transmitting side is in {0}: FreeDV here needs {1}</value>
+  </data>
+  <data name="freeDvMic.couldntStart" xml:space="preserve">
+    <value>The microphone couldn't start: {0}</value>
+  </data>
+  <data name="freeDvMic.notConnected" xml:space="preserve">
+    <value>The FreeDV microphone isn't connected (Settings → Audio)</value>
+  </data>
+  <data name="freeDvReceiver.couldntRead" xml:space="preserve">
+    <value>Couldn't read “{0}”: {1}</value>
+  </data>
+  <data name="freeDvReceiver.decoderFailed" xml:space="preserve">
+    <value>The FreeDV decoder couldn't be started: {0}</value>
+  </data>
+  <data name="freeDvReceiver.noFreeDVIn" xml:space="preserve">
+    <value>No FreeDV (RADE) signal was found in “{0}”.</value>
+  </data>
+  <data name="freeDvReporter.closedByServer" xml:space="preserve">
+    <value>The server closed the connection</value>
+  </data>
+  <data name="freeDvReporter.noAnswer" xml:space="preserve">
+    <value>The server stopped answering</value>
+  </data>
+  <data name="freeDvSender.encoderFailed" xml:space="preserve">
+    <value>The FreeDV encoder couldn't be started</value>
+  </data>
+  <data name="freeDvSender.timeLimit" xml:space="preserve">
+    <value>Transmit stopped at the 5-minute limit</value>
+  </data>
+  <data name="freeDvSender.unkeyedElsewhere" xml:space="preserve">
+    <value>The rig stopped transmitting (unkeyed elsewhere)</value>
+  </data>
+  <data name="freeDvWindow.callsign" xml:space="preserve">
+    <value>Callsign</value>
+  </data>
+  <data name="freeDvWindow.clearTheList" xml:space="preserve">
+    <value>Clear the list of stations heard</value>
+  </data>
+  <data name="freeDvWindow.decodeARecording" xml:space="preserve">
+    <value>Decode a recording: callsigns go to the list, the decoded speech is saved in the Recordings folder</value>
+  </data>
+  <data name="freeDvWindow.decodingFile" xml:space="preserve">
+    <value>Decoding the file…</value>
+  </data>
+  <data name="freeDvWindow.frequency" xml:space="preserve">
+    <value>Frequency</value>
+  </data>
+  <data name="freeDvWindow.fromFile" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="freeDvWindow.grid" xml:space="preserve">
+    <value>Grid</value>
+  </data>
+  <data name="freeDvWindow.heardTab" xml:space="preserve">
+    <value>Heard ({0})</value>
+  </data>
+  <data name="freeDvWindow.holdSpace" xml:space="preserve">
+    <value>or hold Space to talk</value>
+  </data>
+  <data name="freeDvWindow.kiwiStillPlays" xml:space="preserve">
+    <value>The SDR window's own audio still plays: mute it there to hear only the decoded voice</value>
+  </data>
+  <data name="freeDvWindow.lastHeard" xml:space="preserve">
+    <value>Last heard</value>
+  </data>
+  <data name="freeDvWindow.level" xml:space="preserve">
+    <value>Level</value>
+  </data>
+  <data name="freeDvWindow.levelHelp" xml:space="preserve">
+    <value>Transmit level relative to the FreeDV app's (0 dB). Lower it if the rig's ALC moves</value>
+  </data>
+  <data name="freeDvWindow.message" xml:space="preserve">
+    <value>Status message</value>
+  </data>
+  <data name="freeDvWindow.messageHelp" xml:space="preserve">
+    <value>Shown next to your callsign on FreeDV Reporter. Sent when you press Return or leave the field</value>
+  </data>
+  <data name="freeDvWindow.micLevelHelp" xml:space="preserve">
+    <value>Microphone level: aim for yellow on loud syllables, never red</value>
+  </data>
+  <data name="freeDvWindow.mode" xml:space="preserve">
+    <value>Mode</value>
+  </data>
+  <data name="freeDvWindow.muteHelp" xml:space="preserve">
+    <value>Mute the decoded voice (decoding carries on)</value>
+  </data>
+  <data name="freeDvWindow.noCallsign" xml:space="preserve">
+    <value>No callsign is sent: set yours in Settings → Station</value>
+  </data>
+  <data name="freeDvWindow.noSignal" xml:space="preserve">
+    <value>No FreeDV signal</value>
+  </data>
+  <data name="freeDvWindow.noSpeechOutput" xml:space="preserve">
+    <value>The decoded voice isn't playing: {0}</value>
+  </data>
+  <data name="freeDvWindow.offset" xml:space="preserve">
+    <value>Offset {0} Hz</value>
+  </data>
+  <data name="freeDvWindow.offsetHelp" xml:space="preserve">
+    <value>How far the received signal is from where it should be, as the decoder measures it</value>
+  </data>
+  <data name="freeDvWindow.placeholder" xml:space="preserve">
+    <value>Callsigns appear here when a FreeDV station ends an over and its FreeDV app sends one</value>
+  </data>
+  <data name="freeDvWindow.receive" xml:space="preserve">
+    <value>RX</value>
+  </data>
+  <data name="freeDvWindow.receiving" xml:space="preserve">
+    <value>Receiving FreeDV</value>
+  </data>
+  <data name="freeDvWindow.reporterConnected" xml:space="preserve">
+    <value>Connected · stations: {0}</value>
+  </data>
+  <data name="freeDvWindow.reporterConnecting" xml:space="preserve">
+    <value>Connecting…</value>
+  </data>
+  <data name="freeDvWindow.reporterEmpty" xml:space="preserve">
+    <value>No stations on FreeDV Reporter right now</value>
+  </data>
+  <data name="freeDvWindow.reporterNeedsStation" xml:space="preserve">
+    <value>Set your callsign and grid in Settings → Station</value>
+  </data>
+  <data name="freeDvWindow.reporterNotConnected" xml:space="preserve">
+    <value>Not connected to FreeDV Reporter</value>
+  </data>
+  <data name="freeDvWindow.reporterRetrying" xml:space="preserve">
+    <value>Not connected ({0}), retrying</value>
+  </data>
+  <data name="freeDvWindow.reporterTab" xml:space="preserve">
+    <value>FreeDV Reporter ({0})</value>
+  </data>
+  <data name="freeDvWindow.reportHelp" xml:space="preserve">
+    <value>Show this station on qso.freedv.org (frequency, TX, the callsigns you hear) and list the stations there. Needs a callsign and grid in Settings → Station</value>
+  </data>
+  <data name="freeDvWindow.reportToFreeDVReporter" xml:space="preserve">
+    <value>Report to FreeDV Reporter</value>
+  </data>
+  <data name="freeDvWindow.rigAudioMuted" xml:space="preserve">
+    <value>{0}'s own audio is muted while FreeDV voice is received</value>
+  </data>
+  <data name="freeDvWindow.savedDecodedSpeech" xml:space="preserve">
+    <value>Decoded speech saved as “{0}”</value>
+  </data>
+  <data name="freeDvWindow.sendsCallsign" xml:space="preserve">
+    <value>Sends {0} at the end of each over</value>
+  </data>
+  <data name="freeDvWindow.showRecordings" xml:space="preserve">
+    <value>Show in Recordings</value>
+  </data>
+  <data name="freeDvWindow.snr" xml:space="preserve">
+    <value>SNR {0} dB</value>
+  </data>
+  <data name="freeDvWindow.source" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="freeDvWindow.statusMessage" xml:space="preserve">
+    <value>Message</value>
+  </data>
+  <data name="freeDvWindow.timeUTC" xml:space="preserve">
+    <value>Time (UTC)</value>
+  </data>
+  <data name="freeDvWindow.transmit" xml:space="preserve">
+    <value>TX</value>
+  </data>
+  <data name="freeDvWindow.transmitHelp" xml:space="preserve">
+    <value>Transmit FreeDV from the microphone (Ctrl+T); RX sends your callsign and stops</value>
+  </data>
+  <data name="freeDvWindow.tuneMain" xml:space="preserve">
+    <value>Tune MAIN to {0}</value>
+  </data>
+  <data name="freeDvWindow.unmuteHelp" xml:space="preserve">
+    <value>Play the decoded voice</value>
+  </data>
+  <data name="freeDvWindow.updated" xml:space="preserve">
+    <value>UTC</value>
+  </data>
+  <data name="freeDvWindow.useLSB" xml:space="preserve">
+    <value>{0} is in {1}: below 10 MHz FreeDV uses LSB</value>
+  </data>
+  <data name="freeDvWindow.useSSB" xml:space="preserve">
+    <value>{0} is in {1}: FreeDV uses LSB below 10 MHz and USB from 10 MHz up</value>
+  </data>
+  <data name="freeDvWindow.useUSB" xml:space="preserve">
+    <value>{0} is in {1}: from 10 MHz up FreeDV uses USB (or DATA-U)</value>
+  </data>
+  <data name="freeDvWindow.volume" xml:space="preserve">
+    <value>Volume of the decoded voice</value>
+  </data>
+  <data name="freeDvWindow.webSDRStillPlays" xml:space="preserve">
+    <value>The WebSDR window's own audio still plays alongside the decoded voice (muting it there would stop the decoding)</value>
+  </data>
+  <data name="freeDvWindow.whichAudio" xml:space="preserve">
+    <value>Which audio to decode FreeDV from</value>
+  </data>
   <data name="hrdLogbook.hRDLogbookIsntRunning" xml:space="preserve">
     <value>HRD Logbook isn't running</value>
   </data>
@@ -1010,6 +1208,9 @@
   </data>
   <data name="mainWindow.enableTransmit" xml:space="preserve">
     <value>Enable Transmit</value>
+  </data>
+  <data name="mainWindow.freeDVHelp" xml:space="preserve">
+    <value>FreeDV digital voice (RADE V1): receive and transmit</value>
   </data>
   <data name="mainWindow.fTX1RemoteXIsAvailable" xml:space="preserve">
     <value>FTX1Remote {0} is available (you have {1}).</value>
@@ -1796,6 +1997,12 @@
   </data>
   <data name="settings.export" xml:space="preserve">
     <value>Export…</value>
+  </data>
+  <data name="settings.freeDVMicrophone" xml:space="preserve">
+    <value>FreeDV microphone</value>
+  </data>
+  <data name="settings.freeDVMicrophoneHelp" xml:space="preserve">
+    <value>What Tools → FreeDV transmits from. In Local mode it must not be the rig's audio input above</value>
   </data>
   <data name="settings.frequencyMHz" xml:space="preserve">
     <value>Frequency (MHz)</value>

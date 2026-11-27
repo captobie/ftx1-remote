@@ -12,6 +12,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <RootNamespace>FTX1RemoteWindows.Tests</RootNamespace>
+    <!-- RadeModem.cs hands buffers to ftx1rade.dll in place. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -89,6 +91,16 @@
     <Compile Include="..\FTX1RemoteWindows\Services\Ft8\Ft8DecodeCoordinator.cs" Link="Linked\Ft8DecodeCoordinator.cs" />
     <Content Include="..\FTX1RemoteWindows\Vendor\ft8\ft8lib.dll" Link="ft8\ft8lib.dll" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\Tests\FT8KitTests\Resources\*.wav" Link="Ft8Fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Tools → FreeDV: the native modem, models, receiver and sender (not the window, microphone or player), checked on the Mac's FreeDVKit fixture. -->
+    <Compile Include="..\FTX1RemoteWindows\Services\NativeDlls.cs" Link="Linked\NativeDlls.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\FreeDv\RadeModem.cs" Link="Linked\RadeModem.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\FreeDv\FreeDvModels.cs" Link="Linked\FreeDvModels.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\FreeDv\FreeDvReceiver.cs" Link="Linked\FreeDvReceiver.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\FreeDv\FreeDvSender.cs" Link="Linked\FreeDvSender.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\FreeDv\FreeDvReporterProtocol.cs" Link="Linked\FreeDvReporterProtocol.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Services\FreeDv\FreeDvReporter.cs" Link="Linked\FreeDvReporter.cs" />
+    <Content Include="..\FTX1RemoteWindows\Vendor\rade\ftx1rade.dll" Link="rade\ftx1rade.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\Tests\FreeDVKitTests\Resources\*.wav" Link="FreeDvFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- The strings those files show (English only here; LocalizationTests reads all three .resx). -->
     <Compile Include="..\FTX1RemoteWindows\Services\UpdateChecker.cs" Link="Linked\UpdateChecker.cs" />
     <Compile Include="..\FTX1RemoteWindows\Localization\Loc.cs" Link="Linked\Loc.cs" />

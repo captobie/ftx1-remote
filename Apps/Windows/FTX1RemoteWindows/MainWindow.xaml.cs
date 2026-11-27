@@ -334,6 +334,7 @@ public sealed partial class MainWindow : Window
         _cwReceiver.AttachLocalSdr(_localSdrSource);
         _digiReceiver.AttachLocalSdr(_localSdrSource);
         InitFt8();
+        InitFreeDv();
         WireAprsDecoder(_aprsMainDecoder, AprsSource.Main);
         WireAprsDecoder(_aprsSubDecoder, AprsSource.Sub);
         InitAprsTransmit();
@@ -435,6 +436,13 @@ public sealed partial class MainWindow : Window
             mainAudio.Muted = false;
             AppSettings.SaveAudio();
         }
+        // The same for Sub (FreeDV decoding from SUB).
+        if (AppSettings.SubMutedByFreeDv)
+        {
+            AppSettings.SubMutedByFreeDv = false;
+            subAudio.Muted = false;
+            AppSettings.SaveAudio();
+        }
         _mainPlayer = new ChannelPlayer((float)mainAudio.Volume, (float)mainAudio.SquelchThreshold, mainAudio.Muted);
         _subPlayer = new ChannelPlayer((float)subAudio.Volume, (float)subAudio.SquelchThreshold, subAudio.Muted);
         _playback = new AudioPlayback(_mainPlayer, _subPlayer, DispatcherQueue);
@@ -503,6 +511,7 @@ public sealed partial class MainWindow : Window
             _digiSender.Stop();
             _digiWindow?.Close();
             _digiReceiver.Dispose();
+            ShutDownFreeDv();
             ShutDownFt8();
             _cwMonitor.Stop();
             _recordingsWindow?.Close();
@@ -597,6 +606,8 @@ public sealed partial class MainWindow : Window
         await ApplyHubSettingAsync();
         ApplyWavelogSettings();
         ApplyLicenseSettings();
+        // A new callsign or grid reconnects FreeDV Reporter.
+        _freeDvReporter.StationChanged();
         _mainPlayer.SquelchHangSeconds = AppSettings.SquelchHangSeconds;
         _subPlayer.SquelchHangSeconds = AppSettings.SquelchHangSeconds;
         _pollTimer.Interval = TimeSpan.FromMilliseconds(AppSettings.PollIntervalMs);
@@ -620,6 +631,11 @@ public sealed partial class MainWindow : Window
         // Restarted so new lookup intervals don't wait out an old delay.
         _wpsdMonitor.Stop();
         UpdateWpsdMonitorState();
+
+        if (dialog.AudioOutputChanged)
+        {
+            _freeDvReceiver.RestartOutput();
+        }
 
         if (dialog.AudioInputChanged && IsConnected && _connectedMode == ConnectionMode.Local && AudioSwitch.IsOn)
         {
@@ -656,6 +672,7 @@ public sealed partial class MainWindow : Window
         _cwWindow?.ApplyTheme();
         _digiWindow?.ApplyTheme();
         ApplyThemeToFt8Windows();
+        _freeDvWindow?.ApplyTheme();
         _recordingsWindow?.ApplyTheme();
         _memoryListWindow?.ApplyTheme();
     }
@@ -2031,10 +2048,11 @@ public sealed partial class MainWindow : Window
         // Keyed for a hub client counts too: its holder would otherwise
         // stay keyed with nobody left to unkey (the Pi's watchdog aside).
         var hubKeyed = _hubTx?.IsKeyed == true;
-        // The RTTY/PSK sender too; its own async unkey goes out ahead of the
-        // blocking one below.
-        var digiKeyed = _digiSender.IsTransmitting || _aprsTransmitter.IsTransmitting;
+        // The RTTY/PSK and FreeDV senders too; their own async unkey goes out
+        // ahead of the blocking one below.
+        var digiKeyed = _digiSender.IsTransmitting || _aprsTransmitter.IsTransmitting || _freeDvSender.IsActive;
         _digiSender.Stop();
+        _freeDvSender.Stop();
         _aprsTransmitter.StopAll("disconnecting from the rig");
         // Unkeys (and restores the mode) itself.
         StopTuneBeforeDisconnect();
@@ -2081,6 +2099,7 @@ public sealed partial class MainWindow : Window
             // unkey).
             _cwSender.Stop();
             _digiSender.Stop();
+            _freeDvSender.Stop();
             _aprsTransmitter.StopAll(Loc.S("transmitGate.transmitDisabled"));
             EndHubTransmit("lock: Enable Transmit turned off");
             await ForceUnkeyAsync("transmit disabled");
@@ -2204,6 +2223,7 @@ public sealed partial class MainWindow : Window
     {
         _cwSender.Stop();
         _digiSender.Stop();
+        _freeDvSender.Stop(reason);
         _aprsTransmitter.StopAll(reason);
         EndHubTransmit("left the license privileges");
         if (_client is { } client)
@@ -2631,8 +2651,9 @@ public sealed partial class MainWindow : Window
                 _lastState.MainIsC4fm == true ? null : _lastState.Mode,
                 _lastState.SubIsC4fm == true ? null : _lastState.SubMode)
             : default);
-        // The RTTY/PSK window reads the same state.
+        // The RTTY/PSK and FreeDV windows read the same state.
         PushRigStateToDigi();
+        PushRigStateToFreeDv();
         // PSK Reporter skips slots the rig transmitted in.
         _pskReporter.NotePtt(IsConnected && (_lastState.Ptt || _pttHeld));
     }
@@ -2679,11 +2700,12 @@ public sealed partial class MainWindow : Window
     private void SetWebSdrAudioActive(bool active)
     {
         _webSdrHoldsMain = active;
-        ApplyMainAudioOverride(_webSdrHoldsMain || _kiwiHoldsMain);
+        ApplyMainAudioOverride(MainAudioHeld);
     }
 
     /// Mutes Main for whichever of the WebSDR and MyKiwiSDR windows is
-    /// audible (a holder each, like the Mac's setMainAudioOverride).
+    /// audible, or FreeDV while it receives voice from MAIN (a holder each,
+    /// like the Mac's setMainAudioOverride).
     private void ApplyMainAudioOverride(bool active)
     {
         if (active)
@@ -2760,6 +2782,8 @@ public sealed partial class MainWindow : Window
             _digiReceiver.Ingest(main, sub, _audioSampleRate);
             // And FT8/FT4, while their windows are open.
             IngestFt8(main, sub, _audioSampleRate);
+            // And FreeDV, while its window is open.
+            _freeDvReceiver.Ingest(main, sub, _audioSampleRate);
             // And RECORD, Main only as on the Mac.
             _audioRecorder.Ingest(main, _audioSampleRate);
         }
@@ -2909,6 +2933,8 @@ public sealed partial class MainWindow : Window
         {
             await source.StopAsync();
         }
+        // Nothing more will arrive to end a FreeDV sync.
+        _freeDvReceiver.AudioStopped();
         // A recording ends with its audio, so a file never spans two
         // sources (or two sample rates).
         StopRecording();
@@ -3002,6 +3028,7 @@ public sealed partial class MainWindow : Window
 
     private void SubMuteToggle_Click(object sender, RoutedEventArgs e)
     {
+        AppSettings.SubMutedByFreeDv = false;  // the user's call from here on
         _subPlayer.IsMuted = SubMuteToggle.IsChecked == true;
         AppSettings.SubAudio.Muted = _subPlayer.IsMuted;
         AppSettings.SaveAudio();
