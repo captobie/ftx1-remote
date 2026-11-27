@@ -409,6 +409,9 @@ category `cw-key`.
   WebSDR in the CW window.
 - The Mac CW window's live decoding on the rig (incl. across a swap) hasn't
   been formally tested (the iPad's, on the same receiver code, works).
+- FreeDV transmit hasn't been keyed on the Mac or Windows; the Windows
+  FreeDV window has only decoded files, not live audio, and its FreeDV
+  Reporter hasn't reported to the real site.
 - The Mac's RTTY/PSK window (receive and transmit) is tested on
   synthesized signals and files only, not yet on the air; whether the
   rig's RTTY mode puts the space tone above the mark (what Rig Tones
@@ -452,7 +455,7 @@ The Mac and iPad CW decoder is CWKit from
 [captobie/cwdecode](https://github.com/captobie/cwdecode) (MIT), a Swift
 package dependency (of the Mac target and of `FTX1CW`) — not vendored.
 
-The Mac app's FreeDV receive (`FreeDVKit`) links
+The Mac app's FreeDV window (`FreeDVKit`) links
 `Vendor/rade/FTX1Rade.xcframework`, a static library built by
 `Scripts/build-rade.sh` from pinned, checksummed sources:
 [freedv/rade_c](https://github.com/freedv/rade_c) (RADE V1, BSD-2-Clause,
@@ -464,6 +467,10 @@ and the end-of-over callsign decoder (`rade_text`, LDPC(112,56)) from
 (`LICENSE-rade_c.txt`, `LICENSE-opus.txt`, `LICENSE-freedv-backend.txt`).
 `Tests/FreeDVKitTests/Resources/rade_offair_50s.wav` is the first 50 s of
 rade_c's own off-air sample, resampled to 8 kHz.
+
+The Windows app builds the same pinned sources into `ftx1rade.dll` (MSVC, x64,
+static CRT; `Apps/Windows/Tools/radenative/build-rade.ps1`) and ships it, with
+the three licences, in `rade\` beside the executable.
 
 The Windows app uses [NAudio](https://github.com/naudio/NAudio) (MIT, Mark
 Heath) as a NuGet package (`NAudio.Wasapi`) for audio output — not vendored.

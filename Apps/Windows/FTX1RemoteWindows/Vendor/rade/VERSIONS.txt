@@ -1,0 +1,5 @@
+Built by Apps/Windows/Tools/radenative/build-rade.ps1
+rade_c          23c3746e488dd4825178b4abb857106a5f61a4e6
+opus            940d4e5af64351ca8ba8390df3f555484c567fbb (model data 4ed9445b96698bad25d852e912b41495ddfa30c8dbc8a55f9cde5826ed793453)
+freedv-backend  49006b029853061ca4e992f9632a51875aa3ecf1
+platform        Windows x64, MSVC, static CRT

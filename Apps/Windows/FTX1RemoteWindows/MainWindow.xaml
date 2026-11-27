@@ -93,6 +93,14 @@
                     <TextBlock Text="FT4" />
                 </StackPanel>
             </Button>
+            <!-- The Mac's Tools → FreeDV: FreeDV RADE V1 digital voice, receive and transmit. -->
+            <Button x:Name="FreeDvButton" Click="FreeDvButton_Click"
+                    AutomationProperties.Name="FreeDV" ToolTipService.ToolTip="{l:Str Key=mainWindow.freeDVHelp}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE720;" FontSize="14" />
+                    <TextBlock Text="FreeDV" />
+                </StackPanel>
+            </Button>
         </StackPanel>
 
         <!-- MAIN / SUB VFOs, with the waterfall/oscilloscope between them —

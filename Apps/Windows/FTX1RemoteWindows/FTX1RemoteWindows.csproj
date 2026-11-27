@@ -70,6 +70,13 @@
       Services/Ft8/Ft8Decoder.cs. Lands in <output>\ft8\. x64 only.
     -->
     <Content Include="Vendor\ft8\*" Link="ft8\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!--
+      ftx1rade.dll (FreeDV RADE V1: rade_c, Opus's FARGAN and freedv-backend's
+      callsign code, all BSD, built with MSVC by
+      Tools/radenative/build-rade.ps1) and its licences, for Tools → FreeDV —
+      Services/FreeDv/RadeModem.cs. Lands in <output>\rade\. x64 only.
+    -->
+    <Content Include="Vendor\rade\*" Link="rade\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

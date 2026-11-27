@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace FTX1RemoteWindows.Services.Ft8;
@@ -11,32 +10,7 @@ internal static class Ft8Native
 {
     private const string Library = "ft8lib";
 
-    static Ft8Native()
-    {
-        NativeLibrary.SetDllImportResolver(typeof(Ft8Native).Assembly, Resolve);
-    }
-
-    /// Looks beside the app (ft8\ft8lib.dll in the output folder, or next to
-    /// the test assembly) before the default search.
-    private static IntPtr Resolve(string name, Assembly assembly, DllImportSearchPath? path)
-    {
-        if (name != Library)
-        {
-            return IntPtr.Zero;
-        }
-        foreach (var candidate in new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "ft8", "ft8lib.dll"),
-            Path.Combine(AppContext.BaseDirectory, "ft8lib.dll"),
-        })
-        {
-            if (File.Exists(candidate) && NativeLibrary.TryLoad(candidate, out var handle))
-            {
-                return handle;
-            }
-        }
-        return IntPtr.Zero;
-    }
+    static Ft8Native() => NativeDlls.EnsureResolver();
 
     /// Mirrors ft8w_result_t in ft8win.c.
     [StructLayout(LayoutKind.Sequential)]

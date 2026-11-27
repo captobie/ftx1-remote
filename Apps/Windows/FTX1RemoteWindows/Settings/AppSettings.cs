@@ -2,6 +2,7 @@ using System.Text.Json;
 using FTX1RemoteWindows.Models;
 using FTX1RemoteWindows.Services;
 using FTX1RemoteWindows.Services.Digi;
+using FTX1RemoteWindows.Services.FreeDv;
 
 namespace FTX1RemoteWindows.Settings;
 
@@ -120,11 +121,13 @@ public static class AppSettings
         public List<CwMacro>? CwMacros { get; set; }
         public DigiData Digi { get; set; } = new();
         public Ft8Data Ft8 { get; set; } = new();
+        public FreeDvData FreeDv { get; set; } = new();
         public WebSdrFavorite? WebSdrPickedStation { get; set; }
         public List<WebSdrFavorite> WebSdrFavorites { get; set; } = [];
         public string? WebSdrDirectoryETag { get; set; }
         public SdrPlatform WebSdrStationsTab { get; set; } = SdrPlatform.KiwiSdr;
         public bool MainMutedByWebSdr { get; set; }
+        public bool SubMutedByFreeDv { get; set; }
         public bool CheckForUpdatesAtLaunch { get; set; } = true;
         public LogbookKind Logbook { get; set; } = LogbookKind.None;
         public string HrdLogPath { get; set; } = "";
@@ -1123,6 +1126,24 @@ public static class AppSettings
     public static Ft8Data Ft8 => _cache.Ft8;
 
     public static void SaveFt8() => Save();
+
+    /// The FreeDV window's settings (the Mac's freedv.* keys). Mutate the
+    /// returned object, then call <see cref="SaveFreeDv"/>.
+    public static FreeDvData FreeDv => _cache.FreeDv;
+
+    public static void SaveFreeDv() => Save();
+
+    /// FreeDV muted Sub's playback while receiving voice from it, and hasn't
+    /// given it back yet (the Mac's freedv.mutedSubAudio).
+    public static bool SubMutedByFreeDv
+    {
+        get => _cache.SubMutedByFreeDv;
+        set
+        {
+            _cache.SubMutedByFreeDv = value;
+            Save();
+        }
+    }
 
     /// The MyKiwiSDR window's settings. Mutate the returned object, then
     /// call <see cref="SaveLocalSdr"/>.

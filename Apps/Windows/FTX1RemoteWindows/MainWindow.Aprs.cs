@@ -129,7 +129,8 @@ public sealed partial class MainWindow
                 return AprsTransmitDecision.Blocked(Loc.S("digiLink.notConnected"));
             }
             if (window._lastState.Ptt || window._pttHeld || window._lastState.MoxEnabled == true
-                || window._hubTx?.IsKeyed == true || window._digiSender.IsTransmitting || window._tuning)
+                || window._hubTx?.IsKeyed == true || window._digiSender.IsTransmitting || window._tuning
+                || window._freeDvSender.IsActive)
             {
                 return AprsTransmitDecision.Blocked(Loc.S("digiLink.alreadyTransmitting"));
             }

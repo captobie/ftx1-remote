@@ -17,6 +17,8 @@ public sealed partial class MainWindow
     private readonly LocalSdrAudioSource _localSdrSource = new();
     private bool _webSdrHoldsMain;
     private bool _kiwiHoldsMain;
+    /// Whether anything is holding MAIN's playback muted.
+    private bool MainAudioHeld => _webSdrHoldsMain || _kiwiHoldsMain || _freeDvHoldsMain;
 
     /// The button shows only when Settings → Devices has MyKiwiSDR on; turning
     /// it off closes the window (which disconnects).
@@ -56,6 +58,6 @@ public sealed partial class MainWindow
     private void SetKiwiAudioActive(bool active)
     {
         _kiwiHoldsMain = active;
-        ApplyMainAudioOverride(_webSdrHoldsMain || _kiwiHoldsMain);
+        ApplyMainAudioOverride(MainAudioHeld);
     }
 }

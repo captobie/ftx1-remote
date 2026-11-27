@@ -1,0 +1,17 @@
+; The functions of Scripts/rade/ftx1_rade.h, the only API the app uses.
+LIBRARY ftx1rade
+EXPORTS
+    ftx1_rade_rx_open
+    ftx1_rade_rx_close
+    ftx1_rade_rx_nin
+    ftx1_rade_rx_nin_max
+    ftx1_rade_rx_speech_max
+    ftx1_rade_rx_process
+    ftx1_rade_tx_open
+    ftx1_rade_tx_close
+    ftx1_rade_tx_modem_max
+    ftx1_rade_tx_finish_max
+    ftx1_rade_tx_process
+    ftx1_rade_tx_finish
+    ftx1_rade_rade_version
+    ftx1_rade_wrapper_version

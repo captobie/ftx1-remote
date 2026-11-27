@@ -152,6 +152,7 @@ public sealed partial class SettingsDialog : Window
         RefreshAudioInputs();
         RefreshAudioOutputs();
         RefreshTxAudioOutputs();
+        RefreshFreeDvMicrophones();
         SquelchHangSlider.Value = AppSettings.SquelchHangSeconds;
         UpdateSquelchHangText();
 
@@ -468,6 +469,14 @@ public sealed partial class SettingsDialog : Window
         {
             // Read on each transmission's first frame, so no restart needed.
             AppSettings.SetTxAudioOutputDevice(txOutputId, txOutputId.Length == 0 ? "" : (string)txOutput.Content);
+        }
+        if (FreeDvMicrophoneComboBox.SelectedItem is ComboBoxItem { Tag: string micId } mic
+            && micId != AppSettings.FreeDv.MicrophoneDeviceId)
+        {
+            // Read at each over's start, so no restart needed.
+            AppSettings.FreeDv.MicrophoneDeviceId = micId;
+            AppSettings.FreeDv.MicrophoneDeviceName = micId.Length == 0 ? "" : (string)mic.Content;
+            AppSettings.SaveFreeDv();
         }
         AppSettings.SquelchHangSeconds = Math.Round(SquelchHangSlider.Value, 1);
 
@@ -1864,6 +1873,37 @@ public sealed partial class SettingsDialog : Window
             TxAudioOutputComboBox.Items.Add(selected);
         }
         TxAudioOutputComboBox.SelectedItem = selected;
+    }
+
+    private void FreeDvMicrophoneComboBox_DropDownOpened(object sender, object e) => RefreshFreeDvMicrophones();
+
+    /// "Windows default" first, then the active recording devices; a saved
+    /// device that isn't plugged in stays listed, marked.
+    private void RefreshFreeDvMicrophones()
+    {
+        var keepId = FreeDvMicrophoneComboBox.SelectedItem is ComboBoxItem { Tag: string current }
+            ? current
+            : AppSettings.FreeDv.MicrophoneDeviceId;
+        FreeDvMicrophoneComboBox.Items.Clear();
+        var defaultItem = new ComboBoxItem { Content = Loc.S("settings.windowsDefault"), Tag = "" };
+        FreeDvMicrophoneComboBox.Items.Add(defaultItem);
+        var selected = defaultItem;
+        foreach (var (id, name) in LocalAudioCapture.ListDevices())
+        {
+            var item = new ComboBoxItem { Content = name, Tag = id };
+            FreeDvMicrophoneComboBox.Items.Add(item);
+            if (id == keepId)
+            {
+                selected = item;
+            }
+        }
+        if (keepId.Length > 0 && ReferenceEquals(selected, defaultItem))
+        {
+            var name = keepId == AppSettings.FreeDv.MicrophoneDeviceId ? AppSettings.FreeDv.MicrophoneDeviceName : keepId;
+            selected = new ComboBoxItem { Content = Loc.F("settings.xNotConnected", name), Tag = keepId };
+            FreeDvMicrophoneComboBox.Items.Add(selected);
+        }
+        FreeDvMicrophoneComboBox.SelectedItem = selected;
     }
 
     // Polling tab.
