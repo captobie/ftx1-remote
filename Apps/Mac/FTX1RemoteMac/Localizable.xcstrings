@@ -1194,41 +1194,6 @@
         }
       }
     },
-    "freeDVWindow.sourceIsIn %@ %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ ist in %2$@: FreeDV wird im oberen Seitenband gesendet, also USB oder DATA-U verwenden"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ is in %2$@: FreeDV is sent on upper sideband, so use USB or DATA-U"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ está en %2$@: FreeDV se transmite en banda lateral superior, use USB o DATA-U"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ est en %2$@ : FreeDV est émis en bande latérale supérieure, utiliser USB ou DATA-U"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ è in %2$@: FreeDV si trasmette in banda laterale superiore, usare USB o DATA-U"
-          }
-        }
-      }
-    },
     "freeDVWindow.timeUTC" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1295,6 +1260,111 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Riprodurre la voce decodificata"
+          }
+        }
+      }
+    },
+    "freeDVWindow.useLSB %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ ist in %2$@: unter 10 MHz verwendet FreeDV LSB"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ is in %2$@: below 10 MHz FreeDV uses LSB"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ está en %2$@: por debajo de 10 MHz FreeDV usa LSB"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ est en %2$@ : sous 10 MHz, FreeDV utilise la LSB"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ è in %2$@: sotto i 10 MHz FreeDV usa LSB"
+          }
+        }
+      }
+    },
+    "freeDVWindow.useSSB %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ ist in %2$@: FreeDV verwendet unter 10 MHz LSB und ab 10 MHz USB"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ is in %2$@: FreeDV uses LSB below 10 MHz and USB from 10 MHz up"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ está en %2$@: FreeDV usa LSB por debajo de 10 MHz y USB a partir de 10 MHz"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ est en %2$@ : FreeDV utilise la LSB sous 10 MHz et l'USB à partir de 10 MHz"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ è in %2$@: FreeDV usa LSB sotto i 10 MHz e USB dai 10 MHz in su"
+          }
+        }
+      }
+    },
+    "freeDVWindow.useUSB %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ ist in %2$@: ab 10 MHz verwendet FreeDV USB (oder DATA-U)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ is in %2$@: from 10 MHz up FreeDV uses USB (or DATA-U)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ está en %2$@: a partir de 10 MHz FreeDV usa USB (o DATA-U)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ est en %2$@ : à partir de 10 MHz, FreeDV utilise l'USB (ou DATA-U)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ è in %2$@: dai 10 MHz in su FreeDV usa USB (o DATA-U)"
           }
         }
       }

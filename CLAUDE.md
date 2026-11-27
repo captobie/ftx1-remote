@@ -2714,7 +2714,13 @@ MAIN/SUB/MyKiwiSDR/WebSDR), **FreeDV Reporter later**.
   `heard` (session only, newest first, 200 max) with the over's last
   in-sync SNR and the source's dial (rig MAIN/SUB, MyKiwiSDR via
   `frequencyOfSource`; none for WebSDR). Paused (decoder reset) while the
-  rig reports TX. Note for MAIN/SUB not in USB/DATA-U. Open Audio File
+  rig reports TX. `modeHint` when the source's mode is the wrong sideband
+  for where it's tuned: freedv.org's convention (same as SSB) is LSB below
+  10 MHz, USB/DATA-U from 10 MHz up (`FreeDVSideband`); frequency unknown
+  (WebSDR) = either SSB mode. Decoding needs no change for LSB — the same
+  sideband on both ends returns the sender's audio unchanged. MyKiwiSDR's
+  hint updates on a Kiwi mode change, not on a retune alone (its frequency
+  isn't published). Open Audio File
   decodes off the main actor with a decoder of its own: callsigns marked
   "File", speech saved as "Recording <date> FreeDV <name>.wav" in the
   Recordings folder (an empty one is deleted and "no FreeDV signal" shown).
@@ -2737,8 +2743,8 @@ MAIN/SUB/MyKiwiSDR/WebSDR), **FreeDV Reporter later**.
   speech. Live via the WebSDR source tested by the user (2026-11-27):
   voice played and the callsign listed. **Not yet tried**: MAIN/SUB from
   the rig (and so the rig-audio mute), MyKiwiSDR.
-- **Next**: MAIN/SUB on the rig (USB, a FreeDV RADE activity frequency,
-  e.g. 14.236 MHz), then phase 2 (transmit) and FreeDV Reporter.
+- **Next**: MAIN/SUB on the rig (USB on 20 m, e.g. 14.236 MHz; LSB below
+  10 MHz), then phase 2 (transmit) and FreeDV Reporter.
 
 ## APRS transmit (Mac, 2026-11-11; unit-tested, views checked in the built app, tested on the air by the user the same day)
 

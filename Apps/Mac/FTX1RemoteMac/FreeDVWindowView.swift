@@ -224,8 +224,13 @@ private struct FreeDVNotes: View {
         if receiver.isPausedForTransmit {
             notes.append(String(localized: "common.pausedWhileTransmitting"))
         }
-        if let mode = receiver.unsuitableSourceMode {
-            notes.append(String(localized: "freeDVWindow.sourceIsIn \(receiver.channel.title) \(mode.displayName)"))
+        if let hint = receiver.modeHint {
+            let source = receiver.channel.title, mode = hint.mode.displayName
+            switch hint.expected {
+            case .lower: notes.append(String(localized: "freeDVWindow.useLSB \(source) \(mode)"))
+            case .upper: notes.append(String(localized: "freeDVWindow.useUSB \(source) \(mode)"))
+            case .either: notes.append(String(localized: "freeDVWindow.useSSB \(source) \(mode)"))
+            }
         }
         if receiver.isReceivingVoice, receiver.channel == .main || receiver.channel == .sub {
             notes.append(String(localized: "freeDVWindow.rigAudioMuted \(receiver.channel.title)"))

@@ -34,6 +34,40 @@ public struct FreeDVRigInfo: Equatable, Sendable {
     }
 }
 
+/// The sideband FreeDV uses where the source is tuned. freedv.org's
+/// "Getting started" (USB or LSB?): the SSB convention — LSB below 10 MHz,
+/// USB from 10 MHz up. Same sideband on both ends gives the sender's audio
+/// back unchanged; the wrong one flips the spectrum and nothing decodes.
+public enum FreeDVSideband: Equatable, Sendable {
+    case lower
+    case upper
+    /// The source's frequency isn't known (WebSDR): either SSB mode is fine.
+    case either
+
+    public static let lowerBandEdgeHz = 10_000_000
+
+    public init(frequencyHz: Int?) {
+        guard let frequencyHz, frequencyHz > 0 else { self = .either; return }
+        self = frequencyHz < Self.lowerBandEdgeHz ? .lower : .upper
+    }
+
+    /// The rig modes that receive it the right way up. (The FTX-1's DATA-L
+    /// isn't a `RigMode`, so it never reaches this check.)
+    public var suitableModes: Set<RigMode> {
+        switch self {
+        case .lower: [.lsb]
+        case .upper: [.usb, .dataUSB]
+        case .either: [.lsb, .usb, .dataUSB]
+        }
+    }
+}
+
+/// The selected source is in a mode FreeDV won't decode in there.
+public struct FreeDVModeHint: Equatable, Sendable {
+    public var mode: RigMode
+    public var expected: FreeDVSideband
+}
+
 /// One station heard: a callsign from an end-of-over.
 public struct FreeDVHeardStation: Identifiable, Equatable, Sendable {
     public let id = UUID()
@@ -110,8 +144,9 @@ public final class FreeDVReceiver: ObservableObject {
     @Published public private(set) var heard: [FreeDVHeardStation] = []
     @Published public private(set) var isSubAudioAvailable = false
     @Published public private(set) var isPausedForTransmit = false
-    /// The selected receiver's mode when it isn't USB/DATA-U.
-    @Published public private(set) var unsuitableSourceMode: RigMode?
+    /// Set when the selected source's mode won't receive FreeDV where it's
+    /// tuned (wrong sideband for the band, or not SSB at all).
+    @Published public private(set) var modeHint: FreeDVModeHint?
     @Published public private(set) var isDecodingFile = false
     /// The speech decoded from the last file, saved in the recordings folder.
     @Published public private(set) var lastDecodedFile: URL?
@@ -344,19 +379,31 @@ public final class FreeDVReceiver: ObservableObject {
     }
 
     private func updateModeHint() {
-        let mode: RigMode? = switch channel {
-        case .main: rigInfo.mainMode == .unknown ? nil : rigInfo.mainMode
-        case .sub: rigInfo.subMode
-        case .webSDR: nil
-        case .myKiwiSDR: myKiwiSDRMode
+        let mode: RigMode?
+        let frequency: Int?
+        switch channel {
+        case .main:
+            mode = rigInfo.mainMode == .unknown ? nil : rigInfo.mainMode
+            frequency = rigInfo.mainFrequencyHz
+        case .sub:
+            mode = rigInfo.subMode
+            frequency = rigInfo.subFrequencyHz
+        case .webSDR:
+            mode = nil
+            frequency = nil
+        case .myKiwiSDR:
+            mode = myKiwiSDRMode
+            frequency = frequencyOfSource?(.myKiwiSDR)
         }
-        var hint: RigMode?
-        if let mode, mode != .unknown, !Self.suitableModes.contains(mode) { hint = mode }
-        if unsuitableSourceMode != hint { unsuitableSourceMode = hint }
+        let hint = Self.modeHint(mode: mode, frequencyHz: frequency)
+        if modeHint != hint { modeHint = hint }
     }
 
-    /// FreeDV is sent on upper sideband; DATA-U is the rig's USB data mode.
-    static let suitableModes: Set<RigMode> = [.usb, .dataUSB]
+    static func modeHint(mode: RigMode?, frequencyHz: Int?) -> FreeDVModeHint? {
+        guard let mode, mode != .unknown else { return nil }
+        let expected = FreeDVSideband(frequencyHz: frequencyHz)
+        return expected.suitableModes.contains(mode) ? nil : FreeDVModeHint(mode: mode, expected: expected)
+    }
 
     // MARK: - Files
 

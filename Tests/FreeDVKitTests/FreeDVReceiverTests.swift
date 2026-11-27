@@ -54,14 +54,44 @@ final class FreeDVReceiverTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), ["noise.wav"])
     }
 
-    func testModeHint() {
+    /// freedv.org: LSB below 10 MHz, USB from 10 MHz up.
+    func testSidebandByFrequency() {
+        XCTAssertEqual(FreeDVSideband(frequencyHz: 3_643_000), .lower)
+        XCTAssertEqual(FreeDVSideband(frequencyHz: 7_177_000), .lower)
+        XCTAssertEqual(FreeDVSideband(frequencyHz: 9_999_999), .lower)
+        XCTAssertEqual(FreeDVSideband(frequencyHz: 10_000_000), .upper)
+        XCTAssertEqual(FreeDVSideband(frequencyHz: 14_236_000), .upper)
+        XCTAssertEqual(FreeDVSideband(frequencyHz: 28_330_000), .upper)
+        XCTAssertEqual(FreeDVSideband(frequencyHz: nil), .either)
+        XCTAssertEqual(FreeDVSideband(frequencyHz: 0), .either)
+    }
+
+    func testModeHintFollowsTheBand() {
         let receiver = FreeDVReceiver(logSubsystem: "com.ftx1remote.tests")
         receiver.channel = .main
-        receiver.rigInfoChanged(FreeDVRigInfo(mainMode: .usb))
-        XCTAssertNil(receiver.unsuitableSourceMode)
+        // 20 m: USB or DATA-U.
+        receiver.rigInfoChanged(FreeDVRigInfo(mainMode: .usb, mainFrequencyHz: 14_236_000))
+        XCTAssertNil(receiver.modeHint)
+        receiver.rigInfoChanged(FreeDVRigInfo(mainMode: .dataUSB, mainFrequencyHz: 14_236_000))
+        XCTAssertNil(receiver.modeHint)
+        receiver.rigInfoChanged(FreeDVRigInfo(mainMode: .lsb, mainFrequencyHz: 14_236_000))
+        XCTAssertEqual(receiver.modeHint, FreeDVModeHint(mode: .lsb, expected: .upper))
+        // 40 m: LSB.
+        receiver.rigInfoChanged(FreeDVRigInfo(mainMode: .lsb, mainFrequencyHz: 7_177_000))
+        XCTAssertNil(receiver.modeHint)
+        receiver.rigInfoChanged(FreeDVRigInfo(mainMode: .usb, mainFrequencyHz: 7_177_000))
+        XCTAssertEqual(receiver.modeHint, FreeDVModeHint(mode: .usb, expected: .lower))
+        receiver.rigInfoChanged(FreeDVRigInfo(mainMode: .dataUSB, mainFrequencyHz: 7_177_000))
+        XCTAssertEqual(receiver.modeHint, FreeDVModeHint(mode: .dataUSB, expected: .lower))
+        // No frequency yet: either sideband, but not FM.
         receiver.rigInfoChanged(FreeDVRigInfo(mainMode: .lsb))
-        XCTAssertEqual(receiver.unsuitableSourceMode, .lsb)
-        receiver.rigInfoChanged(FreeDVRigInfo(mainMode: .dataUSB))
-        XCTAssertNil(receiver.unsuitableSourceMode)
+        XCTAssertNil(receiver.modeHint)
+        receiver.rigInfoChanged(FreeDVRigInfo(mainMode: .fm))
+        XCTAssertEqual(receiver.modeHint, FreeDVModeHint(mode: .fm, expected: .either))
+        // SUB uses SUB's own frequency.
+        receiver.rigInfoChanged(FreeDVRigInfo(mainMode: .usb, subMode: .lsb,
+                                              mainFrequencyHz: 14_236_000, subFrequencyHz: 3_643_000))
+        receiver.channel = .sub
+        XCTAssertNil(receiver.modeHint)
     }
 }
