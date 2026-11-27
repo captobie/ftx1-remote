@@ -161,6 +161,8 @@ public final class FreeDVReceiver: ObservableObject {
     public var configurePlayback: ((AudioPlaybackEngine) -> Void)?
     /// The dial frequency of a source the rig doesn't report (MyKiwiSDR).
     public var frequencyOfSource: ((ReceiveAudioChannel) -> Int?)?
+    /// Each callsign heard live (not from a file) — FreeDV Reporter's spots.
+    public var onHeard: ((FreeDVHeardStation) -> Void)?
 
     /// The decoder and resampler live on `queue` only.
     private final class DecoderBox: @unchecked Sendable {
@@ -322,8 +324,10 @@ public final class FreeDVReceiver: ObservableObject {
         case .sub: rigInfo.subFrequencyHz
         case .webSDR, .myKiwiSDR: frequencyOfSource?(channel)
         }
-        heard.insert(FreeDVHeardStation(callsign: callsign, time: Date(), snrDB: snrDB, channel: channel,
-                                        frequencyHz: fromFile ? nil : frequency, fromFile: fromFile), at: 0)
+        let station = FreeDVHeardStation(callsign: callsign, time: Date(), snrDB: snrDB, channel: channel,
+                                         frequencyHz: fromFile ? nil : frequency, fromFile: fromFile)
+        heard.insert(station, at: 0)
+        if !fromFile { onHeard?(station) }
         if heard.count > Self.maxHeard { heard.removeLast(heard.count - Self.maxHeard) }
         logger.notice("heard \(callsign, privacy: .public)\(fromFile ? " (file)" : "", privacy: .public)")
     }

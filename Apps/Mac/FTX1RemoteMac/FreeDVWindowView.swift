@@ -15,9 +15,11 @@ import UniformTypeIdentifiers
 struct FreeDVWindowView: View {
     @EnvironmentObject private var receiver: FreeDVReceiver
     @EnvironmentObject private var sender: FreeDVSender
+    @EnvironmentObject private var reporter: FreeDVReporter
     @Environment(\.openWindow) private var openWindow
     @State private var isShowingFileImporter = false
     @FocusState private var windowFocused: Bool
+    @AppStorage("freedv.listTab") private var listTab = FreeDVListTab.heard
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,10 +27,26 @@ struct FreeDVWindowView: View {
             Divider()
             FreeDVTransmitRow()
             Divider()
+            FreeDVReporterRow()
+            Divider()
             FreeDVStatusLine(status: receiver.status)
             Divider()
             FreeDVNotes()
-            FreeDVHeardTable()
+            if reporter.enabled {
+                Picker("freeDVWindow.list", selection: $listTab) {
+                    Text("freeDVWindow.heardTab \(receiver.heard.count)").tag(FreeDVListTab.heard)
+                    Text("freeDVWindow.reporterTab \(reporter.stations.count)").tag(FreeDVListTab.reporter)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .padding(.vertical, 6)
+            }
+            if reporter.enabled, listTab == .reporter {
+                FreeDVReporterTable()
+            } else {
+                FreeDVHeardTable()
+            }
             if receiver.isDecodingFile || receiver.lastDecodedFile != nil {
                 Divider()
                 fileLine
@@ -50,12 +68,14 @@ struct FreeDVWindowView: View {
         }
         .onAppear {
             receiver.start()
+            reporter.setActive(true)
             windowFocused = true
         }
         .onDisappear {
             // Not left keyed with nobody watching: closing ends the over.
             sender.finish()
             receiver.stop()
+            reporter.setActive(false)
         }
         .fileImporter(
             isPresented: $isShowingFileImporter,
@@ -266,6 +286,170 @@ private struct FreeDVMicMeter: View {
         .frame(width: 90, height: 8)
         .help("freeDVWindow.micLevelHelp")
     }
+}
+
+// MARK: - FreeDV Reporter
+
+enum FreeDVListTab: String {
+    case heard
+    case reporter
+}
+
+/// The opt-in checkbox, the connection's state and our status message.
+private struct FreeDVReporterRow: View {
+    @EnvironmentObject private var reporter: FreeDVReporter
+    @State private var draft = ""
+    @FocusState private var editingMessage: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Toggle("freeDVWindow.reportToFreeDVReporter", isOn: $reporter.enabled)
+                .toggleStyle(.checkbox)
+                .help("freeDVWindow.reportHelp")
+            if reporter.enabled {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 8, height: 8)
+                Text(statusText)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer()
+                TextField("freeDVWindow.message", text: $draft)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 220)
+                    .focused($editingMessage)
+                    .onSubmit { reporter.message = draft }
+                    .onChange(of: editingMessage) { _, editing in
+                        if !editing { reporter.message = draft }
+                    }
+                    .help("freeDVWindow.messageHelp")
+            } else {
+                Spacer()
+            }
+        }
+        .font(.callout)
+        .padding(.horizontal)
+        .padding(.vertical, 6)
+        .onAppear { draft = reporter.message }
+    }
+
+    private var statusColor: Color {
+        switch reporter.status {
+        case .connected: .green
+        case .connecting: .yellow
+        case .retrying, .needsStation: .orange
+        case .off: .secondary
+        }
+    }
+
+    private var statusText: String {
+        switch reporter.status {
+        case .off: ""
+        case .needsStation: String(localized: "freeDVWindow.reporterNeedsStation")
+        case .connecting: String(localized: "freeDVWindow.reporterConnecting")
+        case .connected: String(localized: "freeDVWindow.reporterConnected \(reporter.stations.count)")
+        case .retrying(let reason): String(localized: "freeDVWindow.reporterRetrying \(reason)")
+        }
+    }
+}
+
+/// Everyone on FreeDV Reporter. Double-click (or the context menu) tunes
+/// MAIN there. Observes only the reporter.
+private struct FreeDVReporterTable: View {
+    @EnvironmentObject private var reporter: FreeDVReporter
+    @EnvironmentObject private var hub: HubService
+    @State private var selection: FreeDVReporterStation.ID?
+    @State private var tuneError: String?
+
+    var body: some View {
+        Table(reporter.stations, selection: $selection) {
+            TableColumn("freeDVWindow.callsign") { station in
+                Text(verbatim: station.callsign)
+                    .font(.body.monospaced().weight(.semibold))
+            }
+            .width(min: 80, ideal: 95)
+            TableColumn("freeDVWindow.grid") { station in
+                Text(verbatim: station.gridSquare)
+                    .monospaced()
+            }
+            .width(min: 55, ideal: 65, max: 80)
+            TableColumn("freeDVWindow.frequency") { station in
+                Text(verbatim: station.frequencyHz.map { FrequencyFormat.dotted($0) } ?? "—")
+                    .monospacedDigit()
+            }
+            .width(min: 95, ideal: 110, max: 130)
+            TableColumn("freeDVWindow.mode") { station in
+                HStack(spacing: 4) {
+                    Text(verbatim: station.mode ?? (station.receiveOnly ? "RX" : "—"))
+                    if station.transmitting {
+                        Text(verbatim: "TX")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .background(Color.red, in: RoundedRectangle(cornerRadius: 3))
+                    }
+                }
+            }
+            .width(min: 70, ideal: 90, max: 110)
+            TableColumn("freeDVWindow.lastHeard") { station in
+                if let call = station.lastHeardCallsign {
+                    Text(verbatim: "\(call) \(station.lastHeardSNR.map { "\(Int($0.rounded())) dB" } ?? "")")
+                        .monospacedDigit()
+                } else {
+                    Text(verbatim: "")
+                }
+            }
+            .width(min: 90, ideal: 120)
+            TableColumn("freeDVWindow.statusMessage") { station in
+                Text(verbatim: station.message)
+                    .foregroundStyle(.secondary)
+                    .help(station.message)
+            }
+            TableColumn("freeDVWindow.updated") { station in
+                Text(verbatim: station.lastUpdate.map { Self.timeFormatter.string(from: $0) } ?? "")
+                    .monospacedDigit()
+            }
+            .width(min: 50, ideal: 60, max: 70)
+        }
+        .contextMenu(forSelectionType: FreeDVReporterStation.ID.self) { ids in
+            if let station = station(ids), let hz = station.frequencyHz {
+                Button("freeDVWindow.tuneMain \(FrequencyFormat.dotted(hz))") { tune(station) }
+            }
+        } primaryAction: { ids in
+            if let station = station(ids) { tune(station) }
+        }
+        .overlay {
+            if reporter.stations.isEmpty {
+                Text(reporter.status == .connected ? "freeDVWindow.reporterEmpty" : "freeDVWindow.reporterNotConnected")
+                    .foregroundStyle(.secondary)
+                    .allowsHitTesting(false)
+            }
+        }
+        .alert("FreeDV", isPresented: Binding(get: { tuneError != nil }, set: { if !$0 { tuneError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(tuneError ?? "")
+        }
+    }
+
+    private func station(_ ids: Set<FreeDVReporterStation.ID>) -> FreeDVReporterStation? {
+        guard let id = ids.first else { return nil }
+        return reporter.stations.first { $0.id == id }
+    }
+
+    private func tune(_ station: FreeDVReporterStation) {
+        guard let hz = station.frequencyHz else { return }
+        tuneError = hub.tuneFromFreeDVReporter(frequencyHz: hz)
+    }
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
 }
 
 // MARK: - Status

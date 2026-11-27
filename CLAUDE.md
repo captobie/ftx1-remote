@@ -2657,7 +2657,7 @@ below).
   instead of greyed inside it, and Lookup sends only the call. See
   `Apps/Windows/README.md`'s "RTTY/PSK window".
 
-## Digital modes — FreeDV (Mac, 2026-11-27; receive unit-tested on rade_c's off-air sample, file decode checked in the built app, then live from the WebSDR window tested by the user the same day — voice and callsign; MAIN/SUB/MyKiwiSDR and the rig-audio mute not yet tried. Transmit unit-tested (loopback through the receiver, callsign included) and its refusal seen in the built app; nothing keyed or on the air yet)
+## Digital modes — FreeDV (Mac, 2026-11-27; receive unit-tested on rade_c's off-air sample, file decode checked in the built app, then live from the WebSDR window tested by the user the same day — voice and callsign; MAIN/SUB/MyKiwiSDR and the rig-audio mute not yet tried. Transmit unit-tested (loopback through the receiver, callsign included) and its refusal seen in the built app; nothing keyed or on the air yet. FreeDV Reporter unit-tested, its parser checked read-only against qso.freedv.org, then reporting tested live by the user the same day — the callsign listed while connected and shown transmitting on TX)
 
 User request. User decisions: **RADE V1 only** (no codec2 700D/700E/1600 —
 LGPL and no longer maintained upstream; RADE V2 is pre-release, its README
@@ -2783,8 +2783,50 @@ self-monitor), voice keyer later.
   SOURCE (as for RTTY/PSK, must be USB/AUTO for the transmitting mode),
   ALC at Level 0 dB, Local and Remote, another receiver (FreeDV app or a
   KiwiSDR) decoding it with the callsign.
+- **FreeDV Reporter** (phase 3, 2026-11-27; user decisions: report + a
+  live station list with click-to-tune; an opt-in checkbox, off by
+  default, connected only while the window is open; spots from MAIN/SUB/
+  MyKiwiSDR, not WebSDR; a status-message field). `FreeDVReporterProtocol`
+  + `FreeDVReporterStations` (pure, tested) and `FreeDVReporter`
+  (FreeDVKit; `lazy var freeDVReporter` on `HubService`), from
+  freedv-backend's `src/reporting/FreeDVReporter.cpp` (BSD-2): Socket.IO
+  v4 / Engine.IO v4 over `URLSessionWebSocketTask` to
+  `wss://qso.freedv.org/socket.io/?EIO=4&transport=websocket`; "0" open
+  (ping interval/timeout) → "40{auth}" with role "report", callsign,
+  grid, version "FTX1Remote <CFBundleShortVersionString>", rx_only false,
+  os "macOS", protocol_version 2; "2" ping → "3", no ping within interval
+  + timeout → reconnect; after `connection_successful`: `freq_change`
+  {freq}, `tx_report` {mode "RADEV1", transmitting}, `message_update`
+  {message} — sent again after every reconnect; `rx_report` {callsign,
+  mode, snr} per live heard callsign (`FreeDVReceiver.onHeard`). Incoming
+  `new_connection`/`remove_connection`/`freq_change`/`tx_report`/
+  `rx_report`/`message_update`, also inside `bulk_update` (the server's
+  first burst, which also carries `chat_*` events — ignored), keep the
+  list; timestamps ISO 8601 with "+00:00". Reconnects after 5/10/30/60 s.
+  Needs Settings → Station's callsign and a ≥4-character grid (else
+  "set them" status); a change there reconnects (watched via
+  `UserDefaults.didChangeNotification`). Our frequency: the window's
+  source — MAIN, SUB, the Kiwi (sampled every 2 s, as its frequency isn't
+  published), or the rig's TX side for WebSDR; 0 while the rig is
+  disconnected. Settings keys `freedv.reporter.enabled`/`.message`,
+  `freedv.listTab`. Window: a reporter row (checkbox, status, message
+  field committed on Return/focus loss), a Heard / FreeDV Reporter
+  switch above the list while enabled, and the station table (call,
+  grid, frequency, mode + red TX, last heard + SNR, message, UTC time);
+  double-click or the context menu tunes MAIN there
+  (`HubService.tuneFromFreeDVReporter`: the band's sideband, DATA-U kept
+  ≥10 MHz; not while transmitting or in Memory mode). The list republishes
+  at most twice a second. Tests: `FreeDVReporterProtocolTests` (frames,
+  events, bulk update, timestamps); `FreeDVReporterLiveTests` connects
+  read-only (role "view", nothing about us sent) with
+  `FREEDV_REPORTER_LIVE=1` — run 2026-11-27: 58 stations parsed with
+  timestamps. Tested live by the user (2026-11-27): the callsign appears
+  on qso.freedv.org while connected and switches to transmitting on TX.
+  **Not yet checked**: spots (`rx_report`) from a live decode, the
+  station list's click-to-tune on the rig; QSY requests (`qsy_request`)
+  are ignored.
 - **Next**: MAIN/SUB receive on the rig, transmit into a dummy load, then
-  the voice keyer and FreeDV Reporter.
+  the voice keyer.
 
 ## APRS transmit (Mac, 2026-11-11; unit-tested, views checked in the built app, tested on the air by the user the same day)
 

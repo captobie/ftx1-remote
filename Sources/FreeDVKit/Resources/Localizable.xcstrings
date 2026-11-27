@@ -71,6 +71,41 @@
         }
       }
     },
+    "freeDVReporter.closedByServer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Server hat die Verbindung beendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The server closed the connection"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servidor cerró la conexión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le serveur a fermé la connexion"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il server ha chiuso la connessione"
+          }
+        }
+      }
+    },
     "freeDVSender.encoderFailed" : {
       "extractionState" : "manual",
       "localizations" : {

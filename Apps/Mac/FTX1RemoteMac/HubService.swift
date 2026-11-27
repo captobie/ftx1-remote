@@ -460,6 +460,76 @@ final class HubService: ObservableObject {
         return sender
     }()
     let freeDVMicrophone = FreeDVMicrophone()
+    /// FreeDV Reporter (qso.freedv.org), for the FreeDV window: our
+    /// frequency, TX state and spots out, the station list in. Connected
+    /// only while the window is open with its checkbox on.
+    lazy var freeDVReporter: FreeDVReporter = {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let reporter = FreeDVReporter(version: "FTX1Remote \(version)", logSubsystem: "com.ftx1remote.mac")
+        freeDVReporterCancellables = [
+            $rigState.combineLatest(freeDVReceiver.$channel)
+                .sink { [weak self] _, _ in
+                    // After the publish, so the new values are read.
+                    DispatchQueue.main.async { self?.updateFreeDVReporterFrequency() }
+                },
+            freeDVSender.$state
+                .map { $0 != .idle }
+                .removeDuplicates()
+                .sink { [unowned reporter] transmitting in reporter.setTransmitting(transmitting) },
+            // Settings → Station changed: reconnect with the new call/grid.
+            NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+                .map { _ in StationSettings.callsign + "|" + StationSettings.gridSquare }
+                .removeDuplicates()
+                .dropFirst()
+                .sink { [unowned reporter] _ in reporter.stationChanged() },
+            // The MyKiwiSDR frequency isn't published (it changes on every
+            // tuning step): sampled every 2 s while that's the source.
+            Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+                .sink { [weak self] _ in
+                    guard self?.freeDVReceiver.channel == .myKiwiSDR else { return }
+                    self?.updateFreeDVReporterFrequency()
+                },
+        ]
+        freeDVReceiver.onHeard = { [unowned reporter] station in
+            // A remote WebSDR isn't at our QTH: its spots aren't ours to report.
+            guard station.channel != .webSDR else { return }
+            reporter.reportHeard(callsign: station.callsign, snrDB: station.snrDB)
+        }
+        return reporter
+    }()
+    private var freeDVReporterCancellables: [AnyCancellable] = []
+
+    /// What FreeDV Reporter shows as our frequency: the FreeDV window's
+    /// source (MAIN, SUB, the Kiwi), else where the rig would transmit.
+    private func updateFreeDVReporterFrequency() {
+        guard connectionState == .connected || freeDVReceiver.channel == .myKiwiSDR else {
+            freeDVReporter.setFrequency(nil)
+            return
+        }
+        let hz: Int? = switch freeDVReceiver.channel {
+        case .main: rigState.frequencyHz
+        case .sub: rigState.secondaryFrequencyHz
+        case .myKiwiSDR: localSDRSource.frequencyHz
+        case .webSDR: rigState.transmitFrequencyHz
+        }
+        freeDVReporter.setFrequency(hz.flatMap { $0 > 0 ? $0 : nil })
+    }
+
+    /// The FreeDV window's station list: MAIN to a FreeDV Reporter
+    /// station's frequency, on the band's sideband (LSB below 10 MHz, USB
+    /// above; DATA-U kept if MAIN is already in it). The WebSDR
+    /// click-to-tune rules: not while transmitting, not in Memory mode.
+    func tuneFromFreeDVReporter(frequencyHz: Int) -> String? {
+        guard connectionState == .connected else { return String(localized: "hubService.theRigIsntConnected") }
+        guard !rigState.ptt, !freeDVSender.isActive else { return String(localized: "hubService.theRigIsTransmitting") }
+        guard rigState.vfoMemoryMode != .memory else { return String(localized: "hubService.mainIsInMemory") }
+        let sideband = FreeDVSideband(frequencyHz: frequencyHz)
+        let mode: RigMode = sideband == .lower ? .lsb : (rigState.mode == .dataUSB ? .dataUSB : .usb)
+        if frequencyHz != rigState.frequencyHz { send(.setFrequency(hz: frequencyHz)) }
+        if mode != rigState.mode { send(.setMode(mode)) }
+        Self.connectionLogger.notice("FreeDV Reporter tune: \(frequencyHz) Hz \(mode.rawValue, privacy: .public)")
+        return nil
+    }
     private var freeDVKiwiModeCancellable: AnyCancellable?
     private var freeDVRigCancellable: AnyCancellable?
     private var freeDVVoiceCancellable: AnyCancellable?
