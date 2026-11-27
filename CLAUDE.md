@@ -2657,6 +2657,88 @@ below).
   instead of greyed inside it, and Lookup sends only the call. See
   `Apps/Windows/README.md`'s "RTTY/PSK window".
 
+## Digital modes — FreeDV (Mac, started 2026-11-27; library, receiver and window unit-tested on rade_c's off-air sample and the window's file decode checked in the built app; live decoding not yet seen — no FreeDV signal tried, nothing on air)
+
+User request. User decisions: **RADE V1 only** (no codec2 700D/700E/1600 —
+LGPL and no longer maintained upstream; RADE V2 is pre-release, its README
+says not for on-air use), **receive first** (transmit = phase 2, through
+`routeTXAudio` like RTTY/PSK), **its own Tools → FreeDV window** (sources
+MAIN/SUB/MyKiwiSDR/WebSDR), **FreeDV Reporter later**.
+
+- **Library** (`Vendor/rade/FTX1Rade.xcframework`, binary target
+  `CFTX1Rade`, ~30 MB universal static, macOS only — only the Mac may link
+  `FreeDVKit`): built by `Scripts/build-rade.sh` from pinned commits with
+  sha256s (cached in gitignored `releases/rade-sources/`; needs Homebrew
+  autoconf/automake/libtool — `glibtoolize`): rade_c (BSD-2) V1 sources
+  only, Opus at rade_c's pinned commit (BSD-3, OSCE + DRED as rade_c
+  configures it, its nnet patch, plus the 183 MB model tarball Opus's
+  autogen fetches — macOS has no `sha256sum`, so Opus wouldn't verify it;
+  the script does), freedv-backend's `rade_text.cpp` + `ldpc_*.cpp` +
+  `HRA_56_56.h` (BSD-2) with `Scripts/rade/ulog.h` (silent) for its
+  logger, and our wrapper `Scripts/rade/ftx1_rade.{h,c}` — the only header
+  Swift sees (module `CFTX1Rade`, autolinks libc++). V2 is left out;
+  `Scripts/rade/rade_v2_stubs.c` aborts if rade_api.c ever reaches V2 (it
+  can't for a V1 open). Versions in `Vendor/rade/VERSIONS.txt`. A wrapper
+  change means rerunning the script. All BSD: no source to attach to
+  releases, unlike Hamlib.
+- **Callsigns**: the FreeDV app's end-of-over carries LDPC(112,56)-coded
+  text (8 chars × 6 bits + CRC8, freedv-backend's `rade_text`), **not**
+  rade_c's own `rade_v1_text_test` 7-bit packing — that read garbage on
+  real overs. The wrapper feeds `rade_text_rx(eoo, rade_n_eoo_bits/2)` and
+  returns a callsign only when its CRC checks.
+- **Wrapper** follows freedv-backend's `RADEReceiveStep`: real 8 kHz audio
+  as I/Q with imag 0 at full scale ±1 (rade_c's `rade_rx_wav` uses ±2 —
+  both decode), FARGAN primed once with zero features, every 10 ms frame
+  synthesised, end-of-over blocks not. `rade_open` prints two lines to
+  stderr even with `RADE_VERBOSE_0`.
+- **`FreeDVKit.RADEDecoder`**: any-size 8 kHz chunks in, 16 kHz speech +
+  `RADEStatus` (sync, frequency offset, SNR) + `RADEEndOfOver`s out; one
+  serial queue per instance. `RADEDecoderTests` on
+  `rade_offair_50s.wav` (first 50 s of rade_c's `FDV_offair.wav`): VK5KVA
+  and VK3TPM at ~10.6/46.1 s, >38 s of speech, chunk size not changing the
+  output, the 44.1 kHz → 8 kHz streaming-resample path, noise alone
+  decoding nothing.
+- **Measured** (whole 326 s off-air file): 96% of frames valid, ~24 dB,
+  decoded in 5.5 s = ~1.7% of a core on Apple silicon, ~4% as x86_64
+  under Rosetta (speech not bit-identical across arches, same stats).
+- **`FreeDVReceiver`** (FreeDVKit, `lazy var freeDVReceiver` on
+  `HubService`): fed like `DigiReceiver` (both taps unconditionally, the
+  WebSDR/MyKiwiSDR sources as consumer "freedv"), keeps only the selected
+  `ReceiveAudioChannel` (`freedv.channel`) between `start()`/`stop()` (the
+  window's appear/disappear). Its own `FreeDVResampler` (one
+  `AVAudioConverter` per input rate) → `RADEDecoder` on a serial queue;
+  speech goes as 16 kHz Int16 to its own `AudioPlaybackEngine(squelch
+  off, 0.25 s prebuffer)` on Settings → Audio's output device, unless
+  `isMuted` (`freedv.volume`/`freedv.muted`). Sync/SNR/offset go to
+  `FreeDVStatusStore` (only the status line observes it). Callsigns go to
+  `heard` (session only, newest first, 200 max) with the over's last
+  in-sync SNR and the source's dial (rig MAIN/SUB, MyKiwiSDR via
+  `frequencyOfSource`; none for WebSDR). Paused (decoder reset) while the
+  rig reports TX. Note for MAIN/SUB not in USB/DATA-U. Open Audio File
+  decodes off the main actor with a decoder of its own: callsigns marked
+  "File", speech saved as "Recording <date> FreeDV <name>.wav" in the
+  Recordings folder (an empty one is deleted and "no FreeDV signal" shown).
+  Not handled: the output's clock vs the input's (the speech queue could
+  drift slowly over hours, as the Kiwi's did before its playout fix).
+- **Rig audio**: while `isReceivingVoice` (in sync, held 1.5 s after sync
+  drops) on MAIN or SUB, that receiver's Mac playback is muted —
+  `setMainAudioOverride(.freeDV)` and the new `setSubAudioOverride`
+  (same rules: only an override's own mute is lifted, the user's Mute hands
+  it back; `subMutedByOverride`, key `freedv.mutedSubAudio`, lifted at
+  launch like Main's). For WebSDR/MyKiwiSDR the SDR window's audio isn't
+  touched; the window says to mute it there (both keep feeding the
+  decoders when muted).
+- **Window** (`FreeDVWindowView`, `Window(id: "freedv")`, Tools → FreeDV):
+  source picker, volume/mute, Open Audio File, Clear; status line; notes
+  (TX pause, wrong mode, rig audio muted, SDR source status); heard table
+  (UTC time, call, SNR, frequency, source); saved-file line with Show in
+  Recordings. Seen in the built app: the window, and the off-air clip from
+  Open Audio File listing VK3TPM 36 dB / VK5KVA 19 dB and saving the
+  speech. **Not yet seen**: live decoding from any source, the rig-audio
+  mute, sync/offset readings moving.
+- **Next**: try it on air (USB, a FreeDV RADE activity frequency, e.g.
+  14.236 MHz), then phase 2 (transmit) and FreeDV Reporter.
+
 ## APRS transmit (Mac, 2026-11-11; unit-tested, views checked in the built app, tested on the air by the user the same day)
 
 User request. Beacons, messages and acks from the Mac, as Bell 202 audio
@@ -3914,6 +3996,8 @@ native speaker — `docs/localization-review.md` has the it/fr term table.
   (`DemoPi`, `SimulatedRig`, servers, audio synth, APRS encoder), also
   usable as a test fixture; `Sources/FTX1Core/Settings/SettingsStore` —
   where persisted settings live (see "Demo Mode").
+- `Sources/FreeDVKit/` — FreeDV RADE V1 receive over the prebuilt
+  `Vendor/rade/FTX1Rade.xcframework` — see "Digital modes — FreeDV".
 - `Sources/FTX1Digi/` — RTTY/BPSK31/BPSK63 decoding for the Mac's
   RTTY/PSK window — see "Digital modes — RTTY/PSK" above.
 - `Sources/FTX1CW/` — the CW receiver and sender on CWKit, shared by the

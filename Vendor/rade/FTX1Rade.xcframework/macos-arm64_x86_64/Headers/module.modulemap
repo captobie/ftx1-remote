@@ -1,0 +1,5 @@
+module CFTX1Rade {
+    header "ftx1_rade.h"
+    link "c++"
+    export *
+}

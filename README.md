@@ -452,6 +452,19 @@ The Mac and iPad CW decoder is CWKit from
 [captobie/cwdecode](https://github.com/captobie/cwdecode) (MIT), a Swift
 package dependency (of the Mac target and of `FTX1CW`) — not vendored.
 
+The Mac app's FreeDV receive (`FreeDVKit`) links
+`Vendor/rade/FTX1Rade.xcframework`, a static library built by
+`Scripts/build-rade.sh` from pinned, checksummed sources:
+[freedv/rade_c](https://github.com/freedv/rade_c) (RADE V1, BSD-2-Clause,
+David Rowe and contributors), [Opus](https://github.com/xiph/opus) at the commit
+rade_c pins, for its FARGAN vocoder (BSD-3-Clause, Xiph.Org and contributors),
+and the end-of-over callsign decoder (`rade_text`, LDPC(112,56)) from
+[freedv/freedv-backend](https://github.com/freedv/freedv-backend)
+(BSD-2-Clause, Mooneer Salem). Their licences are in `Vendor/rade/`
+(`LICENSE-rade_c.txt`, `LICENSE-opus.txt`, `LICENSE-freedv-backend.txt`).
+`Tests/FreeDVKitTests/Resources/rade_offair_50s.wav` is the first 50 s of
+rade_c's own off-air sample, resampled to 8 kHz.
+
 The Windows app uses [NAudio](https://github.com/naudio/NAudio) (MIT, Mark
 Heath) as a NuGet package (`NAudio.Wasapi`) for audio output — not vendored.
 Its CW decoders are CWKit's, translated to C#, and

@@ -5,6 +5,7 @@ import FT8Kit
 import FTX1CW
 import FTX1Core
 import FTX1Digi
+import FreeDVKit
 import Foundation
 import os
 
@@ -97,6 +98,13 @@ final class HubService: ObservableObject {
         didSet { UserDefaults.standard.set(mainMutedByOverride, forKey: Self.mainMutedByOverrideKey) }
     }
     private static let mainMutedByOverrideKey = "webSDR.mutedMainAudio"
+    /// Sub's counterpart to `mainAudioOverrides`/`mainMutedByOverride`: only
+    /// Tools → FreeDV decoding from SUB holds it so far.
+    private var subAudioOverrides: Set<MainAudioOverride> = []
+    private var subMutedByOverride = UserDefaults.standard.bool(forKey: HubService.subMutedByOverrideKey) {
+        didSet { UserDefaults.standard.set(subMutedByOverride, forKey: Self.subMutedByOverrideKey) }
+    }
+    private static let subMutedByOverrideKey = "freedv.mutedSubAudio"
     /// Sub-channel counterpart to `isMainAudioMuted` — works in both
     /// `.local` and `.remote` now (2026-09-18: `AudioCaptureEngine`'s local
     /// `AVAudioEngine` tap reads a genuine second channel too, when the
@@ -393,6 +401,57 @@ final class HubService: ObservableObject {
             .sink { [unowned receiver] mode in receiver.setMyKiwiSDRMode(mode) }
         return receiver
     }()
+    /// Tools → FreeDV's RADE V1 receiver, fed like `digiReceiver`. While it
+    /// receives voice from MAIN or SUB, that receiver's own Mac playback is
+    /// muted (`setMainAudioOverride`/`setSubAudioOverride`, holder
+    /// `.freeDV`), so the decoded speech isn't played over the modem noise.
+    lazy var freeDVReceiver: FreeDVReceiver = {
+        let receiver = FreeDVReceiver(logSubsystem: "com.ftx1remote.mac",
+                                      recordingsDirectory: AudioRecorder.recordingsDirectory)
+        receiver.configurePlayback = { engine in
+            engine.setOutputDevice(AudioOutputDeviceLister.deviceID(forUID: AudioOutputSettings.deviceUID))
+        }
+        webSDRSource.addConsumer(
+            id: "freedv",
+            isWanted: { [unowned receiver] in receiver.isRunning && receiver.channel == .webSDR },
+            onSamples: { [unowned receiver] samples, sampleRate in
+                receiver.ingest(samples: samples, sampleRate: sampleRate, channel: .webSDR)
+            }
+        )
+        localSDRSource.addConsumer(
+            id: "freedv",
+            isWanted: { [unowned receiver] in receiver.isRunning && receiver.channel == .myKiwiSDR },
+            onSamples: { [unowned receiver] samples, sampleRate in
+                receiver.ingest(samples: samples, sampleRate: sampleRate, channel: .myKiwiSDR)
+            }
+        )
+        receiver.onSourceChanged = { [weak self] in
+            self?.webSDRSource.update()
+            self?.localSDRSource.update()
+        }
+        receiver.frequencyOfSource = { [weak self] channel in
+            channel == .myKiwiSDR ? self?.localSDRSource.frequencyHz : nil
+        }
+        freeDVKiwiModeCancellable = localSDRSource.$mode
+            .removeDuplicates()
+            .sink { [unowned receiver] mode in receiver.setMyKiwiSDRMode(mode) }
+        freeDVRigCancellable = $rigState.combineLatest($connectionState)
+            .map { rig, connection in FreeDVRigInfo(state: rig, connected: connection == .connected) }
+            .removeDuplicates()
+            .sink { [unowned receiver] info in receiver.rigInfoChanged(info) }
+        freeDVVoiceCancellable = receiver.$isReceivingVoice
+            .combineLatest(receiver.$channel)
+            .map { voice, channel in voice ? channel : nil }
+            .removeDuplicates()
+            .sink { [weak self] channel in
+                self?.setMainAudioOverride(.freeDV, active: channel == .main)
+                self?.setSubAudioOverride(.freeDV, active: channel == .sub)
+            }
+        return receiver
+    }()
+    private var freeDVKiwiModeCancellable: AnyCancellable?
+    private var freeDVRigCancellable: AnyCancellable?
+    private var freeDVVoiceCancellable: AnyCancellable?
     /// The decoders' WebSDR source (one tap for the CW and RTTY/PSK
     /// windows).
     lazy var webSDRSource = WebSDRAudioSource(routing: webSDRAudioRouting)
@@ -597,6 +656,13 @@ final class HubService: ObservableObject {
             isMainAudioMuted = false
             AudioPlaybackSettings.isMuted = false
         }
+        // The same for Sub (FreeDV decoding from SUB).
+        if subMutedByOverride {
+            subMutedByOverride = false
+            UserDefaults.standard.set(false, forKey: Self.subMutedByOverrideKey)
+            isSubAudioMuted = false
+            AudioPlaybackSettings.subIsMuted = false
+        }
 
         rigctldProcess.onBinaryResolved = { [weak self] resolution in
             self?.rigctldBinaryInUse = resolution
@@ -653,6 +719,7 @@ final class HubService: ObservableObject {
             // Same reasoning again: CW isn't tied to a calling frequency.
             self.cwReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .main)
             self.digiReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .main)
+            self.freeDVReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .main)
 
             let isActive = APRSSettings.isActive(atFrequencyHz: self.rigState.frequencyHz)
             if isActive != self.aprsGateWasActive {
@@ -686,6 +753,7 @@ final class HubService: ObservableObject {
             self.ft4Store.noteAudio(from: .sub)
             self.cwReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .sub)
             self.digiReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .sub)
+            self.freeDVReceiver.ingest(samples: samples, sampleRate: sampleRate, channel: .sub)
 
             // Same shape as the Main gate above, but against the Sub
             // VFO's frequency (`secondaryFrequencyHz`, `nil`-safe — treated
@@ -1029,6 +1097,7 @@ final class HubService: ObservableObject {
         stopDigitalDecoding(.ft4)
         cwReceiver.stop()
         digiReceiver.stop()
+        freeDVReceiver.stop()
         cwMonitor.stop()
         webSocketServerTask?.cancel()
         webSocketServerTask = nil
@@ -2126,9 +2195,27 @@ final class HubService: ObservableObject {
         AudioPlaybackSettings.isMuted = isMainAudioMuted
     }
 
+    /// Sub's counterpart to `setMainAudioOverride` (same rules), for
+    /// FreeDV decoding from SUB.
+    func setSubAudioOverride(_ holder: MainAudioOverride, active: Bool) {
+        if active {
+            subAudioOverrides.insert(holder)
+            guard !isSubAudioMuted else { return }
+            isSubAudioMuted = true
+            subMutedByOverride = true
+        } else {
+            subAudioOverrides.remove(holder)
+            guard subAudioOverrides.isEmpty, subMutedByOverride else { return }
+            subMutedByOverride = false
+            isSubAudioMuted = false
+        }
+        AudioPlaybackSettings.subIsMuted = isSubAudioMuted
+    }
+
     /// Sub-channel counterpart — same "gate the feed, don't stop/start the
     /// engine" shape as `toggleMainAudioMuted()`.
     func toggleSubAudioMuted() {
+        subMutedByOverride = false  // the user's call from here on
         isSubAudioMuted.toggle()
         AudioPlaybackSettings.subIsMuted = isSubAudioMuted
     }
@@ -2938,11 +3025,14 @@ private extension Duration {
 
 /// Why the hub refused a client's `CWKeyerRequest` before it reached the
 /// rig (`HubService.remoteCWKeyer`).
-/// A window whose receiver mutes the rig's Main Mac playback while it's
-/// audible (`HubService.setMainAudioOverride`).
+/// A window whose receiver mutes the rig's Main (or, for FreeDV, Sub) Mac
+/// playback while it's audible (`HubService.setMainAudioOverride`,
+/// `setSubAudioOverride`).
 enum MainAudioOverride: Hashable {
     case webSDR
     case localSDR
+    /// Tools → FreeDV while it receives voice from that receiver.
+    case freeDV
 }
 
 enum RemoteCWKeyerError: LocalizedError {

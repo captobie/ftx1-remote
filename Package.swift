@@ -40,6 +40,13 @@ let package = Package(
             name: "FTX1Digi",
             targets: ["FTX1Digi"]
         ),
+        // FreeDV RADE V1 receive (Tools → FreeDV on the Mac). A prebuilt
+        // macOS-only static library (Vendor/rade, Scripts/build-rade.sh), so
+        // only the Mac app may link this product.
+        .library(
+            name: "FreeDVKit",
+            targets: ["FreeDVKit"]
+        ),
     ],
     dependencies: [
         // CWKit. The Mac app target also names it in the Xcode project;
@@ -99,6 +106,24 @@ let package = Package(
         .target(
             name: "FT8Kit",
             dependencies: ["CFT8Lib"]
+        ),
+        // rade_c (BSD-2) + Opus's FARGAN (BSD-3) + freedv-backend's callsign
+        // decoder (BSD-2) behind Scripts/rade/ftx1_rade.h, universal static
+        // library built by Scripts/build-rade.sh (pinned commits, sha256s).
+        // Licences: Vendor/rade/LICENSE-*.txt. macOS only.
+        .binaryTarget(
+            name: "CFTX1Rade",
+            path: "Vendor/rade/FTX1Rade.xcframework"
+        ),
+        .target(
+            name: "FreeDVKit",
+            dependencies: ["CFTX1Rade", "FTX1Core"],
+            resources: [.process("Resources/Localizable.xcstrings")]
+        ),
+        .testTarget(
+            name: "FreeDVKitTests",
+            dependencies: ["FreeDVKit"],
+            resources: [.copy("Resources")]
         ),
         .testTarget(
             name: "FT8KitTests",

@@ -49,6 +49,9 @@ struct FTX1RemoteMacApp: App {
                 Button("RTTY/PSK") {
                     openWindow(id: "digi")
                 }
+                Button("FreeDV") {
+                    openWindow(id: "freedv")
+                }
                 Button("CW Key") {
                     openWindow(id: "straight-key")
                 }
@@ -136,6 +139,18 @@ struct FTX1RemoteMacApp: App {
                 .environmentObject(appDelegate.hub.digiReceiver)
                 .environmentObject(appDelegate.hub.digiSender)
                 .environmentObject(appDelegate.hub.workedStations)
+                .environmentObject(appDelegate.hub.webSDRSource)
+                .environmentObject(appDelegate.hub.localSDRSource)
+                .appTheme()
+        }
+
+        // Tools → FreeDV (RADE V1 receive). `hub` for the SUB picker's
+        // single-receive check, the two SDR sources for their status;
+        // decoding runs while the window is open.
+        Window("FreeDV", id: "freedv") {
+            FreeDVWindowView()
+                .environmentObject(appDelegate.hub)
+                .environmentObject(appDelegate.hub.freeDVReceiver)
                 .environmentObject(appDelegate.hub.webSDRSource)
                 .environmentObject(appDelegate.hub.localSDRSource)
                 .appTheme()
