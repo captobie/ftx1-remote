@@ -27,6 +27,7 @@
     "displayLevel": -5.5,
     "displayPeak": 2,
     "displayMarker": true,
+    "displayColor": 10,
     "micGain": 50,
     "amcLevel": 30,
     "voxEnabled": false,

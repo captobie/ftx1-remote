@@ -1705,7 +1705,7 @@ final class HubService: ObservableObject {
              .setPowerLevel, .setBreakIn, .setKeyer, .setCWSpeed, .setCWPitch, .setBreakInDelay,
              .setCWSpot, .triggerZeroIn, .setMoniLevel, .selectCWMessageChannel,
              .setCWMessageRecording, .setAtt, .setPreamp, .setTuner, .setDisplayContrast,
-             .setDisplayDimmer, .setDisplayLevel, .setDisplayPeak, .setDisplayMarker, .setMicGain,
+             .setDisplayDimmer, .setDisplayLevel, .setDisplayPeak, .setDisplayMarker, .setDisplayColor, .setMicGain,
              .setAMCLevel, .setVox, .setVoxGain, .setVoxDelay, .setDNF, .setAGC, .setMicEQ,
              .setProcLevel, .setNBLevel, .setDNRLevel, .setFilterWidth, .setIFShift, .setNotch, .setNotchFrequency, .setContour, .setContourFrequency, .setAPF, .setAPFOffset, .setNarrow, .setFilterSide, .setAntSelect, .setTXW, .setTXSide, .setSplit, .setSquelchType,
              .setToneFreq, .setDCSCode, .setRepeaterShift, .setAPRSBeaconType, .setFMChannelStep,
@@ -1833,6 +1833,7 @@ final class HubService: ObservableObject {
         case .setDisplayLevel(let dB): rigState.displayLevel = dB
         case .setDisplayPeak(let level): rigState.displayPeak = level
         case .setDisplayMarker(let on): rigState.displayMarker = on
+        case .setDisplayColor(let index): rigState.displayColor = index
         case .setMicGain(let value): rigState.micGain = value
         case .setAMCLevel(let value): rigState.amcLevel = value
         case .setVox(let on): rigState.voxEnabled = on
@@ -2942,6 +2943,7 @@ final class HubService: ObservableObject {
             // getRawBool wouldn't parse these correctly.
             slowStep({ try? await self.rigctld.getRawDigit("SS01") }) { self.rigState.displayPeak = $0 },
             slowStep({ try? await self.rigctld.getRawBool("SS02") }) { self.rigState.displayMarker = $0 },
+            slowStep({ try? await self.rigctld.getSpectrumScopeColor() }) { self.rigState.displayColor = $0 },
             slowStep({ try? await self.rigctld.getRawInt("MG") }) { self.rigState.micGain = $0 },
             slowStep({ try? await self.rigctld.getRawInt("AO") }) { self.rigState.amcLevel = $0 },
             slowStep({ try? await self.rigctld.getRawBool("VX") }) { self.rigState.voxEnabled = $0 },

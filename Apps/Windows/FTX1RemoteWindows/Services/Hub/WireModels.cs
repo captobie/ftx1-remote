@@ -56,6 +56,7 @@ public sealed class RigStateWire
     [JsonPropertyName("displayLevel")] public double? DisplayLevel { get; set; }
     [JsonPropertyName("displayPeak")] public int? DisplayPeak { get; set; }
     [JsonPropertyName("displayMarker")] public bool? DisplayMarker { get; set; }
+    [JsonPropertyName("displayColor")] public int? DisplayColor { get; set; }
     [JsonPropertyName("micGain")] public int? MicGain { get; set; }
     [JsonPropertyName("amcLevel")] public int? AmcLevel { get; set; }
     [JsonPropertyName("voxEnabled")] public bool? VoxEnabled { get; set; }
@@ -261,6 +262,7 @@ public static class RigStateWireMapper
             DisplayLevel = s.DisplayLevel,
             DisplayPeak = s.DisplayPeak,
             DisplayMarker = s.DisplayMarker,
+            DisplayColor = s.DisplayColor,
             MicGain = s.MicGain,
             AmcLevel = s.AmcLevel,
             VoxEnabled = s.VoxEnabled,

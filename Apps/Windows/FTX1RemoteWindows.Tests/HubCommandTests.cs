@@ -46,6 +46,7 @@ public class HubCommandTests
         ["set_display_level"] = typeof(SetDisplayLevel),
         ["set_display_peak"] = typeof(SetDisplayPeak),
         ["set_display_marker"] = typeof(SetDisplayMarker),
+        ["set_display_color"] = typeof(SetDisplayColor),
         ["set_mic_gain"] = typeof(SetMicGain),
         ["set_amc_level"] = typeof(SetAmcLevel),
         ["set_vox"] = typeof(SetVox),
@@ -103,7 +104,7 @@ public class HubCommandTests
     public void FixtureHasEveryCommandOnce()
     {
         var names = FixtureCommands().Select(e => e.GetProperty("cmd").GetString()!).ToList();
-        Assert.Equal(72, names.Count);
+        Assert.Equal(73, names.Count);
         Assert.Equal(names.Count, names.Distinct().Count());
         Assert.Equal(ExpectedTypes.Keys.Order(), names.Order());
         Assert.Equal(ExpectedTypes.Keys.Order(), RigCommandWire.Names.Order());

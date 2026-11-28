@@ -96,6 +96,8 @@ public sealed class RigState
     public int? DisplayPeak { get; set; }
     /// "SS02" marker.
     public bool? DisplayMarker { get; set; }
+    /// "SS03" scope color scheme, 0-10 (shown COLOR-1…COLOR-11).
+    public int? DisplayColor { get; set; }
     /// "DA" P2, 0-20.
     public int? DisplayContrast { get; set; }
     /// "DA" P3 (TFT brightness), 0-20.

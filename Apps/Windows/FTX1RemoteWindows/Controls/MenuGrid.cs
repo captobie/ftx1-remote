@@ -208,6 +208,7 @@ public sealed class MenuGrid : UserControl
         _state.DisplayLevel = null;
         _state.DisplayPeak = null;
         _state.DisplayMarker = null;
+        _state.DisplayColor = null;
         _state.DisplayContrast = null;
         _state.DisplayDimmer = null;
         _state.MoxEnabled = null;
@@ -272,8 +273,11 @@ public sealed class MenuGrid : UserControl
 
         AddToggle(4, "D-MARKER", () => _state.DisplayMarker, on => _ = SetDisplayMarkerAsync(on));
 
-        // No CAT command exists for D-COLOR (checked the whole manual).
-        AddDisabled(5, "D-COLOR");
+        // "SS"'s COLOR sub-function (P2=3), the rig's own scope colors.
+        AddStepper(5, "D-COLOR", () => SpectrumScopeColor.Label(_state.DisplayColor),
+            current: () => _state.DisplayColor ?? 0, min: 0, max: SpectrumScopeColor.Count - 1, step: 1,
+            valueLabel: v => SpectrumScopeColor.Label((int)v),
+            set: v => _ = SetDisplayColorAsync((int)v));
 
         AddStepper(6, "D-CONTRAST", () => IntLabel(_state.DisplayContrast),
             current: () => _state.DisplayContrast ?? 10, min: 0, max: 20, step: 1,
@@ -523,6 +527,10 @@ public sealed class MenuGrid : UserControl
 
     public Task SetDisplayMarkerAsync(bool on) =>
         SendAsync("D-MARKER", () => _state.DisplayMarker = on, c => c.SetRawPackedDigitAsync("SS02", on ? 1 : 0, 4));
+
+    // "SS"'s COLOR sub-function: P3 "0"-"9"/"A" ahead of four fixed "0"s.
+    public Task SetDisplayColorAsync(int index) =>
+        SendAsync("D-COLOR", () => _state.DisplayColor = index, c => c.SetSpectrumScopeColorAsync(index));
 
     // "DA" sets contrast and both brightnesses in one command, so each
     // reads the current triple first and writes the other two back
@@ -844,6 +852,7 @@ public sealed class MenuGrid : UserControl
         var displayLevel = await ReadOrNull(() => client.GetSpectrumScopeLevelAsync());
         var displayPeak = await ReadOrNull(() => client.GetRawDigitAsync("SS01"));
         var displayMarker = await ReadOrNull(() => client.GetRawBoolAsync("SS02"));
+        var displayColor = await ReadOrNull(() => client.GetSpectrumScopeColorAsync());
         var mox = await ReadOrNull(() => client.GetRawBoolAsync("MX"));
         var att = await ReadOrNull(() => client.GetRawBoolAsync("RA0"));
         var preamp = await ReadOrNull(() => client.GetRawIntAsync("PA0"));
@@ -878,6 +887,7 @@ public sealed class MenuGrid : UserControl
             _state.DisplayLevel = displayLevel ?? _state.DisplayLevel;
             _state.DisplayPeak = displayPeak ?? _state.DisplayPeak;
             _state.DisplayMarker = displayMarker ?? _state.DisplayMarker;
+            _state.DisplayColor = displayColor ?? _state.DisplayColor;
             _state.MoxEnabled = mox ?? _state.MoxEnabled;
             _state.AttEnabled = att ?? _state.AttEnabled;
             _state.PreampMode = preamp ?? _state.PreampMode;

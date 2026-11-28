@@ -38,6 +38,7 @@
     <Compile Include="..\FTX1RemoteWindows\Models\TransmitPrivileges.cs" Link="Linked\TransmitPrivileges.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\PrivilegePresets.cs" Link="Linked\PrivilegePresets.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigDelayCode.cs" Link="Linked\RigDelayCode.cs" />
+    <Compile Include="..\FTX1RemoteWindows\Models\SpectrumScopeColor.cs" Link="Linked\SpectrumScopeColor.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigState.cs" Link="Linked\RigState.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\RigMode.cs" Link="Linked\RigMode.cs" />
     <Compile Include="..\FTX1RemoteWindows\Models\BandPlan.cs" Link="Linked\BandPlan.cs" />

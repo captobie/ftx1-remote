@@ -631,6 +631,22 @@ public actor RigctldClient {
         try await sendRawCommandFireAndForget("SS04\(sign)\(formatted)")
     }
 
+    /// Reads "SS"'s COLOR sub-function (P2=3), the rig's own scope color
+    /// scheme: "SS03;" answers "SS03" + P3 + "0000;" (read from the rig
+    /// over the Pi, 2026-11-27: "SS0300000;" = COLOR-1). P3 is one
+    /// character, "0"-"9" for COLOR-1…10 and "A" for COLOR-11, which is why
+    /// `getRawDigit` can't read it — see `SpectrumScopeColor`.
+    public func getSpectrumScopeColor() async throws -> Int? {
+        SpectrumScopeColor.index(fromAnswer: try await sendRawCommand("SS03"))
+    }
+
+    /// Sets "SS"'s COLOR sub-function — see `getSpectrumScopeColor()`.
+    /// Sends "SS03" + P3 + "0000", e.g. 10 (COLOR-11) -> "SS03A0000".
+    public func setSpectrumScopeColor(_ index: Int) async throws {
+        guard let command = SpectrumScopeColor.setCommand(index) else { return }
+        try await sendRawCommandFireAndForget(command)
+    }
+
     /// Reads the FTX-1's raw "IS" (IF-SHIFT) command for the MAIN side:
     /// the Read is "IS0;" (P1 only) but the Answer is "IS0" + P2 (fixed
     /// "0") + P3 (sign) + P4 (4-digit Hz) + ";", e.g. "IS00-0240;". The

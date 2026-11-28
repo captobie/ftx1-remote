@@ -821,6 +821,7 @@ public final class PiDirectViewModel: ObservableObject {
         case .setDisplayLevel(let dB): rigState.displayLevel = dB
         case .setDisplayPeak(let level): rigState.displayPeak = level
         case .setDisplayMarker(let on): rigState.displayMarker = on
+        case .setDisplayColor(let index): rigState.displayColor = index
         case .setMicGain(let value): rigState.micGain = value
         case .setAMCLevel(let value): rigState.amcLevel = value
         case .setVox(let on): rigState.voxEnabled = on
@@ -888,7 +889,7 @@ public final class PiDirectViewModel: ObservableObject {
         case .setPowerLevel, .setBreakIn, .setKeyer, .setCWSpeed, .setCWPitch, .setBreakInDelay,
              .setCWSpot, .triggerZeroIn, .setMoniLevel, .setMox, .triggerAntennaTune, .setAtt,
              .setPreamp, .setTuner, .setDisplayContrast, .setDisplayDimmer, .setDisplayLevel,
-             .setDisplayPeak, .setDisplayMarker, .setMicGain, .setAMCLevel, .setVox, .setVoxGain,
+             .setDisplayPeak, .setDisplayMarker, .setDisplayColor, .setMicGain, .setAMCLevel, .setVox, .setVoxGain,
              .setVoxDelay, .setDNF, .setAGC, .setMicEQ, .setProcLevel, .setNBLevel, .setDNRLevel,
              .setAntSelect, .setSquelchType, .setToneFreq, .setDCSCode, .setRepeaterShift,
              .setAPRSBeaconType, .setFMChannelStep, .setMenuItem:
@@ -1328,6 +1329,7 @@ public final class PiDirectViewModel: ObservableObject {
         { if let v = try? await $0.getSpectrumScopeLevel() { $1.displayLevel = v } },
         { if let v = try? await $0.getRawDigit("SS01") { $1.displayPeak = v } },
         { if let v = try? await $0.getRawBool("SS02") { $1.displayMarker = v } },
+        { if let v = try? await $0.getSpectrumScopeColor() { $1.displayColor = v } },
         { if let v = try? await $0.getRawInt("MG") { $1.micGain = v } },
         { if let v = try? await $0.getRawInt("AO") { $1.amcLevel = v } },
         { if let v = try? await $0.getRawBool("VX") { $1.voxEnabled = v } },

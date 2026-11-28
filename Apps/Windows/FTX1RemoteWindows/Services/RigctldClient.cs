@@ -539,6 +539,16 @@ public sealed class RigctldClient : IAsyncDisposable
     public Task SetRawPackedDigitAsync(string cmd, int digit, int trailingZeros, CancellationToken cancellationToken = default) =>
         SendRawFireAndForgetAsync($"{cmd}{digit}{new string('0', trailingZeros)}", cancellationToken);
 
+    /// "SS" COLOR (P2=3): "SS03;" answers "SS03" + P3 + "0000;", P3 "0"-"9"
+    /// or "A" (COLOR-1…11) — see Models/SpectrumScopeColor.cs.
+    public async Task<int?> GetSpectrumScopeColorAsync(CancellationToken cancellationToken = default) =>
+        SpectrumScopeColor.IndexFromAnswer(await SendRawCommandAsync("SS03", cancellationToken: cancellationToken).ConfigureAwait(false));
+
+    public Task SetSpectrumScopeColorAsync(int index, CancellationToken cancellationToken = default) =>
+        SpectrumScopeColor.SetCommand(index) is { } command
+            ? SendRawFireAndForgetAsync(command, cancellationToken)
+            : Task.CompletedTask;
+
     /// "SS" LEVEL (P2=4): a signed "+15.0"-style value, -30.0 to +30.0 dB.
     /// Only the leading sign/digit/"." run is parsed, so the reply's own ";"
     /// terminator can't break it (the bug the Swift getSpectrumScopeLevel's

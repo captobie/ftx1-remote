@@ -239,6 +239,8 @@ public actor CommandQueue {
             try await rigctld.setRawPackedDigit("SS01", level, trailingZeros: 4)
         case .setDisplayMarker(let on):
             try await rigctld.setRawPackedDigit("SS02", on ? 1 : 0, trailingZeros: 4)
+        case .setDisplayColor(let index):
+            try await rigctld.setSpectrumScopeColor(index)
         case .setMicGain(let value):
             try await rigctld.setRawInt("MG", value, digits: 3)
         case .setAMCLevel(let value):

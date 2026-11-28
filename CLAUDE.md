@@ -3498,6 +3498,19 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
 - **Later, not started**: Sub following. (FT8/FT4 from MyKiwiSDR:
   see "Digital modes — FT8".)
 
+## D-COLOR (MENU grid SSB 5, 2026-11-27; unit-tested and Simulator-rig tested, the read seen on the real rig; set not yet tried on the rig, Windows not built)
+
+The rig's own scope color scheme, COLOR-1…COLOR-11 — "SS"'s COLOR
+sub-function (P2=3), which an earlier pass missed (the button was a
+"no CAT command" placeholder). Read "SS03;" → "SS03" + P3 + "0000;", P3
+"0"-"9" then "A" (0-based); set "SS03X0000" as a `W …; 0` raw set.
+`SpectrumScopeColor` (`FTX1Core/RigState/`, Windows `Models/`) does the
+encoding; `RigCommand.setDisplayColor(Int)` (`"set_display_color"`, 0–10)
+and `RigState.displayColor`, read in the hub's slow tier, Pi direct's menu
+reads and Windows' SSB page read. A popover `Stepper` like D-CONTRAST on
+the Mac/iPad; a flyout stepper on Windows. Only the rig's display
+changes; the app's waterfall is audio-derived.
+
 ## Memory list (2026-10-06, rig-confirmed by the user the same day)
 
 A "Mem List" button under the Waterfall button (Mac `ContentView`) opens
