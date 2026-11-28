@@ -37,8 +37,8 @@ public class SpectrumScopeColorTests
     [Fact]
     public void Labels()
     {
-        Assert.Equal("COLOR-1", SpectrumScopeColor.Label(0));
-        Assert.Equal("COLOR-11", SpectrumScopeColor.Label(10));
+        Assert.Equal("1", SpectrumScopeColor.Label(0));
+        Assert.Equal("11", SpectrumScopeColor.Label(10));
         Assert.Equal("—", SpectrumScopeColor.Label(null));
         Assert.Equal("—", SpectrumScopeColor.Label(11));
     }

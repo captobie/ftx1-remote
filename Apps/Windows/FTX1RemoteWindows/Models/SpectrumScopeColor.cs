@@ -26,7 +26,7 @@ public static class SpectrumScopeColor
     public static string? SetCommand(int index) =>
         Code(index) is { } code ? $"SS03{code}0000" : null;
 
-    /// "COLOR-1"…"COLOR-11" (the rig's label, not localized), "—" when unknown.
+    /// "1"…"11", as the rig's own D-COLOR button shows it; "—" when unknown.
     public static string Label(int? index) =>
-        index is >= 0 and < Count ? $"COLOR-{index + 1}" : "—";
+        index is >= 0 and < Count ? $"{index + 1}" : "—";
 }

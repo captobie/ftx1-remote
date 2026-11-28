@@ -31,8 +31,8 @@ final class SpectrumScopeColorTests: XCTestCase {
     }
 
     func testLabels() {
-        XCTAssertEqual(SpectrumScopeColor.label(0), "COLOR-1")
-        XCTAssertEqual(SpectrumScopeColor.label(10), "COLOR-11")
+        XCTAssertEqual(SpectrumScopeColor.label(0), "1")
+        XCTAssertEqual(SpectrumScopeColor.label(10), "11")
         XCTAssertEqual(SpectrumScopeColor.label(nil), "—")
         XCTAssertEqual(SpectrumScopeColor.label(11), "—")
     }

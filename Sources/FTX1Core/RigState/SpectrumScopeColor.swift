@@ -33,9 +33,9 @@ public enum SpectrumScopeColor {
         return "SS03\(code)0000"
     }
 
-    /// "COLOR-1"…"COLOR-11" (the rig's own label, not localized), "—" when unknown.
+    /// "1"…"11", as the rig's own D-COLOR button shows it; "—" when unknown.
     public static func label(_ index: Int?) -> String {
         guard let index, (0..<count).contains(index) else { return "—" }
-        return "COLOR-\(index + 1)"
+        return "\(index + 1)"
     }
 }
