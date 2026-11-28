@@ -834,6 +834,7 @@ public final class PiDirectViewModel: ObservableObject {
         case .setNBLevel(let level): rigState.nbLevel = level
         case .setDNRLevel(let level): rigState.dnrLevel = level
         case .setAntSelect(let mode): rigState.antSelect = mode
+        case .setTXW(let on): rigState.txwEnabled = on
         case .setSquelchType(let mode): rigState.squelchType = mode
         case .setToneFreq(let index): rigState.ctcssToneIndex = index
         case .setDCSCode(let index): rigState.dcsCodeIndex = index
@@ -891,7 +892,7 @@ public final class PiDirectViewModel: ObservableObject {
              .setPreamp, .setTuner, .setDisplayContrast, .setDisplayDimmer, .setDisplayLevel,
              .setDisplayPeak, .setDisplayMarker, .setDisplayColor, .setMicGain, .setAMCLevel, .setVox, .setVoxGain,
              .setVoxDelay, .setDNF, .setAGC, .setMicEQ, .setProcLevel, .setNBLevel, .setDNRLevel,
-             .setAntSelect, .setSquelchType, .setToneFreq, .setDCSCode, .setRepeaterShift,
+             .setAntSelect, .setTXW, .setSquelchType, .setToneFreq, .setDCSCode, .setRepeaterShift,
              .setAPRSBeaconType, .setFMChannelStep, .setMenuItem:
             return true
         default:
@@ -1304,7 +1305,7 @@ public final class PiDirectViewModel: ObservableObject {
     /// slowTierSteps()` reads them (see its comments for each command's
     /// quirks). Not here because `refreshVFODetails` reads them already:
     /// "FR", "ST", "FT", "VM1"; not shown by the grid: the filter fields,
-    /// "TS", the CW MESSAGE status.
+    /// the CW MESSAGE status.
     private static let menuSettingReads: [MenuSettingRead] = [
         { if let v = try? await $0.getLevel("RFPOWER") { $1.powerLevel = v } },
         { if let v = try? await $0.getRawBool("BI") { $1.breakIn = v } },
@@ -1352,6 +1353,7 @@ public final class PiDirectViewModel: ObservableObject {
         // HF ANT SELECT, BEACON TYPE and FM CH STEP have no mnemonic of
         // their own: "EX" at fixed addresses.
         { if let v = (try? await $0.getMenuItem(p1: 3, p2: 7, p3: 4)).flatMap(Int.init) { $1.antSelect = v } },
+        { if let v = try? await $0.getRawBool("TS") { $1.txwEnabled = v } },
         { if let v = try? await $0.getRawDigit("CT0") { $1.squelchType = v } },
         { if let v = try? await $0.getRawInt("CN00") { $1.ctcssToneIndex = v } },
         { if let v = try? await $0.getRawInt("CN01") { $1.dcsCodeIndex = v } },

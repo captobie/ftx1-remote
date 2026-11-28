@@ -271,9 +271,7 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
             case SetVox c: await menu.SetVoxAsync(c.On); break;
             case SetVoxGain c: await menu.SetVoxGainAsync(c.Value); break;
             case SetVoxDelay c: await menu.SetVoxDelayAsync(c.Value); break;
-            // TXW is a disabled placeholder in both grids; the Mac sends
-            // the bare "TS", and so does this.
-            case SetTxw c: await client.SetRawBoolAsync("TS", c.On); break;
+            case SetTxw c: await menu.SetTxwAsync(c.On); break;
             // The window's SPLIT button (the Mac's RigCommand.setSplit). The
             // iPad doesn't send it yet.
             case SetSplit c: await host.SetSplitAsync(c.On); break;

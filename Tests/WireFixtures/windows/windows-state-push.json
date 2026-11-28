@@ -61,6 +61,7 @@
     "narrowWidthHz": 500,
     "filterSide": 1,
     "antSelect": 1,
+    "txwEnabled": false,
     "splitEnabled": false,
     "txSide": 0,
     "squelchType": 1,

@@ -118,7 +118,7 @@ public class HubWireTests
         Assert.False(state.TryGetProperty("aprsLastCallsign", out _));
         Assert.Equal("K6NA-7", state.GetProperty("aprsSubLastCallsign").GetString());
         Assert.False(state.TryGetProperty("cwMessageStatus", out _));
-        Assert.False(state.TryGetProperty("txwEnabled", out _));
+        Assert.False(state.GetProperty("txwEnabled").GetBoolean());
 
         // Decodes back to the same JSON, like the Swift fixtures.
         var again = HubWire.Serialize(HubWire.Deserialize(compact)!);
@@ -178,6 +178,7 @@ public class HubWireTests
         NbLevel = 3,
         DnrLevel = 4,
         AntSelect = 1,
+        TxwEnabled = false,
         MicGain = 50,
         AmcLevel = 30,
         VoxEnabled = false,

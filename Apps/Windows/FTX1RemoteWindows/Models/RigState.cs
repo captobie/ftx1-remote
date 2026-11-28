@@ -125,6 +125,8 @@ public sealed class RigState
     public int? DnrLevel { get; set; }
     /// "EX030704" HF ANT SELECT: 0 ANT1, 1 ANT2.
     public int? AntSelect { get; set; }
+    /// "TS" TXW, a bare 0/1 (no MAIN/SUB P1).
+    public bool? TxwEnabled { get; set; }
     /// "MG", 0-100.
     public int? MicGain { get; set; }
     /// "AO", 1-100.
