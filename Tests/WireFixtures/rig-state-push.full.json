@@ -25,6 +25,7 @@
     "cwSpeedWpm" : 18,
     "cwSpot" : false,
     "dcsCodeIndex" : 3,
+    "displayColor" : 10,
     "displayContrast" : 10,
     "displayDimmer" : 15,
     "displayLevel" : -5.5,

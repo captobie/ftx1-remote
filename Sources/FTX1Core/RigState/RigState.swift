@@ -101,6 +101,11 @@ public struct RigState: Codable, Equatable, Sendable {
     public var displayPeak: Int?
     /// Spectrum scope marker on/off — "SS"'s MARKER sub-function, P2=2.
     public var displayMarker: Bool?
+    /// Spectrum scope color scheme, 0-10 (COLOR-1…COLOR-11) — "SS"'s COLOR
+    /// sub-function, P2=3, whose P3 is one character "0"-"9" or "A"
+    /// (`RigctldClient.getSpectrumScopeColor()`). Only changes the rig's
+    /// own display.
+    public var displayColor: Int?
     /// Microphone gain, 0-100 (the FTX-1's raw "MG" CAT command).
     public var micGain: Int?
     /// AMC (Automatic Mic Compressor) output level, 1-100 (the FTX-1's raw
@@ -456,6 +461,7 @@ public struct RigState: Codable, Equatable, Sendable {
         displayLevel: Double? = nil,
         displayPeak: Int? = nil,
         displayMarker: Bool? = nil,
+        displayColor: Int? = nil,
         micGain: Int? = nil,
         amcLevel: Int? = nil,
         voxEnabled: Bool? = nil,
@@ -532,6 +538,7 @@ public struct RigState: Codable, Equatable, Sendable {
         self.displayLevel = displayLevel
         self.displayPeak = displayPeak
         self.displayMarker = displayMarker
+        self.displayColor = displayColor
         self.micGain = micGain
         self.amcLevel = amcLevel
         self.voxEnabled = voxEnabled

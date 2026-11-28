@@ -86,6 +86,7 @@ public struct MenuPageView<Controller: RigController>: View {
     @State private var showingBKDelayPopover = false
     @State private var showingMoniLevelPopover = false
     @State private var showingDisplayContrastPopover = false
+    @State private var showingDisplayColorPopover = false
     @State private var showingDisplayDimmerPopover = false
     @State private var showingDisplayLevelPopover = false
     @State private var showingRFPowerPopover = false
@@ -177,11 +178,10 @@ public struct MenuPageView<Controller: RigController>: View {
     /// setDisplayContrast`), button 7 is TFT backlight dimmer
     /// (`RigCommand.setDisplayDimmer`) — both popover `Stepper`s like CW
     /// SPEED/PITCH, sharing the FTX-1's raw "DA" command (see
-    /// `RigctldClient.getDisplaySettings()`). Button 5, D-COLOR, has no
-    /// known CAT command (checked the full manual, including the numbered
-    /// `EX` menu chart) — shown visible-but-disabled via
-    /// `disabledPlaceholderButton` rather than a plain numbered placeholder,
-    /// so its real label is on the grid even though it's not wired yet.
+    /// `RigctldClient.getDisplaySettings()`). Button 5, D-COLOR, is the
+    /// rig's scope color scheme (`RigCommand.setDisplayColor`, popover
+    /// `Stepper` COLOR-1…COLOR-11, "SS"'s COLOR sub-function, P2=3 — see
+    /// `SpectrumScopeColor`).
     /// SSB button 8 is MOX (`RigCommand.setMox`), button 9 is the RF
     /// attenuator (`RigCommand.setAtt`), button 10 is the HF/50 preamp/IPO
     /// selector (`RigCommand.setPreamp`, cycling IPO/AMP1/AMP2 per tap),
@@ -263,7 +263,7 @@ public struct MenuPageView<Controller: RigController>: View {
     /// `hiddenCWItems` (3-7, 15-18, 23-27) have
     /// no rig function at all on this page and render invisibly — see
     /// `hiddenButtonPlaceholder`. FM/C4FM buttons 8-10 (DG-ID TX, DG-ID RX,
-    /// HRI MODE) are visible-but-disabled like SSB's D-COLOR/TXW — unlike
+    /// HRI MODE) are visible-but-disabled like SSB's TXW — unlike
     /// every other menu item wired so far, these have **no CAT command
     /// documented anywhere**: not the alphabetical command list, not
     /// Table 3's MENU chart (RADIO SETTING's DIGITAL tab only has DIGITAL
@@ -378,7 +378,7 @@ public struct MenuPageView<Controller: RigController>: View {
                 twoLineLabel(top: "D-MARKER", bottom: (hub.rigState.displayMarker ?? false) ? "ON" : "OFF")
             }
         } else if selectedPage == .ssb, item == 5 {
-            disabledPlaceholderButton(top: "D-COLOR")
+            displayColorButton
         } else if selectedPage == .ssb, item == 6 {
             displayContrastButton
         } else if selectedPage == .ssb, item == 7 {
@@ -724,6 +724,31 @@ public struct MenuPageView<Controller: RigController>: View {
                     set: { hub.send(.setDisplayContrast($0)) }
                 ),
                 in: 0...20
+            )
+            .padding()
+            .frame(width: 180)
+        }
+    }
+
+    /// SSB button 5, D-COLOR (the rig's own scope color scheme,
+    /// COLOR-1…COLOR-11) — popover `Stepper` like D-CONTRAST, since 11
+    /// choices is too many to tap through. Maps to "SS"'s COLOR
+    /// sub-function (P2=3, `SpectrumScopeColor`). Changes only the rig's
+    /// display; the app's waterfall is audio-derived.
+    private var displayColorButton: some View {
+        menuButtonShell {
+            showingDisplayColorPopover = true
+        } label: {
+            twoLineLabel(top: "D-COLOR", bottom: SpectrumScopeColor.label(hub.rigState.displayColor))
+        }
+        .popover(isPresented: $showingDisplayColorPopover) {
+            Stepper(
+                SpectrumScopeColor.label(hub.rigState.displayColor ?? 0),
+                value: Binding(
+                    get: { hub.rigState.displayColor ?? 0 },
+                    set: { hub.send(.setDisplayColor($0)) }
+                ),
+                in: 0...(SpectrumScopeColor.count - 1)
             )
             .padding()
             .frame(width: 180)
@@ -1406,7 +1431,7 @@ public struct MenuPageView<Controller: RigController>: View {
 
     /// Visible-but-disabled placeholder for a button whose rig label is
     /// known but which isn't wired to a CAT command yet (either because none
-    /// exists, like SSB's D-COLOR, or because it's deprioritized, like CW
+    /// exists, like FM's DG-ID, or because it's deprioritized, like CW
     /// MESSAGE/PLAY/RECORD and TXW above) — shows the real name instead of a
     /// plain numbered placeholder, without implying it's tappable.
     private func disabledPlaceholderButton(top: String) -> some View {

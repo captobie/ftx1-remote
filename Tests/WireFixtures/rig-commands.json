@@ -117,6 +117,10 @@
     "value" : true
   },
   {
+    "cmd" : "set_display_color",
+    "value" : 10
+  },
+  {
     "cmd" : "set_mic_gain",
     "value" : 50
   },

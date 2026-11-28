@@ -108,6 +108,7 @@ public sealed record SetDisplayDimmer(int Value) : IntCommand(Value) { public ov
 public sealed record SetDisplayLevel(double Value) : DoubleCommand(Value) { public override string Name => "set_display_level"; }
 public sealed record SetDisplayPeak(int Value) : IntCommand(Value) { public override string Name => "set_display_peak"; }
 public sealed record SetDisplayMarker(bool On) : BoolCommand(On) { public override string Name => "set_display_marker"; }
+public sealed record SetDisplayColor(int Value) : IntCommand(Value) { public override string Name => "set_display_color"; }
 public sealed record SetMicGain(int Value) : IntCommand(Value) { public override string Name => "set_mic_gain"; }
 public sealed record SetAmcLevel(int Value) : IntCommand(Value) { public override string Name => "set_amc_level"; }
 public sealed record SetVox(bool On) : BoolCommand(On) { public override string Name => "set_vox"; }
@@ -273,6 +274,7 @@ public static class RigCommandWire
         Double("set_display_level", d => new SetDisplayLevel(d));
         Int("set_display_peak", i => new SetDisplayPeak(i));
         Bool("set_display_marker", b => new SetDisplayMarker(b));
+        Int("set_display_color", i => new SetDisplayColor(i));
         Int("set_mic_gain", i => new SetMicGain(i));
         Int("set_amc_level", i => new SetAmcLevel(i));
         Bool("set_vox", b => new SetVox(b));

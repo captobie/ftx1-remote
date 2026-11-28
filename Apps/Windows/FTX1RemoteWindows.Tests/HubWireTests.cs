@@ -164,6 +164,7 @@ public class HubWireTests
         DisplayLevel = -5.5,
         DisplayPeak = 2,
         DisplayMarker = true,
+        DisplayColor = 10,
         DisplayContrast = 10,
         DisplayDimmer = 15,
         MoxEnabled = false,

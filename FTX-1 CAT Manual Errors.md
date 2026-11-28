@@ -48,10 +48,10 @@ None of these are errors in what the manual says. They are things the radio does
 | `BP1` (Sub notch frequency) | In a mode without a notch, Sub can answer a non-numeric value such as `F35` | 2026-09-19 |
 | USB audio | Stereo in dual receive: Main on the left channel, Sub on the right. The channels stay with the physical receiver across a front-panel swap. An `SV` swap moves them in dual receive but not in single receive. | 2026-09-18/19 |
 | `RM` meters | Raw 0–255 with no calibration to S-units, dB, amps or volts | Sept 2026 |
+| `SS03` D-COLOR | Listed here as "no CAT command" until 2026-11-27, but the manual documents it on the `SS` page (P2=3, P3 `0`–`9`/`A` = COLOR-1…11). Read on the rig: `SS0300000;` = COLOR-1, as documented. COLOR-11 = `A` not yet read back. | 2026-11-27 |
 
 **No CAT command at all**, checked against the full CAT manual, Table 3, the WIRES-X Edition manual and hamlib's Yaesu backend:
 
-- D-COLOR (SSB MENU page)
 - DG-ID TX, DG-ID RX, HRI MODE (FM/C4FM MENU page)
 - HOME channels: they can't be read or recalled, so the app keeps its own copy
 - MAG, Memory Auto Grouping

@@ -96,6 +96,7 @@ public static class HubCommandPolicy
         SetDisplayDimmer c => Range(c.Value, 0, 20),
         SetDisplayLevel { Value: < -30 or > 30 } => "display level must be -30 to +30 dB",
         SetDisplayPeak c => Range(c.Value, 0, 4),
+        SetDisplayColor c => Range(c.Value, 0, SpectrumScopeColor.Count - 1),
         SetMicGain c => Range(c.Value, 0, 100),
         SetAmcLevel c => Range(c.Value, 1, 100),
         SetVoxGain c => Range(c.Value, 0, 100),

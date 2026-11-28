@@ -121,6 +121,9 @@ public enum RigCommand: Sendable, Equatable {
     /// Spectrum scope marker on/off — see `RigState.displayMarker`. Maps to
     /// "SS"'s MARKER sub-function (P2=2).
     case setDisplayMarker(Bool)
+    /// Spectrum scope color scheme, 0-10 (COLOR-1…COLOR-11) — see
+    /// `RigState.displayColor`. Maps to "SS"'s COLOR sub-function (P2=3).
+    case setDisplayColor(Int)
     /// Microphone gain, 0-100 — see `RigState.micGain`. Maps to the FTX-1's
     /// raw "MG" CAT command.
     case setMicGain(Int)
@@ -377,6 +380,7 @@ public enum RigCommand: Sendable, Equatable {
         case setDisplayLevel = "set_display_level"
         case setDisplayPeak = "set_display_peak"
         case setDisplayMarker = "set_display_marker"
+        case setDisplayColor = "set_display_color"
         case setMicGain = "set_mic_gain"
         case setAMCLevel = "set_amc_level"
         case setVox = "set_vox"
@@ -493,6 +497,8 @@ extension RigCommand: Codable {
             self = .setDisplayPeak(try container.decode(Int.self, forKey: .value))
         case .setDisplayMarker:
             self = .setDisplayMarker(try container.decode(Bool.self, forKey: .value))
+        case .setDisplayColor:
+            self = .setDisplayColor(try container.decode(Int.self, forKey: .value))
         case .setMicGain:
             self = .setMicGain(try container.decode(Int.self, forKey: .value))
         case .setAMCLevel:
@@ -675,6 +681,9 @@ extension RigCommand: Codable {
         case .setDisplayMarker(let on):
             try container.encode(CommandName.setDisplayMarker, forKey: .cmd)
             try container.encode(on, forKey: .value)
+        case .setDisplayColor(let value):
+            try container.encode(CommandName.setDisplayColor, forKey: .cmd)
+            try container.encode(value, forKey: .value)
         case .setMicGain(let value):
             try container.encode(CommandName.setMicGain, forKey: .cmd)
             try container.encode(value, forKey: .value)

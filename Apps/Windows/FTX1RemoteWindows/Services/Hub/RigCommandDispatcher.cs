@@ -251,6 +251,7 @@ public sealed class RigCommandDispatcher(IHubRigHost host)
             case SetDisplayLevel c: await menu.SetDisplayLevelAsync(c.Value); break;
             case SetDisplayPeak c: await menu.SetDisplayPeakAsync(c.Value); break;
             case SetDisplayMarker c: await menu.SetDisplayMarkerAsync(c.On); break;
+            case SetDisplayColor c: await menu.SetDisplayColorAsync(c.Value); break;
             case SetDisplayContrast c: await menu.SetDisplayContrastAsync(c.Value); break;
             case SetDisplayDimmer c: await menu.SetDisplayDimmerAsync(c.Value); break;
             case SetMox c: await menu.SetMoxAsync(c.On); break;
