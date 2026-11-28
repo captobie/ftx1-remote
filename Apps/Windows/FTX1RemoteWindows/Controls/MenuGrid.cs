@@ -222,6 +222,7 @@ public sealed class MenuGrid : UserControl
         _state.NbLevel = null;
         _state.DnrLevel = null;
         _state.AntSelect = null;
+        _state.TxwEnabled = null;
         _state.MicGain = null;
         _state.AmcLevel = null;
         _state.VoxEnabled = null;
@@ -329,8 +330,7 @@ public sealed class MenuGrid : UserControl
         AddCycle(20, "ANT", () => _state.AntSelect switch { 0 => "ANT1", 1 => "ANT2", _ => "—" },
             () => _ = SetAntSelectAsync(((_state.AntSelect ?? 0) + 1) % 2));
 
-        // Works ("TS"), but disabled on the Mac too: nobody knows what it's for.
-        AddDisabled(21, "TXW");
+        AddToggle(21, "TXW", () => _state.TxwEnabled, on => _ = SetTxwAsync(on));
 
         AddRfPower(22);
 
@@ -583,6 +583,10 @@ public sealed class MenuGrid : UserControl
     // No mnemonic: Table 3's HF ANT SELECT through "EX" 03/07/04.
     public Task SetAntSelectAsync(int antenna) =>
         SendAsync("ANT", () => _state.AntSelect = antenna, c => c.SetMenuItemAsync(3, 7, 4, antenna.ToString()));
+
+    // "TS" is a bare 0/1, no MAIN/SUB P1.
+    public Task SetTxwAsync(bool on) =>
+        SendAsync("TXW", () => _state.TxwEnabled = on, c => c.SetRawBoolAsync("TS", on));
 
     public Task SetMicGainAsync(int value) =>
         SendAsync("MIC GAIN", () => _state.MicGain = value, c => c.SetRawIntAsync("MG", value, 3));
@@ -874,6 +878,7 @@ public sealed class MenuGrid : UserControl
         var nbLevel = await ReadOrNull(() => client.GetRawIntAsync("NL0"));
         var dnrLevel = await ReadOrNull(() => client.GetRawIntAsync("RL0"));
         var antSelectRaw = await ReadStringOrNull(() => client.GetMenuItemAsync(3, 7, 4));
+        var txw = await ReadOrNull(() => client.GetRawBoolAsync("TS"));
         var micGain = await ReadOrNull(() => client.GetRawIntAsync("MG"));
         var amcLevel = await ReadOrNull(() => client.GetRawIntAsync("AO"));
         var vox = await ReadOrNull(() => client.GetRawBoolAsync("VX"));
@@ -899,6 +904,7 @@ public sealed class MenuGrid : UserControl
             _state.NbLevel = nbLevel ?? _state.NbLevel;
             _state.DnrLevel = dnrLevel ?? _state.DnrLevel;
             _state.AntSelect = int.TryParse(antSelectRaw, out var ant) ? ant : _state.AntSelect;
+            _state.TxwEnabled = txw ?? _state.TxwEnabled;
             _state.MicGain = micGain ?? _state.MicGain;
             _state.AmcLevel = amcLevel ?? _state.AmcLevel;
             _state.VoxEnabled = vox ?? _state.VoxEnabled;

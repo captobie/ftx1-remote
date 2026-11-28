@@ -222,7 +222,7 @@ public static class HubWire
 /// Models/RigState (+ <see cref="HubStateExtras"/>) → the wire. A field this
 /// app has no value for is left out rather than guessed: `cwMessageStatus`
 /// (the CW page's PLAY/RECORD are the app's own recorder, not the rig's
-/// "RI" P3) and `txwEnabled` (not read here) are never sent.
+/// "RI" P3) is never sent.
 public static class RigStateWireMapper
 {
     public static RigStatePushWire Push(RigState s, HubStateExtras x) => new() { State = From(s, x) };
@@ -293,6 +293,7 @@ public static class RigStateWireMapper
             NarrowWidthHz = s.NarrowWidthHz,
             FilterSide = (int)s.FilterSide,
             AntSelect = s.AntSelect,
+            TxwEnabled = s.TxwEnabled,
             SplitEnabled = x.SplitEnabled,
             TxSide = x.TxSideSub is { } sub ? (sub ? 1 : 0) : null,
             SquelchType = s.SquelchType,

@@ -3498,6 +3498,8 @@ raspberrypi), unlike the WebSDR window, which embeds the page. Tools →
 - **Later, not started**: Sub following. (FT8/FT4 from MyKiwiSDR:
   see "Digital modes — FT8".)
 
+## TXW (MENU grid SSB 21, 2026-11-27; enabled — "TS" was wired and rig-confirmed 2026-08-29 but shown disabled; now a toggle on Mac/iPad (both routes, Pi direct reads it with the menu settings) and Windows (grid toggle, SSB-page read, hub push + dispatch through MenuGrid). Not re-tested on the rig; Windows not built.)
+
 ## D-COLOR (MENU grid SSB 5, 2026-11-27; unit-tested and Simulator-rig tested, the read seen on the real rig; set not yet tried on the rig, Windows not built)
 
 The rig's own scope color scheme, COLOR-1…COLOR-11 — "SS"'s COLOR

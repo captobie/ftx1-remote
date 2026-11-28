@@ -224,11 +224,9 @@ public struct MenuPageView<Controller: RigController>: View {
     /// needs — `HubService`'s regular poll loop reads it like every other
     /// field here. Button 21 is TXW (`RigCommand.setTXW`, raw "TS"
     /// command — unlike most booleans here, "TS" has no MAIN/SUB P1
-    /// selector at all, just a bare digit) — hardware-confirmed working,
-    /// but visible-but-disabled via `disabledTXWButton` since the user
-    /// doesn't know what it does or use it, same deprioritized treatment as
-    /// CW MESSAGE/PLAY/RECORD below. NB/DNR/ANT are hardware-confirmed
-    /// working too.
+    /// selector at all, just a bare digit) — a single-tap toggle like
+    /// D-MARKER (hardware-confirmed 2026-08-29; shown disabled until
+    /// 2026-11-27). NB/DNR/ANT are hardware-confirmed working too.
     /// Button 23 is mic gain (`RigCommand.setMicGain`, popover `Stepper` like CW
     /// SPEED/PITCH, mapping to the FTX-1's raw "MG" command, 0-100), button
     /// 24 is AMC level (`RigCommand.setAMCLevel`, same popover-`Stepper`
@@ -263,7 +261,7 @@ public struct MenuPageView<Controller: RigController>: View {
     /// `hiddenCWItems` (3-7, 15-18, 23-27) have
     /// no rig function at all on this page and render invisibly — see
     /// `hiddenButtonPlaceholder`. FM/C4FM buttons 8-10 (DG-ID TX, DG-ID RX,
-    /// HRI MODE) are visible-but-disabled like SSB's TXW — unlike
+    /// HRI MODE) are visible-but-disabled like CW's MESSAGE — unlike
     /// every other menu item wired so far, these have **no CAT command
     /// documented anywhere**: not the alphabetical command list, not
     /// Table 3's MENU chart (RADIO SETTING's DIGITAL tab only has DIGITAL
@@ -446,7 +444,11 @@ public struct MenuPageView<Controller: RigController>: View {
                 twoLineLabel(top: "ANT", bottom: Self.antSelectLabel(hub.rigState.antSelect))
             }
         } else if selectedPage == .ssb, item == 21 {
-            disabledTXWButton
+            menuButtonShell {
+                hub.send(.setTXW(!(hub.rigState.txwEnabled ?? false)))
+            } label: {
+                twoLineLabel(top: "TXW", bottom: (hub.rigState.txwEnabled ?? false) ? "ON" : "OFF")
+            }
         } else if selectedPage == .ssb, item == 23 {
             micGainButton
         } else if selectedPage == .ssb, item == 24 {
@@ -1416,23 +1418,10 @@ public struct MenuPageView<Controller: RigController>: View {
         }
     }
 
-    /// SSB button 21, TXW. Wired end-to-end (`RigCommand.setTXW`, raw "TS"
-    /// CAT command) and confirmed it *works* against real hardware — but
-    /// the user doesn't know what TXW actually does or use it, so rather
-    /// than surface a live toggle for a function that's a mystery in
-    /// practice, this is deprioritized the same way CW MESSAGE/PLAY/RECORD
-    /// are above: visible-but-disabled, plumbing left in place
-    /// (`RigState.txwEnabled`, `CommandQueue`, `HubService`'s optimistic-
-    /// apply + poll) so it's ready to reconnect if a future need for it
-    /// turns up.
-    private var disabledTXWButton: some View {
-        disabledPlaceholderButton(top: "TXW")
-    }
-
     /// Visible-but-disabled placeholder for a button whose rig label is
     /// known but which isn't wired to a CAT command yet (either because none
     /// exists, like FM's DG-ID, or because it's deprioritized, like CW
-    /// MESSAGE/PLAY/RECORD and TXW above) — shows the real name instead of a
+    /// MESSAGE/PLAY/RECORD above) — shows the real name instead of a
     /// plain numbered placeholder, without implying it's tappable.
     private func disabledPlaceholderButton(top: String) -> some View {
         menuButtonShell {
